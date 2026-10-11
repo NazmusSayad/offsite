@@ -37,8 +37,8 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { EmptyState } from '@/empty-state'
+import type { Progress } from '@/engine'
 import { FindBar } from '@/find-bar'
-import type { Progress } from '@/ghostty/terminal'
 import { cn } from '@/lib/utils'
 import { FolderDialog, RenameDialog } from '@/prompt-dialogs'
 import {

@@ -4,8 +4,13 @@ import {
   type Platform,
   terminalOptions,
 } from './config'
+import type {
+  EngineConstructor,
+  EngineTerminal,
+  FindResults,
+  Progress,
+} from './engine'
 import { updateFavicon } from './favicon'
-import { type FindResults, type Progress, Terminal } from './ghostty/terminal'
 import { themeColors } from './themes'
 
 type Tab = { id: number; customName: string | null }
@@ -62,14 +67,22 @@ export const clientId =
 sessionStorage.setItem('clientId', clientId)
 
 const encoder = new TextEncoder()
-const sessions = new Map<number, Terminal>()
+const sessions = new Map<number, EngineTerminal>()
 const listeners = new Set<() => void>()
+let Terminal: EngineConstructor
 let state: State
 let socket: WebSocket
 let hiddenAt = 0
-let instance: string | null = null
+let instance: string
 
-export function start(config: Config, platform: Platform) {
+export function start(
+  config: Config,
+  platform: Platform,
+  engine: EngineConstructor,
+  loadedInstance: string
+) {
+  Terminal = engine
+  instance = loadedInstance
   state = {
     status: 'connecting',
     layout: { groups: [], activeGroup: null, nextId: 0 },
@@ -93,6 +106,12 @@ export function start(config: Config, platform: Platform) {
       socket = connect()
     }
   })
+}
+
+export async function loadInstance() {
+  const response = await fetch('/api/instance', { cache: 'no-store' })
+  if (!response.ok) throw new Error(await response.text())
+  return (await response.json()) as string
 }
 
 export function subscribe(listener: () => void) {
@@ -229,11 +248,10 @@ function handle(message: Message) {
     return
   }
   if (message.type === 'active') {
-    if (instance !== null && message.instance !== instance) {
+    if (message.instance !== instance) {
       location.reload()
       return
     }
-    instance = message.instance
     for (const terminal of sessions.values()) terminal.reset()
   }
   sync(message.layout)
@@ -336,7 +354,7 @@ function createSession(id: number) {
   return terminal
 }
 
-async function pasteImages(terminal: Terminal, images: File[]) {
+async function pasteImages(terminal: EngineTerminal, images: File[]) {
   const paths: string[] = []
   for (const image of images) {
     const response = await fetch('/api/paste', {
@@ -360,7 +378,7 @@ function applyCtrl(data: string) {
   return data
 }
 
-function reportSize(id: number, terminal: Terminal) {
+function reportSize(id: number, terminal: EngineTerminal) {
   send({ type: 'resize', id, cols: terminal.cols, rows: terminal.rows })
 }
 
