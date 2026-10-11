@@ -2,7 +2,6 @@ use std::{
     fs::{self, OpenOptions},
     io, process,
     sync::Mutex,
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use tracing_subscriber::{
@@ -14,18 +13,9 @@ use tracing_subscriber::{
 
 use crate::utils::paths;
 
-pub fn run_id() -> String {
-    let started = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system clock is after 1970")
-        .as_millis();
-    format!("{started}-{}", process::id())
-}
-
-pub fn init(file_name: &str, debug: bool, console: bool) {
-    let directory = paths::logs_directory();
-    fs::create_dir_all(&directory).expect("could not create the log directory");
-    let path = directory.join(file_name);
+pub fn init(debug: bool) {
+    fs::create_dir_all(paths::session_directory()).expect("could not create the session folder");
+    let path = paths::log_file();
     let file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -39,12 +29,10 @@ pub fn init(file_name: &str, debug: bool, console: bool) {
         .with_ansi(false)
         .with_line_number(true)
         .with_writer(Mutex::new(file));
-    let console_layer = console.then(|| {
-        fmt::layer()
-            .without_time()
-            .with_target(false)
-            .with_writer(io::stderr)
-    });
+    let console_layer = fmt::layer()
+        .without_time()
+        .with_target(false)
+        .with_writer(io::stderr);
     tracing_subscriber::registry()
         .with(
             Targets::new()

@@ -40,8 +40,10 @@ export function RenameDialog(props: {
           onSubmit={(event) => {
             event.preventDefault()
             const trimmed = name.trim()
-            if (props.target === 'tab' || trimmed)
-              send({ type: 'rename', id: props.id, name: trimmed })
+            if (props.target === 'tab')
+              send({ type: 'renameTab', id: props.id, name: trimmed })
+            if (props.target === 'group' && trimmed)
+              send({ type: 'renameGroup', id: props.id, name: trimmed })
             props.onDone()
           }}
         >
