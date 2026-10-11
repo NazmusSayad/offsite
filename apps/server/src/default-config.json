@@ -34,7 +34,6 @@
     "name": "one-dark-darker",
     "boldIsBright": true
   },
-  "engine": "ghostty",
   "behavior": {
     "shiftEnterNewline": true,
     "showGitBranch": true,

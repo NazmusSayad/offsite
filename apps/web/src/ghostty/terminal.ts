@@ -1,12 +1,6 @@
-import type {
-  EngineTerminal,
-  FindResults,
-  Progress,
-  TerminalHandlers,
-  TerminalOptions,
-} from '../engine'
 import {
   type Color,
+  type CursorStyle,
   GhosttyCore,
   type Point,
   type Row,
@@ -23,6 +17,43 @@ import {
   type Range,
   render,
 } from './renderer'
+
+export type TerminalColors = {
+  background: string
+  foreground: string
+  cursor: string
+  cursorText: string
+  selectionBackground: string
+  selectionForeground: string
+  palette: string[]
+}
+
+export type TerminalOptions = {
+  fontFamily: string
+  fontSize: number
+  lineHeight: number
+  ligatures: boolean
+  cursorStyle: CursorStyle
+  cursorBlink: boolean
+  scrollback: number
+  boldIsBright: boolean
+  colors: TerminalColors
+}
+
+export type TerminalHandlers = {
+  onData: (data: string) => void
+  onReply: (data: string) => void
+  onResize: (cols: number, rows: number) => void
+  onTitle: (title: string) => void
+  onProgress: (progress: Progress) => void
+  onClipboard: (text: string) => void
+  onLink: (uri: string, event: MouseEvent) => void
+  beforeKey: (event: KeyboardEvent) => boolean
+}
+
+export type Progress = { state: number; value: number }
+
+export type FindResults = { resultIndex: number; resultCount: number }
 
 type Link = { uri: string; range: Range }
 
@@ -106,7 +137,7 @@ function occurrences(text: string, query: string) {
   return found
 }
 
-export class Terminal implements EngineTerminal {
+export class Terminal {
   readonly element: HTMLDivElement
   cols = 80
   rows = 24

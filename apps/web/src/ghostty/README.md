@@ -1,6 +1,6 @@
 # Ghostty terminal
 
-This folder is the Ghostty terminal engine, the default. The other engine is xterm.js in `../xterm/`. Both follow the contract in `../engine.ts`, and the "Terminal engine" setting picks one. This folder follows [T3 Code](https://github.com/pingdotgg/t3code)'s web terminal (`apps/web/src/terminal/ghostty/`): [libghostty-vt](https://github.com/ghostty-org/ghostty) compiled to WebAssembly handles the terminal emulation, and our own code draws on a canvas and reads input.
+This folder is the web app's terminal. It follows [T3 Code](https://github.com/pingdotgg/t3code)'s web terminal (`apps/web/src/terminal/ghostty/`): [libghostty-vt](https://github.com/ghostty-org/ghostty) compiled to WebAssembly handles the terminal emulation, and our own code draws on a canvas and reads input.
 
 T3 Code is the reference. When their terminal gets a fix, we port it here instead of finding every edge case ourselves.
 

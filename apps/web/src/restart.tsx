@@ -23,7 +23,7 @@ async function currentInstance() {
   }
 }
 
-export async function restart(scope: Scope) {
+async function restart(scope: Scope) {
   const response = await fetch(`/api/restart/${scope}`, { method: 'POST' })
   if (!response.ok) throw new Error(await response.text())
   const previous = (await response.json()) as string
