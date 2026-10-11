@@ -1,6 +1,6 @@
 use std::{
     collections::VecDeque,
-    fs,
+    fs::{self, File},
     io::{Read, Write},
     path::{Path, PathBuf},
     sync::{Arc, mpsc},
@@ -13,7 +13,7 @@ use portable_pty::{ChildKiller, CommandBuilder, MasterPty, PtySize, native_pty_s
 use super::app::App;
 use crate::utils::process::current_directory;
 
-const HISTORY_LIMIT: usize = 2 * 1024 * 1024;
+pub(super) const HISTORY_LIMIT: usize = 2 * 1024 * 1024;
 
 pub(super) struct Terminal {
     history: VecDeque<u8>,
@@ -96,7 +96,7 @@ pub(super) fn open(
         ?cwd,
         "terminal started"
     );
-    let terminal = Terminal {
+    let mut terminal = Terminal {
         history: VecDeque::new(),
         master: pair.master,
         killer: child.clone_killer(),
@@ -104,43 +104,54 @@ pub(super) fn open(
         input,
         branch: None,
     };
-    thread::spawn(move || {
-        for bytes in inputs {
-            if let Err(error) = writer.write_all(&bytes) {
-                tracing::error!(
-                    id,
-                    "could not write input to terminal, input stops here: {error}"
-                );
-                break;
-            }
-        }
-        tracing::info!(id, "input writer stopped");
-    });
     let reading = app.clone();
-    thread::spawn(move || {
-        let mut chunk = vec![0; 64 * 1024];
-        loop {
-            match reader.read(&mut chunk) {
-                Ok(0) => {
-                    tracing::info!(id, "terminal output ended");
-                    break;
-                }
-                Err(error) => {
-                    tracing::info!(id, "terminal output ended: {error}");
-                    break;
-                }
-                Ok(length) => reading.output(id, &chunk[..length]),
-            }
-        }
-    });
     let waiting = app.clone();
-    thread::spawn(move || {
-        match child.wait() {
-            Ok(status) => tracing::info!(id, ?status, "terminal process exited"),
-            Err(error) => tracing::error!(id, "could not wait for terminal process: {error}"),
-        }
-        waiting.exited(id);
-    });
+    let started = thread::Builder::new()
+        .spawn(move || {
+            for bytes in inputs {
+                if let Err(error) = writer.write_all(&bytes) {
+                    tracing::error!(
+                        id,
+                        "could not write input to terminal, input stops here: {error}"
+                    );
+                    break;
+                }
+            }
+            tracing::info!(id, "input writer stopped");
+        })
+        .and_then(|_| {
+            thread::Builder::new().spawn(move || {
+                let mut chunk = vec![0; 64 * 1024];
+                loop {
+                    match reader.read(&mut chunk) {
+                        Ok(0) => {
+                            tracing::info!(id, "terminal output ended");
+                            break;
+                        }
+                        Err(error) => {
+                            tracing::info!(id, "terminal output ended: {error}");
+                            break;
+                        }
+                        Ok(length) => reading.output(id, &chunk[..length]),
+                    }
+                }
+            })
+        })
+        .and_then(|_| {
+            thread::Builder::new().spawn(move || {
+                match child.wait() {
+                    Ok(status) => tracing::info!(id, ?status, "terminal process exited"),
+                    Err(error) => {
+                        tracing::error!(id, "could not wait for terminal process: {error}")
+                    }
+                }
+                waiting.exited(id);
+            })
+        });
+    if let Err(error) = started {
+        terminal.kill(id);
+        return Err(format!("could not start the terminal's threads: {error}"));
+    }
     Ok(terminal)
 }
 
@@ -163,17 +174,30 @@ fn git_branch(directory: &Path) -> Option<String> {
         .find(|git| git.exists())?;
     let git = match git.is_file() {
         true => {
-            let text = fs::read_to_string(&git).ok()?;
+            let text = read_small_file(&git)?;
             git.parent()?.join(text.strip_prefix("gitdir:")?.trim())
         }
         false => git,
     };
-    let head = fs::read_to_string(git.join("HEAD")).ok()?;
+    let head = read_small_file(&git.join("HEAD"))?;
     let head = head.trim();
     match head.strip_prefix("ref: refs/heads/") {
         Some(branch) => Some(branch.to_string()),
         None => head.get(..7).map(str::to_string),
     }
+}
+
+fn read_small_file(path: &Path) -> Option<String> {
+    if !fs::metadata(path).ok()?.is_file() {
+        return None;
+    }
+    let mut text = String::new();
+    File::open(path)
+        .ok()?
+        .take(4096)
+        .read_to_string(&mut text)
+        .ok()?;
+    Some(text)
 }
 
 fn pty_size(cols: u16, rows: u16) -> PtySize {

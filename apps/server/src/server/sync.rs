@@ -132,7 +132,7 @@ fn running_server(directory: &Path) -> Option<SocketAddr> {
             return None;
         }
     };
-    match lock.try_lock() {
+    match lock.try_lock_shared() {
         Ok(()) => return None,
         Err(TryLockError::WouldBlock) => {}
         Err(TryLockError::Error(error)) => {

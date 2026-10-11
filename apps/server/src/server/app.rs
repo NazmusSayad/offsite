@@ -1,8 +1,8 @@
 use std::{
     collections::HashMap,
     sync::{
-        Arc, Mutex,
-        atomic::{AtomicU64, Ordering},
+        Arc, Mutex, MutexGuard, PoisonError,
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
 };
 
@@ -13,14 +13,16 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tokio::sync::mpsc;
+use tokio::sync::{Notify, mpsc};
 
 use super::{
     groups::{self, Group, Groups, unused_name},
     logos, sync,
-    terminals::{self, Terminal},
+    terminals::{self, HISTORY_LIMIT, Terminal},
 };
 use crate::{config, utils::paths};
+
+const BACKLOG_LIMIT: usize = 16 * 1024 * 1024;
 
 #[derive(Debug, Deserialize)]
 #[serde(
@@ -43,10 +45,17 @@ enum Request {
     Resize { id: u64, cols: u16, rows: u16 },
 }
 
+#[derive(Clone)]
+struct Outbox {
+    sender: mpsc::UnboundedSender<Message>,
+    queued: Arc<AtomicUsize>,
+    too_slow: Arc<Notify>,
+}
+
 struct Client {
     connection: u64,
     client_id: String,
-    sender: mpsc::UnboundedSender<Message>,
+    outbox: Outbox,
 }
 
 #[derive(Serialize)]
@@ -99,26 +108,43 @@ pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
     tracing::info!(connection, "browser connected");
     let (mut sink, mut stream) = socket.split();
     let (sender, mut receiver) = mpsc::unbounded_channel();
+    let outbox = Outbox {
+        sender,
+        queued: Arc::new(AtomicUsize::new(0)),
+        too_slow: Arc::new(Notify::new()),
+    };
+    let queued = outbox.queued.clone();
     let forwarding = tokio::spawn(async move {
         while let Some(message) = receiver.recv().await {
-            if sink.send(message).await.is_err() {
+            let size = message_size(&message);
+            let sent = sink.send(message).await;
+            queued.fetch_sub(size, Ordering::Relaxed);
+            if sent.is_err() {
                 break;
             }
         }
     });
-    while let Some(Ok(message)) = stream.next().await {
+    loop {
+        let message = tokio::select! {
+            message = stream.next() => message,
+            () = outbox.too_slow.notified() => {
+                tracing::warn!(connection, "browser is not reading fast enough, disconnecting it");
+                break;
+            }
+        };
         match message {
-            Message::Text(text) => match serde_json::from_str(&text) {
-                Ok(request) => app.request(connection, &sender, request),
+            Some(Ok(Message::Text(text))) => match serde_json::from_str(&text) {
+                Ok(request) => app.request(connection, &outbox, request),
                 Err(error) => tracing::warn!(connection, "invalid request: {error}"),
             },
-            Message::Binary(bytes) => app.input(connection, &bytes),
-            Message::Ping(_) | Message::Pong(_) | Message::Close(_) => {}
+            Some(Ok(Message::Binary(bytes))) => app.input(connection, &bytes),
+            Some(Ok(Message::Ping(_) | Message::Pong(_) | Message::Close(_))) => {}
+            Some(Err(_)) | None => break,
         }
     }
     forwarding.abort();
     tracing::info!(connection, "browser disconnected");
-    let mut inner = app.inner.lock().unwrap();
+    let mut inner = app.lock();
     if inner
         .active
         .as_ref()
@@ -129,13 +155,12 @@ pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
 }
 
 impl App {
-    fn request(
-        self: &Arc<Self>,
-        connection: u64,
-        sender: &mpsc::UnboundedSender<Message>,
-        request: Request,
-    ) {
-        let mut guard = self.inner.lock().unwrap();
+    fn lock(&self) -> MutexGuard<'_, Inner> {
+        self.inner.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn request(self: &Arc<Self>, connection: u64, outbox: &Outbox, request: Request) {
+        let mut guard = self.lock();
         let inner = &mut *guard;
         let active = inner
             .active
@@ -149,35 +174,33 @@ impl App {
                     Some(client) => client.client_id == client_id,
                 };
                 if available {
-                    let sender = sender.clone();
                     activate(
                         inner,
                         Client {
                             connection,
                             client_id,
-                            sender,
+                            outbox: outbox.clone(),
                         },
                     );
                 } else {
                     tracing::info!(connection, "another browser is active, pausing this one");
-                    send(sender, json!({ "type": "paused" }));
+                    send(inner, outbox, json!({ "type": "paused" }));
                 }
                 return;
             }
             Request::Resume { client_id } => {
-                let sender = sender.clone();
                 activate(
                     inner,
                     Client {
                         connection,
                         client_id,
-                        sender,
+                        outbox: outbox.clone(),
                     },
                 );
                 return;
             }
             Request::Ping => {
-                send(sender, json!({ "type": "pong" }));
+                send(inner, outbox, json!({ "type": "pong" }));
                 return;
             }
             _ if !active => return,
@@ -189,8 +212,8 @@ impl App {
             }
             Request::CreateGroup => {
                 let created = self.update_groups(inner, |groups| {
-                    groups.next_id += 1;
-                    let id = groups.next_id;
+                    let id = groups.next_id.checked_add(1)?;
+                    groups.next_id = id;
                     let name = unused_name(groups.groups.iter().map(|group| &group.name));
                     groups.groups.push(Group {
                         id,
@@ -198,10 +221,15 @@ impl App {
                         logo: None,
                         directory: None,
                     });
-                    id
+                    Some(id)
                 });
-                let Ok(id) = created else {
-                    return;
+                let id = match created {
+                    Ok(Some(id)) => id,
+                    Ok(None) => {
+                        tracing::error!("no group ids are left");
+                        return;
+                    }
+                    Err(_) => return,
                 };
                 inner.active_group = Some(id);
                 self.create_tab(inner, id);
@@ -288,7 +316,7 @@ impl App {
     }
 
     fn input(&self, connection: u64, bytes: &[u8]) {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.lock();
         if !inner
             .active
             .as_ref()
@@ -310,7 +338,7 @@ impl App {
     }
 
     pub(super) fn output(&self, id: u64, bytes: &[u8]) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock();
         let Some(terminal) = inner.terminals.get_mut(&id) else {
             return;
         };
@@ -320,7 +348,7 @@ impl App {
     }
 
     pub(super) fn exited(&self, id: u64) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock();
         inner.terminals.remove(&id);
         if close_tab(&mut inner, id).is_some() {
             tracing::info!(id, "terminal exited, closing its tab");
@@ -329,7 +357,7 @@ impl App {
     }
 
     pub(super) fn terminal_pids(&self) -> Vec<(u64, u32)> {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.lock();
         inner
             .terminals
             .iter()
@@ -338,7 +366,7 @@ impl App {
     }
 
     pub(super) fn set_branch(&self, id: u64, branch: Option<String>) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock();
         let Some(terminal) = inner.terminals.get_mut(&id) else {
             return;
         };
@@ -348,7 +376,8 @@ impl App {
         terminal.branch = branch;
         if let Some(client) = &inner.active {
             send(
-                &client.sender,
+                &inner,
+                &client.outbox,
                 json!({ "type": "branch", "id": id, "branch": inner.terminals[&id].branch }),
             );
         }
@@ -408,6 +437,7 @@ impl App {
 
     pub(super) fn reload(&self) {
         self.publish_config(&config::read());
+        let mut inner = self.lock();
         let groups = match groups::read() {
             Ok(groups) => groups,
             Err(error) => {
@@ -415,7 +445,6 @@ impl App {
                 return;
             }
         };
-        let mut inner = self.inner.lock().unwrap();
         set_groups(&mut inner, groups.groups);
         publish(&inner);
     }
@@ -425,7 +454,7 @@ impl App {
         group_id: u64,
         logo: Option<String>,
     ) -> Result<Option<String>, StatusCode> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.lock();
         let replaced = self.update_groups(&mut inner, |groups| {
             let group = groups
                 .groups
@@ -443,7 +472,7 @@ impl App {
     }
 
     pub(super) fn has_logo(&self, file: &str) -> bool {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.lock();
         inner
             .groups
             .iter()
@@ -451,10 +480,11 @@ impl App {
     }
 
     pub(super) fn publish_config(&self, config: &config::Config) {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.lock();
         if let Some(client) = &inner.active {
             send(
-                &client.sender,
+                &inner,
+                &client.outbox,
                 json!({ "type": "config", "config": config }),
             );
         }
@@ -475,7 +505,7 @@ fn activate(inner: &mut Inner, client: Client) {
             connection = previous.connection,
             "pausing the previously active browser"
         );
-        send(&previous.sender, json!({ "type": "paused" }));
+        send(inner, &previous.outbox, json!({ "type": "paused" }));
     }
     let Some(client) = &inner.active else {
         return;
@@ -486,7 +516,8 @@ fn activate(inner: &mut Inner, client: Client) {
         .filter_map(|(id, terminal)| terminal.branch.as_ref().map(|branch| (*id, branch)))
         .collect();
     send(
-        &client.sender,
+        inner,
+        &client.outbox,
         json!({ "type": "active", "layout": layout(inner), "instance": paths::session_id(), "branches": branches }),
     );
     for tabs in inner.tabs.values() {
@@ -575,7 +606,8 @@ fn layout(inner: &Inner) -> serde_json::Value {
 fn publish(inner: &Inner) {
     if let Some(client) = &inner.active {
         send(
-            &client.sender,
+            inner,
+            &client.outbox,
             json!({ "type": "layout", "layout": layout(inner) }),
         );
     }
@@ -588,9 +620,28 @@ fn forward(inner: &Inner, id: u64, replay: bool, data: &[u8]) {
     let mut bytes = id.to_be_bytes().to_vec();
     bytes.push(u8::from(replay));
     bytes.extend_from_slice(data);
-    let _ = client.sender.send(Message::Binary(bytes.into()));
+    deliver(inner, &client.outbox, Message::Binary(bytes.into()));
 }
 
-fn send(sender: &mpsc::UnboundedSender<Message>, value: serde_json::Value) {
-    let _ = sender.send(Message::Text(value.to_string().into()));
+fn send(inner: &Inner, outbox: &Outbox, value: serde_json::Value) {
+    deliver(inner, outbox, Message::Text(value.to_string().into()));
+}
+
+fn deliver(inner: &Inner, outbox: &Outbox, message: Message) {
+    let size = message_size(&message);
+    let limit = BACKLOG_LIMIT + inner.terminals.len() * HISTORY_LIMIT;
+    if outbox.queued.load(Ordering::Relaxed) + size > limit {
+        outbox.too_slow.notify_one();
+        return;
+    }
+    outbox.queued.fetch_add(size, Ordering::Relaxed);
+    let _ = outbox.sender.send(message);
+}
+
+fn message_size(message: &Message) -> usize {
+    match message {
+        Message::Text(text) => text.len(),
+        Message::Binary(bytes) => bytes.len(),
+        Message::Ping(_) | Message::Pong(_) | Message::Close(_) => 0,
+    }
 }
