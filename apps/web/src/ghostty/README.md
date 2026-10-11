@@ -43,7 +43,8 @@ Update this table after every sync.
 2. For each change, use the table above to find our matching file and port the change. Their tests (`*.test.ts`) show the behavior they expect, so read them too.
 3. If `native/libghostty-vt/VERSION` changed, copy `apps/web/src/terminal/ghostty/vendor/ghostty-vt.wasm` and `native/libghostty-vt/LICENSE` here, then do the checks in the next section.
 4. Update the "Synced versions" table.
-5. Test by hand: the items in "What to test after a sync".
+5. Run `nr test`. The `*.test.ts` files here check the escape sequence replies, underline styles and colors, box characters and background edges. `core.test.ts` and `terminal.test.ts` run the real WASM file, so they also catch changes to the color data keys, the focus mode and the underline values.
+6. Test by hand: the items in "What to test after a sync".
 
 ## When the WASM file changes
 

@@ -5,7 +5,8 @@
     "prepare": "husky",
     "typecheck": "tsc -p tsconfig.json && pnpm --filter web typecheck && cargo check --all-targets",
     "lint": "pnpm typecheck && oxlint . && cargo clippy --all-targets -- -D warnings && cargo fmt --check",
-    "lint:fix": "oxlint . --fix && cargo fmt"
+    "lint:fix": "oxlint . --fix && cargo fmt",
+    "test": "pnpm --filter web test"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
