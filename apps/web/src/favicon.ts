@@ -90,7 +90,7 @@ async function drawBadge(
   context.beginPath()
   context.roundRect(offset, offset, extent, extent, extent * 0.25)
   context.fill()
-  const svg = logoSvg.replace('currentColor', colors.foreground)
+  const svg = logoSvg.replaceAll('currentColor', colors.foreground)
   const mark = await loadImage(`data:image/svg+xml,${encodeURIComponent(svg)}`)
   context.drawImage(mark, offset, offset, extent, extent)
 }
