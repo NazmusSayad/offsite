@@ -1,7 +1,7 @@
 import type { ThemeColors } from '@/config'
 
 const size = 64
-const storageKey = 'sshtty-favicons'
+const storageKey = 'sshtty-favicons-v2'
 const limit = 32
 const cache = new Map<string, string>(readStored())
 let current = ''
@@ -84,24 +84,26 @@ function drawBadge(
   extent: number,
   colors: ThemeColors
 ) {
-  function point(x: number, y: number) {
-    return [offset + x * extent, offset + y * extent] as const
-  }
   context.fillStyle = colors.background
   context.beginPath()
   context.roundRect(offset, offset, extent, extent, extent * 0.25)
   context.fill()
-  context.strokeStyle = colors.foreground
-  context.lineWidth = extent * 0.11
-  context.lineCap = 'round'
-  context.lineJoin = 'round'
+  context.save()
+  context.translate(offset, offset)
+  context.scale(extent / 48, extent / 48)
+  context.fillStyle = colors.foreground
   context.beginPath()
-  context.moveTo(...point(0.24, 0.3))
-  context.lineTo(...point(0.46, 0.5))
-  context.lineTo(...point(0.24, 0.7))
-  context.moveTo(...point(0.54, 0.7))
-  context.lineTo(...point(0.76, 0.7))
-  context.stroke()
+  context.roundRect(11, 6, 26, 36, 4)
+  context.fill()
+  context.strokeStyle = colors.background
+  context.lineWidth = 5
+  context.lineCap = 'round'
+  context.stroke(
+    new Path2D(
+      'M30 15 C27 12 18 12 18 17.5 C18 23.5 30 22 30 29 C30 35 21 36 17.5 33'
+    )
+  )
+  context.restore()
 }
 
 function loadImage(src: string) {
