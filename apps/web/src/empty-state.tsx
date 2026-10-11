@@ -1,5 +1,7 @@
 import { Button } from '@/components/ui/button'
 
+import logoSvg from './logo.svg?raw'
+
 export function EmptyState(props: { label: string; onClick: () => void }) {
   return (
     <div className="absolute inset-0 grid place-items-center">
@@ -11,22 +13,11 @@ export function EmptyState(props: { label: string; onClick: () => void }) {
         <span className="relative grid place-items-center">
           <span className="bg-primary/25 animate-breathe absolute size-36 rounded-full blur-3xl motion-reduce:animate-none" />
           <span className="bg-card animate-float group-hover/button:border-primary/40 relative grid size-28 place-items-center rounded-3xl border shadow-2xl transition-colors motion-reduce:animate-none">
-            <svg
-              viewBox="0 0 48 48"
-              className="text-foreground/70 size-14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={3.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            <span
+              className="text-foreground/70 size-14 [&>svg]:size-full"
+              dangerouslySetInnerHTML={{ __html: logoSvg }}
               aria-hidden
-            >
-              <path d="M12 15 L22 24 L12 33" />
-              <path
-                d="M26 33 H36"
-                className="animate-blink motion-reduce:animate-none"
-              />
-            </svg>
+            />
           </span>
         </span>
         <span className="group-hover/button:text-foreground transition-colors">

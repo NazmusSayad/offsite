@@ -1,7 +1,9 @@
 import type { ThemeColors } from '@/config'
 
+import logoSvg from './logo.svg?raw'
+
 const size = 64
-const storageKey = 'sshtty-favicons'
+const storageKey = 'sshtty-favicons-v2'
 const limit = 32
 const cache = new Map<string, string>(readStored())
 let current = ''
@@ -48,7 +50,7 @@ async function draw(logo: string | null, colors: ThemeColors) {
   if (!context) throw new Error('canvas 2d context is unavailable')
 
   if (logo === null) {
-    drawBadge(context, 0, size, colors)
+    await drawBadge(context, 0, size, colors)
     return canvas.toDataURL()
   }
 
@@ -74,34 +76,23 @@ async function draw(logo: string | null, colors: ThemeColors) {
   context.roundRect(24, 24, 44, 44, 13)
   context.fill()
   context.globalCompositeOperation = 'source-over'
-  drawBadge(context, 28, 36, colors)
+  await drawBadge(context, 28, 36, colors)
   return canvas.toDataURL()
 }
 
-function drawBadge(
+async function drawBadge(
   context: CanvasRenderingContext2D,
   offset: number,
   extent: number,
   colors: ThemeColors
 ) {
-  function point(x: number, y: number) {
-    return [offset + x * extent, offset + y * extent] as const
-  }
   context.fillStyle = colors.background
   context.beginPath()
   context.roundRect(offset, offset, extent, extent, extent * 0.25)
   context.fill()
-  context.strokeStyle = colors.foreground
-  context.lineWidth = extent * 0.11
-  context.lineCap = 'round'
-  context.lineJoin = 'round'
-  context.beginPath()
-  context.moveTo(...point(0.24, 0.3))
-  context.lineTo(...point(0.46, 0.5))
-  context.lineTo(...point(0.24, 0.7))
-  context.moveTo(...point(0.54, 0.7))
-  context.lineTo(...point(0.76, 0.7))
-  context.stroke()
+  const svg = logoSvg.replaceAll('currentColor', colors.foreground)
+  const mark = await loadImage(`data:image/svg+xml,${encodeURIComponent(svg)}`)
+  context.drawImage(mark, offset, offset, extent, extent)
 }
 
 function loadImage(src: string) {
