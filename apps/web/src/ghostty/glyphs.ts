@@ -92,6 +92,38 @@ const HALF_LINES = [
   '2010',
 ]
 
+const DOUBLE_LINES = [
+  '0303',
+  '3030',
+  '0310',
+  '0130',
+  '0330',
+  '0013',
+  '0031',
+  '0033',
+  '1300',
+  '3100',
+  '3300',
+  '1003',
+  '3001',
+  '3003',
+  '1310',
+  '3130',
+  '3330',
+  '1013',
+  '3031',
+  '3033',
+  '0313',
+  '0131',
+  '0333',
+  '1303',
+  '3101',
+  '3303',
+  '1313',
+  '3131',
+  '3333',
+]
+
 const UPPER_LEFT = [0, 0, 4, 4]
 const UPPER_RIGHT = [4, 0, 4, 4]
 const LOWER_LEFT = [0, 4, 4, 4]
@@ -149,6 +181,7 @@ type Box = { left: number; top: number; width: number; height: number }
 
 function arms(code: number) {
   if (code >= 0x2500 && code <= 0x254b) return LINES[code - 0x2500]
+  if (code >= 0x2550 && code <= 0x256c) return DOUBLE_LINES[code - 0x2550]
   if (code >= 0x2574 && code <= 0x257f) return HALF_LINES[code - 0x2574]
   return ''
 }
@@ -163,8 +196,8 @@ export function isGlyph(text: string) {
   )
 }
 
-function lineThickness(light: number, weight: string) {
-  return weight === '2' ? light * 2 : light
+function lightThickness(box: Box) {
+  return Math.max(1, Math.round(box.height / 20))
 }
 
 function drawLines(
@@ -172,57 +205,104 @@ function drawLines(
   weights: string,
   box: Box
 ) {
-  const light = Math.max(1, Math.round(box.height / 20))
-  const centerX = box.left + Math.floor(box.width / 2)
-  const centerY = box.top + Math.floor(box.height / 2)
-  const vertical = Math.max(
-    weights[0] === '0' ? 0 : lineThickness(light, weights[0]),
-    weights[2] === '0' ? 0 : lineThickness(light, weights[2])
-  )
-  const horizontal = Math.max(
-    weights[1] === '0' ? 0 : lineThickness(light, weights[1]),
-    weights[3] === '0' ? 0 : lineThickness(light, weights[3])
-  )
   const [up, right, down, left] = weights
-  if (up !== '0') {
-    const size = lineThickness(light, up)
-    const end = centerY + Math.ceil(horizontal / 2)
-    context.fillRect(
-      centerX - Math.floor(size / 2),
-      box.top,
-      size,
-      end - box.top
+  const light = lightThickness(box)
+  const heavy = light * 2
+  const hLightTop = Math.floor(Math.max(0, box.height - light) / 2)
+  const hLightBottom = hLightTop + light
+  const hHeavyTop = Math.floor(Math.max(0, box.height - heavy) / 2)
+  const hHeavyBottom = hHeavyTop + heavy
+  const hDoubleTop = Math.max(0, hLightTop - light)
+  const hDoubleBottom = hLightBottom + light
+  const vLightLeft = Math.floor(Math.max(0, box.width - light) / 2)
+  const vLightRight = vLightLeft + light
+  const vHeavyLeft = Math.floor(Math.max(0, box.width - heavy) / 2)
+  const vHeavyRight = vHeavyLeft + heavy
+  const vDoubleLeft = Math.max(0, vLightLeft - light)
+  const vDoubleRight = vLightRight + light
+  function fill(x0: number, y0: number, x1: number, y1: number) {
+    context.fillRect(box.left + x0, box.top + y0, x1 - x0, y1 - y0)
+  }
+
+  const upBottom =
+    left === '2' || right === '2'
+      ? hHeavyBottom
+      : left !== right || down === up
+        ? left === '3' || right === '3'
+          ? hDoubleBottom
+          : hLightBottom
+        : left === '0' && right === '0'
+          ? hLightBottom
+          : hLightTop
+  const downTop =
+    left === '2' || right === '2'
+      ? hHeavyTop
+      : left !== right || up === down
+        ? left === '3' || right === '3'
+          ? hDoubleTop
+          : hLightTop
+        : left === '0' && right === '0'
+          ? hLightTop
+          : hLightBottom
+  const leftRight =
+    up === '2' || down === '2'
+      ? vHeavyRight
+      : up !== down || left === right
+        ? up === '3' || down === '3'
+          ? vDoubleRight
+          : vLightRight
+        : up === '0' && down === '0'
+          ? vLightRight
+          : vLightLeft
+  const rightLeft =
+    up === '2' || down === '2'
+      ? vHeavyLeft
+      : up !== down || right === left
+        ? up === '3' || down === '3'
+          ? vDoubleLeft
+          : vLightLeft
+        : up === '0' && down === '0'
+          ? vLightLeft
+          : vLightRight
+
+  if (up === '1') fill(vLightLeft, 0, vLightRight, upBottom)
+  if (up === '2') fill(vHeavyLeft, 0, vHeavyRight, upBottom)
+  if (up === '3') {
+    fill(vDoubleLeft, 0, vLightLeft, left === '3' ? hLightTop : upBottom)
+    fill(vLightRight, 0, vDoubleRight, right === '3' ? hLightTop : upBottom)
+  }
+  if (right === '1') fill(rightLeft, hLightTop, box.width, hLightBottom)
+  if (right === '2') fill(rightLeft, hHeavyTop, box.width, hHeavyBottom)
+  if (right === '3') {
+    fill(up === '3' ? vLightRight : rightLeft, hDoubleTop, box.width, hLightTop)
+    fill(
+      down === '3' ? vLightRight : rightLeft,
+      hLightBottom,
+      box.width,
+      hDoubleBottom
     )
   }
-  if (down !== '0') {
-    const size = lineThickness(light, down)
-    const start = centerY - Math.floor(horizontal / 2)
-    context.fillRect(
-      centerX - Math.floor(size / 2),
-      start,
-      size,
-      box.top + box.height - start
+  if (down === '1') fill(vLightLeft, downTop, vLightRight, box.height)
+  if (down === '2') fill(vHeavyLeft, downTop, vHeavyRight, box.height)
+  if (down === '3') {
+    fill(
+      vDoubleLeft,
+      left === '3' ? hLightBottom : downTop,
+      vLightLeft,
+      box.height
+    )
+    fill(
+      vLightRight,
+      right === '3' ? hLightBottom : downTop,
+      vDoubleRight,
+      box.height
     )
   }
-  if (left !== '0') {
-    const size = lineThickness(light, left)
-    const end = centerX + Math.ceil(vertical / 2)
-    context.fillRect(
-      box.left,
-      centerY - Math.floor(size / 2),
-      end - box.left,
-      size
-    )
-  }
-  if (right !== '0') {
-    const size = lineThickness(light, right)
-    const start = centerX - Math.floor(vertical / 2)
-    context.fillRect(
-      start,
-      centerY - Math.floor(size / 2),
-      box.left + box.width - start,
-      size
-    )
+  if (left === '1') fill(0, hLightTop, leftRight, hLightBottom)
+  if (left === '2') fill(0, hHeavyTop, leftRight, hHeavyBottom)
+  if (left === '3') {
+    fill(0, hDoubleTop, up === '3' ? vLightLeft : leftRight, hLightTop)
+    fill(0, hLightBottom, down === '3' ? vLightLeft : leftRight, hDoubleBottom)
   }
 }
 
@@ -231,9 +311,11 @@ function drawRounded(
   [horizontal, vertical]: [number, number],
   box: Box
 ) {
-  const light = Math.max(1, Math.round(box.height / 20))
-  const centerX = box.left + Math.floor(box.width / 2) + (light % 2) / 2
-  const centerY = box.top + Math.floor(box.height / 2) + (light % 2) / 2
+  const light = lightThickness(box)
+  const centerX =
+    box.left + Math.floor(Math.max(0, box.width - light) / 2) + light / 2
+  const centerY =
+    box.top + Math.floor(Math.max(0, box.height - light) / 2) + light / 2
   const edgeX = horizontal === 1 ? box.left + box.width : box.left
   const edgeY = vertical === 1 ? box.top + box.height : box.top
   const radius = Math.min(box.width, box.height) / 2
@@ -251,15 +333,25 @@ function drawRounded(
 export function drawGlyph(
   context: CanvasRenderingContext2D,
   text: string,
-  cell: Box
+  cell: Box,
+  pixelRatio: number
 ) {
-  const code = text.charCodeAt(0)
-  const box = {
-    left: Math.round(cell.left),
-    top: Math.round(cell.top),
-    width: Math.round(cell.left + cell.width) - Math.round(cell.left),
-    height: Math.round(cell.top + cell.height) - Math.round(cell.top),
-  }
+  context.save()
+  context.setTransform(1, 0, 0, 1, 0, 0)
+  drawPixels(context, text.charCodeAt(0), {
+    left: Math.round(cell.left * pixelRatio),
+    top: Math.round(cell.top * pixelRatio),
+    width:
+      Math.round((cell.left + cell.width) * pixelRatio) -
+      Math.round(cell.left * pixelRatio),
+    height:
+      Math.round((cell.top + cell.height) * pixelRatio) -
+      Math.round(cell.top * pixelRatio),
+  })
+  context.restore()
+}
+
+function drawPixels(context: CanvasRenderingContext2D, code: number, box: Box) {
   const weights = arms(code)
   if (weights !== '') {
     drawLines(context, weights, box)
@@ -272,10 +364,8 @@ export function drawGlyph(
   }
   const shade = SHADES[code]
   if (shade !== undefined) {
-    context.save()
     context.globalAlpha = shade
     context.fillRect(box.left, box.top, box.width, box.height)
-    context.restore()
     return
   }
   for (const [x, y, width, height] of BLOCKS[code - 0x2580]) {

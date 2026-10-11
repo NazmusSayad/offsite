@@ -1,5 +1,5 @@
 export type OutputEvent =
-  | { type: 'osc'; data: Uint8Array }
+  | { type: 'osc'; data: Uint8Array; terminator: string }
   | { type: 'sixel'; data: Uint8Array }
 
 type State =
@@ -64,7 +64,12 @@ export class OutputScanner {
         if (byte === BEL) {
           this.state = 'ground'
           this.append(bytes, start, index)
-          if (onEvent({ type: 'osc', data: this.take() }, index + 1))
+          if (
+            onEvent(
+              { type: 'osc', data: this.take(), terminator: '\x07' },
+              index + 1
+            )
+          )
             return index + 1
           continue
         }
@@ -77,7 +82,12 @@ export class OutputScanner {
       if (this.state === 'oscEscape') {
         if (byte === 0x5c) {
           this.state = 'ground'
-          if (onEvent({ type: 'osc', data: this.take() }, index + 1))
+          if (
+            onEvent(
+              { type: 'osc', data: this.take(), terminator: '\x1b\\' },
+              index + 1
+            )
+          )
             return index + 1
           continue
         }

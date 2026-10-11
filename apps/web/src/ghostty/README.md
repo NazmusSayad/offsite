@@ -52,6 +52,8 @@ Struct layouts are read from the WASM file at startup (`ghostty_type_json`), so 
 - Terminal option numbers: `OPTION` in `runtime.ts`, and the `ghostty_terminal_set` calls in `core.ts` (`terminal.h`, `GhosttyTerminalOption`).
 - Callback signatures in `CALLBACKS_WASM` in `runtime.ts`: write PTY is `(i32, i32, i32, i32) -> void`, device attributes and size are `(i32, i32, i32) -> i32` (`terminal.h`).
 - Enum values used in `core.ts` and `keys.ts`, such as cell and style data keys, cursor styles, modes, key codes and mouse buttons.
+- Terminal data keys for the color replies in `core.ts`: 18 foreground, 19 background, 20 cursor and 21 palette (`terminal.h`, `GhosttyTerminalData`), and mode 1004 for focus events (`modes.h`).
+- Underline values 0 to 5 in `renderer.ts` and the style color tags `STYLE_COLOR_PALETTE` and `STYLE_COLOR_RGB` in `core.ts` (`style.h`).
 
 Ghostty says that the libghostty-vt API is not stable yet, so expect changes here.
 
@@ -71,7 +73,9 @@ Copy `out/bin/ghostty-vt.wasm` here.
 ## What to test after a sync
 
 - Shell: typing, colors, wide characters and emoji, scrollback, wheel and scroll bar, selection, copy and paste.
-- Program replies: `printf '\e[c'` (device attributes) and `printf '\e[14t'` (size) get an answer.
+- Program replies: `printf '\e[c'` (device attributes), `printf '\e[14t'` (size), `printf '\e]11;?\a'` and `printf '\e]4;1;?\a'` (theme colors) get an answer.
+- Focus events: after `printf '\e[?1004h'`, the terminal sends `\e[I` and `\e[O` when it gets and loses focus.
+- Underline styles `\e[4:1m` to `\e[4:5m` and underline colors `\e[58:2::255:0:0m`, box characters (light, heavy, double, rounded) and colored backgrounds without seams at browser zoom 100% and 125%.
 - Titles, OSC 9;4 progress, OSC 52 copy, URL and OSC 8 links, find.
 - Sixel and iTerm2 images, and image paste in Claude Code and opencode.
 - Theme, font, cursor and ligature settings.
