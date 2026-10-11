@@ -1,4 +1,4 @@
-import type { ITerminalOptions } from '@xterm/xterm'
+import type { TerminalOptions } from './ghostty/terminal'
 import { themeColors } from './themes'
 
 export type Platform = 'macos' | 'linux' | 'windows'
@@ -115,26 +115,16 @@ export async function applyStyle(config: Config) {
   style.setProperty('--pad-left', `${config.padding.left}px`)
 }
 
-export function terminalOptions(config: Config): ITerminalOptions {
-  const colors = themeColors(config.theme)
+export function terminalOptions(config: Config): TerminalOptions {
   return {
     fontFamily: config.font.family,
     fontSize: config.font.size,
     lineHeight: config.font.lineHeight,
+    ligatures: config.font.ligatures,
     cursorStyle: config.cursor.style,
     cursorBlink: config.cursor.blink,
     scrollback: config.scrollback,
-    drawBoldTextInBrightColors: config.theme.boldIsBright,
-    theme: {
-      background: colors.background,
-      foreground: colors.foreground,
-      cursor: colors.cursor,
-      cursorAccent: colors.cursorText,
-      selectionBackground: colors.selectionBackground,
-      selectionForeground: colors.selectionForeground,
-      ...Object.fromEntries(
-        paletteKeys.map((key, index) => [key, colors.palette[index]])
-      ),
-    },
+    boldIsBright: config.theme.boldIsBright,
+    colors: themeColors(config.theme),
   }
 }

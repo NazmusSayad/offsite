@@ -1,9 +1,9 @@
-import '@xterm/xterm/css/xterm.css'
 import './styles.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './app'
 import { applyStyle, loadConfig, loadPlatform } from './config'
+import { loadGhostty } from './ghostty/runtime'
 import { start } from './session'
 import { SettingsPage } from './settings-page'
 import { startShortcuts } from './shortcuts'
@@ -18,6 +18,7 @@ async function main(container: HTMLElement) {
       loadConfig(),
       loadPlatform(),
       loadThemes(),
+      loadGhostty(),
     ])
     await applyStyle(config)
     if (location.pathname === '/settings') {

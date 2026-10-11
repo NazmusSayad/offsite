@@ -1,13 +1,3 @@
-import { ClipboardAddon } from '@xterm/addon-clipboard'
-import { FitAddon } from '@xterm/addon-fit'
-import { ImageAddon } from '@xterm/addon-image'
-import { LigaturesAddon } from '@xterm/addon-ligatures'
-import { type IProgressState, ProgressAddon } from '@xterm/addon-progress'
-import { type ISearchResultChangeEvent, SearchAddon } from '@xterm/addon-search'
-import { Unicode11Addon } from '@xterm/addon-unicode11'
-import { WebLinksAddon } from '@xterm/addon-web-links'
-import { WebglAddon } from '@xterm/addon-webgl'
-import { Terminal } from '@xterm/xterm'
 import {
   applyStyle,
   type Config,
@@ -15,6 +5,7 @@ import {
   terminalOptions,
 } from './config'
 import { updateFavicon } from './favicon'
+import { type FindResults, type Progress, Terminal } from './ghostty/terminal'
 import { themeColors } from './themes'
 
 type Tab = { id: number; customName: string | null }
@@ -35,7 +26,7 @@ type State = {
   platform: Platform
   titles: Record<number, string>
   branches: Record<number, string>
-  progress: Record<number, IProgressState>
+  progress: Record<number, Progress>
   finding: number | null
 }
 
@@ -62,15 +53,6 @@ type Message =
   | { type: 'config'; config: Config }
   | { type: 'branch'; id: number; branch: string | null }
 
-type Session = {
-  terminal: Terminal
-  fit: FitAddon
-  search: SearchAddon
-  element: HTMLDivElement
-  ligatures: LigaturesAddon | null
-}
-
-const replaying = new Set<number>()
 const typedAt = new Map<number, number>()
 const isMac = navigator.userAgent.includes('Mac')
 
@@ -80,7 +62,7 @@ export const clientId =
 sessionStorage.setItem('clientId', clientId)
 
 const encoder = new TextEncoder()
-const sessions = new Map<number, Session>()
+const sessions = new Map<number, Terminal>()
 const listeners = new Set<() => void>()
 let state: State
 let socket: WebSocket
@@ -174,34 +156,21 @@ export function find(
   backwards: boolean,
   incremental: boolean
 ) {
-  const colors = themeColors(state.config.theme)
-  const options = {
-    incremental,
-    decorations: {
-      matchBackground: colors.palette[8],
-      matchOverviewRuler: colors.palette[8],
-      activeMatchBorder: colors.palette[3],
-      activeMatchColorOverviewRuler: colors.palette[3],
-    },
-  }
-  const search = getSession(id).search
-  if (backwards) search.findPrevious(text, options)
-  else search.findNext(text, options)
+  getSession(id).find(text, backwards, incremental)
 }
 
 export function onFindResults(
   id: number,
-  listener: (results: ISearchResultChangeEvent) => void
+  listener: (results: FindResults) => void
 ) {
-  const subscription = getSession(id).search.onDidChangeResults(listener)
-  return () => subscription.dispose()
+  return getSession(id).onFindResults(listener)
 }
 
 export function closeFind(id: number) {
-  const session = getSession(id)
-  session.search.clearDecorations()
+  const terminal = getSession(id)
+  terminal.clearFind()
   setState({ finding: null })
-  session.terminal.focus()
+  terminal.focus()
 }
 
 export function toggleCtrl() {
@@ -219,27 +188,17 @@ function connect() {
       const view = new DataView(event.data)
       const id = Number(view.getBigUint64(0))
       const replay = view.getUint8(8) === 1
-      const terminal = sessions.get(id)?.terminal
+      const terminal = sessions.get(id)
       if (!terminal) return
-      const data = new Uint8Array(event.data, 9)
-      if (!replay) {
-        const typed = typedAt.get(id)
-        if (typed === undefined) {
-          terminal.write(data)
-          return
-        }
-        typedAt.delete(id)
-        terminal.write(data, () =>
-          requestAnimationFrame(() =>
-            console.log(
-              `[latency] key to screen: ${(performance.now() - typed).toFixed(1)}ms`
-            )
-          )
+      terminal.write(new Uint8Array(event.data, 9), replay)
+      const typed = typedAt.get(id)
+      if (replay || typed === undefined) return
+      typedAt.delete(id)
+      requestAnimationFrame(() =>
+        console.log(
+          `[latency] key to screen: ${(performance.now() - typed).toFixed(1)}ms`
         )
-        return
-      }
-      replaying.add(id)
-      terminal.write(data, () => replaying.delete(id))
+      )
       return
     }
     handle(JSON.parse(event.data))
@@ -275,12 +234,12 @@ function handle(message: Message) {
       return
     }
     instance = message.instance
-    for (const session of sessions.values()) session.terminal.reset()
+    for (const terminal of sessions.values()) terminal.reset()
   }
   sync(message.layout)
   if (message.type === 'active') {
-    sessions.forEach((session, id) => {
-      if (session.terminal.element) reportSize(id, session.terminal)
+    sessions.forEach((terminal, id) => {
+      if (terminal.element.isConnected) reportSize(id, terminal)
     })
   }
   if (message.type === 'active') {
@@ -298,19 +257,14 @@ function sync(layout: Layout) {
   const ids = new Set(
     layout.groups.flatMap((group) => group.tabs.map((tab) => tab.id))
   )
-  sessions.forEach((session, id) => {
+  sessions.forEach((terminal, id) => {
     if (ids.has(id)) return
-    session.terminal.dispose()
+    terminal.dispose()
     sessions.delete(id)
   })
   for (const id of ids) {
     if (!sessions.has(id)) sessions.set(id, createSession(id))
   }
-}
-
-function openLink(event: MouseEvent, uri: string) {
-  if (isMac ? event.metaKey : event.ctrlKey)
-    window.open(uri, '_blank', 'noopener')
 }
 
 export function isFindShortcut(event: KeyboardEvent) {
@@ -330,71 +284,39 @@ function isShiftEnter(event: KeyboardEvent) {
 }
 
 function createSession(id: number) {
-  const terminal = new Terminal({
-    ...terminalOptions(state.config),
-    allowProposedApi: true,
-    linkHandler: { activate: openLink },
-  })
-  const fit = new FitAddon()
-  terminal.loadAddon(fit)
-  terminal.loadAddon(new Unicode11Addon())
-  terminal.unicode.activeVersion = '11'
-  terminal.loadAddon(new ImageAddon())
-  terminal.loadAddon(new WebLinksAddon(openLink))
-  terminal.loadAddon(
-    new ClipboardAddon(undefined, {
-      readText: () => '',
-      writeText: async (_selection, text) => {
-        if (replaying.has(id)) return
-        if (!window.isSecureContext) {
-          console.warn('copy from the terminal needs https or localhost')
-          return
-        }
-        await navigator.clipboard.writeText(text)
-      },
-    })
-  )
-  const search = new SearchAddon()
-  terminal.loadAddon(search)
-  const progress = new ProgressAddon()
-  terminal.loadAddon(progress)
-  progress.onChange((value) =>
-    setState({ progress: { ...state.progress, [id]: value } })
-  )
-  terminal.attachCustomKeyEventHandler((event) => {
-    if (event.type !== 'keydown') return true
-    if (state.config.behavior.shiftEnterNewline && isShiftEnter(event)) {
+  const terminal = new Terminal(terminalOptions(state.config), {
+    onData: (data) => {
+      if (!typedAt.has(id)) typedAt.set(id, performance.now())
+      sendInput(id, applyCtrl(data))
+    },
+    onReply: (data) => sendInput(id, data),
+    onResize: (cols, rows) => send({ type: 'resize', id, cols, rows }),
+    onTitle: (title) => setState({ titles: { ...state.titles, [id]: title } }),
+    onProgress: (progress) =>
+      setState({ progress: { ...state.progress, [id]: progress } }),
+    onClipboard: (text) => {
+      if (!window.isSecureContext) {
+        console.warn('copy from the terminal needs https or localhost')
+        return
+      }
+      void navigator.clipboard.writeText(text)
+    },
+    onLink: (uri) => window.open(uri, '_blank', 'noopener'),
+    beforeKey: (event) => {
+      if (event.type !== 'keydown') return true
+      if (state.config.behavior.shiftEnterNewline && isShiftEnter(event)) {
+        event.preventDefault()
+        sendInput(id, '\x1b\r')
+        return false
+      }
+      if (!isFindShortcut(event)) return true
       event.preventDefault()
-      sendInput(id, '\x1b\r')
+      setState({ finding: id })
+      document.querySelector<HTMLInputElement>('[data-find]')?.select()
       return false
-    }
-    if (!isFindShortcut(event)) return true
-    event.preventDefault()
-    setState({ finding: id })
-    document.querySelector<HTMLInputElement>('[data-find]')?.select()
-    return false
+    },
   })
-  terminal.onData((data) => {
-    if (replaying.has(id)) return
-    if (!typedAt.has(id)) typedAt.set(id, performance.now())
-    sendInput(id, applyCtrl(data))
-  })
-  terminal.onBinary((data) => {
-    if (replaying.has(id)) return
-    sendInput(
-      id,
-      Uint8Array.from(data, (character) => character.charCodeAt(0))
-    )
-  })
-  terminal.onTitleChange((title) =>
-    setState({ titles: { ...state.titles, [id]: title } })
-  )
-  terminal.onResize((size) =>
-    send({ type: 'resize', id, cols: size.cols, rows: size.rows })
-  )
-  const element = document.createElement('div')
-  element.className = 'h-full'
-  element.addEventListener(
+  terminal.element.addEventListener(
     'paste',
     (event) => {
       if (!event.clipboardData) return
@@ -411,7 +333,7 @@ function createSession(id: number) {
     },
     true
   )
-  return { terminal, fit, search, element, ligatures: null }
+  return terminal
 }
 
 async function pasteImages(terminal: Terminal, images: File[]) {
@@ -449,46 +371,19 @@ function getSession(id: number) {
 }
 
 export function mount(id: number, container: HTMLElement) {
-  const session = getSession(id)
-  container.appendChild(session.element)
-  if (!session.terminal.element) {
-    session.terminal.open(session.element)
-    session.terminal.options = terminalOptions(state.config)
-    const webgl = new WebglAddon()
-    webgl.onContextLoss(() => webgl.dispose())
-    session.terminal.loadAddon(webgl)
-    syncLigatures(session)
-  }
-  session.fit.fit()
-  reportSize(id, session.terminal)
-  session.terminal.focus()
-  const observer = new ResizeObserver(() => session.fit.fit())
-  observer.observe(container)
+  const terminal = getSession(id)
+  container.appendChild(terminal.element)
+  terminal.fit()
+  reportSize(id, terminal)
+  terminal.focus()
   return () => {
-    observer.disconnect()
-    session.element.remove()
-  }
-}
-
-function syncLigatures(session: Session) {
-  const enabled = state.config.font.ligatures
-  if (enabled && !session.ligatures) {
-    session.ligatures = new LigaturesAddon()
-    session.terminal.loadAddon(session.ligatures)
-  }
-  if (!enabled && session.ligatures) {
-    session.ligatures.dispose()
-    session.ligatures = null
+    terminal.element.remove()
   }
 }
 
 export async function applyConfig(config: Config) {
   await applyStyle(config)
   setState({ config })
-  for (const session of sessions.values()) {
-    if (!session.terminal.element) continue
-    session.terminal.options = terminalOptions(config)
-    syncLigatures(session)
-    if (session.element.isConnected) session.fit.fit()
-  }
+  for (const terminal of sessions.values())
+    terminal.setOptions(terminalOptions(config))
 }
