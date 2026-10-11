@@ -34,6 +34,65 @@ function same(left: Color, right: Color) {
   return left.r === right.r && left.g === right.g && left.b === right.b
 }
 
+function snap(value: number, ratio: number) {
+  return Math.round(value * ratio) / ratio
+}
+
+function columns(start: number, end: number, metrics: Metrics, ratio: number) {
+  const left = snap(start * metrics.width, ratio)
+  return { left, width: snap(end * metrics.width, ratio) - left }
+}
+
+function drawUnderline(
+  context: CanvasRenderingContext2D,
+  style: number,
+  left: number,
+  width: number,
+  bottom: number
+) {
+  const y = bottom - 2
+  const right = left + width
+  if (style === 1) {
+    context.fillRect(left, y, width, 1)
+    return
+  }
+  if (style === 2) {
+    context.fillRect(left, y, width, 1)
+    context.fillRect(left, y - 2, width, 1)
+    return
+  }
+  if (style === 3) {
+    function wave(x: number) {
+      return y - 1 + Math.sin((x / 3) * Math.PI) * 1.5
+    }
+    context.save()
+    context.strokeStyle = context.fillStyle
+    context.lineWidth = 1
+    context.beginPath()
+    context.moveTo(left, wave(left))
+    for (let x = Math.floor(left) + 1; x < right; x += 1)
+      context.lineTo(x, wave(x))
+    context.lineTo(right, wave(right))
+    context.stroke()
+    context.restore()
+    return
+  }
+  if (style === 4) {
+    for (let x = Math.ceil(left / 2) * 2; x < right; x += 2)
+      context.fillRect(x, y, 1, 1)
+    return
+  }
+  if (style === 5) {
+    for (let x = Math.floor(left / 5) * 5; x < right; x += 5) {
+      const from = Math.max(x, left)
+      const to = Math.min(x + 3, right)
+      if (to > from) context.fillRect(from, y, to - from, 1)
+    }
+    return
+  }
+  throw new Error(`unknown underline style ${style}`)
+}
+
 function sameText(left: Cell, right: Cell) {
   return (
     left.selected === right.selected &&
@@ -108,9 +167,17 @@ export function render(options: {
   focused: boolean
   hoveredLink: Range | null
   highlights: Highlight[]
+  pixelRatio: number
 }) {
-  const { context, snapshot, metrics, appearance, cursorOn, previousCursorY } =
-    options
+  const {
+    context,
+    snapshot,
+    metrics,
+    appearance,
+    cursorOn,
+    previousCursorY,
+    pixelRatio,
+  } = options
   const rows = options.forceFull
     ? Array.from({ length: snapshot.rows }, (_, index) => index)
     : [...snapshot.dirtyRows]
@@ -136,8 +203,10 @@ export function render(options: {
     const row = snapshot.rowData[rowIndex]
     if (!row) continue
     const top = rowIndex * metrics.height
+    const cellTop = snap(top, pixelRatio)
+    const cellHeight = snap(top + metrics.height, pixelRatio) - cellTop
     context.fillStyle = css(snapshot.background)
-    context.fillRect(0, top, context.canvas.width, metrics.height)
+    context.fillRect(0, cellTop, context.canvas.width, cellHeight)
 
     let start = 0
     while (start < row.cells.length) {
@@ -149,27 +218,30 @@ export function render(options: {
         same(row.cells[end].background, first.background)
       )
         end += 1
-      const left = start * metrics.width
-      const width = (end - start) * metrics.width
+      const { left, width } = columns(start, end, metrics, pixelRatio)
       if (first.selected) {
         context.fillStyle = appearance.selectionBackground
-        context.fillRect(left, top, width, metrics.height)
+        context.fillRect(left, cellTop, width, cellHeight)
       } else if (!same(first.background, snapshot.background)) {
         context.fillStyle = css(first.background)
-        context.fillRect(left, top, width, metrics.height)
+        context.fillRect(left, cellTop, width, cellHeight)
       }
       start = end
     }
 
     for (const highlight of options.highlights) {
       if (highlight.row !== rowIndex) continue
-      const left = highlight.start * metrics.width
-      const width = (highlight.end - highlight.start) * metrics.width
+      const { left, width } = columns(
+        highlight.start,
+        highlight.end,
+        metrics,
+        pixelRatio
+      )
       context.fillStyle = appearance.matchBackground
-      context.fillRect(left, top, width, metrics.height)
+      context.fillRect(left, cellTop, width, cellHeight)
       if (!highlight.active) continue
       context.strokeStyle = appearance.activeMatchBorder
-      context.strokeRect(left + 0.5, top + 0.5, width - 1, metrics.height - 1)
+      context.strokeRect(left + 0.5, cellTop + 0.5, width - 1, cellHeight - 1)
     }
 
     start = 0
@@ -184,12 +256,17 @@ export function render(options: {
           context.fillStyle = first.selected
             ? appearance.selectionForeground
             : css(first.foreground)
-          drawGlyph(context, first.text, {
-            left: start * metrics.width,
-            top,
-            width: metrics.width,
-            height: metrics.height,
-          })
+          drawGlyph(
+            context,
+            first.text,
+            {
+              left: start * metrics.width,
+              top,
+              width: metrics.width,
+              height: metrics.height,
+            },
+            pixelRatio
+          )
         }
         start += 1
         continue
@@ -222,20 +299,29 @@ export function render(options: {
     for (let column = 0; column < row.cells.length; column += 1) {
       const cell = row.cells[column]
       const link = inRange(options.hoveredLink, rowIndex, column)
-      if (!cell.underline && !cell.strikethrough && !cell.overline && !link)
+      if (
+        cell.underline === 0 &&
+        !cell.strikethrough &&
+        !cell.overline &&
+        !link
+      )
         continue
+      const { left, width } = columns(column, column + 1, metrics, pixelRatio)
+      const bottom = cellTop + cellHeight
       context.fillStyle = css(cell.foreground)
-      const left = column * metrics.width
-      if (cell.underline || link)
-        context.fillRect(left, top + metrics.height - 2, metrics.width, 1)
       if (cell.strikethrough)
         context.fillRect(
           left,
           top + Math.floor(metrics.height * 0.55),
-          metrics.width,
+          width,
           1
         )
-      if (cell.overline) context.fillRect(left, top + 1, metrics.width, 1)
+      if (cell.overline) context.fillRect(left, cellTop + 1, width, 1)
+      if (cell.underline !== 0) {
+        if (cell.underlineColor !== null)
+          context.fillStyle = css(cell.underlineColor)
+        drawUnderline(context, cell.underline, left, width, bottom)
+      } else if (link) drawUnderline(context, 1, left, width, bottom)
     }
   }
 
@@ -246,40 +332,54 @@ export function render(options: {
     snapshot.cursorY < 0
   )
     return
-  const left = snapshot.cursorX * metrics.width
   const top = snapshot.cursorY * metrics.height
+  const cursorTop = snap(top, pixelRatio)
+  const height = snap(top + metrics.height, pixelRatio) - cursorTop
   const cells = snapshot.rowData[snapshot.cursorY]?.cells
   const cell = cells?.[snapshot.cursorX]
-  const width =
-    cells?.[snapshot.cursorX + 1]?.wide === CELL_WIDE.spacerTail
-      ? metrics.width * 2
-      : metrics.width
+  const span =
+    cells?.[snapshot.cursorX + 1]?.wide === CELL_WIDE.spacerTail ? 2 : 1
+  const { left, width } = columns(
+    snapshot.cursorX,
+    snapshot.cursorX + span,
+    metrics,
+    pixelRatio
+  )
   context.fillStyle = css(snapshot.cursor)
   context.strokeStyle = css(snapshot.cursor)
   if (!options.focused || snapshot.cursorStyle === 3) {
-    context.strokeRect(left + 0.5, top + 0.5, width - 1, metrics.height - 1)
+    context.strokeRect(left + 0.5, cursorTop + 0.5, width - 1, height - 1)
     return
   }
   if (snapshot.cursorStyle === 0) {
-    context.fillRect(left, top, 2, metrics.height)
+    context.fillRect(left, cursorTop, 2, height)
     return
   }
   if (snapshot.cursorStyle === 2) {
-    context.fillRect(left, top + metrics.height - 2, width, 2)
+    context.fillRect(left, cursorTop + height - 2, width, 2)
     return
   }
-  context.fillRect(left, top, width, metrics.height)
+  context.fillRect(left, cursorTop, width, height)
   if (!cell?.text) return
   context.fillStyle = appearance.cursorText
   if (isGlyph(cell.text)) {
-    drawGlyph(context, cell.text, {
-      left,
-      top,
-      width: metrics.width,
-      height: metrics.height,
-    })
+    drawGlyph(
+      context,
+      cell.text,
+      {
+        left: snapshot.cursorX * metrics.width,
+        top,
+        width: metrics.width,
+        height: metrics.height,
+      },
+      pixelRatio
+    )
     return
   }
   context.font = font(cell, appearance)
-  context.fillText(cell.text, left, top + metrics.baseline)
+  context.fillText(
+    cell.text,
+    snapshot.cursorX * metrics.width,
+    top + metrics.baseline
+  )
 }

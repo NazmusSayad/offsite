@@ -13,6 +13,8 @@ const SELECTION_FORMAT_OPTIONS_SIZE = 16
 const STYLE_FOREGROUND_TAG = 8
 const STYLE_FOREGROUND_INDEX = 16
 const STYLE_COLOR_PALETTE = 1
+const STYLE_COLOR_RGB = 2
+const STYLE_COLOR_VALUE = 8
 
 const RENDER_DATA = {
   cols: 1,
@@ -77,7 +79,8 @@ export type Cell = {
   invisible: boolean
   strikethrough: boolean
   overline: boolean
-  underline: boolean
+  underline: number
+  underlineColor: Color | null
   selected: boolean
 }
 
@@ -527,6 +530,19 @@ export class GhosttyCore {
     return this.getFlag('ghostty_terminal_mode_get', 1003)
   }
 
+  isFocusReporting() {
+    return this.getFlag('ghostty_terminal_mode_get', 1004)
+  }
+
+  currentColors(): Colors {
+    return {
+      foreground: this.terminalColor(18),
+      background: this.terminalColor(19),
+      cursor: this.terminalColor(20),
+      palette: this.readPalette(),
+    }
+  }
+
   isApplicationCursorKeys() {
     return this.getFlag('ghostty_terminal_mode_get', 1)
   }
@@ -908,7 +924,7 @@ export class GhosttyCore {
 
     const dirtyRows = new Set<number>()
     if (dirty !== 0) {
-      if (this.boldIsBright) this.palette = this.readPalette()
+      this.palette = this.readPalette()
       this.check(
         'ghostty_render_state_get',
         runtime.call(
@@ -1046,7 +1062,7 @@ export class GhosttyCore {
     const pointer = this.runtime.alloc(768)
     this.runtime.call('ghostty_terminal_get', this.terminal, 21, pointer)
     const bytes = this.runtime.bytes(pointer, 768)
-    const palette = Array.from({ length: 16 }, (_, index) => ({
+    const palette = Array.from({ length: 256 }, (_, index) => ({
       r: bytes[index * 3],
       g: bytes[index * 3 + 1],
       b: bytes[index * 3 + 2],
@@ -1180,6 +1196,9 @@ export class GhosttyCore {
       }
       if (flag('inverse')) [foreground, background] = [background, foreground]
       if (flag('faint')) foreground = blend(foreground, background)
+      const underlineColor = this.style + styleFields.underline_color.offset
+      const underlineTag = styleView.getUint32(underlineColor, true)
+      const underlineValue = underlineColor + STYLE_COLOR_VALUE
       cells.push({
         text,
         wide,
@@ -1190,11 +1209,16 @@ export class GhosttyCore {
         invisible: flag('invisible'),
         strikethrough: flag('strikethrough'),
         overline: flag('overline'),
-        underline:
-          styleView.getInt32(
-            this.style + styleFields.underline.offset,
-            true
-          ) !== 0,
+        underline: styleView.getInt32(
+          this.style + styleFields.underline.offset,
+          true
+        ),
+        underlineColor:
+          underlineTag === STYLE_COLOR_PALETTE
+            ? this.palette[styleView.getUint8(underlineValue)]
+            : underlineTag === STYLE_COLOR_RGB
+              ? this.readColor(underlineValue)
+              : null,
         selected,
       })
     }
@@ -1352,6 +1376,20 @@ export class GhosttyCore {
     return result === SUCCESS ? this.readColor(this.scratch) : fallback
   }
 
+  private terminalColor(data: number) {
+    this.runtime.bytes(this.scratch, 3).fill(0)
+    this.check(
+      'ghostty_terminal_get',
+      this.runtime.call(
+        'ghostty_terminal_get',
+        this.terminal,
+        data,
+        this.scratch
+      )
+    )
+    return this.readColor(this.scratch)
+  }
+
   private getRowFlag(iterator: number, data: number) {
     this.runtime.bytes(this.scratch, 1)[0] = 0
     return (
@@ -1395,7 +1433,8 @@ export class GhosttyCore {
       invisible: false,
       strikethrough: false,
       overline: false,
-      underline: false,
+      underline: 0,
+      underlineColor: null,
       selected: false,
     }
   }

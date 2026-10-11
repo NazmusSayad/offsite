@@ -101,6 +101,13 @@ function quoteFamilies(list: string) {
   return [...families, 'monospace'].join(', ')
 }
 
+function colorSpec(color: Color) {
+  function channel(value: number) {
+    return value.toString(16).padStart(2, '0').repeat(2)
+  }
+  return `rgb:${channel(color.r)}/${channel(color.g)}/${channel(color.b)}`
+}
+
 function percent(value: number) {
   return Math.min(Math.max(value, 0), 100)
 }
@@ -472,8 +479,42 @@ export class Terminal {
       }
       return false
     }
+    if (text === '10;?' || text === '11;?' || text === '12;?') {
+      if (!replay) this.replyColor(text, event.terminator)
+      return false
+    }
+    if (text.startsWith('4;')) {
+      if (!replay) this.replyPalette(text, event.terminator)
+      return false
+    }
     if (text === '9;4' || text.startsWith('9;4;')) this.handleProgress(text)
     return false
+  }
+
+  private replyColor(query: '10;?' | '11;?' | '12;?', terminator: string) {
+    const colors = this.core.currentColors()
+    const color =
+      query === '10;?'
+        ? colors.foreground
+        : query === '11;?'
+          ? colors.background
+          : colors.cursor
+    this.handlers.onReply(
+      `\x1b]${query.slice(0, 2)};${colorSpec(color)}${terminator}`
+    )
+  }
+
+  private replyPalette(text: string, terminator: string) {
+    const parts = text.split(';')
+    const palette = this.core.currentColors().palette
+    for (let index = 1; index + 1 < parts.length; index += 2) {
+      if (parts[index + 1] !== '?' || !/^\d+$/.test(parts[index])) continue
+      const color = palette[Number(parts[index])]
+      if (color === undefined) continue
+      this.handlers.onReply(
+        `\x1b]4;${parts[index]};${colorSpec(color)}${terminator}`
+      )
+    }
   }
 
   private handleProgress(text: string) {
@@ -665,6 +706,7 @@ export class Terminal {
       focused: this.focused,
       hoveredLink: this.hoveredLink?.range ?? null,
       highlights: this.highlights(snapshot),
+      pixelRatio: window.devicePixelRatio || 1,
     })
     for (const image of images)
       this.context.drawImage(
@@ -1122,12 +1164,16 @@ export class Terminal {
     this.focused = true
     this.cursorOn = true
     this.requestRender()
+    if (!this.disposed && this.core.isFocusReporting())
+      this.handlers.onReply('\x1b[I')
   }
 
   private readonly onBlur = () => {
     this.focused = false
     this.cursorOn = true
     this.requestRender()
+    if (!this.disposed && this.core.isFocusReporting())
+      this.handlers.onReply('\x1b[O')
   }
 
   private readonly onPointerDown = (event: PointerEvent) => {
