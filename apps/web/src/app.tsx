@@ -243,7 +243,7 @@ export function App() {
                         name: tab.customName ?? '',
                       })
                     }
-                    onClose={() => send({ type: 'close', id: tab.id })}
+                    onClose={() => send({ type: 'closeTab', id: tab.id })}
                   >
                     <div
                       className={cn(
@@ -288,7 +288,7 @@ export function App() {
                         aria-label="Close tab"
                         onClick={(event) => {
                           event.stopPropagation()
-                          send({ type: 'close', id: tab.id })
+                          send({ type: 'closeTab', id: tab.id })
                         }}
                       >
                         <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
@@ -391,7 +391,7 @@ export function App() {
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
-                if (prompt) send({ type: 'close', id: prompt.id })
+                if (prompt) send({ type: 'closeGroup', id: prompt.id })
               }}
             >
               Close

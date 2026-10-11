@@ -8,7 +8,7 @@ use axum::{Json, http::StatusCode};
 use serde::{Deserialize, Serialize};
 
 use crate::utils::{
-    fs::write_atomic,
+    fs::{lock_folder, write_atomic},
     paths::{self, expand_home},
 };
 
@@ -124,12 +124,9 @@ pub struct BuiltinTheme {
     colors: Colors,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Launch {
-    command: Option<String>,
-    cwd: PathBuf,
-    pub cwd_from: Option<u64>,
+    pub command: Option<String>,
+    pub cwd: PathBuf,
 }
 
 pub fn create() -> io::Result<()> {
@@ -196,7 +193,7 @@ fn parse(value: &serde_json::Value) -> Result<Config, String> {
     Ok(config)
 }
 
-fn read() -> Config {
+pub fn read() -> Config {
     let path = paths::config_file();
     let defaults: serde_json::Value =
         serde_json::from_str(DEFAULT).expect("default config is valid");
@@ -250,29 +247,31 @@ fn read() -> Config {
     parse(&value).expect("merged config is valid")
 }
 
-pub async fn handler() -> Json<Config> {
-    Json(read())
+#[derive(Serialize)]
+pub struct Settings {
+    config: Config,
+    defaults: Config,
+    themes: Vec<BuiltinTheme>,
+    platform: &'static str,
+}
+
+pub async fn handler() -> Json<Settings> {
+    Json(Settings {
+        config: read(),
+        defaults: serde_json::from_str(DEFAULT).expect("default config is valid"),
+        themes: builtin_themes(),
+        platform: std::env::consts::OS,
+    })
 }
 
 pub fn save(config: Config) -> Result<Config, (StatusCode, String)> {
     validate(&config).map_err(|error| (StatusCode::BAD_REQUEST, error))?;
     let mut text = serde_json::to_string_pretty(&config).expect("config serializes");
     text.push('\n');
-    write_atomic(&paths::config_file(), text.as_bytes())
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let failed = |error: io::Error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string());
+    let _lock = lock_folder().map_err(failed)?;
+    write_atomic(&paths::config_file(), text.as_bytes()).map_err(failed)?;
     Ok(config)
-}
-
-pub async fn defaults() -> Json<Config> {
-    Json(serde_json::from_str(DEFAULT).expect("default config is valid"))
-}
-
-pub async fn themes() -> Json<Vec<BuiltinTheme>> {
-    Json(builtin_themes())
-}
-
-pub async fn platform() -> Json<&'static str> {
-    Json(std::env::consts::OS)
 }
 
 pub fn launch(directory: Option<&str>) -> Result<Launch, String> {
@@ -289,6 +288,5 @@ pub fn launch(directory: Option<&str>) -> Result<Launch, String> {
             Some(directory) => directory,
             None => &shell.cwd,
         }),
-        cwd_from: None,
     })
 }

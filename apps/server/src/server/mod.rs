@@ -1,18 +1,15 @@
 mod app;
 mod assets;
-mod debug;
 mod directories;
-mod keeper_link;
-mod layout;
+mod groups;
 mod logos;
+mod messages;
 mod paste;
-mod restart;
 mod shells;
+mod sync;
+mod terminals;
 
-use std::{
-    io::{self, Read},
-    sync::Arc,
-};
+use std::{fs, sync::Arc};
 
 use axum::{
     Json, Router,
@@ -22,41 +19,63 @@ use axum::{
     routing::{get, post, put},
     serve::ListenerExt,
 };
-use tokio::sync::mpsc;
 
 use crate::{config, logging, utils::paths};
 use app::App;
 
-pub fn run(host: String, port: u16, debug: bool, session: &str) {
-    logging::init(&format!("session-{session}.log"), debug, true);
-    std::thread::spawn(|| {
-        let mut byte = [0];
-        loop {
-            match io::stdin().read(&mut byte) {
-                Ok(0) | Err(_) => {
-                    tracing::info!("supervisor is gone, exiting");
-                    std::process::exit(0);
-                }
-                Ok(_) => {}
-            }
+pub fn run(host: String, port: u16, debug: bool) {
+    if let Err(error) = logging::init(debug) {
+        eprintln!(
+            "could not create the log in {}: {error}",
+            paths::session_directory().display()
+        );
+        std::process::exit(1);
+    }
+    #[cfg(windows)]
+    if unsafe { windows_sys::Win32::System::Console::SetConsoleCtrlHandler(None, 0) } == 0 {
+        tracing::warn!(
+            "could not enable ctrl+c for terminals: {}",
+            std::io::Error::last_os_error()
+        );
+    }
+    if let Err(error) = config::create() {
+        tracing::error!(
+            "could not create {}: {error}",
+            paths::config_file().display()
+        );
+        std::process::exit(1);
+    }
+    let secret = match sync::secret() {
+        Ok(secret) => secret,
+        Err(error) => {
+            tracing::error!("could not read or create the secret: {error}");
+            std::process::exit(1);
         }
-    });
-    tokio::runtime::Runtime::new()
-        .expect("could not start the async runtime")
-        .block_on(serve(host, port, debug));
+    };
+    let groups = match groups::read() {
+        Ok(groups) => groups,
+        Err(error) => {
+            tracing::error!("{error}");
+            std::process::exit(1);
+        }
+    };
+    let app = Arc::new(App::new(groups.groups, secret));
+    let watching = app.clone();
+    std::thread::spawn(move || terminals::watch_branches(&watching));
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            tracing::error!("could not start the async runtime: {error}");
+            std::process::exit(1);
+        }
+    };
+    runtime.block_on(serve(app, host, port, debug));
 }
 
-async fn serve(host: String, port: u16, debug: bool) {
-    config::create().expect("could not create the config file");
-    let (keeper, frames) = mpsc::unbounded_channel();
-    let app = Arc::new(App::new(paths::layout_file(), keeper, debug));
-    tokio::spawn(keeper_link::link(app.clone(), frames));
+async fn serve(app: Arc<App>, host: String, port: u16, debug: bool) {
     let mut router = Router::new()
         .route("/ws", get(socket))
         .route("/api/config", get(config::handler).put(save_config))
-        .route("/api/config/defaults", get(config::defaults))
-        .route("/api/themes", get(config::themes))
-        .route("/api/platform", get(config::platform))
         .route("/api/directories", get(directories::list))
         .route("/api/shells", get(shells::list))
         .route(
@@ -68,26 +87,29 @@ async fn serve(host: String, port: u16, debug: bool) {
             "/api/paste",
             post(paste::upload).layer(DefaultBodyLimit::max(50 * 1024 * 1024)),
         )
-        .route("/api/instance", get(restart::instance))
-        .route("/api/restart/server", post(restart::server))
-        .route("/api/restart/everything", post(restart::everything));
+        .route("/api/sync", post(sync::receive));
     if debug {
-        router = router
-            .route("/api/debug/logs", get(debug::list))
-            .route("/api/debug/logs/{file}", get(debug::file));
+        router = router.route("/api/debug/logs", get(debug_log));
     }
     let router = router.fallback(assets::asset).with_state(app);
     let listener = match tokio::net::TcpListener::bind((host.as_str(), port)).await {
         Ok(listener) => listener,
         Err(error) => {
-            tracing::error!("could not listen on {host}:{port}: {error}");
+            tracing::error!(
+                "could not listen on {host}:{port}, is sshtty already running? {error}"
+            );
             std::process::exit(1);
         }
     };
-    tracing::info!(
-        "listening on http://{}",
-        listener.local_addr().expect("listener has an address")
-    );
+    let address = listener.local_addr().expect("listener has an address");
+    let _registration = match sync::register(address) {
+        Ok(lock) => lock,
+        Err(error) => {
+            tracing::error!("could not register this session: {error}");
+            std::process::exit(1);
+        }
+    };
+    tracing::info!("listening on http://{address}");
     let listener = listener.tap_io(|stream| {
         if let Err(error) = stream.set_nodelay(true) {
             tracing::warn!("could not disable packet batching for a browser connection: {error}");
@@ -102,7 +124,13 @@ async fn save_config(
 ) -> Result<Json<config::Config>, (StatusCode, String)> {
     let config = config::save(config)?;
     app.publish_config(&config);
+    sync::notify(app.secret.clone());
     Ok(Json(config))
+}
+
+async fn debug_log() -> Result<String, (StatusCode, String)> {
+    fs::read_to_string(paths::log_file())
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))
 }
 
 async fn socket(upgrade: WebSocketUpgrade, State(app): State<Arc<App>>) -> Response {

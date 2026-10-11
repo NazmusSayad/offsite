@@ -1,5 +1,5 @@
 import type { TerminalOptions } from './ghostty/terminal'
-import { themeColors } from './themes'
+import { type BuiltinTheme, themeColors } from './themes'
 
 export type Platform = 'macos' | 'linux' | 'windows'
 
@@ -60,31 +60,24 @@ export const builtinFonts = [
   { family: 'Hack Nerd Font', label: 'Hack' },
 ]
 
-export async function loadConfig() {
-  const response = await fetch('/api/config')
-  if (!response.ok) throw new Error(await response.text())
-  return (await response.json()) as Config
-}
-
-export async function loadDefaults() {
-  const response = await fetch('/api/config/defaults')
-  if (!response.ok) throw new Error(await response.text())
-  return (await response.json()) as Config
-}
-
 export const platforms: { value: Platform; label: string }[] = [
   { value: 'macos', label: 'macOS' },
   { value: 'linux', label: 'Linux' },
   { value: 'windows', label: 'Windows' },
 ]
 
-export async function loadPlatform() {
-  const response = await fetch('/api/platform')
+export async function loadSettings() {
+  const response = await fetch('/api/config')
   if (!response.ok) throw new Error(await response.text())
-  const platform = (await response.json()) as string
-  const known = platforms.find((item) => item.value === platform)
-  if (!known) throw new Error(`unsupported platform ${platform}`)
-  return known.value
+  const settings = (await response.json()) as {
+    config: Config
+    defaults: Config
+    themes: BuiltinTheme[]
+    platform: string
+  }
+  const known = platforms.find((item) => item.value === settings.platform)
+  if (!known) throw new Error(`unsupported platform ${settings.platform}`)
+  return { ...settings, platform: known.value }
 }
 
 export async function saveConfig(config: Config) {

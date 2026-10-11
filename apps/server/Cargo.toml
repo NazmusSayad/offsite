@@ -17,6 +17,7 @@ serde_json = "1.0.151"
 tokio = { version = "1.53.2", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
+uuid = { version = "1.28.0", features = ["v4"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.190"

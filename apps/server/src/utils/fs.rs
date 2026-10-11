@@ -1,4 +1,10 @@
-use std::{fs, io, path::Path};
+use std::{
+    fs::{self, File, OpenOptions},
+    io,
+    path::Path,
+};
+
+use crate::utils::paths;
 
 pub fn write_atomic(path: &Path, contents: &[u8]) -> io::Result<()> {
     let path = match fs::canonicalize(path) {
@@ -11,4 +17,15 @@ pub fn write_atomic(path: &Path, contents: &[u8]) -> io::Result<()> {
     temporary.push(".tmp");
     fs::write(&temporary, contents)?;
     fs::rename(&temporary, &path)
+}
+
+pub fn lock_folder() -> io::Result<File> {
+    fs::create_dir_all(paths::root())?;
+    let file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(false)
+        .open(paths::folder_lock_file())?;
+    file.lock()?;
+    Ok(file)
 }

@@ -1,11 +1,9 @@
 use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
+    collections::HashMap,
     sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        Arc, Mutex, MutexGuard, PoisonError,
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
-    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use axum::{
@@ -13,84 +11,76 @@ use axum::{
     http::StatusCode,
 };
 use futures_util::{SinkExt, StreamExt};
-use serde::Deserialize;
-use serde_json::json;
+use serde::Serialize;
 use tokio::sync::{Notify, mpsc};
 
 use super::{
-    layout::{self, Group, Layout, Tab, remove_tab, tab_group, tab_ids, unused_name},
+    groups::{self, Group, Groups, unused_name},
     logos,
+    messages::{Event, GroupLayout, Layout, Request},
+    sync,
+    terminals::{self, HISTORY_LIMIT, Terminal},
 };
-use crate::{
-    config::{self, Launch},
-    frame::{self, Frame},
-};
+use crate::{config, utils::paths};
 
-#[derive(Debug, Deserialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
-enum Request {
-    Hello { client_id: String },
-    Resume { client_id: String },
-    Ping,
-    CreateGroup,
-    CreateTab { group_id: u64 },
-    Close { id: u64 },
-    Rename { id: u64, name: String },
-    SetDirectory { id: u64, directory: String },
-    Select { group_id: u64, tab_id: Option<u64> },
-    Resize { id: u64, cols: u16, rows: u16 },
+const BACKLOG_LIMIT: usize = 16 * 1024 * 1024;
+
+#[derive(Clone)]
+struct Outbox {
+    sender: mpsc::UnboundedSender<Message>,
+    queued: Arc<AtomicUsize>,
+    too_slow: Arc<Notify>,
 }
 
 struct Client {
     connection: u64,
     client_id: String,
-    sender: mpsc::UnboundedSender<Message>,
+    outbox: Outbox,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct Tab {
+    id: u64,
+    custom_name: Option<String>,
+}
+
+#[derive(Default)]
+struct GroupTabs {
+    tabs: Vec<Tab>,
+    active_tab: Option<u64>,
 }
 
 struct Inner {
-    layout: Layout,
+    groups: Vec<Group>,
+    tabs: HashMap<u64, GroupTabs>,
+    active_group: Option<u64>,
+    next_tab: u64,
+    terminals: HashMap<u64, Terminal>,
     active: Option<Client>,
-    generation: u64,
-    pending: HashSet<u64>,
-    branches: HashMap<u64, String>,
 }
 
 pub(super) struct App {
     inner: Mutex<Inner>,
-    keeper: mpsc::UnboundedSender<Vec<u8>>,
-    path: PathBuf,
+    groups_file: Mutex<()>,
     connections: AtomicU64,
-    pub(super) instance: String,
-    pub(super) stopping: AtomicBool,
-    pub(super) keeper_gone: Notify,
-    pub(super) debug: bool,
+    pub(super) secret: String,
 }
 
 impl App {
-    pub(super) fn new(path: PathBuf, keeper: mpsc::UnboundedSender<Vec<u8>>, debug: bool) -> Self {
+    pub(super) fn new(groups: Vec<Group>, secret: String) -> Self {
         App {
             inner: Mutex::new(Inner {
-                layout: layout::load(&path),
+                groups,
+                tabs: HashMap::new(),
+                active_group: None,
+                next_tab: 0,
+                terminals: HashMap::new(),
                 active: None,
-                generation: 0,
-                pending: HashSet::new(),
-                branches: HashMap::new(),
             }),
-            keeper,
-            path,
+            groups_file: Mutex::new(()),
             connections: AtomicU64::new(0),
-            instance: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("system clock is after 1970")
-                .as_millis()
-                .to_string(),
-            stopping: AtomicBool::new(false),
-            keeper_gone: Notify::new(),
-            debug,
+            secret,
         }
     }
 }
@@ -100,163 +90,236 @@ pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
     tracing::info!(connection, "browser connected");
     let (mut sink, mut stream) = socket.split();
     let (sender, mut receiver) = mpsc::unbounded_channel();
+    let outbox = Outbox {
+        sender,
+        queued: Arc::new(AtomicUsize::new(0)),
+        too_slow: Arc::new(Notify::new()),
+    };
+    let queued = outbox.queued.clone();
     let forwarding = tokio::spawn(async move {
         while let Some(message) = receiver.recv().await {
-            if sink.send(message).await.is_err() {
+            let size = message_size(&message);
+            let sent = sink.send(message).await;
+            queued.fetch_sub(size, Ordering::Relaxed);
+            if sent.is_err() {
                 break;
             }
         }
     });
-    while let Some(Ok(message)) = stream.next().await {
+    let (requests, mut queue) = mpsc::unbounded_channel();
+    let handling = app.clone();
+    let too_slow = outbox.too_slow.clone();
+    let handler = tokio::task::spawn_blocking(move || {
+        while let Some(request) = queue.blocking_recv() {
+            handling.request(connection, &outbox, request);
+        }
+        let mut inner = handling.lock();
+        if inner
+            .active
+            .as_ref()
+            .is_some_and(|client| client.connection == connection)
+        {
+            inner.active = None;
+        }
+    });
+    loop {
+        let message = tokio::select! {
+            message = stream.next() => message,
+            () = too_slow.notified() => {
+                tracing::warn!(connection, "browser is not reading fast enough, disconnecting it");
+                break;
+            }
+        };
         match message {
-            Message::Text(text) => match serde_json::from_str(&text) {
-                Ok(request) => app.request(connection, &sender, request),
+            Some(Ok(Message::Text(text))) => match serde_json::from_str(&text) {
+                Ok(request) => {
+                    let _ = requests.send(request);
+                }
                 Err(error) => tracing::warn!(connection, "invalid request: {error}"),
             },
-            Message::Binary(bytes) => app.input(connection, &bytes),
-            Message::Ping(_) | Message::Pong(_) | Message::Close(_) => {}
+            Some(Ok(Message::Binary(bytes))) => app.input(connection, &bytes),
+            Some(Ok(Message::Ping(_) | Message::Pong(_) | Message::Close(_))) => {}
+            Some(Err(_)) | None => break,
         }
     }
+    drop(requests);
     forwarding.abort();
     tracing::info!(connection, "browser disconnected");
-    let mut inner = app.inner.lock().unwrap();
-    if inner
-        .active
-        .as_ref()
-        .is_some_and(|client| client.connection == connection)
-    {
-        inner.active = None;
+    if let Err(error) = handler.await {
+        tracing::error!(connection, "request handler failed: {error}");
     }
 }
 
 impl App {
-    fn request(&self, connection: u64, sender: &mpsc::UnboundedSender<Message>, request: Request) {
-        let mut guard = self.inner.lock().unwrap();
-        let inner = &mut *guard;
-        let active = inner
-            .active
-            .as_ref()
-            .is_some_and(|client| client.connection == connection);
-        tracing::debug!(connection, active, ?request, "request");
+    fn lock(&self) -> MutexGuard<'_, Inner> {
+        self.inner.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn request(self: &Arc<Self>, connection: u64, outbox: &Outbox, request: Request) {
+        tracing::debug!(connection, ?request, "request");
         match request {
             Request::Hello { client_id } => {
-                let available = match &inner.active {
-                    None => true,
-                    Some(client) => client.client_id == client_id,
-                };
-                if available {
-                    let sender = sender.clone();
-                    self.activate(
-                        inner,
-                        Client {
-                            connection,
-                            client_id,
-                            sender,
-                        },
-                    );
-                } else {
+                let mut inner = self.lock();
+                if inner
+                    .active
+                    .as_ref()
+                    .is_some_and(|client| client.client_id != client_id)
+                {
                     tracing::info!(connection, "another browser is active, pausing this one");
-                    send(sender, json!({ "type": "paused" }));
+                    send(&inner, outbox, &Event::Paused);
+                    return;
                 }
-                return;
-            }
-            Request::Resume { client_id } => {
-                let sender = sender.clone();
-                self.activate(
-                    inner,
+                activate(
+                    &mut inner,
                     Client {
                         connection,
                         client_id,
-                        sender,
+                        outbox: outbox.clone(),
+                    },
+                );
+                return;
+            }
+            Request::Resume { client_id } => {
+                activate(
+                    &mut self.lock(),
+                    Client {
+                        connection,
+                        client_id,
+                        outbox: outbox.clone(),
                     },
                 );
                 return;
             }
             Request::Ping => {
-                send(sender, json!({ "type": "pong" }));
+                send(&self.lock(), outbox, &Event::Pong);
                 return;
             }
-            _ if !active => return,
+            _ if !self
+                .lock()
+                .active
+                .as_ref()
+                .is_some_and(|client| client.connection == connection) =>
+            {
+                return;
+            }
             Request::Resize { id, cols, rows } => {
-                self.to_keeper(frame::encode(
-                    frame::RESIZE,
-                    id,
-                    &frame::encode_size(cols, rows),
-                ));
+                if let Some(terminal) = self.lock().terminals.get(&id) {
+                    terminal.resize(id, cols, rows);
+                }
                 return;
             }
             Request::CreateGroup => {
-                let layout = &mut inner.layout;
-                layout.next_id += 1;
-                let id = layout.next_id;
-                layout.groups.push(Group {
-                    id,
-                    name: unused_name(layout.groups.iter().map(|group| &group.name)),
-                    logo: None,
-                    directory: None,
-                    tabs: Vec::new(),
-                    active_tab: None,
+                let created = self.update_groups(|groups| {
+                    let id = groups.next_id.checked_add(1)?;
+                    groups.next_id = id;
+                    let name = unused_name(groups.groups.iter().map(|group| &group.name));
+                    groups.groups.push(Group {
+                        id,
+                        name,
+                        logo: None,
+                        directory: None,
+                    });
+                    Some(id)
                 });
-                layout.active_group = Some(id);
-                self.create_tab(layout, id);
+                let id = match created {
+                    Ok(Some(id)) => id,
+                    Ok(None) => {
+                        tracing::error!("no group ids are left");
+                        return;
+                    }
+                    Err(_) => return,
+                };
+                let mut inner = self.lock();
+                inner.active_group = Some(id);
+                self.create_tab(&mut inner, id);
             }
-            Request::CreateTab { group_id } => self.create_tab(&mut inner.layout, group_id),
-            Request::Close { id } => {
-                let group_id = tab_group(&inner.layout, id).map(|group| group.id);
-                self.close(&mut inner.layout, id);
-                let reopen = inner.layout.groups.iter().any(|group| {
-                    Some(group.id) == group_id && group.tabs.is_empty() && group.directory.is_some()
+            Request::CreateTab { group_id } => self.create_tab(&mut self.lock(), group_id),
+            Request::CloseGroup { id } => {
+                let removed = self.update_groups(|groups| {
+                    let index = groups.groups.iter().position(|group| group.id == id)?;
+                    Some(groups.groups.remove(index))
                 });
-                if let (true, Some(group_id)) = (reopen, group_id) {
-                    self.create_tab(&mut inner.layout, group_id);
+                if let Ok(Some(Group {
+                    logo: Some(logo), ..
+                })) = removed
+                {
+                    logos::delete(&logo);
                 }
             }
-            Request::Rename { id, name } => {
-                for group in &mut inner.layout.groups {
-                    if group.id == id && !name.is_empty() {
-                        group.name = name.clone();
-                    }
-                    for tab in &mut group.tabs {
-                        if tab.id == id {
-                            tab.custom_name = match name.is_empty() {
-                                true => None,
-                                false => Some(name.clone()),
-                            };
-                        }
-                    }
+            Request::CloseTab { id } => {
+                let mut inner = self.lock();
+                let Some(group_id) = close_tab(&mut inner, id) else {
+                    return;
+                };
+                let reopen = inner.groups.iter().any(|group| {
+                    group.id == group_id
+                        && group.directory.is_some()
+                        && inner
+                            .tabs
+                            .get(&group_id)
+                            .is_none_or(|tabs| tabs.tabs.is_empty())
+                });
+                if reopen {
+                    self.create_tab(&mut inner, group_id);
                 }
+            }
+            Request::RenameGroup { id, name } => {
+                if name.is_empty() {
+                    return;
+                }
+                let _ = self.update_groups(|groups| {
+                    if let Some(group) = groups.groups.iter_mut().find(|group| group.id == id) {
+                        group.name = name;
+                    }
+                });
+            }
+            Request::RenameTab { id, name } => {
+                let mut inner = self.lock();
+                let Some(tab) = inner
+                    .tabs
+                    .values_mut()
+                    .flat_map(|tabs| tabs.tabs.iter_mut())
+                    .find(|tab| tab.id == id)
+                else {
+                    return;
+                };
+                tab.custom_name = match name.is_empty() {
+                    true => None,
+                    false => Some(name),
+                };
             }
             Request::SetDirectory { id, directory } => {
-                let Some(group) = inner.layout.groups.iter_mut().find(|group| group.id == id)
-                else {
-                    return;
-                };
-                group.directory = match directory.is_empty() {
-                    true => None,
-                    false => Some(directory),
-                };
+                let _ = self.update_groups(|groups| {
+                    if let Some(group) = groups.groups.iter_mut().find(|group| group.id == id) {
+                        group.directory = match directory.is_empty() {
+                            true => None,
+                            false => Some(directory),
+                        };
+                    }
+                });
             }
             Request::Select { group_id, tab_id } => {
-                let Some(group) = inner
-                    .layout
-                    .groups
-                    .iter_mut()
-                    .find(|group| group.id == group_id)
-                else {
+                let mut guard = self.lock();
+                let inner = &mut *guard;
+                if !inner.groups.iter().any(|group| group.id == group_id) {
                     return;
-                };
-                if tab_id.is_some() {
-                    group.active_tab = tab_id;
                 }
-                inner.layout.active_group = Some(group_id);
+                let tabs = inner.tabs.entry(group_id).or_default();
+                if tab_id.is_some() {
+                    tabs.active_tab = tab_id;
+                }
+                let empty = tabs.tabs.is_empty();
+                inner.active_group = Some(group_id);
+                if empty {
+                    self.create_tab(inner, group_id);
+                }
             }
         }
-        self.save(&inner.layout);
-        publish(inner);
+        publish(&self.lock());
     }
 
     fn input(&self, connection: u64, bytes: &[u8]) {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.lock();
         if !inner
             .active
             .as_ref()
@@ -265,206 +328,135 @@ impl App {
             tracing::debug!(connection, "ignoring input from an inactive browser");
             return;
         }
-        if bytes.len() < 8 {
+        let Some((id, data)) = bytes.split_first_chunk::<8>() else {
             tracing::warn!(connection, "input message is too short");
             return;
+        };
+        let id = u64::from_be_bytes(*id);
+        tracing::trace!(connection, id, bytes = data.len(), "input");
+        match inner.terminals.get(&id) {
+            Some(terminal) => terminal.write(id, data.to_vec()),
+            None => tracing::warn!(id, "input for a terminal that does not exist"),
         }
-        tracing::trace!(
-            connection,
-            id = frame::read_u64(bytes),
-            bytes = bytes.len() - 8,
-            "input"
-        );
-        self.to_keeper(frame::encode(
-            frame::INPUT,
-            frame::read_u64(bytes),
-            &bytes[8..],
-        ));
     }
 
-    pub(super) fn keeper_frame(&self, message: Frame) {
-        if self.stopping.load(Ordering::SeqCst) {
+    pub(super) fn output(&self, id: u64, bytes: &[u8]) {
+        let mut inner = self.lock();
+        let Some(terminal) = inner.terminals.get_mut(&id) else {
+            return;
+        };
+        tracing::trace!(id, bytes = bytes.len(), "output");
+        terminal.record(bytes);
+        forward(&inner, id, false, bytes);
+    }
+
+    pub(super) fn exited(&self, id: u64) {
+        let mut inner = self.lock();
+        inner.terminals.remove(&id);
+        if close_tab(&mut inner, id).is_some() {
+            tracing::info!(id, "terminal exited, closing its tab");
+            publish(&inner);
+        }
+    }
+
+    pub(super) fn terminal_pids(&self) -> Vec<(u64, u32)> {
+        let inner = self.lock();
+        inner
+            .terminals
+            .iter()
+            .filter_map(|(id, terminal)| terminal.pid.map(|pid| (*id, pid)))
+            .collect()
+    }
+
+    pub(super) fn set_branch(&self, id: u64, branch: Option<String>) {
+        let mut inner = self.lock();
+        let Some(terminal) = inner.terminals.get_mut(&id) else {
+            return;
+        };
+        if terminal.branch == branch {
             return;
         }
-        match message.kind {
-            frame::OUTPUT => tracing::trace!(
-                id = message.id,
-                bytes = message.payload.len(),
-                "keeper output"
-            ),
-            kind => tracing::debug!(
-                kind,
-                id = message.id,
-                bytes = message.payload.len(),
-                "keeper frame"
-            ),
-        }
-        let mut guard = self.inner.lock().unwrap();
-        let inner = &mut *guard;
-        match message.kind {
-            frame::OUTPUT => {
-                if !inner.pending.contains(&message.id) {
-                    forward(inner, message.id, false, &message.payload);
-                }
-            }
-            frame::SNAPSHOT => {
-                if message.payload.len() < 8 {
-                    tracing::warn!(id = message.id, "snapshot is too short");
-                    return;
-                }
-                let generation = frame::read_u64(&message.payload);
-                if generation == inner.generation && inner.pending.remove(&message.id) {
-                    forward(inner, message.id, true, &message.payload[8..]);
-                }
-            }
-            frame::BRANCH => {
-                let branch = String::from_utf8_lossy(&message.payload).into_owned();
-                match branch.is_empty() {
-                    true => inner.branches.remove(&message.id),
-                    false => inner.branches.insert(message.id, branch.clone()),
-                };
-                if let Some(client) = &inner.active {
-                    send(
-                        &client.sender,
-                        json!({ "type": "branch", "id": message.id, "branch": inner.branches.get(&message.id) }),
-                    );
-                }
-            }
-            frame::EXIT => {
-                tracing::info!(id = message.id, "terminal exited");
-                inner.pending.remove(&message.id);
-                inner.branches.remove(&message.id);
-                if remove_tab(&mut inner.layout, message.id) {
-                    self.save(&inner.layout);
-                    publish(inner);
-                }
-            }
-            frame::LIST => {
-                let live: HashSet<u64> = message
-                    .payload
-                    .as_chunks::<8>()
-                    .0
-                    .iter()
-                    .map(|chunk| u64::from_be_bytes(*chunk))
-                    .collect();
-                let tabs = tab_ids(&inner.layout);
-                tracing::info!(?live, ?tabs, "keeper listed its terminals");
-                inner.branches.clear();
-                for id in &live {
-                    if !tabs.contains(id) {
-                        tracing::info!(id, "killing a terminal that is not in the layout");
-                        self.to_keeper(frame::encode(frame::KILL, *id, &[]));
-                    }
-                }
-                for id in &tabs {
-                    if !live.contains(id) {
-                        tracing::info!(id, "restarting a terminal that the keeper does not have");
-                        let directory = tab_group(&inner.layout, *id)
-                            .and_then(|group| group.directory.as_deref());
-                        match config::launch(directory) {
-                            Ok(launch) => self.spawn(*id, &launch),
-                            Err(error) => tracing::error!(
-                                "could not load config, terminal {id} not started: {error}"
-                            ),
-                        }
-                    }
-                }
-                self.reset(inner);
-            }
-            kind => tracing::warn!("unknown keeper frame kind {kind}"),
-        }
-    }
-
-    fn activate(&self, inner: &mut Inner, client: Client) {
-        let connection = client.connection;
-        tracing::info!(
-            connection,
-            client_id = client.client_id,
-            "browser is now active"
-        );
-        if let Some(previous) = inner.active.replace(client)
-            && previous.connection != connection
-        {
-            tracing::info!(
-                connection = previous.connection,
-                "pausing the previously active browser"
+        terminal.branch.clone_from(&branch);
+        if let Some(client) = &inner.active {
+            send(
+                &inner,
+                &client.outbox,
+                &Event::Branch {
+                    id,
+                    branch: branch.as_deref(),
+                },
             );
-            send(&previous.sender, json!({ "type": "paused" }));
-        }
-        self.reset(inner);
-    }
-
-    fn reset(&self, inner: &mut Inner) {
-        let Some(client) = &inner.active else {
-            return;
-        };
-        inner.generation += 1;
-        send(
-            &client.sender,
-            json!({ "type": "active", "layout": inner.layout, "instance": self.instance, "branches": inner.branches }),
-        );
-        inner.pending.clear();
-        for id in tab_ids(&inner.layout) {
-            inner.pending.insert(id);
-            self.to_keeper(frame::encode(
-                frame::REPLAY,
-                id,
-                &inner.generation.to_be_bytes(),
-            ));
         }
     }
 
-    fn create_tab(&self, layout: &mut Layout, group_id: u64) {
-        let Some(group) = layout.groups.iter_mut().find(|group| group.id == group_id) else {
+    fn create_tab(self: &Arc<Self>, inner: &mut Inner, group_id: u64) {
+        let Some(group) = inner.groups.iter().find(|group| group.id == group_id) else {
             return;
         };
-        let mut launch = match config::launch(group.directory.as_deref()) {
+        let launch = match config::launch(group.directory.as_deref()) {
             Ok(launch) => launch,
             Err(error) => {
                 tracing::error!("could not load config, terminal not created: {error}");
                 return;
             }
         };
-        launch.cwd_from = group.active_tab;
-        layout.next_id += 1;
-        let id = layout.next_id;
-        group.tabs.push(Tab {
-            id,
-            custom_name: None,
-        });
-        group.active_tab = Some(id);
-        self.spawn(id, &launch);
+        let tabs = inner.tabs.entry(group_id).or_default();
+        let cwd = match tabs.active_tab.and_then(|id| inner.terminals.get(&id)) {
+            Some(terminal) => match terminal.directory() {
+                Ok(directory) => directory,
+                Err(error) => {
+                    tracing::warn!(
+                        "starting in the configured directory, could not read the directory of the active terminal: {error}"
+                    );
+                    launch.cwd
+                }
+            },
+            None => launch.cwd,
+        };
+        inner.next_tab += 1;
+        let id = inner.next_tab;
+        match terminals::open(self, id, launch.command.as_deref(), cwd) {
+            Ok(terminal) => {
+                inner.terminals.insert(id, terminal);
+                tabs.tabs.push(Tab {
+                    id,
+                    custom_name: None,
+                });
+                tabs.active_tab = Some(id);
+            }
+            Err(error) => tracing::error!(id, "could not start terminal: {error}"),
+        }
     }
 
-    fn spawn(&self, id: u64, launch: &Launch) {
-        let launch = serde_json::to_vec(launch).expect("launch settings serialize");
-        tracing::info!(id, launch = %String::from_utf8_lossy(&launch), "starting terminal");
-        let mut payload = frame::encode_size(80, 24);
-        payload.extend(launch);
-        self.to_keeper(frame::encode(frame::SPAWN, id, &payload));
+    fn lock_groups_file(&self) -> MutexGuard<'_, ()> {
+        self.groups_file
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
-    fn close(&self, layout: &mut Layout, id: u64) {
-        if let Some(index) = layout.groups.iter().position(|group| group.id == id) {
-            let group = layout.groups.remove(index);
-            if let Some(logo) = &group.logo {
-                logos::delete(logo);
+    fn update_groups<T>(&self, change: impl FnOnce(&mut Groups) -> T) -> Result<T, String> {
+        let _groups_file = self.lock_groups_file();
+        let (groups, result) = groups::update(change).inspect_err(|error| {
+            tracing::error!("could not change groups: {error}");
+        })?;
+        set_groups(&mut self.lock(), groups.groups);
+        sync::notify(self.secret.clone());
+        Ok(result)
+    }
+
+    pub(super) fn reload(&self) {
+        self.publish_config(&config::read());
+        let _groups_file = self.lock_groups_file();
+        let groups = match groups::read() {
+            Ok(groups) => groups,
+            Err(error) => {
+                tracing::error!("keeping the current groups: {error}");
+                return;
             }
-            for tab in &group.tabs {
-                self.to_keeper(frame::encode(frame::KILL, tab.id, &[]));
-            }
-            if layout.active_group == Some(id) {
-                layout.active_group = layout
-                    .groups
-                    .get(index)
-                    .or(layout.groups.last())
-                    .map(|group| group.id);
-            }
-            return;
-        }
-        if remove_tab(layout, id) {
-            self.to_keeper(frame::encode(frame::KILL, id, &[]));
-        }
+        };
+        let mut inner = self.lock();
+        set_groups(&mut inner, groups.groups);
+        publish(&inner);
     }
 
     pub(super) fn replace_logo(
@@ -472,79 +464,162 @@ impl App {
         group_id: u64,
         logo: Option<String>,
     ) -> Result<Option<String>, StatusCode> {
-        let mut guard = self.inner.lock().unwrap();
-        let inner = &mut *guard;
-        let Some(group) = inner
-            .layout
-            .groups
-            .iter_mut()
-            .find(|group| group.id == group_id)
-        else {
-            return Err(StatusCode::NOT_FOUND);
+        let replaced = self.update_groups(|groups| {
+            let group = groups
+                .groups
+                .iter_mut()
+                .find(|group| group.id == group_id)?;
+            Some(std::mem::replace(&mut group.logo, logo))
+        });
+        let previous = match replaced {
+            Ok(Some(previous)) => previous,
+            Ok(None) => return Err(StatusCode::NOT_FOUND),
+            Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
         };
-        let previous = std::mem::replace(&mut group.logo, logo);
-        self.save(&inner.layout);
-        publish(inner);
+        publish(&self.lock());
         Ok(previous)
     }
 
     pub(super) fn has_logo(&self, file: &str) -> bool {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.lock();
         inner
-            .layout
             .groups
             .iter()
             .any(|group| group.logo.as_deref() == Some(file))
     }
 
-    fn save(&self, layout: &Layout) {
-        if let Err(error) = layout::write_layout(&self.path, layout) {
-            tracing::error!("could not save layout: {error}");
-        }
-    }
-
-    fn to_keeper(&self, bytes: Vec<u8>) {
-        if self.keeper.send(bytes).is_err() {
-            tracing::error!("keeper link has stopped, frame dropped");
+    pub(super) fn publish_config(&self, config: &config::Config) {
+        let inner = self.lock();
+        if let Some(client) = &inner.active {
+            send(&inner, &client.outbox, &Event::Config { config });
         }
     }
 }
 
-impl App {
-    pub(super) async fn stop_keeper(&self) -> Result<(), String> {
-        let gone = self.keeper_gone.notified();
-        tokio::pin!(gone);
-        gone.as_mut().enable();
-        self.stopping.store(true, Ordering::SeqCst);
-        self.to_keeper(frame::encode(frame::SHUTDOWN, 0, &[]));
-        if tokio::time::timeout(Duration::from_secs(5), gone)
-            .await
-            .is_ok()
-        {
-            return Ok(());
-        }
-        self.stopping.store(false, Ordering::SeqCst);
-        let mut inner = self.inner.lock().unwrap();
-        self.reset(&mut inner);
-        Err("The keeper did not stop within 5 seconds. It may be from an older sshtty version; stop the \"sshtty keeper\" process manually and try again.".to_string())
+fn activate(inner: &mut Inner, client: Client) {
+    let connection = client.connection;
+    tracing::info!(
+        connection,
+        client_id = client.client_id,
+        "browser is now active"
+    );
+    if let Some(previous) = inner.active.replace(client)
+        && previous.connection != connection
+    {
+        tracing::info!(
+            connection = previous.connection,
+            "pausing the previously active browser"
+        );
+        send(inner, &previous.outbox, &Event::Paused);
     }
-
-    pub(super) fn publish_config(&self, config: &config::Config) {
-        let inner = self.inner.lock().unwrap();
-        if let Some(client) = &inner.active {
-            send(
-                &client.sender,
-                json!({ "type": "config", "config": config }),
-            );
+    let Some(client) = &inner.active else {
+        return;
+    };
+    let branches = inner
+        .terminals
+        .iter()
+        .filter_map(|(id, terminal)| terminal.branch.as_deref().map(|branch| (*id, branch)))
+        .collect();
+    send(
+        inner,
+        &client.outbox,
+        &Event::Active {
+            layout: layout(inner),
+            instance: paths::session_id(),
+            branches,
+        },
+    );
+    for tabs in inner.tabs.values() {
+        for tab in &tabs.tabs {
+            let history = inner
+                .terminals
+                .get(&tab.id)
+                .map(Terminal::history)
+                .unwrap_or_default();
+            forward(inner, tab.id, true, &history);
         }
+    }
+}
+
+fn set_groups(inner: &mut Inner, groups: Vec<Group>) {
+    let index = inner
+        .groups
+        .iter()
+        .position(|group| Some(group.id) == inner.active_group);
+    inner.groups = groups;
+    let missing: Vec<u64> = inner
+        .tabs
+        .keys()
+        .filter(|id| !inner.groups.iter().any(|group| group.id == **id))
+        .copied()
+        .collect();
+    for group_id in missing {
+        let Some(tabs) = inner.tabs.remove(&group_id) else {
+            continue;
+        };
+        tracing::info!(group_id, "group was closed, closing its terminals");
+        for tab in tabs.tabs {
+            if let Some(terminal) = inner.terminals.get_mut(&tab.id) {
+                terminal.kill(tab.id);
+            }
+        }
+    }
+    let active_exists = inner
+        .groups
+        .iter()
+        .any(|group| Some(group.id) == inner.active_group);
+    if !active_exists && inner.active_group.is_some() {
+        inner.active_group = index
+            .and_then(|index| inner.groups.get(index))
+            .or(inner.groups.last())
+            .map(|group| group.id);
+    }
+}
+
+fn close_tab(inner: &mut Inner, id: u64) -> Option<u64> {
+    let (group_id, tabs) = inner
+        .tabs
+        .iter_mut()
+        .find(|(_, tabs)| tabs.tabs.iter().any(|tab| tab.id == id))?;
+    let index = tabs.tabs.iter().position(|tab| tab.id == id)?;
+    tabs.tabs.remove(index);
+    if tabs.active_tab == Some(id) {
+        tabs.active_tab = tabs.tabs.get(index).or(tabs.tabs.last()).map(|tab| tab.id);
+    }
+    let group_id = *group_id;
+    if let Some(terminal) = inner.terminals.get_mut(&id) {
+        terminal.kill(id);
+    }
+    Some(group_id)
+}
+
+fn layout(inner: &Inner) -> Layout<'_> {
+    let groups = inner
+        .groups
+        .iter()
+        .map(|group| {
+            let tabs = inner.tabs.get(&group.id);
+            GroupLayout {
+                group,
+                tabs: tabs.map_or(&[], |tabs| tabs.tabs.as_slice()),
+                active_tab: tabs.and_then(|tabs| tabs.active_tab),
+            }
+        })
+        .collect();
+    Layout {
+        groups,
+        active_group: inner.active_group,
     }
 }
 
 fn publish(inner: &Inner) {
     if let Some(client) = &inner.active {
         send(
-            &client.sender,
-            json!({ "type": "layout", "layout": inner.layout }),
+            inner,
+            &client.outbox,
+            &Event::Layout {
+                layout: layout(inner),
+            },
         );
     }
 }
@@ -556,9 +631,29 @@ fn forward(inner: &Inner, id: u64, replay: bool, data: &[u8]) {
     let mut bytes = id.to_be_bytes().to_vec();
     bytes.push(u8::from(replay));
     bytes.extend_from_slice(data);
-    let _ = client.sender.send(Message::Binary(bytes.into()));
+    deliver(inner, &client.outbox, Message::Binary(bytes.into()));
 }
 
-fn send(sender: &mpsc::UnboundedSender<Message>, value: serde_json::Value) {
-    let _ = sender.send(Message::Text(value.to_string().into()));
+fn send(inner: &Inner, outbox: &Outbox, event: &Event) {
+    let text = serde_json::to_string(event).expect("events serialize");
+    deliver(inner, outbox, Message::Text(text.into()));
+}
+
+fn deliver(inner: &Inner, outbox: &Outbox, message: Message) {
+    let size = message_size(&message);
+    let limit = BACKLOG_LIMIT + inner.terminals.len() * HISTORY_LIMIT;
+    if outbox.queued.load(Ordering::Relaxed) + size > limit {
+        outbox.too_slow.notify_one();
+        return;
+    }
+    outbox.queued.fetch_add(size, Ordering::Relaxed);
+    let _ = outbox.sender.send(message);
+}
+
+fn message_size(message: &Message) -> usize {
+    match message {
+        Message::Text(text) => text.len(),
+        Message::Binary(bytes) => bytes.len(),
+        Message::Ping(_) | Message::Pong(_) | Message::Close(_) => 0,
+    }
 }

@@ -24,7 +24,6 @@ import { Switch } from '@/components/ui/switch'
 import {
   applyStyle,
   builtinFonts,
-  loadDefaults,
   type Config,
   paletteNames,
   type Platform,
@@ -34,7 +33,6 @@ import {
   type ThemeColors,
 } from '@/config'
 import { cn } from '@/lib/utils'
-import { RestartRows } from '@/restart'
 import { Row, Section } from '@/settings-layout'
 import { ShellInput } from '@/shell-input'
 import { customTheme, getThemes, themeColors } from '@/themes'
@@ -53,7 +51,11 @@ const namedColors: {
 
 const hexColor = /^#[0-9a-f]{6}$/i
 
-export function SettingsPage(props: { config: Config; platform: Platform }) {
+export function SettingsPage(props: {
+  config: Config
+  defaults: Config
+  platform: Platform
+}) {
   const [draft, setDraft] = useState(props.config)
   const [customFont, setCustomFont] = useState(
     !builtinFonts.some((font) => font.family === draft.font.family)
@@ -80,17 +82,12 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
     }, 300)
   }
 
-  async function restoreDefaults() {
-    try {
-      const defaults = await loadDefaults()
-      setCustomFont(
-        !builtinFonts.some((font) => font.family === defaults.font.family)
-      )
-      setRevision(revision + 1)
-      commit(defaults)
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure))
-    }
+  function restoreDefaults() {
+    setCustomFont(
+      !builtinFonts.some((font) => font.family === props.defaults.font.family)
+    )
+    setRevision(revision + 1)
+    commit(props.defaults)
   }
 
   function updateColors(value: Partial<ThemeColors>) {
@@ -386,9 +383,6 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
             </Section>
           </>
         )}
-        <Section title="Restart">
-          <RestartRows />
-        </Section>
       </div>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>
@@ -401,10 +395,7 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => void restoreDefaults()}
-            >
+            <AlertDialogAction variant="destructive" onClick={restoreDefaults}>
               Restore defaults
             </AlertDialogAction>
           </AlertDialogFooter>

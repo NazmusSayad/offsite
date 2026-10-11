@@ -58,7 +58,7 @@ function handleShortcut(event: KeyboardEvent) {
   }
   if (group.activeTab === null) return
   if (shortcut === 'closeTab') {
-    send({ type: 'close', id: group.activeTab })
+    send({ type: 'closeTab', id: group.activeTab })
     return
   }
   const index = group.tabs.findIndex((tab) => tab.id === group.activeTab)

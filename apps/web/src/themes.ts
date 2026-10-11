@@ -6,10 +6,8 @@ export const customTheme = 'custom'
 
 let builtinThemes: BuiltinTheme[] = []
 
-export async function loadThemes() {
-  const response = await fetch('/api/themes')
-  if (!response.ok) throw new Error(await response.text())
-  builtinThemes = (await response.json()) as BuiltinTheme[]
+export function setThemes(themes: BuiltinTheme[]) {
+  builtinThemes = themes
 }
 
 export function getThemes() {

@@ -17,7 +17,7 @@ type Group = {
   tabs: Tab[]
   activeTab: number | null
 }
-type Layout = { groups: Group[]; activeGroup: number | null; nextId: number }
+type Layout = { groups: Group[]; activeGroup: number | null }
 type State = {
   status: 'connecting' | 'active' | 'paused'
   layout: Layout
@@ -36,8 +36,10 @@ type Request =
   | { type: 'ping' }
   | { type: 'createGroup' }
   | { type: 'createTab'; groupId: number }
-  | { type: 'close'; id: number }
-  | { type: 'rename'; id: number; name: string }
+  | { type: 'closeGroup'; id: number }
+  | { type: 'closeTab'; id: number }
+  | { type: 'renameGroup'; id: number; name: string }
+  | { type: 'renameTab'; id: number; name: string }
   | { type: 'setDirectory'; id: number; directory: string }
   | { type: 'select'; groupId: number; tabId: number | null }
   | { type: 'resize'; id: number; cols: number; rows: number }
@@ -75,7 +77,7 @@ let instance: string | null = null
 export function start(config: Config, platform: Platform) {
   state = {
     status: 'connecting',
-    layout: { groups: [], activeGroup: null, nextId: 0 },
+    layout: { groups: [], activeGroup: null },
     ctrl: false,
     config,
     platform,
