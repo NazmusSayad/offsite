@@ -6,7 +6,6 @@
 
 @theme {
   --animate-float: float 6s ease-in-out infinite;
-  --animate-blink: blink 1.4s steps(1) infinite;
   --animate-breathe: breathe 6s ease-in-out infinite;
 
   @keyframes float {
@@ -16,16 +15,6 @@
     }
     50% {
       transform: translateY(-8px);
-    }
-  }
-
-  @keyframes blink {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0;
     }
   }
 

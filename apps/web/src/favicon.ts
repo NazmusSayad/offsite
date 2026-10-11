@@ -93,16 +93,9 @@ function drawBadge(
   context.scale(extent / 48, extent / 48)
   context.fillStyle = colors.foreground
   context.beginPath()
-  context.roundRect(11, 6, 26, 36, 4)
+  context.roundRect(14, 9, 28, 13, 6.5)
+  context.roundRect(6, 26, 28, 13, 6.5)
   context.fill()
-  context.strokeStyle = colors.background
-  context.lineWidth = 5
-  context.lineCap = 'round'
-  context.stroke(
-    new Path2D(
-      'M30 15 C27 12 18 12 18 17.5 C18 23.5 30 22 30 29 C30 35 21 36 17.5 33'
-    )
-  )
   context.restore()
 }
 

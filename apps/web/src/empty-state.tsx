@@ -13,24 +13,12 @@ export function EmptyState(props: { label: string; onClick: () => void }) {
           <span className="bg-card animate-float group-hover/button:border-primary/40 relative grid size-28 place-items-center rounded-3xl border shadow-2xl transition-colors motion-reduce:animate-none">
             <svg
               viewBox="0 0 48 48"
-              className="text-foreground/70 animate-blink size-14 motion-reduce:animate-none"
+              className="text-foreground/70 size-14"
+              fill="currentColor"
               aria-hidden
             >
-              <rect
-                x="11"
-                y="6"
-                width="26"
-                height="36"
-                rx="4"
-                fill="currentColor"
-              />
-              <path
-                d="M30 15 C27 12 18 12 18 17.5 C18 23.5 30 22 30 29 C30 35 21 36 17.5 33"
-                className="stroke-card"
-                fill="none"
-                strokeWidth={5}
-                strokeLinecap="round"
-              />
+              <rect x="14" y="9" width="28" height="13" rx="6.5" />
+              <rect x="6" y="26" width="28" height="13" rx="6.5" />
             </svg>
           </span>
         </span>
