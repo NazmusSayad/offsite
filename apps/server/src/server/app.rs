@@ -35,6 +35,7 @@ use crate::{
 enum Request {
     Hello { client_id: String },
     Resume { client_id: String },
+    Ping,
     CreateGroup,
     CreateTab { group_id: u64 },
     Close { id: u64 },
@@ -169,6 +170,10 @@ impl App {
                         sender,
                     },
                 );
+                return;
+            }
+            Request::Ping => {
+                send(sender, json!({ "type": "pong" }));
                 return;
             }
             _ if !active => return,

@@ -33,6 +33,7 @@ type State = {
 type Request =
   | { type: 'hello'; clientId: string }
   | { type: 'resume'; clientId: string }
+  | { type: 'ping' }
   | { type: 'createGroup' }
   | { type: 'createTab'; groupId: number }
   | { type: 'close'; id: number }
@@ -52,6 +53,7 @@ type Message =
   | { type: 'paused' }
   | { type: 'config'; config: Config }
   | { type: 'branch'; id: number; branch: string | null }
+  | { type: 'pong' }
 
 const typedAt = new Map<number, number>()
 const isMac = navigator.userAgent.includes('Mac')
@@ -63,10 +65,11 @@ sessionStorage.setItem('clientId', clientId)
 
 const encoder = new TextEncoder()
 const sessions = new Map<number, Terminal>()
+const awaitingReplay = new Set<number>()
 const listeners = new Set<() => void>()
 let state: State
 let socket: WebSocket
-let hiddenAt = 0
+let pongTimer: number | null = null
 let instance: string | null = null
 
 export function start(config: Config, platform: Platform) {
@@ -82,17 +85,23 @@ export function start(config: Config, platform: Platform) {
     finding: null,
   }
   socket = connect()
+  setInterval(checkConnection, 30_000)
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      hiddenAt = Date.now()
-      return
-    }
-    if (Date.now() - hiddenAt > 10_000) {
-      socket.onclose = null
-      socket.close()
-      socket = connect()
-    }
+    if (!document.hidden) checkConnection()
   })
+}
+
+function checkConnection() {
+  if (state.status === 'connecting' || pongTimer !== null) return
+  if (socket.readyState !== WebSocket.OPEN) return
+  send({ type: 'ping' })
+  pongTimer = window.setTimeout(() => {
+    pongTimer = null
+    socket.onclose = null
+    socket.close()
+    setState({ status: 'connecting' })
+    socket = connect()
+  }, 3000)
 }
 
 export function subscribe(listener: () => void) {
@@ -184,13 +193,18 @@ function connect() {
   next.binaryType = 'arraybuffer'
   next.onopen = () => send({ type: 'hello', clientId })
   next.onmessage = (event) => {
+    if (pongTimer !== null) window.clearTimeout(pongTimer)
+    pongTimer = null
     if (event.data instanceof ArrayBuffer) {
       const view = new DataView(event.data)
       const id = Number(view.getBigUint64(0))
       const replay = view.getUint8(8) === 1
       const terminal = sessions.get(id)
       if (!terminal) return
+      const awaited = replay && awaitingReplay.delete(id)
+      if (awaited) terminal.reset()
       terminal.write(new Uint8Array(event.data, 9), replay)
+      if (awaited && awaitingReplay.size === 0) setState({ status: 'active' })
       const typed = typedAt.get(id)
       if (replay || typed === undefined) return
       typedAt.delete(id)
@@ -204,6 +218,8 @@ function connect() {
     handle(JSON.parse(event.data))
   }
   next.onclose = () => {
+    if (pongTimer !== null) window.clearTimeout(pongTimer)
+    pongTimer = null
     setState({ status: 'connecting' })
     setTimeout(() => {
       socket = connect()
@@ -213,6 +229,7 @@ function connect() {
 }
 
 function handle(message: Message) {
+  if (message.type === 'pong') return
   if (message.type === 'config') {
     void applyConfig(message.config)
     return
@@ -234,23 +251,27 @@ function handle(message: Message) {
       return
     }
     instance = message.instance
-    for (const terminal of sessions.values()) terminal.reset()
   }
   sync(message.layout)
   if (message.type === 'active') {
+    awaitingReplay.clear()
     sessions.forEach((terminal, id) => {
+      awaitingReplay.add(id)
       if (terminal.element.isConnected) reportSize(id, terminal)
     })
-  }
-  if (message.type === 'active') {
     setState({
-      status: 'active',
+      status: awaitingReplay.size === 0 ? 'active' : 'connecting',
       layout: message.layout,
       branches: message.branches,
     })
     return
   }
-  setState({ status: 'active', layout: message.layout })
+  for (const id of awaitingReplay)
+    if (!sessions.has(id)) awaitingReplay.delete(id)
+  setState({
+    status: awaitingReplay.size === 0 ? 'active' : 'connecting',
+    layout: message.layout,
+  })
 }
 
 function sync(layout: Layout) {
@@ -286,6 +307,7 @@ function isShiftEnter(event: KeyboardEvent) {
 function createSession(id: number) {
   const terminal = new Terminal(terminalOptions(state.config), {
     onData: (data) => {
+      if (state.status !== 'active') return
       if (!typedAt.has(id)) typedAt.set(id, performance.now())
       sendInput(id, applyCtrl(data))
     },
@@ -304,7 +326,11 @@ function createSession(id: number) {
     onLink: (uri) => window.open(uri, '_blank', 'noopener'),
     beforeKey: (event) => {
       if (event.type !== 'keydown') return true
-      if (state.config.behavior.shiftEnterNewline && isShiftEnter(event)) {
+      if (
+        state.status === 'active' &&
+        state.config.behavior.shiftEnterNewline &&
+        isShiftEnter(event)
+      ) {
         event.preventDefault()
         sendInput(id, '\x1b\r')
         return false
