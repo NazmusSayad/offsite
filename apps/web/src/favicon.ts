@@ -1,5 +1,7 @@
 import type { ThemeColors } from '@/config'
 
+import logoSvg from './logo.svg?raw'
+
 const size = 64
 const storageKey = 'sshtty-favicons-v2'
 const limit = 32
@@ -48,7 +50,7 @@ async function draw(logo: string | null, colors: ThemeColors) {
   if (!context) throw new Error('canvas 2d context is unavailable')
 
   if (logo === null) {
-    drawBadge(context, 0, size, colors)
+    await drawBadge(context, 0, size, colors)
     return canvas.toDataURL()
   }
 
@@ -74,11 +76,11 @@ async function draw(logo: string | null, colors: ThemeColors) {
   context.roundRect(24, 24, 44, 44, 13)
   context.fill()
   context.globalCompositeOperation = 'source-over'
-  drawBadge(context, 28, 36, colors)
+  await drawBadge(context, 28, 36, colors)
   return canvas.toDataURL()
 }
 
-function drawBadge(
+async function drawBadge(
   context: CanvasRenderingContext2D,
   offset: number,
   extent: number,
@@ -88,15 +90,9 @@ function drawBadge(
   context.beginPath()
   context.roundRect(offset, offset, extent, extent, extent * 0.25)
   context.fill()
-  context.save()
-  context.translate(offset, offset)
-  context.scale(extent / 48, extent / 48)
-  context.fillStyle = colors.foreground
-  context.beginPath()
-  context.roundRect(14, 9, 28, 13, 6.5)
-  context.roundRect(6, 26, 28, 13, 6.5)
-  context.fill()
-  context.restore()
+  const svg = logoSvg.replace('currentColor', colors.foreground)
+  const mark = await loadImage(`data:image/svg+xml,${encodeURIComponent(svg)}`)
+  context.drawImage(mark, offset, offset, extent, extent)
 }
 
 function loadImage(src: string) {
