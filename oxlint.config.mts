@@ -106,5 +106,9 @@ export default defineConfig({
       files: ['*.config.{js,ts,mjs}', './src/app/**'],
       rules: { 'import/no-default-export': 'off' },
     },
+    {
+      files: ['apps/web/src/ghostty/**'],
+      rules: { 'max-lines': 'off' },
+    },
   ],
 })

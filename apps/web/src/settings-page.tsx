@@ -33,6 +33,7 @@ import {
   type Shell,
   type ThemeColors,
 } from '@/config'
+import { EngineSetting } from '@/engine-setting'
 import { cn } from '@/lib/utils'
 import { RestartRows } from '@/restart'
 import { Row, Section } from '@/settings-layout'
@@ -87,7 +88,7 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
         !builtinFonts.some((font) => font.family === defaults.font.family)
       )
       setRevision(revision + 1)
-      commit(defaults)
+      commit({ ...defaults, engine: draft.engine })
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure))
     }
@@ -105,7 +106,7 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
     })
   }
 
-  function update<Key extends Exclude<keyof Config, 'scrollback'>>(
+  function update<Key extends Exclude<keyof Config, 'scrollback' | 'engine'>>(
     key: Key,
     value: Partial<Config[Key]>
   ) {
@@ -386,6 +387,7 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
             </Section>
           </>
         )}
+        <EngineSetting draft={draft} onSwitch={setDraft} />
         <Section title="Restart">
           <RestartRows />
         </Section>
@@ -396,7 +398,7 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
             <AlertDialogTitle>Restore defaults?</AlertDialogTitle>
             <AlertDialogDescription>
               Every setting, including the shell for all platforms, goes back to
-              its default.
+              its default. The terminal engine stays the same.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -106,6 +106,9 @@ importers:
       shadcn:
         specifier: ^4.21.4
         version: 4.21.4(supports-color@7.2.0)
+      sixel:
+        specifier: ^0.16.0
+        version: 0.16.0
       tailwind-merge:
         specifier: ^3.7.0
         version: 3.7.0
@@ -3734,6 +3737,9 @@ packages:
 
   sisteransi@1.0.5:
     resolution: {integrity: sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg==}
+
+  sixel@0.16.0:
+    resolution: {integrity: sha512-xicu6Y6Cyhmv5rjyHxq2r5RnKerlL/nyZEGjOU5bLCshXkZryc9JFJThTCKPOAtWXCfeWquEKFVFfMPcTD25PA==}
 
   smart-buffer@4.2.0:
     resolution: {integrity: sha512-94hK0Hh8rPqQl2xXc3HsaBoOXKV20MToPkcXvwbISWLEs+64sBq5kFgn2kJDHb1Pry9yrP0dxrCI9RRci7RXKg==}
@@ -7761,6 +7767,8 @@ snapshots:
   signal-exit@4.1.0: {}
 
   sisteransi@1.0.5: {}
+
+  sixel@0.16.0: {}
 
   smart-buffer@4.2.0: {}
 

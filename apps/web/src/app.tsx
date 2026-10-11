@@ -12,7 +12,6 @@ import {
   Settings01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { IProgressState } from '@xterm/addon-progress'
 import {
   type ReactNode,
   useEffect,
@@ -38,6 +37,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { EmptyState } from '@/empty-state'
+import type { Progress } from '@/engine'
 import { FindBar } from '@/find-bar'
 import { cn } from '@/lib/utils'
 import { FolderDialog, RenameDialog } from '@/prompt-dialogs'
@@ -436,7 +436,7 @@ function TerminalPane(props: { id: number }) {
   )
 }
 
-function TabProgress(props: { progress: IProgressState | undefined }) {
+function TabProgress(props: { progress: Progress | undefined }) {
   const progress = props.progress
   if (!progress || progress.state === 0) return null
   if (progress.state === 3)
