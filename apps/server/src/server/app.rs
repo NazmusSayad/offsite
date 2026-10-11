@@ -11,39 +11,19 @@ use axum::{
     http::StatusCode,
 };
 use futures_util::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde::Serialize;
 use tokio::sync::{Notify, mpsc};
 
 use super::{
     groups::{self, Group, Groups, unused_name},
-    logos, sync,
+    logos,
+    messages::{Event, GroupLayout, Layout, Request},
+    sync,
     terminals::{self, HISTORY_LIMIT, Terminal},
 };
 use crate::{config, utils::paths};
 
 const BACKLOG_LIMIT: usize = 16 * 1024 * 1024;
-
-#[derive(Debug, Deserialize)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
-enum Request {
-    Hello { client_id: String },
-    Resume { client_id: String },
-    Ping,
-    CreateGroup,
-    CreateTab { group_id: u64 },
-    CloseGroup { id: u64 },
-    CloseTab { id: u64 },
-    RenameGroup { id: u64, name: String },
-    RenameTab { id: u64, name: String },
-    SetDirectory { id: u64, directory: String },
-    Select { group_id: u64, tab_id: Option<u64> },
-    Resize { id: u64, cols: u16, rows: u16 },
-}
 
 #[derive(Clone)]
 struct Outbox {
@@ -60,7 +40,7 @@ struct Client {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Tab {
+pub(super) struct Tab {
     id: u64,
     custom_name: Option<String>,
 }
@@ -82,6 +62,7 @@ struct Inner {
 
 pub(super) struct App {
     inner: Mutex<Inner>,
+    groups_file: Mutex<()>,
     connections: AtomicU64,
     pub(super) secret: String,
 }
@@ -97,6 +78,7 @@ impl App {
                 terminals: HashMap::new(),
                 active: None,
             }),
+            groups_file: Mutex::new(()),
             connections: AtomicU64::new(0),
             secret,
         }
@@ -124,17 +106,35 @@ pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
             }
         }
     });
+    let (requests, mut queue) = mpsc::unbounded_channel();
+    let handling = app.clone();
+    let too_slow = outbox.too_slow.clone();
+    let handler = tokio::task::spawn_blocking(move || {
+        while let Some(request) = queue.blocking_recv() {
+            handling.request(connection, &outbox, request);
+        }
+        let mut inner = handling.lock();
+        if inner
+            .active
+            .as_ref()
+            .is_some_and(|client| client.connection == connection)
+        {
+            inner.active = None;
+        }
+    });
     loop {
         let message = tokio::select! {
             message = stream.next() => message,
-            () = outbox.too_slow.notified() => {
+            () = too_slow.notified() => {
                 tracing::warn!(connection, "browser is not reading fast enough, disconnecting it");
                 break;
             }
         };
         match message {
             Some(Ok(Message::Text(text))) => match serde_json::from_str(&text) {
-                Ok(request) => app.request(connection, &outbox, request),
+                Ok(request) => {
+                    let _ = requests.send(request);
+                }
                 Err(error) => tracing::warn!(connection, "invalid request: {error}"),
             },
             Some(Ok(Message::Binary(bytes))) => app.input(connection, &bytes),
@@ -142,15 +142,11 @@ pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
             Some(Err(_)) | None => break,
         }
     }
+    drop(requests);
     forwarding.abort();
     tracing::info!(connection, "browser disconnected");
-    let mut inner = app.lock();
-    if inner
-        .active
-        .as_ref()
-        .is_some_and(|client| client.connection == connection)
-    {
-        inner.active = None;
+    if let Err(error) = handler.await {
+        tracing::error!(connection, "request handler failed: {error}");
     }
 }
 
@@ -160,37 +156,32 @@ impl App {
     }
 
     fn request(self: &Arc<Self>, connection: u64, outbox: &Outbox, request: Request) {
-        let mut guard = self.lock();
-        let inner = &mut *guard;
-        let active = inner
-            .active
-            .as_ref()
-            .is_some_and(|client| client.connection == connection);
-        tracing::debug!(connection, active, ?request, "request");
+        tracing::debug!(connection, ?request, "request");
         match request {
             Request::Hello { client_id } => {
-                let available = match &inner.active {
-                    None => true,
-                    Some(client) => client.client_id == client_id,
-                };
-                if available {
-                    activate(
-                        inner,
-                        Client {
-                            connection,
-                            client_id,
-                            outbox: outbox.clone(),
-                        },
-                    );
-                } else {
+                let mut inner = self.lock();
+                if inner
+                    .active
+                    .as_ref()
+                    .is_some_and(|client| client.client_id != client_id)
+                {
                     tracing::info!(connection, "another browser is active, pausing this one");
-                    send(inner, outbox, json!({ "type": "paused" }));
+                    send(&inner, outbox, &Event::Paused);
+                    return;
                 }
+                activate(
+                    &mut inner,
+                    Client {
+                        connection,
+                        client_id,
+                        outbox: outbox.clone(),
+                    },
+                );
                 return;
             }
             Request::Resume { client_id } => {
                 activate(
-                    inner,
+                    &mut self.lock(),
                     Client {
                         connection,
                         client_id,
@@ -200,18 +191,25 @@ impl App {
                 return;
             }
             Request::Ping => {
-                send(inner, outbox, json!({ "type": "pong" }));
+                send(&self.lock(), outbox, &Event::Pong);
                 return;
             }
-            _ if !active => return,
+            _ if !self
+                .lock()
+                .active
+                .as_ref()
+                .is_some_and(|client| client.connection == connection) =>
+            {
+                return;
+            }
             Request::Resize { id, cols, rows } => {
-                if let Some(terminal) = inner.terminals.get(&id) {
+                if let Some(terminal) = self.lock().terminals.get(&id) {
                     terminal.resize(id, cols, rows);
                 }
                 return;
             }
             Request::CreateGroup => {
-                let created = self.update_groups(inner, |groups| {
+                let created = self.update_groups(|groups| {
                     let id = groups.next_id.checked_add(1)?;
                     groups.next_id = id;
                     let name = unused_name(groups.groups.iter().map(|group| &group.name));
@@ -231,12 +229,13 @@ impl App {
                     }
                     Err(_) => return,
                 };
+                let mut inner = self.lock();
                 inner.active_group = Some(id);
-                self.create_tab(inner, id);
+                self.create_tab(&mut inner, id);
             }
-            Request::CreateTab { group_id } => self.create_tab(inner, group_id),
+            Request::CreateTab { group_id } => self.create_tab(&mut self.lock(), group_id),
             Request::CloseGroup { id } => {
-                let removed = self.update_groups(inner, |groups| {
+                let removed = self.update_groups(|groups| {
                     let index = groups.groups.iter().position(|group| group.id == id)?;
                     Some(groups.groups.remove(index))
                 });
@@ -248,7 +247,8 @@ impl App {
                 }
             }
             Request::CloseTab { id } => {
-                let Some(group_id) = close_tab(inner, id) else {
+                let mut inner = self.lock();
+                let Some(group_id) = close_tab(&mut inner, id) else {
                     return;
                 };
                 let reopen = inner.groups.iter().any(|group| {
@@ -260,20 +260,21 @@ impl App {
                             .is_none_or(|tabs| tabs.tabs.is_empty())
                 });
                 if reopen {
-                    self.create_tab(inner, group_id);
+                    self.create_tab(&mut inner, group_id);
                 }
             }
             Request::RenameGroup { id, name } => {
                 if name.is_empty() {
                     return;
                 }
-                let _ = self.update_groups(inner, |groups| {
+                let _ = self.update_groups(|groups| {
                     if let Some(group) = groups.groups.iter_mut().find(|group| group.id == id) {
                         group.name = name;
                     }
                 });
             }
             Request::RenameTab { id, name } => {
+                let mut inner = self.lock();
                 let Some(tab) = inner
                     .tabs
                     .values_mut()
@@ -288,7 +289,7 @@ impl App {
                 };
             }
             Request::SetDirectory { id, directory } => {
-                let _ = self.update_groups(inner, |groups| {
+                let _ = self.update_groups(|groups| {
                     if let Some(group) = groups.groups.iter_mut().find(|group| group.id == id) {
                         group.directory = match directory.is_empty() {
                             true => None,
@@ -298,6 +299,8 @@ impl App {
                 });
             }
             Request::Select { group_id, tab_id } => {
+                let mut guard = self.lock();
+                let inner = &mut *guard;
                 if !inner.groups.iter().any(|group| group.id == group_id) {
                     return;
                 }
@@ -312,7 +315,7 @@ impl App {
                 }
             }
         }
-        publish(inner);
+        publish(&self.lock());
     }
 
     fn input(&self, connection: u64, bytes: &[u8]) {
@@ -373,12 +376,15 @@ impl App {
         if terminal.branch == branch {
             return;
         }
-        terminal.branch = branch;
+        terminal.branch.clone_from(&branch);
         if let Some(client) = &inner.active {
             send(
                 &inner,
                 &client.outbox,
-                json!({ "type": "branch", "id": id, "branch": inner.terminals[&id].branch }),
+                &Event::Branch {
+                    id,
+                    branch: branch.as_deref(),
+                },
             );
         }
     }
@@ -422,22 +428,25 @@ impl App {
         }
     }
 
-    fn update_groups<T>(
-        &self,
-        inner: &mut Inner,
-        change: impl FnOnce(&mut Groups) -> T,
-    ) -> Result<T, String> {
+    fn lock_groups_file(&self) -> MutexGuard<'_, ()> {
+        self.groups_file
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn update_groups<T>(&self, change: impl FnOnce(&mut Groups) -> T) -> Result<T, String> {
+        let _groups_file = self.lock_groups_file();
         let (groups, result) = groups::update(change).inspect_err(|error| {
             tracing::error!("could not change groups: {error}");
         })?;
-        set_groups(inner, groups.groups);
+        set_groups(&mut self.lock(), groups.groups);
         sync::notify(self.secret.clone());
         Ok(result)
     }
 
     pub(super) fn reload(&self) {
         self.publish_config(&config::read());
-        let mut inner = self.lock();
+        let _groups_file = self.lock_groups_file();
         let groups = match groups::read() {
             Ok(groups) => groups,
             Err(error) => {
@@ -445,6 +454,7 @@ impl App {
                 return;
             }
         };
+        let mut inner = self.lock();
         set_groups(&mut inner, groups.groups);
         publish(&inner);
     }
@@ -454,8 +464,7 @@ impl App {
         group_id: u64,
         logo: Option<String>,
     ) -> Result<Option<String>, StatusCode> {
-        let mut inner = self.lock();
-        let replaced = self.update_groups(&mut inner, |groups| {
+        let replaced = self.update_groups(|groups| {
             let group = groups
                 .groups
                 .iter_mut()
@@ -467,7 +476,7 @@ impl App {
             Ok(None) => return Err(StatusCode::NOT_FOUND),
             Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
         };
-        publish(&inner);
+        publish(&self.lock());
         Ok(previous)
     }
 
@@ -482,11 +491,7 @@ impl App {
     pub(super) fn publish_config(&self, config: &config::Config) {
         let inner = self.lock();
         if let Some(client) = &inner.active {
-            send(
-                &inner,
-                &client.outbox,
-                json!({ "type": "config", "config": config }),
-            );
+            send(&inner, &client.outbox, &Event::Config { config });
         }
     }
 }
@@ -505,20 +510,24 @@ fn activate(inner: &mut Inner, client: Client) {
             connection = previous.connection,
             "pausing the previously active browser"
         );
-        send(inner, &previous.outbox, json!({ "type": "paused" }));
+        send(inner, &previous.outbox, &Event::Paused);
     }
     let Some(client) = &inner.active else {
         return;
     };
-    let branches: HashMap<u64, &String> = inner
+    let branches = inner
         .terminals
         .iter()
-        .filter_map(|(id, terminal)| terminal.branch.as_ref().map(|branch| (*id, branch)))
+        .filter_map(|(id, terminal)| terminal.branch.as_deref().map(|branch| (*id, branch)))
         .collect();
     send(
         inner,
         &client.outbox,
-        json!({ "type": "active", "layout": layout(inner), "instance": paths::session_id(), "branches": branches }),
+        &Event::Active {
+            layout: layout(inner),
+            instance: paths::session_id(),
+            branches,
+        },
     );
     for tabs in inner.tabs.values() {
         for tab in &tabs.tabs {
@@ -584,23 +593,23 @@ fn close_tab(inner: &mut Inner, id: u64) -> Option<u64> {
     Some(group_id)
 }
 
-fn layout(inner: &Inner) -> serde_json::Value {
-    let groups: Vec<serde_json::Value> = inner
+fn layout(inner: &Inner) -> Layout<'_> {
+    let groups = inner
         .groups
         .iter()
         .map(|group| {
             let tabs = inner.tabs.get(&group.id);
-            json!({
-                "id": group.id,
-                "name": group.name,
-                "logo": group.logo,
-                "directory": group.directory,
-                "tabs": tabs.map_or(&[][..], |tabs| &tabs.tabs[..]),
-                "activeTab": tabs.and_then(|tabs| tabs.active_tab),
-            })
+            GroupLayout {
+                group,
+                tabs: tabs.map_or(&[], |tabs| tabs.tabs.as_slice()),
+                active_tab: tabs.and_then(|tabs| tabs.active_tab),
+            }
         })
         .collect();
-    json!({ "groups": groups, "activeGroup": inner.active_group })
+    Layout {
+        groups,
+        active_group: inner.active_group,
+    }
 }
 
 fn publish(inner: &Inner) {
@@ -608,7 +617,9 @@ fn publish(inner: &Inner) {
         send(
             inner,
             &client.outbox,
-            json!({ "type": "layout", "layout": layout(inner) }),
+            &Event::Layout {
+                layout: layout(inner),
+            },
         );
     }
 }
@@ -623,8 +634,9 @@ fn forward(inner: &Inner, id: u64, replay: bool, data: &[u8]) {
     deliver(inner, &client.outbox, Message::Binary(bytes.into()));
 }
 
-fn send(inner: &Inner, outbox: &Outbox, value: serde_json::Value) {
-    deliver(inner, outbox, Message::Text(value.to_string().into()));
+fn send(inner: &Inner, outbox: &Outbox, event: &Event) {
+    let text = serde_json::to_string(event).expect("events serialize");
+    deliver(inner, outbox, Message::Text(text.into()));
 }
 
 fn deliver(inner: &Inner, outbox: &Outbox, message: Message) {

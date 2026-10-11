@@ -13,14 +13,10 @@ use tracing_subscriber::{
 
 use crate::utils::paths;
 
-pub fn init(debug: bool) {
-    fs::create_dir_all(paths::session_directory()).expect("could not create the session folder");
+pub fn init(debug: bool) -> io::Result<()> {
+    fs::create_dir_all(paths::session_directory())?;
     let path = paths::log_file();
-    let file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&path)
-        .expect("could not open the log file");
+    let file = OpenOptions::new().create(true).append(true).open(&path)?;
     let level = match debug {
         true => LevelFilter::TRACE,
         false => LevelFilter::INFO,
@@ -48,4 +44,5 @@ pub fn init(debug: bool) {
         default_hook(info);
     }));
     tracing::info!(pid = process::id(), level = %level, log_file = %path.display(), "logging started");
+    Ok(())
 }

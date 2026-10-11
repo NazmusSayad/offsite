@@ -27,8 +27,13 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
-    paths::init(
-        std::path::absolute(paths::expand_home(&cli.dir)).expect("could not resolve the folder"),
-    );
+    let root = match std::path::absolute(paths::expand_home(&cli.dir)) {
+        Ok(root) => root,
+        Err(error) => {
+            eprintln!("could not use the folder {:?}: {error}", cli.dir);
+            std::process::exit(1);
+        }
+    };
+    paths::init(root);
     server::run(cli.host, cli.port, cli.debug);
 }

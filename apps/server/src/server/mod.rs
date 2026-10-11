@@ -1,15 +1,15 @@
 mod app;
 mod assets;
-mod debug;
 mod directories;
 mod groups;
 mod logos;
+mod messages;
 mod paste;
 mod shells;
 mod sync;
 mod terminals;
 
-use std::sync::Arc;
+use std::{fs, sync::Arc};
 
 use axum::{
     Json, Router,
@@ -20,11 +20,17 @@ use axum::{
     serve::ListenerExt,
 };
 
-use crate::{config, logging};
+use crate::{config, logging, utils::paths};
 use app::App;
 
 pub fn run(host: String, port: u16, debug: bool) {
-    logging::init(debug);
+    if let Err(error) = logging::init(debug) {
+        eprintln!(
+            "could not create the log in {}: {error}",
+            paths::session_directory().display()
+        );
+        std::process::exit(1);
+    }
     #[cfg(windows)]
     if unsafe { windows_sys::Win32::System::Console::SetConsoleCtrlHandler(None, 0) } == 0 {
         tracing::warn!(
@@ -32,7 +38,13 @@ pub fn run(host: String, port: u16, debug: bool) {
             std::io::Error::last_os_error()
         );
     }
-    config::create().expect("could not create the config file");
+    if let Err(error) = config::create() {
+        tracing::error!(
+            "could not create {}: {error}",
+            paths::config_file().display()
+        );
+        std::process::exit(1);
+    }
     let secret = match sync::secret() {
         Ok(secret) => secret,
         Err(error) => {
@@ -50,9 +62,14 @@ pub fn run(host: String, port: u16, debug: bool) {
     let app = Arc::new(App::new(groups.groups, secret));
     let watching = app.clone();
     std::thread::spawn(move || terminals::watch_branches(&watching));
-    tokio::runtime::Runtime::new()
-        .expect("could not start the async runtime")
-        .block_on(serve(app, host, port, debug));
+    let runtime = match tokio::runtime::Runtime::new() {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            tracing::error!("could not start the async runtime: {error}");
+            std::process::exit(1);
+        }
+    };
+    runtime.block_on(serve(app, host, port, debug));
 }
 
 async fn serve(app: Arc<App>, host: String, port: u16, debug: bool) {
@@ -72,7 +89,7 @@ async fn serve(app: Arc<App>, host: String, port: u16, debug: bool) {
         )
         .route("/api/sync", post(sync::receive));
     if debug {
-        router = router.route("/api/debug/logs", get(debug::log));
+        router = router.route("/api/debug/logs", get(debug_log));
     }
     let router = router.fallback(assets::asset).with_state(app);
     let listener = match tokio::net::TcpListener::bind((host.as_str(), port)).await {
@@ -109,6 +126,11 @@ async fn save_config(
     app.publish_config(&config);
     sync::notify(app.secret.clone());
     Ok(Json(config))
+}
+
+async fn debug_log() -> Result<String, (StatusCode, String)> {
+    fs::read_to_string(paths::log_file())
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))
 }
 
 async fn socket(upgrade: WebSocketUpgrade, State(app): State<Arc<App>>) -> Response {

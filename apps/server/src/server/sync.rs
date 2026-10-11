@@ -77,7 +77,7 @@ pub(super) fn register(address: SocketAddr) -> io::Result<File> {
 pub(super) fn notify(secret: String) {
     tokio::spawn(async move {
         for address in other_servers() {
-            send(address, &secret).await;
+            tokio::spawn(send(address, secret.clone()));
         }
     });
 }
@@ -157,7 +157,7 @@ fn running_server(directory: &Path) -> Option<SocketAddr> {
     }
 }
 
-async fn send(address: SocketAddr, secret: &str) {
+async fn send(address: SocketAddr, secret: String) {
     let request = format!(
         "POST /api/sync HTTP/1.1\r\nHost: {address}\r\n{SECRET_HEADER}: {secret}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
     );

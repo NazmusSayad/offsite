@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-use portable_pty::{ChildKiller, CommandBuilder, MasterPty, PtySize, native_pty_system};
+use portable_pty::{Child, ChildKiller, CommandBuilder, MasterPty, PtySize, native_pty_system};
 
 use super::app::App;
 use crate::utils::process::current_directory;
@@ -75,16 +75,16 @@ pub(super) fn open(
     builder.cwd(&cwd);
     builder.env("TERM", "xterm-256color");
     builder.env("COLORTERM", "truecolor");
-    let mut child = pair
+    let child = pair
         .slave
         .spawn_command(builder)
         .map_err(|error| error.to_string())?;
     drop(pair.slave);
-    let mut reader = pair
+    let reader = pair
         .master
         .try_clone_reader()
         .map_err(|error| error.to_string())?;
-    let mut writer = pair
+    let writer = pair
         .master
         .take_writer()
         .map_err(|error| error.to_string())?;
@@ -107,52 +107,52 @@ pub(super) fn open(
     let reading = app.clone();
     let waiting = app.clone();
     let started = thread::Builder::new()
-        .spawn(move || {
-            for bytes in inputs {
-                if let Err(error) = writer.write_all(&bytes) {
-                    tracing::error!(
-                        id,
-                        "could not write input to terminal, input stops here: {error}"
-                    );
-                    break;
-                }
-            }
-            tracing::info!(id, "input writer stopped");
-        })
-        .and_then(|_| {
-            thread::Builder::new().spawn(move || {
-                let mut chunk = vec![0; 64 * 1024];
-                loop {
-                    match reader.read(&mut chunk) {
-                        Ok(0) => {
-                            tracing::info!(id, "terminal output ended");
-                            break;
-                        }
-                        Err(error) => {
-                            tracing::info!(id, "terminal output ended: {error}");
-                            break;
-                        }
-                        Ok(length) => reading.output(id, &chunk[..length]),
-                    }
-                }
-            })
-        })
-        .and_then(|_| {
-            thread::Builder::new().spawn(move || {
-                match child.wait() {
-                    Ok(status) => tracing::info!(id, ?status, "terminal process exited"),
-                    Err(error) => {
-                        tracing::error!(id, "could not wait for terminal process: {error}")
-                    }
-                }
-                waiting.exited(id);
-            })
-        });
+        .spawn(move || write_input(id, writer, inputs))
+        .and_then(|_| thread::Builder::new().spawn(move || read_output(id, reader, &reading)))
+        .and_then(|_| thread::Builder::new().spawn(move || wait_for_exit(id, child, &waiting)));
     if let Err(error) = started {
         terminal.kill(id);
         return Err(format!("could not start the terminal's threads: {error}"));
     }
     Ok(terminal)
+}
+
+fn write_input(id: u64, mut writer: Box<dyn Write + Send>, inputs: mpsc::Receiver<Vec<u8>>) {
+    for bytes in inputs {
+        if let Err(error) = writer.write_all(&bytes) {
+            tracing::error!(
+                id,
+                "could not write input to terminal, input stops here: {error}"
+            );
+            break;
+        }
+    }
+    tracing::info!(id, "input writer stopped");
+}
+
+fn read_output(id: u64, mut reader: Box<dyn Read + Send>, app: &App) {
+    let mut chunk = vec![0; 64 * 1024];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => {
+                tracing::info!(id, "terminal output ended");
+                break;
+            }
+            Err(error) => {
+                tracing::info!(id, "terminal output ended: {error}");
+                break;
+            }
+            Ok(length) => app.output(id, &chunk[..length]),
+        }
+    }
+}
+
+fn wait_for_exit(id: u64, mut child: Box<dyn Child + Send + Sync>, app: &App) {
+    match child.wait() {
+        Ok(status) => tracing::info!(id, ?status, "terminal process exited"),
+        Err(error) => tracing::error!(id, "could not wait for terminal process: {error}"),
+    }
+    app.exited(id);
 }
 
 pub(super) fn watch_branches(app: &App) {

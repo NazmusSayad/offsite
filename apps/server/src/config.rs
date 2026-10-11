@@ -6,7 +6,6 @@ use std::{
 
 use axum::{Json, http::StatusCode};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 
 use crate::utils::{
     fs::{lock_folder, write_atomic},
@@ -248,14 +247,21 @@ pub fn read() -> Config {
     parse(&value).expect("merged config is valid")
 }
 
-pub async fn handler() -> Json<serde_json::Value> {
-    let defaults: Config = serde_json::from_str(DEFAULT).expect("default config is valid");
-    Json(json!({
-        "config": read(),
-        "defaults": defaults,
-        "themes": builtin_themes(),
-        "platform": std::env::consts::OS,
-    }))
+#[derive(Serialize)]
+pub struct Settings {
+    config: Config,
+    defaults: Config,
+    themes: Vec<BuiltinTheme>,
+    platform: &'static str,
+}
+
+pub async fn handler() -> Json<Settings> {
+    Json(Settings {
+        config: read(),
+        defaults: serde_json::from_str(DEFAULT).expect("default config is valid"),
+        themes: builtin_themes(),
+        platform: std::env::consts::OS,
+    })
 }
 
 pub fn save(config: Config) -> Result<Config, (StatusCode, String)> {
