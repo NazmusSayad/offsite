@@ -3,8 +3,8 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './app'
 import { applyStyle, loadConfig, loadPlatform } from './config'
-import { loadEngine } from './engine'
-import { loadInstance, start } from './session'
+import { loadGhostty } from './ghostty/runtime'
+import { start } from './session'
 import { SettingsPage } from './settings-page'
 import { startShortcuts } from './shortcuts'
 import { loadThemes } from './themes'
@@ -14,11 +14,11 @@ if (!root) throw new Error('root element missing')
 
 async function main(container: HTMLElement) {
   try {
-    const instance = await loadInstance()
     const [config, platform] = await Promise.all([
       loadConfig(),
       loadPlatform(),
       loadThemes(),
+      loadGhostty(),
     ])
     await applyStyle(config)
     if (location.pathname === '/settings') {
@@ -30,7 +30,7 @@ async function main(container: HTMLElement) {
       )
       return
     }
-    start(config, platform, await loadEngine(config.engine), instance)
+    start(config, platform)
     startShortcuts()
     createRoot(container).render(
       <StrictMode>

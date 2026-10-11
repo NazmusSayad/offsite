@@ -25,7 +25,6 @@ pub struct Config {
     padding: Padding,
     scrollback: u32,
     theme: Theme,
-    engine: Engine,
     #[serde(default)]
     behavior: Behavior,
 }
@@ -85,13 +84,6 @@ enum CursorStyle {
     Block,
     Bar,
     Underline,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum Engine {
-    Ghostty,
-    Xterm,
 }
 
 #[derive(Serialize, Deserialize)]

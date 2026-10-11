@@ -1,4 +1,4 @@
-import type { Engine, TerminalOptions } from './engine'
+import type { TerminalOptions } from './ghostty/terminal'
 import { themeColors } from './themes'
 
 export type Platform = 'macos' | 'linux' | 'windows'
@@ -12,7 +12,6 @@ export type Config = {
   padding: { top: number; right: number; bottom: number; left: number }
   scrollback: number
   theme: { name: string; boldIsBright: boolean; colors?: ThemeColors }
-  engine: Engine
   behavior: {
     shiftEnterNewline: boolean
     showGitBranch: boolean
