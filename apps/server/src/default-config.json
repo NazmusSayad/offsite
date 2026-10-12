@@ -37,6 +37,7 @@
   "emptyScreenAnimation": false,
   "behavior": {
     "shiftEnterNewline": true,
+    "ctrlVPastesImages": true,
     "showGitBranch": true,
     "captureShortcuts": true,
     "bellFlash": true,

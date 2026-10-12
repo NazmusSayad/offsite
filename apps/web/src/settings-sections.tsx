@@ -32,6 +32,14 @@ export function BehaviorSection(props: {
           }
         />
       </Row>
+      <Row label="Ctrl+V pastes images from the browser clipboard">
+        <Switch
+          checked={props.behavior.ctrlVPastesImages}
+          onCheckedChange={(ctrlVPastesImages) =>
+            props.onChange({ ctrlVPastesImages })
+          }
+        />
+      </Row>
       <Row label="Show the git branch in tab titles">
         <Switch
           checked={props.behavior.showGitBranch}
