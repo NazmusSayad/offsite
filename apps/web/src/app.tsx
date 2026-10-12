@@ -322,12 +322,6 @@ export function App() {
               onClick={() => send({ type: 'createGroup' })}
             />
           )}
-          {group && group.tabs.length === 0 && (
-            <EmptyState
-              label="New terminal"
-              onClick={() => send({ type: 'createTab', groupId: group.id })}
-            />
-          )}
         </div>
         {tabId !== null && (
           <div className="bg-card hidden flex-none gap-1.5 overflow-x-auto border-t p-1.5 pointer-coarse:flex">
