@@ -139,6 +139,10 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  img {
+    @apply pointer-events-none;
+  }
+
   *::-webkit-scrollbar {
     width: 6px;
     height: 6px;

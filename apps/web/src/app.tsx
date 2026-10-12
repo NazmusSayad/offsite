@@ -147,14 +147,6 @@ export function App() {
                 send({ type: 'select', groupId: item.id, tabId: null })
                 setDrawer(false)
               }}
-              onDoubleClick={() =>
-                setPrompt({
-                  type: 'rename',
-                  target: 'group',
-                  id: item.id,
-                  name: item.name,
-                })
-              }
             >
               {item.logo !== null && (
                 <img
@@ -257,14 +249,6 @@ export function App() {
                           type: 'select',
                           groupId: group.id,
                           tabId: tab.id,
-                        })
-                      }
-                      onDoubleClick={() =>
-                        setPrompt({
-                          type: 'rename',
-                          target: 'tab',
-                          id: tab.id,
-                          name: tab.customName ?? '',
                         })
                       }
                     >
