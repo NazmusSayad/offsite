@@ -21,6 +21,7 @@ pub(super) enum Request {
     CloseTab { id: u64 },
     RenameGroup { id: u64, name: String },
     RenameTab { id: u64, name: String },
+    MinimizeTab { id: u64 },
     SetDirectory { id: u64, directory: String },
     Select { group_id: u64, tab_id: Option<u64> },
     Resize { id: u64, cols: u16, rows: u16 },
