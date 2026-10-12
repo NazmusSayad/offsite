@@ -406,8 +406,8 @@ export class GhosttyCore {
         this.terminal,
         Math.max(1, Math.min(65_535, cols)),
         Math.max(1, Math.min(65_535, rows)),
-        Math.max(1, Math.round(cellWidth)),
-        Math.max(1, Math.round(cellHeight))
+        this.sizeReport.cellWidth,
+        this.sizeReport.cellHeight
       )
     )
   }

@@ -237,7 +237,8 @@ export class Terminal {
       context,
       options.fontSize,
       this.appearance.fontFamily,
-      options.lineHeight
+      options.lineHeight,
+      window.devicePixelRatio || 1
     )
     this.core = new GhosttyCore(
       this.cols,
@@ -260,7 +261,8 @@ export class Terminal {
       this.context,
       options.fontSize,
       this.appearance.fontFamily,
-      options.lineHeight
+      options.lineHeight,
+      window.devicePixelRatio || 1
     )
     this.applyTerminalOptions()
     this.resizeCore()
@@ -319,6 +321,13 @@ export class Terminal {
       this.canvas.style.width = `${width}px`
       this.canvas.style.height = `${height}px`
       this.context.setTransform(ratio, 0, 0, ratio, 0, 0)
+      this.metrics = measureCell(
+        this.context,
+        this.options.fontSize,
+        this.appearance.fontFamily,
+        this.options.lineHeight,
+        ratio
+      )
       this.resizeCore()
       this.forceFull = true
     }
@@ -944,6 +953,7 @@ export class Terminal {
     event: MouseEvent
   ) {
     const bounds = this.canvas.getBoundingClientRect()
+    const ratio = window.devicePixelRatio || 1
     const data = this.core.encodeMouse({
       action,
       button,
@@ -952,12 +962,12 @@ export class Terminal {
         (event.ctrlKey ? 1 << 1 : 0) |
         (event.altKey ? 1 << 2 : 0) |
         (event.metaKey ? 1 << 3 : 0),
-      x: Math.max(0, event.clientX - bounds.left),
-      y: Math.max(0, event.clientY - bounds.top),
-      screenWidth: this.cols * this.metrics.width,
-      screenHeight: this.rows * this.metrics.height,
-      cellWidth: this.metrics.width,
-      cellHeight: this.metrics.height,
+      x: Math.max(0, event.clientX - bounds.left) * ratio,
+      y: Math.max(0, event.clientY - bounds.top) * ratio,
+      screenWidth: this.cols * this.metrics.width * ratio,
+      screenHeight: this.rows * this.metrics.height * ratio,
+      cellWidth: this.metrics.width * ratio,
+      cellHeight: this.metrics.height * ratio,
       anyButtonPressed: event.buttons !== 0,
     })
     if (data.length === 0) return
