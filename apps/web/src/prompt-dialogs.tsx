@@ -91,6 +91,7 @@ export function FolderDialog(props: {
 }) {
   const [listing, setListing] = useState<Listing | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [path, setPath] = useState('')
   const [search, setSearch] = useState('')
   const directories = listing?.directories.filter((directory) =>
     directory.name.toLowerCase().includes(search.toLowerCase())
@@ -100,6 +101,7 @@ export function FolderDialog(props: {
     listDirectories(path).then(
       (next) => {
         setListing(next)
+        setPath(next.path)
         setSearch('')
         setError(null)
       },
@@ -119,7 +121,9 @@ export function FolderDialog(props: {
       let failure: unknown = null
       for (const path of candidates) {
         try {
-          setListing(await listDirectories(path))
+          const next = await listDirectories(path)
+          setListing(next)
+          setPath(next.path)
           return
         } catch (error) {
           failure = error
@@ -169,12 +173,16 @@ export function FolderDialog(props: {
           >
             <HugeiconsIcon icon={ArrowUp02Icon} />
           </Button>
-          <p
-            className="-ml-1 min-w-0 flex-1 truncate pr-1.5 text-left font-mono text-xs [direction:rtl]"
-            title={listing?.path}
-          >
-            <bdi>{listing?.path}</bdi>
-          </p>
+          <input
+            aria-label="Folder path"
+            className="hover:bg-muted focus:bg-muted h-7 min-w-0 flex-1 rounded-md bg-transparent px-1.5 font-mono text-xs outline-none"
+            spellCheck={false}
+            value={path}
+            onChange={(event) => setPath(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && path.trim() !== '') open(path.trim())
+            }}
+          />
           <DialogClose asChild>
             <Button variant="ghost" size="icon-sm" aria-label="Close">
               <HugeiconsIcon icon={Cancel01Icon} />
