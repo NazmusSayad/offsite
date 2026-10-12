@@ -12,6 +12,7 @@ import {
   isImagePasteKey,
   pasteClipboardImages,
   pasteImages,
+  reportPasteError,
 } from './paste'
 import { themeColors } from './themes'
 
@@ -465,7 +466,7 @@ function createSession(id: number) {
             if (!pasted) sendInput(id, data)
           })
           .catch((error: unknown) => {
-            console.error('could not paste image', error)
+            reportPasteError(error)
             sendInput(id, data)
           })
         return false
@@ -488,9 +489,7 @@ function createSession(id: number) {
       if (images.length === 0) return
       event.preventDefault()
       event.stopPropagation()
-      pasteImages(terminal, images).catch((error: unknown) =>
-        console.error('could not paste image', error)
-      )
+      pasteImages(terminal, images).catch(reportPasteError)
     },
     true
   )
