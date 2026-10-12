@@ -68,7 +68,7 @@ function draw(
         wrapsToNext: false,
       })),
     },
-    metrics: { width, height, baseline: height - 4 },
+    metrics: { width, height, baseline: height - 4, faceWidth: width },
     appearance: {
       fontSize: 14,
       fontFamily: 'monospace',
@@ -112,7 +112,10 @@ describe('render backgrounds', () => {
     }
     const calls = draw([row(), row()], 8.6, 18, 1.25)
     const rects = calls
-      .filter((call) => colors.map(css).includes(call.fillStyle))
+      .filter(
+        (call) =>
+          call.name === 'fillRect' && colors.map(css).includes(call.fillStyle)
+      )
       .map((call) => call.args.map((value) => value * 1.25))
     for (const rect of rects)
       for (const value of rect) expect(value).toBeCloseTo(Math.round(value), 9)

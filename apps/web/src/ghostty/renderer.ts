@@ -1,7 +1,12 @@
 import { CELL_WIDE, type Cell, type Color, type Snapshot } from './core'
 import { drawGlyph, isGlyph } from './glyphs'
 
-export type Metrics = { width: number; height: number; baseline: number }
+export type Metrics = {
+  width: number
+  height: number
+  baseline: number
+  faceWidth: number
+}
 
 export type Range = {
   start: { x: number; y: number }
@@ -111,41 +116,27 @@ export function measureCell(
   context: CanvasRenderingContext2D,
   fontSize: number,
   fontFamily: string,
-  lineHeight: number
+  lineHeight: number,
+  pixelRatio: number
 ): Metrics {
   context.font = `normal 400 ${fontSize}px ${fontFamily}`
-  const width = context.measureText('M').width
+  const faceWidth = context.measureText('M').width
   const vertical = context.measureText('Mg')
   const ascent = vertical.fontBoundingBoxAscent || fontSize
   const descent = vertical.fontBoundingBoxDescent
   const glyphHeight = ascent + descent
-  const height = Math.max(1, Math.round(glyphHeight * lineHeight))
+  const height =
+    Math.max(1, Math.round(glyphHeight * lineHeight * pixelRatio)) / pixelRatio
   return {
-    width: Math.max(1, width),
+    width: Math.max(1, Math.round(faceWidth * pixelRatio)) / pixelRatio,
     height,
-    baseline: Math.round((height - glyphHeight) / 2 + ascent),
+    baseline: snap((height - glyphHeight) / 2 + ascent, pixelRatio),
+    faceWidth,
   }
 }
 
-function runEnd(cells: Cell[], start: number, ligatures: boolean) {
-  const first = cells[start]
-  let end = start + 1
-  while (end < cells.length) {
-    const next = cells[end]
-    if (next.wide === CELL_WIDE.spacerTail) {
-      end += 1
-      continue
-    }
-    if (
-      !ligatures ||
-      next.text.length === 0 ||
-      isGlyph(next.text) ||
-      !sameText(next, first)
-    )
-      break
-    end += 1
-  }
-  return end
+function isOperator(text: string) {
+  return /^[!-/:-@[-`{-~]$/.test(text)
 }
 
 function inRange(range: Range | null, row: number, column: number) {
@@ -244,57 +235,65 @@ export function render(options: {
       context.strokeRect(left + 0.5, cellTop + 0.5, width - 1, cellHeight - 1)
     }
 
-    start = 0
-    while (start < row.cells.length) {
-      const first = row.cells[start]
-      if (first.text.length === 0) {
-        start += 1
-        continue
-      }
-      if (isGlyph(first.text)) {
-        if (!first.invisible) {
-          context.fillStyle = first.selected
-            ? appearance.selectionForeground
-            : css(first.foreground)
-          drawGlyph(
-            context,
-            first.text,
-            {
-              left: start * metrics.width,
-              top,
-              width: metrics.width,
-              height: metrics.height,
-            },
-            pixelRatio
-          )
-        }
-        start += 1
-        continue
-      }
-      const end = runEnd(row.cells, start, appearance.ligatures)
-      const text = row.cells
-        .slice(start, end)
-        .map((cell) => cell.text)
-        .join('')
-      if (!first.invisible && text.trim().length > 0) {
-        context.save()
-        context.beginPath()
-        context.rect(
-          start * metrics.width,
-          top,
-          (end - start) * metrics.width,
-          metrics.height
+    context.save()
+    context.beginPath()
+    context.rect(0, cellTop, context.canvas.width, cellHeight)
+    context.clip()
+    for (let column = 0; column < row.cells.length; column += 1) {
+      const cell = row.cells[column]
+      if (cell.invisible || cell.text.trim().length === 0) continue
+      context.fillStyle = cell.selected
+        ? appearance.selectionForeground
+        : css(cell.foreground)
+      const left = column * metrics.width
+      if (isGlyph(cell.text)) {
+        drawGlyph(
+          context,
+          cell.text,
+          { left, top, width: metrics.width, height: metrics.height },
+          pixelRatio
         )
-        context.clip()
-        context.font = font(first, appearance)
-        context.fillStyle = first.selected
-          ? appearance.selectionForeground
-          : css(first.foreground)
-        context.fillText(text, start * metrics.width, top + metrics.baseline)
-        context.restore()
+        continue
       }
-      start = end
+      context.font = font(cell, appearance)
+      const x = left + (metrics.width - metrics.faceWidth) / 2
+      let from = column
+      let to = column + 1
+      if (appearance.ligatures && isOperator(cell.text)) {
+        while (
+          from > column - 3 &&
+          from > 0 &&
+          isOperator(row.cells[from - 1].text) &&
+          sameText(row.cells[from - 1], cell)
+        )
+          from -= 1
+        while (
+          to < column + 4 &&
+          to < row.cells.length &&
+          isOperator(row.cells[to].text) &&
+          sameText(row.cells[to], cell)
+        )
+          to += 1
+      }
+      if (to - from === 1) {
+        context.fillText(cell.text, x, top + metrics.baseline)
+        continue
+      }
+      context.save()
+      context.beginPath()
+      context.rect(left, top, metrics.width, metrics.height)
+      context.clip()
+      context.fillText(
+        row.cells
+          .slice(from, to)
+          .map((neighbor) => neighbor.text)
+          .join(''),
+        x - (column - from) * metrics.faceWidth,
+        top + metrics.baseline
+      )
+      context.restore()
     }
+    context.restore()
 
     for (let column = 0; column < row.cells.length; column += 1) {
       const cell = row.cells[column]
@@ -379,7 +378,7 @@ export function render(options: {
   context.font = font(cell, appearance)
   context.fillText(
     cell.text,
-    snapshot.cursorX * metrics.width,
+    snapshot.cursorX * metrics.width + (metrics.width - metrics.faceWidth) / 2,
     top + metrics.baseline
   )
 }
