@@ -31,6 +31,10 @@ export default defineConfig({
       env: { node: true },
     },
     {
+      files: ['apps/web/public/sw.js'],
+      env: { serviceworker: true },
+    },
+    {
       files: ['**/*.{mts,cts}'],
       rules: typescriptRules,
     },

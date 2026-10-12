@@ -1,24 +1,13 @@
 import {
   Add01Icon,
   Cancel01Icon,
-  Delete02Icon,
-  Folder01Icon,
   FullScreenIcon,
   GitBranchIcon,
-  ImageAdd01Icon,
-  ImageRemove01Icon,
   Menu01Icon,
-  PencilEdit02Icon,
   Settings01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import {
-  type ReactNode,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,15 +19,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu'
 import { FindBar } from '@/find-bar'
 import type { Progress } from '@/ghostty/terminal'
+import { ItemMenu } from '@/item-menu'
 import { cn } from '@/lib/utils'
+import { CountBadge, MinimizedTabs } from '@/minimized-tabs'
 import { FolderDialog, RenameDialog } from '@/prompt-dialogs'
 import {
   getState,
@@ -84,6 +69,8 @@ export function App() {
   const layout = state.layout
   const group = layout.groups.find((item) => item.id === layout.activeGroup)
   const tabId = group?.activeTab ?? null
+  const visibleTabs = group?.tabs.filter((tab) => !tab.minimized) ?? []
+  const minimizedTabs = group?.tabs.filter((tab) => tab.minimized) ?? []
 
   return (
     <div className="flex h-dvh text-sm">
@@ -95,7 +82,7 @@ export function App() {
       )}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-20 flex w-60 -translate-x-full flex-col gap-0.5 overflow-y-auto border-r bg-card p-2 transition-transform select-none motion-reduce:transition-none md:static md:w-13 md:translate-x-0 md:items-center md:px-0',
+          'fixed inset-y-0 left-0 z-20 flex w-60 -translate-x-full flex-col gap-0.5 overflow-y-auto border-r bg-sidebar p-2 transition-transform select-none motion-reduce:transition-none md:static md:w-14 md:gap-1 md:translate-x-0 md:items-center md:px-0',
           drawer && 'translate-x-0'
         )}
       >
@@ -139,7 +126,7 @@ export function App() {
           >
             <button
               className={cn(
-                'flex h-8 flex-none items-center rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-9 md:justify-center md:px-0 md:text-xs md:font-medium',
+                'relative flex h-8 flex-none items-center rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-10 md:justify-center md:px-0 md:text-[13px] md:font-medium',
                 item.id === layout.activeGroup && 'bg-accent text-foreground'
               )}
               title={item.name}
@@ -147,38 +134,40 @@ export function App() {
                 send({ type: 'select', groupId: item.id, tabId: null })
                 setDrawer(false)
               }}
-              onDoubleClick={() =>
-                setPrompt({
-                  type: 'rename',
-                  target: 'group',
-                  id: item.id,
-                  name: item.name,
-                })
-              }
             >
               {item.logo !== null && (
                 <img
                   src={`/api/logos/${item.logo}`}
                   alt=""
-                  className="mr-2 size-4 flex-none rounded-[3px] object-cover md:mr-0 md:size-5.5 md:rounded-[5px]"
+                  className="mr-2 size-4 flex-none rounded-[3px] object-cover md:mr-0 md:size-6 md:rounded-[6px]"
                 />
               )}
               {item.logo === null && (
                 <span className="hidden md:inline">{initials(item.name)}</span>
               )}
               <span className="truncate md:hidden">{item.name}</span>
+              {item.tabs.length > 0 && (
+                <CountBadge
+                  className="md:ring-sidebar ml-1.5 md:absolute md:right-0 md:bottom-0 md:ml-0 md:ring-2"
+                  count={item.tabs.length}
+                  alert={false}
+                />
+              )}
+              {item.tabs.some((tab) => state.alerts.includes(tab.id)) && (
+                <span className="bg-primary absolute top-1/2 right-2.5 size-2 -translate-y-1/2 rounded-full md:top-1 md:right-1 md:translate-y-0" />
+              )}
             </button>
           </ItemMenu>
         ))}
         <button
-          className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-9 md:justify-center md:px-0"
+          className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
           title="New group"
           onClick={() => {
             send({ type: 'createGroup' })
             setDrawer(false)
           }}
         >
-          <HugeiconsIcon icon={Add01Icon} className="size-4" />
+          <HugeiconsIcon icon={Add01Icon} className="size-4 md:size-4.5" />
           <span className="md:hidden">New group</span>
         </button>
         <input
@@ -196,19 +185,22 @@ export function App() {
         />
         <a
           href="/settings"
-          className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-9 md:justify-center md:px-0"
+          className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
           title="Settings"
         >
-          <HugeiconsIcon icon={Settings01Icon} className="size-4" />
+          <HugeiconsIcon icon={Settings01Icon} className="size-4 md:size-4.5" />
           <span className="md:hidden">Settings</span>
         </a>
         {state.config.behavior.captureShortcuts && (
           <button
-            className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-9 md:justify-center md:px-0"
+            className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
             title="Fullscreen"
             onClick={() => void toggleFullscreen().catch(showError)}
           >
-            <HugeiconsIcon icon={FullScreenIcon} className="size-4" />
+            <HugeiconsIcon
+              icon={FullScreenIcon}
+              className="size-4 md:size-4.5"
+            />
             <span className="md:hidden">Fullscreen</span>
           </button>
         )}
@@ -216,12 +208,15 @@ export function App() {
       <main className="flex min-w-0 flex-1 flex-col">
         <header
           className={cn(
-            'flex h-8 flex-none border-b select-none',
-            group && group.tabs.length === 1 ? 'bg-background' : 'bg-card'
+            'flex h-8 flex-none select-none',
+            visibleTabs.length === 1 ? 'bg-background' : 'bg-card'
           )}
         >
           <button
-            className="text-muted-foreground hover:text-foreground grid w-9 flex-none place-items-center md:hidden"
+            className={cn(
+              'text-muted-foreground hover:text-foreground grid w-9 flex-none place-items-center md:hidden',
+              visibleTabs.length > 1 && 'border-b'
+            )}
             aria-label="Groups"
             onClick={() => setDrawer(!drawer)}
           >
@@ -229,11 +224,24 @@ export function App() {
           </button>
           {group && (
             <>
+              {minimizedTabs.length > 0 && (
+                <MinimizedTabs
+                  groupId={group.id}
+                  tabs={minimizedTabs}
+                  alerts={state.alerts}
+                  bordered={visibleTabs.length > 1}
+                />
+              )}
               <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
-                {group.tabs.map((tab) => (
+                {visibleTabs.map((tab) => (
                   <ItemMenu
                     key={tab.id}
                     closeLabel="Close tab"
+                    onMinimize={
+                      visibleTabs.length > 1
+                        ? () => send({ type: 'minimizeTab', id: tab.id })
+                        : undefined
+                    }
                     onRename={() =>
                       setPrompt({
                         type: 'rename',
@@ -246,8 +254,9 @@ export function App() {
                   >
                     <div
                       className={cn(
-                        'group/tab relative flex min-w-28 flex-1 items-center justify-center border-r px-7 text-xs text-muted-foreground transition-colors last:border-r-0 hover:text-foreground',
-                        tab.id === tabId && 'bg-background text-foreground'
+                        'group/tab relative flex min-w-28 flex-1 items-center justify-center border-r border-b px-7 text-xs text-muted-foreground transition-colors last:border-r-0 hover:text-foreground',
+                        tab.id === tabId &&
+                          'bg-background text-foreground border-b-transparent'
                       )}
                       onClick={() =>
                         send({
@@ -256,16 +265,11 @@ export function App() {
                           tabId: tab.id,
                         })
                       }
-                      onDoubleClick={() =>
-                        setPrompt({
-                          type: 'rename',
-                          target: 'tab',
-                          id: tab.id,
-                          name: tab.customName ?? '',
-                        })
-                      }
                     >
                       <span className="truncate">{tabTitle(tab)}</span>
+                      {state.alerts.includes(tab.id) && (
+                        <span className="bg-primary ml-1.5 size-1.5 flex-none rounded-full" />
+                      )}
                       {state.config.behavior.showGitBranch &&
                         state.branches[tab.id] && (
                           <span className="ml-2 flex min-w-0 flex-none items-center gap-1 opacity-60">
@@ -299,7 +303,7 @@ export function App() {
               <button
                 className={cn(
                   'grid w-8 flex-none place-items-center text-muted-foreground transition-colors hover:text-foreground',
-                  group.tabs.length > 1 && 'border-l'
+                  visibleTabs.length > 1 && 'border-l border-b'
                 )}
                 aria-label="New tab"
                 title="New tab"
@@ -442,50 +446,6 @@ function TabProgress(props: { progress: Progress | undefined }) {
         width: `${progress.state !== 1 && progress.value === 0 ? 100 : progress.value}%`,
       }}
     />
-  )
-}
-
-function ItemMenu(props: {
-  closeLabel: string
-  onRename: () => void
-  onClose: () => void
-  onSetFolder?: () => void
-  onChangeLogo?: () => void
-  onRemoveLogo?: () => void
-  children: ReactNode
-}) {
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{props.children}</ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem onSelect={props.onRename}>
-          <HugeiconsIcon icon={PencilEdit02Icon} />
-          Rename
-        </ContextMenuItem>
-        {props.onSetFolder && (
-          <ContextMenuItem onSelect={props.onSetFolder}>
-            <HugeiconsIcon icon={Folder01Icon} />
-            Set folder…
-          </ContextMenuItem>
-        )}
-        {props.onChangeLogo && (
-          <ContextMenuItem onSelect={props.onChangeLogo}>
-            <HugeiconsIcon icon={ImageAdd01Icon} />
-            Change logo
-          </ContextMenuItem>
-        )}
-        {props.onRemoveLogo && (
-          <ContextMenuItem onSelect={props.onRemoveLogo}>
-            <HugeiconsIcon icon={ImageRemove01Icon} />
-            Remove logo
-          </ContextMenuItem>
-        )}
-        <ContextMenuItem variant="destructive" onSelect={props.onClose}>
-          <HugeiconsIcon icon={Delete02Icon} />
-          {props.closeLabel}
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
   )
 }
 

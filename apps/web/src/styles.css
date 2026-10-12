@@ -82,6 +82,7 @@
   --foreground: var(--text);
   --card: color-mix(in srgb, var(--bg) 90%, black);
   --card-foreground: var(--text);
+  --sidebar: color-mix(in srgb, var(--bg) 86%, black);
   --popover: color-mix(in srgb, var(--bg) 94%, var(--text));
   --popover-foreground: var(--text);
   --primary: var(--brand);
@@ -104,6 +105,7 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-sidebar: var(--sidebar);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
@@ -137,6 +139,10 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
+  }
+
+  img {
+    @apply pointer-events-none;
   }
 
   *::-webkit-scrollbar {

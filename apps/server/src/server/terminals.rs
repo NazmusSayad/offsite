@@ -68,6 +68,7 @@ pub(super) fn open(
     id: u64,
     command: Option<&str>,
     cwd: PathBuf,
+    environment: &[(&str, &str)],
 ) -> Result<Terminal, String> {
     let pair = native_pty_system()
         .openpty(pty_size(80, 24))
@@ -76,6 +77,9 @@ pub(super) fn open(
     builder.cwd(&cwd);
     builder.env("TERM", "xterm-256color");
     builder.env("COLORTERM", "truecolor");
+    for (name, value) in environment {
+        builder.env(name, value);
+    }
     let child = pair
         .slave
         .spawn_command(builder)

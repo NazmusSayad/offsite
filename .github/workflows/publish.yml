@@ -64,6 +64,8 @@ jobs:
       - run: pnpm --filter web build
       - run: rustup target add ${{ matrix.target }}
       - run: cargo build --release --target ${{ matrix.target }}
+        env:
+          SSHTTY_VERSION: ${{ github.event.release.tag_name }}
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.npm }}

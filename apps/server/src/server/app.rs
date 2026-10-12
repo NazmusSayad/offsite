@@ -44,6 +44,7 @@ struct Client {
 pub(super) struct Tab {
     id: u64,
     custom_name: Option<String>,
+    minimized: bool,
 }
 
 #[derive(Default)]
@@ -283,6 +284,23 @@ impl App {
                     false => Some(name),
                 };
             }
+            Request::MinimizeTab { id } => {
+                let mut inner = self.lock();
+                let Some((tabs, index)) = inner.tabs.values_mut().find_map(|tabs| {
+                    let index = tabs.tabs.iter().position(|tab| tab.id == id)?;
+                    Some((tabs, index))
+                }) else {
+                    return;
+                };
+                if !tabs.tabs.iter().any(|tab| tab.id != id && !tab.minimized) {
+                    return;
+                }
+                tabs.tabs[index].minimized = true;
+                if tabs.active_tab == Some(id) {
+                    tabs.active_tab =
+                        nearest_visible(&tabs.tabs, index).map(|index| tabs.tabs[index].id);
+                }
+            }
             Request::SetDirectory { id, directory } => {
                 let _ = self.update_groups(|groups| {
                     if let Some(group) = groups.groups.iter_mut().find(|group| group.id == id) {
@@ -301,8 +319,9 @@ impl App {
                 }
                 let tabs = inner.tabs.entry(group_id).or_default();
                 if let Some(tab_id) = tab_id
-                    && tabs.tabs.iter().any(|tab| tab.id == tab_id)
+                    && let Some(tab) = tabs.tabs.iter_mut().find(|tab| tab.id == tab_id)
                 {
+                    tab.minimized = false;
                     tabs.active_tab = Some(tab_id);
                 }
                 let empty = tabs.tabs.is_empty();
@@ -421,12 +440,19 @@ impl App {
         };
         inner.next_tab += 1;
         let id = inner.next_tab;
-        match terminals::open(self, id, launch.command.as_deref(), cwd) {
+        match terminals::open(
+            self,
+            id,
+            launch.command.as_deref(),
+            cwd,
+            &launch.environment,
+        ) {
             Ok(terminal) => {
                 inner.terminals.insert(id, terminal);
                 tabs.tabs.push(Tab {
                     id,
                     custom_name: None,
+                    minimized: false,
                 });
                 tabs.active_tab = Some(id);
             }
@@ -633,13 +659,24 @@ fn close_tab(inner: &mut Inner, id: u64) -> Option<u64> {
     let index = tabs.tabs.iter().position(|tab| tab.id == id)?;
     tabs.tabs.remove(index);
     if tabs.active_tab == Some(id) {
-        tabs.active_tab = tabs.tabs.get(index).or(tabs.tabs.last()).map(|tab| tab.id);
+        let next = nearest_visible(&tabs.tabs, index)
+            .or_else(|| tabs.tabs.len().checked_sub(1).map(|last| index.min(last)));
+        if let Some(next) = next {
+            tabs.tabs[next].minimized = false;
+        }
+        tabs.active_tab = next.map(|next| tabs.tabs[next].id);
     }
     let group_id = *group_id;
     if let Some(terminal) = inner.terminals.get_mut(&id) {
         terminal.kill(id);
     }
     Some(group_id)
+}
+
+fn nearest_visible(tabs: &[Tab], index: usize) -> Option<usize> {
+    (index..tabs.len())
+        .chain((0..index.min(tabs.len())).rev())
+        .find(|index| !tabs[*index].minimized)
 }
 
 fn layout(inner: &Inner) -> Layout<'_> {

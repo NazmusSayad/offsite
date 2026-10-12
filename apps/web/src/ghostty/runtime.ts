@@ -19,25 +19,32 @@ export type SizeReport = {
 export type TerminalHost = {
   write: (data: string) => void
   size: () => SizeReport
+  bell: () => void
+  version: () => string
 }
 
 const CALLBACKS_WASM = new Uint8Array([
-  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x02, 0x60, 0x04,
-  0x7f, 0x7f, 0x7f, 0x7f, 0x00, 0x60, 0x03, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, 0x02,
-  0x19, 0x03, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x77, 0x00, 0x00, 0x03, 0x65, 0x6e,
-  0x76, 0x01, 0x64, 0x00, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x73, 0x00, 0x01,
-  0x07, 0x0d, 0x03, 0x01, 0x77, 0x00, 0x00, 0x01, 0x64, 0x00, 0x01, 0x01, 0x73,
-  0x00, 0x02,
+  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x1a, 0x04, 0x60, 0x04,
+  0x7f, 0x7f, 0x7f, 0x7f, 0x00, 0x60, 0x03, 0x7f, 0x7f, 0x7f, 0x01, 0x7f, 0x60,
+  0x02, 0x7f, 0x7f, 0x00, 0x60, 0x03, 0x7f, 0x7f, 0x7f, 0x00, 0x02, 0x29, 0x05,
+  0x03, 0x65, 0x6e, 0x76, 0x01, 0x77, 0x00, 0x00, 0x03, 0x65, 0x6e, 0x76, 0x01,
+  0x64, 0x00, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x73, 0x00, 0x01, 0x03, 0x65,
+  0x6e, 0x76, 0x01, 0x62, 0x00, 0x02, 0x03, 0x65, 0x6e, 0x76, 0x01, 0x76, 0x00,
+  0x03, 0x07, 0x15, 0x05, 0x01, 0x77, 0x00, 0x00, 0x01, 0x64, 0x00, 0x01, 0x01,
+  0x73, 0x00, 0x02, 0x01, 0x62, 0x00, 0x03, 0x01, 0x76, 0x00, 0x04,
 ])
 
 const OPTION = {
   userdata: 0,
   writePty: 1,
+  bell: 2,
+  xtversion: 4,
   size: 6,
   deviceAttributes: 8,
 } as const
 
 const decoder = new TextDecoder()
+const encoder = new TextEncoder()
 
 export class GhosttyRuntime {
   readonly memory: WebAssembly.Memory
@@ -46,7 +53,14 @@ export class GhosttyRuntime {
   private memoryView: DataView
   private readonly hosts = new Map<number, TerminalHost>()
   private nextHostId = 1
-  private callbacks = { writePty: 0, deviceAttributes: 0, size: 0 }
+  private callbacks = {
+    writePty: 0,
+    deviceAttributes: 0,
+    size: 0,
+    bell: 0,
+    xtversion: 0,
+  }
+  private version = { pointer: 0, size: 0 }
 
   private constructor(instance: WebAssembly.Instance) {
     this.exports = instance.exports
@@ -156,10 +170,24 @@ export class GhosttyRuntime {
       OPTION.size,
       this.callbacks.size
     )
+    this.call(
+      'ghostty_terminal_set',
+      terminal,
+      OPTION.bell,
+      this.callbacks.bell
+    )
+    this.call(
+      'ghostty_terminal_set',
+      terminal,
+      OPTION.xtversion,
+      this.callbacks.xtversion
+    )
     return id
   }
 
   detachHost(terminal: number, id: number) {
+    this.call('ghostty_terminal_set', terminal, OPTION.xtversion, 0)
+    this.call('ghostty_terminal_set', terminal, OPTION.bell, 0)
     this.call('ghostty_terminal_set', terminal, OPTION.size, 0)
     this.call('ghostty_terminal_set', terminal, OPTION.deviceAttributes, 0)
     this.call('ghostty_terminal_set', terminal, OPTION.writePty, 0)
@@ -262,13 +290,21 @@ export class GhosttyRuntime {
             this.setField(pointer, name, 'cell_height', size.cellHeight)
             return 1
           },
+          b: (_terminal: number, userdata: number) => {
+            this.hosts.get(userdata)?.bell()
+          },
+          v: (result: number, _terminal: number, userdata: number) => {
+            const host = this.hosts.get(userdata)
+            if (!host) return
+            this.writeVersion(result, host.version())
+          },
         },
       }
     )
     const table = this.exports.__indirect_function_table
     if (!(table instanceof WebAssembly.Table))
       throw new Error('libghostty-vt did not expose its callback table')
-    const [writePty, deviceAttributes, size] = ['w', 'd', 's'].map((name) => {
+    const indexes = ['w', 'd', 's', 'b', 'v'].map((name) => {
       const callback = instance.exports[name]
       if (typeof callback !== 'function')
         throw new Error(`libghostty-vt callback is missing: ${name}`)
@@ -277,7 +313,27 @@ export class GhosttyRuntime {
       table.set(index, callback)
       return index
     })
-    this.callbacks = { writePty, deviceAttributes, size }
+    this.callbacks = {
+      writePty: indexes[0],
+      deviceAttributes: indexes[1],
+      size: indexes[2],
+      bell: indexes[3],
+      xtversion: indexes[4],
+    }
+  }
+
+  private writeVersion(result: number, version: string) {
+    const bytes = encoder.encode(version)
+    this.free(this.version.pointer, this.version.size)
+    const pointer = this.alloc(bytes.length)
+    this.bytes(pointer, bytes.length).set(bytes)
+    this.version = { pointer, size: bytes.length }
+    this.dataView().setUint32(
+      result + this.field('GhosttyString', 'ptr').offset,
+      pointer,
+      true
+    )
+    this.setField(result, 'GhosttyString', 'len', bytes.length)
   }
 
   private writeDeviceAttributes(pointer: number) {
