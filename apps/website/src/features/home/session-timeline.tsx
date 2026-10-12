@@ -130,7 +130,7 @@ export function SessionTimeline(props: { className?: string }) {
                 {formatUptime(now - shell.start)}
               </p>
             </div>
-            <div className="relative h-16">
+            <div className="relative min-h-16">
               <span
                 className="border-primary absolute inset-y-0 border-l"
                 style={{ left: position(now, axis) }}

@@ -35,8 +35,8 @@ export function Hero() {
           </h1>
           <p className="text-muted-foreground mt-8 max-w-2xl text-lg text-pretty">
             sshtty is a terminal in your browser that runs on your own machine.
-            Put Claude Code in one tab and your dev server in another, a group
-            per project.
+            Put Claude Code in one tab and your dev server in another, with a
+            group for each project.
           </p>
           <div className="mt-10">
             <CopyCommand />
