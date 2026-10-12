@@ -4,7 +4,6 @@ use std::{
         Arc, Mutex, MutexGuard, PoisonError,
         atomic::{AtomicU64, AtomicUsize, Ordering},
     },
-    time::Duration,
 };
 
 use axum::{
@@ -161,7 +160,7 @@ impl App {
         tracing::debug!(connection, ?request, "request");
         match request {
             Request::Hello { client_id } => {
-                self.ensure_terminal();
+                self.ensure_group();
                 let mut inner = self.lock();
                 if inner
                     .active
@@ -184,7 +183,7 @@ impl App {
                 return;
             }
             Request::Resume { client_id } => {
-                self.ensure_terminal();
+                self.ensure_group();
                 activate(
                     &mut self.lock(),
                     Client {
@@ -250,14 +249,12 @@ impl App {
                 {
                     logos::delete(&logo);
                 }
-                self.ensure_terminal();
+                self.ensure_group();
             }
             Request::CloseTab { id } => {
-                let mut inner = self.lock();
-                let Some(group_id) = close_tab(&mut inner, id) else {
+                if close_tab(&mut self.lock(), id).is_none() {
                     return;
-                };
-                self.ensure_tab(&mut inner, group_id);
+                }
             }
             Request::RenameGroup { id, name } => {
                 if name.is_empty() {
@@ -366,20 +363,11 @@ impl App {
         forward(&inner, id, false, bytes);
     }
 
-    pub(super) fn exited(self: &Arc<Self>, id: u64) {
+    pub(super) fn exited(&self, id: u64) {
         let mut inner = self.lock();
-        let terminal = inner.terminals.remove(&id);
-        if let Some(group_id) = close_tab(&mut inner, id) {
+        inner.terminals.remove(&id);
+        if close_tab(&mut inner, id).is_some() {
             tracing::info!(id, "terminal exited, closing its tab");
-            match terminal
-                .is_some_and(|terminal| terminal.started.elapsed() < Duration::from_secs(1))
-            {
-                true => tracing::warn!(
-                    id,
-                    "terminal exited right after it started, not opening a new one"
-                ),
-                false => self.ensure_tab(&mut inner, group_id),
-            }
             publish(&inner);
         }
     }
@@ -460,7 +448,7 @@ impl App {
         }
     }
 
-    fn ensure_terminal(self: &Arc<Self>) {
+    fn ensure_group(&self) {
         if self.lock().groups.is_empty() {
             let _ = self.update_groups(|groups| {
                 if !groups.groups.is_empty() {
@@ -479,23 +467,9 @@ impl App {
                 });
             });
         }
-        let mut guard = self.lock();
-        let inner = &mut *guard;
+        let mut inner = self.lock();
         if inner.active_group.is_none() {
             inner.active_group = inner.groups.first().map(|group| group.id);
-        }
-        if let Some(group_id) = inner.active_group {
-            self.ensure_tab(inner, group_id);
-        }
-    }
-
-    fn ensure_tab(self: &Arc<Self>, inner: &mut Inner, group_id: u64) {
-        if inner
-            .tabs
-            .get(&group_id)
-            .is_none_or(|tabs| tabs.tabs.is_empty())
-        {
-            self.create_tab(inner, group_id);
         }
     }
 
@@ -515,7 +489,7 @@ impl App {
         Ok(result)
     }
 
-    pub(super) fn reload(self: &Arc<Self>) {
+    pub(super) fn reload(&self) {
         self.publish_config(&config::read());
         {
             let _groups_file = self.lock_groups_file();
@@ -529,7 +503,7 @@ impl App {
             set_groups(&mut self.lock(), groups.groups);
         }
         if self.lock().active.is_some() {
-            self.ensure_terminal();
+            self.ensure_group();
         }
         publish(&self.lock());
     }

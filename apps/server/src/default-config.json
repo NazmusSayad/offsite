@@ -34,6 +34,7 @@
     "name": "one-dark-darker",
     "boldIsBright": true
   },
+  "emptyScreenAnimation": false,
   "behavior": {
     "shiftEnterNewline": true,
     "showGitBranch": true,

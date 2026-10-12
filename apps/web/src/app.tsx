@@ -24,6 +24,7 @@ import type { Progress } from '@/ghostty/terminal'
 import { ItemMenu } from '@/item-menu'
 import { cn } from '@/lib/utils'
 import { CountBadge, MinimizedTabs } from '@/minimized-tabs'
+import { NewTerminalCanvas } from '@/new-terminal-canvas'
 import { FolderDialog, RenameDialog } from '@/prompt-dialogs'
 import {
   getState,
@@ -209,7 +210,8 @@ export function App() {
         <header
           className={cn(
             'flex h-8 flex-none select-none',
-            visibleTabs.length === 1 ? 'bg-background' : 'bg-card'
+            visibleTabs.length === 1 ? 'bg-background' : 'bg-card',
+            group && group.tabs.length === 0 && 'md:hidden'
           )}
         >
           <button
@@ -318,6 +320,12 @@ export function App() {
           {tabId !== null && <TerminalPane key={tabId} id={tabId} />}
           {tabId !== null && state.finding === tabId && (
             <FindBar key={tabId} id={tabId} />
+          )}
+          {group && group.tabs.length === 0 && (
+            <NewTerminalCanvas
+              animated={state.config.emptyScreenAnimation}
+              onOpen={() => send({ type: 'createTab', groupId: group.id })}
+            />
           )}
         </div>
         {tabId !== null && (

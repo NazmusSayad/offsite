@@ -18,6 +18,38 @@ import { Row, Section } from '@/settings-layout'
 
 type Behavior = Config['behavior']
 
+export function BehaviorSection(props: {
+  behavior: Behavior
+  onChange: (value: Partial<Behavior>) => void
+}) {
+  return (
+    <Section title="Behavior">
+      <Row label="Shift+Enter inserts a new line">
+        <Switch
+          checked={props.behavior.shiftEnterNewline}
+          onCheckedChange={(shiftEnterNewline) =>
+            props.onChange({ shiftEnterNewline })
+          }
+        />
+      </Row>
+      <Row label="Show the git branch in tab titles">
+        <Switch
+          checked={props.behavior.showGitBranch}
+          onCheckedChange={(showGitBranch) => props.onChange({ showGitBranch })}
+        />
+      </Row>
+      <Row label="Capture browser shortcuts in fullscreen">
+        <Switch
+          checked={props.behavior.captureShortcuts}
+          onCheckedChange={(captureShortcuts) =>
+            props.onChange({ captureShortcuts })
+          }
+        />
+      </Row>
+    </Section>
+  )
+}
+
 export function NotificationSection(props: {
   behavior: Behavior
   onChange: (value: Partial<Behavior>) => void
