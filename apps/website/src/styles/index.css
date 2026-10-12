@@ -28,53 +28,6 @@
   src: url('/fonts/Hack.woff2') format('woff2');
 }
 
-@theme {
-  --animate-flow: flow 0.8s linear infinite;
-  --animate-travel: travel 7s linear infinite;
-
-  @keyframes flow {
-    to {
-      background-position: 0 12px;
-    }
-  }
-
-  @keyframes travel {
-    from {
-      stroke-dashoffset: 1000;
-    }
-    to {
-      stroke-dashoffset: 0;
-    }
-  }
-}
-
-@utility corner-marks {
-  position: relative;
-
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4px;
-    z-index: 10;
-    width: 9px;
-    height: 9px;
-    background:
-      linear-gradient(var(--muted-foreground), var(--muted-foreground)) center /
-        1px 100% no-repeat,
-      linear-gradient(var(--muted-foreground), var(--muted-foreground)) center /
-        100% 1px no-repeat;
-  }
-
-  &::before {
-    left: -5px;
-  }
-
-  &::after {
-    right: -5px;
-  }
-}
-
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;

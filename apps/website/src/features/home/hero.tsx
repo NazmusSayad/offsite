@@ -3,14 +3,14 @@ import { siGithub, siNpm } from 'simple-icons'
 import { Button } from '@/components/ui/button'
 import { BrandIcon } from './brand-icon'
 import { CopyCommand } from './copy-command'
-import { FlowLines } from './flow-lines'
 import { githubUrl, npmUrl } from './links'
 import { Logo } from './logo'
+import { SessionTimeline } from './session-timeline'
 
 export function Hero() {
   return (
     <>
-      <nav className="flex items-center justify-between px-4 py-3 sm:px-6">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <a href="/" className="flex items-center gap-2.5 font-mono text-lg">
           <Logo className="text-primary size-7" />
           sshtty
@@ -29,46 +29,45 @@ export function Hero() {
         </div>
       </nav>
 
-      <section className="corner-marks border-t">
-        <div className="flex flex-col items-center px-6 pt-20 text-center sm:pt-28">
-          <h1 className="text-5xl leading-[1.02] font-semibold tracking-[-0.045em] text-balance sm:text-7xl">
-            A terminal in your browser.
-            <span className="text-muted-foreground block">
-              Your shells keep running.
-            </span>
+      <section className="mx-auto max-w-6xl px-6 pt-16 pb-24 sm:pt-24 sm:pb-32">
+        <div className="grid gap-8 lg:grid-cols-[1.7fr_1fr] lg:items-end lg:gap-12">
+          <h1 className="text-5xl leading-[0.95] font-semibold tracking-[-0.05em] text-balance sm:text-7xl xl:text-8xl">
+            A terminal that outlives the tab.
           </h1>
-          <p className="text-muted-foreground mt-8 max-w-xl text-lg text-pretty">
-            Groups and tabs for every project. Close the browser, come back
-            later, and every shell is still there, mid-command.
-          </p>
-          <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
-            <CopyCommand />
-            <Button
-              variant="outline"
-              className="h-12 gap-2 rounded-xl px-5 text-base"
-              asChild
-            >
-              <a href={githubUrl}>
-                <BrandIcon icon={siGithub} className="size-4" />
-                GitHub
-              </a>
-            </Button>
+          <div>
+            <p className="text-muted-foreground text-lg text-pretty">
+              sshtty is a terminal in your browser, with groups and tabs. Close
+              the tab, come back tomorrow, and every shell is still running,
+              mid-command.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <CopyCommand />
+              <Button
+                variant="outline"
+                className="h-12 gap-2 rounded-xl px-5 text-base"
+                asChild
+              >
+                <a href={githubUrl}>
+                  <BrandIcon icon={siGithub} className="size-4" />
+                  GitHub
+                </a>
+              </Button>
+            </div>
           </div>
         </div>
+        <SessionTimeline className="mt-20" />
+      </section>
 
-        <div className="relative isolate mx-auto max-w-5xl px-4 pt-20 pb-4 sm:px-6 sm:pb-6">
-          <FlowLines className="top-1/4 h-80 -translate-y-1/2 sm:h-[600px]" />
-          <div className="bg-card/60 rounded-2xl border p-1.5 shadow-[0_40px_160px_-40px_color-mix(in_srgb,var(--c4)_40%,transparent)] backdrop-blur">
-            <Image
-              src="/screenshots/desktop.webp"
-              alt="sshtty in a browser, with a git log in the first of three tabs"
-              width={2880}
-              height={1800}
-              sizes="(min-width: 1024px) 1012px, 100vw"
-              preload
-              className="rounded-xl"
-            />
-          </div>
+      <section className="border-t bg-(--bg) pt-16 transition-colors duration-700 sm:pt-24">
+        <div className="mx-auto max-w-6xl px-6">
+          <Image
+            src="/screenshots/desktop.webp"
+            alt="sshtty in a browser, with a git log in the first of three tabs"
+            width={2880}
+            height={1800}
+            sizes="(min-width: 1152px) 1104px, 100vw"
+            className="rounded-t-xl border border-b-0 shadow-[0_-30px_120px_-40px_color-mix(in_srgb,var(--c4)_35%,transparent)]"
+          />
         </div>
       </section>
     </>
