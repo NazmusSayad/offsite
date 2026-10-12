@@ -211,12 +211,15 @@ export function App() {
       <main className="flex min-w-0 flex-1 flex-col">
         <header
           className={cn(
-            'flex h-8 flex-none border-b select-none',
+            'flex h-8 flex-none select-none',
             group && group.tabs.length === 1 ? 'bg-background' : 'bg-card'
           )}
         >
           <button
-            className="text-muted-foreground hover:text-foreground grid w-9 flex-none place-items-center md:hidden"
+            className={cn(
+              'text-muted-foreground hover:text-foreground grid w-9 flex-none place-items-center md:hidden',
+              group && group.tabs.length > 1 && 'border-b'
+            )}
             aria-label="Groups"
             onClick={() => setDrawer(!drawer)}
           >
@@ -241,8 +244,9 @@ export function App() {
                   >
                     <div
                       className={cn(
-                        'group/tab relative flex min-w-28 flex-1 items-center justify-center border-r px-7 text-xs text-muted-foreground transition-colors last:border-r-0 hover:text-foreground',
-                        tab.id === tabId && 'bg-background text-foreground'
+                        'group/tab relative flex min-w-28 flex-1 items-center justify-center border-r border-b px-7 text-xs text-muted-foreground transition-colors last:border-r-0 hover:text-foreground',
+                        tab.id === tabId &&
+                          'bg-background text-foreground border-b-transparent'
                       )}
                       onClick={() =>
                         send({
@@ -289,7 +293,7 @@ export function App() {
               <button
                 className={cn(
                   'grid w-8 flex-none place-items-center text-muted-foreground transition-colors hover:text-foreground',
-                  group.tabs.length > 1 && 'border-l'
+                  group.tabs.length > 1 && 'border-l border-b'
                 )}
                 aria-label="New tab"
                 title="New tab"
