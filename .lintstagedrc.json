@@ -1,5 +1,7 @@
 {
-  "*.{js,jsx,ts,tsx,mts}": ["oxlint --fix --max-warnings 5"],
+  "*.{js,jsx,ts,tsx,mts}": [
+    "oxlint --fix --max-warnings 5 --no-error-on-unmatched-pattern"
+  ],
   "*.{json,md,yml,yaml,css}": ["oxfmt --write"],
   "*.rs": ["rustfmt --edition 2024"]
 }
