@@ -16,21 +16,16 @@ export function CopyCommand(props: { className?: string }) {
 
   return (
     <Button
-      variant="outline"
       onClick={() => void handleCopy()}
       aria-label="Copy npx sshtty"
       className={cn(
-        'h-12 gap-3 rounded-xl px-5 font-mono text-base',
+        'bg-foreground text-background hover:bg-foreground/90 h-12 gap-3 rounded-xl px-5 font-mono text-base',
         props.className
       )}
     >
-      <span className="text-muted-foreground">$</span>
+      <span className="opacity-50">$</span>
       npx sshtty
-      {copied ? (
-        <CheckIcon className="text-ansi-green" />
-      ) : (
-        <CopyIcon className="text-muted-foreground" />
-      )}
+      {copied ? <CheckIcon /> : <CopyIcon className="opacity-50" />}
       <span className="sr-only" aria-live="polite">
         {copied ? 'Copied' : ''}
       </span>

@@ -1,15 +1,16 @@
+import Image from 'next/image'
 import { siGithub, siNpm } from 'simple-icons'
 import { Button } from '@/components/ui/button'
 import { BrandIcon } from './brand-icon'
 import { CopyCommand } from './copy-command'
-import { DemoVideo } from './demo-video'
+import { FlowLines } from './flow-lines'
 import { githubUrl, npmUrl } from './links'
 import { Logo } from './logo'
 
 export function Hero() {
   return (
-    <section className="relative bg-[radial-gradient(70%_45%_at_50%_0%,color-mix(in_srgb,var(--c4)_16%,transparent),transparent)]">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+    <>
+      <nav className="flex items-center justify-between px-4 py-3 sm:px-6">
         <a href="/" className="flex items-center gap-2.5 font-mono text-lg">
           <Logo className="text-primary size-7" />
           sshtty
@@ -28,32 +29,48 @@ export function Hero() {
         </div>
       </nav>
 
-      <div className="mx-auto flex max-w-4xl flex-col items-center px-6 pt-20 text-center sm:pt-28">
-        <h1 className="text-5xl leading-[1] font-semibold tracking-[-0.045em] text-balance sm:text-7xl lg:text-8xl">
-          Your shells keep running.
-        </h1>
-        <p className="text-muted-foreground mt-6 max-w-xl text-lg text-pretty sm:text-xl">
-          sshtty is a terminal in your browser, with groups and tabs. Close the
-          browser, come back later, and every shell is still there, mid-command.
-        </p>
-        <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
-          <CopyCommand />
-          <Button
-            variant="ghost"
-            className="h-12 gap-2 rounded-xl px-5 text-base"
-            asChild
-          >
-            <a href={githubUrl}>
-              <BrandIcon icon={siGithub} className="size-4" />
-              GitHub
-            </a>
-          </Button>
+      <section className="corner-marks border-t">
+        <div className="flex flex-col items-center px-6 pt-20 text-center sm:pt-28">
+          <h1 className="text-5xl leading-[1.02] font-semibold tracking-[-0.045em] text-balance sm:text-7xl">
+            A terminal in your browser.
+            <span className="text-muted-foreground block">
+              Your shells keep running.
+            </span>
+          </h1>
+          <p className="text-muted-foreground mt-8 max-w-xl text-lg text-pretty">
+            Groups and tabs for every project. Close the browser, come back
+            later, and every shell is still there, mid-command.
+          </p>
+          <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row">
+            <CopyCommand />
+            <Button
+              variant="outline"
+              className="h-12 gap-2 rounded-xl px-5 text-base"
+              asChild
+            >
+              <a href={githubUrl}>
+                <BrandIcon icon={siGithub} className="size-4" />
+                GitHub
+              </a>
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="mx-auto max-w-6xl px-6 pt-20 pb-32">
-        <DemoVideo />
-      </div>
-    </section>
+        <div className="relative isolate mx-auto max-w-5xl px-4 pt-20 pb-4 sm:px-6 sm:pb-6">
+          <FlowLines className="top-1/4 h-80 -translate-y-1/2 sm:h-[600px]" />
+          <div className="bg-card/60 rounded-2xl border p-1.5 shadow-[0_40px_160px_-40px_color-mix(in_srgb,var(--c4)_40%,transparent)] backdrop-blur">
+            <Image
+              src="/screenshots/desktop.webp"
+              alt="sshtty in a browser, with a git log in the first of three tabs"
+              width={2880}
+              height={1800}
+              sizes="(min-width: 1024px) 1012px, 100vw"
+              preload
+              className="rounded-xl"
+            />
+          </div>
+        </div>
+      </section>
+    </>
   )
 }

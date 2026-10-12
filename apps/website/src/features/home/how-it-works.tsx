@@ -28,8 +28,8 @@ export function HowItWorks() {
   }, [])
 
   return (
-    <section className="mx-auto grid max-w-6xl items-center gap-16 px-6 pb-32 lg:grid-cols-2">
-      <div>
+    <section className="corner-marks grid border-t lg:grid-cols-2 lg:divide-x">
+      <div className="px-6 py-20 sm:px-12 sm:py-28">
         <h2 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
           Closing the tab doesn&apos;t close the shell.
         </h2>
@@ -47,7 +47,7 @@ export function HowItWorks() {
         </Button>
       </div>
 
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center justify-center border-t px-6 py-20 sm:px-12 lg:border-t-0">
         <div
           className={cn(
             'flex w-full max-w-sm items-center gap-3 rounded-xl border bg-card px-4 py-3 transition-opacity duration-300',
