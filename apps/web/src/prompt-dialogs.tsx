@@ -89,50 +89,48 @@ export function FolderDialog(props: {
   directory: string | null
   onDone: () => void
 }) {
-  const [listing, setListing] = useState<Listing | null>(null)
+  const [loaded, setLoaded] = useState<{
+    path: string
+    listing: Listing
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [path, setPath] = useState('')
+  const [path, setPath] = useState(() => {
+    const { config, platform } = getState()
+    return [props.directory, config.shell[platform].cwd].find(Boolean) ?? '~'
+  })
   const [search, setSearch] = useState('')
+  const listing = loaded?.listing
   const directories = listing?.directories.filter((directory) =>
     directory.name.toLowerCase().includes(search.toLowerCase())
   )
 
   function open(path: string) {
-    listDirectories(path).then(
-      (next) => {
-        setListing(next)
-        setPath(next.path)
-        setSearch('')
-        setError(null)
-      },
-      (failure: unknown) =>
-        setError(failure instanceof Error ? failure.message : String(failure))
-    )
+    setPath(path)
+    setSearch('')
   }
 
   useEffect(() => {
-    const { config, platform } = getState()
-    const candidates = [
-      props.directory,
-      config.shell[platform].cwd,
-      '~',
-    ].filter((path): path is string => path !== null && path !== '')
-    async function openFirst() {
-      let failure: unknown = null
-      for (const path of candidates) {
-        try {
-          const next = await listDirectories(path)
-          setListing(next)
-          setPath(next.path)
-          return
-        } catch (error) {
-          failure = error
+    if (path.trim() === '') return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      listDirectories(path).then(
+        (next) => {
+          if (cancelled) return
+          setLoaded({ path, listing: next })
+          setError(null)
+        },
+        (failure: unknown) => {
+          if (cancelled) return
+          setLoaded(null)
+          setError(failure instanceof Error ? failure.message : String(failure))
         }
-      }
-      setError(failure instanceof Error ? failure.message : String(failure))
+      )
+    }, 150)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
     }
-    void openFirst()
-  }, [props.directory])
+  }, [path])
 
   function choose(directory: string) {
     send({ type: 'setDirectory', id: props.groupId, directory })
@@ -179,9 +177,6 @@ export function FolderDialog(props: {
             spellCheck={false}
             value={path}
             onChange={(event) => setPath(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && path.trim() !== '') open(path.trim())
-            }}
           />
           <DialogClose asChild>
             <Button variant="ghost" size="icon-sm" aria-label="Close">
@@ -237,9 +232,9 @@ export function FolderDialog(props: {
             </Button>
           )}
           <Button
-            disabled={!listing}
+            disabled={loaded?.path !== path}
             onClick={() => {
-              if (listing) choose(listing.path)
+              if (loaded?.path === path) choose(loaded.listing.path)
             }}
           >
             Use this folder
