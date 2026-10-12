@@ -42,6 +42,18 @@
     "captureShortcuts": true,
     "bellFlash": true,
     "bellSound": true,
-    "terminalIdentity": "sshtty"
+    "terminalIdentity": "sshtty",
+    "shellIntegration": true,
+    "commandMarks": true,
+    "clickToMoveCursor": true,
+    "macosEditingKeys": true,
+    "optionAsMeta": "off",
+    "clipboardRead": "ask",
+    "confirmCloseBusyTab": true,
+    "backgroundImage": null,
+    "backgroundOpacity": 0.3,
+    "backgroundFit": "cover",
+    "activityMarks": true,
+    "agentStatus": true
   }
 }

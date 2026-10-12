@@ -1,4 +1,20 @@
 import {
+  attentionCount,
+  beep,
+  forgetTab,
+  isSeen,
+  noteInput,
+  noteOutput,
+  noteProgress,
+  noteStatus,
+  notifyFromProgram,
+  ringBell,
+  type Status,
+  unseenAttention,
+  updateAppBadge,
+} from './attention'
+import { requestClipboardRead, writeClipboard } from './clipboard'
+import {
   applyStyle,
   type Config,
   type Platform,
@@ -6,7 +22,6 @@ import {
 } from './config'
 import { updateFavicon } from './favicon'
 import { type FindResults, type Progress, Terminal } from './ghostty/terminal'
-import { showNotification } from './notifications'
 import {
   imagePasteKeys,
   isImagePasteKey,
@@ -22,6 +37,7 @@ type Group = {
   name: string
   logo: string | null
   directory: string | null
+  background: string | null
   tabs: Tab[]
   activeTab: number | null
 }
@@ -38,6 +54,9 @@ type State = {
   progress: Record<number, Progress>
   alerts: number[]
   finding: number | null
+  unread: number[]
+  statuses: Record<number, Status>
+  quiet: number[]
 }
 
 type Request =
@@ -70,8 +89,6 @@ type Message =
   | { type: 'pong' }
 
 const typedAt = new Map<number, number>()
-const notifiedAt = new Map<number, number>()
-const pendingBells = new Map<number, number>()
 const isMac = navigator.userAgent.includes('Mac')
 
 export const clientId =
@@ -87,8 +104,6 @@ let state: State
 let socket: WebSocket
 let pongTimer: number | null = null
 let instance: string | null = null
-let audio: AudioContext | null = null
-let beepedAt = 0
 
 export function start(config: Config, platform: Platform, version: string) {
   state = {
@@ -103,6 +118,9 @@ export function start(config: Config, platform: Platform, version: string) {
     progress: {},
     alerts: [],
     finding: null,
+    unread: [],
+    statuses: {},
+    quiet: [],
   }
   socket = connect()
   setInterval(checkConnection, 30_000)
@@ -146,90 +164,29 @@ export function getState() {
   return state
 }
 
-function setState(next: Partial<State>) {
+export function setState(next: Partial<State>) {
   state = { ...state, ...next }
-  state = {
-    ...state,
-    alerts: state.alerts.filter((id) => sessions.has(id) && !isSeen(id)),
-  }
+  state = { ...state, ...unseenAttention((id) => sessions.has(id)) }
   const group = state.layout.groups.find(
     (item) => item.id === state.layout.activeGroup
   )
   const tab = group?.tabs.find((item) => item.id === group.activeTab)
+  const count = attentionCount()
+  updateAppBadge(count)
   document.title =
     (state.alerts.length > 0 ? '🔔 ' : '') +
+    (count > 0 ? `(${count}) ` : '') +
     (tab ? tabTitle(tab) : group ? group.name : 'sshtty')
-  updateFavicon(group ? group.logo : null, themeColors(state.config.theme))
+  updateFavicon(
+    group ? group.logo : null,
+    themeColors(state.config.theme),
+    count
+  )
   for (const listener of listeners) listener()
 }
 
 export function tabTitle(tab: Tab) {
   return (tab.customName ?? state.titles[tab.id]) || 'Terminal'
-}
-
-function isSeen(id: number) {
-  const group = state.layout.groups.find(
-    (item) => item.id === state.layout.activeGroup
-  )
-  return group?.activeTab === id && !document.hidden && document.hasFocus()
-}
-
-function raiseAlert(id: number) {
-  if (isSeen(id)) return false
-  if (!state.alerts.includes(id)) setState({ alerts: [...state.alerts, id] })
-  return true
-}
-
-function ringBell(id: number) {
-  if (!raiseAlert(id) || pendingBells.has(id)) return
-  const last = notifiedAt.get(id)
-  if (last !== undefined && performance.now() - last < 5000) return
-  pendingBells.set(
-    id,
-    window.setTimeout(() => {
-      pendingBells.delete(id)
-      if (!isSeen(id)) notify(id, '', 'Bell')
-    }, 500)
-  )
-}
-
-function notifyFromProgram(id: number, title: string, body: string) {
-  if (!raiseAlert(id)) return
-  window.clearTimeout(pendingBells.get(id))
-  pendingBells.delete(id)
-  notify(id, title, body)
-}
-
-function notify(id: number, title: string, body: string) {
-  notifiedAt.set(id, performance.now())
-  const group = state.layout.groups.find((item) =>
-    item.tabs.some((tab) => tab.id === id)
-  )
-  const tab = group?.tabs.find((item) => item.id === id)
-  if (!group || !tab) return
-  showNotification(title || tabTitle(tab), body, {
-    groupId: group.id,
-    tabId: id,
-  }).catch((error: unknown) =>
-    console.error('could not show a notification', error)
-  )
-}
-
-function beep() {
-  const now = performance.now()
-  if (now - beepedAt < 150) return
-  beepedAt = now
-  audio ??= new AudioContext()
-  if (audio.state === 'suspended') void audio.resume()
-  const oscillator = audio.createOscillator()
-  const gain = audio.createGain()
-  const start = audio.currentTime
-  oscillator.frequency.value = 880
-  gain.gain.setValueAtTime(0.1, start)
-  gain.gain.exponentialRampToValueAtTime(0.001, start + 0.15)
-  oscillator.connect(gain).connect(audio.destination)
-  oscillator.start(start)
-  oscillator.stop(start + 0.15)
 }
 
 export async function uploadLogo(groupId: number, file: File) {
@@ -254,6 +211,7 @@ export function send(request: Request) {
 
 export function sendInput(id: number, data: string | Uint8Array) {
   if (socket.readyState !== WebSocket.OPEN) return
+  noteInput(id)
   const bytes = typeof data === 'string' ? encoder.encode(data) : data
   const message = new Uint8Array(8 + bytes.length)
   new DataView(message.buffer).setBigUint64(0, BigInt(id))
@@ -307,6 +265,7 @@ function connect() {
       if (awaited) terminal.reset()
       terminal.write(new Uint8Array(event.data, 9), replay)
       if (awaited && awaitingReplay.size === 0) setState({ status: 'active' })
+      if (!replay) noteOutput(id)
       const typed = typedAt.get(id)
       if (replay || typed === undefined) return
       typedAt.delete(id)
@@ -384,9 +343,7 @@ function sync(layout: Layout) {
     if (ids.has(id)) return
     terminal.dispose()
     sessions.delete(id)
-    window.clearTimeout(pendingBells.get(id))
-    pendingBells.delete(id)
-    notifiedAt.delete(id)
+    forgetTab(id)
   })
   for (const id of ids) {
     if (!sessions.has(id)) sessions.set(id, createSession(id))
@@ -417,10 +374,16 @@ function createSession(id: number) {
       sendInput(id, applyCtrl(data))
     },
     onReply: (data) => sendInput(id, data),
-    onResize: (cols, rows) => send({ type: 'resize', id, cols, rows }),
+    onResize: (cols, rows) => {
+      noteInput(id)
+      send({ type: 'resize', id, cols, rows })
+    },
     onTitle: (title) => setState({ titles: { ...state.titles, [id]: title } }),
-    onProgress: (progress) =>
-      setState({ progress: { ...state.progress, [id]: progress } }),
+    onProgress: (progress, replay) => {
+      setState({ progress: { ...state.progress, [id]: progress } })
+      noteProgress(id, progress, replay)
+    },
+    onStatus: (text, replay) => noteStatus(id, text, replay),
     onBell: () => {
       if (state.config.behavior.bellSound) beep()
       if (
@@ -435,12 +398,12 @@ function createSession(id: number) {
       ringBell(id)
     },
     onNotify: (title, body) => notifyFromProgram(id, title, body),
-    onClipboard: (text) => {
-      if (!window.isSecureContext) {
-        console.warn('copy from the terminal needs https or localhost')
-        return
-      }
-      void navigator.clipboard.writeText(text)
+    onClipboard: writeClipboard,
+    onClipboardRead: (terminator) => {
+      if (!isSeen(id)) return
+      requestClipboardRead(id, state.config.behavior.clipboardRead, (text) =>
+        terminal.replyClipboard(text, terminator)
+      )
     },
     onLink: (uri) => window.open(uri, '_blank', 'noopener'),
     beforeKey: (event) => {
@@ -508,6 +471,7 @@ function applyCtrl(data: string) {
 }
 
 function reportSize(id: number, terminal: Terminal) {
+  noteInput(id)
   send({ type: 'resize', id, cols: terminal.cols, rows: terminal.rows })
 }
 

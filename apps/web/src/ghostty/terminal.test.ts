@@ -24,6 +24,10 @@ const options = {
     ),
   },
   version: 'sshtty 0.0.0',
+  commandMarks: true,
+  clickToMoveCursor: true,
+  macosEditingKeys: true,
+  optionAsMeta: 'off' as const,
 }
 
 function open() {
@@ -37,8 +41,10 @@ function open() {
     onBell: vi.fn(),
     onNotify: vi.fn(),
     onClipboard: vi.fn(),
+    onClipboardRead: vi.fn(),
     onLink: vi.fn(),
     beforeKey: () => true,
+    onStatus: vi.fn(),
   })
   function write(text: string, replay = false) {
     terminal.write(new TextEncoder().encode(text), replay)

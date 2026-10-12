@@ -10,8 +10,16 @@ use std::{
 
 use portable_pty::{Child, ChildKiller, CommandBuilder, MasterPty, PtySize, native_pty_system};
 
-use super::app::App;
+#[cfg(unix)]
+use super::shell_integration;
+use super::{app::App, push::Alerts};
+#[cfg(unix)]
+use crate::config;
+#[cfg(windows)]
+use crate::utils::process::child_program;
 use crate::utils::process::current_directory;
+#[cfg(unix)]
+use crate::utils::process::program_name;
 
 pub(super) const HISTORY_LIMIT: usize = 2 * 1024 * 1024;
 
@@ -22,6 +30,7 @@ pub(super) struct Terminal {
     pub(super) pid: Option<u32>,
     input: mpsc::Sender<Vec<u8>>,
     pub(super) branch: Option<String>,
+    pub(super) alerts: Alerts,
 }
 
 impl Terminal {
@@ -60,6 +69,35 @@ impl Terminal {
             None => Err("its process id is unknown".to_string()),
         }
     }
+
+    #[cfg(unix)]
+    pub(super) fn busy_program(&self, id: u64) -> Result<Option<String>, String> {
+        let Some(pid) = self.pid else {
+            return Err("its process id is unknown".to_string());
+        };
+        let Some(group) = self.master.process_group_leader() else {
+            return Err("its foreground process group is unknown".to_string());
+        };
+        let group = u32::try_from(group).map_err(|error| error.to_string())?;
+        if group == pid {
+            return Ok(None);
+        }
+        match program_name(group) {
+            Ok(name) => Ok(Some(name)),
+            Err(error) => {
+                tracing::warn!(id, "could not read the name of process {group}: {error}");
+                Ok(Some(format!("process {group}")))
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    pub(super) fn busy_program(&self, _id: u64) -> Result<Option<String>, String> {
+        match self.pid {
+            Some(pid) => child_program(pid).map_err(|error| error.to_string()),
+            None => Err("its process id is unknown".to_string()),
+        }
+    }
 }
 
 pub(super) fn open(
@@ -68,11 +106,12 @@ pub(super) fn open(
     command: Option<&str>,
     cwd: PathBuf,
     environment: &[(&str, &str)],
+    shell_integration: bool,
 ) -> Result<Terminal, String> {
     let pair = native_pty_system()
         .openpty(pty_size(80, 24))
         .map_err(|error| error.to_string())?;
-    let mut builder = shell_command(command);
+    let mut builder = shell_command(command, shell_integration);
     builder.cwd(&cwd);
     builder.env("TERM", "xterm-256color");
     builder.env("COLORTERM", "truecolor");
@@ -107,6 +146,7 @@ pub(super) fn open(
         pid: child.process_id(),
         input,
         branch: None,
+        alerts: Alerts::default(),
     };
     let reading = app.clone();
     let waiting = app.clone();
@@ -134,7 +174,7 @@ fn write_input(id: u64, mut writer: Box<dyn Write + Send>, inputs: mpsc::Receive
     tracing::info!(id, "input writer stopped");
 }
 
-fn read_output(id: u64, mut reader: Box<dyn Read + Send>, app: &App) {
+fn read_output(id: u64, mut reader: Box<dyn Read + Send>, app: &Arc<App>) {
     let mut chunk = vec![0; 64 * 1024];
     loop {
         match reader.read(&mut chunk) {
@@ -217,7 +257,7 @@ fn pty_size(cols: u16, rows: u16) -> PtySize {
 }
 
 #[cfg(unix)]
-fn shell_command(command: Option<&str>) -> CommandBuilder {
+fn shell_command(command: Option<&str>, shell_integration: bool) -> CommandBuilder {
     let mut builder = CommandBuilder::new("/bin/bash");
     builder.env_clear();
     for name in ["HOME", "USER", "LOGNAME", "TMPDIR", "SSH_AUTH_SOCK"] {
@@ -225,7 +265,7 @@ fn shell_command(command: Option<&str>) -> CommandBuilder {
             builder.env(name, value);
         }
     }
-    let shell = builder.get_shell();
+    let shell = config::default_shell();
     builder.env("SHELL", &shell);
     builder.env("LANG", "en_US.UTF-8");
     if let Some(path) = std::env::var_os("PATH") {
@@ -235,17 +275,21 @@ fn shell_command(command: Option<&str>) -> CommandBuilder {
         Some(program) => program.to_string(),
         None => format!("'{shell}'"),
     };
+    let arguments = match shell_integration {
+        true => shell_integration::prepare(&mut builder, command, &shell),
+        false => "",
+    };
     builder.args([
         "--noprofile",
         "--norc",
         "-c",
-        &format!("export -n PATH; exec -l {program}"),
+        &format!("export -n PATH; exec -l {program}{arguments}"),
     ]);
     builder
 }
 
 #[cfg(windows)]
-fn shell_command(command: Option<&str>) -> CommandBuilder {
+fn shell_command(command: Option<&str>, _shell_integration: bool) -> CommandBuilder {
     match command {
         Some(program) => CommandBuilder::new(program),
         None => CommandBuilder::new_default_prog(),

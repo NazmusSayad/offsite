@@ -2,6 +2,7 @@ import {
   type GhosttyKeyboardLayoutMap,
   ghosttyConsumedMods,
   ghosttyKeyForCode,
+  ghosttyMetaText,
   ghosttyUnshiftedCodepoint,
   loadGhosttyKeyboardLayoutMap,
 } from './keys'
@@ -597,7 +598,11 @@ export class GhosttyCore {
     )
   }
 
-  encodeKey(event: KeyboardEvent, action: 'press' | 'release' = 'press') {
+  encodeKey(
+    event: KeyboardEvent,
+    action: 'press' | 'release' = 'press',
+    optionAsMeta = false
+  ) {
     const key = event.key.toLowerCase()
     const control = LEGACY_CONTROL_KEYS.get(key)
     if (
@@ -610,6 +615,9 @@ export class GhosttyCore {
       !this.isKittyKeyboard()
     )
       return control
+    const text = optionAsMeta
+      ? ghosttyMetaText(event, this.keyboardLayoutMap)
+      : event.key
     const runtime = this.runtime
     runtime.call(
       'ghostty_key_encoder_setopt_from_terminal',
@@ -647,9 +655,12 @@ export class GhosttyCore {
     runtime.call(
       'ghostty_key_event_set_unshifted_codepoint',
       this.keyEvent,
-      ghosttyUnshiftedCodepoint(event, this.keyboardLayoutMap)
+      ghosttyUnshiftedCodepoint(
+        { code: event.code, key: text, shiftKey: event.shiftKey },
+        this.keyboardLayoutMap
+      )
     )
-    const textBytes = encoder.encode(event.key.length === 1 ? event.key : '')
+    const textBytes = encoder.encode(text.length === 1 ? text : '')
     const textPointer =
       textBytes.length === 0 ? 0 : runtime.alloc(textBytes.length)
     if (textPointer !== 0)

@@ -50,8 +50,16 @@ pub fn secret_file() -> PathBuf {
     root().join("secret")
 }
 
+pub fn push_file() -> PathBuf {
+    root().join("push.json")
+}
+
 pub fn logos_directory() -> PathBuf {
     root().join("logos")
+}
+
+pub fn backgrounds_directory() -> PathBuf {
+    root().join("backgrounds")
 }
 
 pub fn sessions_directory() -> PathBuf {
@@ -68,6 +76,10 @@ pub fn log_file() -> PathBuf {
 
 pub fn paste_directory() -> PathBuf {
     session_directory().join("paste")
+}
+
+pub fn shell_integration_directory() -> PathBuf {
+    root().join("shell-integration")
 }
 
 pub fn expand_home(path: &str) -> PathBuf {

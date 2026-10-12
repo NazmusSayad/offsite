@@ -1,4 +1,8 @@
-import type { TerminalOptions } from './ghostty/terminal'
+import type {
+  OptionAsMeta,
+  TerminalBackground,
+  TerminalOptions,
+} from './ghostty/terminal'
 import { type BuiltinTheme, themeColors } from './themes'
 
 export type Platform = 'macos' | 'linux' | 'windows'
@@ -6,6 +10,8 @@ export type Platform = 'macos' | 'linux' | 'windows'
 export type Shell = { command: string | null; cwd: string }
 
 export type TerminalIdentity = 'sshtty' | 'iterm2'
+
+export type ClipboardRead = 'ask' | 'allow' | 'deny'
 
 export type Config = {
   shell: Record<Platform, Shell>
@@ -23,6 +29,18 @@ export type Config = {
     bellFlash: boolean
     bellSound: boolean
     terminalIdentity: TerminalIdentity
+    shellIntegration: boolean
+    commandMarks: boolean
+    clickToMoveCursor: boolean
+    macosEditingKeys: boolean
+    optionAsMeta: OptionAsMeta
+    clipboardRead: ClipboardRead
+    confirmCloseBusyTab: boolean
+    backgroundImage: string | null
+    backgroundOpacity: number
+    backgroundFit: TerminalBackground['fit']
+    activityMarks: boolean
+    agentStatus: boolean
   }
 }
 
@@ -84,10 +102,28 @@ export async function loadSettings() {
     themes: BuiltinTheme[]
     platform: string
     version: string
+    defaultShell: string
   }
   const known = platforms.find((item) => item.value === settings.platform)
   if (!known) throw new Error(`unsupported platform ${settings.platform}`)
   return { ...settings, platform: known.value }
+}
+
+export function canIntegrateShell(
+  command: string | null,
+  platform: Platform,
+  defaultShell: string
+) {
+  if (platform === 'windows') return false
+  if (command !== null && /\s/.test(command)) return false
+  const path = command ?? defaultShell
+  const name = path.split('/').pop()
+  if (name === 'bash')
+    return !(
+      platform === 'macos' &&
+      (path === '/bin/bash' || !path.includes('/'))
+    )
+  return name === 'zsh' || name === 'fish'
 }
 
 export async function saveConfig(config: Config) {
@@ -98,6 +134,21 @@ export async function saveConfig(config: Config) {
   })
   if (!response.ok) throw new Error(await response.text())
   return (await response.json()) as Config
+}
+
+export async function uploadBackground(file: File) {
+  const response = await fetch('/api/background', {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type },
+    body: file,
+  })
+  if (!response.ok) throw new Error(await response.text())
+  return response.text()
+}
+
+export async function removeBackground() {
+  const response = await fetch('/api/background', { method: 'DELETE' })
+  if (!response.ok) throw new Error(await response.text())
 }
 
 export async function applyStyle(config: Config) {
@@ -133,6 +184,10 @@ export function terminalOptions(
     boldIsBright: config.theme.boldIsBright,
     colors: themeColors(config.theme),
     version: terminalVersion(config.behavior.terminalIdentity, version),
+    commandMarks: config.behavior.commandMarks,
+    clickToMoveCursor: config.behavior.clickToMoveCursor,
+    macosEditingKeys: config.behavior.macosEditingKeys,
+    optionAsMeta: config.behavior.optionAsMeta,
   }
 }
 

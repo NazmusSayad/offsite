@@ -1,5 +1,6 @@
 import { Layers01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { attention } from '@/attention'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +32,7 @@ export function MinimizedTabs(props: {
             count={props.tabs.length}
             alert={props.tabs.some((tab) => props.alerts.includes(tab.id))}
           />
+          <AttentionDot ids={props.tabs.map((tab) => tab.id)} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
@@ -42,13 +44,43 @@ export function MinimizedTabs(props: {
             }
           >
             <span className="max-w-80 truncate">{tabTitle(tab)}</span>
-            {props.alerts.includes(tab.id) && (
-              <span className="bg-primary size-1.5 flex-none rounded-full" />
-            )}
+            <AttentionDot ids={[tab.id]} />
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+const attentionLabels = {
+  waiting: 'Waiting for you',
+  error: 'Error',
+  alert: 'Needs attention',
+  done: 'Done',
+  unread: 'New output',
+  working: 'Working',
+}
+
+export function AttentionDot(props: { ids: number[]; className?: string }) {
+  const current = attention(props.ids)
+  if (current === null) return null
+  return (
+    <span
+      role="img"
+      aria-label={attentionLabels[current]}
+      title={attentionLabels[current]}
+      className={cn(
+        'size-1.5 flex-none rounded-full',
+        current === 'waiting' && 'bg-yellow-500',
+        current === 'error' && 'bg-destructive',
+        current === 'alert' && 'bg-primary',
+        current === 'done' && 'bg-green-500',
+        current === 'unread' && 'bg-muted-foreground',
+        current === 'working' &&
+          'bg-primary animate-pulse motion-reduce:animate-none',
+        props.className
+      )}
+    />
   )
 }
 

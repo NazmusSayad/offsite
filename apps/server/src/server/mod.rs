@@ -1,10 +1,14 @@
 mod app;
 mod assets;
+mod backgrounds;
 mod directories;
 mod groups;
 mod logos;
 mod messages;
 mod paste;
+mod push;
+#[cfg(unix)]
+mod shell_integration;
 mod shells;
 mod sync;
 mod terminals;
@@ -13,7 +17,7 @@ use std::{fs, sync::Arc};
 
 use axum::{
     Json, Router,
-    extract::{DefaultBodyLimit, State, WebSocketUpgrade},
+    extract::{DefaultBodyLimit, Path, State, WebSocketUpgrade},
     http::StatusCode,
     response::Response,
     routing::{get, post, put},
@@ -45,6 +49,8 @@ pub fn run(host: String, port: u16, debug: bool) {
         );
         std::process::exit(1);
     }
+    #[cfg(unix)]
+    shell_integration::install();
     let secret = match sync::secret() {
         Ok(secret) => secret,
         Err(error) => {
@@ -83,11 +89,30 @@ async fn serve(app: Arc<App>, host: String, port: u16, debug: bool) {
             put(logos::upload).delete(logos::remove),
         )
         .route("/api/logos/{file}", get(logos::serve))
+        .route("/api/tabs/{id}/busy", get(busy))
+        .route(
+            "/api/groups/{id}/background",
+            put(backgrounds::upload_group)
+                .delete(backgrounds::remove_group)
+                .layer(DefaultBodyLimit::max(20 * 1024 * 1024)),
+        )
+        .route(
+            "/api/background",
+            put(backgrounds::upload)
+                .delete(backgrounds::remove)
+                .layer(DefaultBodyLimit::max(20 * 1024 * 1024)),
+        )
+        .route("/api/backgrounds/{file}", get(backgrounds::serve))
         .route(
             "/api/paste",
             post(paste::upload).layer(DefaultBodyLimit::max(50 * 1024 * 1024)),
         )
-        .route("/api/sync", post(sync::receive));
+        .route("/api/sync", post(sync::receive))
+        .route("/api/push/key", get(push::key))
+        .route(
+            "/api/push/subscription",
+            put(push::subscribe).delete(push::unsubscribe),
+        );
     if debug {
         router = router.route("/api/debug/logs", get(debug_log));
     }
@@ -126,6 +151,10 @@ async fn save_config(
     app.publish_config(&config);
     sync::notify(app.secret.clone());
     Ok(Json(config))
+}
+
+async fn busy(State(app): State<Arc<App>>, Path(id): Path<u64>) -> Json<Option<String>> {
+    Json(app.busy_program(id))
 }
 
 async fn debug_log() -> Result<String, (StatusCode, String)> {

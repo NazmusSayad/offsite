@@ -35,8 +35,10 @@ import {
 import { cn } from '@/lib/utils'
 import { Row, Section } from '@/settings-layout'
 import {
+  BackgroundSection,
   BehaviorSection,
   IdentitySection,
+  MacKeysSection,
   NotificationSection,
 } from '@/settings-sections'
 import { ShellInput } from '@/shell-input'
@@ -60,6 +62,7 @@ export function SettingsPage(props: {
   config: Config
   defaults: Config
   platform: Platform
+  defaultShell: string
 }) {
   const [draft, setDraft] = useState(props.config)
   const [customFont, setCustomFont] = useState(
@@ -268,6 +271,12 @@ export function SettingsPage(props: {
         <BehaviorSection
           behavior={draft.behavior}
           platform={props.platform}
+          shellCommand={draft.shell[props.platform].command}
+          defaultShell={props.defaultShell}
+          onChange={(value) => update('behavior', value)}
+        />
+        <MacKeysSection
+          behavior={draft.behavior}
           onChange={(value) => update('behavior', value)}
         />
         <NotificationSection
@@ -382,6 +391,11 @@ export function SettingsPage(props: {
             </Section>
           </>
         )}
+        <BackgroundSection
+          behavior={draft.behavior}
+          onChange={(value) => update('behavior', value)}
+          onError={setError}
+        />
       </div>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>

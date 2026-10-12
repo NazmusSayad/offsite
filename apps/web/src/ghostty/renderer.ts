@@ -150,6 +150,7 @@ function inRange(range: Range | null, row: number, column: number) {
 export function render(options: {
   context: CanvasRenderingContext2D
   snapshot: Snapshot
+  backdrop: OffscreenCanvas | null
   metrics: Metrics
   appearance: Appearance
   forceFull: boolean
@@ -163,6 +164,7 @@ export function render(options: {
   const {
     context,
     snapshot,
+    backdrop,
     metrics,
     appearance,
     cursorOn,
@@ -184,8 +186,10 @@ export function render(options: {
   if (options.forceFull) {
     context.save()
     context.resetTransform()
-    context.fillStyle = css(snapshot.background)
-    context.fillRect(0, 0, context.canvas.width, context.canvas.height)
+    if (backdrop === null) {
+      context.fillStyle = css(snapshot.background)
+      context.fillRect(0, 0, context.canvas.width, context.canvas.height)
+    } else context.drawImage(backdrop, 0, 0)
     context.restore()
   }
 
@@ -196,8 +200,28 @@ export function render(options: {
     const top = rowIndex * metrics.height
     const cellTop = snap(top, pixelRatio)
     const cellHeight = snap(top + metrics.height, pixelRatio) - cellTop
-    context.fillStyle = css(snapshot.background)
-    context.fillRect(0, cellTop, context.canvas.width, cellHeight)
+    if (backdrop === null) {
+      context.fillStyle = css(snapshot.background)
+      context.fillRect(0, cellTop, context.canvas.width, cellHeight)
+    } else {
+      const pixelTop = Math.round(cellTop * pixelRatio)
+      const pixelHeight =
+        Math.round((cellTop + cellHeight) * pixelRatio) - pixelTop
+      context.save()
+      context.resetTransform()
+      context.drawImage(
+        backdrop,
+        0,
+        pixelTop,
+        backdrop.width,
+        pixelHeight,
+        0,
+        pixelTop,
+        backdrop.width,
+        pixelHeight
+      )
+      context.restore()
+    }
 
     let start = 0
     while (start < row.cells.length) {

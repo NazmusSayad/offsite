@@ -5,6 +5,7 @@ use std::{
 };
 
 use axum::{Json, http::StatusCode};
+use portable_pty::CommandBuilder;
 use serde::{Deserialize, Serialize};
 
 use crate::utils::{
@@ -41,6 +42,18 @@ struct Behavior {
     bell_flash: bool,
     bell_sound: bool,
     terminal_identity: TerminalIdentity,
+    shell_integration: bool,
+    command_marks: bool,
+    click_to_move_cursor: bool,
+    macos_editing_keys: bool,
+    option_as_meta: OptionAsMeta,
+    clipboard_read: ClipboardRead,
+    confirm_close_busy_tab: bool,
+    background_image: Option<String>,
+    background_opacity: f64,
+    background_fit: BackgroundFit,
+    activity_marks: bool,
+    agent_status: bool,
 }
 
 impl Default for Behavior {
@@ -53,6 +66,18 @@ impl Default for Behavior {
             bell_flash: true,
             bell_sound: true,
             terminal_identity: TerminalIdentity::Sshtty,
+            shell_integration: true,
+            command_marks: true,
+            click_to_move_cursor: true,
+            macos_editing_keys: true,
+            option_as_meta: OptionAsMeta::Off,
+            clipboard_read: ClipboardRead::Ask,
+            confirm_close_busy_tab: true,
+            background_image: None,
+            background_opacity: 0.3,
+            background_fit: BackgroundFit::Cover,
+            activity_marks: true,
+            agent_status: true,
         }
     }
 }
@@ -62,6 +87,31 @@ impl Default for Behavior {
 enum TerminalIdentity {
     Sshtty,
     Iterm2,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum OptionAsMeta {
+    Off,
+    Left,
+    Right,
+    Both,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ClipboardRead {
+    Ask,
+    Allow,
+    Deny,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum BackgroundFit {
+    Cover,
+    Contain,
+    Tile,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -145,6 +195,7 @@ pub struct Launch {
     pub command: Option<String>,
     pub cwd: PathBuf,
     pub environment: [(&'static str, &'static str); 4],
+    pub shell_integration: bool,
 }
 
 pub fn version() -> &'static str {
@@ -152,6 +203,12 @@ pub fn version() -> &'static str {
         Some(tag) => tag.trim_start_matches('v'),
         None => env!("CARGO_PKG_VERSION"),
     }
+}
+
+pub fn default_shell() -> String {
+    let mut builder = CommandBuilder::new_default_prog();
+    builder.env_clear();
+    builder.get_shell()
 }
 
 pub fn create() -> io::Result<()> {
@@ -172,6 +229,15 @@ fn builtin_themes() -> Vec<BuiltinTheme> {
 }
 
 fn validate(config: &Config) -> Result<(), String> {
+    let behavior = &config.behavior;
+    if !(0.0..=1.0).contains(&behavior.background_opacity) {
+        return Err("the background opacity must be between 0 and 1".to_string());
+    }
+    if let Some(file) = &behavior.background_image
+        && (file.contains(['/', '\\']) || file.starts_with('.'))
+    {
+        return Err(format!("invalid background image {file}"));
+    }
     let theme = &config.theme;
     if theme.name == CUSTOM_THEME {
         if theme.colors.is_none() {
@@ -307,12 +373,14 @@ pub fn read() -> Config {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     config: Config,
     defaults: Config,
     themes: Vec<BuiltinTheme>,
     platform: &'static str,
     version: &'static str,
+    default_shell: String,
 }
 
 pub async fn handler() -> Json<Settings> {
@@ -322,6 +390,7 @@ pub async fn handler() -> Json<Settings> {
         themes: builtin_themes(),
         platform: std::env::consts::OS,
         version: version(),
+        default_shell: default_shell(),
     })
 }
 
@@ -333,6 +402,18 @@ pub fn save(config: Config) -> Result<Config, (StatusCode, String)> {
     let _lock = lock_folder().map_err(failed)?;
     write_atomic(&paths::config_file(), text.as_bytes()).map_err(failed)?;
     Ok(config)
+}
+
+pub fn background_image() -> Option<String> {
+    read().behavior.background_image
+}
+
+pub fn set_background_image(
+    file: Option<String>,
+) -> Result<(Config, Option<String>), (StatusCode, String)> {
+    let mut config = read();
+    let previous = std::mem::replace(&mut config.behavior.background_image, file);
+    Ok((save(config)?, previous))
 }
 
 pub fn launch(directory: Option<&str>) -> Result<Launch, String> {
@@ -361,5 +442,6 @@ pub fn launch(directory: Option<&str>) -> Result<Launch, String> {
             ("LC_TERMINAL", terminal),
             ("LC_TERMINAL_VERSION", version),
         ],
+        shell_integration: config.behavior.shell_integration,
     })
 }

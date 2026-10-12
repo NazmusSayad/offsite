@@ -1,5 +1,5 @@
 export type OutputEvent =
-  | { type: 'osc'; data: Uint8Array; terminator: string }
+  | { type: 'osc'; data: Uint8Array; terminator: string; start: number }
   | { type: 'sixel'; data: Uint8Array }
 
 type State =
@@ -23,6 +23,8 @@ export class OutputScanner {
   private collecting = false
   private chunks: Uint8Array[] = []
   private size = 0
+  private escapeAt = -1
+  private sequenceStart = -1
 
   reset() {
     this.state = 'ground'
@@ -34,8 +36,11 @@ export class OutputScanner {
     onEvent: (event: OutputEvent, end: number) => boolean
   ) {
     let start = 0
+    this.escapeAt = -1
+    this.sequenceStart = -1
     for (let index = 0; index < bytes.length; index += 1) {
       const byte = bytes[index]
+      if (byte === ESC) this.escapeAt = index
       if (byte === CAN || byte === SUB) {
         this.state = 'ground'
         this.drop()
@@ -51,6 +56,7 @@ export class OutputScanner {
           this.state = 'osc'
           this.begin()
           start = index + 1
+          this.sequenceStart = this.escapeAt
           continue
         }
         if (byte === 0x50) {
@@ -66,7 +72,12 @@ export class OutputScanner {
           this.append(bytes, start, index)
           if (
             onEvent(
-              { type: 'osc', data: this.take(), terminator: '\x07' },
+              {
+                type: 'osc',
+                data: this.take(),
+                terminator: '\x07',
+                start: this.sequenceStart,
+              },
               index + 1
             )
           )
@@ -84,7 +95,12 @@ export class OutputScanner {
           this.state = 'ground'
           if (
             onEvent(
-              { type: 'osc', data: this.take(), terminator: '\x1b\\' },
+              {
+                type: 'osc',
+                data: this.take(),
+                terminator: '\x1b\\',
+                start: this.sequenceStart,
+              },
               index + 1
             )
           )
@@ -133,6 +149,20 @@ export class OutputScanner {
     if (this.state === 'osc' || this.state === 'dcs')
       this.append(bytes, start, bytes.length)
     return bytes.length
+  }
+
+  promptMarkStart() {
+    if (this.state === 'escape') return this.escapeAt
+    if (this.state !== 'osc' && this.state !== 'oscEscape') return null
+    if (!this.collecting) return null
+    let prefix = ''
+    for (const chunk of this.chunks) {
+      for (const byte of chunk.subarray(0, 4 - prefix.length))
+        prefix += String.fromCharCode(byte)
+      if (prefix.length === 4) break
+    }
+    if (!'133;'.startsWith(prefix)) return null
+    return this.sequenceStart
   }
 
   private begin() {

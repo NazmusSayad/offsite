@@ -21,6 +21,7 @@ pub(super) struct Group {
     pub(super) name: String,
     pub(super) logo: Option<String>,
     pub(super) directory: Option<String>,
+    pub(super) background: Option<String>,
 }
 
 pub(super) fn read() -> Result<Groups, String> {

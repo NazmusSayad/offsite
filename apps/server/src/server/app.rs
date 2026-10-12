@@ -17,9 +17,11 @@ use serde::Serialize;
 use tokio::sync::{Notify, mpsc};
 
 use super::{
+    backgrounds,
     groups::{self, Group, Groups, unused_name},
     logos,
     messages::{Event, GroupLayout, Layout, Request},
+    push::{self, Alert},
     sync,
     terminals::{self, HISTORY_LIMIT, Terminal},
 };
@@ -71,6 +73,7 @@ pub(super) struct App {
     groups_file: Mutex<()>,
     connections: AtomicU64,
     pub(super) secret: String,
+    browsers: AtomicUsize,
 }
 
 impl App {
@@ -87,12 +90,14 @@ impl App {
             groups_file: Mutex::new(()),
             connections: AtomicU64::new(0),
             secret,
+            browsers: AtomicUsize::new(0),
         }
     }
 }
 
 pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
     let connection = app.connections.fetch_add(1, Ordering::Relaxed);
+    app.browsers.fetch_add(1, Ordering::Relaxed);
     tracing::info!(connection, "browser connected");
     let (mut sink, mut stream) = socket.split();
     let (sender, mut receiver) = mpsc::unbounded_channel();
@@ -178,6 +183,7 @@ pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
     }
     drop(requests);
     forwarding.abort();
+    app.browsers.fetch_sub(1, Ordering::Relaxed);
     tracing::info!(connection, "browser disconnected");
     if let Err(error) = handler.await {
         tracing::error!(connection, "request handler failed: {error}");
@@ -255,6 +261,7 @@ impl App {
                         name,
                         logo: None,
                         directory: None,
+                        background: None,
                     });
                     Some(id)
                 });
@@ -276,11 +283,13 @@ impl App {
                     let index = groups.groups.iter().position(|group| group.id == id)?;
                     Some(groups.groups.remove(index))
                 });
-                if let Ok(Some(Group {
-                    logo: Some(logo), ..
-                })) = removed
-                {
-                    logos::delete(&logo);
+                if let Ok(Some(group)) = removed {
+                    if let Some(logo) = group.logo {
+                        logos::delete(&logo);
+                    }
+                    if let Some(background) = group.background {
+                        backgrounds::delete(&background);
+                    }
                 }
                 self.ensure_group();
             }
@@ -394,14 +403,62 @@ impl App {
         }
     }
 
-    pub(super) fn output(&self, id: u64, bytes: &[u8]) {
+    pub(super) fn output(self: &Arc<Self>, id: u64, bytes: &[u8]) {
         let mut inner = self.lock();
         let Some(terminal) = inner.terminals.get_mut(&id) else {
             return;
         };
         tracing::trace!(id, bytes = bytes.len(), "output");
         terminal.record(bytes);
+        let alert = terminal.alerts.scan(bytes);
         forward(&inner, id, false, bytes);
+        if self.browsers.load(Ordering::Relaxed) > 0 {
+            return;
+        }
+        match alert {
+            Some(Alert::Bell) => {
+                let Some(terminal) = inner.terminals.get_mut(&id) else {
+                    return;
+                };
+                if !terminal.alerts.start_bell() {
+                    return;
+                }
+                let app = self.clone();
+                thread::spawn(move || {
+                    thread::sleep(push::BELL_DELAY);
+                    app.push_bell(id);
+                });
+            }
+            Some(Alert::Notification { title, body }) => {
+                let Some(terminal) = inner.terminals.get_mut(&id) else {
+                    return;
+                };
+                if !terminal.alerts.start_notification() {
+                    return;
+                }
+                let Some(message) = push_message(&inner, id, title, body) else {
+                    return;
+                };
+                thread::spawn(move || push::send(&message));
+            }
+            None => {}
+        }
+    }
+
+    fn push_bell(&self, id: u64) {
+        let message = {
+            let mut inner = self.lock();
+            let Some(terminal) = inner.terminals.get_mut(&id) else {
+                return;
+            };
+            if !terminal.alerts.finish_bell() || self.browsers.load(Ordering::Relaxed) > 0 {
+                return;
+            }
+            push_message(&inner, id, String::new(), "Bell".to_string())
+        };
+        if let Some(message) = message {
+            push::send(&message);
+        }
     }
 
     pub(super) fn wait_for_browser(&self) {
@@ -446,6 +503,21 @@ impl App {
             .iter()
             .filter_map(|(id, terminal)| terminal.pid.map(|pid| (*id, pid)))
             .collect()
+    }
+
+    pub(super) fn busy_program(&self, id: u64) -> Option<String> {
+        let inner = self.lock();
+        let terminal = inner.terminals.get(&id)?;
+        match terminal.busy_program(id) {
+            Ok(program) => program,
+            Err(error) => {
+                tracing::warn!(
+                    id,
+                    "treating the terminal as idle, could not tell if it is busy: {error}"
+                );
+                None
+            }
+        }
     }
 
     pub(super) fn set_branch(&self, id: u64, branch: Option<String>) {
@@ -501,6 +573,7 @@ impl App {
             launch.command.as_deref(),
             cwd,
             &launch.environment,
+            launch.shell_integration,
         ) {
             Ok(terminal) => {
                 inner.terminals.insert(id, terminal);
@@ -531,6 +604,7 @@ impl App {
                     name: "~".to_string(),
                     logo: None,
                     directory: None,
+                    background: None,
                 });
             });
         }
@@ -602,6 +676,35 @@ impl App {
             .groups
             .iter()
             .any(|group| group.logo.as_deref() == Some(file))
+    }
+
+    pub(super) fn replace_background(
+        &self,
+        group_id: u64,
+        background: Option<String>,
+    ) -> Result<Option<String>, StatusCode> {
+        let replaced = self.update_groups(|groups| {
+            let group = groups
+                .groups
+                .iter_mut()
+                .find(|group| group.id == group_id)?;
+            Some(std::mem::replace(&mut group.background, background))
+        });
+        let previous = match replaced {
+            Ok(Some(previous)) => previous,
+            Ok(None) => return Err(StatusCode::NOT_FOUND),
+            Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+        };
+        publish(&self.lock());
+        Ok(previous)
+    }
+
+    pub(super) fn has_background(&self, file: &str) -> bool {
+        let inner = self.lock();
+        inner
+            .groups
+            .iter()
+            .any(|group| group.background.as_deref() == Some(file))
     }
 
     pub(super) fn publish_config(&self, config: &config::Config) {
@@ -712,6 +815,27 @@ fn close_tab(inner: &mut Inner, id: u64) -> Option<u64> {
         terminal.kill(id);
     }
     Some(group_id)
+}
+
+fn push_message(inner: &Inner, id: u64, title: String, body: String) -> Option<push::Message> {
+    let (group_id, tab) = inner.tabs.iter().find_map(|(group_id, tabs)| {
+        let tab = tabs.tabs.iter().find(|tab| tab.id == id)?;
+        Some((*group_id, tab))
+    })?;
+    let title = match (title.is_empty(), &tab.custom_name) {
+        (false, _) => title,
+        (true, Some(name)) => name.clone(),
+        (true, None) => match inner.terminals.get(&id) {
+            Some(terminal) if !terminal.alerts.title.is_empty() => terminal.alerts.title.clone(),
+            Some(_) | None => "Terminal".to_string(),
+        },
+    };
+    Some(push::Message {
+        title,
+        body,
+        group_id,
+        tab_id: id,
+    })
 }
 
 fn nearest_visible(tabs: &[Tab], index: usize) -> Option<usize> {

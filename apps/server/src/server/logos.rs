@@ -14,7 +14,7 @@ use axum::{
 use super::app::App;
 use crate::utils::paths;
 
-const TYPES: [(&str, &str); 7] = [
+pub(super) const TYPES: [(&str, &str); 7] = [
     ("image/png", "png"),
     ("image/jpeg", "jpg"),
     ("image/gif", "gif"),

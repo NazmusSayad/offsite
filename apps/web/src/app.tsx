@@ -8,10 +8,10 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { type BusyTab, busyTabs, closeTab } from '@/close-tab'
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -23,9 +23,14 @@ import { FindBar } from '@/find-bar'
 import type { Progress } from '@/ghostty/terminal'
 import { ItemMenu } from '@/item-menu'
 import { cn } from '@/lib/utils'
-import { CountBadge, MinimizedTabs } from '@/minimized-tabs'
+import { AttentionDot, CountBadge, MinimizedTabs } from '@/minimized-tabs'
 import { NewTerminalCanvas } from '@/new-terminal-canvas'
-import { FolderDialog, RenameDialog } from '@/prompt-dialogs'
+import {
+  CloseGroupDialog,
+  CloseTabDialog,
+  FolderDialog,
+  RenameDialog,
+} from '@/prompt-dialogs'
 import {
   getState,
   mount,
@@ -66,6 +71,7 @@ export function App() {
   const [logoError, setLogoError] = useState<string | null>(null)
   const [dragGroup, setDragGroup] = useState<number | null>(null)
   const [dropGroup, setDropGroup] = useState<number | null>(null)
+  const [busyGroupTabs, setBusyGroupTabs] = useState<BusyTab[]>([])
 
   function showError(error: unknown) {
     setLogoError(error instanceof Error ? error.message : String(error))
@@ -103,6 +109,7 @@ export function App() {
                 ? undefined
                 : () => void removeLogo(item.id).catch(showError)
             }
+            backgroundGroup={item}
             onSetFolder={() =>
               setPrompt({
                 type: 'folder',
@@ -119,14 +126,23 @@ export function App() {
                 name: item.name,
               })
             }
-            onClose={() =>
+            onClose={async () => {
+              try {
+                setBusyGroupTabs(await busyTabs(item.tabs))
+              } catch (error) {
+                console.error(
+                  'could not check whether the tabs are busy',
+                  error
+                )
+                return
+              }
               setPrompt({
                 type: 'close',
                 target: 'group',
                 id: item.id,
                 name: item.name,
               })
-            }
+            }}
           >
             <button
               className={cn(
@@ -187,9 +203,10 @@ export function App() {
                   alert={false}
                 />
               )}
-              {item.tabs.some((tab) => state.alerts.includes(tab.id)) && (
-                <span className="bg-primary absolute top-1/2 right-2.5 size-2 -translate-y-1/2 rounded-full md:top-1 md:right-1 md:translate-y-0" />
-              )}
+              <AttentionDot
+                ids={item.tabs.map((tab) => tab.id)}
+                className="absolute top-1/2 right-2.5 size-2 -translate-y-1/2 md:top-1 md:right-1 md:translate-y-0"
+              />
             </button>
           </ItemMenu>
         ))}
@@ -285,7 +302,8 @@ export function App() {
                         name: tab.customName ?? '',
                       })
                     }
-                    onClose={() => send({ type: 'closeTab', id: tab.id })}
+                    onClose={() => void closeTab(tab.id)}
+                    tabId={tab.id}
                   >
                     <div
                       className={cn(
@@ -303,9 +321,7 @@ export function App() {
                       }
                     >
                       <span className="truncate">{tabTitle(tab)}</span>
-                      {state.alerts.includes(tab.id) && (
-                        <span className="bg-primary ml-1.5 size-1.5 flex-none rounded-full" />
-                      )}
+                      <AttentionDot ids={[tab.id]} className="ml-1.5" />
                       {state.config.behavior.showGitBranch &&
                         state.branches[tab.id] && (
                           <span className="ml-2 flex min-w-0 flex-none items-center gap-1 opacity-60">
@@ -327,7 +343,7 @@ export function App() {
                         aria-label="Close tab"
                         onClick={(event) => {
                           event.stopPropagation()
-                          send({ type: 'closeTab', id: tab.id })
+                          void closeTab(tab.id)
                         }}
                       >
                         <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
@@ -406,37 +422,12 @@ export function App() {
           onDone={() => setPrompt(null)}
         />
       )}
-      <AlertDialog
-        open={prompt?.type === 'close'}
-        onOpenChange={(open) => {
-          if (!open) setPrompt(null)
-        }}
-      >
-        <AlertDialogContent
-          onCloseAutoFocus={(event) => {
-            event.preventDefault()
-            focusTerminal()
-          }}
-        >
-          <AlertDialogHeader>
-            <AlertDialogTitle>Close “{prompt?.name}”?</AlertDialogTitle>
-            <AlertDialogDescription>
-              All terminals in this group will be closed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                if (prompt) send({ type: 'closeGroup', id: prompt.id })
-              }}
-            >
-              Close
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CloseGroupDialog
+        group={prompt?.type === 'close' ? prompt : null}
+        busy={busyGroupTabs}
+        onDone={() => setPrompt(null)}
+      />
+      <CloseTabDialog />
       <AlertDialog
         open={logoError !== null}
         onOpenChange={(open) => {

@@ -8,8 +8,12 @@ const limit = 32
 const cache = new Map<string, string>(readStored())
 let current = ''
 
-export function updateFavicon(logo: string | null, colors: ThemeColors) {
-  const key = `${logo}|${colors.background}|${colors.foreground}`
+export function updateFavicon(
+  logo: string | null,
+  colors: ThemeColors,
+  count: number
+) {
+  const key = `${logo}|${colors.background}|${colors.foreground}|${count}`
   if (key === current) return
   current = key
   const cached = cache.get(key)
@@ -17,7 +21,7 @@ export function updateFavicon(logo: string | null, colors: ThemeColors) {
     iconLink().href = cached
     return
   }
-  void draw(logo, colors).then(
+  void draw(logo, colors, count).then(
     (url) => {
       remember(key, url)
       if (key === current) iconLink().href = url
@@ -42,7 +46,7 @@ function remember(key: string, url: string) {
   localStorage.setItem(storageKey, JSON.stringify([...cache]))
 }
 
-async function draw(logo: string | null, colors: ThemeColors) {
+async function draw(logo: string | null, colors: ThemeColors, count: number) {
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
@@ -51,6 +55,7 @@ async function draw(logo: string | null, colors: ThemeColors) {
 
   if (logo === null) {
     await drawBadge(context, 0, size, colors)
+    drawCount(context, count, colors)
     return canvas.toDataURL()
   }
 
@@ -77,6 +82,7 @@ async function draw(logo: string | null, colors: ThemeColors) {
   context.fill()
   context.globalCompositeOperation = 'source-over'
   await drawBadge(context, 28, 36, colors)
+  drawCount(context, count, colors)
   return canvas.toDataURL()
 }
 
@@ -93,6 +99,23 @@ async function drawBadge(
   const svg = logoSvg.replaceAll('currentColor', colors.foreground)
   const mark = await loadImage(`data:image/svg+xml,${encodeURIComponent(svg)}`)
   context.drawImage(mark, offset, offset, extent, extent)
+}
+
+function drawCount(
+  context: CanvasRenderingContext2D,
+  count: number,
+  colors: ThemeColors
+) {
+  if (count === 0) return
+  context.fillStyle = colors.palette[1]
+  context.beginPath()
+  context.arc(size - 18, 18, 18, 0, Math.PI * 2)
+  context.fill()
+  context.fillStyle = '#ffffff'
+  context.font = 'bold 26px sans-serif'
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.fillText(count > 9 ? '9+' : String(count), size - 18, 19)
 }
 
 function loadImage(src: string) {

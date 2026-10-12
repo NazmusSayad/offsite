@@ -6,7 +6,28 @@ import {
   Search01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import {
+  answerClipboardRead,
+  clipboardReadRequest,
+  subscribeClipboardRead,
+} from '@/clipboard'
+import {
+  type BusyTab,
+  getClosing,
+  setClosing,
+  subscribeClosing,
+} from '@/close-tab'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -17,8 +38,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { getState, send } from '@/session'
+import { saveConfig } from '@/config'
+import { getState, send, tabTitle } from '@/session'
 import { focusTerminal } from '@/shortcuts'
+import { showToast } from '@/toast'
 
 export function RenameDialog(props: {
   target: 'tab' | 'group'
@@ -73,6 +96,98 @@ export function RenameDialog(props: {
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+export function CloseGroupDialog(props: {
+  group: { id: number; name: string } | null
+  busy: BusyTab[]
+  onDone: () => void
+}) {
+  const group = props.group
+  return (
+    <AlertDialog
+      open={group !== null}
+      onOpenChange={(open) => {
+        if (!open) props.onDone()
+      }}
+    >
+      <AlertDialogContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          focusTerminal()
+        }}
+      >
+        <AlertDialogHeader>
+          <AlertDialogTitle>Close “{group?.name}”?</AlertDialogTitle>
+          <AlertDialogDescription>
+            All terminals in this group will be closed.
+            {props.busy.length > 0 && ' These are still running:'}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {props.busy.length > 0 && (
+          <ul className="grid max-h-40 gap-1 overflow-y-auto text-sm">
+            {props.busy.map((tab) => (
+              <li key={tab.id} className="flex min-w-0 gap-2">
+                <span className="flex-none font-medium">{tab.program}</span>
+                <span className="text-muted-foreground truncate">
+                  {tab.name}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={() => {
+              if (group) send({ type: 'closeGroup', id: group.id })
+            }}
+          >
+            Close
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+export function CloseTabDialog() {
+  const closing = useSyncExternalStore(subscribeClosing, getClosing)
+
+  return (
+    <AlertDialog
+      open={closing !== null}
+      onOpenChange={(open) => {
+        if (!open) setClosing(null)
+      }}
+    >
+      <AlertDialogContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          focusTerminal()
+        }}
+      >
+        <AlertDialogHeader>
+          <AlertDialogTitle>Close “{closing?.name}”?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {closing?.program} is still running.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={() => {
+              if (closing) send({ type: 'closeTab', id: closing.id })
+            }}
+          >
+            Close
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
@@ -252,5 +367,64 @@ export function FolderDialog(props: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+export function ClipboardReadDialog() {
+  const request = useSyncExternalStore(
+    subscribeClipboardRead,
+    clipboardReadRequest
+  )
+  if (request === null) return null
+  const tab = getState()
+    .layout.groups.flatMap((group) => group.tabs)
+    .find((item) => item.id === request.id)
+
+  function allowAlways() {
+    answerClipboardRead(true)
+    const config = getState().config
+    saveConfig({
+      ...config,
+      behavior: { ...config.behavior, clipboardRead: 'allow' },
+    }).catch((error: unknown) => {
+      console.error('could not save the clipboard setting', error)
+      showToast('Could not save the clipboard setting')
+    })
+  }
+
+  return (
+    <AlertDialog
+      open
+      onOpenChange={(open) => {
+        if (!open) answerClipboardRead(false)
+      }}
+    >
+      <AlertDialogContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          focusTerminal()
+        }}
+      >
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {tab
+              ? `Let “${tabTitle(tab)}” read the clipboard?`
+              : 'Let a closed tab read the clipboard?'}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            A program in this tab wants the text you last copied.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Deny</AlertDialogCancel>
+          <AlertDialogAction variant="outline" onClick={allowAlways}>
+            Always allow
+          </AlertDialogAction>
+          <AlertDialogAction onClick={() => answerClipboardRead(true)}>
+            Allow once
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }

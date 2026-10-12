@@ -268,3 +268,65 @@ export function ghosttyUnshiftedCodepoint(
   }
   return event.key.codePointAt(0) ?? 0
 }
+
+const usPunctuationCharacter = new Map([
+  ['Backquote', '`'],
+  ['Minus', '-'],
+  ['Equal', '='],
+  ['BracketLeft', '['],
+  ['BracketRight', ']'],
+  ['Backslash', '\\'],
+  ['Semicolon', ';'],
+  ['Quote', "'"],
+  ['Comma', ','],
+  ['Period', '.'],
+  ['Slash', '/'],
+  ['Space', ' '],
+])
+
+const unshiftedToShiftedCharacter = new Map(
+  [...shiftedToUnshiftedCharacter].map((entry) => [entry[1], entry[0]])
+)
+
+function usUnshiftedCharacter(code: string) {
+  if (/^Key[A-Z]$/u.test(code)) return code[3].toLowerCase()
+  if (/^Digit[0-9]$/u.test(code)) return code[5]
+  return usPunctuationCharacter.get(code)
+}
+
+export function ghosttyMetaText(
+  event: Pick<KeyboardEvent, 'code' | 'key' | 'shiftKey'>,
+  layoutMap?: GhosttyKeyboardLayoutMap
+): string {
+  const layoutCharacter = layoutMap?.get(event.code)
+  const unshifted =
+    layoutCharacter && [...layoutCharacter].length === 1
+      ? layoutCharacter
+      : usUnshiftedCharacter(event.code)
+  if (unshifted === undefined) return event.key
+  if (!event.shiftKey) return unshifted
+  const uppercase = unshifted.toUpperCase()
+  if (uppercase !== unshifted) return uppercase
+  return unshiftedToShiftedCharacter.get(unshifted) ?? unshifted
+}
+
+export function macosEditingInput(
+  event: Pick<
+    KeyboardEvent,
+    'altKey' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'
+  >
+): string | null {
+  if (event.ctrlKey || event.shiftKey) return null
+  if (event.metaKey && !event.altKey) {
+    if (event.key === 'ArrowLeft') return '\x01'
+    if (event.key === 'ArrowRight') return '\x05'
+    if (event.key === 'Backspace') return '\x15'
+    return null
+  }
+  if (event.altKey && !event.metaKey) {
+    if (event.key === 'ArrowLeft') return '\x1bb'
+    if (event.key === 'ArrowRight') return '\x1bf'
+    return null
+  }
+  return null
+}
