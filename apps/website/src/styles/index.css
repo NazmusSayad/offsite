@@ -1,0 +1,121 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@font-face {
+  font-family: 'JetBrainsMono Nerd Font';
+  font-display: swap;
+  src: url('/fonts/JetBrainsMono.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'FiraCode Nerd Font';
+  font-display: swap;
+  src: url('/fonts/FiraCode.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'CaskaydiaCove Nerd Font';
+  font-display: swap;
+  src: url('/fonts/CaskaydiaCove.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Hack Nerd Font';
+  font-display: swap;
+  src: url('/fonts/Hack.woff2') format('woff2');
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    @apply bg-background font-sans;
+  }
+
+  a[href],
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased transition-colors duration-700;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--c4) 35%, transparent);
+  }
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-ansi-red: var(--c1);
+  --color-ansi-green: var(--c2);
+  --color-ansi-yellow: var(--c3);
+  --color-ansi-blue: var(--c4);
+  --color-ansi-magenta: var(--c5);
+  --color-ansi-cyan: var(--c6);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #1c2025;
+  --text: #abb2bf;
+  --c1: #ee5d69;
+  --c2: #97c775;
+  --c3: #b68353;
+  --c4: #61afef;
+  --c5: #c678dd;
+  --c6: #56b6c2;
+  --background: color-mix(in srgb, var(--bg) 55%, black);
+  --foreground: color-mix(in srgb, var(--text) 40%, white);
+  --card: color-mix(in srgb, var(--bg) 80%, black);
+  --card-foreground: var(--foreground);
+  --popover: var(--bg);
+  --popover-foreground: var(--foreground);
+  --primary: var(--c4);
+  --primary-foreground: var(--background);
+  --secondary: color-mix(in srgb, var(--bg) 85%, var(--text));
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in srgb, var(--bg) 85%, var(--text));
+  --muted-foreground: color-mix(in srgb, var(--text) 80%, var(--bg));
+  --accent: color-mix(in srgb, var(--bg) 85%, var(--text));
+  --accent-foreground: var(--foreground);
+  --destructive: var(--c1);
+  --border: color-mix(in srgb, var(--text) 12%, transparent);
+  --input: color-mix(in srgb, var(--text) 16%, transparent);
+  --ring: var(--c4);
+  --radius: 0.625rem;
+}
