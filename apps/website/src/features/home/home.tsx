@@ -1,4 +1,3 @@
-import { DemoVideo } from './demo-video'
 import { Features } from './features'
 import { Footer } from './footer'
 import { Hero } from './hero'
@@ -13,9 +12,6 @@ export function Home() {
       <HowItWorks />
       <Features />
       <ThemeLab />
-      <section className="mx-auto max-w-6xl px-6 py-24 sm:py-32">
-        <DemoVideo />
-      </section>
       <Install />
       <Footer />
     </main>
