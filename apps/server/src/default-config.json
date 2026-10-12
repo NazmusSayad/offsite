@@ -29,14 +29,14 @@
     "bottom": 4,
     "left": 6
   },
-  "scrollback": 100000,
+  "scrollback": 10000,
   "theme": {
     "name": "one-dark-darker",
     "boldIsBright": true
   },
   "emptyScreenAnimation": false,
   "behavior": {
-    "shiftEnterNewline": true,
+    "modernizeShiftEnter": true,
     "pasteBrowserImages": true,
     "showGitBranch": true,
     "captureShortcuts": true,

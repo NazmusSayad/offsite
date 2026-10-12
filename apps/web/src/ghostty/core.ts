@@ -15,6 +15,9 @@ const STYLE_FOREGROUND_INDEX = 16
 const STYLE_COLOR_PALETTE = 1
 const STYLE_COLOR_RGB = 2
 const STYLE_COLOR_VALUE = 8
+const PAGE_BYTES = 589_824
+const PAGE_GRID_BYTES = 381_888
+const SCROLLBACK_MAX_BYTES = 50_000_000
 
 const RENDER_DATA = {
   cols: 1,
@@ -124,6 +127,12 @@ export type MouseInput = {
 
 const decoder = new TextDecoder()
 const encoder = new TextEncoder()
+const LEGACY_CONTROL_KEYS = new Map([
+  ['[', '\x1b'],
+  ['m', '\r'],
+  ['i', '\t'],
+  ['@', '\x00'],
+])
 
 function channel(front: number, back: number) {
   return Math.floor((front * 155 + back * 100) / 255)
@@ -216,11 +225,17 @@ export class GhosttyCore {
     const options = runtime.alloc(optionsSize)
     runtime.setField(options, 'GhosttyTerminalOptions', 'cols', cols)
     runtime.setField(options, 'GhosttyTerminalOptions', 'rows', rows)
+    const pageRows = Math.floor(PAGE_GRID_BYTES / (8 * (cols + 1)))
     runtime.setField(
       options,
       'GhosttyTerminalOptions',
       'max_scrollback',
-      scrollback
+      scrollback === 0
+        ? 0
+        : Math.min(
+            (Math.ceil(scrollback / pageRows) + 1) * PAGE_BYTES,
+            SCROLLBACK_MAX_BYTES
+          )
     )
     this.terminalSlot = runtime.allocOpaque()
     const result = runtime.call(
@@ -541,6 +556,17 @@ export class GhosttyCore {
     return this.getFlag('ghostty_terminal_mode_get', 1004)
   }
 
+  isSynchronizedOutput() {
+    return this.getFlag('ghostty_terminal_mode_get', 2026)
+  }
+
+  endSynchronizedOutput() {
+    this.check(
+      'ghostty_terminal_mode_set',
+      this.runtime.call('ghostty_terminal_mode_set', this.terminal, 2026, 0)
+    )
+  }
+
   currentColors(): Colors {
     return {
       foreground: this.terminalColor(18),
@@ -552,6 +578,10 @@ export class GhosttyCore {
 
   isApplicationCursorKeys() {
     return this.getFlag('ghostty_terminal_mode_get', 1)
+  }
+
+  isKittyKeyboard() {
+    return this.getFlag('ghostty_terminal_get', 8)
   }
 
   isAlternateScreen() {
@@ -568,6 +598,18 @@ export class GhosttyCore {
   }
 
   encodeKey(event: KeyboardEvent, action: 'press' | 'release' = 'press') {
+    const key = event.key.toLowerCase()
+    const control = LEGACY_CONTROL_KEYS.get(key)
+    if (
+      control !== undefined &&
+      action === 'press' &&
+      event.ctrlKey &&
+      !event.altKey &&
+      !event.metaKey &&
+      !(event.shiftKey && /^[a-z]$/u.test(key)) &&
+      !this.isKittyKeyboard()
+    )
+      return control
     const runtime = this.runtime
     runtime.call(
       'ghostty_key_encoder_setopt_from_terminal',

@@ -146,7 +146,10 @@ fn read_output(id: u64, mut reader: Box<dyn Read + Send>, app: &App) {
                 tracing::info!(id, "terminal output ended: {error}");
                 break;
             }
-            Ok(length) => app.output(id, &chunk[..length]),
+            Ok(length) => {
+                app.output(id, &chunk[..length]);
+                app.wait_for_browser();
+            }
         }
     }
 }

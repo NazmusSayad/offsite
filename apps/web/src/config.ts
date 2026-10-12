@@ -16,7 +16,7 @@ export type Config = {
   theme: { name: string; boldIsBright: boolean; colors?: ThemeColors }
   emptyScreenAnimation: boolean
   behavior: {
-    shiftEnterNewline: boolean
+    modernizeShiftEnter: boolean
     pasteBrowserImages: boolean
     showGitBranch: boolean
     captureShortcuts: boolean

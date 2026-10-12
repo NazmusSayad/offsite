@@ -1,4 +1,4 @@
-import { getState, send } from './session'
+import { getSession, getState, send } from './session'
 
 const capturedKeys = ['KeyT', 'KeyN', 'KeyW', 'Tab', 'Escape']
 const isMac = navigator.userAgent.includes('Mac')
@@ -21,6 +21,14 @@ export async function toggleFullscreen() {
     return
   }
   await keyboard.lock(capturedKeys)
+}
+
+export function focusTerminal() {
+  const state = getState()
+  const group = state.layout.groups.find(
+    (item) => item.id === state.layout.activeGroup
+  )
+  if (group && group.activeTab !== null) getSession(group.activeTab).focus()
 }
 
 function shortcutName(event: KeyboardEvent) {
