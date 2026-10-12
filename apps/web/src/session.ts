@@ -7,7 +7,12 @@ import {
 import { updateFavicon } from './favicon'
 import { type FindResults, type Progress, Terminal } from './ghostty/terminal'
 import { showNotification } from './notifications'
-import { isCtrlV, pasteClipboardImages, pasteImages } from './paste'
+import {
+  imagePasteKeys,
+  isImagePasteKey,
+  pasteClipboardImages,
+  pasteImages,
+} from './paste'
 import { themeColors } from './themes'
 
 export type Tab = { id: number; customName: string | null; minimized: boolean }
@@ -449,18 +454,19 @@ function createSession(id: number) {
       }
       if (
         state.status === 'active' &&
-        state.config.behavior.ctrlVPastesImages &&
+        state.config.behavior.pasteBrowserImages &&
         window.isSecureContext &&
-        isCtrlV(event)
+        isImagePasteKey(event, state.platform)
       ) {
         event.preventDefault()
+        const data = imagePasteKeys[state.platform].data
         pasteClipboardImages(terminal)
           .then((pasted) => {
-            if (!pasted) sendInput(id, '\x16')
+            if (!pasted) sendInput(id, data)
           })
           .catch((error: unknown) => {
             console.error('could not paste image', error)
-            sendInput(id, '\x16')
+            sendInput(id, data)
           })
         return false
       }

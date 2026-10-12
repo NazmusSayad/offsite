@@ -17,7 +17,7 @@ export type Config = {
   emptyScreenAnimation: boolean
   behavior: {
     shiftEnterNewline: boolean
-    ctrlVPastesImages: boolean
+    pasteBrowserImages: boolean
     showGitBranch: boolean
     captureShortcuts: boolean
     bellFlash: boolean

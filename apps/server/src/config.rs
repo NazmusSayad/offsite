@@ -35,7 +35,7 @@ pub struct Config {
 #[serde(default, deny_unknown_fields, rename_all = "camelCase")]
 struct Behavior {
     shift_enter_newline: bool,
-    ctrl_v_pastes_images: bool,
+    paste_browser_images: bool,
     show_git_branch: bool,
     capture_shortcuts: bool,
     bell_flash: bool,
@@ -47,7 +47,7 @@ impl Default for Behavior {
     fn default() -> Self {
         Behavior {
             shift_enter_newline: true,
-            ctrl_v_pastes_images: true,
+            paste_browser_images: true,
             show_git_branch: true,
             capture_shortcuts: true,
             bell_flash: true,
