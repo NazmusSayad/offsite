@@ -2,42 +2,17 @@
 
 import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
+import { logoBody, logoHandle } from './logo'
 
 const columns = 72
 const rows = 34
-
-const handle =
-  'M17 15 V12.5 C17 10 18.5 8.5 21 8.5 H27 C29.5 8.5 31 10 31 12.5 V15'
-const body =
-  'M12 15 H36 A7 7 0 0 1 43 22 V34 A7 7 0 0 1 36 41 H12 A7 7 0 0 1 5 34 V22 A7 7 0 0 1 12 15 Z M21.5 20 H33.5 A3.5 3.5 0 0 1 33.5 27 H21.5 A3.5 3.5 0 0 1 21.5 20 Z M14.5 29 H26.5 A3.5 3.5 0 0 1 26.5 36 H14.5 A3.5 3.5 0 0 1 14.5 29 Z'
-
-const output = [
-  '$ npm run dev',
-  'ready in 412ms',
-  '+ compiled /app/page in 212ms',
-  'GET / 200 in 31ms',
-  '$ claude',
-  '* reading src/app/page.tsx',
-  '* editing src/features/home/hero.tsx',
-  '+ 3 files changed, 41 insertions',
-  '$ git log --oneline',
-  '9d5bf00 fix a shell restart loop',
-  '8be7f6b keep a group and a terminal open',
-  '3abef11 run sshtty as one process',
-  '$ cargo build --release',
-  'compiling sshtty v0.0.10',
-  'finished release in 41.2s',
-  '$ tail -f server.log',
-  'GET /api/health 200 2ms',
-  'POST /api/session 201 14ms',
-  'GET /api/health 200 1ms',
-].join(' :: ')
+const text = 'npx sshtty '
 
 function measureCoverage() {
   const context = document.createElement('canvas').getContext('2d')
   if (!context) throw new Error('Canvas 2D is not available')
-  const handlePath = new Path2D(handle)
-  const bodyPath = new Path2D(body)
+  const handlePath = new Path2D(logoHandle)
+  const bodyPath = new Path2D(logoBody)
   context.lineWidth = 4.5
   context.lineCap = 'round'
   const coverage = []
@@ -72,18 +47,16 @@ export function AsciiLogo(props: { className?: string }) {
     if (!context) throw new Error('Canvas 2D is not available')
     const coverage = measureCoverage()
     let offset = 0
+    let width = 0
+    let height = 0
+    let style = getComputedStyle(canvas)
+    let interval: ReturnType<typeof setInterval> | undefined
 
     function draw() {
-      if (!canvas || !context) return
-      const rect = canvas.getBoundingClientRect()
-      const ratio = window.devicePixelRatio
-      canvas.width = rect.width * ratio
-      canvas.height = rect.height * ratio
-      context.setTransform(ratio, 0, 0, ratio, 0, 0)
-
-      const style = getComputedStyle(canvas)
-      const cellWidth = rect.width / columns
-      const cellHeight = rect.height / rows
+      if (!canvas || !context || width === 0) return
+      const cellWidth = width / columns
+      const cellHeight = height / rows
+      context.clearRect(0, 0, width, height)
       context.font = `600 ${cellWidth / 0.6}px ${style.fontFamily}`
       context.textBaseline = 'middle'
       context.textAlign = 'center'
@@ -92,40 +65,75 @@ export function AsciiLogo(props: { className?: string }) {
         for (let column = 0; column < columns; column++) {
           const cellCoverage = coverage[row * columns + column]
           const character =
-            output[((row + offset) * columns + column) % output.length]
+            text[(row * columns + column + offset) % text.length]
           if (cellCoverage === 0) {
             const distanceX = ((column + 0.5) / columns) * 2 - 1
             const distanceY = ((row + 0.5) / rows) * 2 - 1
             context.globalAlpha =
-              0.16 *
+              0.2 *
               Math.max(0, 1 - distanceX * distanceX - distanceY * distanceY)
             context.fillStyle = style.getPropertyValue('--text')
           } else {
-            context.globalAlpha = cellCoverage * 0.92
+            context.globalAlpha = cellCoverage
             context.fillStyle = style.getPropertyValue('--c4')
             context.fillRect(
               column * cellWidth,
               row * cellHeight,
-              cellWidth,
-              cellHeight
+              cellWidth + 0.5,
+              cellHeight + 0.5
             )
-            context.globalAlpha = cellCoverage * 0.8
-            context.fillStyle = style.getPropertyValue('--background')
+            context.globalAlpha = cellCoverage * 0.75
+            context.fillStyle = style.getPropertyValue('--bg')
           }
-          context.fillText(
-            character === ' ' ? '.' : character,
-            (column + 0.5) * cellWidth,
-            (row + 0.5) * cellHeight
-          )
+          if (character !== ' ') {
+            context.fillText(
+              character,
+              (column + 0.5) * cellWidth,
+              (row + 0.5) * cellHeight
+            )
+          }
         }
       }
       offset++
     }
 
-    draw()
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const interval = setInterval(draw, 160)
-    return () => clearInterval(interval)
+    const resizeObserver = new ResizeObserver((entries) => {
+      const rect = entries[0].contentRect
+      const ratio = window.devicePixelRatio
+      width = rect.width
+      height = rect.height
+      canvas.width = width * ratio
+      canvas.height = height * ratio
+      context.setTransform(ratio, 0, 0, ratio, 0, 0)
+      draw()
+    })
+    resizeObserver.observe(canvas)
+
+    const styleObserver = new MutationObserver(() => {
+      style = getComputedStyle(canvas)
+      draw()
+    })
+    styleObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style', 'class'],
+    })
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const visibilityObserver = new IntersectionObserver((entries) => {
+      clearInterval(interval)
+      interval = undefined
+      if (entries[0].isIntersecting && !reducedMotion.matches) {
+        interval = setInterval(draw, 160)
+      }
+    })
+    visibilityObserver.observe(canvas)
+
+    return () => {
+      clearInterval(interval)
+      resizeObserver.disconnect()
+      styleObserver.disconnect()
+      visibilityObserver.disconnect()
+    }
   }, [])
 
   return (

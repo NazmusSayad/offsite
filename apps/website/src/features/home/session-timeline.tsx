@@ -4,86 +4,124 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-const gaps = [
-  { start: 18, end: 26, label: 'closed' },
-  { start: 52, end: 84, label: 'closed overnight' },
+const axisHours = 32
+const fastForwardHours = 4
+
+const pastGaps = [
+  { start: 4.5, end: 6.5, label: 'closed' },
+  { start: 10, end: 18, label: 'closed overnight' },
 ]
 
 const shells = [
-  { command: 'zsh', start: 0, startedAgo: 90187, color: 'var(--c2)' },
-  { command: 'claude', start: 30, startedAgo: 72745, color: 'var(--c5)' },
-  { command: 'npm run dev', start: 88, startedAgo: 3132, color: 'var(--c4)' },
+  { command: 'zsh', start: 0, color: 'var(--c2)' },
+  { command: 'claude', start: 7, color: 'var(--c5)' },
+  { command: 'npm run dev', start: 19.2, color: 'var(--c4)' },
 ]
 
-function formatUptime(seconds: number) {
-  const hours = Math.floor(seconds / 3600)
+function position(hours: number) {
+  return `${(Math.min(hours, axisHours) / axisHours) * 100}%`
+}
+
+function formatUptime(hours: number) {
+  const seconds = Math.floor(hours * 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
-  return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
+  return `${Math.floor(seconds / 3600)}:${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
+}
+
+function formatDuration(hours: number) {
+  const minutes = Math.floor(hours * 60)
+  if (minutes < 60) return `${minutes}m`
+  return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m`
 }
 
 export function SessionTimeline(props: { className?: string }) {
-  const [tabOpen, setTabOpen] = useState(true)
-  const [elapsed, setElapsed] = useState(0)
+  const nowState = useState(20)
+  const closedAtState = useState<number | null>(null)
+  const gapsState = useState(pastGaps)
+  const now = nowState[0]
+  const setNow = nowState[1]
+  const closedAt = closedAtState[0]
 
   useEffect(() => {
-    const interval = setInterval(() => setElapsed((value) => value + 1), 1000)
+    const interval = setInterval(() => {
+      setNow((value) => {
+        if (closedAt !== null && value < closedAt + fastForwardHours) {
+          return Math.min(value + 0.12, closedAt + fastForwardHours)
+        }
+        return value + 0.1 / 3600
+      })
+    }, 100)
     return () => clearInterval(interval)
-  }, [])
+  }, [closedAt, setNow])
+
+  const closedRanges = [...gapsState[0]]
+  if (closedAt !== null) {
+    closedRanges.push({ start: closedAt, end: now, label: 'closed' })
+  }
+  const openRanges = []
+  let openStart = 0
+  for (const range of closedRanges) {
+    openRanges.push({ start: openStart, end: range.start })
+    openStart = range.end
+  }
+  if (closedAt === null) openRanges.push({ start: openStart, end: now })
 
   return (
-    <div className={cn('rounded-2xl border p-5 sm:p-8', props.className)}>
-      <div className="grid grid-cols-[6.5rem_1fr] gap-x-4 gap-y-6 font-mono text-sm sm:grid-cols-[8rem_1fr] sm:gap-x-6">
-        <div>
-          <p>browser</p>
-          <p className="text-muted-foreground mt-0.5 text-xs">
-            {tabOpen ? 'open' : 'closed'}
+    <div className={props.className}>
+      <div className="grid grid-cols-[6.5rem_1fr] gap-x-4 font-mono text-sm sm:grid-cols-[9rem_1fr] sm:gap-x-6">
+        <div className="pt-7">
+          <p>browser tab</p>
+          <p className="text-muted-foreground mt-0.5">
+            {closedAt === null ? 'open' : 'closed'}
           </p>
         </div>
-        <div className="relative h-10">
-          <span className="bg-foreground/80 absolute top-1/2 left-0 h-2 w-[18%] -translate-y-1/2 rounded-full" />
-          <span className="bg-foreground/80 absolute top-1/2 left-[26%] h-2 w-[26%] -translate-y-1/2 rounded-full" />
-          {gaps.map((gap) => (
+        <div className="relative h-20">
+          {openRanges.map((range) => (
             <span
-              key={gap.label}
-              className="text-muted-foreground/60 absolute top-1/2 border-t border-dashed border-current text-[11px]"
+              key={range.start}
+              className="bg-foreground absolute top-12 h-2 min-w-2 -translate-y-1/2 rounded-full"
               style={{
-                left: `${gap.start}%`,
-                width: `${gap.end - gap.start}%`,
+                left: position(range.start),
+                width: `calc(${position(range.end)} - ${position(range.start)})`,
+              }}
+            />
+          ))}
+          {closedRanges.map((range) => (
+            <span
+              key={range.start}
+              className="text-muted-foreground absolute top-12 border-t-2 border-dashed border-current"
+              style={{
+                left: position(range.start),
+                width: `calc(${position(range.end)} - ${position(range.start)})`,
               }}
             >
-              <span className="absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap max-lg:hidden">
-                {gap.label}
+              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap max-sm:hidden">
+                {range.label}
               </span>
             </span>
           ))}
           <span
-            className={cn(
-              'bg-foreground/80 absolute top-1/2 left-[84%] h-2 -translate-y-1/2 rounded-full transition-[width] duration-500',
-              tabOpen && 'w-[16%]',
-              !tabOpen && 'w-[8%]'
-            )}
-          />
-          <span
-            className={cn(
-              'absolute top-1/2 left-[92%] w-[8%] border-t border-dashed transition-opacity duration-500',
-              tabOpen && 'opacity-0'
-            )}
-          />
+            className="text-primary absolute top-0 bottom-[-12rem] z-10 border-l border-current"
+            style={{ left: position(now) }}
+          >
+            <span className="absolute top-0 left-2 text-xs">now</span>
+          </span>
         </div>
 
         {shells.map((shell) => (
           <div key={shell.command} className="contents">
-            <div>
+            <div className="py-3">
               <p className="truncate">{shell.command}</p>
-              <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-                {formatUptime(shell.startedAgo + elapsed)}
+              <p className="text-muted-foreground mt-0.5 tabular-nums">
+                {formatUptime(now - shell.start)}
               </p>
             </div>
-            <div className="relative h-10">
+            <div className="relative h-16">
               <span
-                className="absolute top-1/2 right-0 h-0.5 -translate-y-1/2 rounded-full"
+                className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full"
                 style={{
-                  left: `${shell.start}%`,
+                  left: position(shell.start),
+                  width: `calc(${position(now)} - ${position(shell.start)})`,
                   backgroundColor: shell.color,
                   boxShadow: `0 0 12px ${shell.color}`,
                 }}
@@ -91,13 +129,13 @@ export function SessionTimeline(props: { className?: string }) {
               <span
                 className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
                 style={{
-                  left: `${shell.start}%`,
+                  left: position(shell.start),
                   backgroundColor: shell.color,
                 }}
               />
               <span
-                className="absolute top-1/2 right-0 size-2.5 translate-x-1/2 -translate-y-1/2 rounded-full"
-                style={{ backgroundColor: shell.color }}
+                className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                style={{ left: position(now), backgroundColor: shell.color }}
               >
                 <span
                   className="absolute inset-0 animate-ping rounded-full motion-reduce:hidden"
@@ -109,18 +147,45 @@ export function SessionTimeline(props: { className?: string }) {
         ))}
       </div>
 
-      <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3 border-t pt-6">
+      <p className="text-muted-foreground mt-6 flex gap-6 font-mono text-xs">
+        <span className="flex items-center gap-2">
+          <span className="bg-foreground h-1.5 w-5 rounded-full" />
+          tab open
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="w-5 border-t-2 border-dashed border-current" />
+          tab closed
+        </span>
+      </p>
+
+      <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-3">
         <Button
           variant="outline"
-          onClick={() => setTabOpen(!tabOpen)}
+          onClick={() => {
+            if (closedAt === null) {
+              closedAtState[1](now)
+              return
+            }
+            gapsState[1]([
+              ...gapsState[0],
+              { start: closedAt, end: now, label: 'closed' },
+            ])
+            closedAtState[1](null)
+          }}
           className="h-10 rounded-xl px-4 text-sm"
         >
-          {tabOpen ? 'Close the tab' : 'Reopen the tab'}
+          {closedAt === null ? 'Close the tab' : 'Reopen the tab'}
         </Button>
-        <p className="text-muted-foreground text-sm">
-          {tabOpen
-            ? 'Try it. The shells will not notice.'
-            : 'The tab is closed. Your shells are still running.'}
+        <p
+          className={cn(
+            'text-muted-foreground text-sm',
+            closedAt !== null && 'text-foreground'
+          )}
+        >
+          {closedAt === null &&
+            'Close it and watch the clock. The shells keep counting.'}
+          {closedAt !== null &&
+            `Closed for ${formatDuration(now - closedAt)}. All three shells are still running.`}
         </p>
       </div>
     </div>

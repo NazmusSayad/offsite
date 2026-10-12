@@ -1,34 +1,67 @@
 'use client'
 
 import { Volume2Icon, VolumeXIcon } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
-export function DemoVideo() {
+async function playVideo(video: HTMLVideoElement) {
+  try {
+    await video.play()
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return
+    if (error instanceof DOMException && error.name === 'NotAllowedError')
+      return
+    throw error
+  }
+}
+
+export function DemoVideo(props: { className?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [muted, setMuted] = useState(true)
+  const mutedState = useState(true)
+  const muted = mutedState[0]
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) throw new Error('The video is not mounted')
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          void playVideo(video)
+        } else {
+          video.pause()
+        }
+      },
+      { threshold: 0.25 }
+    )
+    observer.observe(video)
+    return () => observer.disconnect()
+  }, [])
 
   function handleToggleSound() {
     const video = videoRef.current
-    if (!video) return
+    if (!video) throw new Error('The video is not mounted')
     video.muted = !muted
-    if (muted) video.currentTime = 0
-    setMuted(!muted)
+    if (muted) {
+      video.currentTime = 0
+      void playVideo(video)
+    }
+    mutedState[1](!muted)
   }
 
   return (
-    <div className="relative">
+    <div className={cn('relative', props.className)}>
       <video
         ref={videoRef}
-        src="/demo.mp4"
-        poster="/demo-poster.jpg"
-        autoPlay
+        src="/tour.mp4"
+        poster="/tour-poster.jpg"
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="none"
         aria-label="A one-minute tour of sshtty"
-        className="aspect-video w-full rounded-xl border bg-black shadow-[0_40px_120px_-40px_color-mix(in_srgb,var(--c4)_45%,transparent)]"
+        className="aspect-video w-full bg-black"
       />
       <Button
         variant="secondary"
@@ -37,7 +70,8 @@ export function DemoVideo() {
         aria-label={muted ? 'Turn sound on' : 'Turn sound off'}
         className="absolute bottom-4 left-4 rounded-full bg-black/60 backdrop-blur hover:bg-black/80"
       >
-        {muted ? <VolumeXIcon /> : <Volume2Icon />}
+        {muted && <VolumeXIcon />}
+        {!muted && <Volume2Icon />}
       </Button>
     </div>
   )

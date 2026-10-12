@@ -1,88 +1,85 @@
-import {
-  BotIcon,
-  ImageIcon,
-  LayersIcon,
-  SearchIcon,
-  ServerIcon,
-  SmartphoneIcon,
-} from 'lucide-react'
 import Image from 'next/image'
 
-const features = [
+const highlights = [
   {
-    icon: ImageIcon,
-    title: 'Images in the terminal',
+    image: '/screenshots/agent-paste.webp',
+    width: 1340,
+    height: 720,
+    alt: 'OpenCode in an sshtty tab, with a pasted image attached to the prompt as a file',
+    title: 'Paste screenshots into your agent',
     description:
-      'Sixel and iTerm2 inline images, on Windows too, where Windows Terminal only shows sixel.',
+      'Run Claude Code, OpenCode or any other terminal app. Paste an image and sshtty saves it to a file and types the path, so the agent can open it.',
   },
   {
-    icon: BotIcon,
-    title: 'Built for coding agents',
+    image: '/screenshots/imgcat.webp',
+    width: 1330,
+    height: 640,
+    alt: 'A landscape picture printed inline by imgcat in an sshtty tab',
+    title: 'Images print right in the terminal',
     description:
-      'Run Claude Code or OpenCode in its own tab. Paste an image and sshtty saves it and types the path.',
-  },
-  {
-    icon: SmartphoneIcon,
-    title: 'Works on your phone',
-    description:
-      'The layout adapts to small screens, with keys for Esc, Tab, Ctrl and the arrows.',
-  },
-  {
-    icon: LayersIcon,
-    title: 'Groups and tabs',
-    description:
-      'A tab for every task, a group for every project. Give each group its own logo.',
-  },
-  {
-    icon: ServerIcon,
-    title: 'Several servers, one set of groups',
-    description: 'Run sshtty on different ports and they share groups.',
-  },
-  {
-    icon: SearchIcon,
-    title: 'The usual comforts',
-    description:
-      'Search, clickable links, a large scrollback and settings for shell, font, cursor and padding.',
+      'Sixel and iTerm2 inline images both work, on Windows too, where Windows Terminal shows sixel but not iTerm2 images.',
   },
 ]
 
 export function Features() {
   return (
     <section className="mx-auto max-w-6xl px-6 py-24 sm:py-32">
-      <h2 className="max-w-2xl font-mono text-3xl font-semibold tracking-tighter text-balance sm:text-5xl">
-        Made for terminals you leave open.
-      </h2>
+      <div className="mx-auto max-w-3xl text-center">
+        <h2 className="font-mono text-3xl font-semibold tracking-tighter text-balance sm:text-5xl">
+          A group for every project, a tab for every task.
+        </h2>
+        <p className="text-muted-foreground mx-auto mt-6 max-w-2xl text-lg text-pretty">
+          Give each group a logo and switch with a click. The same groups open
+          on your phone, with keys for Esc, Tab, Ctrl and the arrows.
+        </p>
+      </div>
 
-      <div className="relative mt-16 pb-10 sm:pb-16">
+      <div className="relative mt-16 pb-12 sm:pb-20">
         <Image
-          src="/screenshots/inline-image.webp"
-          alt="An image printed inline in an sshtty tab"
-          width={1520}
-          height={1040}
-          sizes="(min-width: 1152px) 880px, 80vw"
-          className="w-[80%] rounded-xl border"
+          src="/screenshots/workspace.webp"
+          alt="sshtty with three groups in the sidebar and three tabs: cargo build, vim and btop"
+          width={2560}
+          height={1600}
+          sizes="(min-width: 1152px) 950px, 86vw"
+          className="w-[86%] rounded-xl border shadow-2xl"
         />
-        <div className="bg-background absolute right-0 bottom-0 w-[27%] rounded-[1.25rem] border p-1 shadow-2xl sm:rounded-[2rem] sm:p-1.5">
+        <div className="bg-background absolute right-0 bottom-0 w-[24%] rounded-[1.25rem] border p-1 shadow-2xl sm:rounded-[2rem] sm:p-1.5">
           <Image
-            src="/screenshots/phone.webp"
-            alt="sshtty on a phone"
+            src="/screenshots/phone-vim.webp"
+            alt="sshtty on a phone, with a row of keys for Esc, Tab, the arrows and Ctrl"
             width={1170}
             height={2532}
-            sizes="(min-width: 1152px) 300px, 27vw"
+            sizes="(min-width: 1152px) 270px, 24vw"
             className="rounded-[1rem] sm:rounded-[1.6rem]"
           />
         </div>
       </div>
 
-      <ul className="mt-16 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-        {features.map((feature) => (
-          <li key={feature.title} className="border-t pt-6">
-            <feature.icon className="text-primary size-5" />
-            <h3 className="mt-4 text-lg font-medium">{feature.title}</h3>
-            <p className="text-muted-foreground mt-2">{feature.description}</p>
-          </li>
+      <div className="mt-20 grid gap-x-10 gap-y-14 md:grid-cols-2">
+        {highlights.map((highlight) => (
+          <div key={highlight.title}>
+            <Image
+              src={highlight.image}
+              alt={highlight.alt}
+              width={highlight.width}
+              height={highlight.height}
+              sizes="(min-width: 768px) 540px, 100vw"
+              className="aspect-[16/9] w-full rounded-xl border object-cover object-left-top"
+            />
+            <h3 className="mt-6 text-xl font-medium">{highlight.title}</h3>
+            <p className="text-muted-foreground mt-2 max-w-md">
+              {highlight.description}
+            </p>
+          </div>
         ))}
-      </ul>
+      </div>
+
+      <p className="text-muted-foreground mt-16 max-w-3xl border-t pt-8">
+        <span className="text-foreground">Also in the box:</span> search,
+        clickable links, a large scrollback, settings for shell, font, cursor
+        and padding, and several sshtty servers on different ports sharing one
+        set of groups.
+      </p>
     </section>
   )
 }

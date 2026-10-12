@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'sshtty',
     description: 'A terminal in your browser that keeps your shells running.',
-    images: ['/demo-poster.jpg'],
+    images: ['/tour-poster.jpg'],
   },
 }
 
