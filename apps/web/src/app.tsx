@@ -139,7 +139,7 @@ export function App() {
           >
             <button
               className={cn(
-                'flex h-8 flex-none items-center rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-9 md:justify-center md:px-0 md:text-xs md:font-medium',
+                'relative flex h-8 flex-none items-center rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-9 md:justify-center md:px-0 md:text-xs md:font-medium',
                 item.id === layout.activeGroup && 'bg-accent text-foreground'
               )}
               title={item.name}
@@ -167,6 +167,9 @@ export function App() {
                 <span className="hidden md:inline">{initials(item.name)}</span>
               )}
               <span className="truncate md:hidden">{item.name}</span>
+              {item.tabs.some((tab) => state.alerts.includes(tab.id)) && (
+                <span className="bg-primary absolute top-1/2 right-2.5 size-2 -translate-y-1/2 rounded-full md:top-1 md:right-1 md:translate-y-0" />
+              )}
             </button>
           </ItemMenu>
         ))}
@@ -266,6 +269,9 @@ export function App() {
                       }
                     >
                       <span className="truncate">{tabTitle(tab)}</span>
+                      {state.alerts.includes(tab.id) && (
+                        <span className="bg-primary ml-1.5 size-1.5 flex-none rounded-full" />
+                      )}
                       {state.config.behavior.showGitBranch &&
                         state.branches[tab.id] && (
                           <span className="ml-2 flex min-w-0 flex-none items-center gap-1 opacity-60">

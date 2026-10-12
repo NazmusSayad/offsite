@@ -34,6 +34,7 @@ import {
 } from '@/config'
 import { cn } from '@/lib/utils'
 import { Row, Section } from '@/settings-layout'
+import { IdentitySection, NotificationSection } from '@/settings-sections'
 import { ShellInput } from '@/shell-input'
 import { customTheme, getThemes, themeColors } from '@/themes'
 
@@ -287,6 +288,14 @@ export function SettingsPage(props: {
             />
           </Row>
         </Section>
+        <NotificationSection
+          behavior={draft.behavior}
+          onChange={(value) => update('behavior', value)}
+        />
+        <IdentitySection
+          behavior={draft.behavior}
+          onChange={(value) => update('behavior', value)}
+        />
         <Section title="Layout">
           {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
             <Row key={side} label={`Padding ${side}`}>

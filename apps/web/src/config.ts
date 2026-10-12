@@ -5,6 +5,8 @@ export type Platform = 'macos' | 'linux' | 'windows'
 
 export type Shell = { command: string | null; cwd: string }
 
+export type TerminalIdentity = 'sshtty' | 'iterm2'
+
 export type Config = {
   shell: Record<Platform, Shell>
   font: { family: string; size: number; lineHeight: number; ligatures: boolean }
@@ -16,6 +18,9 @@ export type Config = {
     shiftEnterNewline: boolean
     showGitBranch: boolean
     captureShortcuts: boolean
+    bellFlash: boolean
+    bellSound: boolean
+    terminalIdentity: TerminalIdentity
   }
 }
 
@@ -28,6 +33,8 @@ export type ThemeColors = {
   selectionForeground: string
   palette: string[]
 }
+
+const iterm2Version = '3.6.8'
 
 const paletteKeys = [
   'black',
@@ -74,6 +81,7 @@ export async function loadSettings() {
     defaults: Config
     themes: BuiltinTheme[]
     platform: string
+    version: string
   }
   const known = platforms.find((item) => item.value === settings.platform)
   if (!known) throw new Error(`unsupported platform ${settings.platform}`)
@@ -108,7 +116,10 @@ export async function applyStyle(config: Config) {
   style.setProperty('--pad-left', `${config.padding.left}px`)
 }
 
-export function terminalOptions(config: Config): TerminalOptions {
+export function terminalOptions(
+  config: Config,
+  version: string
+): TerminalOptions {
   return {
     fontFamily: config.font.family,
     fontSize: config.font.size,
@@ -119,5 +130,12 @@ export function terminalOptions(config: Config): TerminalOptions {
     scrollback: config.scrollback,
     boldIsBright: config.theme.boldIsBright,
     colors: themeColors(config.theme),
+    version: terminalVersion(config.behavior.terminalIdentity, version),
   }
+}
+
+function terminalVersion(identity: TerminalIdentity, version: string) {
+  if (identity === 'sshtty') return `sshtty ${version}`
+  if (identity === 'iterm2') return `iTerm2 ${iterm2Version}`
+  throw new Error(`unknown terminal identity ${identity}`)
 }
