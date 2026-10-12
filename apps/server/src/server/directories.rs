@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, path::Path};
 
 use axum::{Json, extract::Query, http::StatusCode};
 use serde::{Deserialize, Serialize};
@@ -38,20 +38,31 @@ pub(super) async fn list(
             format!("{}: {error}", path.display()),
         )
     })?;
+    let separator = match request.path.contains('\\') {
+        true => '\\',
+        false => '/',
+    };
+    let base = request.path.trim_end_matches(['/', '\\']);
     let mut directories: Vec<Directory> = entries
         .filter_map(Result::ok)
         .filter(|entry| entry.path().is_dir())
-        .map(|entry| Directory {
-            name: entry.file_name().to_string_lossy().into_owned(),
-            path: entry.path().to_string_lossy().into_owned(),
+        .map(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            Directory {
+                path: format!("{base}{separator}{name}"),
+                name,
+            }
         })
         .collect();
     directories.sort_by_key(|directory| directory.name.to_lowercase());
+    let typed = Path::new(&request.path);
+    let parent = match typed.file_name().and(typed.parent()) {
+        Some(parent) if parent != Path::new("") => Some(parent),
+        _ => path.parent(),
+    };
     Ok(Json(Listing {
         path: path.to_string_lossy().into_owned(),
-        parent: path
-            .parent()
-            .map(|parent| parent.to_string_lossy().into_owned()),
+        parent: parent.map(|parent| parent.to_string_lossy().into_owned()),
         directories,
     }))
 }

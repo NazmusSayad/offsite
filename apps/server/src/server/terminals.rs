@@ -147,7 +147,7 @@ fn read_output(id: u64, mut reader: Box<dyn Read + Send>, app: &App) {
     }
 }
 
-fn wait_for_exit(id: u64, mut child: Box<dyn Child + Send + Sync>, app: &App) {
+fn wait_for_exit(id: u64, mut child: Box<dyn Child + Send + Sync>, app: &Arc<App>) {
     match child.wait() {
         Ok(status) => tracing::info!(id, ?status, "terminal process exited"),
         Err(error) => tracing::error!(id, "could not wait for terminal process: {error}"),
