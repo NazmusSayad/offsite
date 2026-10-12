@@ -34,7 +34,11 @@ import {
 } from '@/config'
 import { cn } from '@/lib/utils'
 import { Row, Section } from '@/settings-layout'
-import { IdentitySection, NotificationSection } from '@/settings-sections'
+import {
+  BehaviorSection,
+  IdentitySection,
+  NotificationSection,
+} from '@/settings-sections'
 import { ShellInput } from '@/shell-input'
 import { customTheme, getThemes, themeColors } from '@/themes'
 
@@ -103,10 +107,9 @@ export function SettingsPage(props: {
     })
   }
 
-  function update<Key extends Exclude<keyof Config, 'scrollback'>>(
-    key: Key,
-    value: Partial<Config[Key]>
-  ) {
+  function update<
+    Key extends Exclude<keyof Config, 'scrollback' | 'emptyScreenAnimation'>,
+  >(key: Key, value: Partial<Config[Key]>) {
     commit({ ...draft, [key]: { ...draft[key], ...value } })
   }
 
@@ -262,32 +265,10 @@ export function SettingsPage(props: {
             />
           </Row>
         </Section>
-        <Section title="Behavior">
-          <Row label="Shift+Enter inserts a new line">
-            <Switch
-              checked={draft.behavior.shiftEnterNewline}
-              onCheckedChange={(shiftEnterNewline) =>
-                update('behavior', { shiftEnterNewline })
-              }
-            />
-          </Row>
-          <Row label="Show the git branch in tab titles">
-            <Switch
-              checked={draft.behavior.showGitBranch}
-              onCheckedChange={(showGitBranch) =>
-                update('behavior', { showGitBranch })
-              }
-            />
-          </Row>
-          <Row label="Capture browser shortcuts in fullscreen">
-            <Switch
-              checked={draft.behavior.captureShortcuts}
-              onCheckedChange={(captureShortcuts) =>
-                update('behavior', { captureShortcuts })
-              }
-            />
-          </Row>
-        </Section>
+        <BehaviorSection
+          behavior={draft.behavior}
+          onChange={(value) => update('behavior', value)}
+        />
         <NotificationSection
           behavior={draft.behavior}
           onChange={(value) => update('behavior', value)}
@@ -345,6 +326,14 @@ export function SettingsPage(props: {
               checked={draft.theme.boldIsBright}
               onCheckedChange={(boldIsBright) =>
                 update('theme', { boldIsBright })
+              }
+            />
+          </Row>
+          <Row label="Animate the empty screen">
+            <Switch
+              checked={draft.emptyScreenAnimation}
+              onCheckedChange={(emptyScreenAnimation) =>
+                commit({ ...draft, emptyScreenAnimation })
               }
             />
           </Row>

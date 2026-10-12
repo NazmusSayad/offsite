@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, mpsc},
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use portable_pty::{Child, ChildKiller, CommandBuilder, MasterPty, PtySize, native_pty_system};
@@ -22,7 +22,6 @@ pub(super) struct Terminal {
     pub(super) pid: Option<u32>,
     input: mpsc::Sender<Vec<u8>>,
     pub(super) branch: Option<String>,
-    pub(super) started: Instant,
 }
 
 impl Terminal {
@@ -108,7 +107,6 @@ pub(super) fn open(
         pid: child.process_id(),
         input,
         branch: None,
-        started: Instant::now(),
     };
     let reading = app.clone();
     let waiting = app.clone();
@@ -153,7 +151,7 @@ fn read_output(id: u64, mut reader: Box<dyn Read + Send>, app: &App) {
     }
 }
 
-fn wait_for_exit(id: u64, mut child: Box<dyn Child + Send + Sync>, app: &Arc<App>) {
+fn wait_for_exit(id: u64, mut child: Box<dyn Child + Send + Sync>, app: &App) {
     match child.wait() {
         Ok(status) => tracing::info!(id, ?status, "terminal process exited"),
         Err(error) => tracing::error!(id, "could not wait for terminal process: {error}"),

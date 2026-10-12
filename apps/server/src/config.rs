@@ -18,7 +18,7 @@ const CUSTOM_THEME: &str = "custom";
 const ITERM2_VERSION: &str = "3.6.8";
 
 #[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     shell: Shells,
     font: Font,
@@ -26,6 +26,7 @@ pub struct Config {
     padding: Padding,
     scrollback: u32,
     theme: Theme,
+    empty_screen_animation: bool,
     #[serde(default)]
     behavior: Behavior,
 }
