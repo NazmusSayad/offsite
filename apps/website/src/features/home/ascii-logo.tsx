@@ -4,8 +4,8 @@ import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { logoBody, logoHandle } from './logo'
 
-const columns = 72
-const rows = 34
+const columns = 90
+const rows = 42
 const text = 'npx sshtty '
 
 function measureCoverage() {
@@ -22,7 +22,7 @@ function measureCoverage() {
       for (const offsetX of [0.25, 0.75]) {
         for (const offsetY of [0.25, 0.75]) {
           const x = -2 + ((column + offsetX) / columns) * 52
-          const y = 0.2 + ((row + offsetY) / rows) * 49.1
+          const y = 0.5 + ((row + offsetY) / rows) * 48.5
           if (
             context.isPointInPath(bodyPath, x, y, 'evenodd') ||
             context.isPointInStroke(handlePath, x, y)
@@ -82,7 +82,7 @@ export function AsciiLogo(props: { className?: string }) {
               cellWidth + 0.5,
               cellHeight + 0.5
             )
-            context.globalAlpha = cellCoverage * 0.75
+            context.globalAlpha = cellCoverage * 0.35
             context.fillStyle = style.getPropertyValue('--bg')
           }
           if (character !== ' ') {
@@ -141,7 +141,7 @@ export function AsciiLogo(props: { className?: string }) {
       ref={canvasRef}
       aria-hidden
       className={cn(
-        'aspect-[36/34] w-full font-mono drop-shadow-[0_0_40px_color-mix(in_srgb,var(--c4)_30%,transparent)]',
+        'aspect-[45/42] w-full font-mono drop-shadow-[0_0_40px_color-mix(in_srgb,var(--c4)_30%,transparent)]',
         props.className
       )}
     />

@@ -33,10 +33,10 @@ export function Hero() {
           <h1 className="font-mono text-4xl leading-[1.05] font-semibold tracking-tighter text-balance sm:text-7xl">
             A terminal that outlives the tab.
           </h1>
-          <p className="text-muted-foreground mt-8 max-w-xl text-lg text-pretty">
-            sshtty runs your shells on your own machine and shows them in a
-            browser tab, sorted into groups and tabs, with room for your coding
-            agents.
+          <p className="text-muted-foreground mt-8 max-w-2xl text-lg text-pretty">
+            sshtty is a terminal in your browser that runs on your own machine.
+            Put Claude Code in one tab and your dev server in another, a group
+            per project.
           </p>
           <div className="mt-10">
             <CopyCommand />

@@ -1,17 +1,23 @@
 'use client'
 
 import { CheckIcon, CopyIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 export function CopyCommand(props: { large?: boolean }) {
   const copiedState = useState(false)
   const copied = copiedState[0]
+  const setCopied = copiedState[1]
+
+  useEffect(() => {
+    if (!copied) return
+    const timeout = setTimeout(() => setCopied(false), 1600)
+    return () => clearTimeout(timeout)
+  }, [copied, setCopied])
 
   async function handleCopy() {
     await navigator.clipboard.writeText('npx sshtty')
-    copiedState[1](true)
-    setTimeout(() => copiedState[1](false), 1600)
+    setCopied(true)
   }
 
   return (

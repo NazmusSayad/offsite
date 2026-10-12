@@ -4,9 +4,6 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-const axisHours = 32
-const fastForwardHours = 4
-
 const pastGaps = [
   { start: 4.5, end: 6.5, label: 'closed' },
   { start: 10, end: 18, label: 'closed overnight' },
@@ -15,11 +12,11 @@ const pastGaps = [
 const shells = [
   { command: 'zsh', start: 0, color: 'var(--c2)' },
   { command: 'claude', start: 7, color: 'var(--c5)' },
-  { command: 'npm run dev', start: 19.2, color: 'var(--c4)' },
+  { command: 'npm run dev', start: 18.4, color: 'var(--c4)' },
 ]
 
-function position(hours: number) {
-  return `${(Math.min(hours, axisHours) / axisHours) * 100}%`
+function position(hours: number, axis: number) {
+  return `${(hours / axis) * 100}%`
 }
 
 function formatUptime(hours: number) {
@@ -45,10 +42,8 @@ export function SessionTimeline(props: { className?: string }) {
   useEffect(() => {
     const interval = setInterval(() => {
       setNow((value) => {
-        if (closedAt !== null && value < closedAt + fastForwardHours) {
-          return Math.min(value + 0.12, closedAt + fastForwardHours)
-        }
-        return value + 0.1 / 3600
+        if (closedAt === null) return value + 0.03
+        return value + 0.12
       })
     }, 100)
     return () => clearInterval(interval)
@@ -65,6 +60,19 @@ export function SessionTimeline(props: { className?: string }) {
     openStart = range.end
   }
   if (closedAt === null) openRanges.push({ start: openStart, end: now })
+  const axis = now / 0.92
+
+  function handleToggleTab() {
+    if (closedAt === null) {
+      closedAtState[1](now)
+      return
+    }
+    gapsState[1]([
+      ...gapsState[0],
+      { start: closedAt, end: now, label: 'closed' },
+    ])
+    closedAtState[1](null)
+  }
 
   return (
     <div className={props.className}>
@@ -81,28 +89,34 @@ export function SessionTimeline(props: { className?: string }) {
               key={range.start}
               className="bg-foreground absolute top-12 h-2 min-w-2 -translate-y-1/2 rounded-full"
               style={{
-                left: position(range.start),
-                width: `calc(${position(range.end)} - ${position(range.start)})`,
+                left: position(range.start, axis),
+                width: `calc(${position(range.end, axis)} - ${position(range.start, axis)})`,
               }}
             />
           ))}
           {closedRanges.map((range) => (
             <span
               key={range.start}
-              className="text-muted-foreground absolute top-12 border-t-2 border-dashed border-current"
+              className="text-muted-foreground @container absolute top-12 border-t-2 border-dashed border-current"
               style={{
-                left: position(range.start),
-                width: `calc(${position(range.end)} - ${position(range.start)})`,
+                left: position(range.start, axis),
+                width: `calc(${position(range.end, axis)} - ${position(range.start, axis)})`,
               }}
             >
-              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap max-sm:hidden">
+              <span
+                className={cn(
+                  'absolute bottom-3 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap',
+                  range.label === 'closed' && '@max-[3.5rem]:hidden',
+                  range.label === 'closed overnight' && '@max-[8rem]:hidden'
+                )}
+              >
                 {range.label}
               </span>
             </span>
           ))}
           <span
-            className="text-primary absolute top-0 bottom-[-12rem] z-10 border-l border-current"
-            style={{ left: position(now) }}
+            className="text-primary absolute inset-y-0 z-10 border-l border-current"
+            style={{ left: position(now, axis) }}
           >
             <span className="absolute top-0 left-2 text-xs">now</span>
           </span>
@@ -118,10 +132,14 @@ export function SessionTimeline(props: { className?: string }) {
             </div>
             <div className="relative h-16">
               <span
+                className="border-primary absolute inset-y-0 border-l"
+                style={{ left: position(now, axis) }}
+              />
+              <span
                 className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full"
                 style={{
-                  left: position(shell.start),
-                  width: `calc(${position(now)} - ${position(shell.start)})`,
+                  left: position(shell.start, axis),
+                  width: `calc(${position(now, axis)} - ${position(shell.start, axis)})`,
                   backgroundColor: shell.color,
                   boxShadow: `0 0 12px ${shell.color}`,
                 }}
@@ -129,13 +147,16 @@ export function SessionTimeline(props: { className?: string }) {
               <span
                 className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
                 style={{
-                  left: position(shell.start),
+                  left: position(shell.start, axis),
                   backgroundColor: shell.color,
                 }}
               />
               <span
                 className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
-                style={{ left: position(now), backgroundColor: shell.color }}
+                style={{
+                  left: position(now, axis),
+                  backgroundColor: shell.color,
+                }}
               >
                 <span
                   className="absolute inset-0 animate-ping rounded-full motion-reduce:hidden"
@@ -147,7 +168,7 @@ export function SessionTimeline(props: { className?: string }) {
         ))}
       </div>
 
-      <p className="text-muted-foreground mt-6 flex gap-6 font-mono text-xs">
+      <p className="text-muted-foreground mt-6 flex flex-wrap gap-x-6 gap-y-2 font-mono text-xs">
         <span className="flex items-center gap-2">
           <span className="bg-foreground h-1.5 w-5 rounded-full" />
           tab open
@@ -156,22 +177,16 @@ export function SessionTimeline(props: { className?: string }) {
           <span className="w-5 border-t-2 border-dashed border-current" />
           tab closed
         </span>
+        <span>
+          time runs {closedAt === null && '1,080×'}
+          {closedAt !== null && '4,320×'} faster here
+        </span>
       </p>
 
       <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-3">
         <Button
           variant="outline"
-          onClick={() => {
-            if (closedAt === null) {
-              closedAtState[1](now)
-              return
-            }
-            gapsState[1]([
-              ...gapsState[0],
-              { start: closedAt, end: now, label: 'closed' },
-            ])
-            closedAtState[1](null)
-          }}
+          onClick={handleToggleTab}
           className="h-10 rounded-xl px-4 text-sm"
         >
           {closedAt === null ? 'Close the tab' : 'Reopen the tab'}
