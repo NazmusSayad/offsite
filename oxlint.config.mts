@@ -103,7 +103,11 @@ export default defineConfig({
       },
     },
     {
-      files: ['*.config.{js,ts,mjs}', './src/app/**'],
+      files: [
+        '*.config.{js,ts,mjs}',
+        './src/app/**',
+        'apps/website/src/app/**',
+      ],
       rules: { 'import/no-default-export': 'off' },
     },
     {

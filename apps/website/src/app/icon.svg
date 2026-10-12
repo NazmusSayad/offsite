@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <path
+    d="M17 15 V12.5 C17 10 18.5 8.5 21 8.5 H27 C29.5 8.5 31 10 31 12.5 V15"
+    fill="none"
+    stroke="#61AFEF"
+    stroke-width="4.5"
+    stroke-linecap="round"
+  />
+  <path
+    d="M12 15 H36 A7 7 0 0 1 43 22 V34 A7 7 0 0 1 36 41 H12 A7 7 0 0 1 5 34 V22 A7 7 0 0 1 12 15 Z M21.5 20 H33.5 A3.5 3.5 0 0 1 33.5 27 H21.5 A3.5 3.5 0 0 1 21.5 20 Z M14.5 29 H26.5 A3.5 3.5 0 0 1 26.5 36 H14.5 A3.5 3.5 0 0 1 14.5 29 Z"
+    fill="#61AFEF"
+    fill-rule="evenodd"
+  />
+</svg>
