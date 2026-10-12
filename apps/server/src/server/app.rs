@@ -245,23 +245,17 @@ impl App {
                 {
                     logos::delete(&logo);
                 }
+                let mut inner = self.lock();
+                if let Some(group_id) = inner.active_group {
+                    self.ensure_tab(&mut inner, group_id);
+                }
             }
             Request::CloseTab { id } => {
                 let mut inner = self.lock();
                 let Some(group_id) = close_tab(&mut inner, id) else {
                     return;
                 };
-                let reopen = inner.groups.iter().any(|group| {
-                    group.id == group_id
-                        && group.directory.is_some()
-                        && inner
-                            .tabs
-                            .get(&group_id)
-                            .is_none_or(|tabs| tabs.tabs.is_empty())
-                });
-                if reopen {
-                    self.create_tab(&mut inner, group_id);
-                }
+                self.ensure_tab(&mut inner, group_id);
             }
             Request::RenameGroup { id, name } => {
                 if name.is_empty() {
@@ -350,11 +344,12 @@ impl App {
         forward(&inner, id, false, bytes);
     }
 
-    pub(super) fn exited(&self, id: u64) {
+    pub(super) fn exited(self: &Arc<Self>, id: u64) {
         let mut inner = self.lock();
         inner.terminals.remove(&id);
-        if close_tab(&mut inner, id).is_some() {
+        if let Some(group_id) = close_tab(&mut inner, id) {
             tracing::info!(id, "terminal exited, closing its tab");
+            self.ensure_tab(&mut inner, group_id);
             publish(&inner);
         }
     }
@@ -428,6 +423,16 @@ impl App {
         }
     }
 
+    fn ensure_tab(self: &Arc<Self>, inner: &mut Inner, group_id: u64) {
+        if inner
+            .tabs
+            .get(&group_id)
+            .is_none_or(|tabs| tabs.tabs.is_empty())
+        {
+            self.create_tab(inner, group_id);
+        }
+    }
+
     fn lock_groups_file(&self) -> MutexGuard<'_, ()> {
         self.groups_file
             .lock()
@@ -444,7 +449,7 @@ impl App {
         Ok(result)
     }
 
-    pub(super) fn reload(&self) {
+    pub(super) fn reload(self: &Arc<Self>) {
         self.publish_config(&config::read());
         let _groups_file = self.lock_groups_file();
         let groups = match groups::read() {
@@ -456,6 +461,9 @@ impl App {
         };
         let mut inner = self.lock();
         set_groups(&mut inner, groups.groups);
+        if let Some(group_id) = inner.active_group {
+            self.ensure_tab(&mut inner, group_id);
+        }
         publish(&inner);
     }
 
