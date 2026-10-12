@@ -6,6 +6,7 @@ import {
 } from './config'
 import { updateFavicon } from './favicon'
 import { type FindResults, type Progress, Terminal } from './ghostty/terminal'
+import { showNotification } from './notifications'
 import { themeColors } from './themes'
 
 type Tab = { id: number; customName: string | null }
@@ -24,9 +25,11 @@ type State = {
   ctrl: boolean
   config: Config
   platform: Platform
+  version: string
   titles: Record<number, string>
   branches: Record<number, string>
   progress: Record<number, Progress>
+  alerts: number[]
   finding: number | null
 }
 
@@ -58,6 +61,8 @@ type Message =
   | { type: 'pong' }
 
 const typedAt = new Map<number, number>()
+const notifiedAt = new Map<number, number>()
+const pendingBells = new Map<number, number>()
 const isMac = navigator.userAgent.includes('Mac')
 
 export const clientId =
@@ -73,24 +78,39 @@ let state: State
 let socket: WebSocket
 let pongTimer: number | null = null
 let instance: string | null = null
+let audio: AudioContext | null = null
+let beepedAt = 0
 
-export function start(config: Config, platform: Platform) {
+export function start(config: Config, platform: Platform, version: string) {
   state = {
     status: 'connecting',
     layout: { groups: [], activeGroup: null },
     ctrl: false,
     config,
     platform,
+    version,
     titles: {},
     branches: {},
     progress: {},
+    alerts: [],
     finding: null,
   }
   socket = connect()
   setInterval(checkConnection, 30_000)
   document.addEventListener('visibilitychange', () => {
+    setState({})
     if (!document.hidden) checkConnection()
   })
+  window.addEventListener('focus', () => setState({}))
+  if ('serviceWorker' in navigator)
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data.type !== 'select') return
+      send({
+        type: 'select',
+        groupId: event.data.groupId,
+        tabId: event.data.tabId,
+      })
+    })
 }
 
 function checkConnection() {
@@ -119,17 +139,88 @@ export function getState() {
 
 function setState(next: Partial<State>) {
   state = { ...state, ...next }
+  state = {
+    ...state,
+    alerts: state.alerts.filter((id) => sessions.has(id) && !isSeen(id)),
+  }
   const group = state.layout.groups.find(
     (item) => item.id === state.layout.activeGroup
   )
   const tab = group?.tabs.find((item) => item.id === group.activeTab)
-  document.title = tab ? tabTitle(tab) : group ? group.name : 'sshtty'
+  document.title =
+    (state.alerts.length > 0 ? '🔔 ' : '') +
+    (tab ? tabTitle(tab) : group ? group.name : 'sshtty')
   updateFavicon(group ? group.logo : null, themeColors(state.config.theme))
   for (const listener of listeners) listener()
 }
 
 export function tabTitle(tab: Tab) {
   return (tab.customName ?? state.titles[tab.id]) || 'Terminal'
+}
+
+function isSeen(id: number) {
+  const group = state.layout.groups.find(
+    (item) => item.id === state.layout.activeGroup
+  )
+  return group?.activeTab === id && !document.hidden && document.hasFocus()
+}
+
+function raiseAlert(id: number) {
+  if (isSeen(id)) return false
+  if (!state.alerts.includes(id)) setState({ alerts: [...state.alerts, id] })
+  return true
+}
+
+function ringBell(id: number) {
+  if (!raiseAlert(id) || pendingBells.has(id)) return
+  const last = notifiedAt.get(id)
+  if (last !== undefined && performance.now() - last < 5000) return
+  pendingBells.set(
+    id,
+    window.setTimeout(() => {
+      pendingBells.delete(id)
+      if (!isSeen(id)) notify(id, '', 'Bell')
+    }, 500)
+  )
+}
+
+function notifyFromProgram(id: number, title: string, body: string) {
+  if (!raiseAlert(id)) return
+  window.clearTimeout(pendingBells.get(id))
+  pendingBells.delete(id)
+  notify(id, title, body)
+}
+
+function notify(id: number, title: string, body: string) {
+  notifiedAt.set(id, performance.now())
+  const group = state.layout.groups.find((item) =>
+    item.tabs.some((tab) => tab.id === id)
+  )
+  const tab = group?.tabs.find((item) => item.id === id)
+  if (!group || !tab) return
+  showNotification(title || tabTitle(tab), body, {
+    groupId: group.id,
+    tabId: id,
+  }).catch((error: unknown) =>
+    console.error('could not show a notification', error)
+  )
+}
+
+function beep() {
+  const now = performance.now()
+  if (now - beepedAt < 150) return
+  beepedAt = now
+  audio ??= new AudioContext()
+  if (audio.state === 'suspended') void audio.resume()
+  const oscillator = audio.createOscillator()
+  const gain = audio.createGain()
+  const start = audio.currentTime
+  oscillator.frequency.value = 880
+  gain.gain.setValueAtTime(0.1, start)
+  gain.gain.exponentialRampToValueAtTime(0.001, start + 0.15)
+  oscillator.connect(gain).connect(audio.destination)
+  oscillator.start(start)
+  oscillator.stop(start + 0.15)
 }
 
 export async function uploadLogo(groupId: number, file: File) {
@@ -284,6 +375,9 @@ function sync(layout: Layout) {
     if (ids.has(id)) return
     terminal.dispose()
     sessions.delete(id)
+    window.clearTimeout(pendingBells.get(id))
+    pendingBells.delete(id)
+    notifiedAt.delete(id)
   })
   for (const id of ids) {
     if (!sessions.has(id)) sessions.set(id, createSession(id))
@@ -307,7 +401,7 @@ function isShiftEnter(event: KeyboardEvent) {
 }
 
 function createSession(id: number) {
-  const terminal = new Terminal(terminalOptions(state.config), {
+  const terminal = new Terminal(terminalOptions(state.config, state.version), {
     onData: (data) => {
       if (state.status !== 'active') return
       if (!typedAt.has(id)) typedAt.set(id, performance.now())
@@ -318,6 +412,20 @@ function createSession(id: number) {
     onTitle: (title) => setState({ titles: { ...state.titles, [id]: title } }),
     onProgress: (progress) =>
       setState({ progress: { ...state.progress, [id]: progress } }),
+    onBell: () => {
+      if (state.config.behavior.bellSound) beep()
+      if (
+        state.config.behavior.bellFlash &&
+        terminal.element.isConnected &&
+        !document.hidden
+      )
+        terminal.element.animate([{ opacity: 0.4 }, { opacity: 1 }], {
+          duration: 200,
+          easing: 'ease-out',
+        })
+      ringBell(id)
+    },
+    onNotify: (title, body) => notifyFromProgram(id, title, body),
     onClipboard: (text) => {
       if (!window.isSecureContext) {
         console.warn('copy from the terminal needs https or localhost')
@@ -413,5 +521,5 @@ export async function applyConfig(config: Config) {
   await applyStyle(config)
   setState({ config })
   for (const terminal of sessions.values())
-    terminal.setOptions(terminalOptions(config))
+    terminal.setOptions(terminalOptions(config, state.version))
 }

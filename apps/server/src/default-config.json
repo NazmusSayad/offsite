@@ -37,6 +37,9 @@
   "behavior": {
     "shiftEnterNewline": true,
     "showGitBranch": true,
-    "captureShortcuts": true
+    "captureShortcuts": true,
+    "bellFlash": true,
+    "bellSound": true,
+    "terminalIdentity": "sshtty"
   }
 }

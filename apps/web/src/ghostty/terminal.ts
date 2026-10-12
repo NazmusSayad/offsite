@@ -38,6 +38,7 @@ export type TerminalOptions = {
   scrollback: number
   boldIsBright: boolean
   colors: TerminalColors
+  version: string
 }
 
 export type TerminalHandlers = {
@@ -46,6 +47,8 @@ export type TerminalHandlers = {
   onResize: (cols: number, rows: number) => void
   onTitle: (title: string) => void
   onProgress: (progress: Progress) => void
+  onBell: () => void
+  onNotify: (title: string, body: string) => void
   onClipboard: (text: string) => void
   onLink: (uri: string, event: MouseEvent) => void
   beforeKey: (event: KeyboardEvent) => boolean
@@ -175,6 +178,7 @@ export class Terminal {
   private epoch = 0
   private title = ''
   private progress: Progress = { state: 0, value: 0 }
+  private notification = { id: '', title: '', body: '' }
   private images: Image[] = []
   private nextImage = 0
   private hoveredLink: Link | null = null
@@ -239,7 +243,8 @@ export class Terminal {
       this.cols,
       this.rows,
       options.scrollback,
-      handlers.onReply
+      handlers.onReply,
+      handlers.onBell
     )
     this.applyTerminalOptions()
     this.resizeCore()
@@ -421,6 +426,7 @@ export class Terminal {
     })
     this.core.setCursor(this.options.cursorStyle, this.options.cursorBlink)
     this.core.boldIsBright = this.options.boldIsBright
+    this.core.version = this.options.version
     this.core.invalidate()
   }
 
@@ -487,8 +493,57 @@ export class Terminal {
       if (!replay) this.replyPalette(text, event.terminator)
       return false
     }
-    if (text === '9;4' || text.startsWith('9;4;')) this.handleProgress(text)
+    if (text === '9;4' || text.startsWith('9;4;')) {
+      this.handleProgress(text)
+      return false
+    }
+    if (replay) return false
+    if (text.startsWith('9;') && !/^9;\d+(;|$)/.test(text)) {
+      this.handlers.onNotify('', decoder.decode(event.data.subarray(2)))
+      return false
+    }
+    if (text.startsWith('777;notify;')) {
+      const parts = decoder.decode(event.data).split(';')
+      this.handlers.onNotify(parts[2] ?? '', parts.slice(3).join(';'))
+      return false
+    }
+    if (text.startsWith('99;'))
+      this.handleKittyNotification(decoder.decode(event.data))
     return false
+  }
+
+  private handleKittyNotification(text: string) {
+    const separator = text.indexOf(';', 3)
+    if (separator === -1) return
+    const fields = new Map<string, string>()
+    for (const field of text.slice(3, separator).split(':')) {
+      const equals = field.indexOf('=')
+      if (equals !== -1)
+        fields.set(field.slice(0, equals), field.slice(equals + 1))
+    }
+    const kind = fields.get('p') ?? 'title'
+    if (kind === '?' || kind === 'close' || kind === 'alive') return
+    let payload = text.slice(separator + 1)
+    if (fields.get('e') === '1') {
+      try {
+        payload = decoder.decode(
+          Uint8Array.from(atob(payload), (character) => character.charCodeAt(0))
+        )
+      } catch (error) {
+        console.warn('invalid notification sequence', error)
+        return
+      }
+    }
+    const id = fields.get('i') ?? ''
+    if (id !== this.notification.id)
+      this.notification = { id, title: '', body: '' }
+    if (kind === 'title') this.notification.title += payload
+    if (kind === 'body') this.notification.body += payload
+    if (fields.get('d') === '0') return
+    const notification = this.notification
+    this.notification = { id: '', title: '', body: '' }
+    if (notification.title !== '' || notification.body !== '')
+      this.handlers.onNotify(notification.title, notification.body)
   }
 
   private replyColor(query: '10;?' | '11;?' | '12;?', terminator: string) {

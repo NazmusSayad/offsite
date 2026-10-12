@@ -421,7 +421,13 @@ impl App {
         };
         inner.next_tab += 1;
         let id = inner.next_tab;
-        match terminals::open(self, id, launch.command.as_deref(), cwd) {
+        match terminals::open(
+            self,
+            id,
+            launch.command.as_deref(),
+            cwd,
+            &launch.environment,
+        ) {
             Ok(terminal) => {
                 inner.terminals.insert(id, terminal);
                 tabs.tabs.push(Tab {

@@ -199,12 +199,14 @@ export class GhosttyCore {
   private disposed = false
   private keyboardLayoutMap: GhosttyKeyboardLayoutMap | undefined
   boldIsBright = false
+  version = ''
 
   constructor(
     cols: number,
     rows: number,
     scrollback: number,
-    onPtyData: (data: string) => void
+    onPtyData: (data: string) => void,
+    onBell: () => void
   ) {
     const runtime = this.runtime
     void loadGhosttyKeyboardLayoutMap().then((layoutMap) => {
@@ -231,7 +233,12 @@ export class GhosttyCore {
     this.check('ghostty_terminal_new', result)
     this.terminal = runtime.readPointer(this.terminalSlot)
     this.sizeReport = { rows, columns: cols, cellWidth: 1, cellHeight: 1 }
-    this.host = { write: onPtyData, size: () => this.sizeReport }
+    this.host = {
+      write: onPtyData,
+      size: () => this.sizeReport,
+      bell: onBell,
+      version: () => this.version,
+    }
     this.hostId = runtime.attachHost(this.terminal, this.host)
 
     this.renderStateSlot = runtime.allocOpaque()

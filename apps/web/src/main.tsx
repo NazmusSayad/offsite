@@ -14,10 +14,9 @@ if (!root) throw new Error('root element missing')
 
 async function main(container: HTMLElement) {
   try {
-    const [{ config, defaults, themes, platform }] = await Promise.all([
-      loadSettings(),
-      loadGhostty(),
-    ])
+    const [{ config, defaults, themes, platform, version }] = await Promise.all(
+      [loadSettings(), loadGhostty()]
+    )
     setThemes(themes)
     await applyStyle(config)
     if (location.pathname === '/settings') {
@@ -33,7 +32,7 @@ async function main(container: HTMLElement) {
       )
       return
     }
-    start(config, platform)
+    start(config, platform, version)
     startShortcuts()
     createRoot(container).render(
       <StrictMode>
@@ -45,5 +44,12 @@ async function main(container: HTMLElement) {
     container.textContent = String(error)
   }
 }
+
+if ('serviceWorker' in navigator)
+  navigator.serviceWorker
+    .register('/sw.js')
+    .catch((error: unknown) =>
+      console.error('could not register the service worker', error)
+    )
 
 void main(root)

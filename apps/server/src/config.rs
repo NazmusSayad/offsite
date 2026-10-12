@@ -15,6 +15,7 @@ use crate::utils::{
 const DEFAULT: &str = include_str!("default-config.json");
 const THEMES: &str = include_str!("themes.json");
 const CUSTOM_THEME: &str = "custom";
+const ITERM2_VERSION: &str = "3.6.8";
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -35,6 +36,9 @@ struct Behavior {
     shift_enter_newline: bool,
     show_git_branch: bool,
     capture_shortcuts: bool,
+    bell_flash: bool,
+    bell_sound: bool,
+    terminal_identity: TerminalIdentity,
 }
 
 impl Default for Behavior {
@@ -43,8 +47,18 @@ impl Default for Behavior {
             shift_enter_newline: true,
             show_git_branch: true,
             capture_shortcuts: true,
+            bell_flash: true,
+            bell_sound: true,
+            terminal_identity: TerminalIdentity::Sshtty,
         }
     }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum TerminalIdentity {
+    Sshtty,
+    Iterm2,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -127,6 +141,14 @@ pub struct BuiltinTheme {
 pub struct Launch {
     pub command: Option<String>,
     pub cwd: PathBuf,
+    pub environment: [(&'static str, &'static str); 4],
+}
+
+pub fn version() -> &'static str {
+    match option_env!("SSHTTY_VERSION") {
+        Some(tag) => tag.trim_start_matches('v'),
+        None => env!("CARGO_PKG_VERSION"),
+    }
 }
 
 pub fn create() -> io::Result<()> {
@@ -253,6 +275,7 @@ pub struct Settings {
     defaults: Config,
     themes: Vec<BuiltinTheme>,
     platform: &'static str,
+    version: &'static str,
 }
 
 pub async fn handler() -> Json<Settings> {
@@ -261,6 +284,7 @@ pub async fn handler() -> Json<Settings> {
         defaults: serde_json::from_str(DEFAULT).expect("default config is valid"),
         themes: builtin_themes(),
         platform: std::env::consts::OS,
+        version: version(),
     })
 }
 
@@ -275,12 +299,17 @@ pub fn save(config: Config) -> Result<Config, (StatusCode, String)> {
 }
 
 pub fn launch(directory: Option<&str>) -> Result<Launch, String> {
-    let shells = read().shell;
+    let config = read();
+    let shells = config.shell;
     let shell = match std::env::consts::OS {
         "macos" => shells.macos,
         "linux" => shells.linux,
         "windows" => shells.windows,
         other => return Err(format!("unsupported platform {other}")),
+    };
+    let (program, terminal, version) = match config.behavior.terminal_identity {
+        TerminalIdentity::Sshtty => ("sshtty", "sshtty", version()),
+        TerminalIdentity::Iterm2 => ("iTerm.app", "iTerm2", ITERM2_VERSION),
     };
     Ok(Launch {
         command: shell.command,
@@ -289,5 +318,11 @@ pub fn launch(directory: Option<&str>) -> Result<Launch, String> {
             None => &shell.cwd,
         }))
         .to_path_buf(),
+        environment: [
+            ("TERM_PROGRAM", program),
+            ("TERM_PROGRAM_VERSION", version),
+            ("LC_TERMINAL", terminal),
+            ("LC_TERMINAL_VERSION", version),
+        ],
     })
 }

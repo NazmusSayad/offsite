@@ -14,7 +14,7 @@ const colors = {
 }
 
 function terminal(output: string) {
-  const core = new GhosttyCore(20, 2, 100, vi.fn())
+  const core = new GhosttyCore(20, 2, 100, vi.fn(), vi.fn())
   core.setColors(colors)
   core.write(new TextEncoder().encode(output))
   return core

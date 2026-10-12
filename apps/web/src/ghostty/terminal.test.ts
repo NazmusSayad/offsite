@@ -23,6 +23,7 @@ const options = {
       (_, index) => `#${index.toString(16).padStart(2, '0').repeat(3)}`
     ),
   },
+  version: 'sshtty 0.0.0',
 }
 
 function open() {
@@ -33,6 +34,8 @@ function open() {
     onResize: vi.fn(),
     onTitle: vi.fn(),
     onProgress: vi.fn(),
+    onBell: vi.fn(),
+    onNotify: vi.fn(),
     onClipboard: vi.fn(),
     onLink: vi.fn(),
     beforeKey: () => true,
