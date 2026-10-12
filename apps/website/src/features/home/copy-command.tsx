@@ -20,15 +20,12 @@ export function CopyCommand(props: { className?: string }) {
       onClick={() => void handleCopy()}
       aria-label="Copy npx sshtty"
       className={cn(
-        'h-12 gap-3 rounded-xl px-5 font-mono text-base backdrop-blur-md',
+        'h-12 gap-3 rounded-xl px-5 font-mono text-base',
         props.className
       )}
     >
-      <span className="text-ansi-green">$</span>
-      <span>
-        npx sshtty
-        <span className="animate-blink bg-primary ml-1 inline-block h-[1.1em] w-[0.55em] translate-y-[0.2em] motion-reduce:animate-none" />
-      </span>
+      <span className="text-muted-foreground">$</span>
+      npx sshtty
       {copied ? (
         <CheckIcon className="text-ansi-green" />
       ) : (

@@ -34,21 +34,21 @@ const options = [
 
 export function Install() {
   return (
-    <section className="mx-auto max-w-7xl px-6 pb-32">
+    <section className="mx-auto max-w-6xl px-6 py-32">
       <div className="grid gap-16 lg:grid-cols-2">
         <div>
-          <h2 className="text-4xl font-semibold tracking-tight sm:text-6xl">
-            One command.
+          <h2 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+            Run it with npx.
           </h2>
           <p className="text-muted-foreground mt-6 max-w-md text-lg">
-            Run it, then open{' '}
+            Then open{' '}
             <a
               href="http://127.0.0.1:47831"
               className="text-foreground decoration-primary font-mono underline underline-offset-4"
             >
               127.0.0.1:47831
-            </a>
-            . Run several on different ports and they share groups.
+            </a>{' '}
+            in your browser.
           </p>
           <CopyCommand className="mt-10 h-16 px-7 text-xl" />
           <dl className="mt-12 grid grid-cols-3 gap-6 border-t pt-6 text-sm">

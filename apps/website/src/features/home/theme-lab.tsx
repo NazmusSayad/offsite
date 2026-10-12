@@ -24,20 +24,19 @@ export function ThemeLab() {
   const [activeId, setActiveId] = useState(themes[0].id)
 
   return (
-    <section className="mx-auto max-w-7xl px-6 pb-32">
-      <div className="grid gap-6 md:grid-cols-12 md:items-end">
-        <h2 className="text-4xl font-semibold tracking-tight text-balance sm:text-6xl md:col-span-7">
-          {themes.length} themes. Try one on this page.
-        </h2>
-        <p className="text-muted-foreground text-lg md:col-span-5">
-          Every theme below ships with sshtty, along with custom colors and
-          bundled Nerd Fonts with ligatures. Pick one and watch this site
-          change.
-        </p>
-      </div>
+    <section className="border-y bg-(--bg) py-32 transition-colors duration-700">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
+            {themes.length} built-in themes. Try one.
+          </h2>
+          <p className="text-muted-foreground mt-6 text-lg">
+            Pick a theme and this page switches to it. sshtty also takes custom
+            colors.
+          </p>
+        </div>
 
-      <div className="mt-16 grid gap-12 lg:grid-cols-12">
-        <div className="grid min-w-0 grid-cols-2 gap-3 lg:col-span-7">
+        <div className="mt-16 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {themes.map((theme) => (
             <button
               key={theme.id}
@@ -53,15 +52,15 @@ export function ThemeLab() {
                 outlineColor: theme.colors.palette[4],
               }}
               className={cn(
-                'flex flex-col gap-3 rounded-xl border p-4 text-left transition-transform duration-200 hover:-translate-y-0.5',
+                'flex min-w-0 flex-col gap-3 rounded-xl border p-4 text-left transition-transform duration-200 hover:-translate-y-0.5',
                 theme.id === activeId && 'outline-2 outline-offset-2'
               )}
             >
               <span className="truncate font-mono text-xs sm:text-sm">
                 {theme.name}
               </span>
-              <span className="flex h-3 overflow-hidden rounded-sm">
-                {theme.colors.palette.map((color, index) => (
+              <span className="flex h-2.5 overflow-hidden rounded-sm">
+                {theme.colors.palette.slice(1, 7).map((color, index) => (
                   <span
                     key={index}
                     className="flex-1"
@@ -73,22 +72,24 @@ export function ThemeLab() {
           ))}
         </div>
 
-        <ul className="flex min-w-0 flex-col justify-between gap-8 lg:col-span-5">
+        <ul className="mt-20 grid grid-cols-2 gap-x-6 gap-y-12 lg:grid-cols-4">
           {fonts.map((font) => (
-            <li key={font.name} className="border-b pb-6">
-              <p className="text-muted-foreground text-sm">{font.name}</p>
+            <li key={font.name} className="text-center">
               <p
-                className="text-foreground mt-2 truncate text-lg sm:text-3xl"
+                className="text-foreground text-2xl whitespace-nowrap sm:text-4xl"
                 style={{ fontFamily: `'${font.family}', monospace` }}
               >
-                tab <span className="text-ansi-blue">=&gt;</span> tab.
-                <span className="text-ansi-cyan">alive</span>{' '}
+                <span className="text-ansi-blue">=&gt;</span>{' '}
                 <span className="text-ansi-red">!==</span>{' '}
-                <span className="text-ansi-yellow">false</span>
+                <span className="text-ansi-yellow">&lt;=</span>
               </p>
+              <p className="text-muted-foreground mt-3 text-sm">{font.name}</p>
             </li>
           ))}
         </ul>
+        <p className="text-muted-foreground mt-10 text-center text-sm">
+          Bundled Nerd Fonts, with ligatures where the font has them.
+        </p>
       </div>
     </section>
   )
