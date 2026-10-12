@@ -7,19 +7,21 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import type { Config, TerminalIdentity } from '@/config'
+import type { Config, Platform, TerminalIdentity } from '@/config'
 import {
   notificationPermission,
   notificationsWanted,
   setNotificationsWanted,
   watchPermission,
 } from '@/notifications'
+import { imagePasteKeys } from '@/paste'
 import { Row, Section } from '@/settings-layout'
 
 type Behavior = Config['behavior']
 
 export function BehaviorSection(props: {
   behavior: Behavior
+  platform: Platform
   onChange: (value: Partial<Behavior>) => void
 }) {
   return (
@@ -29,6 +31,16 @@ export function BehaviorSection(props: {
           checked={props.behavior.shiftEnterNewline}
           onCheckedChange={(shiftEnterNewline) =>
             props.onChange({ shiftEnterNewline })
+          }
+        />
+      </Row>
+      <Row
+        label={`${imagePasteKeys[props.platform].label} pastes images from the browser clipboard`}
+      >
+        <Switch
+          checked={props.behavior.pasteBrowserImages}
+          onCheckedChange={(pasteBrowserImages) =>
+            props.onChange({ pasteBrowserImages })
           }
         />
       </Row>

@@ -7,6 +7,12 @@ import {
 import { updateFavicon } from './favicon'
 import { type FindResults, type Progress, Terminal } from './ghostty/terminal'
 import { showNotification } from './notifications'
+import {
+  imagePasteKeys,
+  isImagePasteKey,
+  pasteClipboardImages,
+  pasteImages,
+} from './paste'
 import { themeColors } from './themes'
 
 export type Tab = { id: number; customName: string | null; minimized: boolean }
@@ -446,6 +452,24 @@ function createSession(id: number) {
         sendInput(id, '\x1b\r')
         return false
       }
+      if (
+        state.status === 'active' &&
+        state.config.behavior.pasteBrowserImages &&
+        window.isSecureContext &&
+        isImagePasteKey(event, state.platform)
+      ) {
+        event.preventDefault()
+        const data = imagePasteKeys[state.platform].data
+        pasteClipboardImages(terminal)
+          .then((pasted) => {
+            if (!pasted) sendInput(id, data)
+          })
+          .catch((error: unknown) => {
+            console.error('could not paste image', error)
+            sendInput(id, data)
+          })
+        return false
+      }
       if (!isFindShortcut(event)) return true
       event.preventDefault()
       setState({ finding: id })
@@ -471,21 +495,6 @@ function createSession(id: number) {
     true
   )
   return terminal
-}
-
-async function pasteImages(terminal: Terminal, images: File[]) {
-  const paths: string[] = []
-  for (const image of images) {
-    const response = await fetch('/api/paste', {
-      method: 'POST',
-      headers: { 'Content-Type': image.type },
-      body: image,
-    })
-    if (!response.ok) throw new Error(await response.text())
-    const path = (await response.json()) as string
-    paths.push(/\s/.test(path) ? `"${path}"` : path)
-  }
-  terminal.paste(paths.join(' '))
 }
 
 function applyCtrl(data: string) {

@@ -267,6 +267,7 @@ export function SettingsPage(props: {
         </Section>
         <BehaviorSection
           behavior={draft.behavior}
+          platform={props.platform}
           onChange={(value) => update('behavior', value)}
         />
         <NotificationSection
