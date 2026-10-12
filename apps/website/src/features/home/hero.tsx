@@ -1,16 +1,16 @@
 import Image from 'next/image'
 import { siGithub, siNpm } from 'simple-icons'
 import { Button } from '@/components/ui/button'
+import { AsciiLogo } from './ascii-logo'
 import { BrandIcon } from './brand-icon'
 import { CopyCommand } from './copy-command'
 import { githubUrl, npmUrl } from './links'
 import { Logo } from './logo'
-import { SessionTimeline } from './session-timeline'
 
 export function Hero() {
   return (
     <>
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <a href="/" className="flex items-center gap-2.5 font-mono text-lg">
           <Logo className="text-primary size-7" />
           sshtty
@@ -29,18 +29,18 @@ export function Hero() {
         </div>
       </nav>
 
-      <section className="mx-auto max-w-6xl px-6 pt-16 pb-24 sm:pt-24 sm:pb-32">
-        <div className="grid gap-8 lg:grid-cols-[1.7fr_1fr] lg:items-end lg:gap-12">
-          <h1 className="text-5xl leading-[0.95] font-semibold tracking-[-0.05em] text-balance sm:text-7xl xl:text-8xl">
-            A terminal that outlives the tab.
-          </h1>
-          <div>
-            <p className="text-muted-foreground text-lg text-pretty">
+      <section className="mx-2 overflow-hidden rounded-3xl border bg-[radial-gradient(90%_60%_at_70%_0%,color-mix(in_srgb,var(--c4)_14%,transparent),transparent)] sm:mx-3">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 pt-16 sm:pt-20 lg:grid-cols-2 lg:gap-16">
+          <div className="max-lg:order-last">
+            <h1 className="font-mono text-4xl leading-[1.05] font-semibold tracking-tighter text-balance sm:text-6xl">
+              A terminal that outlives the tab.
+            </h1>
+            <p className="text-muted-foreground mt-8 max-w-lg text-lg text-pretty">
               sshtty is a terminal in your browser, with groups and tabs. Close
               the tab, come back tomorrow, and every shell is still running,
               mid-command.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-10 flex flex-wrap gap-3">
               <CopyCommand />
               <Button
                 variant="outline"
@@ -54,18 +54,17 @@ export function Hero() {
               </Button>
             </div>
           </div>
+          <AsciiLogo className="mx-auto max-w-sm lg:max-w-lg" />
         </div>
-        <SessionTimeline className="mt-20" />
-      </section>
 
-      <section className="border-t bg-(--bg) pt-16 transition-colors duration-700 sm:pt-24">
-        <div className="mx-auto max-w-6xl px-6">
+        <div className="mx-auto mt-20 max-w-6xl px-6 sm:mt-24">
           <Image
             src="/screenshots/desktop.webp"
             alt="sshtty in a browser, with a git log in the first of three tabs"
             width={2880}
             height={1800}
             sizes="(min-width: 1152px) 1104px, 100vw"
+            preload
             className="rounded-t-xl border border-b-0 shadow-[0_-30px_120px_-40px_color-mix(in_srgb,var(--c4)_35%,transparent)]"
           />
         </div>

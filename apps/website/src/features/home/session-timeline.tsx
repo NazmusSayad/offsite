@@ -31,12 +31,7 @@ export function SessionTimeline(props: { className?: string }) {
   }, [])
 
   return (
-    <div
-      className={cn(
-        'bg-card/50 rounded-2xl border p-5 sm:p-8',
-        props.className
-      )}
-    >
+    <div className={cn('rounded-2xl border p-5 sm:p-8', props.className)}>
       <div className="grid grid-cols-[6.5rem_1fr] gap-x-4 gap-y-6 font-mono text-sm sm:grid-cols-[8rem_1fr] sm:gap-x-6">
         <div>
           <p>browser</p>
@@ -124,7 +119,7 @@ export function SessionTimeline(props: { className?: string }) {
         </Button>
         <p className="text-muted-foreground text-sm">
           {tabOpen
-            ? 'The browser only shows your shells. They run in sshtty.'
+            ? 'Try it. The shells will not notice.'
             : 'The tab is closed. Your shells are still running.'}
         </p>
       </div>

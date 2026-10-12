@@ -49,7 +49,7 @@ const features = [
 export function Features() {
   return (
     <section className="mx-auto max-w-6xl px-6 py-24 sm:py-32">
-      <h2 className="max-w-2xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
+      <h2 className="max-w-2xl font-mono text-3xl font-semibold tracking-tighter text-balance sm:text-5xl">
         Made for terminals you leave open.
       </h2>
 

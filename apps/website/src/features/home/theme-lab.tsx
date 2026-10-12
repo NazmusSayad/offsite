@@ -24,10 +24,10 @@ export function ThemeLab() {
   const [activeId, setActiveId] = useState(themes[0].id)
 
   return (
-    <section className="border-y bg-(--bg) py-24 transition-colors duration-700 sm:py-32">
+    <section className="mx-2 rounded-3xl border bg-(--bg) py-24 transition-colors duration-700 sm:mx-3 sm:py-32">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
+          <h2 className="font-mono text-3xl font-semibold tracking-tighter text-balance sm:text-5xl">
             {themes.length} built-in themes. Try one.
           </h2>
           <p className="text-muted-foreground mt-6 text-lg">
