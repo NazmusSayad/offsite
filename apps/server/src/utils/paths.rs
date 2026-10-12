@@ -71,9 +71,16 @@ pub fn paste_directory() -> PathBuf {
 }
 
 pub fn expand_home(path: &str) -> PathBuf {
+    let separators: &[char] = match cfg!(windows) {
+        true => &['/', '\\'],
+        false => &['/'],
+    };
     match path {
         "~" => home_directory(),
-        path => match path.strip_prefix("~/") {
+        path => match path
+            .strip_prefix('~')
+            .and_then(|rest| rest.strip_prefix(separators))
+        {
             Some(rest) => home_directory().join(rest),
             None => PathBuf::from(path),
         },

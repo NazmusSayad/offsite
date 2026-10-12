@@ -26,7 +26,7 @@ pub(super) struct Directory {
 pub(super) async fn list(
     Query(request): Query<Request>,
 ) -> Result<Json<Listing>, (StatusCode, String)> {
-    let path = fs::canonicalize(expand_home(&request.path)).map_err(|error| {
+    let path = dunce::canonicalize(expand_home(&request.path)).map_err(|error| {
         (
             StatusCode::BAD_REQUEST,
             format!("{}: {error}", request.path),
@@ -38,11 +38,14 @@ pub(super) async fn list(
             format!("{}: {error}", path.display()),
         )
     })?;
-    let separator = match request.path.contains('\\') {
+    let separator = match cfg!(windows) && request.path.contains('\\') {
         true => '\\',
         false => '/',
     };
-    let base = request.path.trim_end_matches(['/', '\\']);
+    let base = match cfg!(windows) {
+        true => request.path.trim_end_matches(['/', '\\']),
+        false => request.path.trim_end_matches('/'),
+    };
     let mut directories: Vec<Directory> = entries
         .filter_map(Result::ok)
         .filter(|entry| entry.path().is_dir())

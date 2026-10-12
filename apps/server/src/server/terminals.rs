@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, mpsc},
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use portable_pty::{Child, ChildKiller, CommandBuilder, MasterPty, PtySize, native_pty_system};
@@ -22,6 +22,7 @@ pub(super) struct Terminal {
     pub(super) pid: Option<u32>,
     input: mpsc::Sender<Vec<u8>>,
     pub(super) branch: Option<String>,
+    pub(super) started: Instant,
 }
 
 impl Terminal {
@@ -103,6 +104,7 @@ pub(super) fn open(
         pid: child.process_id(),
         input,
         branch: None,
+        started: Instant::now(),
     };
     let reading = app.clone();
     let waiting = app.clone();

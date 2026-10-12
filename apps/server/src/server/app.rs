@@ -4,6 +4,7 @@ use std::{
         Arc, Mutex, MutexGuard, PoisonError,
         atomic::{AtomicU64, AtomicUsize, Ordering},
     },
+    time::Duration,
 };
 
 use axum::{
@@ -168,6 +169,7 @@ impl App {
                 {
                     tracing::info!(connection, "another browser is active, pausing this one");
                     send(&inner, outbox, &Event::Paused);
+                    publish(&inner);
                     return;
                 }
                 activate(
@@ -298,8 +300,10 @@ impl App {
                     return;
                 }
                 let tabs = inner.tabs.entry(group_id).or_default();
-                if tab_id.is_some() {
-                    tabs.active_tab = tab_id;
+                if let Some(tab_id) = tab_id
+                    && tabs.tabs.iter().any(|tab| tab.id == tab_id)
+                {
+                    tabs.active_tab = Some(tab_id);
                 }
                 let empty = tabs.tabs.is_empty();
                 inner.active_group = Some(group_id);
@@ -345,10 +349,18 @@ impl App {
 
     pub(super) fn exited(self: &Arc<Self>, id: u64) {
         let mut inner = self.lock();
-        inner.terminals.remove(&id);
+        let terminal = inner.terminals.remove(&id);
         if let Some(group_id) = close_tab(&mut inner, id) {
             tracing::info!(id, "terminal exited, closing its tab");
-            self.ensure_tab(&mut inner, group_id);
+            match terminal
+                .is_some_and(|terminal| terminal.started.elapsed() < Duration::from_secs(1))
+            {
+                true => tracing::warn!(
+                    id,
+                    "terminal exited right after it started, not opening a new one"
+                ),
+                false => self.ensure_tab(&mut inner, group_id),
+            }
             publish(&inner);
         }
     }
