@@ -61,9 +61,9 @@ function handleShortcut(event: KeyboardEvent) {
     send({ type: 'closeTab', id: group.activeTab })
     return
   }
-  const index = group.tabs.findIndex((tab) => tab.id === group.activeTab)
+  const tabs = group.tabs.filter((tab) => !tab.minimized)
+  const index = tabs.findIndex((tab) => tab.id === group.activeTab)
   const step = shortcut === 'nextTab' ? 1 : -1
-  const next =
-    group.tabs[(index + step + group.tabs.length) % group.tabs.length]
+  const next = tabs[(index + step + tabs.length) % tabs.length]
   if (next) send({ type: 'select', groupId: group.id, tabId: next.id })
 }

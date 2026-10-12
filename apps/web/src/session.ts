@@ -9,7 +9,7 @@ import { type FindResults, type Progress, Terminal } from './ghostty/terminal'
 import { showNotification } from './notifications'
 import { themeColors } from './themes'
 
-type Tab = { id: number; customName: string | null }
+export type Tab = { id: number; customName: string | null; minimized: boolean }
 type Group = {
   id: number
   name: string
@@ -43,6 +43,7 @@ type Request =
   | { type: 'closeTab'; id: number }
   | { type: 'renameGroup'; id: number; name: string }
   | { type: 'renameTab'; id: number; name: string }
+  | { type: 'minimizeTab'; id: number }
   | { type: 'setDirectory'; id: number; directory: string }
   | { type: 'select'; groupId: number; tabId: number | null }
   | { type: 'resize'; id: number; cols: number; rows: number }
