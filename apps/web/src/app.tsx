@@ -36,7 +36,6 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
-import { EmptyState } from '@/empty-state'
 import { FindBar } from '@/find-bar'
 import type { Progress } from '@/ghostty/terminal'
 import { cn } from '@/lib/utils'
@@ -315,12 +314,6 @@ export function App() {
           {tabId !== null && <TerminalPane key={tabId} id={tabId} />}
           {tabId !== null && state.finding === tabId && (
             <FindBar key={tabId} id={tabId} />
-          )}
-          {state.status === 'active' && !group && (
-            <EmptyState
-              label="New group"
-              onClick={() => send({ type: 'createGroup' })}
-            />
           )}
         </div>
         {tabId !== null && (

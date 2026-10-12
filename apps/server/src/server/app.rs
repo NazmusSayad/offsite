@@ -159,6 +159,7 @@ impl App {
         tracing::debug!(connection, ?request, "request");
         match request {
             Request::Hello { client_id } => {
+                self.ensure_terminal();
                 let mut inner = self.lock();
                 if inner
                     .active
@@ -180,6 +181,7 @@ impl App {
                 return;
             }
             Request::Resume { client_id } => {
+                self.ensure_terminal();
                 activate(
                     &mut self.lock(),
                     Client {
@@ -245,10 +247,7 @@ impl App {
                 {
                     logos::delete(&logo);
                 }
-                let mut inner = self.lock();
-                if let Some(group_id) = inner.active_group {
-                    self.ensure_tab(&mut inner, group_id);
-                }
+                self.ensure_terminal();
             }
             Request::CloseTab { id } => {
                 let mut inner = self.lock();
@@ -423,6 +422,35 @@ impl App {
         }
     }
 
+    fn ensure_terminal(self: &Arc<Self>) {
+        if self.lock().groups.is_empty() {
+            let _ = self.update_groups(|groups| {
+                if !groups.groups.is_empty() {
+                    return;
+                }
+                let Some(id) = groups.next_id.checked_add(1) else {
+                    tracing::error!("no group ids are left");
+                    return;
+                };
+                groups.next_id = id;
+                groups.groups.push(Group {
+                    id,
+                    name: "~".to_string(),
+                    logo: None,
+                    directory: None,
+                });
+            });
+        }
+        let mut guard = self.lock();
+        let inner = &mut *guard;
+        if inner.active_group.is_none() {
+            inner.active_group = inner.groups.first().map(|group| group.id);
+        }
+        if let Some(group_id) = inner.active_group {
+            self.ensure_tab(inner, group_id);
+        }
+    }
+
     fn ensure_tab(self: &Arc<Self>, inner: &mut Inner, group_id: u64) {
         if inner
             .tabs
@@ -451,20 +479,21 @@ impl App {
 
     pub(super) fn reload(self: &Arc<Self>) {
         self.publish_config(&config::read());
-        let _groups_file = self.lock_groups_file();
-        let groups = match groups::read() {
-            Ok(groups) => groups,
-            Err(error) => {
-                tracing::error!("keeping the current groups: {error}");
-                return;
-            }
-        };
-        let mut inner = self.lock();
-        set_groups(&mut inner, groups.groups);
-        if let Some(group_id) = inner.active_group {
-            self.ensure_tab(&mut inner, group_id);
+        {
+            let _groups_file = self.lock_groups_file();
+            let groups = match groups::read() {
+                Ok(groups) => groups,
+                Err(error) => {
+                    tracing::error!("keeping the current groups: {error}");
+                    return;
+                }
+            };
+            set_groups(&mut self.lock(), groups.groups);
         }
-        publish(&inner);
+        if self.lock().active.is_some() {
+            self.ensure_terminal();
+        }
+        publish(&self.lock());
     }
 
     pub(super) fn replace_logo(
