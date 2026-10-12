@@ -99,7 +99,7 @@ export function FolderDialog(props: {
     return [props.directory, config.shell[platform].cwd].find(Boolean) ?? '~'
   })
   const [search, setSearch] = useState('')
-  const listing = loaded?.listing
+  const listing = path.trim() === '' ? undefined : loaded?.listing
   const directories = listing?.directories.filter((directory) =>
     directory.name.toLowerCase().includes(search.toLowerCase())
   )
@@ -176,7 +176,7 @@ export function FolderDialog(props: {
             className="hover:bg-muted focus:bg-muted h-7 min-w-0 flex-1 rounded-md bg-transparent px-1.5 font-mono text-xs outline-none"
             spellCheck={false}
             value={path}
-            onChange={(event) => setPath(event.target.value)}
+            onChange={(event) => open(event.target.value)}
           />
           <DialogClose asChild>
             <Button variant="ghost" size="icon-sm" aria-label="Close">
@@ -216,7 +216,7 @@ export function FolderDialog(props: {
             </p>
           )}
         </div>
-        {error && (
+        {error && path.trim() !== '' && (
           <p className="text-destructive border-t px-3 py-2 text-sm break-all">
             {error}
           </p>

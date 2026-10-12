@@ -284,9 +284,10 @@ pub fn launch(directory: Option<&str>) -> Result<Launch, String> {
     };
     Ok(Launch {
         command: shell.command,
-        cwd: expand_home(match directory {
+        cwd: dunce::simplified(&expand_home(match directory {
             Some(directory) => directory,
             None => &shell.cwd,
-        }),
+        }))
+        .to_path_buf(),
     })
 }
