@@ -20,6 +20,7 @@ pub(super) enum Request {
     CloseGroup { id: u64 },
     CloseTab { id: u64 },
     RenameGroup { id: u64, name: String },
+    MoveGroup { id: u64, index: usize },
     RenameTab { id: u64, name: String },
     MinimizeTab { id: u64 },
     SetDirectory { id: u64, directory: String },

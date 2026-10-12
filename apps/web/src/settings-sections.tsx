@@ -26,11 +26,11 @@ export function BehaviorSection(props: {
 }) {
   return (
     <Section title="Behavior">
-      <Row label="Shift+Enter inserts a new line">
+      <Row label="Modernize Shift+Enter">
         <Switch
-          checked={props.behavior.shiftEnterNewline}
-          onCheckedChange={(shiftEnterNewline) =>
-            props.onChange({ shiftEnterNewline })
+          checked={props.behavior.modernizeShiftEnter}
+          onCheckedChange={(modernizeShiftEnter) =>
+            props.onChange({ modernizeShiftEnter })
           }
         />
       </Row>

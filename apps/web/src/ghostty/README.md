@@ -55,6 +55,7 @@ Struct layouts are read from the WASM file at startup (`ghostty_type_json`), so 
 - Enum values used in `core.ts` and `keys.ts`, such as cell and style data keys, cursor styles, modes, key codes and mouse buttons.
 - Terminal data keys for the color replies in `core.ts`: 18 foreground, 19 background, 20 cursor and 21 palette (`terminal.h`, `GhosttyTerminalData`), and mode 1004 for focus events (`modes.h`).
 - Underline values 0 to 5 in `renderer.ts` and the style color tags `STYLE_COLOR_PALETTE` and `STYLE_COLOR_RGB` in `core.ts` (`style.h`).
+- `PAGE_BYTES` and `PAGE_GRID_BYTES` in `core.ts`. At this Ghostty version `max_scrollback` is a byte limit counted in whole pages (`PageList.zig`), although `terminal.h` calls it lines, so `core.ts` turns the scrollback lines setting into pages, capped at 50 MB per terminal like Ghostty's default `scrollback-limit-bytes`. A page is 589,824 bytes in the WASM build and holds `381888 / (8 * (cols + 1))` rows. To check a new WASM file, write lines into terminals of a few widths with `max_scrollback` set to 1 and look at the largest scroll bar total: it should be twice the rows per page. Newer Ghostty versions have `GHOSTTY_TERMINAL_OPT_SCROLLBACK_MAX_LINES`, which can replace this.
 
 Ghostty says that the libghostty-vt API is not stable yet, so expect changes here.
 

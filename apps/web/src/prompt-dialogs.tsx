@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { getState, send } from '@/session'
+import { focusTerminal } from '@/shortcuts'
 
 export function RenameDialog(props: {
   target: 'tab' | 'group'
@@ -34,7 +35,12 @@ export function RenameDialog(props: {
         if (!open) props.onDone()
       }}
     >
-      <DialogContent>
+      <DialogContent
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          focusTerminal()
+        }}
+      >
         <form
           className="grid gap-4"
           onSubmit={(event) => {
@@ -148,6 +154,10 @@ export function FolderDialog(props: {
         className="gap-0 overflow-hidden p-0 sm:max-w-lg"
         showCloseButton={false}
         aria-describedby={undefined}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          focusTerminal()
+        }}
       >
         <DialogTitle className="sr-only">Group folder</DialogTitle>
         <div className="flex items-center gap-1 border-b p-1">

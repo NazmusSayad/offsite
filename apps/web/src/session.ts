@@ -49,6 +49,7 @@ type Request =
   | { type: 'closeGroup'; id: number }
   | { type: 'closeTab'; id: number }
   | { type: 'renameGroup'; id: number; name: string }
+  | { type: 'moveGroup'; id: number; index: number }
   | { type: 'renameTab'; id: number; name: string }
   | { type: 'minimizeTab'; id: number }
   | { type: 'setDirectory'; id: number; directory: string }
@@ -446,8 +447,9 @@ function createSession(id: number) {
       if (event.type !== 'keydown') return true
       if (
         state.status === 'active' &&
-        state.config.behavior.shiftEnterNewline &&
-        isShiftEnter(event)
+        state.config.behavior.modernizeShiftEnter &&
+        isShiftEnter(event) &&
+        !terminal.isKittyKeyboard()
       ) {
         event.preventDefault()
         sendInput(id, '\x1b\r')
@@ -509,7 +511,7 @@ function reportSize(id: number, terminal: Terminal) {
   send({ type: 'resize', id, cols: terminal.cols, rows: terminal.rows })
 }
 
-function getSession(id: number) {
+export function getSession(id: number) {
   const session = sessions.get(id)
   if (!session) throw new Error(`terminal ${id} does not exist`)
   return session

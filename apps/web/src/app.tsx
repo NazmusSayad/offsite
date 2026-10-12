@@ -37,7 +37,7 @@ import {
   toggleCtrl,
   uploadLogo,
 } from '@/session'
-import { toggleFullscreen } from '@/shortcuts'
+import { focusTerminal, toggleFullscreen } from '@/shortcuts'
 import { StatusOverlay } from '@/status-overlay'
 import { Toast } from '@/toast'
 
@@ -64,6 +64,8 @@ export function App() {
   const logoInput = useRef<HTMLInputElement>(null)
   const logoGroup = useRef<number | null>(null)
   const [logoError, setLogoError] = useState<string | null>(null)
+  const [dragGroup, setDragGroup] = useState<number | null>(null)
+  const [dropGroup, setDropGroup] = useState<number | null>(null)
 
   function showError(error: unknown) {
     setLogoError(error instanceof Error ? error.message : String(error))
@@ -88,7 +90,7 @@ export function App() {
           drawer && 'translate-x-0'
         )}
       >
-        {layout.groups.map((item) => (
+        {layout.groups.map((item, index) => (
           <ItemMenu
             key={item.id}
             closeLabel="Close group"
@@ -129,9 +131,38 @@ export function App() {
             <button
               className={cn(
                 'relative flex h-8 flex-none items-center rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-10 md:justify-center md:px-0 md:text-[13px] md:font-medium',
-                item.id === layout.activeGroup && 'bg-accent text-foreground'
+                item.id === layout.activeGroup && 'bg-accent text-foreground',
+                dragGroup === item.id && 'opacity-50',
+                dropGroup === item.id &&
+                  dragGroup !== item.id &&
+                  'ring-2 ring-primary'
               )}
               title={item.name}
+              draggable
+              onDragStart={(event) => {
+                event.dataTransfer.effectAllowed = 'move'
+                event.dataTransfer.setData(
+                  'application/x-sshtty-group',
+                  String(item.id)
+                )
+                setDragGroup(item.id)
+              }}
+              onDragOver={(event) => {
+                if (dragGroup === null) return
+                event.preventDefault()
+                setDropGroup(item.id)
+              }}
+              onDragLeave={() => setDropGroup(null)}
+              onDrop={(event) => {
+                event.preventDefault()
+                if (dragGroup === null || dragGroup === item.id) return
+                send({ type: 'moveGroup', id: dragGroup, index })
+              }}
+              onDragEnd={() => {
+                setDragGroup(null)
+                setDropGroup(null)
+                focusTerminal()
+              }}
               onClick={() => {
                 send({ type: 'select', groupId: item.id, tabId: null })
                 setDrawer(false)
@@ -141,6 +172,7 @@ export function App() {
                 <img
                   src={`/api/logos/${item.logo}`}
                   alt=""
+                  draggable={false}
                   className="mr-2 size-4 flex-none rounded-[3px] object-cover md:mr-0 md:size-6 md:rounded-[6px]"
                 />
               )}
@@ -261,6 +293,7 @@ export function App() {
                         tab.id === tabId &&
                           'bg-background text-foreground border-b-transparent'
                       )}
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() =>
                         send({
                           type: 'select',
@@ -379,7 +412,12 @@ export function App() {
           if (!open) setPrompt(null)
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            focusTerminal()
+          }}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Close “{prompt?.name}”?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -405,7 +443,12 @@ export function App() {
           if (!open) setLogoError(null)
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            focusTerminal()
+          }}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Logo not updated</AlertDialogTitle>
             <AlertDialogDescription>{logoError}</AlertDialogDescription>

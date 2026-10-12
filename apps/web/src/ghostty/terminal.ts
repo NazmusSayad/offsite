@@ -75,6 +75,7 @@ type Chunk = { data: Uint8Array; replay: boolean }
 
 const isMac = navigator.userAgent.includes('Mac')
 const BLINK_INTERVAL = 600
+const SYNC_TIMEOUT = 1000
 const MULTI_CLICK_INTERVAL = 500
 const IMAGE_LIMIT = 200
 const URL_PATTERN = /https?:\/\/[^\s"'`<>]+/g
@@ -169,6 +170,7 @@ export class Terminal {
   private forceFull = true
   private cursorOn = true
   private cursorTimer: number | null = null
+  private syncTimer: number | null = null
   private renderedCursorY: number | null = null
   private focused = false
   private composing = false
@@ -241,7 +243,7 @@ export class Terminal {
       window.devicePixelRatio || 1
     )
     this.core = new GhosttyCore(
-      this.cols,
+      Math.max(1, Math.floor(window.innerWidth / this.metrics.width)),
       this.rows,
       options.scrollback,
       handlers.onReply,
@@ -293,6 +295,10 @@ export class Terminal {
 
   focus() {
     this.input.focus({ preventScroll: true })
+  }
+
+  isKittyKeyboard() {
+    return this.core.isKittyKeyboard()
   }
 
   paste(text: string) {
@@ -746,6 +752,8 @@ export class Terminal {
     this.frame = 0
     if (this.cursorTimer !== null) window.clearTimeout(this.cursorTimer)
     this.cursorTimer = null
+    if (this.syncTimer !== null) window.clearTimeout(this.syncTimer)
+    this.syncTimer = null
   }
 
   private renderFrame() {
@@ -754,6 +762,17 @@ export class Terminal {
       window.cancelAnimationFrame(this.frame)
       this.frame = 0
     }
+    if (this.core.isSynchronizedOutput()) {
+      if (this.syncTimer === null)
+        this.syncTimer = window.setTimeout(() => {
+          this.syncTimer = null
+          this.core.endSynchronizedOutput()
+          this.requestRender()
+        }, SYNC_TIMEOUT)
+      return
+    }
+    if (this.syncTimer !== null) window.clearTimeout(this.syncTimer)
+    this.syncTimer = null
     const snapshot = this.core.snapshot()
     this.snapshot = snapshot
     const blinking = this.blinking()

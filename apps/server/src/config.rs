@@ -1,7 +1,7 @@
 use std::{
     fs,
     io::{self, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use axum::{Json, http::StatusCode};
@@ -34,7 +34,7 @@ pub struct Config {
 #[derive(Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields, rename_all = "camelCase")]
 struct Behavior {
-    shift_enter_newline: bool,
+    modernize_shift_enter: bool,
     paste_browser_images: bool,
     show_git_branch: bool,
     capture_shortcuts: bool,
@@ -46,7 +46,7 @@ struct Behavior {
 impl Default for Behavior {
     fn default() -> Self {
         Behavior {
-            shift_enter_newline: true,
+            modernize_shift_enter: true,
             paste_browser_images: true,
             show_git_branch: true,
             capture_shortcuts: true,
@@ -218,6 +218,40 @@ fn parse(value: &serde_json::Value) -> Result<Config, String> {
     Ok(config)
 }
 
+fn merge(
+    config: &mut serde_json::Value,
+    keys: &mut Vec<String>,
+    user: &serde_json::Value,
+    path: &Path,
+) {
+    let group = matches!(
+        keys.iter().try_fold(&*config, |value, key| value.get(key)),
+        Some(serde_json::Value::Object(_))
+    );
+    if let (true, serde_json::Value::Object(items)) = (group, user) {
+        for (key, item) in items {
+            keys.push(key.clone());
+            merge(config, keys, item, path);
+            keys.pop();
+        }
+        return;
+    }
+    let mut candidate = config.clone();
+    let (key, parents) = keys.split_last().expect("an item has a key");
+    let parent = parents
+        .iter()
+        .fold(&mut candidate, |value, parent| &mut value[parent]);
+    parent[key] = user.clone();
+    match serde_json::from_value::<Config>(candidate.clone()) {
+        Ok(_) => *config = candidate,
+        Err(error) => tracing::warn!(
+            "invalid {} in {}, using its default: {error}",
+            keys.join("."),
+            path.display()
+        ),
+    }
+}
+
 pub fn read() -> Config {
     let path = paths::config_file();
     let defaults: serde_json::Value =
@@ -258,7 +292,7 @@ pub fn read() -> Config {
             continue;
         };
         let mut candidate = value.clone();
-        candidate[key] = section.clone();
+        merge(&mut candidate, &mut vec![key.clone()], section, &path);
         match parse(&candidate) {
             Ok(_) => value = candidate,
             Err(error) => {

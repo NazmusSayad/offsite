@@ -4,6 +4,8 @@ use std::{
         Arc, Mutex, MutexGuard, PoisonError,
         atomic::{AtomicU64, AtomicUsize, Ordering},
     },
+    thread,
+    time::{Duration, Instant},
 };
 
 use axum::{
@@ -24,6 +26,9 @@ use super::{
 use crate::{config, utils::paths};
 
 const BACKLOG_LIMIT: usize = 16 * 1024 * 1024;
+const OUTPUT_LIMIT: usize = 1024 * 1024;
+const BATCH_LIMIT: usize = 64 * 1024;
+const STALL_LIMIT: Duration = Duration::from_secs(10);
 
 #[derive(Clone)]
 struct Outbox {
@@ -98,8 +103,36 @@ pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
     };
     let queued = outbox.queued.clone();
     let forwarding = tokio::spawn(async move {
-        while let Some(message) = receiver.recv().await {
-            let size = message_size(&message);
+        let mut next = None;
+        loop {
+            let message = match next.take() {
+                Some(message) => message,
+                None => match receiver.recv().await {
+                    Some(message) => message,
+                    None => break,
+                },
+            };
+            let mut size = message_size(&message);
+            let message = match message {
+                Message::Binary(bytes) => {
+                    let mut batch = bytes.to_vec();
+                    while batch.len() < BATCH_LIMIT {
+                        match receiver.try_recv() {
+                            Ok(Message::Binary(more)) if more.starts_with(&batch[..9]) => {
+                                size += more.len();
+                                batch.extend_from_slice(&more[9..]);
+                            }
+                            Ok(other) => {
+                                next = Some(other);
+                                break;
+                            }
+                            Err(_) => break,
+                        }
+                    }
+                    Message::Binary(batch.into())
+                }
+                other => other,
+            };
             let sent = sink.send(message).await;
             queued.fetch_sub(size, Ordering::Relaxed);
             if sent.is_err() {
@@ -266,6 +299,14 @@ impl App {
                     }
                 });
             }
+            Request::MoveGroup { id, index } => {
+                let _ = self.update_groups(|groups| {
+                    if let Some(from) = groups.groups.iter().position(|group| group.id == id) {
+                        let group = groups.groups.remove(from);
+                        groups.groups.insert(index.min(groups.groups.len()), group);
+                    }
+                });
+            }
             Request::RenameTab { id, name } => {
                 let mut inner = self.lock();
                 let Some(tab) = inner
@@ -361,6 +402,32 @@ impl App {
         tracing::trace!(id, bytes = bytes.len(), "output");
         terminal.record(bytes);
         forward(&inner, id, false, bytes);
+    }
+
+    pub(super) fn wait_for_browser(&self) {
+        let mut queued = usize::MAX;
+        let mut progressed = Instant::now();
+        loop {
+            {
+                let inner = self.lock();
+                let Some(client) = &inner.active else {
+                    return;
+                };
+                let current = client.outbox.queued.load(Ordering::Relaxed);
+                if current <= OUTPUT_LIMIT {
+                    return;
+                }
+                if current < queued {
+                    progressed = Instant::now();
+                }
+                queued = current;
+                if progressed.elapsed() > STALL_LIMIT {
+                    client.outbox.too_slow.notify_one();
+                    return;
+                }
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
     }
 
     pub(super) fn exited(&self, id: u64) {
