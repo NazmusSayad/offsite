@@ -1,5 +1,6 @@
 import type { Platform } from './config'
 import type { Terminal } from './ghostty/terminal'
+import { showToast } from './toast'
 
 export const imagePasteKeys: Record<
   Platform,
@@ -27,7 +28,10 @@ export async function pasteClipboardImages(terminal: Terminal) {
     const type = item.types.find((type) => type.startsWith('image/'))
     if (type) images.push(await item.getType(type))
   }
-  if (images.length === 0) return false
+  if (images.length === 0) {
+    showToast('No image in the clipboard')
+    return false
+  }
   await pasteImages(terminal, images)
   return true
 }
@@ -45,4 +49,9 @@ export async function pasteImages(terminal: Terminal, images: Blob[]) {
     paths.push(/\s/.test(path) ? `"${path}"` : path)
   }
   terminal.paste(paths.join(' '))
+}
+
+export function reportPasteError(error: unknown) {
+  console.error('could not paste image', error)
+  showToast('Could not paste the image')
 }

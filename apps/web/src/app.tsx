@@ -39,6 +39,7 @@ import {
 } from '@/session'
 import { toggleFullscreen } from '@/shortcuts'
 import { StatusOverlay } from '@/status-overlay'
+import { Toast } from '@/toast'
 
 type Prompt = {
   type: 'rename' | 'close' | 'folder'
@@ -415,6 +416,7 @@ export function App() {
         </AlertDialogContent>
       </AlertDialog>
       {state.status !== 'active' && <StatusOverlay status={state.status} />}
+      <Toast />
     </div>
   )
 }
