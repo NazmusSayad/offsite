@@ -375,6 +375,9 @@ function sync(layout: Layout) {
     if (ids.has(id)) return
     terminal.dispose()
     sessions.delete(id)
+    window.clearTimeout(pendingBells.get(id))
+    pendingBells.delete(id)
+    notifiedAt.delete(id)
   })
   for (const id of ids) {
     if (!sessions.has(id)) sessions.set(id, createSession(id))
