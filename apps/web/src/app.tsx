@@ -8,7 +8,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { type BusyTab, busyTabs, closeTab } from '@/close-tab'
+import { closeGroup, closeTab } from '@/close-tab'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,10 +26,10 @@ import { cn } from '@/lib/utils'
 import { AttentionDot, CountBadge, MinimizedTabs } from '@/minimized-tabs'
 import { NewTerminalCanvas } from '@/new-terminal-canvas'
 import {
-  CloseGroupDialog,
-  CloseTabDialog,
+  CloseDialog,
   FolderDialog,
   RenameDialog,
+  restoreFocus,
 } from '@/prompt-dialogs'
 import {
   getState,
@@ -47,7 +47,7 @@ import { StatusOverlay } from '@/status-overlay'
 import { Toast } from '@/toast'
 
 type Prompt = {
-  type: 'rename' | 'close' | 'folder'
+  type: 'rename' | 'folder'
   target: 'tab' | 'group'
   id: number
   name: string
@@ -71,7 +71,6 @@ export function App() {
   const [logoError, setLogoError] = useState<string | null>(null)
   const [dragGroup, setDragGroup] = useState<number | null>(null)
   const [dropGroup, setDropGroup] = useState<number | null>(null)
-  const [busyGroupTabs, setBusyGroupTabs] = useState<BusyTab[]>([])
 
   function showError(error: unknown) {
     setLogoError(error instanceof Error ? error.message : String(error))
@@ -126,23 +125,7 @@ export function App() {
                 name: item.name,
               })
             }
-            onClose={async () => {
-              try {
-                setBusyGroupTabs(await busyTabs(item.tabs))
-              } catch (error) {
-                console.error(
-                  'could not check whether the tabs are busy',
-                  error
-                )
-                return
-              }
-              setPrompt({
-                type: 'close',
-                target: 'group',
-                id: item.id,
-                name: item.name,
-              })
-            }}
+            onClose={() => void closeGroup(item.id)}
           >
             <button
               className={cn(
@@ -205,7 +188,7 @@ export function App() {
               )}
               <AttentionDot
                 ids={item.tabs.map((tab) => tab.id)}
-                className="absolute top-1/2 right-2.5 size-2 -translate-y-1/2 md:top-1 md:right-1 md:translate-y-0"
+                className="absolute top-1/2 right-2.5 size-2 -translate-y-1/2 rounded-full md:top-1 md:right-1 md:translate-y-0"
               />
             </button>
           </ItemMenu>
@@ -321,7 +304,10 @@ export function App() {
                       }
                     >
                       <span className="truncate">{tabTitle(tab)}</span>
-                      <AttentionDot ids={[tab.id]} className="ml-1.5" />
+                      <AttentionDot
+                        ids={[tab.id]}
+                        className="ml-1.5 size-1.5 flex-none rounded-full"
+                      />
                       {state.config.behavior.showGitBranch &&
                         state.branches[tab.id] && (
                           <span className="ml-2 flex min-w-0 flex-none items-center gap-1 opacity-60">
@@ -422,24 +408,14 @@ export function App() {
           onDone={() => setPrompt(null)}
         />
       )}
-      <CloseGroupDialog
-        group={prompt?.type === 'close' ? prompt : null}
-        busy={busyGroupTabs}
-        onDone={() => setPrompt(null)}
-      />
-      <CloseTabDialog />
+      <CloseDialog />
       <AlertDialog
         open={logoError !== null}
         onOpenChange={(open) => {
           if (!open) setLogoError(null)
         }}
       >
-        <AlertDialogContent
-          onCloseAutoFocus={(event) => {
-            event.preventDefault()
-            focusTerminal()
-          }}
-        >
+        <AlertDialogContent onCloseAutoFocus={restoreFocus}>
           <AlertDialogHeader>
             <AlertDialogTitle>Logo not updated</AlertDialogTitle>
             <AlertDialogDescription>{logoError}</AlertDialogDescription>

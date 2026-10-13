@@ -204,9 +204,9 @@ export function render(options: {
       context.fillStyle = css(snapshot.background)
       context.fillRect(0, cellTop, context.canvas.width, cellHeight)
     } else {
-      const pixelTop = Math.round(cellTop * pixelRatio)
-      const pixelHeight =
-        Math.round((cellTop + cellHeight) * pixelRatio) - pixelTop
+      const scale = context.getTransform().d
+      const pixelTop = Math.round(cellTop * scale)
+      const pixelHeight = Math.round((cellTop + cellHeight) * scale) - pixelTop
       context.save()
       context.resetTransform()
       context.drawImage(

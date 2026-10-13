@@ -12,11 +12,14 @@ use portable_pty::{Child, ChildKiller, CommandBuilder, MasterPty, PtySize, nativ
 
 #[cfg(unix)]
 use super::shell_integration;
-use super::{app::App, push::Alerts};
+use super::{
+    app::App,
+    push::{Alerts, Scanner},
+};
 #[cfg(unix)]
 use crate::config;
 #[cfg(windows)]
-use crate::utils::process::child_program;
+use crate::utils::process::child_programs;
 use crate::utils::process::current_directory;
 #[cfg(unix)]
 use crate::utils::process::program_name;
@@ -94,7 +97,7 @@ impl Terminal {
     #[cfg(windows)]
     pub(super) fn busy_program(&self, _id: u64) -> Result<Option<String>, String> {
         match self.pid {
-            Some(pid) => child_program(pid).map_err(|error| error.to_string()),
+            Some(pid) => child_programs(pid).map_err(|error| error.to_string()),
             None => Err("its process id is unknown".to_string()),
         }
     }
@@ -176,6 +179,7 @@ fn write_input(id: u64, mut writer: Box<dyn Write + Send>, inputs: mpsc::Receive
 
 fn read_output(id: u64, mut reader: Box<dyn Read + Send>, app: &Arc<App>) {
     let mut chunk = vec![0; 64 * 1024];
+    let mut scanner = Scanner::default();
     loop {
         match reader.read(&mut chunk) {
             Ok(0) => {
@@ -188,6 +192,7 @@ fn read_output(id: u64, mut reader: Box<dyn Read + Send>, app: &Arc<App>) {
             }
             Ok(length) => {
                 app.output(id, &chunk[..length]);
+                app.scan(id, &mut scanner, &chunk[..length]);
                 app.wait_for_browser();
             }
         }
@@ -275,15 +280,15 @@ fn shell_command(command: Option<&str>, shell_integration: bool) -> CommandBuild
         Some(program) => program.to_string(),
         None => format!("'{shell}'"),
     };
-    let arguments = match shell_integration {
-        true => shell_integration::prepare(&mut builder, command, &shell),
-        false => "",
+    let program = match shell_integration {
+        true => shell_integration::prepare(&mut builder, command, &shell).unwrap_or(program),
+        false => program,
     };
     builder.args([
         "--noprofile",
         "--norc",
         "-c",
-        &format!("export -n PATH; exec -l {program}{arguments}"),
+        &format!("export -n PATH; exec -l {program}"),
     ]);
     builder
 }

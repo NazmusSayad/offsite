@@ -10,9 +10,9 @@ import {
   WallpaperIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useRef } from 'react'
 import { toggleQuiet } from '@/attention'
-import { chooseGroupBackground, removeGroupBackground } from '@/backgrounds'
+import { removeGroupBackground, uploadGroupBackground } from '@/backgrounds'
 import {
   ContextMenu,
   ContextMenuCheckboxItem,
@@ -36,6 +36,7 @@ export function ItemMenu(props: {
 }) {
   const backgroundGroup = props.backgroundGroup
   const tabId = props.tabId
+  const backgroundInput = useRef<HTMLInputElement>(null)
 
   return (
     <ContextMenu>
@@ -70,9 +71,7 @@ export function ItemMenu(props: {
           </ContextMenuItem>
         )}
         {backgroundGroup && (
-          <ContextMenuItem
-            onSelect={() => chooseGroupBackground(backgroundGroup.id)}
-          >
+          <ContextMenuItem onSelect={() => backgroundInput.current?.click()}>
             <HugeiconsIcon icon={WallpaperIcon} />
             Change background
           </ContextMenuItem>
@@ -85,7 +84,7 @@ export function ItemMenu(props: {
             Remove background
           </ContextMenuItem>
         )}
-        {tabId !== undefined && (
+        {tabId !== undefined && getState().config.behavior.activityMarks && (
           <ContextMenuCheckboxItem
             checked={getState().quiet.includes(tabId)}
             onCheckedChange={() => toggleQuiet(tabId)}
@@ -99,6 +98,20 @@ export function ItemMenu(props: {
           {props.closeLabel}
         </ContextMenuItem>
       </ContextMenuContent>
+      {backgroundGroup && (
+        <input
+          ref={backgroundInput}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            if (file !== undefined)
+              uploadGroupBackground(backgroundGroup.id, file)
+          }}
+        />
+      )}
     </ContextMenu>
   )
 }

@@ -5,7 +5,11 @@ import { App } from './app'
 import { startBackgrounds } from './backgrounds'
 import { applyStyle, loadSettings } from './config'
 import { loadGhostty } from './ghostty/runtime'
-import { refreshPushSubscription } from './notifications'
+import {
+  pushSubscribed,
+  pushSupport,
+  refreshPushSubscription,
+} from './notifications'
 import { ClipboardReadDialog } from './prompt-dialogs'
 import { getState, send, start, subscribe } from './session'
 import { SettingsPage } from './settings-page'
@@ -23,6 +27,14 @@ async function main(container: HTMLElement) {
     await applyStyle(config)
     if (location.pathname === '/settings') {
       document.title = 'Settings'
+      if (pushSupport() === 'supported')
+        pushSubscribed()
+          .then((subscribed) => {
+            if (subscribed) connectSettingsPage()
+          })
+          .catch((error: unknown) =>
+            console.error('could not read the push subscription', error)
+          )
       createRoot(container).render(
         <StrictMode>
           <SettingsPage
@@ -51,6 +63,20 @@ async function main(container: HTMLElement) {
   } catch (error) {
     container.className = 'p-4 whitespace-pre-wrap text-red-400'
     container.textContent = String(error)
+  }
+}
+
+function connectSettingsPage() {
+  const socket = new WebSocket(
+    `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`
+  )
+  const timer = window.setInterval(() => {
+    if (socket.readyState === WebSocket.OPEN)
+      socket.send(JSON.stringify({ type: 'ping' }))
+  }, 30_000)
+  socket.onclose = () => {
+    window.clearInterval(timer)
+    window.setTimeout(connectSettingsPage, 1000)
   }
 }
 

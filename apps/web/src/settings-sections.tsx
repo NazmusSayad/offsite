@@ -9,11 +9,11 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
-  canIntegrateShell,
   type ClipboardRead,
   type Config,
   type Platform,
   removeBackground,
+  shellIntegrationIssue,
   type TerminalIdentity,
   uploadBackground,
 } from '@/config'
@@ -41,6 +41,11 @@ export function BehaviorSection(props: {
   defaultShell: string
   onChange: (value: Partial<Behavior>) => void
 }) {
+  const shellIssue = shellIntegrationIssue(
+    props.shellCommand,
+    props.platform,
+    props.defaultShell
+  )
   return (
     <Section title="Behavior">
       <Row label="Modernize Shift+Enter">
@@ -75,20 +80,22 @@ export function BehaviorSection(props: {
           }
         />
       </Row>
-      {canIntegrateShell(
-        props.shellCommand,
-        props.platform,
-        props.defaultShell
-      ) && (
-        <Row label="Mark prompts and commands (shell integration)">
+      <Row label="Mark prompts and commands (shell integration)">
+        <div className="flex items-center gap-3">
+          {shellIssue !== null && (
+            <span className="text-muted-foreground max-w-32 text-right text-xs sm:max-w-none">
+              {shellIssue}
+            </span>
+          )}
           <Switch
-            checked={props.behavior.shellIntegration}
+            checked={shellIssue === null && props.behavior.shellIntegration}
+            disabled={shellIssue !== null}
             onCheckedChange={(shellIntegration) =>
               props.onChange({ shellIntegration })
             }
           />
-        </Row>
-      )}
+        </div>
+      </Row>
       <Row
         label={`Mark commands on the scroll bar, ${isMac ? 'Cmd+Up/Down' : 'Ctrl+Shift+Up/Down'} jumps between them`}
       >
@@ -166,12 +173,6 @@ export function NotificationSection(props: {
           onCheckedChange={(activityMarks) => props.onChange({ activityMarks })}
         />
       </Row>
-      <Row label="Show status badges set by coding agents">
-        <Switch
-          checked={props.behavior.agentStatus}
-          onCheckedChange={(agentStatus) => props.onChange({ agentStatus })}
-        />
-      </Row>
     </Section>
   )
 }
@@ -210,7 +211,7 @@ export function MacKeysSection(props: {
   return (
     <Section
       title="Mac keys"
-      note="Meta keeps that Option key from typing @, | and other symbols"
+      note="Meta keeps that Option key from typing @, | and other symbols. Safari and Firefox use US key positions"
     >
       <Row label="Cmd/Option arrows and Cmd+Delete edit the line">
         <Switch
@@ -248,10 +249,11 @@ export function BackgroundSection(props: {
   onError: (message: string) => void
 }) {
   const input = useRef<HTMLInputElement>(null)
+  const [image, setImage] = useState(props.behavior.backgroundImage)
 
   async function upload(file: File) {
     try {
-      props.onChange({ backgroundImage: await uploadBackground(file) })
+      setImage(await uploadBackground(file))
     } catch (error) {
       props.onError(error instanceof Error ? error.message : String(error))
     }
@@ -260,7 +262,7 @@ export function BackgroundSection(props: {
   async function remove() {
     try {
       await removeBackground()
-      props.onChange({ backgroundImage: null })
+      setImage(null)
     } catch (error) {
       props.onError(error instanceof Error ? error.message : String(error))
     }
@@ -273,9 +275,9 @@ export function BackgroundSection(props: {
     >
       <Row label="Image for all groups">
         <div className="flex items-center gap-2">
-          {props.behavior.backgroundImage !== null && (
+          {image !== null && (
             <img
-              src={`/api/backgrounds/${props.behavior.backgroundImage}`}
+              src={`/api/backgrounds/${image}`}
               alt=""
               className="h-7 w-11 rounded-md border object-cover"
             />
@@ -283,11 +285,16 @@ export function BackgroundSection(props: {
           <Button
             variant="outline"
             size="sm"
+            aria-label={
+              image === null
+                ? 'Choose image for all groups'
+                : 'Change image for all groups'
+            }
             onClick={() => input.current?.click()}
           >
-            {props.behavior.backgroundImage === null ? 'Choose…' : 'Change…'}
+            {image === null ? 'Choose…' : 'Change…'}
           </Button>
-          {props.behavior.backgroundImage !== null && (
+          {image !== null && (
             <Button
               variant="ghost"
               size="sm"
@@ -401,7 +408,7 @@ function PushSwitch() {
   const [support, setSupport] = useState(pushSupport)
   const [subscribed, setSubscribed] = useState(false)
   const [busy, setBusy] = useState(() => pushSupport() === 'supported')
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
 
   useEffect(() => {
     if (pushSupport() !== 'supported') return
@@ -423,7 +430,7 @@ function PushSwitch() {
 
   async function toggle(checked: boolean) {
     setBusy(true)
-    setFailed(false)
+    setFailure(null)
     try {
       if (checked) setSubscribed(await subscribePush())
       else {
@@ -432,7 +439,7 @@ function PushSwitch() {
       }
     } catch (error) {
       console.error('could not change push notifications', error)
-      setFailed(true)
+      setFailure(error instanceof Error ? error.message : String(error))
     }
     setSupport(pushSupport())
     setBusy(false)
@@ -440,9 +447,9 @@ function PushSwitch() {
 
   return (
     <div className="flex items-center gap-3">
-      {failed && (
+      {failure !== null && (
         <span className="text-muted-foreground text-xs">
-          Could not update, try again
+          Could not update: {failure}
         </span>
       )}
       {support === 'denied' && (

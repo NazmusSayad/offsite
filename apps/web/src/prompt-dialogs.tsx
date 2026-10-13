@@ -6,18 +6,13 @@ import {
   Search01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
   answerClipboardRead,
   clipboardReadRequest,
   subscribeClipboardRead,
 } from '@/clipboard'
-import {
-  type BusyTab,
-  getClosing,
-  setClosing,
-  subscribeClosing,
-} from '@/close-tab'
+import { dismissClosing, getClosing, subscribeClosing } from '@/close-tab'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,8 +33,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { saveConfig } from '@/config'
-import { getState, send, tabTitle } from '@/session'
+import { loadSettings, saveConfig } from '@/config'
+import { getState, send } from '@/session'
 import { focusTerminal } from '@/shortcuts'
 import { showToast } from '@/toast'
 
@@ -58,12 +53,7 @@ export function RenameDialog(props: {
         if (!open) props.onDone()
       }}
     >
-      <DialogContent
-        onCloseAutoFocus={(event) => {
-          event.preventDefault()
-          focusTerminal()
-        }}
-      >
+      <DialogContent onCloseAutoFocus={restoreFocus}>
         <form
           className="grid gap-4"
           onSubmit={(event) => {
@@ -99,37 +89,48 @@ export function RenameDialog(props: {
   )
 }
 
-export function CloseGroupDialog(props: {
-  group: { id: number; name: string } | null
-  busy: BusyTab[]
-  onDone: () => void
-}) {
-  const group = props.group
+export function CloseDialog() {
+  const dialog = useSyncExternalStore(subscribeClosing, getClosing)
+  if (dialog === null) return null
+  const closing = dialog.closing
+  const busy = closing.target === 'group' ? closing.busy : null
+
   return (
     <AlertDialog
-      open={group !== null}
+      open={dialog.open}
       onOpenChange={(open) => {
-        if (!open) props.onDone()
+        if (!open) dismissClosing()
       }}
     >
-      <AlertDialogContent
-        onCloseAutoFocus={(event) => {
-          event.preventDefault()
-          focusTerminal()
-        }}
-      >
+      <AlertDialogContent onCloseAutoFocus={restoreFocus}>
         <AlertDialogHeader>
-          <AlertDialogTitle>Close “{group?.name}”?</AlertDialogTitle>
+          <AlertDialogTitle>Close “{closing.name}”?</AlertDialogTitle>
           <AlertDialogDescription>
-            All terminals in this group will be closed.
-            {props.busy.length > 0 && ' These are still running:'}
+            {closing.target === 'tab' &&
+              (closing.program === null
+                ? 'sshtty couldn’t check whether a program is still running.'
+                : `${closing.program} is still running.`)}
+            {closing.target === 'group' &&
+              'All terminals in this group will be closed.'}
+            {closing.target === 'group' &&
+              closing.busy === null &&
+              ' sshtty couldn’t check whether programs are still running.'}
+            {busy !== null &&
+              busy.length > 0 &&
+              busy.every((tab) => tab.program !== null) &&
+              ' These are still running:'}
+            {busy !== null &&
+              busy.some((tab) => tab.program === null) &&
+              ' These are still running or couldn’t be checked:'}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {props.busy.length > 0 && (
+        {busy !== null && busy.length > 0 && (
           <ul className="grid max-h-40 gap-1 overflow-y-auto text-sm">
-            {props.busy.map((tab) => (
+            {busy.map((tab) => (
               <li key={tab.id} className="flex min-w-0 gap-2">
-                <span className="flex-none font-medium">{tab.program}</span>
+                <span className="flex-none font-medium">
+                  {tab.program === null ? 'Couldn’t check' : tab.program}
+                </span>
                 <span className="text-muted-foreground truncate">
                   {tab.name}
                 </span>
@@ -142,7 +143,10 @@ export function CloseGroupDialog(props: {
           <AlertDialogAction
             variant="destructive"
             onClick={() => {
-              if (group) send({ type: 'closeGroup', id: group.id })
+              if (closing.target === 'tab')
+                send({ type: 'closeTab', id: closing.id })
+              if (closing.target === 'group')
+                send({ type: 'closeGroup', id: closing.id })
             }}
           >
             Close
@@ -153,42 +157,13 @@ export function CloseGroupDialog(props: {
   )
 }
 
-export function CloseTabDialog() {
-  const closing = useSyncExternalStore(subscribeClosing, getClosing)
-
-  return (
-    <AlertDialog
-      open={closing !== null}
-      onOpenChange={(open) => {
-        if (!open) setClosing(null)
-      }}
-    >
-      <AlertDialogContent
-        onCloseAutoFocus={(event) => {
-          event.preventDefault()
-          focusTerminal()
-        }}
-      >
-        <AlertDialogHeader>
-          <AlertDialogTitle>Close “{closing?.name}”?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {closing?.program} is still running.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            onClick={() => {
-              if (closing) send({ type: 'closeTab', id: closing.id })
-            }}
-          >
-            Close
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+export function restoreFocus(event: Event) {
+  event.preventDefault()
+  const dialog = document.querySelector<HTMLElement>(
+    '[role="dialog"], [role="alertdialog"]'
   )
+  if (dialog === null) focusTerminal()
+  else dialog.focus()
 }
 
 type Listing = {
@@ -269,10 +244,7 @@ export function FolderDialog(props: {
         className="gap-0 overflow-hidden p-0 sm:max-w-lg"
         showCloseButton={false}
         aria-describedby={undefined}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault()
-          focusTerminal()
-        }}
+        onCloseAutoFocus={restoreFocus}
       >
         <DialogTitle className="sr-only">Group folder</DialogTitle>
         <div className="flex items-center gap-1 border-b p-1">
@@ -375,21 +347,22 @@ export function ClipboardReadDialog() {
     subscribeClipboardRead,
     clipboardReadRequest
   )
+  const opener = useRef<Element | null>(null)
   if (request === null) return null
-  const tab = getState()
-    .layout.groups.flatMap((group) => group.tabs)
-    .find((item) => item.id === request.id)
 
   function allowAlways() {
     answerClipboardRead(true)
-    const config = getState().config
-    saveConfig({
-      ...config,
-      behavior: { ...config.behavior, clipboardRead: 'allow' },
-    }).catch((error: unknown) => {
-      console.error('could not save the clipboard setting', error)
-      showToast('Could not save the clipboard setting')
-    })
+    loadSettings()
+      .then((settings) =>
+        saveConfig({
+          ...settings.config,
+          behavior: { ...settings.config.behavior, clipboardRead: 'allow' },
+        })
+      )
+      .catch((error: unknown) => {
+        console.error('could not save the clipboard setting', error)
+        showToast('Could not save the clipboard setting')
+      })
   }
 
   return (
@@ -400,17 +373,28 @@ export function ClipboardReadDialog() {
       }}
     >
       <AlertDialogContent
+        onOpenAutoFocus={() => {
+          opener.current = document.activeElement
+        }}
         onCloseAutoFocus={(event) => {
-          event.preventDefault()
-          focusTerminal()
+          const element = opener.current
+          if (
+            element instanceof HTMLElement &&
+            element.isConnected &&
+            (element.closest(
+              '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
+            ) !== null ||
+              element.matches('[data-find]'))
+          ) {
+            event.preventDefault()
+            element.focus()
+            return
+          }
+          restoreFocus(event)
         }}
       >
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            {tab
-              ? `Let “${tabTitle(tab)}” read the clipboard?`
-              : 'Let a closed tab read the clipboard?'}
-          </AlertDialogTitle>
+          <AlertDialogTitle>Let this tab read the clipboard?</AlertDialogTitle>
           <AlertDialogDescription>
             A program in this tab wants the text you last copied.
           </AlertDialogDescription>

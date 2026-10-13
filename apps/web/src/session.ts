@@ -4,12 +4,11 @@ import {
   forgetTab,
   isSeen,
   noteInput,
+  noteMessage,
   noteOutput,
-  noteProgress,
-  noteStatus,
   notifyFromProgram,
   ringBell,
-  type Status,
+  syncQuietTimers,
   unseenAttention,
   updateAppBadge,
 } from './attention'
@@ -55,7 +54,6 @@ type State = {
   alerts: number[]
   finding: number | null
   unread: number[]
-  statuses: Record<number, Status>
   quiet: number[]
 }
 
@@ -119,7 +117,6 @@ export function start(config: Config, platform: Platform, version: string) {
     alerts: [],
     finding: null,
     unread: [],
-    statuses: {},
     quiet: [],
   }
   socket = connect()
@@ -129,6 +126,7 @@ export function start(config: Config, platform: Platform, version: string) {
     if (!document.hidden) checkConnection()
   })
   window.addEventListener('focus', () => setState({}))
+  window.addEventListener('blur', () => setState({}))
   if ('serviceWorker' in navigator)
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data.type !== 'select') return
@@ -140,7 +138,7 @@ export function start(config: Config, platform: Platform, version: string) {
     })
 }
 
-function checkConnection() {
+export function checkConnection() {
   if (state.status === 'connecting' || pongTimer !== null) return
   if (socket.readyState !== WebSocket.OPEN) return
   send({ type: 'ping' })
@@ -173,6 +171,7 @@ export function setState(next: Partial<State>) {
   const tab = group?.tabs.find((item) => item.id === group.activeTab)
   const count = attentionCount()
   updateAppBadge(count)
+  syncQuietTimers()
   document.title =
     (state.alerts.length > 0 ? '🔔 ' : '') +
     (count > 0 ? `(${count}) ` : '') +
@@ -210,8 +209,12 @@ export function send(request: Request) {
 }
 
 export function sendInput(id: number, data: string | Uint8Array) {
-  if (socket.readyState !== WebSocket.OPEN) return
   noteInput(id)
+  sendReply(id, data)
+}
+
+function sendReply(id: number, data: string | Uint8Array) {
+  if (socket.readyState !== WebSocket.OPEN) return
   const bytes = typeof data === 'string' ? encoder.encode(data) : data
   const message = new Uint8Array(8 + bytes.length)
   new DataView(message.buffer).setBigUint64(0, BigInt(id))
@@ -263,9 +266,11 @@ function connect() {
       if (!terminal) return
       const awaited = replay && awaitingReplay.delete(id)
       if (awaited) terminal.reset()
-      terminal.write(new Uint8Array(event.data, 9), replay)
+      const bytes = new Uint8Array(event.data, 9)
+      terminal.write(bytes, replay)
       if (awaited && awaitingReplay.size === 0) setState({ status: 'active' })
-      if (!replay) noteOutput(id)
+      if (!replay) noteOutput(id, bytes)
+      noteMessage()
       const typed = typedAt.get(id)
       if (replay || typed === undefined) return
       typedAt.delete(id)
@@ -277,6 +282,7 @@ function connect() {
       return
     }
     handle(JSON.parse(event.data))
+    noteMessage()
   }
   next.onclose = () => {
     if (pongTimer !== null) window.clearTimeout(pongTimer)
@@ -373,17 +379,17 @@ function createSession(id: number) {
       if (!typedAt.has(id)) typedAt.set(id, performance.now())
       sendInput(id, applyCtrl(data))
     },
-    onReply: (data) => sendInput(id, data),
+    onReply: (data) => {
+      if (data === '\x1b[I' || data === '\x1b[O') sendInput(id, data)
+      else sendReply(id, data)
+    },
     onResize: (cols, rows) => {
       noteInput(id)
       send({ type: 'resize', id, cols, rows })
     },
     onTitle: (title) => setState({ titles: { ...state.titles, [id]: title } }),
-    onProgress: (progress, replay) => {
-      setState({ progress: { ...state.progress, [id]: progress } })
-      noteProgress(id, progress, replay)
-    },
-    onStatus: (text, replay) => noteStatus(id, text, replay),
+    onProgress: (progress) =>
+      setState({ progress: { ...state.progress, [id]: progress } }),
     onBell: () => {
       if (state.config.behavior.bellSound) beep()
       if (
@@ -399,10 +405,10 @@ function createSession(id: number) {
     },
     onNotify: (title, body) => notifyFromProgram(id, title, body),
     onClipboard: writeClipboard,
-    onClipboardRead: (terminator) => {
+    onClipboardRead: (query) => {
       if (!isSeen(id)) return
       requestClipboardRead(id, state.config.behavior.clipboardRead, (text) =>
-        terminal.replyClipboard(text, terminator)
+        terminal.replyClipboard(text, query)
       )
     },
     onLink: (uri) => window.open(uri, '_blank', 'noopener'),
@@ -415,6 +421,7 @@ function createSession(id: number) {
         !terminal.isKittyKeyboard()
       ) {
         event.preventDefault()
+        terminal.beforeInput('\x1b\r')
         sendInput(id, '\x1b\r')
         return false
       }
@@ -426,6 +433,7 @@ function createSession(id: number) {
       ) {
         event.preventDefault()
         const data = imagePasteKeys[state.platform].data
+        terminal.beforeInput(data)
         pasteClipboardImages(terminal)
           .then((pasted) => {
             if (!pasted) sendInput(id, data)
@@ -485,6 +493,8 @@ export function mount(id: number, container: HTMLElement) {
   const terminal = getSession(id)
   container.appendChild(terminal.element)
   terminal.fit()
+  for (const other of sessions.values())
+    other.presize(terminal.cols, terminal.rows)
   reportSize(id, terminal)
   terminal.focus()
   return () => {

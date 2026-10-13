@@ -56,7 +56,7 @@ pub fn program_name(pid: u32) -> io::Result<String> {
 }
 
 #[cfg(windows)]
-pub fn child_program(pid: u32) -> io::Result<Option<String>> {
+pub fn child_programs(pid: u32) -> io::Result<Option<String>> {
     use windows_sys::Win32::{
         Foundation::{CloseHandle, INVALID_HANDLE_VALUE},
         System::Diagnostics::ToolHelp::{
@@ -73,7 +73,7 @@ pub fn child_program(pid: u32) -> io::Result<Option<String>> {
         dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
         ..PROCESSENTRY32W::default()
     };
-    let mut child = None;
+    let mut names = Vec::new();
     let mut found = unsafe { Process32FirstW(snapshot, &raw mut entry) } != 0;
     while found {
         if entry.th32ParentProcessID == pid {
@@ -82,11 +82,16 @@ pub fn child_program(pid: u32) -> io::Result<Option<String>> {
                 .iter()
                 .position(|unit| *unit == 0)
                 .unwrap_or(entry.szExeFile.len());
-            child = Some(String::from_utf16_lossy(&entry.szExeFile[..length]));
-            break;
+            let name = String::from_utf16_lossy(&entry.szExeFile[..length]);
+            if !names.contains(&name) {
+                names.push(name);
+            }
         }
         found = unsafe { Process32NextW(snapshot, &raw mut entry) } != 0;
     }
     unsafe { CloseHandle(snapshot) };
-    Ok(child)
+    match names.is_empty() {
+        true => Ok(None),
+        false => Ok(Some(names.join(", "))),
+    }
 }

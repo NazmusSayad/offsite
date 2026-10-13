@@ -32,7 +32,12 @@ export function MinimizedTabs(props: {
             count={props.tabs.length}
             alert={props.tabs.some((tab) => props.alerts.includes(tab.id))}
           />
-          <AttentionDot ids={props.tabs.map((tab) => tab.id)} />
+          {attention(props.tabs.map((tab) => tab.id)) !== 'alert' && (
+            <AttentionDot
+              ids={props.tabs.map((tab) => tab.id)}
+              className="size-1.5 flex-none rounded-full"
+            />
+          )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
@@ -44,7 +49,10 @@ export function MinimizedTabs(props: {
             }
           >
             <span className="max-w-80 truncate">{tabTitle(tab)}</span>
-            <AttentionDot ids={[tab.id]} />
+            <AttentionDot
+              ids={[tab.id]}
+              className="size-1.5 flex-none rounded-full"
+            />
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -52,34 +60,17 @@ export function MinimizedTabs(props: {
   )
 }
 
-const attentionLabels = {
-  waiting: 'Waiting for you',
-  error: 'Error',
-  alert: 'Needs attention',
-  done: 'Done',
-  unread: 'New output',
-  working: 'Working',
-}
-
-export function AttentionDot(props: { ids: number[]; className?: string }) {
+export function AttentionDot(props: { ids: number[]; className: string }) {
   const current = attention(props.ids)
   if (current === null) return null
+  if (current === 'alert')
+    return <span key="alert" className={cn('bg-primary', props.className)} />
   return (
     <span
       role="img"
-      aria-label={attentionLabels[current]}
-      title={attentionLabels[current]}
-      className={cn(
-        'size-1.5 flex-none rounded-full',
-        current === 'waiting' && 'bg-yellow-500',
-        current === 'error' && 'bg-destructive',
-        current === 'alert' && 'bg-primary',
-        current === 'done' && 'bg-green-500',
-        current === 'unread' && 'bg-muted-foreground',
-        current === 'working' &&
-          'bg-primary animate-pulse motion-reduce:animate-none',
-        props.className
-      )}
+      aria-label="New output"
+      title="New output"
+      className={cn('bg-muted-foreground', props.className)}
     />
   )
 }

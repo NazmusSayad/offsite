@@ -13,7 +13,7 @@ mod shells;
 mod sync;
 mod terminals;
 
-use std::{fs, sync::Arc};
+use std::{collections::HashMap, fs, sync::Arc};
 
 use axum::{
     Json, Router,
@@ -49,8 +49,6 @@ pub fn run(host: String, port: u16, debug: bool) {
         );
         std::process::exit(1);
     }
-    #[cfg(unix)]
-    shell_integration::install();
     let secret = match sync::secret() {
         Ok(secret) => secret,
         Err(error) => {
@@ -89,7 +87,7 @@ async fn serve(app: Arc<App>, host: String, port: u16, debug: bool) {
             put(logos::upload).delete(logos::remove),
         )
         .route("/api/logos/{file}", get(logos::serve))
-        .route("/api/tabs/{id}/busy", get(busy))
+        .route("/api/tabs/{ids}/busy", get(busy))
         .route(
             "/api/groups/{id}/background",
             put(backgrounds::upload_group)
@@ -134,6 +132,7 @@ async fn serve(app: Arc<App>, host: String, port: u16, debug: bool) {
             std::process::exit(1);
         }
     };
+    push::start(address);
     tracing::info!("listening on http://{address}");
     let listener = listener.tap_io(|stream| {
         if let Err(error) = stream.set_nodelay(true) {
@@ -153,8 +152,16 @@ async fn save_config(
     Ok(Json(config))
 }
 
-async fn busy(State(app): State<Arc<App>>, Path(id): Path<u64>) -> Json<Option<String>> {
-    Json(app.busy_program(id))
+async fn busy(
+    State(app): State<Arc<App>>,
+    Path(ids): Path<String>,
+) -> Result<Json<HashMap<u64, Result<Option<String>, String>>>, (StatusCode, String)> {
+    let ids = ids
+        .split(',')
+        .map(str::parse)
+        .collect::<Result<Vec<u64>, _>>()
+        .map_err(|error| (StatusCode::BAD_REQUEST, error.to_string()))?;
+    Ok(Json(app.busy_programs(&ids)))
 }
 
 async fn debug_log() -> Result<String, (StatusCode, String)> {

@@ -21,7 +21,7 @@ use super::{
     groups::{self, Group, Groups, unused_name},
     logos,
     messages::{Event, GroupLayout, Layout, Request},
-    push::{self, Alert},
+    push::{self, Alert, Scanner},
     sync,
     terminals::{self, HISTORY_LIMIT, Terminal},
 };
@@ -31,6 +31,7 @@ const BACKLOG_LIMIT: usize = 16 * 1024 * 1024;
 const OUTPUT_LIMIT: usize = 1024 * 1024;
 const BATCH_LIMIT: usize = 64 * 1024;
 const STALL_LIMIT: Duration = Duration::from_secs(10);
+const SILENCE_LIMIT: Duration = Duration::from_secs(90);
 
 #[derive(Clone)]
 struct Outbox {
@@ -73,7 +74,7 @@ pub(super) struct App {
     groups_file: Mutex<()>,
     connections: AtomicU64,
     pub(super) secret: String,
-    browsers: AtomicUsize,
+    browsers: Mutex<HashMap<u64, Instant>>,
 }
 
 impl App {
@@ -90,14 +91,14 @@ impl App {
             groups_file: Mutex::new(()),
             connections: AtomicU64::new(0),
             secret,
-            browsers: AtomicUsize::new(0),
+            browsers: Mutex::new(HashMap::new()),
         }
     }
 }
 
 pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
     let connection = app.connections.fetch_add(1, Ordering::Relaxed);
-    app.browsers.fetch_add(1, Ordering::Relaxed);
+    app.heard_from(connection);
     tracing::info!(connection, "browser connected");
     let (mut sink, mut stream) = socket.split();
     let (sender, mut receiver) = mpsc::unbounded_channel();
@@ -169,6 +170,9 @@ pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
                 break;
             }
         };
+        if let Some(Ok(_)) = message {
+            app.heard_from(connection);
+        }
         match message {
             Some(Ok(Message::Text(text))) => match serde_json::from_str(&text) {
                 Ok(request) => {
@@ -183,7 +187,7 @@ pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
     }
     drop(requests);
     forwarding.abort();
-    app.browsers.fetch_sub(1, Ordering::Relaxed);
+    app.lock_browsers().remove(&connection);
     tracing::info!(connection, "browser disconnected");
     if let Err(error) = handler.await {
         tracing::error!(connection, "request handler failed: {error}");
@@ -193,6 +197,20 @@ pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
 impl App {
     fn lock(&self) -> MutexGuard<'_, Inner> {
         self.inner.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn lock_browsers(&self) -> MutexGuard<'_, HashMap<u64, Instant>> {
+        self.browsers.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn heard_from(&self, connection: u64) {
+        self.lock_browsers().insert(connection, Instant::now());
+    }
+
+    fn browser_open(&self) -> bool {
+        self.lock_browsers()
+            .values()
+            .any(|heard| heard.elapsed() < SILENCE_LIMIT)
     }
 
     fn request(self: &Arc<Self>, connection: u64, outbox: &Outbox, request: Request) {
@@ -223,8 +241,11 @@ impl App {
             }
             Request::Resume { client_id } => {
                 self.ensure_group();
+                let config = config::read();
+                let mut inner = self.lock();
+                send(&inner, outbox, &Event::Config { config: &config });
                 activate(
-                    &mut self.lock(),
+                    &mut inner,
                     Client {
                         connection,
                         client_id,
@@ -403,61 +424,66 @@ impl App {
         }
     }
 
-    pub(super) fn output(self: &Arc<Self>, id: u64, bytes: &[u8]) {
+    pub(super) fn output(&self, id: u64, bytes: &[u8]) {
         let mut inner = self.lock();
         let Some(terminal) = inner.terminals.get_mut(&id) else {
             return;
         };
         tracing::trace!(id, bytes = bytes.len(), "output");
         terminal.record(bytes);
-        let alert = terminal.alerts.scan(bytes);
         forward(&inner, id, false, bytes);
-        if self.browsers.load(Ordering::Relaxed) > 0 {
-            return;
-        }
-        match alert {
-            Some(Alert::Bell) => {
-                let Some(terminal) = inner.terminals.get_mut(&id) else {
-                    return;
-                };
-                if !terminal.alerts.start_bell() {
-                    return;
-                }
-                let app = self.clone();
-                thread::spawn(move || {
-                    thread::sleep(push::BELL_DELAY);
-                    app.push_bell(id);
-                });
-            }
-            Some(Alert::Notification { title, body }) => {
-                let Some(terminal) = inner.terminals.get_mut(&id) else {
-                    return;
-                };
-                if !terminal.alerts.start_notification() {
-                    return;
-                }
-                let Some(message) = push_message(&inner, id, title, body) else {
-                    return;
-                };
-                thread::spawn(move || push::send(&message));
-            }
-            None => {}
-        }
     }
 
-    fn push_bell(&self, id: u64) {
+    pub(super) fn scan(self: &Arc<Self>, id: u64, scanner: &mut Scanner, bytes: &[u8]) {
+        if !push::active() {
+            *scanner = Scanner::default();
+            return;
+        }
+        let Some(alert) = scanner.scan(bytes) else {
+            return;
+        };
+        if self.browser_open() {
+            return;
+        }
+        let started = {
+            let mut inner = self.lock();
+            let Some(terminal) = inner.terminals.get_mut(&id) else {
+                return;
+            };
+            match alert {
+                Alert::Bell => terminal.alerts.start_bell(),
+                Alert::Notification { .. } => terminal.alerts.start_notification(),
+            }
+        };
+        if !started {
+            return;
+        }
+        let app = self.clone();
+        let window_title = scanner.title.clone();
+        thread::spawn(move || {
+            thread::sleep(push::ALERT_DELAY);
+            app.push(id, alert, window_title);
+        });
+    }
+
+    fn push(&self, id: u64, alert: Alert, window_title: String) {
         let message = {
             let mut inner = self.lock();
             let Some(terminal) = inner.terminals.get_mut(&id) else {
                 return;
             };
-            if !terminal.alerts.finish_bell() || self.browsers.load(Ordering::Relaxed) > 0 {
+            let (title, body) = match alert {
+                Alert::Bell if terminal.alerts.finish_bell() => (String::new(), "Bell".to_string()),
+                Alert::Bell => return,
+                Alert::Notification { title, body } => (title, body),
+            };
+            if self.browser_open() {
                 return;
             }
-            push_message(&inner, id, String::new(), "Bell".to_string())
+            push_message(&inner, id, title, body, window_title)
         };
         if let Some(message) = message {
-            push::send(&message);
+            push::send(message);
         }
     }
 
@@ -505,19 +531,23 @@ impl App {
             .collect()
     }
 
-    pub(super) fn busy_program(&self, id: u64) -> Option<String> {
+    pub(super) fn busy_programs(
+        &self,
+        ids: &[u64],
+    ) -> HashMap<u64, Result<Option<String>, String>> {
         let inner = self.lock();
-        let terminal = inner.terminals.get(&id)?;
-        match terminal.busy_program(id) {
-            Ok(program) => program,
-            Err(error) => {
-                tracing::warn!(
-                    id,
-                    "treating the terminal as idle, could not tell if it is busy: {error}"
-                );
-                None
+        let mut programs = HashMap::new();
+        for id in ids {
+            let program = match inner.terminals.get(id) {
+                Some(terminal) => terminal.busy_program(*id),
+                None => Ok(None),
+            };
+            if let Err(error) = &program {
+                tracing::warn!(id, "could not tell if the terminal is busy: {error}");
             }
+            programs.insert(*id, program);
         }
+        programs
     }
 
     pub(super) fn set_branch(&self, id: u64, branch: Option<String>) {
@@ -817,7 +847,13 @@ fn close_tab(inner: &mut Inner, id: u64) -> Option<u64> {
     Some(group_id)
 }
 
-fn push_message(inner: &Inner, id: u64, title: String, body: String) -> Option<push::Message> {
+fn push_message(
+    inner: &Inner,
+    id: u64,
+    title: String,
+    body: String,
+    window_title: String,
+) -> Option<push::Message> {
     let (group_id, tab) = inner.tabs.iter().find_map(|(group_id, tabs)| {
         let tab = tabs.tabs.iter().find(|tab| tab.id == id)?;
         Some((*group_id, tab))
@@ -825,9 +861,9 @@ fn push_message(inner: &Inner, id: u64, title: String, body: String) -> Option<p
     let title = match (title.is_empty(), &tab.custom_name) {
         (false, _) => title,
         (true, Some(name)) => name.clone(),
-        (true, None) => match inner.terminals.get(&id) {
-            Some(terminal) if !terminal.alerts.title.is_empty() => terminal.alerts.title.clone(),
-            Some(_) | None => "Terminal".to_string(),
+        (true, None) => match window_title.is_empty() {
+            true => "Terminal".to_string(),
+            false => window_title,
         },
     };
     Some(push::Message {

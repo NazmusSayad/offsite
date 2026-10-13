@@ -45,6 +45,7 @@ export type TerminalOptions = {
   clickToMoveCursor: boolean
   macosEditingKeys: boolean
   optionAsMeta: OptionAsMeta
+  promptEvents: boolean
 }
 
 export type OptionAsMeta = 'off' | 'left' | 'right' | 'both'
@@ -60,17 +61,24 @@ export type TerminalHandlers = {
   onReply: (data: string) => void
   onResize: (cols: number, rows: number) => void
   onTitle: (title: string) => void
-  onProgress: (progress: Progress, replay: boolean) => void
+  onProgress: (progress: Progress) => void
   onBell: () => void
   onNotify: (title: string, body: string) => void
   onClipboard: (text: string) => void
-  onClipboardRead: (terminator: string) => void
+  onClipboardRead: (query: ClipboardQuery) => void
   onLink: (uri: string, event: MouseEvent) => void
   beforeKey: (event: KeyboardEvent) => boolean
-  onStatus: (status: string, replay: boolean) => void
 }
 
 export type Progress = { state: number; value: number }
+
+export type ClipboardQuery = {
+  selection: string
+  terminator: string
+  generation: number
+  epoch: number
+  atPrompt: boolean
+}
 
 export type FindResults = { resultIndex: number; resultCount: number }
 
@@ -89,10 +97,11 @@ type Image = {
 
 type Chunk = { data: Uint8Array; replay: boolean }
 
-type Command = {
-  prompt: number
-  input: number | null
-  output: boolean
+type Prompt = {
+  row: number
+  x: number
+  line: number | null
+  column: number
   exitCode: number | null
 }
 
@@ -156,9 +165,9 @@ function mouseButton(button: number) {
   return null
 }
 
-function isPromptMark(data: Uint8Array) {
-  const text = latin1.decode(data.subarray(0, 4))
-  return text === '133' || text === '133;'
+function xtermSelection(value: string) {
+  if (value === '') return 's0'
+  return [...value].filter((letter) => 'cpqs01234567'.includes(letter)).join('')
 }
 
 function isBefore(point: Point, other: Point) {
@@ -209,6 +218,7 @@ export class Terminal {
   private metrics: Metrics
   private snapshot: Snapshot | null = null
   private sized = false
+  private fitted = false
   private frame = 0
   private forceFull = true
   private cursorOn = true
@@ -220,9 +230,25 @@ export class Terminal {
   private readonly suppressedKeys = new Set<string>()
   private readonly heldOptionKeys = new Set<string>()
   private backlog: Chunk[] = []
-  private held: Uint8Array[] = []
-  private commands: Command[] = []
   private marksTimer: number | null = null
+  private shell: 'unknown' | 'prompt' | 'command' = 'unknown'
+  private promptGeneration = 0
+  private promptNative = false
+  private promptInput = false
+  private clickEvents = false
+  private prompts: Prompt[] = []
+  private currentPrompt: Prompt | null = null
+  private anchor: number | null = null
+  private anchorRow = 0
+  private anchorLine = 0
+  private frameCols = 0
+  private linesStale = false
+  private inputRef: number | null = null
+  private confirmedEnd: Point | null = null
+  private ticks = ''
+  private altClick: Point | null = null
+  private pendingMove: Point | null = null
+  private clickTimer: number | null = null
   private blocked = false
   private epoch = 0
   private title = ''
@@ -319,6 +345,9 @@ export class Terminal {
       options.lineHeight,
       window.devicePixelRatio || 1
     )
+    if (!options.commandMarks) this.clearPrompts()
+    if (!options.clickToMoveCursor) this.releaseInput()
+    if (!this.tracksPrompts()) this.shell = 'unknown'
     this.applyTerminalOptions()
     this.resizeCore()
     this.forceFull = true
@@ -348,11 +377,14 @@ export class Terminal {
   reset() {
     this.epoch += 1
     this.backlog = []
-    this.held = []
     this.blocked = false
     this.scanner.reset()
-    for (const command of this.commands) this.forgetCommand(command)
-    this.commands = []
+    this.clearPrompts()
+    this.releaseInput()
+    this.shell = 'unknown'
+    this.promptInput = false
+    this.clickEvents = false
+    this.confirmedEnd = null
     this.scheduleMarks()
     this.core.reset()
     this.applyTerminalOptions()
@@ -376,6 +408,14 @@ export class Terminal {
     if (data.length > 0) this.sendInput(data)
   }
 
+  presize(cols: number, rows: number) {
+    if (this.fitted || (cols === this.cols && rows === this.rows)) return
+    if (cols !== this.cols && this.linesStale) this.assignPending()
+    this.cols = cols
+    this.rows = rows
+    this.resizeCore()
+  }
+
   fit() {
     if (this.disposed) return
     const width = this.element.clientWidth
@@ -384,7 +424,9 @@ export class Terminal {
       this.sized = false
       return
     }
+    if (!this.sized && this.anchor !== null) this.scheduleMarks()
     this.sized = true
+    this.fitted = true
     const ratio = window.devicePixelRatio || 1
     const pixelWidth = Math.round(width * ratio)
     const pixelHeight = Math.round(height * ratio)
@@ -410,12 +452,17 @@ export class Terminal {
     const cols = Math.max(1, Math.floor(width / this.metrics.width))
     const rows = Math.max(1, Math.floor(height / this.metrics.height))
     if (cols !== this.cols || rows !== this.rows) {
+      if (cols !== this.cols && this.linesStale) this.assignPending()
       this.cols = cols
       this.rows = rows
       this.resizeCore()
       this.forceFull = true
       this.handlers.onResize(cols, rows)
-      this.scheduleMarks()
+      if (this.anchor !== null) {
+        if (this.marksTimer !== null) window.clearTimeout(this.marksTimer)
+        this.marksTimer = null
+        this.scheduleMarks()
+      }
     }
     this.renderFrame()
   }
@@ -474,6 +521,9 @@ export class Terminal {
       window.clearInterval(this.selectionScroll)
     if (this.findTimer !== null) window.clearTimeout(this.findTimer)
     if (this.marksTimer !== null) window.clearTimeout(this.marksTimer)
+    this.cancelMove()
+    window.removeEventListener('focus', this.onWindowFocus)
+    document.removeEventListener('visibilitychange', this.onVisibilityChange)
     for (const image of this.images) this.removeImage(image)
     this.core.dispose()
     this.element.remove()
@@ -511,12 +561,13 @@ export class Terminal {
       this.backdropColor === color
     )
       return this.backdrop
-    const ratio = window.devicePixelRatio || 1
+    const ratio = this.context.getTransform().a
     const width = this.canvas.width / ratio
     const height = this.canvas.height / ratio
     const backdrop = new OffscreenCanvas(this.canvas.width, this.canvas.height)
     const context = backdrop.getContext('2d', { alpha: false })
     if (!context) throw new Error('canvas 2d is unavailable')
+    backdrop.addEventListener('contextrestored', this.onContextRestored)
     context.setTransform(ratio, 0, 0, ratio, 0, 0)
     context.fillStyle = color
     context.fillRect(0, 0, width, height)
@@ -584,6 +635,16 @@ export class Terminal {
     this.core.boldIsBright = this.options.boldIsBright
     this.core.version = this.options.version
     this.core.invalidate()
+    this.scanner.screenEvents = this.options.commandMarks
+  }
+
+  private tracksPrompts() {
+    return (
+      this.options.commandMarks ||
+      this.options.clickToMoveCursor ||
+      (isMac && this.options.macosEditingKeys) ||
+      this.options.promptEvents
+    )
   }
 
   private drain() {
@@ -597,7 +658,7 @@ export class Terminal {
       this.handlers.onTitle(title)
     }
     if (this.query !== '') this.scheduleFindRefresh()
-    if (this.commands.length > 0) this.scheduleMarks()
+    if (this.anchor !== null) this.scheduleMarks()
     this.cursorOn = true
     this.requestRender()
   }
@@ -606,99 +667,250 @@ export class Terminal {
     const { data, replay } = chunk
     this.core.setReplies(!replay)
     let start = 0
-    const marks = this.options.commandMarks || this.options.clickToMoveCursor
     const consumed = this.scanner.scan(data, (event, end) => {
-      if (marks && event.type === 'osc' && isPromptMark(event.data)) {
-        if (event.start === -1) this.held = []
-        else this.writeCore(data.subarray(start, event.start))
-        start = end
-        this.handlePromptMark(latin1.decode(event.data))
-        return false
+      if (
+        (event.type === 'clear' || event.type === 'clearBelow') &&
+        this.anchor !== null &&
+        this.frameCols !== this.cols &&
+        !this.core.isAlternateScreen()
+      ) {
+        this.core.write(data.subarray(start, end - 1))
+        start = end - 1
+        this.syncPrompts()
       }
-      this.writeCore(data.subarray(start, end))
+      this.core.write(data.subarray(start, end))
       start = end
       return this.handleOutput(event, replay)
     })
-    const pending =
-      marks && consumed === data.length ? this.scanner.promptMarkStart() : null
-    if (pending === null) this.writeCore(data.subarray(start, consumed))
-    else if (pending === -1) this.held.push(data.subarray(start))
-    else {
-      this.writeCore(data.subarray(start, pending))
-      this.held.push(data.subarray(pending))
-    }
+    this.core.write(data.subarray(start, consumed))
     if (consumed < data.length)
       this.backlog.unshift({ data: data.subarray(consumed), replay })
   }
 
-  private writeCore(data: Uint8Array) {
-    for (const bytes of this.held) this.core.write(bytes)
-    this.held = []
-    this.core.write(data)
-  }
-
   private handlePromptMark(text: string) {
+    const native = text.startsWith('133;')
+    const start = native ? 4 : 5
+    if (text.length > start + 1 && text[start + 1] !== ';') return
+    const kind = text.charAt(start)
     if (this.core.isAlternateScreen()) return
-    const parts = text.split(';')
-    const latest = this.commands.at(-1)
-    if (parts[1] === 'A') {
-      if (parts.includes('k=s')) return
-      const prompt = this.core.trackCursor()
-      const row = this.core.trackedPoint(prompt)
-      if (row === null) {
-        this.core.untrack(prompt)
+    if (kind === 'A') {
+      const parts = text.split(';')
+      if (parts.includes('k=s') || parts.includes('k=c')) return
+      const clickEvents = native && parts.includes('click_events=1')
+      const repaint = this.shell === 'prompt'
+      const duplicate =
+        repaint && !this.promptInput && this.promptNative !== native
+      this.shell = 'prompt'
+      this.promptNative = native
+      this.confirmedEnd = null
+      if (this.options.clickToMoveCursor) this.trackInput()
+      if (duplicate) {
+        this.clickEvents = this.clickEvents || clickEvents
+        if (this.options.commandMarks) {
+          if (this.prompts.at(-1) === this.currentPrompt) this.prompts.pop()
+          this.addPrompt()
+        }
         return
       }
-      let last = latest
-      while (last !== undefined) {
-        const point = this.core.trackedPoint(last.prompt)
-        if (point !== null && point.y < row.y) break
-        this.forgetCommand(last)
-        this.commands.pop()
-        last = this.commands.at(-1)
+      this.promptInput = false
+      this.clickEvents = clickEvents
+      if (this.options.commandMarks) this.addPrompt()
+      if (repaint) return
+      this.promptGeneration += 1
+      return
+    }
+    if (kind === 'B') {
+      this.shell = 'prompt'
+      this.promptInput = true
+      if (this.options.clickToMoveCursor) this.trackInput()
+      return
+    }
+    if (kind === 'C') {
+      this.shell = 'command'
+      return
+    }
+    if (kind === 'D') {
+      if (this.shell === 'prompt' && !this.promptInput) return
+      this.shell = 'unknown'
+      if (this.currentPrompt !== null) {
+        const code = text.split(';')[2] ?? ''
+        this.currentPrompt.exitCode = /^\d+$/.test(code) ? Number(code) : null
+        this.scheduleMarks()
       }
-      this.commands.push({
-        prompt,
-        input: null,
-        output: false,
-        exitCode: null,
-      })
-      this.scheduleMarks()
-      return
-    }
-    if (latest === undefined) return
-    if (parts[1] === 'B') {
-      if (latest.input !== null) this.core.untrack(latest.input)
-      latest.input = this.core.trackCursor()
-      return
-    }
-    if (parts[1] === 'C') {
-      latest.output = true
-      return
-    }
-    if (parts[1] === 'D') {
-      latest.exitCode = /^\d+$/.test(parts[2] ?? '') ? Number(parts[2]) : null
-      this.scheduleMarks()
     }
   }
 
-  private forgetCommand(command: Command) {
-    this.core.untrack(command.prompt)
-    if (command.input !== null) this.core.untrack(command.input)
+  private trackInput() {
+    if (this.inputRef === null) this.inputRef = this.core.trackCursor()
+    else this.core.retrack(this.inputRef)
   }
 
-  private prompts() {
-    const prompts: { y: number; exitCode: number | null }[] = []
-    this.commands = this.commands.filter((command) => {
-      const point = this.core.trackedPoint(command.prompt)
-      if (point === null) {
-        this.forgetCommand(command)
-        return false
+  private releaseInput() {
+    if (this.inputRef !== null) this.core.untrack(this.inputRef)
+    this.inputRef = null
+  }
+
+  private addPrompt() {
+    const previous =
+      this.anchor === null ? null : this.core.trackedPoint(this.anchor)
+    if (previous === null) this.clearPrompts()
+    else if (this.frameCols !== this.cols) this.rescan(previous)
+    if (this.anchor === null) this.anchor = this.core.trackCursor()
+    else this.core.retrack(this.anchor)
+    const point = this.core.trackedPoint(this.anchor)
+    if (point === null) {
+      this.clearPrompts()
+      return
+    }
+    if (previous === null) {
+      this.anchorRow = point.y
+      this.frameCols = this.cols
+    } else {
+      this.anchorRow += point.y - previous.y
+    }
+    const wrapped = point.x === this.cols - 1 && this.core.isPendingWrap()
+    const row = wrapped ? this.anchorRow + 1 : this.anchorRow
+    const shift = point.y - this.anchorRow
+    while ((this.prompts.at(-1)?.row ?? -Infinity) >= row) this.prompts.pop()
+    while (this.prompts.length > 0 && this.prompts[0].row + shift < 0)
+      this.prompts.shift()
+    this.currentPrompt = {
+      row,
+      x: wrapped ? 0 : point.x,
+      line: null,
+      column: 0,
+      exitCode: null,
+    }
+    this.prompts.push(this.currentPrompt)
+    this.linesStale = true
+    this.scheduleMarks()
+  }
+
+  private clearPrompts() {
+    if (this.anchor !== null) this.core.untrack(this.anchor)
+    this.anchor = null
+    this.prompts = []
+    this.currentPrompt = null
+    this.linesStale = false
+    this.scheduleMarks()
+  }
+
+  private assignPending() {
+    if (this.core.isAlternateScreen()) {
+      this.clearPrompts()
+      return
+    }
+    if (this.anchor === null) return
+    const anchor = this.core.trackedPoint(this.anchor)
+    if (anchor === null) this.clearPrompts()
+    else this.assignLines(anchor)
+  }
+
+  private syncPrompts() {
+    if (this.anchor === null) return null
+    const anchor = this.core.trackedPoint(this.anchor)
+    if (anchor === null) {
+      this.clearPrompts()
+      return null
+    }
+    if (this.frameCols !== this.cols) this.rescan(anchor)
+    if (this.linesStale) this.assignLines(anchor)
+    const shift = anchor.y - this.anchorRow
+    let trimmed = 0
+    while (
+      trimmed < this.prompts.length &&
+      this.prompts[trimmed].row + shift < 0
+    )
+      trimmed += 1
+    this.prompts.splice(0, trimmed)
+    return shift
+  }
+
+  private lineStart(y: number) {
+    let start = y
+    while (start > 0 && this.core.wrapsToNext(start - 1)) start -= 1
+    return start
+  }
+
+  private assignLines(anchor: Point) {
+    const shift = anchor.y - this.anchorRow
+    let start = this.lineStart(anchor.y)
+    let count = 0
+    let index = this.prompts.length - 1
+    this.anchorLine = 0
+    while (index >= 0) {
+      const prompt = this.prompts[index]
+      const row = prompt.row + shift
+      while (start > row && start > 0) {
+        start = this.lineStart(start - 1)
+        count += 1
       }
-      prompts.push({ y: point.y, exitCode: command.exitCode })
-      return true
-    })
-    return prompts
+      if (start > row) {
+        this.prompts.splice(0, index + 1)
+        index = -1
+        break
+      }
+      if (prompt.line !== null) {
+        this.anchorLine = prompt.line + count
+        break
+      }
+      prompt.line = -count
+      prompt.column = prompt.x + (row - start) * this.cols
+      index -= 1
+    }
+    for (const prompt of this.prompts.slice(index + 1))
+      if (prompt.line !== null) prompt.line += this.anchorLine
+    this.linesStale = false
+  }
+
+  private rescan(anchor: Point) {
+    let start = this.lineStart(anchor.y)
+    let line = this.anchorLine
+    for (let index = this.prompts.length - 1; index >= 0; index -= 1) {
+      const prompt = this.prompts[index]
+      const target = prompt.line
+      if (target === null) {
+        this.prompts.splice(0, index + 1)
+        break
+      }
+      while (line > target && start > 0) {
+        start = this.lineStart(start - 1)
+        line -= 1
+      }
+      if (line !== target) {
+        this.prompts.splice(0, index + 1)
+        break
+      }
+      prompt.row = start + Math.floor(prompt.column / this.cols)
+    }
+    this.anchorRow = anchor.y
+    this.frameCols = this.cols
+  }
+
+  private handleClear() {
+    if (this.anchor === null || this.core.isAlternateScreen()) return
+    const shift = this.syncPrompts()
+    const state = this.core.scrollbarState()
+    if (shift === null || state === null) return
+    const top = state.total - state.len
+    while ((this.prompts.at(-1)?.row ?? -Infinity) + shift >= top)
+      this.prompts.pop()
+    if (
+      this.shell !== 'command' &&
+      this.currentPrompt !== null &&
+      this.currentPrompt.exitCode === null &&
+      this.prompts.at(-1) !== this.currentPrompt
+    )
+      this.addPrompt()
+    this.scheduleMarks()
+  }
+
+  private handleClearScrollback() {
+    if (this.anchor === null || this.core.isAlternateScreen()) return
+    const anchor = this.core.trackedPoint(this.anchor)
+    const state = this.core.scrollbarState()
+    if (anchor === null || state === null || anchor.y < state.total - state.len)
+      this.clearPrompts()
   }
 
   private scheduleMarks() {
@@ -710,34 +922,37 @@ export class Terminal {
   }
 
   private updateMarks() {
-    this.marks.replaceChildren()
-    const state = this.core.scrollbarState()
     const height = this.element.clientHeight
-    if (
-      !this.options.commandMarks ||
-      state === null ||
-      this.core.isAlternateScreen() ||
-      this.scrollbarGeometry(state, height) === null
-    )
-      return
+    if (height === 0) return
+    const state = this.core.scrollbarState()
+    const shift = this.core.isAlternateScreen() ? null : this.syncPrompts()
     const palette = this.options.colors.palette
     const ticks = new Map<number, string>()
-    for (const prompt of this.prompts()) {
-      const top = Math.min(
-        height - 2,
-        Math.round((prompt.y / state.total) * height)
-      )
-      const color =
-        prompt.exitCode === null
-          ? palette[8]
-          : prompt.exitCode === 0
-            ? palette[2]
-            : palette[1]
-      if (ticks.get(top) !== palette[1]) ticks.set(top, color)
-    }
+    if (
+      shift !== null &&
+      state !== null &&
+      this.scrollbarGeometry(state, height) !== null
+    )
+      for (const prompt of this.prompts) {
+        const top = Math.min(
+          height - 2,
+          Math.round(((prompt.row + shift) / state.total) * height)
+        )
+        const color =
+          prompt.exitCode === null
+            ? palette[8]
+            : prompt.exitCode === 0
+              ? palette[2]
+              : palette[1]
+        if (ticks.get(top) !== palette[1]) ticks.set(top, color)
+      }
+    const key = JSON.stringify([...ticks])
+    if (key === this.ticks) return
+    this.ticks = key
+    this.marks.replaceChildren()
     for (const [top, color] of ticks) {
       const tick = document.createElement('div')
-      tick.className = 'absolute inset-x-0.5 h-0.5 rounded-full'
+      tick.className = 'absolute right-0 h-0.5 w-0.5'
       tick.style.top = `${top}px`
       tick.style.backgroundColor = color
       this.marks.append(tick)
@@ -745,51 +960,74 @@ export class Terminal {
   }
 
   private jumpToPrompt(direction: 'previous' | 'next') {
-    if (!this.options.commandMarks || this.core.isAlternateScreen())
+    if (
+      !this.options.commandMarks ||
+      this.shell !== 'prompt' ||
+      this.core.isAlternateScreen()
+    )
       return false
-    const rows = this.prompts().map((prompt) => prompt.y)
-    if (rows.length === 0) return false
+    const shift = this.syncPrompts()
+    if (shift === null) return false
     const top = this.viewportTop()
+    const rows = this.prompts.map((prompt) => prompt.row + shift)
     const target =
       direction === 'previous'
         ? rows.filter((row) => row < top).at(-1)
         : rows.find((row) => row > top)
-    if (target !== undefined) this.scrollViewport(target - top)
-    return true
+    if (target === undefined) return false
+    this.scrollViewport(target - top)
+    return this.viewportTop() !== top
   }
 
-  private moveCursorTo(event: PointerEvent) {
+  private moveCursorTo(cell: Point) {
     const snapshot = this.snapshot
-    const command = this.commands.at(-1)
     if (
       !this.options.clickToMoveCursor ||
+      this.shell !== 'prompt' ||
+      this.inputRef === null ||
       snapshot === null ||
-      command === undefined ||
-      command.input === null ||
-      command.output ||
       snapshot.cursorX < 0 ||
       snapshot.cursorY < 0 ||
-      this.core.isAlternateScreen()
+      this.core.isAlternateScreen() ||
+      this.core.isMouseTracking()
     )
-      return false
-    const input = this.core.trackedPoint(command.input)
-    if (input === null) return false
-    const start = { x: input.x, y: input.y - this.viewportTop() }
-    const cursor = { x: snapshot.cursorX, y: snapshot.cursorY }
-    const cell = this.cellAt(event.clientX, event.clientY)
+      return
+    const input = this.core.trackedPoint(this.inputRef)
+    if (input === null) return
+    const top = this.viewportTop()
+    const start = { x: input.x, y: input.y - top }
+    if (isBefore(cell, start)) return
+    if (this.clickEvents) {
+      const state = this.core.scrollbarState()
+      if (state === null) return
+      const y = cell.y + top - (state.total - state.len)
+      if (y < 0) return
+      this.sendInput(`\x1b[<0;${cell.x + 1};${y + 1}M`)
+      this.clearClickSelection()
+      return
+    }
+    if (!this.promptInput) return
+    let target = { x: cell.x, y: cell.y }
     if (
-      cell.x > 0 &&
-      snapshot.rowData[cell.y]?.cells[cell.x]?.wide === CELL_WIDE.spacerTail
+      target.x > 0 &&
+      snapshot.rowData[target.y]?.cells[target.x]?.wide === CELL_WIDE.spacerTail
     )
-      cell.x -= 1
-    if (isBefore(cell, start) || isBefore(cursor, start)) return false
-    const left = isBefore(cell, cursor)
-    const from = left ? cell : cursor
-    const to = left ? cursor : cell
+      target.x -= 1
+    const cursor = { x: snapshot.cursorX, y: snapshot.cursorY }
+    if (isBefore(target, start) || isBefore(cursor, start)) return
+    const left = isBefore(target, cursor)
+    const confirmed = this.confirmedEnd
+    if (!left) {
+      if (confirmed === null) return
+      const known = { x: confirmed.x, y: confirmed.y - top }
+      if (isBefore(known, target)) target = known
+    }
+    const from = left ? target : cursor
+    const to = left ? cursor : target
     let count = 0
     for (let y = from.y; y <= to.y; y += 1) {
       const row = snapshot.rowData[y]
-      if (row === undefined || (y < to.y && !row.wrapsToNext)) return false
+      if (row === undefined || (y < to.y && !row.wrapsToNext)) return
       const last = y === to.y ? to.x : row.cells.length
       for (let x = y === from.y ? from.x : 0; x < last; x += 1)
         if (row.cells[x].text !== '') count += 1
@@ -799,14 +1037,41 @@ export class Terminal {
       new KeyboardEvent('keydown', { key, code: key })
     )
     if (count > 0 && data.length > 0) this.sendInput(data.repeat(count))
+    const end = { x: cursor.x, y: cursor.y + top }
+    this.confirmedEnd =
+      !left || (confirmed !== null && isBefore(end, confirmed))
+        ? confirmed
+        : end
+    this.clearClickSelection()
+  }
+
+  private clearClickSelection() {
     this.core.clearSelection()
     this.forceFull = true
     this.requestRender()
-    return true
   }
 
   private handleOutput(event: OutputEvent, replay: boolean) {
     if (event.type === 'sixel') return this.decodeImage(decodeSixel(event.data))
+    if (event.type === 'clear') {
+      this.handleClear()
+      return false
+    }
+    if (event.type === 'clearBelow') {
+      if (this.anchor !== null) {
+        const cursor = this.core.cursorPosition()
+        if (cursor.x === 0 && cursor.y === 0) this.handleClear()
+      }
+      return false
+    }
+    if (event.type === 'clearScrollback') {
+      this.handleClearScrollback()
+      return false
+    }
+    if (event.type === 'alternate') {
+      if (this.linesStale) this.assignPending()
+      return false
+    }
     const text = latin1.decode(event.data)
     if (text.startsWith('1337;File='))
       return this.decodeImage(
@@ -818,11 +1083,22 @@ export class Terminal {
           pixelRatio: window.devicePixelRatio || 1,
         })
       )
+    if (text.startsWith('133;') || text.startsWith('6973;')) {
+      if (this.tracksPrompts()) this.handlePromptMark(text)
+      return false
+    }
     if (text.startsWith('52;')) {
-      const payload = text.split(';')[2]
+      const parts = text.split(';')
+      const payload = parts[2]
       if (replay || payload === undefined) return false
       if (payload === '?') {
-        this.handlers.onClipboardRead(event.terminator)
+        this.handlers.onClipboardRead({
+          selection: xtermSelection(parts[1]),
+          terminator: event.terminator,
+          generation: this.promptGeneration,
+          epoch: this.epoch,
+          atPrompt: this.shell === 'prompt',
+        })
         return false
       }
       try {
@@ -844,13 +1120,7 @@ export class Terminal {
       return false
     }
     if (text === '9;4' || text.startsWith('9;4;')) {
-      this.handleProgress(text, replay)
-      return false
-    }
-    if (text.startsWith('21337;')) {
-      for (const field of decoder.decode(event.data).split(';').slice(1))
-        if (field.startsWith('status='))
-          this.handlers.onStatus(field.slice('status='.length), replay)
+      this.handleProgress(text)
       return false
     }
     if (replay) return false
@@ -902,11 +1172,19 @@ export class Terminal {
       this.handlers.onNotify(notification.title, notification.body)
   }
 
-  replyClipboard(text: string, terminator: string) {
+  replyClipboard(text: string, query: ClipboardQuery) {
+    if (
+      query.epoch !== this.epoch ||
+      query.generation !== this.promptGeneration ||
+      (query.atPrompt && this.shell !== 'prompt')
+    )
+      return
     const binary = Array.from(new TextEncoder().encode(text), (byte) =>
       String.fromCharCode(byte)
     ).join('')
-    this.handlers.onReply(`\x1b]52;c;${btoa(binary)}${terminator}`)
+    this.handlers.onReply(
+      `\x1b]52;${query.selection};${btoa(binary)}${query.terminator}`
+    )
   }
 
   private replyColor(query: '10;?' | '11;?' | '12;?', terminator: string) {
@@ -935,7 +1213,7 @@ export class Terminal {
     }
   }
 
-  private handleProgress(text: string, replay: boolean) {
+  private handleProgress(text: string) {
     const parts = text.split(';')
     if (parts.length > 4) return
     const state =
@@ -954,7 +1232,7 @@ export class Terminal {
     } else if (state === 3)
       this.progress = { state, value: this.progress.value }
     else return
-    this.handlers.onProgress(this.progress, replay)
+    this.handlers.onProgress(this.progress)
   }
 
   private decodeImage(decoding: Promise<ImageBitmap | null>) {
@@ -1005,12 +1283,41 @@ export class Terminal {
     image.bitmap.close()
   }
 
+  private cancelMove() {
+    if (this.clickTimer !== null) window.clearTimeout(this.clickTimer)
+    this.clickTimer = null
+    this.pendingMove = null
+  }
+
+  beforeInput(data: string) {
+    const move = this.pendingMove
+    this.cancelMove()
+    if (move !== null || this.shell === 'prompt') {
+      const ending = [
+        '\r',
+        '\n',
+        '\x03',
+        '\x04',
+        '\x0f',
+        '\x1a',
+        '\x1b[99;5u',
+        '\x1b[100;5u',
+        '\x1b[111;5u',
+        '\x1b[122;5u',
+      ].some((sequence) => data.includes(sequence))
+      if (move !== null && !ending) this.moveCursorTo(move)
+      if (ending && this.shell === 'prompt') this.shell = 'unknown'
+    }
+  }
+
   private sendInput(data: string) {
+    this.beforeInput(data)
     if (this.core.scrollbarState()?.offset !== this.maxOffset()) {
       this.core.scrollToBottom()
       this.forceFull = true
       this.requestRender()
     }
+    this.confirmedEnd = null
     this.handlers.onData(data)
   }
 
@@ -1521,7 +1828,8 @@ export class Terminal {
       this.suppressedKeys.add(event.code)
       return
     }
-    const optionAsMeta = this.optionIsMeta(event)
+    const optionKey = this.optionIsMeta(event)
+    const optionAsMeta = optionKey && this.core.metaText(event) !== null
     if (
       event.isComposing ||
       this.composing ||
@@ -1531,20 +1839,28 @@ export class Terminal {
       return
     }
     const editing =
-      isMac && this.options.macosEditingKeys && !optionAsMeta
+      isMac &&
+      this.options.macosEditingKeys &&
+      this.shell === 'prompt' &&
+      !this.core.isAlternateScreen() &&
+      this.core.isLegacyKeyboard()
         ? macosEditingInput(event)
         : null
     if (editing !== null) {
       event.preventDefault()
       event.stopPropagation()
       this.suppressedKeys.add(event.code)
+      if (this.core.selectionText().length > 0) {
+        this.core.clearSelection()
+        this.forceFull = true
+      }
       this.sendInput(editing)
       return
     }
     if (
       isMac &&
       this.options.optionAsMeta !== 'off' &&
-      !optionAsMeta &&
+      !optionKey &&
       event.altKey &&
       !event.ctrlKey &&
       !event.metaKey &&
@@ -1646,6 +1962,26 @@ export class Terminal {
     event.clipboardData.setData('text/plain', text)
   }
 
+  private readonly onWindowFocus = () => {
+    if (isMac && this.options.optionAsMeta !== 'off')
+      this.core.refreshKeyboardLayout()
+  }
+
+  private readonly onContextRestored = () => {
+    const ratio = window.devicePixelRatio || 1
+    this.context.setTransform(ratio, 0, 0, ratio, 0, 0)
+    this.backdrop = null
+    this.forceFull = true
+    this.requestRender()
+  }
+
+  private readonly onVisibilityChange = () => {
+    if (document.visibilityState !== 'visible') return
+    this.backdrop = null
+    this.forceFull = true
+    this.requestRender()
+  }
+
   private readonly onFocus = () => {
     this.focused = true
     this.cursorOn = true
@@ -1665,6 +2001,7 @@ export class Terminal {
 
   private readonly onPointerDown = (event: PointerEvent) => {
     this.focus()
+    this.cancelMove()
     if (event.pointerType === 'touch') {
       this.touch = { id: event.pointerId, y: event.clientY, moved: false }
       this.canvas.setPointerCapture(event.pointerId)
@@ -1687,10 +2024,6 @@ export class Terminal {
       this.linkPointer = event.pointerId
       return
     }
-    if (event.altKey && this.moveCursorTo(event)) {
-      event.preventDefault()
-      return
-    }
     const repeat =
       event.timeStamp - this.clicks.time <= MULTI_CLICK_INTERVAL &&
       Math.hypot(
@@ -1703,6 +2036,10 @@ export class Terminal {
       x: event.clientX,
       y: event.clientY,
     }
+    this.altClick =
+      event.altKey && this.options.clickToMoveCursor && this.clicks.count === 1
+        ? this.cellAt(event.clientX, event.clientY)
+        : null
     this.selectionPointer = event.pointerId
     this.beginSelection(event, this.clicks.count)
     this.canvas.setPointerCapture(event.pointerId)
@@ -1728,6 +2065,12 @@ export class Terminal {
       return
     }
     if (this.selectionPointer === event.pointerId) {
+      const cell = this.cellAt(event.clientX, event.clientY)
+      if (
+        this.altClick !== null &&
+        (cell.x !== this.altClick.x || cell.y !== this.altClick.y)
+      )
+        this.altClick = null
       this.selectionClient = { x: event.clientX, y: event.clientY }
       const bounds = this.canvas.getBoundingClientRect()
       this.setSelectionScroll(
@@ -1767,6 +2110,21 @@ export class Terminal {
         this.selectionAnchor = null
         this.forceFull = true
         this.requestRender()
+      }
+      const cell = this.altClick
+      this.altClick = null
+      if (cell !== null && event.type === 'pointerup') {
+        this.pendingMove = cell
+        this.clickTimer = window.setTimeout(
+          () => {
+            this.cancelMove()
+            this.moveCursorTo(cell)
+          },
+          Math.max(
+            0,
+            MULTI_CLICK_INTERVAL - (event.timeStamp - this.clicks.time)
+          )
+        )
       }
     }
   }
@@ -1857,9 +2215,12 @@ export class Terminal {
     this.canvas.addEventListener('pointerleave', this.onPointerLeave)
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false })
     this.canvas.addEventListener('mousedown', this.onMouseDown)
+    this.canvas.addEventListener('contextrestored', this.onContextRestored)
     this.scrollbar.addEventListener('pointerdown', this.onScrollbarDown)
     this.scrollbar.addEventListener('pointermove', this.onScrollbarMove)
     this.scrollbar.addEventListener('pointerup', this.onScrollbarUp)
     this.scrollbar.addEventListener('pointercancel', this.onScrollbarUp)
+    window.addEventListener('focus', this.onWindowFocus)
+    document.addEventListener('visibilitychange', this.onVisibilityChange)
   }
 }

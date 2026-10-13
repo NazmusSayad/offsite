@@ -1,17 +1,8 @@
 import { getSession, getState, subscribe } from './session'
 import { showToast } from './toast'
 
-export function chooseGroupBackground(groupId: number) {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept =
-    'image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon'
-  input.addEventListener('change', () => {
-    const file = input.files?.[0]
-    if (file === undefined) return
-    void sendGroupBackground(groupId, 'PUT', file)
-  })
-  input.click()
+export function uploadGroupBackground(groupId: number, file: File) {
+  void sendGroupBackground(groupId, 'PUT', file)
 }
 
 export function removeGroupBackground(groupId: number) {

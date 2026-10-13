@@ -53,7 +53,6 @@
     "backgroundImage": null,
     "backgroundOpacity": 0.3,
     "backgroundFit": "cover",
-    "activityMarks": true,
-    "agentStatus": true
+    "activityMarks": true
   }
 }

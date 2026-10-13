@@ -28,6 +28,7 @@ const options = {
   clickToMoveCursor: true,
   macosEditingKeys: true,
   optionAsMeta: 'off' as const,
+  promptEvents: true,
 }
 
 function open() {
@@ -44,7 +45,6 @@ function open() {
     onClipboardRead: vi.fn(),
     onLink: vi.fn(),
     beforeKey: () => true,
-    onStatus: vi.fn(),
   })
   function write(text: string, replay = false) {
     terminal.write(new TextEncoder().encode(text), replay)

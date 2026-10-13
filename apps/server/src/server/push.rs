@@ -1,5 +1,11 @@
 use std::{
     fs, io,
+    net::SocketAddr,
+    sync::{
+        Mutex, OnceLock, PoisonError,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+    },
+    thread,
     time::{Duration, Instant},
 };
 
@@ -9,6 +15,7 @@ use axum::{
 };
 use base64ct::{Base64UrlUnpadded, Encoding};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use web_push_native::{
     Auth, WebPushBuilder,
     jwt_simple::algorithms::{ECDSAP256PublicKeyLike, ES256KeyPair},
@@ -20,15 +27,23 @@ use crate::utils::{
     paths,
 };
 
-pub(super) const BELL_DELAY: Duration = Duration::from_millis(500);
+pub(super) const ALERT_DELAY: Duration = Duration::from_millis(500);
 const BELL_GAP: Duration = Duration::from_secs(5);
 const NOTIFICATION_GAP: Duration = Duration::from_secs(1);
 const PAYLOAD_LIMIT: usize = 1024;
+const TITLE_LIMIT: usize = 100;
+const BODY_LIMIT: usize = 500;
+const TIME_TO_LIVE: Duration = Duration::from_secs(15 * 60);
+const SEND_TIMEOUT: Duration = Duration::from_secs(10);
+const PARALLEL_SENDS: usize = 8;
 const SUBJECT: &str = "https://github.com/NazmusSayad/sshtty";
 const ESC: u8 = 0x1b;
 const BEL: u8 = 0x07;
 const CAN: u8 = 0x18;
 const SUB: u8 = 0x1a;
+
+static SERVER: OnceLock<String> = OnceLock::new();
+static ACTIVE: AtomicBool = AtomicBool::new(false);
 
 pub(super) enum Alert {
     Bell,
@@ -47,18 +62,34 @@ enum State {
 }
 
 #[derive(Default)]
-pub(super) struct Alerts {
+pub(super) struct Scanner {
     state: State,
     payload: Vec<u8>,
     pub(super) title: String,
+}
+
+#[derive(Default)]
+pub(super) struct Alerts {
     pushed_at: Option<Instant>,
     bell_pending: bool,
 }
 
-impl Alerts {
+impl Scanner {
     pub(super) fn scan(&mut self, bytes: &[u8]) -> Option<Alert> {
         let mut alert = None;
-        for &byte in bytes {
+        let mut index = 0;
+        while index < bytes.len() {
+            if matches!(self.state, State::Ground) {
+                match bytes[index..]
+                    .iter()
+                    .position(|&byte| byte == ESC || byte == BEL)
+                {
+                    Some(offset) => index += offset,
+                    None => break,
+                }
+            }
+            let byte = bytes[index];
+            index += 1;
             match self.step(byte) {
                 Some(Alert::Bell) if alert.is_none() => alert = Some(Alert::Bell),
                 Some(Alert::Bell) | None => {}
@@ -158,7 +189,9 @@ impl Alerts {
         }
         None
     }
+}
 
+impl Alerts {
     pub(super) fn start_bell(&mut self) -> bool {
         if self.bell_pending || self.pushed_recently(BELL_GAP) {
             return false;
@@ -210,6 +243,7 @@ struct Store {
 pub(super) struct Subscription {
     endpoint: String,
     keys: Keys,
+    server: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -229,47 +263,138 @@ pub(super) struct Key {
     public_key: String,
 }
 
-fn load() -> io::Result<Store> {
+pub(super) fn start(address: SocketAddr) {
+    SERVER
+        .set(address.to_string())
+        .expect("push is started only once");
     let path = paths::push_file();
-    match fs::read_to_string(&path) {
-        Ok(text) => serde_json::from_str(&text).map_err(|error| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("{} is corrupt: {error}", path.display()),
-            )
-        }),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {
-            let store = Store {
-                private_key: Base64UrlUnpadded::encode_string(&ES256KeyPair::generate().to_bytes()),
-                subscriptions: Vec::new(),
-            };
-            save(&store)?;
-            Ok(store)
-        }
-        Err(error) => Err(error),
+    match fs::read(&path) {
+        Ok(bytes) => match serde_json::from_slice::<Store>(&bytes) {
+            Ok(store) => {
+                let unknown = store
+                    .subscriptions
+                    .iter()
+                    .filter(|subscription| subscription.server.is_none())
+                    .count();
+                if unknown > 0 {
+                    tracing::warn!(
+                        "ignoring {unknown} push subscriptions in {} saved by an older sshtty until their browsers open sshtty again",
+                        path.display()
+                    );
+                }
+                track(&store);
+            }
+            Err(error) => tracing::warn!(
+                "push notifications are off until a browser turns them on again, {} is corrupt: {error}",
+                path.display()
+            ),
+        },
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => tracing::warn!(
+            "push notifications are off, could not read {}: {error}",
+            path.display()
+        ),
     }
 }
 
+pub(super) fn active() -> bool {
+    ACTIVE.load(Ordering::Relaxed)
+}
+
+fn server() -> &'static str {
+    SERVER.get().expect("push is started before serving")
+}
+
+fn ours(subscription: &Subscription) -> bool {
+    subscription.server.as_deref() == Some(server())
+}
+
+fn track(store: &Store) {
+    ACTIVE.store(store.subscriptions.iter().any(ours), Ordering::Relaxed);
+}
+
+fn load() -> io::Result<Store> {
+    let path = paths::push_file();
+    let bytes = match fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return create(),
+        Err(error) => {
+            return Err(io::Error::new(
+                error.kind(),
+                format!("could not read {}: {error}", path.display()),
+            ));
+        }
+    };
+    let parsed = serde_json::from_slice(&bytes)
+        .map_err(|error| error.to_string())
+        .and_then(|store: Store| key_pair(&store).map(|_| store));
+    let error = match parsed {
+        Ok(store) => return Ok(store),
+        Err(error) => error,
+    };
+    let aside = path.with_extension(format!("json.corrupt-{}", Uuid::new_v4().simple()));
+    if let Err(rename) = fs::rename(&path, &aside) {
+        return Err(io::Error::new(
+            rename.kind(),
+            format!(
+                "{} is corrupt ({error}) and could not be moved aside: {rename}",
+                path.display()
+            ),
+        ));
+    }
+    tracing::warn!(
+        "{} is corrupt, moved it to {} and created a new one: {error}",
+        path.display(),
+        aside.display()
+    );
+    create()
+}
+
+fn create() -> io::Result<Store> {
+    let store = Store {
+        private_key: Base64UrlUnpadded::encode_string(&ES256KeyPair::generate().to_bytes()),
+        subscriptions: Vec::new(),
+    };
+    save(&store)?;
+    Ok(store)
+}
+
 fn save(store: &Store) -> io::Result<()> {
+    let path = paths::push_file();
     let text = serde_json::to_vec_pretty(store).expect("push settings serialize");
-    write_private_atomic(&paths::push_file(), &text)
+    write_private_atomic(&path, &text).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!("could not write {}: {error}", path.display()),
+        )
+    })
 }
 
 fn read() -> io::Result<Store> {
     let _lock = lock_folder()?;
-    load()
+    let store = load()?;
+    track(&store);
+    Ok(store)
 }
 
 fn update(change: impl FnOnce(&mut Store)) -> io::Result<()> {
     let _lock = lock_folder()?;
     let mut store = load()?;
     change(&mut store);
-    save(&store)
+    save(&store)?;
+    track(&store);
+    Ok(())
 }
 
 fn key_pair(store: &Store) -> Result<ES256KeyPair, String> {
     let bytes = Base64UrlUnpadded::decode_vec(&store.private_key)
         .map_err(|error| format!("invalid push key: {error}"))?;
+    if bytes.len() != 32 {
+        return Err(format!(
+            "invalid push key: it is {} bytes instead of 32",
+            bytes.len()
+        ));
+    }
     ES256KeyPair::from_bytes(&bytes).map_err(|error| format!("invalid push key: {error}"))
 }
 
@@ -290,11 +415,10 @@ fn builder(subscription: &Subscription) -> Result<WebPushBuilder, String> {
     if auth.len() != 16 {
         return Err("the auth secret must be 16 bytes".to_string());
     }
-    Ok(WebPushBuilder::new(
-        endpoint,
-        public,
-        Auth::clone_from_slice(&auth),
-    ))
+    Ok(
+        WebPushBuilder::new(endpoint, public, Auth::clone_from_slice(&auth))
+            .with_valid_duration(TIME_TO_LIVE),
+    )
 }
 
 pub(super) async fn key() -> Result<Json<Key>, (StatusCode, String)> {
@@ -309,9 +433,10 @@ pub(super) async fn key() -> Result<Json<Key>, (StatusCode, String)> {
 }
 
 pub(super) async fn subscribe(
-    Json(subscription): Json<Subscription>,
+    Json(mut subscription): Json<Subscription>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     builder(&subscription).map_err(|error| (StatusCode::BAD_REQUEST, error))?;
+    subscription.server = Some(server().to_string());
     update(|store| {
         store
             .subscriptions
@@ -336,7 +461,7 @@ pub(super) async fn unsubscribe(
     Ok(StatusCode::NO_CONTENT)
 }
 
-pub(super) fn send(message: &Message) {
+pub(super) fn send(mut message: Message) {
     let store = match read() {
         Ok(store) => store,
         Err(error) => {
@@ -344,7 +469,12 @@ pub(super) fn send(message: &Message) {
             return;
         }
     };
-    if store.subscriptions.is_empty() {
+    let subscriptions: Vec<&Subscription> = store
+        .subscriptions
+        .iter()
+        .filter(|subscription| ours(subscription))
+        .collect();
+    if subscriptions.is_empty() {
         return;
     }
     let key_pair = match key_pair(&store) {
@@ -354,59 +484,34 @@ pub(super) fn send(message: &Message) {
             return;
         }
     };
-    let payload = serde_json::to_vec(message).expect("push messages serialize");
+    shorten(&mut message.title, TITLE_LIMIT);
+    shorten(&mut message.body, BODY_LIMIT);
+    let payload = serde_json::to_vec(&message).expect("push messages serialize");
     let agent = ureq::Agent::new_with_config(
         ureq::Agent::config_builder()
             .http_status_as_error(false)
             .https_only(true)
-            .timeout_global(Some(Duration::from_secs(10)))
+            .timeout_global(Some(SEND_TIMEOUT))
             .build(),
     );
-    let mut gone = Vec::new();
-    for subscription in &store.subscriptions {
-        let request = builder(subscription).and_then(|builder| {
-            builder
-                .with_vapid(&key_pair, SUBJECT)
-                .build(payload.clone())
-                .map_err(|error| error.to_string())
-        });
-        let mut request = match request {
-            Ok(request) => request,
-            Err(error) => {
-                tracing::warn!(
-                    endpoint = subscription.endpoint,
-                    "could not build a push: {error}"
-                );
-                continue;
-            }
-        };
-        request
-            .headers_mut()
-            .insert("urgency", HeaderValue::from_static("high"));
-        match agent.run(request) {
-            Ok(response) => match response.status() {
-                status if status.is_success() => {
-                    tracing::debug!(endpoint = subscription.endpoint, "push sent");
+    let gone = Mutex::new(Vec::new());
+    let next = AtomicUsize::new(0);
+    thread::scope(|scope| {
+        for _ in 0..PARALLEL_SENDS.min(subscriptions.len()) {
+            scope.spawn(|| {
+                while let Some(subscription) =
+                    subscriptions.get(next.fetch_add(1, Ordering::Relaxed))
+                {
+                    if deliver(&agent, &key_pair, &payload, subscription) {
+                        gone.lock()
+                            .unwrap_or_else(PoisonError::into_inner)
+                            .push(subscription.endpoint.clone());
+                    }
                 }
-                StatusCode::NOT_FOUND | StatusCode::GONE => {
-                    tracing::info!(
-                        endpoint = subscription.endpoint,
-                        "push subscription is gone, removing it"
-                    );
-                    gone.push(subscription.endpoint.clone());
-                }
-                status => tracing::warn!(
-                    endpoint = subscription.endpoint,
-                    %status,
-                    "push service rejected a push"
-                ),
-            },
-            Err(error) => tracing::warn!(
-                endpoint = subscription.endpoint,
-                "could not send a push: {error}"
-            ),
+            });
         }
-    }
+    });
+    let gone = gone.into_inner().unwrap_or_else(PoisonError::into_inner);
     if gone.is_empty() {
         return;
     }
@@ -416,5 +521,72 @@ pub(super) fn send(message: &Message) {
             .retain(|subscription| !gone.contains(&subscription.endpoint));
     }) {
         tracing::error!("could not remove gone push subscriptions: {error}");
+    }
+}
+
+fn deliver(
+    agent: &ureq::Agent,
+    key_pair: &ES256KeyPair,
+    payload: &[u8],
+    subscription: &Subscription,
+) -> bool {
+    let request = builder(subscription).and_then(|builder| {
+        builder
+            .with_vapid(key_pair, SUBJECT)
+            .build(payload)
+            .map_err(|error| error.to_string())
+    });
+    let mut request = match request {
+        Ok(request) => request,
+        Err(error) => {
+            tracing::warn!(
+                endpoint = subscription.endpoint,
+                "could not build a push: {error}"
+            );
+            return false;
+        }
+    };
+    request
+        .headers_mut()
+        .insert("urgency", HeaderValue::from_static("high"));
+    match agent.run(request) {
+        Ok(response) => match response.status() {
+            status if status.is_success() => {
+                tracing::debug!(endpoint = subscription.endpoint, "push sent");
+                false
+            }
+            StatusCode::UNAUTHORIZED
+            | StatusCode::FORBIDDEN
+            | StatusCode::NOT_FOUND
+            | StatusCode::GONE => {
+                tracing::info!(
+                    endpoint = subscription.endpoint,
+                    status = %response.status(),
+                    "push subscription is gone or was made for another key, removing it"
+                );
+                true
+            }
+            status => {
+                tracing::warn!(
+                    endpoint = subscription.endpoint,
+                    %status,
+                    "push service rejected a push"
+                );
+                false
+            }
+        },
+        Err(error) => {
+            tracing::warn!(
+                endpoint = subscription.endpoint,
+                "could not send a push: {error}"
+            );
+            false
+        }
+    }
+}
+
+fn shorten(text: &mut String, limit: usize) {
+    if let Some((index, _)) = text.char_indices().nth(limit) {
+        text.truncate(index);
     }
 }

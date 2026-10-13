@@ -70,18 +70,26 @@ export async function subscribePush() {
   if (Notification.permission === 'default')
     await Notification.requestPermission()
   if (Notification.permission !== 'granted') return false
+  await resubscribePush(await pushKey())
+  return true
+}
+
+async function pushKey() {
   const response = await fetch('/api/push/key')
   if (!response.ok) throw new Error(await response.text())
   const key = (await response.json()) as { publicKey: string }
+  return key.publicKey
+}
+
+async function resubscribePush(key: string) {
   await unsubscribePush()
   const registration = await navigator.serviceWorker.ready
   await savePushSubscription(
     await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: key.publicKey,
+      applicationServerKey: key,
     })
   )
-  return true
 }
 
 export async function unsubscribePush() {
@@ -101,7 +109,19 @@ export async function refreshPushSubscription() {
   if (pushSupport() !== 'supported') return
   const registration = await navigator.serviceWorker.ready
   const subscription = await registration.pushManager.getSubscription()
-  if (subscription) await savePushSubscription(subscription)
+  if (!subscription) return
+  const key = await pushKey()
+  const current = subscription.options.applicationServerKey
+  if (current !== null && base64Url(current) === key)
+    await savePushSubscription(subscription)
+  else await resubscribePush(key)
+}
+
+function base64Url(buffer: ArrayBuffer) {
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replace(/=+$/, '')
 }
 
 async function savePushSubscription(subscription: PushSubscription) {
