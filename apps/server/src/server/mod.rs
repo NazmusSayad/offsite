@@ -1,19 +1,21 @@
 mod app;
 mod assets;
+mod backgrounds;
 mod directories;
 mod groups;
 mod logos;
 mod messages;
 mod paste;
+mod push;
 mod shells;
 mod sync;
 mod terminals;
 
-use std::{fs, sync::Arc};
+use std::{collections::HashMap, fs, sync::Arc};
 
 use axum::{
     Json, Router,
-    extract::{DefaultBodyLimit, State, WebSocketUpgrade},
+    extract::{DefaultBodyLimit, Path, State, WebSocketUpgrade},
     http::StatusCode,
     response::Response,
     routing::{get, post, put},
@@ -83,11 +85,30 @@ async fn serve(app: Arc<App>, host: String, port: u16, debug: bool) {
             put(logos::upload).delete(logos::remove),
         )
         .route("/api/logos/{file}", get(logos::serve))
+        .route("/api/tabs/{ids}/busy", get(busy))
+        .route(
+            "/api/groups/{id}/background",
+            put(backgrounds::upload_group)
+                .delete(backgrounds::remove_group)
+                .layer(DefaultBodyLimit::max(20 * 1024 * 1024)),
+        )
+        .route(
+            "/api/background",
+            put(backgrounds::upload)
+                .delete(backgrounds::remove)
+                .layer(DefaultBodyLimit::max(20 * 1024 * 1024)),
+        )
+        .route("/api/backgrounds/{file}", get(backgrounds::serve))
         .route(
             "/api/paste",
             post(paste::upload).layer(DefaultBodyLimit::max(50 * 1024 * 1024)),
         )
-        .route("/api/sync", post(sync::receive));
+        .route("/api/sync", post(sync::receive))
+        .route("/api/push/key", get(push::key))
+        .route(
+            "/api/push/subscription",
+            put(push::subscribe).delete(push::unsubscribe),
+        );
     if debug {
         router = router.route("/api/debug/logs", get(debug_log));
     }
@@ -109,6 +130,7 @@ async fn serve(app: Arc<App>, host: String, port: u16, debug: bool) {
             std::process::exit(1);
         }
     };
+    push::start(address);
     tracing::info!("listening on http://{address}");
     let listener = listener.tap_io(|stream| {
         if let Err(error) = stream.set_nodelay(true) {
@@ -126,6 +148,18 @@ async fn save_config(
     app.publish_config(&config);
     sync::notify(app.secret.clone());
     Ok(Json(config))
+}
+
+async fn busy(
+    State(app): State<Arc<App>>,
+    Path(ids): Path<String>,
+) -> Result<Json<HashMap<u64, Result<Option<String>, String>>>, (StatusCode, String)> {
+    let ids = ids
+        .split(',')
+        .map(str::parse)
+        .collect::<Result<Vec<u64>, _>>()
+        .map_err(|error| (StatusCode::BAD_REQUEST, error.to_string()))?;
+    Ok(Json(app.busy_programs(&ids)))
 }
 
 async fn debug_log() -> Result<String, (StatusCode, String)> {

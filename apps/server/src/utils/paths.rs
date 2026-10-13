@@ -50,8 +50,16 @@ pub fn secret_file() -> PathBuf {
     root().join("secret")
 }
 
+pub fn push_file() -> PathBuf {
+    root().join("push.json")
+}
+
 pub fn logos_directory() -> PathBuf {
     root().join("logos")
+}
+
+pub fn backgrounds_directory() -> PathBuf {
+    root().join("backgrounds")
 }
 
 pub fn sessions_directory() -> PathBuf {

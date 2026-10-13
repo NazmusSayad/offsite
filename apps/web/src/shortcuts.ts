@@ -1,3 +1,4 @@
+import { closeTab } from './close-tab'
 import { getSession, getState, send } from './session'
 
 const capturedKeys = ['KeyT', 'KeyN', 'KeyW', 'Tab', 'Escape']
@@ -66,7 +67,7 @@ function handleShortcut(event: KeyboardEvent) {
   }
   if (group.activeTab === null) return
   if (shortcut === 'closeTab') {
-    send({ type: 'closeTab', id: group.activeTab })
+    void closeTab(group.activeTab)
     return
   }
   const tabs = group.tabs.filter((tab) => !tab.minimized)

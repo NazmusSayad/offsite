@@ -10,8 +10,15 @@ use std::{
 
 use portable_pty::{Child, ChildKiller, CommandBuilder, MasterPty, PtySize, native_pty_system};
 
-use super::app::App;
+use super::{
+    app::App,
+    push::{Alerts, Scanner},
+};
+#[cfg(windows)]
+use crate::utils::process::child_programs;
 use crate::utils::process::current_directory;
+#[cfg(unix)]
+use crate::utils::process::program_name;
 
 pub(super) const HISTORY_LIMIT: usize = 2 * 1024 * 1024;
 
@@ -22,6 +29,7 @@ pub(super) struct Terminal {
     pub(super) pid: Option<u32>,
     input: mpsc::Sender<Vec<u8>>,
     pub(super) branch: Option<String>,
+    pub(super) alerts: Alerts,
 }
 
 impl Terminal {
@@ -57,6 +65,35 @@ impl Terminal {
     pub(super) fn directory(&self) -> Result<PathBuf, String> {
         match self.pid {
             Some(pid) => current_directory(pid).map_err(|error| error.to_string()),
+            None => Err("its process id is unknown".to_string()),
+        }
+    }
+
+    #[cfg(unix)]
+    pub(super) fn busy_program(&self, id: u64) -> Result<Option<String>, String> {
+        let Some(pid) = self.pid else {
+            return Err("its process id is unknown".to_string());
+        };
+        let Some(group) = self.master.process_group_leader() else {
+            return Err("its foreground process group is unknown".to_string());
+        };
+        let group = u32::try_from(group).map_err(|error| error.to_string())?;
+        if group == pid {
+            return Ok(None);
+        }
+        match program_name(group) {
+            Ok(name) => Ok(Some(name)),
+            Err(error) => {
+                tracing::warn!(id, "could not read the name of process {group}: {error}");
+                Ok(Some(format!("process {group}")))
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    pub(super) fn busy_program(&self, _id: u64) -> Result<Option<String>, String> {
+        match self.pid {
+            Some(pid) => child_programs(pid).map_err(|error| error.to_string()),
             None => Err("its process id is unknown".to_string()),
         }
     }
@@ -107,6 +144,7 @@ pub(super) fn open(
         pid: child.process_id(),
         input,
         branch: None,
+        alerts: Alerts::default(),
     };
     let reading = app.clone();
     let waiting = app.clone();
@@ -134,8 +172,9 @@ fn write_input(id: u64, mut writer: Box<dyn Write + Send>, inputs: mpsc::Receive
     tracing::info!(id, "input writer stopped");
 }
 
-fn read_output(id: u64, mut reader: Box<dyn Read + Send>, app: &App) {
+fn read_output(id: u64, mut reader: Box<dyn Read + Send>, app: &Arc<App>) {
     let mut chunk = vec![0; 64 * 1024];
+    let mut scanner = Scanner::default();
     loop {
         match reader.read(&mut chunk) {
             Ok(0) => {
@@ -148,6 +187,7 @@ fn read_output(id: u64, mut reader: Box<dyn Read + Send>, app: &App) {
             }
             Ok(length) => {
                 app.output(id, &chunk[..length]);
+                app.scan(id, &mut scanner, &chunk[..length]);
                 app.wait_for_browser();
             }
         }

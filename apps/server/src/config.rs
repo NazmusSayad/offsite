@@ -8,7 +8,7 @@ use axum::{Json, http::StatusCode};
 use serde::{Deserialize, Serialize};
 
 use crate::utils::{
-    fs::{lock_folder, write_atomic},
+    fs::{is_plain_file_name, lock_folder, write_atomic},
     paths::{self, expand_home},
 };
 
@@ -41,6 +41,11 @@ struct Behavior {
     bell_flash: bool,
     bell_sound: bool,
     terminal_identity: TerminalIdentity,
+    confirm_close_busy_tab: bool,
+    background_image: Option<String>,
+    background_opacity: f64,
+    background_fit: BackgroundFit,
+    activity_marks: bool,
 }
 
 impl Default for Behavior {
@@ -53,6 +58,11 @@ impl Default for Behavior {
             bell_flash: true,
             bell_sound: true,
             terminal_identity: TerminalIdentity::Sshtty,
+            confirm_close_busy_tab: true,
+            background_image: None,
+            background_opacity: 0.3,
+            background_fit: BackgroundFit::Cover,
+            activity_marks: true,
         }
     }
 }
@@ -62,6 +72,14 @@ impl Default for Behavior {
 enum TerminalIdentity {
     Sshtty,
     Iterm2,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum BackgroundFit {
+    Cover,
+    Contain,
+    Tile,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -171,7 +189,20 @@ fn builtin_themes() -> Vec<BuiltinTheme> {
     serde_json::from_str(THEMES).expect("built-in themes are valid")
 }
 
+fn validate_behavior(behavior: &Behavior) -> Result<(), String> {
+    if !(0.0..=1.0).contains(&behavior.background_opacity) {
+        return Err("the background opacity must be between 0 and 1".to_string());
+    }
+    if let Some(file) = &behavior.background_image
+        && !is_plain_file_name(file)
+    {
+        return Err(format!("invalid background image {file}"));
+    }
+    Ok(())
+}
+
 fn validate(config: &Config) -> Result<(), String> {
+    validate_behavior(&config.behavior)?;
     let theme = &config.theme;
     if theme.name == CUSTOM_THEME {
         if theme.colors.is_none() {
@@ -242,8 +273,11 @@ fn merge(
         .iter()
         .fold(&mut candidate, |value, parent| &mut value[parent]);
     parent[key] = user.clone();
-    match serde_json::from_value::<Config>(candidate.clone()) {
-        Ok(_) => *config = candidate,
+    match serde_json::from_value::<Config>(candidate.clone())
+        .map_err(|error| error.to_string())
+        .and_then(|parsed| validate_behavior(&parsed.behavior))
+    {
+        Ok(()) => *config = candidate,
         Err(error) => tracing::warn!(
             "invalid {} in {}, using its default: {error}",
             keys.join("."),
@@ -325,14 +359,36 @@ pub async fn handler() -> Json<Settings> {
     })
 }
 
-pub fn save(config: Config) -> Result<Config, (StatusCode, String)> {
-    validate(&config).map_err(|error| (StatusCode::BAD_REQUEST, error))?;
-    let mut text = serde_json::to_string_pretty(&config).expect("config serializes");
+fn store(config: &Config) -> io::Result<()> {
+    let mut text = serde_json::to_string_pretty(config).expect("config serializes");
     text.push('\n');
-    let failed = |error: io::Error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string());
+    write_atomic(&paths::config_file(), text.as_bytes())
+}
+
+fn failed(error: io::Error) -> (StatusCode, String) {
+    (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
+}
+
+pub fn save(mut config: Config) -> Result<Config, (StatusCode, String)> {
     let _lock = lock_folder().map_err(failed)?;
-    write_atomic(&paths::config_file(), text.as_bytes()).map_err(failed)?;
+    config.behavior.background_image = read().behavior.background_image;
+    validate(&config).map_err(|error| (StatusCode::BAD_REQUEST, error))?;
+    store(&config).map_err(failed)?;
     Ok(config)
+}
+
+pub fn background_image() -> Option<String> {
+    read().behavior.background_image
+}
+
+pub fn set_background_image(
+    file: Option<String>,
+) -> Result<(Config, Option<String>), (StatusCode, String)> {
+    let _lock = lock_folder().map_err(failed)?;
+    let mut config = read();
+    let previous = std::mem::replace(&mut config.behavior.background_image, file);
+    store(&config).map_err(failed)?;
+    Ok((config, previous))
 }
 
 pub fn launch(directory: Option<&str>) -> Result<Launch, String> {
