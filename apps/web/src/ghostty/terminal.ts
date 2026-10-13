@@ -242,11 +242,8 @@ export class Terminal {
   private frameCols = 0
   private linesStale = false
   private inputRef: number | null = null
-  private confirmedEnd: Point | null = null
   private ticks = ''
   private clickMove: Point | null = null
-  private pendingMove: Point | null = null
-  private clickTimer: number | null = null
   private blocked = false
   private epoch = 0
   private title = ''
@@ -382,7 +379,6 @@ export class Terminal {
     this.shell = 'unknown'
     this.promptInput = false
     this.clickEvents = false
-    this.confirmedEnd = null
     this.scheduleMarks()
     this.core.reset()
     this.applyTerminalOptions()
@@ -519,7 +515,6 @@ export class Terminal {
       window.clearInterval(this.selectionScroll)
     if (this.findTimer !== null) window.clearTimeout(this.findTimer)
     if (this.marksTimer !== null) window.clearTimeout(this.marksTimer)
-    this.cancelMove()
     window.removeEventListener('focus', this.onWindowFocus)
     document.removeEventListener('visibilitychange', this.onVisibilityChange)
     for (const image of this.images) this.removeImage(image)
@@ -699,7 +694,6 @@ export class Terminal {
         repaint && !this.promptInput && this.promptNative !== native
       this.shell = 'prompt'
       this.promptNative = native
-      this.confirmedEnd = null
       if (this.options.clickToMoveCursor) this.trackInput()
       if (duplicate) {
         this.clickEvents = this.clickEvents || clickEvents
@@ -1004,7 +998,7 @@ export class Terminal {
       return
     }
     if (!this.promptInput) return
-    let target = { x: cell.x, y: cell.y }
+    const target = { x: cell.x, y: cell.y }
     if (
       target.x > 0 &&
       snapshot.rowData[target.y]?.cells[target.x]?.wide === CELL_WIDE.spacerTail
@@ -1013,32 +1007,25 @@ export class Terminal {
     const cursor = { x: snapshot.cursorX, y: snapshot.cursorY }
     if (isBefore(target, start) || isBefore(cursor, start)) return
     const left = isBefore(target, cursor)
-    const confirmed = this.confirmedEnd
-    if (!left) {
-      if (confirmed === null) return
-      const known = { x: confirmed.x, y: confirmed.y - top }
-      if (isBefore(known, target)) target = known
-    }
     const from = left ? target : cursor
     const to = left ? cursor : target
     let count = 0
     for (let y = from.y; y <= to.y; y += 1) {
       const row = snapshot.rowData[y]
-      if (row === undefined || (y < to.y && !row.wrapsToNext)) return
+      if (row === undefined) return
       const last = y === to.y ? to.x : row.cells.length
       for (let x = y === from.y ? from.x : 0; x < last; x += 1)
         if (row.cells[x].text !== '') count += 1
+      if (y < to.y && !row.wrapsToNext) {
+        if (left) return
+        break
+      }
     }
     const key = left ? 'ArrowLeft' : 'ArrowRight'
     const data = this.core.encodeKey(
       new KeyboardEvent('keydown', { key, code: key })
     )
     if (count > 0 && data.length > 0) this.sendInput(data.repeat(count))
-    const end = { x: cursor.x, y: cursor.y + top }
-    this.confirmedEnd =
-      !left || (confirmed !== null && isBefore(end, confirmed))
-        ? confirmed
-        : end
     this.clearClickSelection()
   }
 
@@ -1280,16 +1267,8 @@ export class Terminal {
     image.bitmap.close()
   }
 
-  private cancelMove() {
-    if (this.clickTimer !== null) window.clearTimeout(this.clickTimer)
-    this.clickTimer = null
-    this.pendingMove = null
-  }
-
   beforeInput(data: string) {
-    const move = this.pendingMove
-    this.cancelMove()
-    if (move !== null || this.shell === 'prompt') {
+    if (this.shell === 'prompt') {
       const ending = [
         '\r',
         '\n',
@@ -1302,8 +1281,7 @@ export class Terminal {
         '\x1b[111;5u',
         '\x1b[122;5u',
       ].some((sequence) => data.includes(sequence))
-      if (move !== null && !ending) this.moveCursorTo(move)
-      if (ending && this.shell === 'prompt') this.shell = 'unknown'
+      if (ending) this.shell = 'unknown'
     }
   }
 
@@ -1314,7 +1292,6 @@ export class Terminal {
       this.forceFull = true
       this.requestRender()
     }
-    this.confirmedEnd = null
     this.handlers.onData(data)
   }
 
@@ -1979,7 +1956,6 @@ export class Terminal {
 
   private readonly onPointerDown = (event: PointerEvent) => {
     this.focus()
-    this.cancelMove()
     if (event.pointerType === 'touch') {
       this.touch = { id: event.pointerId, y: event.clientY, moved: false }
       this.canvas.setPointerCapture(event.pointerId)
@@ -2096,19 +2072,7 @@ export class Terminal {
       }
       const cell = this.clickMove
       this.clickMove = null
-      if (cell !== null && event.type === 'pointerup') {
-        this.pendingMove = cell
-        this.clickTimer = window.setTimeout(
-          () => {
-            this.cancelMove()
-            this.moveCursorTo(cell)
-          },
-          Math.max(
-            0,
-            MULTI_CLICK_INTERVAL - (event.timeStamp - this.clicks.time)
-          )
-        )
-      }
+      if (cell !== null && event.type === 'pointerup') this.moveCursorTo(cell)
     }
   }
 
