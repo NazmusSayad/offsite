@@ -603,6 +603,7 @@ impl App {
             launch.command.as_deref(),
             cwd,
             &launch.environment,
+            launch.shell_integration,
         ) {
             Ok(terminal) => {
                 inner.terminals.insert(id, terminal);

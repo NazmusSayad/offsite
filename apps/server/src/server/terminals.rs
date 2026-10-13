@@ -10,10 +10,14 @@ use std::{
 
 use portable_pty::{Child, ChildKiller, CommandBuilder, MasterPty, PtySize, native_pty_system};
 
+#[cfg(unix)]
+use super::shell_integration;
 use super::{
     app::App,
     push::{Alerts, Scanner},
 };
+#[cfg(unix)]
+use crate::config;
 #[cfg(windows)]
 use crate::utils::process::child_programs;
 use crate::utils::process::current_directory;
@@ -105,11 +109,12 @@ pub(super) fn open(
     command: Option<&str>,
     cwd: PathBuf,
     environment: &[(&str, &str)],
+    shell_integration: bool,
 ) -> Result<Terminal, String> {
     let pair = native_pty_system()
         .openpty(pty_size(80, 24))
         .map_err(|error| error.to_string())?;
-    let mut builder = shell_command(command);
+    let mut builder = shell_command(command, shell_integration);
     builder.cwd(&cwd);
     builder.env("TERM", "xterm-256color");
     builder.env("COLORTERM", "truecolor");
@@ -257,7 +262,7 @@ fn pty_size(cols: u16, rows: u16) -> PtySize {
 }
 
 #[cfg(unix)]
-fn shell_command(command: Option<&str>) -> CommandBuilder {
+fn shell_command(command: Option<&str>, shell_integration: bool) -> CommandBuilder {
     let mut builder = CommandBuilder::new("/bin/bash");
     builder.env_clear();
     for name in ["HOME", "USER", "LOGNAME", "TMPDIR", "SSH_AUTH_SOCK"] {
@@ -265,7 +270,7 @@ fn shell_command(command: Option<&str>) -> CommandBuilder {
             builder.env(name, value);
         }
     }
-    let shell = builder.get_shell();
+    let shell = config::default_shell();
     builder.env("SHELL", &shell);
     builder.env("LANG", "en_US.UTF-8");
     if let Some(path) = std::env::var_os("PATH") {
@@ -274,6 +279,10 @@ fn shell_command(command: Option<&str>) -> CommandBuilder {
     let program = match command {
         Some(program) => program.to_string(),
         None => format!("'{shell}'"),
+    };
+    let program = match shell_integration {
+        true => shell_integration::prepare(&mut builder, command, &shell).unwrap_or(program),
+        false => program,
     };
     builder.args([
         "--noprofile",
@@ -285,7 +294,7 @@ fn shell_command(command: Option<&str>) -> CommandBuilder {
 }
 
 #[cfg(windows)]
-fn shell_command(command: Option<&str>) -> CommandBuilder {
+fn shell_command(command: Option<&str>, _shell_integration: bool) -> CommandBuilder {
     match command {
         Some(program) => CommandBuilder::new(program),
         None => CommandBuilder::new_default_prog(),

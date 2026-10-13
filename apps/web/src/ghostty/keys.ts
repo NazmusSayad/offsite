@@ -236,6 +236,11 @@ export function loadGhosttyKeyboardLayoutMap(): Promise<
   return promise
 }
 
+export function refreshGhosttyKeyboardLayoutMap() {
+  keyboardLayoutMapPromise = undefined
+  return loadGhosttyKeyboardLayoutMap()
+}
+
 export function ghosttyConsumedMods(
   event: Pick<
     KeyboardEvent,
@@ -267,4 +272,58 @@ export function ghosttyUnshiftedCodepoint(
     return 0
   }
   return event.key.codePointAt(0) ?? 0
+}
+
+const usPunctuationCharacter = new Map([
+  ['Backquote', '`'],
+  ['Minus', '-'],
+  ['Equal', '='],
+  ['BracketLeft', '['],
+  ['BracketRight', ']'],
+  ['Backslash', '\\'],
+  ['Semicolon', ';'],
+  ['Quote', "'"],
+  ['Comma', ','],
+  ['Period', '.'],
+  ['Slash', '/'],
+  ['Space', ' '],
+])
+
+const usDigitCharacter = [...'0123456789'].map((digit) => [
+  `Digit${digit}`,
+  digit,
+])
+
+const unshiftedToShiftedCharacter = new Map(
+  [...shiftedToUnshiftedCharacter].map((entry) => [entry[1], entry[0]])
+)
+
+function usUnshiftedCharacter(code: string) {
+  if (/^Key[A-Z]$/u.test(code)) return code[3].toLowerCase()
+  if (/^Digit[0-9]$/u.test(code)) return code[5]
+  return usPunctuationCharacter.get(code)
+}
+
+function isUsLayout(layoutMap: GhosttyKeyboardLayoutMap) {
+  return [...usPunctuationCharacter, ...usDigitCharacter].every(
+    (entry) => entry[0] === 'Space' || layoutMap.get(entry[0]) === entry[1]
+  )
+}
+
+export function ghosttyMetaText(
+  event: Pick<KeyboardEvent, 'code' | 'key' | 'shiftKey'>,
+  layoutMap?: GhosttyKeyboardLayoutMap
+): string | null {
+  const layoutCharacter = layoutMap?.get(event.code)
+  const unshifted =
+    layoutCharacter && [...layoutCharacter].length === 1
+      ? layoutCharacter
+      : usUnshiftedCharacter(event.code)
+  if (unshifted === undefined)
+    return [...event.key].length === 1 ? null : event.key
+  if (!event.shiftKey) return unshifted
+  const uppercase = unshifted.toUpperCase()
+  if (uppercase !== unshifted && [...uppercase].length === 1) return uppercase
+  if (layoutMap === undefined || !isUsLayout(layoutMap)) return null
+  return unshiftedToShiftedCharacter.get(unshifted) ?? unshifted
 }

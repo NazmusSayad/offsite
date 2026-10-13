@@ -78,6 +78,10 @@ pub fn paste_directory() -> PathBuf {
     session_directory().join("paste")
 }
 
+pub fn shell_integration_directory() -> PathBuf {
+    root().join("shell-integration")
+}
+
 pub fn expand_home(path: &str) -> PathBuf {
     let separators: &[char] = match cfg!(windows) {
         true => &['/', '\\'],
