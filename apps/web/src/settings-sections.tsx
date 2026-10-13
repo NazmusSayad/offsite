@@ -193,6 +193,7 @@ export function IdentitySection(props: {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="sshtty">sshtty</SelectItem>
+            <SelectItem value="ghostty">Ghostty</SelectItem>
             <SelectItem value="iterm2">iTerm2</SelectItem>
           </SelectContent>
         </Select>

@@ -9,7 +9,7 @@ export type Platform = 'macos' | 'linux' | 'windows'
 
 export type Shell = { command: string | null; cwd: string }
 
-export type TerminalIdentity = 'sshtty' | 'iterm2'
+export type TerminalIdentity = 'sshtty' | 'ghostty' | 'iterm2'
 
 export type ClipboardRead = 'ask' | 'allow' | 'deny'
 
@@ -53,6 +53,7 @@ export type ThemeColors = {
 }
 
 const iterm2Version = '3.6.8'
+const ghosttyVersion = '1.3.1'
 
 const paletteKeys = [
   'black',
@@ -268,6 +269,7 @@ export function terminalOptions(
 
 function terminalVersion(identity: TerminalIdentity, version: string) {
   if (identity === 'sshtty') return `sshtty ${version}`
+  if (identity === 'ghostty') return `ghostty ${ghosttyVersion}`
   if (identity === 'iterm2') return `iTerm2 ${iterm2Version}`
   throw new Error(`unknown terminal identity ${identity}`)
 }
