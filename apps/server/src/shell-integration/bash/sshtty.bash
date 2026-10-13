@@ -9,9 +9,6 @@ __sshtty_errexit=0
 __sshtty_running=0
 __sshtty_ready=0
 __sshtty_ps1_mark=('' $'\001\e]6973;B\a\002')
-if (( BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] == 3 && BASH_VERSINFO[2] < 20 )); then
-    __sshtty_ps1_mark=('' '')
-fi
 __sshtty_ps0_mark=('' $'\e]6973;C\a')
 __sshtty_ps1='${__sshtty_ps1_mark+${__sshtty_ps1_mark[${__sshtty_ready-0}]-}}'
 __sshtty_ps0='${__sshtty_ps0_mark[${__sshtty_ready-0} ? (__sshtty_running = 1, __sshtty_ready = 0, 1) : 0]-}'

@@ -104,9 +104,7 @@ export function BehaviorSection(props: {
           onCheckedChange={(commandMarks) => props.onChange({ commandMarks })}
         />
       </Row>
-      <Row
-        label={`${isMac ? 'Option' : 'Alt'}+click moves the cursor in the command line`}
-      >
+      <Row label="Click moves the cursor in the command line">
         <Switch
           checked={props.behavior.clickToMoveCursor}
           onCheckedChange={(clickToMoveCursor) =>

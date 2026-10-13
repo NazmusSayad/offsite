@@ -244,7 +244,7 @@ export class Terminal {
   private inputRef: number | null = null
   private confirmedEnd: Point | null = null
   private ticks = ''
-  private altClick: Point | null = null
+  private clickMove: Point | null = null
   private pendingMove: Point | null = null
   private clickTimer: number | null = null
   private blocked = false
@@ -2014,8 +2014,13 @@ export class Terminal {
       x: event.clientX,
       y: event.clientY,
     }
-    this.altClick =
-      event.altKey && this.options.clickToMoveCursor && this.clicks.count === 1
+    this.clickMove =
+      !event.altKey &&
+      !event.shiftKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      this.options.clickToMoveCursor &&
+      this.clicks.count === 1
         ? this.cellAt(event.clientX, event.clientY)
         : null
     this.selectionPointer = event.pointerId
@@ -2045,10 +2050,10 @@ export class Terminal {
     if (this.selectionPointer === event.pointerId) {
       const cell = this.cellAt(event.clientX, event.clientY)
       if (
-        this.altClick !== null &&
-        (cell.x !== this.altClick.x || cell.y !== this.altClick.y)
+        this.clickMove !== null &&
+        (cell.x !== this.clickMove.x || cell.y !== this.clickMove.y)
       )
-        this.altClick = null
+        this.clickMove = null
       this.selectionClient = { x: event.clientX, y: event.clientY }
       const bounds = this.canvas.getBoundingClientRect()
       this.setSelectionScroll(
@@ -2089,8 +2094,8 @@ export class Terminal {
         this.forceFull = true
         this.requestRender()
       }
-      const cell = this.altClick
-      this.altClick = null
+      const cell = this.clickMove
+      this.clickMove = null
       if (cell !== null && event.type === 'pointerup') {
         this.pendingMove = cell
         this.clickTimer = window.setTimeout(
