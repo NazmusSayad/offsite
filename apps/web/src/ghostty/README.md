@@ -10,24 +10,25 @@ T3 Code is the reference. When their terminal gets a fix, we port it here instea
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | T3 Code           | [`4f63275ac7885281d245022e65f1e9e8816b1382`](https://github.com/pingdotgg/t3code/tree/4f63275ac7885281d245022e65f1e9e8816b1382/apps/web/src/terminal/ghostty) (2026-10-10)              |
 | Ghostty           | [`9f62873bf195e4d8a762d768a1405a5f2f7b1697`](https://github.com/ghostty-org/ghostty/tree/9f62873bf195e4d8a762d768a1405a5f2f7b1697), the pin in T3 Code's `native/libghostty-vt/VERSION` |
-| `ghostty-vt.wasm` | Same file as T3 Code's `apps/web/src/terminal/ghostty/vendor/ghostty-vt.wasm`. SHA-256 `51b016a6aa3c29ead71c7c8acf8c01d43b064bae19957a9c9f9e2bf469267629`                               |
+| `ghostty-vt.wasm` | Built from the Ghostty pin with `kitty-graphics.patch`. SHA-256 `61808079850fe57f470e8a703ca5b4df8783b7825ccb6aed7a90035f87144050`                                                      |
 
 Update this table after every sync.
 
 ## Files
 
-| Our file              | T3 Code file                   | Notes                                                                                                                                      |
-| --------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ghostty-vt.wasm`     | `vendor/ghostty-vt.wasm`       | Copied as is                                                                                                                               |
-| `ghostty-LICENSE.txt` | `native/libghostty-vt/LICENSE` | Copied as is                                                                                                                               |
-| `keys.ts`             | `keyCodes.ts`                  | Mostly the same                                                                                                                            |
-| `runtime.ts`          | `runtime.ts`                   | Rewritten. We build the callback module in JS instead of their `ghostty-write-pty.wasm`, and also answer device attribute and size queries |
-| `core.ts`             | `core.ts`                      | Rewritten. Adds image anchors and the size report                                                                                          |
-| `renderer.ts`         | `renderer.ts`                  | Rewritten. Adds find highlights, the ligature setting and drawn box characters                                                             |
-| `terminal.ts`         | `surface.ts`                   | Rewritten for sshtty. Adds images, OSC 52, OSC 9;4 progress, find, OSC 8 links and mobile input                                            |
-| `glyphs.ts`           | none                           | Ours. Box, block and shade characters drawn as shapes                                                                                      |
-| `images.ts`           | none                           | Ours. Sixel and iTerm2 image decoding                                                                                                      |
-| `output.ts`           | none                           | Ours. Finds OSC and sixel sequences in program output                                                                                      |
+| Our file               | T3 Code file                   | Notes                                                                                                                                      |
+| ---------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ghostty-vt.wasm`      | `vendor/ghostty-vt.wasm`       | Built by `scripts/build-ghostty-wasm.mts` with kitty graphics turned on                                                                    |
+| `kitty-graphics.patch` | none                           | Ours. The Ghostty change that turns on kitty graphics in the WASM build                                                                    |
+| `ghostty-LICENSE.txt`  | `native/libghostty-vt/LICENSE` | Copied as is                                                                                                                               |
+| `keys.ts`              | `keyCodes.ts`                  | Mostly the same                                                                                                                            |
+| `runtime.ts`           | `runtime.ts`                   | Rewritten. We build the callback module in JS instead of their `ghostty-write-pty.wasm`, and also answer device attribute and size queries |
+| `core.ts`              | `core.ts`                      | Rewritten. Adds image anchors, the size report and kitty image placements                                                                  |
+| `renderer.ts`          | `renderer.ts`                  | Rewritten. Adds find highlights, the ligature setting, drawn box characters and kitty image layers                                         |
+| `terminal.ts`          | `surface.ts`                   | Rewritten for sshtty. Adds images, kitty images, OSC 52, OSC 9;4 progress, find, OSC 8 links and mobile input                              |
+| `glyphs.ts`            | none                           | Ours. Box, block and shade characters drawn as shapes                                                                                      |
+| `images.ts`            | none                           | Ours. Sixel, iTerm2 and PNG decoding, and kitty image pixels                                                                               |
+| `output.ts`            | none                           | Ours. Finds OSC and sixel sequences in program output                                                                                      |
 
 ## How to sync with T3 Code
 
@@ -41,7 +42,7 @@ Update this table after every sync.
    ```
 
 2. For each change, use the table above to find our matching file and port the change. Their tests (`*.test.ts`) show the behavior they expect, so read them too.
-3. If `native/libghostty-vt/VERSION` changed, copy `apps/web/src/terminal/ghostty/vendor/ghostty-vt.wasm` and `native/libghostty-vt/LICENSE` here, then do the checks in the next section.
+3. If `native/libghostty-vt/VERSION` changed, set `revision` in `scripts/build-ghostty-wasm.mts` to the new pin, build the WASM file (see "Building the WASM file"), copy `native/libghostty-vt/LICENSE` here, then do the checks in the next section. Do not copy their `ghostty-vt.wasm`: it has no kitty graphics, and the terminal refuses to start with it.
 4. Update the "Synced versions" table.
 5. Run `nr test`. The `*.test.ts` files here check the escape sequence replies, underline styles and colors, box characters and background edges. `core.test.ts` and `terminal.test.ts` run the real WASM file, so they also catch changes to the color data keys, the focus mode and the underline values.
 6. Test by hand: the items in "What to test after a sync".
@@ -51,7 +52,8 @@ Update this table after every sync.
 Struct layouts are read from the WASM file at startup (`ghostty_type_json`), so they follow a new version by themselves. These numbers are written by hand, so compare them with the C headers in Ghostty's `include/ghostty/vt/` at the new version:
 
 - Terminal option numbers: `OPTION` in `runtime.ts`, and the `ghostty_terminal_set` calls in `core.ts` (`terminal.h`, `GhosttyTerminalOption`).
-- Callback signatures in `CALLBACKS_WASM` in `runtime.ts`: write PTY is `(i32, i32, i32, i32) -> void`, device attributes and size are `(i32, i32, i32) -> i32` (`terminal.h`).
+- Callback signatures in `CALLBACKS_WASM` in `runtime.ts`: write PTY is `(i32, i32, i32, i32) -> void`, device attributes and size are `(i32, i32, i32) -> i32` (`terminal.h`), and PNG decoding is `(i32, i32, i32, i32, i32) -> i32` (`sys.h`).
+- Kitty graphics numbers: `KITTY_*` in `core.ts` (`kitty_graphics.h` and the kitty data keys in `terminal.h`), and `SYS_DECODE_PNG` and the `GhosttySysImage` offsets in `SYS_IMAGE` in `runtime.ts` (`sys.h`). `GhosttyKittyGraphicsPlacementRenderInfo` and `GhosttySysImage` are not in `ghostty_type_json`, so their offsets in `KITTY_RENDER_INFO` and `SYS_IMAGE` are written by hand for wasm32.
 - Enum values used in `core.ts` and `keys.ts`, such as cell and style data keys, cursor styles, modes, key codes and mouse buttons.
 - Terminal data keys for the color replies in `core.ts`: 18 foreground, 19 background, 20 cursor and 21 palette (`terminal.h`, `GhosttyTerminalData`), and mode 1004 for focus events (`modes.h`).
 - Underline values 0 to 5 in `renderer.ts` and the style color tags `STYLE_COLOR_PALETTE` and `STYLE_COLOR_RGB` in `core.ts` (`style.h`).
@@ -59,18 +61,17 @@ Struct layouts are read from the WASM file at startup (`ghostty_type_json`), so 
 
 Ghostty says that the libghostty-vt API is not stable yet, so expect changes here.
 
-## Building the WASM file from Ghostty
+## Building the WASM file
 
-Use this only if we need a Ghostty version that T3 Code has not taken yet. It needs Zig 0.15.2, the same as T3 Code's `apps/web/scripts/build-libghostty-wasm.sh`:
+Ghostty turns kitty graphics off in WASM builds because the image storage uses the clock to find the oldest image, and WASM has no clock. `kitty-graphics.patch` turns it on, uses a counter instead of the clock (only the order matters), and refuses file and shared memory images, which WASM cannot read. The rest of the kitty code is Ghostty's.
+
+Build it with:
 
 ```sh
-git clone https://github.com/ghostty-org/ghostty.git
-cd ghostty
-git checkout <revision>
-zig build -Demit-lib-vt -Dtarget=wasm32-freestanding -Doptimize=ReleaseSmall -Dstrip=true -Dlib-version-string="0.1.0-dev+<revision>" -p out
+node scripts/build-ghostty-wasm.mts
 ```
 
-Copy `out/bin/ghostty-vt.wasm` here.
+It fetches Ghostty at `revision`, applies the patch, builds with Zig 0.15.2 through mise and writes `ghostty-vt.wasm` here. Put the printed SHA-256 in the "Synced versions" table. If the patch no longer applies to a new revision, the script stops: update the patch for the new code and keep it to these changes.
 
 ## What to test after a sync
 
@@ -80,5 +81,6 @@ Copy `out/bin/ghostty-vt.wasm` here.
 - Underline styles `\e[4:1m` to `\e[4:5m` and underline colors `\e[58:2::255:0:0m`, box characters (light, heavy, double, rounded) and colored backgrounds without seams at browser zoom 100% and 125%.
 - Titles, OSC 9;4 progress, OSC 52 copy, URL and OSC 8 links, find.
 - Sixel and iTerm2 images, and image paste in Claude Code and opencode.
+- Kitty images: `kitten icat` with a PNG, the same image with `--z-index -1` behind text, and `kitten icat --clear`.
 - Theme, font, cursor and ligature settings.
 - Reconnect and replay, mobile keys and the Ctrl toggle.

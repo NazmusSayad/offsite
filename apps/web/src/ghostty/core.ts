@@ -18,6 +18,35 @@ const STYLE_COLOR_VALUE = 8
 const PAGE_BYTES = 589_824
 const PAGE_GRID_BYTES = 381_888
 const SCROLLBACK_MAX_BYTES = 50_000_000
+const KITTY_STORAGE_LIMIT = 26
+const KITTY_GRAPHICS = 30
+const KITTY_PLACEMENTS = 1
+const KITTY_PLACEMENT = {
+  imageId: 1,
+  isVirtual: 3,
+  xOffset: 4,
+  yOffset: 5,
+  z: 12,
+} as const
+const KITTY_IMAGE = {
+  width: 3,
+  height: 4,
+  format: 5,
+  data: 7,
+  length: 8,
+} as const
+const KITTY_RENDER_INFO = {
+  size: 48,
+  pixelWidth: 4,
+  pixelHeight: 8,
+  column: 20,
+  row: 24,
+  visible: 28,
+  sourceX: 32,
+  sourceY: 36,
+  sourceWidth: 40,
+  sourceHeight: 44,
+} as const
 
 const RENDER_DATA = {
   cols: 1,
@@ -110,6 +139,19 @@ export type Snapshot = {
 
 export type Point = { x: number; y: number }
 
+export type KittyPlacement = {
+  key: string
+  z: number
+  column: number
+  row: number
+  xOffset: number
+  yOffset: number
+  width: number
+  height: number
+  source: { x: number; y: number; width: number; height: number }
+  image: { width: number; height: number; format: number; pixels: Uint8Array }
+}
+
 export type Scrollbar = { total: number; offset: number; len: number }
 
 export type MouseInput = {
@@ -198,6 +240,8 @@ export class GhosttyCore {
   private readonly style: number
   private readonly cellQuery: number
   private readonly scrollbar: number
+  private readonly kittyIteratorSlot: number
+  private readonly kittyInfo: number
   private readonly host: TerminalHost
   private hostId = 0
   private sizeReport: SizeReport
@@ -207,7 +251,9 @@ export class GhosttyCore {
   private palette: Color[] = []
   private disposed = false
   private keyboardLayoutMap: GhosttyKeyboardLayoutMap | undefined
+  private tail = [0, 0]
   boldIsBright = false
+  kittyCommands = 0
   version = ''
 
   constructor(
@@ -370,10 +416,32 @@ export class GhosttyCore {
     this.scrollbar = runtime.alloc(
       runtime.layout('GhosttyTerminalScrollbar').size
     )
+    if (
+      runtime.call(
+        'ghostty_terminal_get',
+        this.terminal,
+        KITTY_STORAGE_LIMIT,
+        this.scratch
+      ) !== SUCCESS
+    )
+      throw new Error(
+        'libghostty-vt was built without kitty graphics, build it with scripts/build-ghostty-wasm.mts'
+      )
+    this.kittyIteratorSlot = runtime.allocOpaque()
+    this.check(
+      'ghostty_kitty_graphics_placement_iterator_new',
+      runtime.call(
+        'ghostty_kitty_graphics_placement_iterator_new',
+        0,
+        this.kittyIteratorSlot
+      )
+    )
+    this.kittyInfo = runtime.alloc(KITTY_RENDER_INFO.size)
   }
 
   write(data: Uint8Array) {
     if (data.length === 0) return
+    this.noteKittyCommand(data)
     const pointer = this.runtime.alloc(data.length)
     this.runtime.bytes(pointer, data.length).set(data)
     this.runtime.call(
@@ -1036,6 +1104,98 @@ export class GhosttyCore {
     this.rows = []
   }
 
+  cellSize() {
+    return {
+      width: this.sizeReport.cellWidth,
+      height: this.sizeReport.cellHeight,
+    }
+  }
+
+  kittyPlacements() {
+    const runtime = this.runtime
+    this.check(
+      'ghostty_terminal_get',
+      runtime.call(
+        'ghostty_terminal_get',
+        this.terminal,
+        KITTY_GRAPHICS,
+        this.scratch
+      )
+    )
+    const graphics = runtime.readPointer(this.scratch)
+    this.check(
+      'ghostty_kitty_graphics_get',
+      runtime.call(
+        'ghostty_kitty_graphics_get',
+        graphics,
+        KITTY_PLACEMENTS,
+        this.kittyIteratorSlot
+      )
+    )
+    const iterator = runtime.readPointer(this.kittyIteratorSlot)
+    const placements: KittyPlacement[] = []
+    while (runtime.call('ghostty_kitty_graphics_placement_next', iterator)) {
+      if (this.placementData(iterator, KITTY_PLACEMENT.isVirtual).getUint8(0))
+        continue
+      const imageId = this.placementData(
+        iterator,
+        KITTY_PLACEMENT.imageId
+      ).getUint32(0, true)
+      const image = runtime.call(
+        'ghostty_kitty_graphics_image',
+        graphics,
+        imageId
+      )
+      if (image === 0)
+        throw new Error(`kitty placement points to missing image ${imageId}`)
+      runtime.bytes(this.kittyInfo, KITTY_RENDER_INFO.size).fill(0)
+      const info = runtime.view(this.kittyInfo, KITTY_RENDER_INFO.size)
+      info.setUint32(0, KITTY_RENDER_INFO.size, true)
+      this.check(
+        'ghostty_kitty_graphics_placement_render_info',
+        runtime.call(
+          'ghostty_kitty_graphics_placement_render_info',
+          iterator,
+          image,
+          this.terminal,
+          this.kittyInfo
+        )
+      )
+      if (info.getUint8(KITTY_RENDER_INFO.visible) === 0) continue
+      const pointer = this.imageData(image, KITTY_IMAGE.data)
+      const length = this.imageData(image, KITTY_IMAGE.length)
+      placements.push({
+        key: `${imageId}:${pointer}:${length}`,
+        z: this.placementData(iterator, KITTY_PLACEMENT.z).getInt32(0, true),
+        column: info.getInt32(KITTY_RENDER_INFO.column, true),
+        row: info.getInt32(KITTY_RENDER_INFO.row, true),
+        xOffset: this.placementData(
+          iterator,
+          KITTY_PLACEMENT.xOffset
+        ).getUint32(0, true),
+        yOffset: this.placementData(
+          iterator,
+          KITTY_PLACEMENT.yOffset
+        ).getUint32(0, true),
+        width: info.getUint32(KITTY_RENDER_INFO.pixelWidth, true),
+        height: info.getUint32(KITTY_RENDER_INFO.pixelHeight, true),
+        source: {
+          x: info.getUint32(KITTY_RENDER_INFO.sourceX, true),
+          y: info.getUint32(KITTY_RENDER_INFO.sourceY, true),
+          width: info.getUint32(KITTY_RENDER_INFO.sourceWidth, true),
+          height: info.getUint32(KITTY_RENDER_INFO.sourceHeight, true),
+        },
+        image: {
+          width: this.imageData(image, KITTY_IMAGE.width),
+          height: this.imageData(image, KITTY_IMAGE.height),
+          format: this.imageData(image, KITTY_IMAGE.format),
+          pixels: runtime.bytes(pointer, length),
+        },
+      })
+    }
+    return placements
+  }
+
   dispose() {
     if (this.disposed) return
     this.disposed = true
@@ -1060,6 +1220,11 @@ export class GhosttyCore {
       runtime.layout('GhosttyTerminalScrollbar').size
     )
     runtime.free(this.scratch, 16)
+    runtime.call(
+      'ghostty_kitty_graphics_placement_iterator_free',
+      runtime.readPointer(this.kittyIteratorSlot)
+    )
+    runtime.free(this.kittyInfo, KITTY_RENDER_INFO.size)
     runtime.free(this.graphemes, this.graphemeCapacity)
     for (const slot of [
       this.formatterSlot,
@@ -1071,8 +1236,52 @@ export class GhosttyCore {
       this.rowIteratorSlot,
       this.renderStateSlot,
       this.terminalSlot,
+      this.kittyIteratorSlot,
     ])
       runtime.freeOpaque(slot)
+  }
+
+  private noteKittyCommand(data: Uint8Array) {
+    const edge = [...this.tail, ...data.subarray(0, 2)]
+    let found = edge.some(
+      (byte, index) =>
+        byte === 0x1b && edge[index + 1] === 0x5f && edge[index + 2] === 0x47
+    )
+    let index = data.indexOf(0x1b)
+    while (!found && index !== -1) {
+      found = data[index + 1] === 0x5f && data[index + 2] === 0x47
+      index = data.indexOf(0x1b, index + 1)
+    }
+    if (found) this.kittyCommands += 1
+    this.tail = [...this.tail, ...data.subarray(-2)].slice(-2)
+  }
+
+  private placementData(iterator: number, key: number) {
+    this.runtime.bytes(this.scratch, 4).fill(0)
+    this.check(
+      'ghostty_kitty_graphics_placement_get',
+      this.runtime.call(
+        'ghostty_kitty_graphics_placement_get',
+        iterator,
+        key,
+        this.scratch
+      )
+    )
+    return this.runtime.view(this.scratch, 4)
+  }
+
+  private imageData(image: number, key: number) {
+    this.runtime.bytes(this.scratch, 4).fill(0)
+    this.check(
+      'ghostty_kitty_graphics_image_get',
+      this.runtime.call(
+        'ghostty_kitty_graphics_image_get',
+        image,
+        key,
+        this.scratch
+      )
+    )
+    return this.runtime.view(this.scratch, 4).getUint32(0, true)
   }
 
   private encodeOutput(

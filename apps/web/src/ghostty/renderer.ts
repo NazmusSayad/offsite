@@ -20,6 +20,8 @@ export type Highlight = {
   active: boolean
 }
 
+export type ImageLayer = 'belowBackground' | 'belowText' | 'aboveText'
+
 export type Appearance = {
   fontSize: number
   fontFamily: string
@@ -160,6 +162,7 @@ export function render(options: {
   hoveredLink: Range | null
   highlights: Highlight[]
   pixelRatio: number
+  drawLayer: (layer: ImageLayer) => void
 }) {
   const {
     context,
@@ -193,13 +196,17 @@ export function render(options: {
     context.restore()
   }
 
-  context.textBaseline = 'alphabetic'
-  for (const rowIndex of rows) {
-    const row = snapshot.rowData[rowIndex]
-    if (!row) continue
+  function bounds(rowIndex: number) {
     const top = rowIndex * metrics.height
     const cellTop = snap(top, pixelRatio)
     const cellHeight = snap(top + metrics.height, pixelRatio) - cellTop
+    return { top, cellTop, cellHeight }
+  }
+
+  context.textBaseline = 'alphabetic'
+  for (const rowIndex of rows) {
+    if (!snapshot.rowData[rowIndex]) continue
+    const { cellTop, cellHeight } = bounds(rowIndex)
     if (backdrop === null) {
       context.fillStyle = css(snapshot.background)
       context.fillRect(0, cellTop, context.canvas.width, cellHeight)
@@ -222,7 +229,13 @@ export function render(options: {
       )
       context.restore()
     }
+  }
 
+  options.drawLayer('belowBackground')
+  for (const rowIndex of rows) {
+    const row = snapshot.rowData[rowIndex]
+    if (!row) continue
+    const { cellTop, cellHeight } = bounds(rowIndex)
     let start = 0
     while (start < row.cells.length) {
       const first = row.cells[start]
@@ -258,7 +271,13 @@ export function render(options: {
       context.strokeStyle = appearance.activeMatchBorder
       context.strokeRect(left + 0.5, cellTop + 0.5, width - 1, cellHeight - 1)
     }
+  }
 
+  options.drawLayer('belowText')
+  for (const rowIndex of rows) {
+    const row = snapshot.rowData[rowIndex]
+    if (!row) continue
+    const { top, cellTop, cellHeight } = bounds(rowIndex)
     context.save()
     context.beginPath()
     context.rect(0, cellTop, context.canvas.width, cellHeight)

@@ -87,6 +87,7 @@ function draw(
     hoveredLink: null,
     highlights: [],
     pixelRatio,
+    drawLayer: () => undefined,
   })
   return calls
 }
