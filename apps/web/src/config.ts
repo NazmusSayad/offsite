@@ -38,7 +38,6 @@ export type Config = {
     backgroundImage: string | null
     backgroundOpacity: number
     backgroundFit: TerminalBackground['fit']
-    activityMarks: boolean
   }
 }
 

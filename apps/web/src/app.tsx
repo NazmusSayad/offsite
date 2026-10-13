@@ -91,7 +91,7 @@ export function App() {
       )}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-20 flex w-60 -translate-x-full flex-col gap-0.5 overflow-y-auto border-r bg-sidebar p-2 transition-transform select-none motion-reduce:transition-none md:static md:w-14 md:gap-1 md:translate-x-0 md:items-center md:px-0',
+          'fixed inset-y-0 left-0 z-20 flex w-60 -translate-x-full flex-col gap-0.5 overflow-y-auto border-r bg-sidebar md:border-r-0 p-2 transition-transform select-none motion-reduce:transition-none md:static md:w-14 md:gap-1 md:translate-x-0 md:items-center md:px-0',
           drawer && 'translate-x-0'
         )}
       >
@@ -217,17 +217,9 @@ export function App() {
             void uploadLogo(groupId, file).catch(showError)
           }}
         />
-        <a
-          href="/settings"
-          className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
-          title="Settings"
-        >
-          <HugeiconsIcon icon={Settings01Icon} className="size-4 md:size-4.5" />
-          <span className="md:hidden">Settings</span>
-        </a>
         {state.config.behavior.captureShortcuts && (
           <button
-            className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
+            className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
             title="Fullscreen"
             onClick={() => void toggleFullscreen().catch(showError)}
           >
@@ -238,12 +230,23 @@ export function App() {
             <span className="md:hidden">Fullscreen</span>
           </button>
         )}
+        <a
+          href="/settings"
+          className={cn(
+            'text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0',
+            !state.config.behavior.captureShortcuts && 'mt-auto'
+          )}
+          title="Settings"
+        >
+          <HugeiconsIcon icon={Settings01Icon} className="size-4 md:size-4.5" />
+          <span className="md:hidden">Settings</span>
+        </a>
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">
         <header
           className={cn(
             'flex h-8 flex-none select-none',
-            visibleTabs.length === 1 ? 'bg-background' : 'bg-card',
+            visibleTabs.length === 1 ? 'bg-background' : 'bg-sidebar',
             group && group.tabs.length === 0 && 'md:hidden'
           )}
         >
@@ -292,7 +295,7 @@ export function App() {
                       className={cn(
                         'group/tab relative flex min-w-28 flex-1 items-center justify-center border-r border-b px-7 text-xs text-muted-foreground transition-colors last:border-r-0 hover:text-foreground',
                         tab.id === tabId &&
-                          'bg-background text-foreground border-b-transparent'
+                          'bg-background text-foreground border-b-transparent md:first:border-l'
                       )}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() =>
@@ -352,7 +355,7 @@ export function App() {
             </>
           )}
         </header>
-        <div className="relative min-h-0 flex-1">
+        <div className="relative min-h-0 flex-1 md:border-l">
           {tabId !== null && <TerminalPane key={tabId} id={tabId} />}
           {tabId !== null && state.finding === tabId && (
             <FindBar key={tabId} id={tabId} />

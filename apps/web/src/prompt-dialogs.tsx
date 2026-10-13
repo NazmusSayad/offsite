@@ -91,6 +91,7 @@ export function RenameDialog(props: {
 
 export function CloseDialog() {
   const dialog = useSyncExternalStore(subscribeClosing, getClosing)
+  const closeButton = useRef<HTMLButtonElement>(null)
   if (dialog === null) return null
   const closing = dialog.closing
   const busy = closing.target === 'group' ? closing.busy : null
@@ -102,7 +103,13 @@ export function CloseDialog() {
         if (!open) dismissClosing()
       }}
     >
-      <AlertDialogContent onCloseAutoFocus={restoreFocus}>
+      <AlertDialogContent
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          closeButton.current?.focus()
+        }}
+        onCloseAutoFocus={restoreFocus}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>Close “{closing.name}”?</AlertDialogTitle>
           <AlertDialogDescription>
@@ -141,6 +148,7 @@ export function CloseDialog() {
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
+            ref={closeButton}
             variant="destructive"
             onClick={() => {
               if (closing.target === 'tab')
