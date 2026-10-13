@@ -3,16 +3,18 @@ import {
   type Color,
   type CursorStyle,
   GhosttyCore,
+  type KittyPlacement,
   type Point,
   type Row,
   type Scrollbar,
   type Snapshot,
 } from './core'
-import { decodeInlineImage, decodeSixel } from './images'
+import { decodeInlineImage, decodeSixel, kittyBitmap } from './images'
 import { OutputScanner, type OutputEvent } from './output'
 import {
   type Appearance,
   type Highlight,
+  type ImageLayer,
   type Metrics,
   measureCell,
   type Range,
@@ -111,6 +113,12 @@ const IMAGE_LIMIT = 200
 const URL_PATTERN = /https?:\/\/[^\s"'`<>]+/g
 const decoder = new TextDecoder()
 const latin1 = new TextDecoder('latin1')
+
+function kittyLayer(z: number): ImageLayer {
+  if (z < -1_073_741_824) return 'belowBackground'
+  if (z < 0) return 'belowText'
+  return 'aboveText'
+}
 
 function parseColor(value: string): Color {
   const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(value)
@@ -251,6 +259,8 @@ export class Terminal {
   private notification = { id: '', title: '', body: '' }
   private images: Image[] = []
   private nextImage = 0
+  private kittyBitmaps = new Map<string, OffscreenCanvas>()
+  private kittyCommands = 0
   private hoveredLink: Link | null = null
   private linkPointer: number | null = null
   private mousePointer: number | null = null
@@ -1407,6 +1417,7 @@ export class Terminal {
     const blinking = this.blinking()
     if (!blinking) this.cursorOn = true
     const images = this.visibleImages()
+    const kitty = this.kittyImages()
     const backdrop = this.backdropFor(snapshot)
     render({
       context: this.context,
@@ -1414,14 +1425,16 @@ export class Terminal {
       backdrop,
       metrics: this.metrics,
       appearance: this.appearance,
-      forceFull: this.forceFull || images.length > 0,
+      forceFull: this.forceFull || images.length > 0 || kitty.length > 0,
       cursorOn: this.cursorOn,
       previousCursorY: this.renderedCursorY,
       focused: this.focused,
       hoveredLink: this.hoveredLink?.range ?? null,
       highlights: this.highlights(snapshot),
       pixelRatio: window.devicePixelRatio || 1,
+      drawLayer: (layer) => this.drawKitty(kitty, layer),
     })
+    this.drawKitty(kitty, 'aboveText')
     for (const image of images)
       this.context.drawImage(
         image.bitmap,
@@ -1430,7 +1443,7 @@ export class Terminal {
         image.width,
         image.height
       )
-    this.forceFull = images.length > 0
+    this.forceFull = images.length > 0 || kitty.length > 0
     this.renderedCursorY =
       this.cursorOn && snapshot.cursorVisible && snapshot.cursorY >= 0
         ? snapshot.cursorY
@@ -1499,6 +1512,47 @@ export class Terminal {
     }
     this.images = kept
     return visible
+  }
+
+  private kittyImages() {
+    if (this.core.kittyCommands !== this.kittyCommands) {
+      this.kittyCommands = this.core.kittyCommands
+      this.kittyBitmaps.clear()
+    }
+    const bitmaps = new Map<string, OffscreenCanvas>()
+    const images = this.core.kittyPlacements().map((placement) => {
+      const bitmap =
+        bitmaps.get(placement.key) ??
+        this.kittyBitmaps.get(placement.key) ??
+        kittyBitmap(placement.image)
+      bitmaps.set(placement.key, bitmap)
+      return { placement, bitmap }
+    })
+    this.kittyBitmaps = bitmaps
+    return images
+  }
+
+  private drawKitty(
+    images: { placement: KittyPlacement; bitmap: OffscreenCanvas }[],
+    layer: ImageLayer
+  ) {
+    const cell = this.core.cellSize()
+    const scaleX = this.metrics.width / cell.width
+    const scaleY = this.metrics.height / cell.height
+    for (const { placement, bitmap } of images) {
+      if (kittyLayer(placement.z) !== layer) continue
+      this.context.drawImage(
+        bitmap,
+        placement.source.x,
+        placement.source.y,
+        placement.source.width,
+        placement.source.height,
+        placement.column * this.metrics.width + placement.xOffset * scaleX,
+        placement.row * this.metrics.height + placement.yOffset * scaleY,
+        placement.width * scaleX,
+        placement.height * scaleY
+      )
+    }
   }
 
   private updateScrollbar() {

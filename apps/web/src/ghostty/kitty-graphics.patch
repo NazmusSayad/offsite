@@ -1,0 +1,97 @@
+diff --git a/src/terminal/build_options.zig b/src/terminal/build_options.zig
+index 136e0f1..af7f752 100644
+--- a/src/terminal/build_options.zig
++++ b/src/terminal/build_options.zig
+@@ -60,16 +60,7 @@ pub const Options = struct {
+         // to support optional PNG decoding, OS capabilities like filesystems,
+         // etc. So its safe to always enable it and just have the
+         // implementation deal with unsupported features as needed.
+-        //
+-        // We disable it on wasm32-freestanding because we at the least
+-        // require the ability to get timestamps and there is no way to
+-        // do that with freestanding targets.
+-        const target = m.resolved_target.?.result;
+-        opts.addOption(
+-            bool,
+-            "kitty_graphics",
+-            !(target.cpu.arch == .wasm32 and target.os.tag == .freestanding),
+-        );
++        opts.addOption(bool, "kitty_graphics", true);
+ 
+         // These are synthesized based on other options.
+         opts.addOption(bool, "tmux_control_mode", self.oniguruma);
+diff --git a/src/terminal/kitty/graphics_image.zig b/src/terminal/kitty/graphics_image.zig
+index 8243a63..5b98620 100644
+--- a/src/terminal/kitty/graphics_image.zig
++++ b/src/terminal/kitty/graphics_image.zig
+@@ -18,6 +18,8 @@ const temp_dir = struct {
+ 
+ const log = std.log.scoped(.kitty_gfx);
+ 
++var transmit_counter: u64 = 0;
++
+ /// Maximum width or height of an image. Taken directly from Kitty.
+ const max_dimension = 10000;
+ 
+@@ -100,6 +102,8 @@ pub const LoadingImage = struct {
+             return result;
+         }
+ 
++        if (comptime builtin.os.tag == .freestanding) return error.UnsupportedMedium;
++
+         // Verify our capabilities and limits allow this.
+         {
+             // Special case if we don't support decoding PNGs and the format
+@@ -402,10 +406,8 @@ pub const LoadingImage = struct {
+         }
+ 
+         // Set our time
+-        self.image.transmit_time = std.time.Instant.now() catch |err| {
+-            log.warn("failed to get time: {}", .{err});
+-            return error.InternalError;
+-        };
++        transmit_counter += 1;
++        self.image.transmit_time = transmit_counter;
+ 
+         // Everything looks good, copy the image data over.
+         var result = self.image;
+@@ -512,7 +514,7 @@ pub const Image = struct {
+     format: command.Transmission.Format = .rgb,
+     compression: command.Transmission.Compression = .none,
+     data: []const u8 = "",
+-    transmit_time: std.time.Instant = undefined,
++    transmit_time: u64 = 0,
+ 
+     /// Set this to true if this image was loaded by a command that
+     /// doesn't specify an ID or number, since such commands should
+diff --git a/src/terminal/kitty/graphics_storage.zig b/src/terminal/kitty/graphics_storage.zig
+index e017d5f..ce44723 100644
+--- a/src/terminal/kitty/graphics_storage.zig
++++ b/src/terminal/kitty/graphics_storage.zig
+@@ -207,7 +207,7 @@ pub const ImageStorage = struct {
+         while (it.next()) |kv| {
+             if (kv.value_ptr.number == image_number) {
+                 if (newest == null or
+-                    kv.value_ptr.transmit_time.order(newest.?.transmit_time) == .gt)
++                    kv.value_ptr.transmit_time > newest.?.transmit_time)
+                 {
+                     newest = kv.value_ptr.*;
+                 }
+@@ -526,7 +526,7 @@ pub const ImageStorage = struct {
+         // bit is fine compared to the megabytes we're looking to save.
+         const Candidate = struct {
+             id: u32,
+-            time: std.time.Instant,
++            time: u64,
+             used: bool,
+         };
+ 
+@@ -573,7 +573,7 @@ pub const ImageStorage = struct {
+                     _ = ctx;
+ 
+                     // If they're usage matches, then its based on time.
+-                    if (lhs.used == rhs.used) return switch (lhs.time.order(rhs.time)) {
++                    if (lhs.used == rhs.used) return switch (std.math.order(lhs.time, rhs.time)) {
+                         .lt => true,
+                         .gt => false,
+                         .eq => lhs.id < rhs.id,

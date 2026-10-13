@@ -17,6 +17,7 @@ const DEFAULT: &str = include_str!("default-config.json");
 const THEMES: &str = include_str!("themes.json");
 const CUSTOM_THEME: &str = "custom";
 const ITERM2_VERSION: &str = "3.6.8";
+const GHOSTTY_VERSION: &str = "1.3.1";
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -82,6 +83,7 @@ impl Default for Behavior {
 #[serde(rename_all = "lowercase")]
 enum TerminalIdentity {
     Sshtty,
+    Ghostty,
     Iterm2,
 }
 
@@ -440,6 +442,7 @@ pub fn launch(directory: Option<&str>) -> Result<Launch, String> {
     };
     let (program, terminal, version) = match config.behavior.terminal_identity {
         TerminalIdentity::Sshtty => ("sshtty", "sshtty", version()),
+        TerminalIdentity::Ghostty => ("ghostty", "ghostty", GHOSTTY_VERSION),
         TerminalIdentity::Iterm2 => ("iTerm.app", "iTerm2", ITERM2_VERSION),
     };
     Ok(Launch {

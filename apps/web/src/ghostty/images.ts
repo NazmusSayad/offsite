@@ -1,3 +1,4 @@
+import { convertIndexedToRgb, decode } from 'fast-png'
 import { PALETTE_ANSI_256, PALETTE_VT340_COLOR } from 'sixel/lib/Colors'
 import { decodeAsync } from 'sixel/lib/Decoder'
 
@@ -78,4 +79,100 @@ export async function decodeInlineImage(text: string, area: Area) {
   const resized = await createImageBitmap(image, { resizeWidth, resizeHeight })
   image.close()
   return resized
+}
+
+export function decodePng(bytes: Uint8Array) {
+  const png = decode(bytes)
+  const { width, height, depth, channels } = png
+  const pixels = width * height
+  const data = new Uint8Array(pixels * 4)
+  if (png.palette) {
+    const colors = convertIndexedToRgb(png)
+    const size = png.palette[0].length
+    for (let pixel = 0; pixel < pixels; pixel += 1) {
+      data.set(colors.subarray(pixel * size, pixel * size + 3), pixel * 4)
+      data[pixel * 4 + 3] = size === 4 ? colors[pixel * size + 3] : 255
+    }
+    return { width, height, data }
+  }
+  const maximum = 2 ** depth - 1
+  const rowBytes = Math.ceil((width * depth) / 8)
+  function read(index: number) {
+    if (depth >= 8) return png.data[index]
+    const bit = (index % width) * depth
+    const byte = png.data[Math.floor(index / width) * rowBytes + (bit >> 3)]
+    return (byte >> (8 - depth - (bit & 7))) & maximum
+  }
+  function scale(value: number) {
+    if (depth === 16) return value >> 8
+    if (depth === 8) return value
+    return Math.round((value * 255) / maximum)
+  }
+  const key = png.transparency
+  for (let pixel = 0; pixel < pixels; pixel += 1) {
+    const offset = pixel * 4
+    if (channels === 1 || channels === 2) {
+      const gray = read(pixel * channels)
+      data.fill(scale(gray), offset, offset + 3)
+      data[offset + 3] =
+        channels === 2
+          ? scale(read(pixel * 2 + 1))
+          : key?.[0] === gray
+            ? 0
+            : 255
+      continue
+    }
+    if (channels === 3 || channels === 4) {
+      const red = read(pixel * channels)
+      const green = read(pixel * channels + 1)
+      const blue = read(pixel * channels + 2)
+      data[offset] = scale(red)
+      data[offset + 1] = scale(green)
+      data[offset + 2] = scale(blue)
+      data[offset + 3] =
+        channels === 4
+          ? scale(read(pixel * 4 + 3))
+          : key?.[0] === red && key[1] === green && key[2] === blue
+            ? 0
+            : 255
+      continue
+    }
+    throw new Error(`unsupported PNG with ${channels} channels`)
+  }
+  return { width, height, data }
+}
+
+const KITTY_CHANNELS = new Map([
+  [0, 3],
+  [1, 4],
+  [3, 2],
+  [4, 1],
+])
+
+export function kittyBitmap(image: {
+  width: number
+  height: number
+  format: number
+  pixels: Uint8Array
+}) {
+  const channels = KITTY_CHANNELS.get(image.format)
+  if (channels === undefined)
+    throw new Error(`unsupported kitty image format ${image.format}`)
+  const count = image.width * image.height
+  const source = image.pixels
+  const data = new Uint8ClampedArray(count * 4)
+  if (channels === 4) data.set(source.subarray(0, count * 4))
+  else
+    for (let pixel = 0; pixel < count; pixel += 1) {
+      const from = pixel * channels
+      const to = pixel * 4
+      if (channels === 3) data.set(source.subarray(from, from + 3), to)
+      else data.fill(source[from], to, to + 3)
+      data[to + 3] = channels === 2 ? source[from + 1] : 255
+    }
+  const canvas = new OffscreenCanvas(image.width, image.height)
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('could not create a canvas for a kitty image')
+  context.putImageData(new ImageData(data, image.width, image.height), 0, 0)
+  return canvas
 }

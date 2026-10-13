@@ -20,7 +20,7 @@ Runs on macOS (Apple Silicon and Intel), Linux (x64 and arm64) and Windows (x64)
 
 - **Groups and tabs.** A tab for every task, a group for every project. Give each group its own logo.
 - **Shells that keep running.** Close the browser and reopen it: your terminals are still there, mid-command.
-- **Images in the terminal.** Shows both sixel and iTerm2 inline images, on Windows too. Windows Terminal shows sixel but not iTerm2 images.
+- **Images in the terminal.** Shows sixel, iTerm2 and kitty images, on Windows too. Windows Terminal shows sixel but not iTerm2 or kitty images.
 - **Paste images.** Paste an image and sshtty saves it to a file and types its path. Coding agents like Claude Code and OpenCode pick it up directly.
 - **Built for coding agents.** Run Claude Code, OpenCode or any other terminal app, each in its own tab.
 - **Themes and fonts.** 9 built-in themes (One Dark Extreme, Dracula, Tokyo Night, Catppuccin Mocha, Nord, Gruvbox Dark, Solarized Dark, GitHub Dark, Rosé Pine), custom colors, and bundled Nerd Fonts with ligatures.
