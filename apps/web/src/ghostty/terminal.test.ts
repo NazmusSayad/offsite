@@ -24,6 +24,10 @@ const options = {
     ),
   },
   version: 'sshtty 0.0.0',
+  commandMarks: true,
+  clickToMoveCursor: true,
+  optionAsMeta: 'off' as const,
+  promptEvents: true,
 }
 
 function open() {
@@ -37,6 +41,7 @@ function open() {
     onBell: vi.fn(),
     onNotify: vi.fn(),
     onClipboard: vi.fn(),
+    onClipboardRead: vi.fn(),
     onLink: vi.fn(),
     beforeKey: () => true,
   })

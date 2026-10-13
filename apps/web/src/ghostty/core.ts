@@ -2,8 +2,10 @@ import {
   type GhosttyKeyboardLayoutMap,
   ghosttyConsumedMods,
   ghosttyKeyForCode,
+  ghosttyMetaText,
   ghosttyUnshiftedCodepoint,
   loadGhosttyKeyboardLayoutMap,
+  refreshGhosttyKeyboardLayoutMap,
 } from './keys'
 import { ghostty, type SizeReport, type TerminalHost } from './runtime'
 
@@ -195,6 +197,7 @@ export class GhosttyCore {
   private readonly formatterSlot: number
   private readonly formatter: number
   private readonly scratch: number
+  private readonly point: number
   private readonly style: number
   private readonly cellQuery: number
   private readonly scrollbar: number
@@ -344,6 +347,7 @@ export class GhosttyCore {
     this.formatter = runtime.readPointer(this.formatterSlot)
 
     this.scratch = runtime.alloc(16)
+    this.point = runtime.alloc(runtime.layout('GhosttyPoint').size)
     const styleSize = runtime.layout('GhosttyStyle').size
     this.style = runtime.alloc(styleSize)
     this.cellQuery = runtime.alloc(CELL_QUERY.size)
@@ -584,8 +588,12 @@ export class GhosttyCore {
     return this.getFlag('ghostty_terminal_get', 8)
   }
 
+  isPendingWrap() {
+    return this.getFlag('ghostty_terminal_get', 5)
+  }
+
   isAlternateScreen() {
-    this.runtime.bytes(this.scratch, 4).fill(0)
+    this.runtime.dataView().setUint32(this.scratch, 0, true)
     return (
       this.runtime.call(
         'ghostty_terminal_get',
@@ -593,11 +601,15 @@ export class GhosttyCore {
         6,
         this.scratch
       ) === SUCCESS &&
-      this.runtime.view(this.scratch, 4).getUint32(0, true) === 1
+      this.runtime.dataView().getUint32(this.scratch, true) === 1
     )
   }
 
-  encodeKey(event: KeyboardEvent, action: 'press' | 'release' = 'press') {
+  encodeKey(
+    event: KeyboardEvent,
+    action: 'press' | 'release' = 'press',
+    optionAsMeta = false
+  ) {
     const key = event.key.toLowerCase()
     const control = LEGACY_CONTROL_KEYS.get(key)
     if (
@@ -610,6 +622,18 @@ export class GhosttyCore {
       !this.isKittyKeyboard()
     )
       return control
+    const metaText = optionAsMeta ? this.metaText(event) : null
+    const text = metaText ?? event.key
+    if (
+      metaText !== null &&
+      action === 'press' &&
+      !event.ctrlKey &&
+      [...text].length === 1 &&
+      (text.codePointAt(0) ?? 0) > 0x7f &&
+      this.getFlag('ghostty_terminal_mode_get', 1036) &&
+      this.isLegacyKeyboard()
+    )
+      return `\x1b${text}`
     const runtime = this.runtime
     runtime.call(
       'ghostty_key_encoder_setopt_from_terminal',
@@ -647,9 +671,12 @@ export class GhosttyCore {
     runtime.call(
       'ghostty_key_event_set_unshifted_codepoint',
       this.keyEvent,
-      ghosttyUnshiftedCodepoint(event, this.keyboardLayoutMap)
+      ghosttyUnshiftedCodepoint(
+        { code: event.code, key: text, shiftKey: event.shiftKey },
+        this.keyboardLayoutMap
+      )
     )
-    const textBytes = encoder.encode(event.key.length === 1 ? event.key : '')
+    const textBytes = encoder.encode(text.length === 1 ? text : '')
     const textPointer =
       textBytes.length === 0 ? 0 : runtime.alloc(textBytes.length)
     if (textPointer !== 0)
@@ -672,6 +699,28 @@ export class GhosttyCore {
     )
     if (textPointer !== 0) runtime.free(textPointer, textBytes.length)
     return encoded
+  }
+
+  metaText(event: KeyboardEvent) {
+    return ghosttyMetaText(event, this.keyboardLayoutMap)
+  }
+
+  refreshKeyboardLayout() {
+    void refreshGhosttyKeyboardLayoutMap().then((layoutMap) => {
+      this.keyboardLayoutMap = layoutMap
+    })
+  }
+
+  isLegacyKeyboard() {
+    return (
+      this.encodeKey(
+        new KeyboardEvent('keydown', {
+          key: 'Tab',
+          code: 'Tab',
+          shiftKey: true,
+        })
+      ) === '\x1b[Z'
+    )
   }
 
   encodePaste(data: string) {
@@ -852,60 +901,51 @@ export class GhosttyCore {
   }
 
   trackCursor() {
-    this.runtime.bytes(this.scratch, 4).fill(0)
-    this.runtime.call('ghostty_terminal_get', this.terminal, 3, this.scratch)
-    this.runtime.call(
-      'ghostty_terminal_get',
-      this.terminal,
-      4,
-      this.scratch + 2
-    )
-    const view = this.runtime.view(this.scratch, 4)
-    const pointer = this.pointer(
-      view.getUint16(0, true),
-      view.getUint16(2, true),
-      0
-    )
     const slot = this.runtime.allocOpaque()
     const result = this.runtime.call(
       'ghostty_terminal_grid_ref_track',
       this.terminal,
-      pointer,
+      this.cursorPoint(),
       slot
     )
-    this.runtime.free(pointer, this.runtime.layout('GhosttyPoint').size)
     const ref = this.runtime.readPointer(slot)
     this.runtime.freeOpaque(slot)
     this.check('ghostty_terminal_grid_ref_track', result)
     return ref
   }
 
+  retrack(ref: number) {
+    const result = this.runtime.call(
+      'ghostty_tracked_grid_ref_set',
+      ref,
+      this.terminal,
+      this.cursorPoint()
+    )
+    this.check('ghostty_tracked_grid_ref_set', result)
+  }
+
+  wrapsToNext(y: number) {
+    const ref = this.gridRef(0, y, 2)
+    this.runtime.call('ghostty_grid_ref_row', ref, this.scratch)
+    const row = this.runtime.view(this.scratch, 8).getBigUint64(0, true)
+    this.runtime.bytes(this.scratch + 8, 1)[0] = 0
+    this.runtime.call('ghostty_row_get', row, 1, this.scratch + 8)
+    this.runtime.free(ref, this.runtime.layout('GhosttyGridRef').size)
+    return this.runtime.bytes(this.scratch + 8, 1)[0] !== 0
+  }
+
   trackedPoint(ref: number) {
-    const layout = this.runtime.layout('GhosttyPointCoordinate')
-    const coordinate = this.runtime.alloc(layout.size)
     const result = this.runtime.call(
       'ghostty_tracked_grid_ref_point',
       ref,
       2,
-      coordinate
+      this.scratch
     )
-    const point =
-      result === SUCCESS
-        ? {
-            x: this.runtime.readField(
-              coordinate,
-              'GhosttyPointCoordinate',
-              'x'
-            ),
-            y: this.runtime.readField(
-              coordinate,
-              'GhosttyPointCoordinate',
-              'y'
-            ),
-          }
-        : null
-    this.runtime.free(coordinate, layout.size)
-    return point
+    if (result !== SUCCESS) return null
+    return {
+      x: this.runtime.readField(this.scratch, 'GhosttyPointCoordinate', 'x'),
+      y: this.runtime.readField(this.scratch, 'GhosttyPointCoordinate', 'y'),
+    }
   }
 
   trackedHyperlink(ref: number) {
@@ -1060,6 +1100,7 @@ export class GhosttyCore {
       runtime.layout('GhosttyTerminalScrollbar').size
     )
     runtime.free(this.scratch, 16)
+    runtime.free(this.point, runtime.layout('GhosttyPoint').size)
     runtime.free(this.graphemes, this.graphemeCapacity)
     for (const slot of [
       this.formatterSlot,
@@ -1276,15 +1317,40 @@ export class GhosttyCore {
     return { cells, isWrapContinuation, wrapsToNext }
   }
 
+  cursorPosition() {
+    this.runtime.dataView().setUint32(this.scratch, 0, true)
+    this.runtime.call('ghostty_terminal_get', this.terminal, 3, this.scratch)
+    this.runtime.call(
+      'ghostty_terminal_get',
+      this.terminal,
+      4,
+      this.scratch + 2
+    )
+    const view = this.runtime.dataView()
+    return {
+      x: view.getUint16(this.scratch, true),
+      y: view.getUint16(this.scratch + 2, true),
+    }
+  }
+
+  private cursorPoint() {
+    const cursor = this.cursorPosition()
+    this.fillPoint(this.point, cursor.x, cursor.y, 0)
+    return this.point
+  }
+
   private pointer(x: number, y: number, tag: 0 | 1 | 2) {
-    const layout = this.runtime.layout('GhosttyPoint')
-    const point = this.runtime.alloc(layout.size)
+    const point = this.runtime.alloc(this.runtime.layout('GhosttyPoint').size)
+    this.fillPoint(point, x, y, tag)
+    return point
+  }
+
+  private fillPoint(point: number, x: number, y: number, tag: 0 | 1 | 2) {
     this.runtime.setField(point, 'GhosttyPoint', 'tag', tag)
     const value = this.runtime.field('GhosttyPoint', 'value')
-    const view = this.runtime.view(point + value.offset, value.size)
-    view.setUint16(0, Math.max(0, x), true)
-    view.setUint32(4, Math.max(0, y), true)
-    return point
+    const view = this.runtime.dataView()
+    view.setUint16(point + value.offset, Math.max(0, x), true)
+    view.setUint32(point + value.offset + 4, Math.max(0, y), true)
   }
 
   private gridRef(x: number, y: number, tag: 1 | 2) {

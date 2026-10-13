@@ -7,6 +7,8 @@ mod logos;
 mod messages;
 mod paste;
 mod push;
+#[cfg(unix)]
+mod shell_integration;
 mod shells;
 mod sync;
 mod terminals;

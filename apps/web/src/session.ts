@@ -2,6 +2,7 @@ import {
   attentionCount,
   beep,
   forgetTab,
+  isSeen,
   noteInput,
   noteMessage,
   noteOutput,
@@ -11,6 +12,7 @@ import {
   unseenAttention,
   updateAppBadge,
 } from './attention'
+import { requestClipboardRead, writeClipboard } from './clipboard'
 import {
   applyStyle,
   type Config,
@@ -402,12 +404,12 @@ function createSession(id: number) {
       ringBell(id)
     },
     onNotify: (title, body) => notifyFromProgram(id, title, body),
-    onClipboard: (text) => {
-      if (!window.isSecureContext) {
-        console.warn('copy from the terminal needs https or localhost')
-        return
-      }
-      void navigator.clipboard.writeText(text)
+    onClipboard: writeClipboard,
+    onClipboardRead: (query) => {
+      if (!isSeen(id)) return
+      requestClipboardRead(id, state.config.behavior.clipboardRead, (text) =>
+        terminal.replyClipboard(text, query)
+      )
     },
     onLink: (uri) => window.open(uri, '_blank', 'noopener'),
     beforeKey: (event) => {
@@ -419,6 +421,7 @@ function createSession(id: number) {
         !terminal.isKittyKeyboard()
       ) {
         event.preventDefault()
+        terminal.beforeInput('\x1b\r')
         sendInput(id, '\x1b\r')
         return false
       }
@@ -430,6 +433,7 @@ function createSession(id: number) {
       ) {
         event.preventDefault()
         const data = imagePasteKeys[state.platform].data
+        terminal.beforeInput(data)
         pasteClipboardImages(terminal)
           .then((pasted) => {
             if (!pasted) sendInput(id, data)
