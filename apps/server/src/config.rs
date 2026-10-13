@@ -5,6 +5,7 @@ use std::{
 };
 
 use axum::{Json, http::StatusCode};
+use portable_pty::CommandBuilder;
 use serde::{Deserialize, Serialize};
 
 use crate::utils::{
@@ -41,6 +42,11 @@ struct Behavior {
     bell_flash: bool,
     bell_sound: bool,
     terminal_identity: TerminalIdentity,
+    shell_integration: bool,
+    command_marks: bool,
+    click_to_move_cursor: bool,
+    option_as_meta: OptionAsMeta,
+    clipboard_read: ClipboardRead,
     confirm_close_busy_tab: bool,
     background_image: Option<String>,
     background_opacity: f64,
@@ -58,6 +64,11 @@ impl Default for Behavior {
             bell_flash: true,
             bell_sound: true,
             terminal_identity: TerminalIdentity::Sshtty,
+            shell_integration: true,
+            command_marks: true,
+            click_to_move_cursor: true,
+            option_as_meta: OptionAsMeta::Off,
+            clipboard_read: ClipboardRead::Ask,
             confirm_close_busy_tab: true,
             background_image: None,
             background_opacity: 0.3,
@@ -72,6 +83,23 @@ impl Default for Behavior {
 enum TerminalIdentity {
     Sshtty,
     Iterm2,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum OptionAsMeta {
+    Off,
+    Left,
+    Right,
+    Both,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ClipboardRead {
+    Ask,
+    Allow,
+    Deny,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -163,6 +191,7 @@ pub struct Launch {
     pub command: Option<String>,
     pub cwd: PathBuf,
     pub environment: [(&'static str, &'static str); 4],
+    pub shell_integration: bool,
 }
 
 pub fn version() -> &'static str {
@@ -170,6 +199,12 @@ pub fn version() -> &'static str {
         Some(tag) => tag.trim_start_matches('v'),
         None => env!("CARGO_PKG_VERSION"),
     }
+}
+
+pub fn default_shell() -> String {
+    let mut builder = CommandBuilder::new_default_prog();
+    builder.env_clear();
+    builder.get_shell()
 }
 
 pub fn create() -> io::Result<()> {
@@ -341,12 +376,14 @@ pub fn read() -> Config {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     config: Config,
     defaults: Config,
     themes: Vec<BuiltinTheme>,
     platform: &'static str,
     version: &'static str,
+    default_shell: String,
 }
 
 pub async fn handler() -> Json<Settings> {
@@ -356,6 +393,7 @@ pub async fn handler() -> Json<Settings> {
         themes: builtin_themes(),
         platform: std::env::consts::OS,
         version: version(),
+        default_shell: default_shell(),
     })
 }
 
@@ -417,5 +455,6 @@ pub fn launch(directory: Option<&str>) -> Result<Launch, String> {
             ("LC_TERMINAL", terminal),
             ("LC_TERMINAL_VERSION", version),
         ],
+        shell_integration: config.behavior.shell_integration,
     })
 }

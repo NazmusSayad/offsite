@@ -10,6 +10,7 @@ import {
   pushSupport,
   refreshPushSubscription,
 } from './notifications'
+import { ClipboardReadDialog } from './prompt-dialogs'
 import { getState, send, start, subscribe } from './session'
 import { SettingsPage } from './settings-page'
 import { startShortcuts } from './shortcuts'
@@ -20,9 +21,8 @@ if (!root) throw new Error('root element missing')
 
 async function main(container: HTMLElement) {
   try {
-    const [{ config, defaults, themes, platform, version }] = await Promise.all(
-      [loadSettings(), loadGhostty()]
-    )
+    const [{ config, defaults, themes, platform, version, defaultShell }] =
+      await Promise.all([loadSettings(), loadGhostty()])
     setThemes(themes)
     await applyStyle(config)
     if (location.pathname === '/settings') {
@@ -41,6 +41,7 @@ async function main(container: HTMLElement) {
             config={config}
             defaults={defaults}
             platform={platform}
+            defaultShell={defaultShell}
           />
         </StrictMode>
       )
@@ -56,6 +57,7 @@ async function main(container: HTMLElement) {
     createRoot(container).render(
       <StrictMode>
         <App />
+        <ClipboardReadDialog />
       </StrictMode>
     )
   } catch (error) {

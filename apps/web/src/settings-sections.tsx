@@ -9,9 +9,11 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
+  type ClipboardRead,
   type Config,
   type Platform,
   removeBackground,
+  shellIntegrationIssue,
   type TerminalIdentity,
   uploadBackground,
 } from '@/config'
@@ -30,11 +32,20 @@ import { Row, Section } from '@/settings-layout'
 
 type Behavior = Config['behavior']
 
+const isMac = navigator.userAgent.includes('Mac')
+
 export function BehaviorSection(props: {
   behavior: Behavior
   platform: Platform
+  shellCommand: string | null
+  defaultShell: string
   onChange: (value: Partial<Behavior>) => void
 }) {
+  const shellIssue = shellIntegrationIssue(
+    props.shellCommand,
+    props.platform,
+    props.defaultShell
+  )
   return (
     <Section title="Behavior">
       <Row label="Modernize Shift+Enter">
@@ -68,6 +79,55 @@ export function BehaviorSection(props: {
             props.onChange({ captureShortcuts })
           }
         />
+      </Row>
+      <Row label="Mark prompts and commands (shell integration)">
+        <div className="flex items-center gap-3">
+          {shellIssue !== null && (
+            <span className="text-muted-foreground max-w-32 text-right text-xs sm:max-w-none">
+              {shellIssue}
+            </span>
+          )}
+          <Switch
+            checked={shellIssue === null && props.behavior.shellIntegration}
+            disabled={shellIssue !== null}
+            onCheckedChange={(shellIntegration) =>
+              props.onChange({ shellIntegration })
+            }
+          />
+        </div>
+      </Row>
+      <Row
+        label={`Mark commands on the scroll bar, ${isMac ? 'Cmd+Up/Down' : 'Ctrl+Shift+Up/Down'} jumps between them`}
+      >
+        <Switch
+          checked={props.behavior.commandMarks}
+          onCheckedChange={(commandMarks) => props.onChange({ commandMarks })}
+        />
+      </Row>
+      <Row label="Click moves the cursor in the command line">
+        <Switch
+          checked={props.behavior.clickToMoveCursor}
+          onCheckedChange={(clickToMoveCursor) =>
+            props.onChange({ clickToMoveCursor })
+          }
+        />
+      </Row>
+      <Row label="Let programs read the clipboard">
+        <Select
+          value={props.behavior.clipboardRead}
+          onValueChange={(clipboardRead: ClipboardRead) =>
+            props.onChange({ clipboardRead })
+          }
+        >
+          <SelectTrigger className="w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ask">Ask each time</SelectItem>
+            <SelectItem value="allow">Allow</SelectItem>
+            <SelectItem value="deny">Deny</SelectItem>
+          </SelectContent>
+        </Select>
       </Row>
       <Row label="Ask before closing a tab that is running a program">
         <Switch
@@ -134,6 +194,38 @@ export function IdentitySection(props: {
           <SelectContent>
             <SelectItem value="sshtty">sshtty</SelectItem>
             <SelectItem value="iterm2">iTerm2</SelectItem>
+          </SelectContent>
+        </Select>
+      </Row>
+    </Section>
+  )
+}
+
+export function MacKeysSection(props: {
+  behavior: Behavior
+  onChange: (value: Partial<Behavior>) => void
+}) {
+  if (!isMac) return null
+  return (
+    <Section
+      title="Mac keys"
+      note="Meta keeps that Option key from typing @, | and other symbols. Safari and Firefox use US key positions"
+    >
+      <Row label="Use Option as Meta">
+        <Select
+          value={props.behavior.optionAsMeta}
+          onValueChange={(optionAsMeta: Behavior['optionAsMeta']) =>
+            props.onChange({ optionAsMeta })
+          }
+        >
+          <SelectTrigger className="w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="off">Off</SelectItem>
+            <SelectItem value="left">Left Option</SelectItem>
+            <SelectItem value="right">Right Option</SelectItem>
+            <SelectItem value="both">Both Options</SelectItem>
           </SelectContent>
         </Select>
       </Row>
