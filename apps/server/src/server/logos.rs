@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{fs, sync::Arc};
 
 use axum::{
     body::Bytes,
@@ -10,11 +6,12 @@ use axum::{
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
 };
+use uuid::Uuid;
 
 use super::app::App;
 use crate::utils::paths;
 
-const TYPES: [(&str, &str); 7] = [
+pub(super) const TYPES: [(&str, &str); 7] = [
     ("image/png", "png"),
     ("image/jpeg", "jpg"),
     ("image/gif", "gif"),
@@ -45,11 +42,7 @@ pub(super) async fn upload(
             "logo must be a PNG, JPEG, GIF, WebP, SVG or ICO image".to_string(),
         ));
     };
-    let stamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("clock is after 1970")
-        .as_millis();
-    let file = format!("{group_id}-{stamp}.{extension}");
+    let file = format!("{group_id}-{}.{extension}", Uuid::new_v4().simple());
     let failed = |error: std::io::Error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string());
     fs::create_dir_all(paths::logos_directory()).map_err(failed)?;
     fs::write(paths::logos_directory().join(&file), &body).map_err(failed)?;

@@ -41,6 +41,12 @@ export type TerminalOptions = {
   version: string
 }
 
+export type TerminalBackground = {
+  url: string
+  opacity: number
+  fit: 'cover' | 'contain' | 'tile'
+}
+
 export type TerminalHandlers = {
   onData: (data: string) => void
   onReply: (data: string) => void
@@ -116,6 +122,16 @@ function percent(value: number) {
   return Math.min(Math.max(value, 0), 100)
 }
 
+function fitScale(
+  fit: 'cover' | 'contain',
+  horizontal: number,
+  vertical: number
+) {
+  if (fit === 'cover') return Math.max(horizontal, vertical)
+  if (fit === 'contain') return Math.min(horizontal, vertical)
+  throw new Error(`unknown background fit ${fit}`)
+}
+
 function mouseButton(button: number) {
   if (button === 0) return 1
   if (button === 1) return 3
@@ -166,6 +182,7 @@ export class Terminal {
   private metrics: Metrics
   private snapshot: Snapshot | null = null
   private sized = false
+  private fitted = false
   private frame = 0
   private forceFull = true
   private cursorOn = true
@@ -206,6 +223,10 @@ export class Terminal {
   private matchesStale = false
   private findTimer: number | null = null
   private readonly findListeners = new Set<(results: FindResults) => void>()
+  private background: TerminalBackground | null = null
+  private backgroundImage: HTMLImageElement | null = null
+  private backdrop: OffscreenCanvas | null = null
+  private backdropColor = ''
   private disposed = false
 
   constructor(options: TerminalOptions, handlers: TerminalHandlers) {
@@ -273,6 +294,18 @@ export class Terminal {
     this.requestRender()
   }
 
+  setBackground(background: TerminalBackground | null) {
+    if (JSON.stringify(background) === JSON.stringify(this.background)) return
+    if (background?.url !== this.background?.url) {
+      this.backgroundImage = null
+      if (background !== null) void this.loadBackground(background.url)
+    }
+    this.background = background
+    this.backdrop = null
+    this.forceFull = true
+    this.requestRender()
+  }
+
   write(data: Uint8Array, replay: boolean) {
     if (this.disposed) return
     this.backlog.push({ data, replay })
@@ -306,6 +339,13 @@ export class Terminal {
     if (data.length > 0) this.sendInput(data)
   }
 
+  presize(cols: number, rows: number) {
+    if (this.fitted || (cols === this.cols && rows === this.rows)) return
+    this.cols = cols
+    this.rows = rows
+    this.resizeCore()
+  }
+
   fit() {
     if (this.disposed) return
     const width = this.element.clientWidth
@@ -315,6 +355,7 @@ export class Terminal {
       return
     }
     this.sized = true
+    this.fitted = true
     const ratio = window.devicePixelRatio || 1
     const pixelWidth = Math.round(width * ratio)
     const pixelHeight = Math.round(height * ratio)
@@ -402,9 +443,80 @@ export class Terminal {
     if (this.selectionScroll !== null)
       window.clearInterval(this.selectionScroll)
     if (this.findTimer !== null) window.clearTimeout(this.findTimer)
+    document.removeEventListener('visibilitychange', this.onVisibilityChange)
     for (const image of this.images) this.removeImage(image)
     this.core.dispose()
     this.element.remove()
+  }
+
+  private async loadBackground(url: string) {
+    const image = new Image()
+    image.src = url
+    try {
+      await image.decode()
+    } catch (error) {
+      console.warn('could not load the background image', error)
+      return
+    }
+    if (this.disposed || this.background?.url !== url) return
+    if (image.naturalWidth === 0 || image.naturalHeight === 0) {
+      console.warn('the background image has no size', url)
+      return
+    }
+    this.backgroundImage = image
+    this.backdrop = null
+    this.forceFull = true
+    this.requestRender()
+  }
+
+  private backdropFor(snapshot: Snapshot) {
+    const background = this.background
+    const image = this.backgroundImage
+    if (background === null || image === null) return null
+    const color = `rgb(${snapshot.background.r}, ${snapshot.background.g}, ${snapshot.background.b})`
+    if (
+      this.backdrop !== null &&
+      this.backdrop.width === this.canvas.width &&
+      this.backdrop.height === this.canvas.height &&
+      this.backdropColor === color
+    )
+      return this.backdrop
+    const ratio = this.context.getTransform().a
+    const width = this.canvas.width / ratio
+    const height = this.canvas.height / ratio
+    const backdrop = new OffscreenCanvas(this.canvas.width, this.canvas.height)
+    const context = backdrop.getContext('2d', { alpha: false })
+    if (!context) throw new Error('canvas 2d is unavailable')
+    backdrop.addEventListener('contextrestored', this.onContextRestored)
+    context.setTransform(ratio, 0, 0, ratio, 0, 0)
+    context.fillStyle = color
+    context.fillRect(0, 0, width, height)
+    context.globalAlpha = background.opacity
+    if (background.fit === 'tile') {
+      const pattern = context.createPattern(image, 'repeat')
+      if (!pattern) throw new Error('could not tile the background image')
+      context.fillStyle = pattern
+      context.fillRect(0, 0, width, height)
+    } else {
+      const scale = fitScale(
+        background.fit,
+        width / image.naturalWidth,
+        height / image.naturalHeight
+      )
+      const imageWidth = image.naturalWidth * scale
+      const imageHeight = image.naturalHeight * scale
+      context.drawImage(
+        image,
+        (width - imageWidth) / 2,
+        (height - imageHeight) / 2,
+        imageWidth,
+        imageHeight
+      )
+    }
+    this.backdrop = backdrop
+    this.backdropColor = color
+    this.forceFull = true
+    return backdrop
   }
 
   private resizeCore() {
@@ -778,9 +890,11 @@ export class Terminal {
     const blinking = this.blinking()
     if (!blinking) this.cursorOn = true
     const images = this.visibleImages()
+    const backdrop = this.backdropFor(snapshot)
     render({
       context: this.context,
       snapshot,
+      backdrop,
       metrics: this.metrics,
       appearance: this.appearance,
       forceFull: this.forceFull || images.length > 0,
@@ -1244,6 +1358,21 @@ export class Terminal {
     event.clipboardData.setData('text/plain', text)
   }
 
+  private readonly onContextRestored = () => {
+    const ratio = window.devicePixelRatio || 1
+    this.context.setTransform(ratio, 0, 0, ratio, 0, 0)
+    this.backdrop = null
+    this.forceFull = true
+    this.requestRender()
+  }
+
+  private readonly onVisibilityChange = () => {
+    if (document.visibilityState !== 'visible') return
+    this.backdrop = null
+    this.forceFull = true
+    this.requestRender()
+  }
+
   private readonly onFocus = () => {
     this.focused = true
     this.cursorOn = true
@@ -1450,9 +1579,11 @@ export class Terminal {
     this.canvas.addEventListener('pointerleave', this.onPointerLeave)
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false })
     this.canvas.addEventListener('mousedown', this.onMouseDown)
+    this.canvas.addEventListener('contextrestored', this.onContextRestored)
     this.scrollbar.addEventListener('pointerdown', this.onScrollbarDown)
     this.scrollbar.addEventListener('pointermove', this.onScrollbarMove)
     this.scrollbar.addEventListener('pointerup', this.onScrollbarUp)
     this.scrollbar.addEventListener('pointercancel', this.onScrollbarUp)
+    document.addEventListener('visibilitychange', this.onVisibilityChange)
   }
 }

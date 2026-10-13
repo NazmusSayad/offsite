@@ -42,6 +42,11 @@
     "captureShortcuts": true,
     "bellFlash": true,
     "bellSound": true,
-    "terminalIdentity": "sshtty"
+    "terminalIdentity": "sshtty",
+    "confirmCloseBusyTab": true,
+    "backgroundImage": null,
+    "backgroundOpacity": 0.3,
+    "backgroundFit": "cover",
+    "activityMarks": true
   }
 }

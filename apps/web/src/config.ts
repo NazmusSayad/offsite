@@ -1,4 +1,4 @@
-import type { TerminalOptions } from './ghostty/terminal'
+import type { TerminalBackground, TerminalOptions } from './ghostty/terminal'
 import { type BuiltinTheme, themeColors } from './themes'
 
 export type Platform = 'macos' | 'linux' | 'windows'
@@ -23,6 +23,11 @@ export type Config = {
     bellFlash: boolean
     bellSound: boolean
     terminalIdentity: TerminalIdentity
+    confirmCloseBusyTab: boolean
+    backgroundImage: string | null
+    backgroundOpacity: number
+    backgroundFit: TerminalBackground['fit']
+    activityMarks: boolean
   }
 }
 
@@ -98,6 +103,21 @@ export async function saveConfig(config: Config) {
   })
   if (!response.ok) throw new Error(await response.text())
   return (await response.json()) as Config
+}
+
+export async function uploadBackground(file: File) {
+  const response = await fetch('/api/background', {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type },
+    body: file,
+  })
+  if (!response.ok) throw new Error(await response.text())
+  return response.text()
+}
+
+export async function removeBackground() {
+  const response = await fetch('/api/background', { method: 'DELETE' })
+  if (!response.ok) throw new Error(await response.text())
 }
 
 export async function applyStyle(config: Config) {

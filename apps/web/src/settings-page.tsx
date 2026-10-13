@@ -28,6 +28,7 @@ import {
   paletteNames,
   type Platform,
   platforms,
+  removeBackground,
   saveConfig,
   type Shell,
   type ThemeColors,
@@ -35,6 +36,7 @@ import {
 import { cn } from '@/lib/utils'
 import { Row, Section } from '@/settings-layout'
 import {
+  BackgroundSection,
   BehaviorSection,
   IdentitySection,
   NotificationSection,
@@ -74,16 +76,16 @@ export function SettingsPage(props: {
   const [confirming, setConfirming] = useState(false)
   const [revision, setRevision] = useState(0)
 
+  function fail(failure: unknown) {
+    setError(failure instanceof Error ? failure.message : String(failure))
+  }
+
   function commit(next: Config) {
     setDraft(next)
     void applyStyle(next)
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => {
-      saveConfig(next).then(
-        () => setError(null),
-        (failure: unknown) =>
-          setError(failure instanceof Error ? failure.message : String(failure))
-      )
+      saveConfig(next).then(() => setError(null), fail)
     }, 300)
   }
 
@@ -93,6 +95,7 @@ export function SettingsPage(props: {
     )
     setRevision(revision + 1)
     commit(props.defaults)
+    void removeBackground().catch(fail)
   }
 
   function updateColors(value: Partial<ThemeColors>) {
@@ -382,6 +385,11 @@ export function SettingsPage(props: {
             </Section>
           </>
         )}
+        <BackgroundSection
+          behavior={draft.behavior}
+          onChange={(value) => update('behavior', value)}
+          onError={setError}
+        />
       </div>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>

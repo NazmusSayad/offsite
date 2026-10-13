@@ -6,7 +6,18 @@ import {
   Search01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import { dismissClosing, getClosing, subscribeClosing } from '@/close-tab'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -35,12 +46,7 @@ export function RenameDialog(props: {
         if (!open) props.onDone()
       }}
     >
-      <DialogContent
-        onCloseAutoFocus={(event) => {
-          event.preventDefault()
-          focusTerminal()
-        }}
-      >
+      <DialogContent onCloseAutoFocus={restoreFocus}>
         <form
           className="grid gap-4"
           onSubmit={(event) => {
@@ -74,6 +80,83 @@ export function RenameDialog(props: {
       </DialogContent>
     </Dialog>
   )
+}
+
+export function CloseDialog() {
+  const dialog = useSyncExternalStore(subscribeClosing, getClosing)
+  if (dialog === null) return null
+  const closing = dialog.closing
+  const busy = closing.target === 'group' ? closing.busy : null
+
+  return (
+    <AlertDialog
+      open={dialog.open}
+      onOpenChange={(open) => {
+        if (!open) dismissClosing()
+      }}
+    >
+      <AlertDialogContent onCloseAutoFocus={restoreFocus}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Close “{closing.name}”?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {closing.target === 'tab' &&
+              (closing.program === null
+                ? 'sshtty couldn’t check whether a program is still running.'
+                : `${closing.program} is still running.`)}
+            {closing.target === 'group' &&
+              'All terminals in this group will be closed.'}
+            {closing.target === 'group' &&
+              closing.busy === null &&
+              ' sshtty couldn’t check whether programs are still running.'}
+            {busy !== null &&
+              busy.length > 0 &&
+              busy.every((tab) => tab.program !== null) &&
+              ' These are still running:'}
+            {busy !== null &&
+              busy.some((tab) => tab.program === null) &&
+              ' These are still running or couldn’t be checked:'}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {busy !== null && busy.length > 0 && (
+          <ul className="grid max-h-40 gap-1 overflow-y-auto text-sm">
+            {busy.map((tab) => (
+              <li key={tab.id} className="flex min-w-0 gap-2">
+                <span className="flex-none font-medium">
+                  {tab.program === null ? 'Couldn’t check' : tab.program}
+                </span>
+                <span className="text-muted-foreground truncate">
+                  {tab.name}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={() => {
+              if (closing.target === 'tab')
+                send({ type: 'closeTab', id: closing.id })
+              if (closing.target === 'group')
+                send({ type: 'closeGroup', id: closing.id })
+            }}
+          >
+            Close
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+export function restoreFocus(event: Event) {
+  event.preventDefault()
+  const dialog = document.querySelector<HTMLElement>(
+    '[role="dialog"], [role="alertdialog"]'
+  )
+  if (dialog === null) focusTerminal()
+  else dialog.focus()
 }
 
 type Listing = {
@@ -154,10 +237,7 @@ export function FolderDialog(props: {
         className="gap-0 overflow-hidden p-0 sm:max-w-lg"
         showCloseButton={false}
         aria-describedby={undefined}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault()
-          focusTerminal()
-        }}
+        onCloseAutoFocus={restoreFocus}
       >
         <DialogTitle className="sr-only">Group folder</DialogTitle>
         <div className="flex items-center gap-1 border-b p-1">

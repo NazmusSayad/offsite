@@ -7,6 +7,7 @@ license = "MIT"
 
 [dependencies]
 axum = { version = "0.8.9", features = ["ws"] }
+base64ct = { version = "1.8.3", features = ["alloc"] }
 clap = { version = "4.6.7", features = ["derive"] }
 dirs = "7.0.0"
 dunce = "1.0.5"
@@ -18,10 +19,12 @@ serde_json = "1.0.151"
 tokio = { version = "1.53.2", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
+ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
 uuid = { version = "1.28.0", features = ["v4"] }
+web-push-native = { version = "0.5.0", default-features = false, features = ["vapid"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.190"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61.2", features = ["Win32_System_Console"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_Console", "Win32_System_Diagnostics_ToolHelp"] }
