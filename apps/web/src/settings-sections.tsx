@@ -165,12 +165,6 @@ export function NotificationSection(props: {
           onCheckedChange={(bellSound) => props.onChange({ bellSound })}
         />
       </Row>
-      <Row label="Mark tabs with unseen output">
-        <Switch
-          checked={props.behavior.activityMarks}
-          onCheckedChange={(activityMarks) => props.onChange({ activityMarks })}
-        />
-      </Row>
     </Section>
   )
 }

@@ -217,17 +217,9 @@ export function App() {
             void uploadLogo(groupId, file).catch(showError)
           }}
         />
-        <a
-          href="/settings"
-          className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
-          title="Settings"
-        >
-          <HugeiconsIcon icon={Settings01Icon} className="size-4 md:size-4.5" />
-          <span className="md:hidden">Settings</span>
-        </a>
         {state.config.behavior.captureShortcuts && (
           <button
-            className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
+            className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
             title="Fullscreen"
             onClick={() => void toggleFullscreen().catch(showError)}
           >
@@ -238,6 +230,17 @@ export function App() {
             <span className="md:hidden">Fullscreen</span>
           </button>
         )}
+        <a
+          href="/settings"
+          className={cn(
+            'text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0',
+            !state.config.behavior.captureShortcuts && 'mt-auto'
+          )}
+          title="Settings"
+        >
+          <HugeiconsIcon icon={Settings01Icon} className="size-4 md:size-4.5" />
+          <span className="md:hidden">Settings</span>
+        </a>
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">
         <header

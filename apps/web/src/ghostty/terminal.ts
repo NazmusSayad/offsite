@@ -207,6 +207,7 @@ function occurrences(text: string, query: string) {
 
 export class Terminal {
   readonly element: HTMLDivElement
+  readonly underlay: HTMLCanvasElement
   cols = 80
   rows = 24
   private readonly canvas: HTMLCanvasElement
@@ -295,6 +296,9 @@ export class Terminal {
     this.handlers = handlers
     this.element = document.createElement('div')
     this.element.className = 'relative h-full overflow-hidden'
+    this.underlay = document.createElement('canvas')
+    this.underlay.className = 'absolute inset-0 size-full'
+    this.underlay.hidden = true
     this.canvas = document.createElement('canvas')
     this.canvas.className = 'absolute top-0 left-0 cursor-text touch-none'
     this.input = document.createElement('textarea')
@@ -555,22 +559,29 @@ export class Terminal {
   private backdropFor(snapshot: Snapshot) {
     const background = this.background
     const image = this.backgroundImage
-    if (background === null || image === null) return null
+    if (background === null || image === null) {
+      this.underlay.hidden = true
+      return null
+    }
+    const pane = this.element.parentElement
+    if (!pane) throw new Error('terminal is not mounted')
     const color = `rgb(${snapshot.background.r}, ${snapshot.background.g}, ${snapshot.background.b})`
+    const ratio = this.context.getTransform().a
+    const width = pane.clientWidth
+    const height = pane.clientHeight
     if (
       this.backdrop !== null &&
       this.backdrop.width === this.canvas.width &&
       this.backdrop.height === this.canvas.height &&
+      this.underlay.width === Math.round(width * ratio) &&
+      this.underlay.height === Math.round(height * ratio) &&
       this.backdropColor === color
     )
       return this.backdrop
-    const ratio = this.context.getTransform().a
-    const width = this.canvas.width / ratio
-    const height = this.canvas.height / ratio
-    const backdrop = new OffscreenCanvas(this.canvas.width, this.canvas.height)
-    const context = backdrop.getContext('2d', { alpha: false })
+    this.underlay.width = Math.round(width * ratio)
+    this.underlay.height = Math.round(height * ratio)
+    const context = this.underlay.getContext('2d', { alpha: false })
     if (!context) throw new Error('canvas 2d is unavailable')
-    backdrop.addEventListener('contextrestored', this.onContextRestored)
     context.setTransform(ratio, 0, 0, ratio, 0, 0)
     context.fillStyle = color
     context.fillRect(0, 0, width, height)
@@ -596,6 +607,18 @@ export class Terminal {
         imageHeight
       )
     }
+    this.underlay.hidden = false
+    const backdrop = new OffscreenCanvas(this.canvas.width, this.canvas.height)
+    const backdropContext = backdrop.getContext('2d', { alpha: false })
+    if (!backdropContext) throw new Error('canvas 2d is unavailable')
+    backdrop.addEventListener('contextrestored', this.onContextRestored)
+    const paneBounds = pane.getBoundingClientRect()
+    const bounds = this.canvas.getBoundingClientRect()
+    backdropContext.drawImage(
+      this.underlay,
+      Math.round((paneBounds.left - bounds.left) * ratio),
+      Math.round((paneBounds.top - bounds.top) * ratio)
+    )
     this.backdrop = backdrop
     this.backdropColor = color
     this.forceFull = true
@@ -2217,6 +2240,7 @@ export class Terminal {
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false })
     this.canvas.addEventListener('mousedown', this.onMouseDown)
     this.canvas.addEventListener('contextrestored', this.onContextRestored)
+    this.underlay.addEventListener('contextrestored', this.onContextRestored)
     this.scrollbar.addEventListener('pointerdown', this.onScrollbarDown)
     this.scrollbar.addEventListener('pointermove', this.onScrollbarMove)
     this.scrollbar.addEventListener('pointerup', this.onScrollbarUp)
