@@ -29,6 +29,7 @@ Update this table after every sync.
 | `glyphs.ts`            | none                           | Ours. Box, block and shade characters drawn as shapes                                                                                      |
 | `images.ts`            | none                           | Ours. Sixel, iTerm2 and PNG decoding, and kitty image pixels                                                                               |
 | `output.ts`            | none                           | Ours. Finds OSC and sixel sequences in program output                                                                                      |
+| `placeholders.ts`      | none                           | Ours. Port of Ghostty's `src/terminal/kitty/graphics_unicode.zig`: kitty Unicode placeholders, which Ghostty draws in its renderer         |
 
 ## How to sync with T3 Code
 
@@ -82,5 +83,6 @@ It fetches Ghostty at `revision`, applies the patch, builds with Zig 0.15.2 thro
 - Titles, OSC 9;4 progress, OSC 52 copy, URL and OSC 8 links, find.
 - Sixel and iTerm2 images, and image paste in Claude Code and opencode.
 - Kitty images: `kitten icat` with a PNG, the same image with `--z-index -1` behind text, and `kitten icat --clear`.
+- Kitty Unicode placeholders: image previews in yazi with the Ghostty terminal identity, and `kitten icat --unicode-placeholder` with a PNG.
 - Theme, font, cursor and ligature settings.
 - Reconnect and replay, mobile keys and the Ctrl toggle.

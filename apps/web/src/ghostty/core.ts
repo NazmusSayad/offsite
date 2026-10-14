@@ -7,6 +7,13 @@ import {
   loadGhosttyKeyboardLayoutMap,
   refreshGhosttyKeyboardLayoutMap,
 } from './keys'
+import {
+  PLACEHOLDER,
+  type Placeholder,
+  placeholderRuns,
+  placeholderSlice,
+  readPlaceholder,
+} from './placeholders'
 import { ghostty, type SizeReport, type TerminalHost } from './runtime'
 
 const SUCCESS = 0
@@ -14,6 +21,7 @@ const OUT_OF_SPACE = -3
 const SELECTION_FORMAT_OPTIONS_SIZE = 16
 const STYLE_FOREGROUND_TAG = 8
 const STYLE_FOREGROUND_INDEX = 16
+const STYLE_COLOR_NONE = 0
 const STYLE_COLOR_PALETTE = 1
 const STYLE_COLOR_RGB = 2
 const STYLE_COLOR_VALUE = 8
@@ -25,9 +33,12 @@ const KITTY_GRAPHICS = 30
 const KITTY_PLACEMENTS = 1
 const KITTY_PLACEMENT = {
   imageId: 1,
+  placementId: 2,
   isVirtual: 3,
   xOffset: 4,
   yOffset: 5,
+  columns: 10,
+  rows: 11,
   z: 12,
 } as const
 const KITTY_IMAGE = {
@@ -116,6 +127,7 @@ export type Cell = {
   underline: number
   underlineColor: Color | null
   selected: boolean
+  placeholder: Placeholder | null
 }
 
 export type Row = {
@@ -1174,13 +1186,35 @@ export class GhosttyCore {
     )
     const iterator = runtime.readPointer(this.kittyIteratorSlot)
     const placements: KittyPlacement[] = []
+    const virtual: {
+      imageId: number
+      placementId: number
+      columns: number
+      rows: number
+    }[] = []
     while (runtime.call('ghostty_kitty_graphics_placement_next', iterator)) {
-      if (this.placementData(iterator, KITTY_PLACEMENT.isVirtual).getUint8(0))
-        continue
       const imageId = this.placementData(
         iterator,
         KITTY_PLACEMENT.imageId
       ).getUint32(0, true)
+      if (this.placementData(iterator, KITTY_PLACEMENT.isVirtual).getUint8(0)) {
+        virtual.push({
+          imageId,
+          placementId: this.placementData(
+            iterator,
+            KITTY_PLACEMENT.placementId
+          ).getUint32(0, true),
+          columns: this.placementData(
+            iterator,
+            KITTY_PLACEMENT.columns
+          ).getUint32(0, true),
+          rows: this.placementData(iterator, KITTY_PLACEMENT.rows).getUint32(
+            0,
+            true
+          ),
+        })
+        continue
+      }
       const image = runtime.call(
         'ghostty_kitty_graphics_image',
         graphics,
@@ -1202,10 +1236,8 @@ export class GhosttyCore {
         )
       )
       if (info.getUint8(KITTY_RENDER_INFO.visible) === 0) continue
-      const pointer = this.imageData(image, KITTY_IMAGE.data)
-      const length = this.imageData(image, KITTY_IMAGE.length)
       placements.push({
-        key: `${imageId}:${pointer}:${length}`,
+        ...this.kittyImage(image, imageId),
         z: this.placementData(iterator, KITTY_PLACEMENT.z).getInt32(0, true),
         column: info.getInt32(KITTY_RENDER_INFO.column, true),
         row: info.getInt32(KITTY_RENDER_INFO.row, true),
@@ -1225,15 +1257,49 @@ export class GhosttyCore {
           width: info.getUint32(KITTY_RENDER_INFO.sourceWidth, true),
           height: info.getUint32(KITTY_RENDER_INFO.sourceHeight, true),
         },
-        image: {
-          width: this.imageData(image, KITTY_IMAGE.width),
-          height: this.imageData(image, KITTY_IMAGE.height),
-          format: this.imageData(image, KITTY_IMAGE.format),
-          pixels: runtime.bytes(pointer, length),
-        },
+      })
+    }
+    if (virtual.length === 0) return placements
+    const cell = this.cellSize()
+    for (const run of placeholderRuns(this.rows)) {
+      const target = virtual.find(
+        (placement) =>
+          placement.imageId === run.imageId &&
+          (run.placementId === 0 || placement.placementId === run.placementId)
+      )
+      if (target === undefined) continue
+      const image = runtime.call(
+        'ghostty_kitty_graphics_image',
+        graphics,
+        run.imageId
+      )
+      if (image === 0) continue
+      const kitty = this.kittyImage(image, run.imageId)
+      const slice = placeholderSlice(run, target, kitty.image, cell)
+      if (slice === null) continue
+      placements.push({
+        ...kitty,
+        ...slice,
+        z: -1,
+        column: run.x,
+        row: run.y,
       })
     }
     return placements
+  }
+
+  private kittyImage(image: number, imageId: number) {
+    const pointer = this.imageData(image, KITTY_IMAGE.data)
+    const length = this.imageData(image, KITTY_IMAGE.length)
+    return {
+      key: `${imageId}:${pointer}:${length}`,
+      image: {
+        width: this.imageData(image, KITTY_IMAGE.width),
+        height: this.imageData(image, KITTY_IMAGE.height),
+        format: this.imageData(image, KITTY_IMAGE.format),
+        pixels: this.runtime.bytes(pointer, length),
+      },
+    }
   }
 
   dispose() {
@@ -1498,6 +1564,15 @@ export class GhosttyCore {
       const underlineColor = this.style + styleFields.underline_color.offset
       const underlineTag = styleView.getUint32(underlineColor, true)
       const underlineValue = underlineColor + STYLE_COLOR_VALUE
+      let placeholder: Placeholder | null = null
+      if (text.codePointAt(0) === PLACEHOLDER) {
+        placeholder = readPlaceholder(
+          text,
+          this.colorId(this.style + STYLE_FOREGROUND_TAG),
+          this.colorId(underlineColor)
+        )
+        text = ''
+      }
       cells.push({
         text,
         wide,
@@ -1519,6 +1594,7 @@ export class GhosttyCore {
               ? this.readColor(underlineValue)
               : null,
         selected,
+        placeholder,
       })
     }
     while (cells.length < cols)
@@ -1746,6 +1822,19 @@ export class GhosttyCore {
     }
   }
 
+  private colorId(pointer: number) {
+    const view = this.runtime.dataView()
+    const tag = view.getUint32(pointer, true)
+    if (tag === STYLE_COLOR_NONE) return 0
+    if (tag === STYLE_COLOR_PALETTE)
+      return view.getUint8(pointer + STYLE_COLOR_VALUE)
+    if (tag === STYLE_COLOR_RGB) {
+      const color = this.readColor(pointer + STYLE_COLOR_VALUE)
+      return (color.r << 16) | (color.g << 8) | color.b
+    }
+    throw new Error(`unknown style color tag ${tag}`)
+  }
+
   private emptyCell(foreground: Color, background: Color): Cell {
     return {
       text: '',
@@ -1760,6 +1849,7 @@ export class GhosttyCore {
       underline: 0,
       underlineColor: null,
       selected: false,
+      placeholder: null,
     }
   }
 

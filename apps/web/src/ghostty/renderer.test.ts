@@ -21,6 +21,7 @@ function cell(overrides: Partial<Cell>): Cell {
     underline: 0,
     underlineColor: null,
     selected: false,
+    placeholder: null,
     ...overrides,
   }
 }
