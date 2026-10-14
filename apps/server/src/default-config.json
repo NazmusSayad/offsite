@@ -20,7 +20,7 @@
     "ligatures": true
   },
   "cursor": {
-    "style": "block",
+    "style": "bar",
     "blink": true
   },
   "padding": {
@@ -51,7 +51,6 @@
     "confirmCloseBusyTab": true,
     "backgroundImage": null,
     "backgroundOpacity": 0.3,
-    "backgroundFit": "cover",
-    "activityMarks": true
+    "backgroundFit": "cover"
   }
 }

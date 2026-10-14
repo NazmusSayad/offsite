@@ -52,7 +52,6 @@ struct Behavior {
     background_image: Option<String>,
     background_opacity: f64,
     background_fit: BackgroundFit,
-    activity_marks: bool,
 }
 
 impl Default for Behavior {
@@ -74,7 +73,6 @@ impl Default for Behavior {
             background_image: None,
             background_opacity: 0.3,
             background_fit: BackgroundFit::Cover,
-            activity_marks: true,
         }
     }
 }

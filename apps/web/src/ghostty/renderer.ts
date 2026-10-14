@@ -394,7 +394,7 @@ export function render(options: {
     return
   }
   if (snapshot.cursorStyle === 0) {
-    context.fillRect(left, cursorTop, 2, height)
+    context.fillRect(left, cursorTop, 1, height)
     return
   }
   if (snapshot.cursorStyle === 2) {

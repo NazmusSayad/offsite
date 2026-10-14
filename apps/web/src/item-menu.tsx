@@ -84,7 +84,7 @@ export function ItemMenu(props: {
             Remove background
           </ContextMenuItem>
         )}
-        {tabId !== undefined && getState().config.behavior.activityMarks && (
+        {tabId !== undefined && (
           <ContextMenuCheckboxItem
             checked={getState().quiet.includes(tabId)}
             onCheckedChange={() => toggleQuiet(tabId)}

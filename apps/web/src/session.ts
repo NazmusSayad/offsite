@@ -1,16 +1,13 @@
 import {
-  attentionCount,
   beep,
   forgetTab,
   isSeen,
-  noteInput,
   noteMessage,
   noteOutput,
   notifyFromProgram,
   ringBell,
   syncQuietTimers,
   unseenAttention,
-  updateAppBadge,
 } from './attention'
 import { requestClipboardRead, writeClipboard } from './clipboard'
 import {
@@ -53,7 +50,6 @@ type State = {
   progress: Record<number, Progress>
   alerts: number[]
   finding: number | null
-  unread: number[]
   quiet: number[]
 }
 
@@ -116,7 +112,6 @@ export function start(config: Config, platform: Platform, version: string) {
     progress: {},
     alerts: [],
     finding: null,
-    unread: [],
     quiet: [],
   }
   socket = connect()
@@ -169,18 +164,11 @@ export function setState(next: Partial<State>) {
     (item) => item.id === state.layout.activeGroup
   )
   const tab = group?.tabs.find((item) => item.id === group.activeTab)
-  const count = attentionCount()
-  updateAppBadge(count)
   syncQuietTimers()
   document.title =
     (state.alerts.length > 0 ? '🔔 ' : '') +
-    (count > 0 ? `(${count}) ` : '') +
     (tab ? tabTitle(tab) : group ? group.name : 'sshtty')
-  updateFavicon(
-    group ? group.logo : null,
-    themeColors(state.config.theme),
-    count
-  )
+  updateFavicon(group ? group.logo : null, themeColors(state.config.theme))
   for (const listener of listeners) listener()
 }
 
@@ -209,7 +197,6 @@ export function send(request: Request) {
 }
 
 export function sendInput(id: number, data: string | Uint8Array) {
-  noteInput(id)
   sendReply(id, data)
 }
 
@@ -269,7 +256,7 @@ function connect() {
       const bytes = new Uint8Array(event.data, 9)
       terminal.write(bytes, replay)
       if (awaited && awaitingReplay.size === 0) setState({ status: 'active' })
-      if (!replay) noteOutput(id, bytes)
+      if (!replay) noteOutput(id)
       noteMessage()
       const typed = typedAt.get(id)
       if (replay || typed === undefined) return
@@ -383,10 +370,7 @@ function createSession(id: number) {
       if (data === '\x1b[I' || data === '\x1b[O') sendInput(id, data)
       else sendReply(id, data)
     },
-    onResize: (cols, rows) => {
-      noteInput(id)
-      send({ type: 'resize', id, cols, rows })
-    },
+    onResize: (cols, rows) => send({ type: 'resize', id, cols, rows }),
     onTitle: (title) => setState({ titles: { ...state.titles, [id]: title } }),
     onProgress: (progress) =>
       setState({ progress: { ...state.progress, [id]: progress } }),
@@ -479,7 +463,6 @@ function applyCtrl(data: string) {
 }
 
 function reportSize(id: number, terminal: Terminal) {
-  noteInput(id)
   send({ type: 'resize', id, cols: terminal.cols, rows: terminal.rows })
 }
 
@@ -491,13 +474,14 @@ export function getSession(id: number) {
 
 export function mount(id: number, container: HTMLElement) {
   const terminal = getSession(id)
-  container.appendChild(terminal.element)
+  container.append(terminal.underlay, terminal.element)
   terminal.fit()
   for (const other of sessions.values())
     other.presize(terminal.cols, terminal.rows)
   reportSize(id, terminal)
   terminal.focus()
   return () => {
+    terminal.underlay.remove()
     terminal.element.remove()
   }
 }

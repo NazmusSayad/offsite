@@ -1,6 +1,5 @@
 import { Layers01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { attention } from '@/attention'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +7,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import { send, type Tab, tabTitle } from '@/session'
+import { getState, send, type Tab, tabTitle } from '@/session'
 
 export function MinimizedTabs(props: {
   groupId: number
@@ -32,12 +31,6 @@ export function MinimizedTabs(props: {
             count={props.tabs.length}
             alert={props.tabs.some((tab) => props.alerts.includes(tab.id))}
           />
-          {attention(props.tabs.map((tab) => tab.id)) !== 'alert' && (
-            <AttentionDot
-              ids={props.tabs.map((tab) => tab.id)}
-              className="size-1.5 flex-none rounded-full"
-            />
-          )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
@@ -61,18 +54,9 @@ export function MinimizedTabs(props: {
 }
 
 export function AttentionDot(props: { ids: number[]; className: string }) {
-  const current = attention(props.ids)
-  if (current === null) return null
-  if (current === 'alert')
-    return <span key="alert" className={cn('bg-primary', props.className)} />
-  return (
-    <span
-      role="img"
-      aria-label="New output"
-      title="New output"
-      className={cn('bg-muted-foreground', props.className)}
-    />
-  )
+  const alerts = getState().alerts
+  if (!props.ids.some((id) => alerts.includes(id))) return null
+  return <span className={cn('bg-primary', props.className)} />
 }
 
 export function CountBadge(props: {
