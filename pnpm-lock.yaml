@@ -49,6 +49,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@atlaskit/pragmatic-drag-and-drop':
+        specifier: ^4.0.0
+        version: 4.0.0
+      '@atlaskit/pragmatic-drag-and-drop-hitbox':
+        specifier: ^3.0.0
+        version: 3.0.0
       '@hugeicons/core-free-icons':
         specifier: ^4.3.5
         version: 4.3.5
@@ -178,6 +184,12 @@ packages:
     resolution: {integrity: sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA==}
     engines: {node: '>=10'}
 
+  '@atlaskit/pragmatic-drag-and-drop-hitbox@3.0.0':
+    resolution: {integrity: sha512-AGLp1ewjm07eRN2NL62awllSM19FrWVZMQYfZA/jugQlpaeoTr5ah2DE7zfiEt7yrg34htoKQVM+y6SGIQYs2A==}
+
+  '@atlaskit/pragmatic-drag-and-drop@4.0.0':
+    resolution: {integrity: sha512-pyDo2B5NiaExoKGmgeXKGNUL4aR4UzzSZm8QWWjYTEyBLVqSqKyKUwtVxMw2YEkakagOGFONUdHM32LAH2nPug==}
+
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
     engines: {node: '>=6.9.0'}
@@ -294,6 +306,10 @@ packages:
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
+
+  '@babel/runtime@7.29.10':
+    resolution: {integrity: sha512-NpugTzbKgGrNe45Ui32cN8vCFFMxVtP/9rtfwv0nP5FRDAjvYBxJcLVpYA9mr1jxP6cnIT7x9LUzuDTbWYYNRA==}
+    engines: {node: '>=6.9.0'}
 
   '@babel/template@7.29.7':
     resolution: {integrity: sha512-puq+Gf35oI24FeN11LkoUQFqv9uwNeWpxXZi/Ji3rRIoKAzKnxRaZ+Gkj0vKS9ZCiTESfng1N9LyOyXvo+m+Gg==}
@@ -2290,6 +2306,9 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
+  bind-event-listener@3.0.0:
+    resolution: {integrity: sha512-PJvH288AWQhKs2v9zyfYdPzlPqf5bXbGMmhmUIY9x4dAUGIWgomO771oBQNwJnMQSnUIXhKu6sgzpBRXTlvb8Q==}
+
   body-parser@2.3.0:
     resolution: {integrity: sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==}
     engines: {node: '>=18'}
@@ -3862,6 +3881,9 @@ packages:
       '@types/react-dom':
         optional: true
 
+  raf-schd@4.0.3:
+    resolution: {integrity: sha512-tQkJl2GRWh83ui2DiPTJz9wEiMN20syf+5oKfB03yYP7ioZcJwsIK8FjrtLwH1m7C7e+Tt2yYBlrOpdT+dyeIQ==}
+
   range-parser@1.3.0:
     resolution: {integrity: sha512-hek2mFQpPuI4E1BBKrSto+BU3e3x4xuarsbiwr3+lf7p44juvFMV0XFWQAP3xUyqXA4RrXLIoaSUGbSt056ZMw==}
     engines: {node: '>= 0.6'}
@@ -4521,6 +4543,17 @@ snapshots:
 
   '@alloc/quick-lru@5.3.0': {}
 
+  '@atlaskit/pragmatic-drag-and-drop-hitbox@3.0.0':
+    dependencies:
+      '@atlaskit/pragmatic-drag-and-drop': 4.0.0
+      '@babel/runtime': 7.29.10
+
+  '@atlaskit/pragmatic-drag-and-drop@4.0.0':
+    dependencies:
+      '@babel/runtime': 7.29.10
+      bind-event-listener: 3.0.0
+      raf-schd: 4.0.3
+
   '@babel/code-frame@7.29.7':
     dependencies:
       '@babel/helper-validator-identifier': 7.29.7
@@ -4683,6 +4716,8 @@ snapshots:
       '@babel/plugin-transform-typescript': 7.29.9(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0)
     transitivePeerDependencies:
       - supports-color
+
+  '@babel/runtime@7.29.10': {}
 
   '@babel/template@7.29.7':
     dependencies:
@@ -6409,6 +6444,8 @@ snapshots:
 
   baseline-browser-mapping@2.11.27: {}
 
+  bind-event-listener@3.0.0: {}
+
   body-parser@2.3.0(supports-color@7.2.0):
     dependencies:
       bytes: 3.1.2
@@ -8099,6 +8136,8 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
       '@types/react-dom': 19.3.0(@types/react@19.3.0)
+
+  raf-schd@4.0.3: {}
 
   range-parser@1.3.0: {}
 

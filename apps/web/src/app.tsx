@@ -42,7 +42,8 @@ import {
   toggleCtrl,
   uploadLogo,
 } from '@/session'
-import { focusTerminal, toggleFullscreen } from '@/shortcuts'
+import { toggleFullscreen } from '@/shortcuts'
+import { DropIndicator, SortableGroup } from '@/sortable-group'
 import { StatusOverlay } from '@/status-overlay'
 import { Toast } from '@/toast'
 
@@ -69,8 +70,6 @@ export function App() {
   const logoInput = useRef<HTMLInputElement>(null)
   const logoGroup = useRef<number | null>(null)
   const [logoError, setLogoError] = useState<string | null>(null)
-  const [dragGroup, setDragGroup] = useState<number | null>(null)
-  const [dropGroup, setDropGroup] = useState<number | null>(null)
 
   function showError(error: unknown) {
     setLogoError(error instanceof Error ? error.message : String(error))
@@ -91,108 +90,83 @@ export function App() {
       )}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-20 flex w-60 -translate-x-full flex-col gap-0.5 overflow-y-auto border-r bg-sidebar p-2 transition-transform select-none motion-reduce:transition-none md:static md:w-14 md:gap-1 md:translate-x-0 md:items-center md:px-0',
+          'fixed inset-y-0 left-0 z-20 flex w-60 -translate-x-full flex-col gap-0.5 overflow-y-auto border-r bg-sidebar p-2 transition-transform select-none motion-reduce:transition-none md:relative md:w-14 md:gap-1 md:translate-x-0 md:items-center md:px-0',
           drawer && 'translate-x-0'
         )}
       >
         {layout.groups.map((item, index) => (
-          <ItemMenu
-            key={item.id}
-            closeLabel="Close group"
-            onChangeLogo={() => {
-              logoGroup.current = item.id
-              logoInput.current?.click()
-            }}
-            onRemoveLogo={
-              item.logo === null
-                ? undefined
-                : () => void removeLogo(item.id).catch(showError)
-            }
-            backgroundGroup={item}
-            onSetFolder={() =>
-              setPrompt({
-                type: 'folder',
-                target: 'group',
-                id: item.id,
-                name: item.name,
-              })
-            }
-            onRename={() =>
-              setPrompt({
-                type: 'rename',
-                target: 'group',
-                id: item.id,
-                name: item.name,
-              })
-            }
-            onClose={() => void closeGroup(item.id)}
-          >
-            <button
-              className={cn(
-                'relative flex h-8 flex-none items-center rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-10 md:justify-center md:px-0 md:text-[13px] md:font-medium',
-                item.id === layout.activeGroup && 'bg-accent text-foreground',
-                dragGroup === item.id && 'opacity-50',
-                dropGroup === item.id &&
-                  dragGroup !== item.id &&
-                  'ring-2 ring-primary'
-              )}
-              title={item.name}
-              draggable
-              onDragStart={(event) => {
-                event.dataTransfer.effectAllowed = 'move'
-                event.dataTransfer.setData(
-                  'application/x-sshtty-group',
-                  String(item.id)
-                )
-                setDragGroup(item.id)
+          <SortableGroup key={item.id} id={item.id} index={index}>
+            <ItemMenu
+              closeLabel="Close group"
+              onChangeLogo={() => {
+                logoGroup.current = item.id
+                logoInput.current?.click()
               }}
-              onDragOver={(event) => {
-                if (dragGroup === null) return
-                event.preventDefault()
-                setDropGroup(item.id)
-              }}
-              onDragLeave={() => setDropGroup(null)}
-              onDrop={(event) => {
-                event.preventDefault()
-                if (dragGroup === null || dragGroup === item.id) return
-                send({ type: 'moveGroup', id: dragGroup, index })
-              }}
-              onDragEnd={() => {
-                setDragGroup(null)
-                setDropGroup(null)
-                focusTerminal()
-              }}
-              onClick={() => {
-                send({ type: 'select', groupId: item.id, tabId: null })
-                setDrawer(false)
-              }}
+              onRemoveLogo={
+                item.logo === null
+                  ? undefined
+                  : () => void removeLogo(item.id).catch(showError)
+              }
+              backgroundGroup={item}
+              onSetFolder={() =>
+                setPrompt({
+                  type: 'folder',
+                  target: 'group',
+                  id: item.id,
+                  name: item.name,
+                })
+              }
+              onRename={() =>
+                setPrompt({
+                  type: 'rename',
+                  target: 'group',
+                  id: item.id,
+                  name: item.name,
+                })
+              }
+              onClose={() => void closeGroup(item.id)}
             >
-              {item.logo !== null && (
-                <img
-                  src={`/api/logos/${item.logo}`}
-                  alt=""
-                  draggable={false}
-                  className="mr-2 size-4 flex-none rounded-[3px] object-cover md:mr-0 md:size-6 md:rounded-[6px]"
+              <button
+                className={cn(
+                  'relative flex h-8 flex-none items-center rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-10 md:justify-center md:px-0 md:text-[13px] md:font-medium',
+                  item.id === layout.activeGroup && 'bg-accent text-foreground'
+                )}
+                title={item.name}
+                onClick={() => {
+                  send({ type: 'select', groupId: item.id, tabId: null })
+                  setDrawer(false)
+                }}
+              >
+                {item.logo !== null && (
+                  <img
+                    src={`/api/logos/${item.logo}`}
+                    alt=""
+                    draggable={false}
+                    className="mr-2 size-4 flex-none rounded-[3px] object-cover md:mr-0 md:size-6 md:rounded-[6px]"
+                  />
+                )}
+                {item.logo === null && (
+                  <span className="hidden md:inline">
+                    {initials(item.name)}
+                  </span>
+                )}
+                <span className="truncate md:hidden">{item.name}</span>
+                {item.tabs.length > 0 && (
+                  <CountBadge
+                    className="md:ring-sidebar ml-1.5 md:absolute md:right-0 md:bottom-0 md:ml-0 md:ring-2"
+                    count={item.tabs.length}
+                    alert={false}
+                  />
+                )}
+                <AttentionDot
+                  ids={item.tabs.map((tab) => tab.id)}
+                  className="absolute top-1/2 right-2.5 size-2 -translate-y-1/2 rounded-full md:top-1 md:right-1 md:translate-y-0"
                 />
-              )}
-              {item.logo === null && (
-                <span className="hidden md:inline">{initials(item.name)}</span>
-              )}
-              <span className="truncate md:hidden">{item.name}</span>
-              {item.tabs.length > 0 && (
-                <CountBadge
-                  className="md:ring-sidebar ml-1.5 md:absolute md:right-0 md:bottom-0 md:ml-0 md:ring-2"
-                  count={item.tabs.length}
-                  alert={false}
-                />
-              )}
-              <AttentionDot
-                ids={item.tabs.map((tab) => tab.id)}
-                className="absolute top-1/2 right-2.5 size-2 -translate-y-1/2 rounded-full md:top-1 md:right-1 md:translate-y-0"
-              />
-            </button>
-          </ItemMenu>
+              </button>
+            </ItemMenu>
+          </SortableGroup>
         ))}
+        <DropIndicator />
         <button
           className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
           title="New group"
