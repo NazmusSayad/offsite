@@ -1,8 +1,8 @@
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer, type ServerResponse } from 'node:http'
 import path from 'node:path'
-import { parseArgs } from 'node:util'
 import { WebSocketServer } from 'ws'
+import { args } from './args.ts'
 import { findClaude } from './claude.ts'
 import { startPush } from './push.ts'
 import { stopAll } from './runs.ts'
@@ -20,15 +20,9 @@ const contentTypes: Record<string, string> = {
   '.woff2': 'font/woff2',
 }
 
-const { values } = parseArgs({
-  options: {
-    host: { type: 'string', default: '127.0.0.1' },
-    port: { type: 'string', default: '47841' },
-  },
-})
-const port = Number(values.port)
+const port = Number(args.port)
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
-  console.error(`invalid port ${values.port}`)
+  console.error(`invalid port ${args.port}`)
   process.exit(1)
 }
 
@@ -53,9 +47,9 @@ server.on('upgrade', (request, socket, head) => {
   else socket.destroy()
 })
 
-server.listen(port, values.host, () => {
-  startPush(`${values.host}:${port}`)
-  console.log(`offsite is running at http://${values.host}:${port}`)
+server.listen(port, args.host, () => {
+  startPush(`${args.host}:${port}`)
+  console.log(`offsite is running at http://${args.host}:${port}`)
 })
 
 process.on('SIGINT', () => {

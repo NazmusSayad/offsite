@@ -1,8 +1,8 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
+import { args } from './args.ts'
 
-export const home = path.join(os.homedir(), '.offsite')
+export const home = args.dir
 
 export function readJson(name: string): unknown {
   try {

@@ -32,7 +32,13 @@ Then open [http://127.0.0.1:47841](http://127.0.0.1:47841).
 ## Usage
 
 ```sh
-node apps/server/dist/main.js [--host 127.0.0.1] [--port 47841]
+node apps/server/dist/main.js [--host 127.0.0.1] [--port 47841] [--dir ~/.offsite]
+```
+
+`--dir` is where offsite keeps its settings, accounts and other data. To run a separate instance, give it its own port and folder, and set `CLAUDE_CONFIG_DIR` to also keep its Claude Code sessions and login apart:
+
+```sh
+CLAUDE_CONFIG_DIR=~/.claude-work node apps/server/dist/main.js --port 47850 --dir ~/.offsite-work
 ```
 
 > [!WARNING]
@@ -47,4 +53,4 @@ pnpm install
 pnpm dev
 ```
 
-Opens the web app at [http://localhost:5173](http://localhost:5173), with the server on port 47841.
+Opens the web app at [http://localhost:5173](http://localhost:5173), with the server on port 47842, offsite data in `~/.offsite-dev` and Claude Code data in `~/.claude-test`.
