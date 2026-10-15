@@ -72,7 +72,7 @@ export function BehaviorSection(props: {
           onCheckedChange={(showGitBranch) => props.onChange({ showGitBranch })}
         />
       </Row>
-      <Row label="Capture browser shortcuts in fullscreen">
+      <Row label="Capture browser shortcuts">
         <Switch
           checked={props.behavior.captureShortcuts}
           onCheckedChange={(captureShortcuts) =>
