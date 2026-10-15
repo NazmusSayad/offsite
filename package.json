@@ -4,6 +4,7 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm --filter web build && pnpm --filter server build",
     "start": "node apps/server/dist/main.js",
+    "local": "pnpm build && rm -rf dist && node scripts/build-npm.mts && npm pack ./dist/npm --pack-destination dist && npm install -g ./dist/offsite-0.0.0.tgz",
     "typecheck": "tsc -p tsconfig.json && pnpm -r typecheck",
     "lint": "pnpm typecheck && oxlint .",
     "lint:fix": "oxlint . --fix",
