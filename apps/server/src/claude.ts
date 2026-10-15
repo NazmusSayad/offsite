@@ -13,9 +13,7 @@ import { broadcast } from './hub.ts'
 import type { Account, Capabilities, RateLimit } from './protocol.ts'
 import { readJson, writeJson } from './storage.ts'
 
-export const DEFAULT_ACCOUNT = 'default'
-
-type StoredAccount = { id: string; name: string; token: string }
+type StoredAccount = { id: string; name: string; configDir: string }
 
 const probes = new Map<string, Promise<SDKControlInitializeResponse>>()
 const limits = new Map<string, Map<string, RateLimit>>()
@@ -33,19 +31,18 @@ export function findClaude() {
   return null
 }
 
-export function claudeOptions(accountId: string, cwd: string): Options {
-  const env: Record<string, string | undefined> = {
-    ...process.env,
-    CLAUDE_CODE_ENTRYPOINT: 'offsite',
-  }
-  if (accountId !== DEFAULT_ACCOUNT) {
-    const account = storedAccounts().find((item) => item.id === accountId)
-    if (account === undefined) throw new Error('That account was removed')
-    env.CLAUDE_CODE_OAUTH_TOKEN = account.token
-  }
+export function claudeOptions(accountId: string | null, cwd: string): Options {
+  if (accountId === null)
+    throw new Error('Add a Claude account in Settings → Accounts')
+  const account = storedAccounts().find((item) => item.id === accountId)
+  if (account === undefined) throw new Error('That account was removed')
   return {
     cwd,
-    env,
+    env: {
+      ...process.env,
+      CLAUDE_CODE_ENTRYPOINT: 'offsite',
+      CLAUDE_CONFIG_DIR: account.configDir,
+    },
     pathToClaudeCodeExecutable: executable,
     systemPrompt: { type: 'preset', preset: 'claude_code' },
     hooks: {
@@ -106,12 +103,8 @@ export async function capabilities(
 }
 
 export async function accounts(): Promise<Account[]> {
-  const all = [
-    { id: DEFAULT_ACCOUNT, name: 'Claude login' },
-    ...storedAccounts().map(({ id, name }) => ({ id, name })),
-  ]
   return Promise.all(
-    all.map(async (account) => {
+    storedAccounts().map(async (account) => {
       try {
         const info = (await initialization(account.id, os.homedir())).account
         return {
@@ -134,21 +127,24 @@ export async function accounts(): Promise<Account[]> {
   )
 }
 
-export function addAccount(name: string, token: string) {
-  if (name.trim() === '') throw new Error('Give the account a name')
-  if (!token.trim().startsWith('sk-ant-'))
-    throw new Error('Paste the token printed by `claude setup-token`')
+export function addAccount(name: string, configDir: string) {
   saveAccounts([
     ...storedAccounts(),
-    { id: randomUUID(), name: name.trim(), token: token.trim() },
+    { id: randomUUID(), ...validAccount(name, configDir) },
   ])
+}
+
+export function updateAccount(id: string, name: string, configDir: string) {
+  const account = validAccount(name, configDir)
+  saveAccounts(
+    storedAccounts().map((item) => (item.id === id ? { id, ...account } : item))
+  )
+  forget(id)
 }
 
 export function removeAccount(id: string) {
   saveAccounts(storedAccounts().filter((item) => item.id !== id))
-  for (const key of probes.keys())
-    if (key.startsWith(`${id}\n`)) probes.delete(key)
-  limits.delete(id)
+  forget(id)
 }
 
 export function recordLimit(accountId: string, info: SDKRateLimitInfo) {
@@ -175,6 +171,24 @@ export function recordLimit(accountId: string, info: SDKRateLimitInfo) {
   }
   limits.set(accountId, current)
   return accountLimits(accountId)
+}
+
+function validAccount(name: string, configDir: string) {
+  if (name.trim() === '') throw new Error('Give the account a name')
+  const dir = configDir.trim()
+  if (dir === '~' || dir.startsWith('~/'))
+    return {
+      name: name.trim(),
+      configDir: path.join(os.homedir(), dir.slice(1)),
+    }
+  if (path.isAbsolute(dir)) return { name: name.trim(), configDir: dir }
+  throw new Error('Use an absolute config directory or one starting with ~/')
+}
+
+function forget(accountId: string) {
+  for (const key of probes.keys())
+    if (key.startsWith(`${accountId}\n`)) probes.delete(key)
+  limits.delete(accountId)
 }
 
 function accountLimits(accountId: string) {

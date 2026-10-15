@@ -65,7 +65,10 @@ export async function createPullRequest(cwd: string) {
   return { url }
 }
 
-export async function suggestCommitMessage(accountId: string, cwd: string) {
+export async function suggestCommitMessage(
+  accountId: string | null,
+  cwd: string
+) {
   const diff = (await workingDiff(cwd)).slice(0, DIFF_LIMIT)
   if (diff === '') throw new Error('There is nothing to commit')
   const conversation = query({

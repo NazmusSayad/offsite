@@ -12,7 +12,7 @@ const configFile = path.join(home, 'config.json')
 export const defaults: Config = {
   theme: schemes[0].id,
   composer: {
-    accountId: 'default',
+    accountId: null,
     model: 'haiku',
     effort: 'low',
     permissionMode: 'bypassPermissions',
@@ -61,6 +61,7 @@ const choices: Record<string, string[]> = {
   'terminal.behavior.optionAsMeta': ['off', 'left', 'right', 'both'],
 }
 const nullable = [
+  'composer.accountId',
   'composer.model',
   'composer.effort',
   'composer.permissionMode',

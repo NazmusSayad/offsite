@@ -5,9 +5,9 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import {
   openSession,
-  showAccounts,
   showPalette,
   showSettings,
+  showSettingsPage,
   useStore,
 } from '@/store'
 
@@ -37,7 +37,7 @@ export function Palette() {
       key: 'accounts',
       label: 'Manage accounts',
       detail: '',
-      run: () => showAccounts(true),
+      run: () => showSettingsPage('Accounts'),
     },
     {
       key: 'settings',
