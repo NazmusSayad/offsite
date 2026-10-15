@@ -1,2 +1,5 @@
 packages:
   - 'apps/*'
+
+allowBuilds:
+  unrs-resolver: false
