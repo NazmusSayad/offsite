@@ -1940,7 +1940,7 @@ export class Terminal {
       this.suppressedKeys.add(event.code)
       return
     }
-    if (isMac && event.metaKey) {
+    if (isMac && event.metaKey && key === 'q') {
       this.suppressedKeys.add(event.code)
       return
     }
