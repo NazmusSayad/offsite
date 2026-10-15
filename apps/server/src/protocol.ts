@@ -22,6 +22,16 @@ export type Session = {
   archived: boolean
 }
 
+export type Project = { path: string; name: string; logo: string | null }
+
+export type ProjectPatch = { name?: string; logo?: string | null }
+
+export type Directories = {
+  path: string
+  parent: string | null
+  directories: { name: string; path: string }[]
+}
+
 export type SessionPatch = {
   title?: string
   pinned?: boolean
@@ -234,7 +244,14 @@ export type Methods = {
   ping: { params: void; result: null }
   'config.get': { params: void; result: ConfigInfo }
   'config.save': { params: Config; result: Config }
-  'folders.save': { params: string[]; result: string[] }
+  'projects.list': { params: void; result: Project[] }
+  'projects.add': { params: { path: string }; result: Project }
+  'projects.update': {
+    params: { path: string; patch: ProjectPatch }
+    result: null
+  }
+  'projects.remove': { params: { path: string }; result: null }
+  'directories.list': { params: { path: string }; result: Directories }
   'sessions.list': { params: void; result: Session[] }
   'sessions.update': {
     params: { id: string; patch: SessionPatch }
@@ -361,7 +378,7 @@ export type ServerEvent =
   | { type: 'activity'; activity: Record<string, Activity> }
   | { type: 'limits'; accountId: string; limits: RateLimit[] }
   | { type: 'config'; config: Config }
-  | { type: 'folders'; folders: string[] }
+  | { type: 'projects'; projects: Project[] }
   | { type: 'started'; sessionId: string; cwd: string }
   | {
       type: 'history'

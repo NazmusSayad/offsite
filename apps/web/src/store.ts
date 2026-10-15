@@ -8,6 +8,7 @@ import type {
   Decision,
   Delivery,
   Message,
+  Project,
   Prompt,
   PermissionRequest,
   Queued,
@@ -35,7 +36,7 @@ export type SettingsPage =
 type State = {
   connected: boolean
   sessions: Session[]
-  folders: string[]
+  projects: Project[]
   accounts: Account[]
   paletteOpen: boolean
   settingsOpen: boolean
@@ -94,7 +95,7 @@ export function start(info: ConfigInfo) {
   state = {
     connected: isConnected(),
     sessions: [],
-    folders: [],
+    projects: [],
     accounts: [],
     paletteOpen: false,
     settingsOpen: false,
@@ -125,6 +126,7 @@ export function start(info: ConfigInfo) {
     event: receive,
   })
   reopen()
+  void refreshProjects()
   void refreshSessions()
   void refreshAccounts()
   void refreshCapabilities()
@@ -153,18 +155,6 @@ export function openSession(selection: Selection) {
       cwd: selection.cwd,
       sessionId: selection.sessionId,
     }).catch(showError)
-}
-
-export function addFolder(cwd: string) {
-  if (!state.folders.includes(cwd)) {
-    const folders = [...state.folders, cwd]
-    update({ folders })
-    call('folders.save', folders).then(
-      (saved) => update({ folders: saved }),
-      showError
-    )
-  }
-  openSession({ cwd, sessionId: null })
 }
 
 export async function sendPrompt(prompt: Prompt, delivery: Delivery) {
@@ -373,8 +363,8 @@ function receive(event: ServerEvent) {
     case 'config':
       if (configWrites === 0) applyConfig(event.config)
       return
-    case 'folders':
-      update({ folders: event.folders })
+    case 'projects':
+      update({ projects: event.projects })
       return
     case 'started':
       if (
@@ -443,6 +433,14 @@ function receive(event: ServerEvent) {
       update({
         settings: { ...event.settings, accountId: state.settings.accountId },
       })
+  }
+}
+
+async function refreshProjects() {
+  try {
+    update({ projects: await call('projects.list', undefined) })
+  } catch (error) {
+    showError(error)
   }
 }
 

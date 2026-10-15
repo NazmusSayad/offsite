@@ -1,5 +1,6 @@
 import { projectName } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useStore } from '@/store'
 
 const colors = [
   'text-gray-600 dark:text-gray-400',
@@ -23,7 +24,24 @@ const colors = [
 ]
 
 export function ProjectIcon(props: { cwd: string; className?: string }) {
-  const name = projectName(props.cwd).normalize('NFKC').trim()
+  const project = useStore((state) =>
+    state.projects.find((item) => item.path === props.cwd)
+  )
+  return (
+    <ProjectBadge
+      name={project?.name ?? projectName(props.cwd)}
+      logo={project?.logo ?? null}
+      className={props.className}
+    />
+  )
+}
+
+export function ProjectBadge(props: {
+  name: string
+  logo: string | null
+  className?: string
+}) {
+  const name = props.name.normalize('NFKC').trim()
   const words = name.match(/[\p{L}\p{N}]+/gu) ?? []
   const glyphs = Array.from(words[0] ?? 'P')
   const second =
@@ -45,29 +63,38 @@ export function ProjectIcon(props: { cwd: string; className?: string }) {
         props.className
       )}
     >
-      <svg
-        viewBox="0 0 16 16"
-        className={cn(
-          'size-full overflow-hidden rounded-[25%] font-mono select-none',
-          colors[index]
-        )}
-        style={{
-          backgroundColor: 'color-mix(in srgb, currentColor 14%, transparent)',
-        }}
-      >
-        <text
-          x="8"
-          y="10.8"
-          textAnchor="middle"
-          fill="currentColor"
-          fontSize="8.25"
-          fontWeight="700"
-          textLength={text.length === 1 ? 6 : 12}
-          lengthAdjust="spacingAndGlyphs"
+      {props.logo !== null ? (
+        <img
+          src={props.logo}
+          alt=""
+          className="size-full rounded-[25%] object-cover"
+        />
+      ) : (
+        <svg
+          viewBox="0 0 16 16"
+          className={cn(
+            'size-full overflow-hidden rounded-[25%] font-mono select-none',
+            colors[index]
+          )}
+          style={{
+            backgroundColor:
+              'color-mix(in srgb, currentColor 14%, transparent)',
+          }}
         >
-          {text}
-        </text>
-      </svg>
+          <text
+            x="8"
+            y="10.8"
+            textAnchor="middle"
+            fill="currentColor"
+            fontSize="8.25"
+            fontWeight="700"
+            textLength={text.length === 1 ? 6 : 12}
+            lengthAdjust="spacingAndGlyphs"
+          >
+            {text}
+          </text>
+        </svg>
+      )}
     </span>
   )
 }

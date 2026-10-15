@@ -1,0 +1,304 @@
+import {
+  ArrowUp02Icon,
+  Cancel01Icon,
+  Folder01Icon,
+  Home07Icon,
+  Search01Icon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
+import type { Directories, Project } from '@server/protocol'
+import { useEffect, useRef, useState } from 'react'
+import { ProjectBadge } from '@/components/icons'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { call } from '@/connection'
+import { projectName } from '@/lib/format'
+import { errorMessage } from '@/lib/utils'
+import { addProject, removeProject, updateProject } from '@/projects'
+import { readBase64 } from '@/upload'
+
+export function FolderDialog(props: {
+  onClose: () => void
+  onAdd: (project: Project) => void
+}) {
+  const [loaded, setLoaded] = useState<{
+    path: string
+    listing: Directories
+  } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [path, setPath] = useState('~')
+  const [search, setSearch] = useState('')
+  const [adding, setAdding] = useState(false)
+  const listing = path.trim() === '' ? undefined : loaded?.listing
+  const directories = listing?.directories.filter((directory) =>
+    directory.name.toLowerCase().includes(search.toLowerCase())
+  )
+
+  function open(next: string) {
+    setPath(next)
+    setSearch('')
+  }
+
+  useEffect(() => {
+    if (path.trim() === '') return
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const next = await call('directories.list', { path })
+        if (cancelled) return
+        setLoaded({ path, listing: next })
+        setError(null)
+      } catch (failure) {
+        if (cancelled) return
+        setLoaded(null)
+        setError(errorMessage(failure))
+      }
+    }, 150)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [path])
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) props.onClose()
+      }}
+    >
+      <DialogContent
+        className="gap-0 overflow-hidden p-0 sm:max-w-lg"
+        showCloseButton={false}
+        aria-describedby={undefined}
+      >
+        <DialogTitle className="sr-only">Add project</DialogTitle>
+        <div className="flex items-center gap-1 border-b p-1">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Home folder"
+            onClick={() => open('~')}
+          >
+            <HugeiconsIcon icon={Home07Icon} />
+          </Button>
+          <div className="bg-border mx-0.5 h-4 w-px" />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Parent folder"
+            disabled={listing?.parent === undefined || listing.parent === null}
+            onClick={() => {
+              if (listing?.parent !== undefined && listing.parent !== null)
+                open(listing.parent)
+            }}
+          >
+            <HugeiconsIcon icon={ArrowUp02Icon} />
+          </Button>
+          <input
+            aria-label="Folder path"
+            className="hover:bg-muted focus:bg-muted h-7 min-w-0 flex-1 rounded-md bg-transparent px-1.5 font-mono text-xs outline-none"
+            spellCheck={false}
+            value={path}
+            onChange={(event) => open(event.target.value)}
+          />
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Close">
+              <HugeiconsIcon icon={Cancel01Icon} />
+            </Button>
+          </DialogClose>
+        </div>
+        <label className="flex h-9 items-center gap-2.5 border-b px-3">
+          <HugeiconsIcon
+            icon={Search01Icon}
+            className="text-muted-foreground size-4 flex-none"
+          />
+          <input
+            className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-sm outline-none"
+            placeholder="Search this folder"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
+        <div className="h-72 overflow-y-auto p-1">
+          {directories?.map((directory) => (
+            <button
+              key={directory.path}
+              className="hover:bg-muted flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors"
+              onClick={() => open(directory.path)}
+            >
+              <HugeiconsIcon
+                icon={Folder01Icon}
+                className="text-muted-foreground size-4 flex-none"
+              />
+              <span className="truncate">{directory.name}</span>
+            </button>
+          ))}
+          {directories?.length === 0 && (
+            <p className="text-muted-foreground grid h-full place-items-center text-sm">
+              {search === '' ? 'No folders here' : 'No matching folders'}
+            </p>
+          )}
+        </div>
+        {error !== null && path.trim() !== '' && (
+          <p className="text-destructive border-t px-3 py-2 text-sm break-all">
+            {error}
+          </p>
+        )}
+        <DialogFooter className="border-t p-3">
+          <Button
+            disabled={loaded?.path !== path || adding}
+            onClick={async () => {
+              if (loaded === null || loaded.path !== path) return
+              setAdding(true)
+              try {
+                props.onAdd(await addProject(loaded.listing.path))
+              } catch (failure) {
+                setError(errorMessage(failure))
+                setAdding(false)
+              }
+            }}
+          >
+            Add project
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function EditProjectDialog(props: {
+  project: Project
+  onClose: () => void
+  onRemoved: () => void
+}) {
+  const path = props.project.path
+  const [name, setName] = useState(props.project.name)
+  const [logo, setLogo] = useState(props.project.logo)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const picker = useRef<HTMLInputElement>(null)
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) props.onClose()
+      }}
+    >
+      <DialogContent>
+        <form
+          className="grid gap-5"
+          onSubmit={async (event) => {
+            event.preventDefault()
+            setSaving(true)
+            try {
+              await updateProject(path, { name, logo })
+              props.onClose()
+            } catch (failure) {
+              setError(errorMessage(failure))
+              setSaving(false)
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Edit project</DialogTitle>
+            <DialogDescription className="font-mono text-xs break-all">
+              {path}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-4">
+            <ProjectBadge
+              name={name.trim() === '' ? projectName(path) : name}
+              logo={logo}
+              className="size-12 [&>img]:rounded-xl [&>svg]:rounded-xl"
+            />
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => picker.current?.click()}
+              >
+                {logo === null ? 'Add icon' : 'Change icon'}
+              </Button>
+              {logo !== null && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLogo(null)}
+                >
+                  Remove icon
+                </Button>
+              )}
+            </div>
+            <input
+              ref={picker}
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon"
+              hidden
+              onChange={async (event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                if (file === undefined) return
+                setLogo(`data:${file.type};base64,${await readBase64(file)}`)
+              }}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="project-name">Name</Label>
+            <Input
+              id="project-name"
+              placeholder={projectName(path)}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+          {error !== null && (
+            <p className="text-destructive text-sm break-all">{error}</p>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-destructive hover:text-destructive sm:mr-auto"
+              title="Its threads stay in Claude Code"
+              onClick={async () => {
+                if (!confirming) {
+                  setConfirming(true)
+                  return
+                }
+                try {
+                  await removeProject(path)
+                  props.onRemoved()
+                } catch (failure) {
+                  setError(errorMessage(failure))
+                }
+              }}
+            >
+              {confirming ? 'Click again to remove' : 'Remove project'}
+            </Button>
+            <Button type="button" variant="outline" onClick={props.onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={name.trim() === '' || saving}>
+              Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}

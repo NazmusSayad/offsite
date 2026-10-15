@@ -2,6 +2,7 @@ import {
   Add01Icon,
   ChevronDownIcon,
   InboxIcon,
+  PencilEdit02Icon,
   PanelLeftCloseIcon,
   SearchIcon,
   Settings01Icon,
@@ -9,13 +10,20 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Session } from '@server/protocol'
+import type { Project, Session } from '@server/protocol'
 import { useState } from 'react'
 import { ProjectIcon } from '@/components/icons'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { projectName } from '@/lib/format'
 import { cn, drag, mod } from '@/lib/utils'
+import { EditProjectDialog, FolderDialog } from '@/sidebar/project-dialogs'
 import { DraftRow, SessionItem } from '@/sidebar/session-item'
-import { addFolder, openSession, showSettings, useStore } from '@/store'
+import { openSession, showSettings, useStore } from '@/store'
 
 const iconButton =
   'text-sidebar-muted-foreground/80 hover:bg-sidebar-row-hover hover:text-sidebar-foreground flex shrink-0 cursor-pointer items-center justify-center rounded-[var(--control-radius)] [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-(--sidebar-icon-color) hover:[&>svg]:text-sidebar-foreground'
@@ -26,25 +34,24 @@ export function Sidebar(props: {
   onHide: () => void
 }) {
   const selection = useStore((state) => state.selection)
-  const folders = useStore((state) => state.folders)
+  const registered = useStore((state) => state.projects)
   const sessions = useStore((state) => state.sessions)
   const activity = useStore((state) => state.activity)
   const unseen = useStore((state) => state.unseen)
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<string | null>(null)
-  const [folder, setFolder] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<Project | null>(null)
   const [archivedOpen, setArchivedOpen] = useState(false)
   const [width, setWidth] = useState(
     Number(localStorage.getItem('sidebarWidth') ?? 240)
   )
   const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-  const projects = [
-    ...new Set([...folders, ...sessions.map((session) => session.cwd)]),
-  ].sort((a, b) => projectName(a).localeCompare(projectName(b)))
+  const projects = [...registered].sort((a, b) => a.name.localeCompare(b.name))
   const shown = sessions
     .filter((session) => scope === null || session.cwd === scope)
     .filter((session) => {
-      const text = `${session.title} ${projectName(session.cwd)}`.toLowerCase()
+      const text = `${session.title} ${nameOf(session.cwd)}`.toLowerCase()
       return words.every((word) => text.includes(word))
     })
     .sort(
@@ -73,6 +80,13 @@ export function Sidebar(props: {
         }
       : null
 
+  function nameOf(cwd: string) {
+    return (
+      registered.find((project) => project.path === cwd)?.name ??
+      projectName(cwd)
+    )
+  }
+
   function select(cwd: string, sessionId: string | null) {
     openSession({ cwd, sessionId })
     props.onNavigate()
@@ -81,7 +95,7 @@ export function Sidebar(props: {
   function startThread() {
     const cwd = scope ?? selection?.cwd ?? null
     if (cwd === null) {
-      setFolder('')
+      setAdding(true)
       return
     }
     select(cwd, null)
@@ -136,36 +150,48 @@ export function Sidebar(props: {
             </span>
           )}
         </button>
-        {projects.map((cwd) => {
+        {projects.map((project) => {
           const count = attention.filter(
-            (session) => session.cwd === cwd
+            (session) => session.cwd === project.path
           ).length
           return (
-            <button
-              key={cwd}
-              className={cn(
-                'relative flex size-10 flex-none cursor-pointer items-center justify-center rounded-md text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                scope === cwd && 'bg-accent text-foreground'
-              )}
-              title={`${projectName(cwd)}\n${cwd}`}
-              aria-label={projectName(cwd)}
-              aria-current={scope === cwd}
-              onClick={() => setScope(cwd)}
-            >
-              <ProjectIcon cwd={cwd} className="size-6 [&>svg]:rounded-[6px]" />
-              {count > 0 && (
-                <span className="ring-sidebar text-foreground absolute right-0 bottom-0 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[9px] leading-none font-medium tabular-nums ring-2">
-                  {count}
-                </span>
-              )}
-            </button>
+            <ContextMenu key={project.path}>
+              <ContextMenuTrigger asChild>
+                <button
+                  className={cn(
+                    'relative flex size-10 flex-none cursor-pointer items-center justify-center rounded-md text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                    scope === project.path && 'bg-accent text-foreground'
+                  )}
+                  title={`${project.name}\n${project.path}`}
+                  aria-label={project.name}
+                  aria-current={scope === project.path}
+                  onClick={() => setScope(project.path)}
+                >
+                  <ProjectIcon
+                    cwd={project.path}
+                    className="size-6 [&>img]:rounded-[6px] [&>svg]:rounded-[6px]"
+                  />
+                  {count > 0 && (
+                    <span className="ring-sidebar text-foreground absolute right-0 bottom-0 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[9px] leading-none font-medium tabular-nums ring-2">
+                      {count}
+                    </span>
+                  )}
+                </button>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-44">
+                <ContextMenuItem onSelect={() => setEditing(project)}>
+                  <HugeiconsIcon icon={PencilEdit02Icon} />
+                  Edit project
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           )
         })}
         <button
           className="text-muted-foreground hover:bg-accent hover:text-foreground relative flex size-10 flex-none cursor-pointer items-center justify-center rounded-md text-[13px] font-medium transition-colors"
           title="Add project"
           aria-label="Add project"
-          onClick={() => setFolder(folder === null ? '' : null)}
+          onClick={() => setAdding(true)}
         >
           <HugeiconsIcon icon={Add01Icon} className="size-4.5" />
         </button>
@@ -197,7 +223,7 @@ export function Sidebar(props: {
               className="max-w-[45%] shrink-0 truncate text-sm font-medium"
               title={scope}
             >
-              {projectName(scope)}
+              {nameOf(scope)}
             </span>
           )}
           <label className="text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground flex h-8 min-w-0 flex-1 cursor-text items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium">
@@ -233,32 +259,6 @@ export function Sidebar(props: {
             <HugeiconsIcon icon={SquarePenIcon} />
           </button>
         </div>
-        {folder !== null && (
-          <div className="p-(--sidebar-content-inset) pt-0">
-            <form
-              onSubmit={(event) => {
-                event.preventDefault()
-                const cwd = folder.trim()
-                if (cwd === '') return
-                setFolder(null)
-                setScope(cwd)
-                addFolder(cwd)
-                props.onNavigate()
-              }}
-            >
-              <input
-                ref={(element) => element?.focus()}
-                value={folder}
-                onChange={(event) => setFolder(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') setFolder(null)
-                }}
-                placeholder="/path/to/project"
-                className="bg-sidebar-row-hover placeholder:text-sidebar-muted-foreground focus:border-ring/60 w-full rounded-md border px-2 py-1.5 font-mono text-xs outline-none"
-              />
-            </form>
-          </div>
-        )}
         <nav className="flex min-h-0 flex-1 [scrollbar-width:none] flex-col overflow-y-auto px-(--sidebar-content-inset) pb-(--sidebar-content-inset)">
           <ul className="flex flex-1 flex-col gap-px">
             {selection !== null && selection.sessionId === null && (
@@ -311,6 +311,26 @@ export function Sidebar(props: {
           <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
         </div>
       </div>
+      {adding && (
+        <FolderDialog
+          onClose={() => setAdding(false)}
+          onAdd={(project) => {
+            setAdding(false)
+            setScope(project.path)
+            select(project.path, null)
+          }}
+        />
+      )}
+      {editing !== null && (
+        <EditProjectDialog
+          project={editing}
+          onClose={() => setEditing(null)}
+          onRemoved={() => {
+            if (scope === editing.path) setScope(null)
+            setEditing(null)
+          }}
+        />
+      )}
     </aside>
   )
 }

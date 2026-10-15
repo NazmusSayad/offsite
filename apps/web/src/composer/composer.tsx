@@ -1,9 +1,4 @@
-import {
-  GitBranchIcon,
-  ListPlusIcon,
-  PaperclipIcon,
-  XIcon,
-} from '@hugeicons/core-free-icons'
+import { ListPlusIcon, PaperclipIcon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Delivery, Image, Message } from '@server/protocol'
 import { useEffect, useRef, useState } from 'react'
@@ -11,16 +6,10 @@ import { Button } from '@/components/ui/button'
 import { ComposerMenu, type Suggestion } from '@/composer/composer-menu'
 import { ContextMeter } from '@/composer/context-meter'
 import { PermissionPrompt } from '@/composer/permission-prompt'
-import {
-  AccountPicker,
-  control,
-  controlXs,
-  modes,
-  Pickers,
-} from '@/composer/pickers'
+import { AccountPicker, modes, Pickers } from '@/composer/pickers'
 import { call } from '@/connection'
-import { projectName } from '@/lib/format'
 import { cn, mod } from '@/lib/utils'
+import { useProjectName } from '@/projects'
 import {
   changeSettings,
   getState,
@@ -37,7 +26,7 @@ import { readBase64, uploadFile } from '@/upload'
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 const maxImageSize = 5 * 1024 * 1024
 
-export function Composer(props: { branch: string | null }) {
+export function Composer() {
   const selection = useStore((state) => state.selection)
   const loaded = useStore((state) => state.loaded)
   const blank = useStore(
@@ -57,26 +46,15 @@ export function Composer(props: { branch: string | null }) {
   const [active, setActive] = useState(0)
   const [menuClosed, setMenuClosed] = useState(false)
   const [files, setFiles] = useState<string[]>([])
-  const root = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLTextAreaElement>(null)
   const picker = useRef<HTMLInputElement>(null)
   const cwd = selection?.cwd ?? ''
+  const projectTitle = useProjectName(cwd)
   const running = useStore(selectedRunning)
   const hero = loaded && blank && !running
   const request = requests.at(0)
 
   useEffect(() => input.current?.focus(), [])
-
-  useEffect(() => {
-    const element = root.current
-    const parent = element?.parentElement
-    if (element === null || parent === null || parent === undefined) return
-    const observer = new ResizeObserver(() =>
-      parent.style.setProperty('--composer-height', `${element.offsetHeight}px`)
-    )
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
 
   useEffect(() => {
     if (draft === null) return
@@ -190,13 +168,14 @@ export function Composer(props: { branch: string | null }) {
 
   return (
     <div
-      ref={root}
       className={cn(
-        'pointer-events-none absolute z-20',
-        hero ? 'inset-0 flex items-center' : 'inset-x-0 bottom-0 pt-1.5 sm:pt-2'
+        'pointer-events-none z-20',
+        hero
+          ? 'absolute inset-0 flex items-center'
+          : 'relative shrink-0 before:absolute before:inset-x-0 before:bottom-full before:h-8 before:bg-linear-to-t before:from-background before:to-transparent'
       )}
     >
-      <div className="w-full px-3 pb-3 sm:px-12 sm:pb-4">
+      <div className={cn('w-full px-3 sm:px-12', hero && 'pb-3 sm:pb-4')}>
         <div className="pointer-events-auto relative z-10 mx-auto w-full max-w-(--chat-content-max-width)">
           {hero && (
             <div className="absolute inset-x-0 bottom-full pb-4">
@@ -206,7 +185,7 @@ export function Composer(props: { branch: string | null }) {
                   className="border-muted-foreground/35 inline-block max-w-64 truncate border-b border-dotted align-bottom"
                   title={cwd}
                 >
-                  {projectName(cwd)}
+                  {projectTitle}
                 </span>
                 ?
               </h1>
@@ -258,7 +237,8 @@ export function Composer(props: { branch: string | null }) {
           )}
           <div
             className={cn(
-              'composer-glass shadow-composer relative z-10 rounded-3xl border border-(--composer-outline) dark:shadow-none',
+              'composer-glass shadow-composer relative z-10 border border-(--composer-outline) dark:shadow-none',
+              hero ? 'rounded-3xl' : 'rounded-t-3xl border-b-0',
               request?.toolName === 'AskUserQuestion' && 'hidden'
             )}
             onDragOver={(event) => event.preventDefault()}
@@ -374,9 +354,15 @@ export function Composer(props: { branch: string | null }) {
                 className="placeholder:text-placeholder/75 block [field-sizing:content] max-h-52 min-h-19.5 w-full resize-none bg-transparent text-sm leading-relaxed outline-none"
               />
             </div>
-            <div className="flex min-w-0 items-center justify-between gap-2 px-3 pb-3 sm:px-4 sm:pb-4">
+            <div
+              className={cn(
+                'flex min-w-0 items-center justify-between gap-2 px-3 sm:px-4',
+                hero ? 'pb-3 sm:pb-4' : 'pb-2.5 sm:pb-3.5'
+              )}
+            >
               <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-1 overflow-x-auto p-1 ps-3.5">
                 <Pickers />
+                <AccountPicker />
               </div>
               <div className="flex shrink-0 items-center justify-end gap-2">
                 <input
@@ -456,23 +442,6 @@ export function Composer(props: { branch: string | null }) {
                 )}
               </div>
             </div>
-          </div>
-          <div className="before:shadow-composer dark:before:shadow-composer-dark before:composer-glass relative isolate mx-auto -mt-4 flex w-[calc(100%-2.75rem)] items-center gap-2 px-2 pt-5 pb-1 before:absolute before:inset-x-0 before:top-4 before:bottom-0 before:-z-1 before:rounded-b-2xl before:border before:border-t-0 before:border-(--composer-outline) dark:before:border-white/7">
-            <AccountPicker />
-            <span className="flex-1" />
-            {props.branch !== null && (
-              <span
-                className={cn(
-                  control,
-                  controlXs,
-                  'cursor-default hover:bg-transparent'
-                )}
-                title="Current branch"
-              >
-                <HugeiconsIcon icon={GitBranchIcon} />
-                <span className="max-w-48 truncate">{props.branch}</span>
-              </span>
-            )}
           </div>
         </div>
       </div>

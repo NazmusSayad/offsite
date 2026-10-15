@@ -48,8 +48,6 @@ export const control =
   'relative inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-(--control-radius) border border-transparent outline-none hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-64 [&_svg]:pointer-events-none [&_svg]:shrink-0'
 export const controlSm =
   'h-7 gap-1.5 px-2.5 text-sm font-medium text-secondary-label hover:text-foreground [&_svg:not([class*=text-])]:text-muted-foreground [&_svg:not([class*=size-])]:size-4'
-export const controlXs =
-  'h-6 gap-1 px-1.75 text-xs font-normal text-muted-foreground/70 hover:text-foreground/80 [&_svg:not([class*=size-])]:size-3.5'
 
 export function Pickers() {
   const settings = useStore((state) => state.settings)
@@ -72,7 +70,6 @@ export function Pickers() {
             </span>
           </>
         }
-        size="sm"
         value={modelValue}
         options={models.map((item) => ({
           value: item.value,
@@ -94,7 +91,6 @@ export function Pickers() {
               <span className="capitalize">{settings.effort ?? 'Default'}</span>
             </>
           }
-          size="sm"
           value={settings.effort ?? 'default'}
           options={[
             { value: 'default', label: 'Default', description: null },
@@ -122,7 +118,6 @@ export function Pickers() {
             </span>
           </>
         }
-        size="sm"
         value={settings.permissionMode ?? ''}
         options={modes.map((item) => ({
           value: item.value,
@@ -156,7 +151,6 @@ export function AccountPicker() {
           </span>
         </>
       }
-      size="xs"
       value={settings.accountId}
       options={accounts.map((item) => ({
         value: item.id,
@@ -177,7 +171,6 @@ export function AccountPicker() {
 function Picker(props: {
   title: string
   trigger: ReactNode
-  size: 'sm' | 'xs'
   value: string
   options: Option[]
   onChange: (value: string) => void
@@ -186,19 +179,12 @@ function Picker(props: {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
-          className={cn(control, props.size === 'sm' ? controlSm : controlXs)}
-          title={props.title}
-        >
+        <button className={cn(control, controlSm)} title={props.title}>
           {props.trigger}
           <HugeiconsIcon
             icon={ChevronDownIcon}
             strokeWidth={2.25}
-            className={cn(
-              props.size === 'sm'
-                ? 'text-icon-muted size-3.5'
-                : '-me-1 size-3 text-current opacity-50'
-            )}
+            className="text-icon-muted size-3.5"
           />
         </button>
       </DropdownMenuTrigger>

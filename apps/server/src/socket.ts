@@ -8,7 +8,6 @@ import {
 } from './claude.ts'
 import { configInfo, readConfig, saveConfig } from './config.ts'
 import { listFiles, saveUpload } from './files.ts'
-import { folders, saveFolders } from './folders.ts'
 import {
   commit,
   createPullRequest,
@@ -19,6 +18,13 @@ import {
 } from './git.ts'
 import { earlier } from './history.ts'
 import { type Client, clients } from './hub.ts'
+import {
+  addProject,
+  directories,
+  projects,
+  removeProject,
+  updateProject,
+} from './projects.ts'
 import type { Call, Method, Methods } from './protocol.ts'
 import { pushKey, subscribe, unsubscribe } from './push.ts'
 import { activity, runs } from './run.ts'
@@ -44,7 +50,11 @@ const handlers: Handlers = {
   ping: () => null,
   'config.get': () => configInfo(),
   'config.save': (params) => saveConfig(params),
-  'folders.save': (params) => saveFolders(params),
+  'projects.list': () => projects(),
+  'projects.add': (params) => addProject(params.path),
+  'projects.update': (params) => updateProject(params.path, params.patch),
+  'projects.remove': (params) => removeProject(params.path),
+  'directories.list': (params) => directories(params.path),
   'sessions.list': () => sessions(),
   'sessions.update': async (params) => {
     await updateSession(params.id, params.patch)
@@ -138,7 +148,7 @@ export function connectClient(socket: WebSocket) {
   clients.add(client)
   client.send({ type: 'activity', activity: activity() })
   client.send({ type: 'config', config: readConfig() })
-  client.send({ type: 'folders', folders: folders() })
+  client.send({ type: 'projects', projects: projects() })
   socket.on('message', (data, isBinary) => {
     client.heardAt = Date.now()
     if (isBinary) {

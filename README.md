@@ -25,10 +25,10 @@ Don't use the same session in offsite and the CLI at the same time. Switching be
 
 ## Separate instances
 
-Give each instance its own port and `--dir`. Set `CLAUDE_CONFIG_DIR` too if it should have its own Claude Code sessions and login.
+Give each instance its own port and `--dir`.
 
 ```sh
-CLAUDE_CONFIG_DIR=~/.claude-work npx offsite --port 47850 --dir ~/.offsite-work
+npx offsite --port 47850 --dir ~/.offsite-work
 ```
 
 ## Development
@@ -38,4 +38,4 @@ pnpm install
 pnpm dev
 ```
 
-The web app runs at [http://localhost:5173](http://localhost:5173). The server runs on port 47842 and keeps its data in `~/.offsite-dev` and `~/.claude-test`, apart from your main instance.
+The web app runs at [http://localhost:5173](http://localhost:5173). The server runs on port 47842 and keeps its data in `~/.offsite-dev`, apart from your main instance.

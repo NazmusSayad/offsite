@@ -2,7 +2,7 @@
   "name": "server",
   "type": "module",
   "scripts": {
-    "dev": "CLAUDE_CONFIG_DIR=$HOME/.claude-test node --watch-path=src src/main.ts --port 47842 --dir $HOME/.offsite-dev",
+    "dev": "node --watch-path=src src/main.ts --port 47842 --dir $HOME/.offsite-dev",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc"
   },
