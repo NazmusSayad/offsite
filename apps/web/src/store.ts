@@ -12,17 +12,15 @@ import type {
   Prompt,
   PermissionRequest,
   Queued,
-  ServerEvent,
   Session,
   SessionPatch,
   Settings,
 } from '@server/protocol'
-import { useSyncExternalStore } from 'react'
+import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
 import { errorMessage } from '@/lib/utils'
-import { call, isConnected, listen } from './connection'
-import { notify, push } from './notifications'
+import { call, isConnected } from './connection'
 import { applyTheme } from './theme'
-import { selectionFromUrl, syncUrl } from './url'
+import { syncUrl } from './url'
 
 export type Selection = { cwd: string; sessionId: string | null }
 
@@ -33,7 +31,7 @@ export type SettingsPage =
   | 'Accounts'
   | 'Shortcuts'
 
-type State = {
+export type State = {
   connected: boolean
   sessions: Session[]
   projects: Project[]
@@ -61,76 +59,34 @@ type State = {
   error: string | null
 }
 
-const listeners = new Set<() => void>()
 let configWrites = 0
 let configVersion = 0
 let configTimer: number | undefined
-let sessionWrites = 0
-let sessionVersion = 0
-let state: State
+let store: StoreApi<State>
+
+export function createAppStore(initial: State) {
+  store = createStore<State>()(() => initial)
+}
 
 export function subscribe(listener: () => void) {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
+  return store.subscribe(listener)
 }
 
 export function getState() {
-  return state
+  return store.getState()
 }
 
 export function useStore<T>(select: (state: State) => T) {
-  return useSyncExternalStore(subscribe, () => select(state))
+  return useZustand(store, select)
+}
+
+export function update(patch: Partial<State>) {
+  store.setState(patch)
 }
 
 export function selectedRunning(state: State) {
   const sessionId = state.selection?.sessionId ?? null
   return sessionId !== null && state.activity[sessionId]?.running === true
-}
-
-export function start(info: ConfigInfo) {
-  const { config, ...system } = info
-  const selection = selectionFromUrl()
-  state = {
-    connected: isConnected(),
-    sessions: [],
-    projects: [],
-    accounts: [],
-    paletteOpen: false,
-    settingsOpen: false,
-    settingsPage: 'General',
-    config,
-    configError: null,
-    system,
-    activity: {},
-    unseen: [],
-    selection,
-    loaded: selection?.sessionId === null,
-    messages: [],
-    earlier: [],
-    before: null,
-    partial: '',
-    requests: [],
-    queue: [],
-    settings: config.composer,
-    draft: null,
-    context: null,
-    capabilities: null,
-    error: null,
-  }
-  applyTheme()
-  listen({
-    open: reopen,
-    close: () => update({ connected: false }),
-    event: receive,
-  })
-  reopen()
-  void refreshProjects()
-  void refreshSessions()
-  void refreshAccounts()
-  void refreshCapabilities()
-  window.addEventListener('focus', () => void refreshSessions())
 }
 
 export function openSession(selection: Selection) {
@@ -143,10 +99,10 @@ export function openSession(selection: Selection) {
     partial: '',
     requests: [],
     queue: [],
-    settings: state.config.composer,
+    settings: getState().config.composer,
     context: null,
     paletteOpen: false,
-    unseen: state.unseen.filter((id) => id !== selection.sessionId),
+    unseen: getState().unseen.filter((id) => id !== selection.sessionId),
   })
   syncUrl()
   void refreshCapabilities()
@@ -158,7 +114,7 @@ export function openSession(selection: Selection) {
 }
 
 export async function sendPrompt(prompt: Prompt, delivery: Delivery) {
-  const selection = state.selection
+  const selection = getState().selection
   if (selection === null) throw new Error('no session selected')
   if ('Notification' in window && Notification.permission === 'default')
     void Notification.requestPermission()
@@ -166,31 +122,34 @@ export async function sendPrompt(prompt: Prompt, delivery: Delivery) {
     sessionId: selection.sessionId,
     cwd: selection.cwd,
     prompt,
-    settings: state.settings,
+    settings: getState().settings,
     delivery,
   })
 }
 
 export function unqueue(id: string) {
-  const sessionId = state.selection?.sessionId
+  const sessionId = getState().selection?.sessionId
   if (sessionId === undefined || sessionId === null) return
   call('sessions.unqueue', { sessionId, id }).catch(showError)
 }
 
 export function interrupt() {
-  const sessionId = state.selection?.sessionId
+  const sessionId = getState().selection?.sessionId
   if (sessionId === undefined || sessionId === null) return
   call('sessions.interrupt', { sessionId }).catch(showError)
 }
 
 export function changeSettings(patch: Partial<Settings>) {
-  const settings = { ...state.settings, ...patch }
+  const settings = { ...getState().settings, ...patch }
   update({ settings })
-  updateConfig({ ...state.config, composer: settings })
+  updateConfig({ ...getState().config, composer: settings })
   if (patch.accountId !== undefined) void refreshCapabilities()
-  const sessionId = state.selection?.sessionId
+  const sessionId = getState().selection?.sessionId
   if (sessionId === undefined || sessionId === null) return
-  if (state.activity[sessionId] !== undefined && patch.accountId === undefined)
+  if (
+    getState().activity[sessionId] !== undefined &&
+    patch.accountId === undefined
+  )
     call('sessions.configure', { sessionId, settings }).catch(showError)
 }
 
@@ -199,7 +158,7 @@ export function respond(
   decision: Decision,
   answers: Record<string, string> | null
 ) {
-  const sessionId = state.selection?.sessionId
+  const sessionId = getState().selection?.sessionId
   if (sessionId === undefined || sessionId === null) return
   call('sessions.respond', { sessionId, requestId, decision, answers }).catch(
     showError
@@ -208,14 +167,14 @@ export function respond(
 
 export function setAccounts(accounts: Account[]) {
   update({ accounts })
-  if (accounts.some((item) => item.id === state.settings.accountId)) return
+  if (accounts.some((item) => item.id === getState().settings.accountId)) return
   if (accounts.length > 0) changeSettings({ accountId: accounts[0].id })
-  else if (state.settings.accountId !== null)
+  else if (getState().settings.accountId !== null)
     changeSettings({ accountId: null })
 }
 
 export async function forkFrom(messageId: string) {
-  const selection = state.selection
+  const selection = getState().selection
   if (selection === null || selection.sessionId === null) return
   try {
     const result = await call('sessions.fork', {
@@ -223,7 +182,6 @@ export async function forkFrom(messageId: string) {
       cwd: selection.cwd,
       messageId,
     })
-    await refreshSessions()
     openSession({ cwd: selection.cwd, sessionId: result.sessionId })
   } catch (error) {
     showError(error)
@@ -231,8 +189,8 @@ export async function forkFrom(messageId: string) {
 }
 
 export async function loadEarlier() {
-  const selection = state.selection
-  const before = state.before
+  const selection = getState().selection
+  const before = getState().before
   if (selection === null || selection.sessionId === null || before === null)
     return
   try {
@@ -241,9 +199,10 @@ export async function loadEarlier() {
       cwd: selection.cwd,
       before,
     })
-    if (state.selection !== selection || state.before !== before) return
+    if (getState().selection !== selection || getState().before !== before)
+      return
     update({
-      earlier: [...result.messages, ...state.earlier],
+      earlier: [...result.messages, ...getState().earlier],
       before: result.before,
     })
   } catch (error) {
@@ -253,16 +212,6 @@ export async function loadEarlier() {
 
 export function setDraft(draft: string | null) {
   update({ draft })
-}
-
-export async function refreshSessions() {
-  const version = sessionVersion
-  try {
-    const sessions = await call('sessions.list', undefined)
-    if (sessionWrites === 0 && version === sessionVersion) update({ sessions })
-  } catch (error) {
-    showError(error)
-  }
 }
 
 export function showPalette(paletteOpen: boolean) {
@@ -291,19 +240,27 @@ export function updateConfig(config: Config) {
 
 export async function editSession(id: string, patch: SessionPatch) {
   update({
-    sessions: state.sessions.map((item) =>
+    sessions: getState().sessions.map((item) =>
       item.id === id ? { ...item, ...patch } : item
     ),
   })
-  await saveSessions(() => call('sessions.update', { id, patch }))
+  try {
+    await call('sessions.update', { id, patch })
+  } catch (error) {
+    showError(error)
+  }
 }
 
 export async function removeSession(id: string) {
-  update({ sessions: state.sessions.filter((item) => item.id !== id) })
-  const selection = state.selection
+  update({ sessions: getState().sessions.filter((item) => item.id !== id) })
+  const selection = getState().selection
   if (selection?.sessionId === id)
     openSession({ cwd: selection.cwd, sessionId: null })
-  await saveSessions(() => call('sessions.remove', { id }))
+  try {
+    await call('sessions.remove', { id })
+  } catch (error) {
+    showError(error)
+  }
 }
 
 export function showError(error: unknown) {
@@ -314,137 +271,7 @@ export function dismissError() {
   update({ error: null })
 }
 
-function reopen() {
-  update({ connected: true })
-  const selection = state.selection
-  if (selection !== null && selection.sessionId !== null)
-    call('sessions.open', {
-      cwd: selection.cwd,
-      sessionId: selection.sessionId,
-    }).catch(showError)
-}
-
-function receive(event: ServerEvent) {
-  const current = state.selection?.sessionId ?? null
-  switch (event.type) {
-    case 'activity': {
-      const running =
-        current !== null && event.activity[current]?.running === true
-      const finished = Object.keys(state.activity).filter(
-        (id) =>
-          state.activity[id].running && event.activity[id]?.running !== true
-      )
-      const waiting = Object.keys(event.activity).filter(
-        (id) =>
-          event.activity[id].waiting && state.activity[id]?.waiting !== true
-      )
-      notify(finished, 'finished')
-      notify(waiting, 'needs your input')
-      update({
-        activity: event.activity,
-        partial: running ? state.partial : '',
-        unseen: [
-          ...state.unseen,
-          ...finished.filter(
-            (id) => id !== current && !state.unseen.includes(id)
-          ),
-        ],
-      })
-      void refreshSessions()
-      return
-    }
-    case 'limits':
-      update({
-        accounts: state.accounts.map((item) =>
-          item.id === event.accountId ? { ...item, limits: event.limits } : item
-        ),
-      })
-      return
-    case 'config':
-      if (configWrites === 0) applyConfig(event.config)
-      return
-    case 'projects':
-      update({ projects: event.projects })
-      return
-    case 'started':
-      if (
-        state.selection === null ||
-        state.selection.cwd !== event.cwd ||
-        state.selection.sessionId !== null
-      )
-        return
-      update({
-        selection: { cwd: event.cwd, sessionId: event.sessionId },
-        loaded: true,
-        messages: [],
-        earlier: [],
-        before: null,
-        partial: '',
-        requests: [],
-        queue: [],
-      })
-      syncUrl()
-      return
-    case 'notification':
-      push(event.sessionId, event.message)
-      return
-  }
-  if (event.sessionId !== current) return
-  switch (event.type) {
-    case 'history':
-      update({
-        loaded: true,
-        messages: event.messages,
-        earlier: [],
-        before: event.before,
-        requests: event.requests,
-        queue: event.queue,
-        settings: event.settings ?? state.settings,
-        context: event.context,
-        partial: '',
-      })
-      return
-    case 'context':
-      update({ context: event.context })
-      return
-    case 'message':
-      if (state.messages.some((item) => item.uuid === event.message.uuid))
-        return
-      update({
-        messages: [...state.messages, event.message],
-        partial: event.message.type === 'assistant' ? '' : state.partial,
-      })
-      return
-    case 'delta':
-      update({ partial: state.partial + event.text })
-      return
-    case 'request':
-      update({ requests: [...state.requests, event.request] })
-      return
-    case 'requestDone':
-      update({
-        requests: state.requests.filter((item) => item.id !== event.requestId),
-      })
-      return
-    case 'queue':
-      update({ queue: event.queue })
-      return
-    case 'settings':
-      update({
-        settings: { ...event.settings, accountId: state.settings.accountId },
-      })
-  }
-}
-
-async function refreshProjects() {
-  try {
-    update({ projects: await call('projects.list', undefined) })
-  } catch (error) {
-    showError(error)
-  }
-}
-
-async function refreshAccounts() {
+export async function refreshAccounts() {
   try {
     setAccounts(await call('accounts.list', undefined))
   } catch (error) {
@@ -452,36 +279,24 @@ async function refreshAccounts() {
   }
 }
 
-async function refreshCapabilities() {
-  const cwd = state.selection?.cwd
+export async function refreshCapabilities() {
+  const cwd = getState().selection?.cwd
   if (cwd === undefined) return
-  const accountId = state.settings.accountId
+  const accountId = getState().settings.accountId
   if (accountId === null) {
     update({ capabilities: null })
     return
   }
   try {
     const capabilities = await call('capabilities', { accountId, cwd })
-    if (state.selection?.cwd === cwd && state.settings.accountId === accountId)
+    if (
+      getState().selection?.cwd === cwd &&
+      getState().settings.accountId === accountId
+    )
       update({ capabilities })
   } catch (error) {
     showError(error)
   }
-}
-
-async function saveSessions(write: () => Promise<Session[]>) {
-  sessionWrites += 1
-  sessionVersion += 1
-  let sessions: Session[] | null = null
-  try {
-    sessions = await write()
-  } catch (error) {
-    showError(error)
-  }
-  sessionWrites -= 1
-  if (sessionWrites > 0) return
-  if (sessions === null) await refreshSessions()
-  else update({ sessions })
 }
 
 async function saveConfig(config: Config) {
@@ -500,6 +315,10 @@ async function saveConfig(config: Config) {
   else applyConfig(saved)
 }
 
+export function receiveConfig(config: Config) {
+  if (configWrites === 0) applyConfig(config)
+}
+
 async function refreshConfig() {
   const version = configVersion
   try {
@@ -512,19 +331,15 @@ async function refreshConfig() {
 }
 
 function applyConfig(config: Config) {
-  const sessionId = state.selection?.sessionId ?? null
-  const live = sessionId !== null && state.activity[sessionId] !== undefined
+  const sessionId = getState().selection?.sessionId ?? null
+  const live =
+    sessionId !== null && getState().activity[sessionId] !== undefined
   const accountChanged =
-    !live && config.composer.accountId !== state.settings.accountId
+    !live && config.composer.accountId !== getState().settings.accountId
   update({
     config,
     ...(live ? {} : { settings: config.composer }),
   })
   applyTheme()
   if (accountChanged) void refreshCapabilities()
-}
-
-function update(patch: Partial<State>) {
-  state = { ...state, ...patch }
-  for (const listener of listeners) listener()
 }

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 export function Tooltip(props: {
   label: ReactNode
-  side?: 'top' | 'bottom'
+  side?: 'top' | 'bottom' | 'left'
   children: ReactNode
 }) {
   return (

@@ -1,3 +1,5 @@
+import { type FSWatcher, watch } from 'node:fs'
+import path from 'node:path'
 import {
   deleteSession,
   forkSession,
@@ -5,12 +7,17 @@ import {
   listSessions,
   renameSession,
 } from '@anthropic-ai/claude-agent-sdk'
+import { readConfig } from './config.ts'
+import { broadcast } from './hub.ts'
 import { projects } from './projects.ts'
 import type { Session, SessionPatch } from './protocol.ts'
 import { runs } from './run.ts'
 import { readJson, writeJson } from './storage.ts'
 
 type Marks = { pinned: string[]; archived: string[] }
+
+let watcher: FSWatcher | null = null
+let timer: NodeJS.Timeout | undefined
 
 export async function sessions(): Promise<Session[]> {
   const marks = readMarks()
@@ -34,6 +41,37 @@ export async function sessions(): Promise<Session[]> {
     )
   )
   return lists.flat()
+}
+
+export async function publishSessions() {
+  try {
+    broadcast({ type: 'sessions', sessions: await sessions() })
+  } catch (error) {
+    console.warn(`could not list threads: ${error}`)
+  }
+}
+
+export function watchSessions() {
+  watcher?.close()
+  watcher = null
+  const dir = path.join(readConfig().claudeBaseDir, 'projects')
+  try {
+    watcher = watch(dir, { recursive: true }, () => {
+      timer ??= setTimeout(() => {
+        timer = undefined
+        void publishSessions()
+      }, 1000)
+    })
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    console.warn(
+      `${dir} does not exist; threads changed outside offsite will not show`
+    )
+    return
+  }
+  watcher.on('error', (error) =>
+    console.warn(`stopped watching ${dir}: ${error}`)
+  )
 }
 
 export async function updateSession(id: string, patch: SessionPatch) {

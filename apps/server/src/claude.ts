@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { statSync } from 'node:fs'
+import { realpathSync, statSync } from 'node:fs'
+import { mkdir, rm, symlink } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import {
@@ -9,6 +10,7 @@ import {
   type SDKRateLimitInfo,
   type SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk'
+import { readConfig } from './config.ts'
 import { broadcast } from './hub.ts'
 import type { Account, Capabilities, RateLimit } from './protocol.ts'
 import { readJson, writeJson } from './storage.ts'
@@ -113,6 +115,7 @@ export async function accounts(): Promise<Account[]> {
           plan: info.subscriptionType ?? null,
           error: null,
           limits: accountLimits(account.id),
+          linked: linked(account.configDir),
         }
       } catch (error) {
         return {
@@ -121,10 +124,19 @@ export async function accounts(): Promise<Account[]> {
           plan: null,
           error: error instanceof Error ? error.message : String(error),
           limits: accountLimits(account.id),
+          linked: linked(account.configDir),
         }
       }
     })
   )
+}
+
+export async function publishAccounts() {
+  try {
+    broadcast({ type: 'accounts', accounts: await accounts() })
+  } catch (error) {
+    console.warn(`could not list accounts: ${error}`)
+  }
 }
 
 export function addAccount(name: string, configDir: string) {
@@ -145,6 +157,18 @@ export function updateAccount(id: string, name: string, configDir: string) {
 export function removeAccount(id: string) {
   saveAccounts(storedAccounts().filter((item) => item.id !== id))
   forget(id)
+}
+
+export async function linkAccount(id: string) {
+  const account = storedAccounts().find((item) => item.id === id)
+  if (account === undefined) throw new Error('That account was removed')
+  if (linked(account.configDir))
+    throw new Error('This account is already linked')
+  const base = path.join(readConfig().claudeBaseDir, 'projects')
+  const link = path.join(account.configDir, 'projects')
+  await mkdir(base, { recursive: true })
+  await rm(link, { recursive: true, force: true })
+  await symlink(base, link, 'junction')
 }
 
 export function recordLimit(accountId: string, info: SDKRateLimitInfo) {
@@ -183,6 +207,20 @@ function validAccount(name: string, configDir: string) {
     }
   if (path.isAbsolute(dir)) return { name: name.trim(), configDir: dir }
   throw new Error('Use an absolute config directory or one starting with ~/')
+}
+
+function linked(configDir: string) {
+  const base = readConfig().claudeBaseDir
+  try {
+    if (realpathSync(configDir) === realpathSync(base)) return true
+    return (
+      realpathSync(path.join(configDir, 'projects')) ===
+      realpathSync(path.join(base, 'projects'))
+    )
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw error
+  }
 }
 
 function forget(accountId: string) {

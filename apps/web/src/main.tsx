@@ -1,11 +1,12 @@
 import './styles.css'
+import './paste-debug'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './app'
 import { ErrorBoundary } from './components/error-boundary'
 import { call, startConnection } from './connection'
 import { refreshPushSubscription } from './notifications'
-import { start } from './store'
+import { start } from './sync'
 import { startTerminal } from './terminal/session'
 
 const root = document.getElementById('root')
@@ -22,7 +23,7 @@ async function main(container: HTMLElement) {
   container.textContent = 'Connecting to offsite…'
   await startConnection()
   try {
-    start(await call('config.get', undefined))
+    start(await call('sync', undefined))
   } catch (error) {
     container.className = 'p-4 whitespace-pre-wrap text-red-400'
     container.textContent = `offsite could not load its config: ${String(error)}`

@@ -3,6 +3,8 @@ import {
   accounts,
   addAccount,
   capabilities,
+  linkAccount,
+  publishAccounts,
   removeAccount,
   updateAccount,
 } from './claude.ts'
@@ -29,7 +31,14 @@ import type { Call, Method, Methods } from './protocol.ts'
 import { pushKey, subscribe, unsubscribe } from './push.ts'
 import { activity, runs } from './run.ts'
 import { open, rewind, send } from './runs.ts'
-import { fork, removeSession, sessions, updateSession } from './sessions.ts'
+import {
+  fork,
+  publishSessions,
+  removeSession,
+  sessions,
+  updateSession,
+  watchSessions,
+} from './sessions.ts'
 import { listShells } from './terminal/process.ts'
 import {
   busyTerminal,
@@ -48,21 +57,49 @@ type Handlers = {
 
 const handlers: Handlers = {
   ping: () => null,
+  sync: async () => ({
+    ...configInfo(),
+    projects: projects(),
+    sessions: await sessions(),
+    activity: activity(),
+  }),
   'config.get': () => configInfo(),
-  'config.save': (params) => saveConfig(params),
-  'projects.list': () => projects(),
-  'projects.add': (params) => addProject(params.path),
+  'config.save': (params) => {
+    const before = readConfig().claudeBaseDir
+    const saved = saveConfig(params)
+    if (saved.claudeBaseDir === before) return saved
+    watchSessions()
+    void publishSessions()
+    void publishAccounts()
+    return saved
+  },
+  'projects.add': async (params) => {
+    const project = await addProject(params.path)
+    void publishSessions()
+    return project
+  },
   'projects.update': (params) => updateProject(params.path, params.patch),
-  'projects.remove': (params) => removeProject(params.path),
+  'projects.remove': (params) => {
+    removeProject(params.path)
+    void publishSessions()
+    return null
+  },
   'directories.list': (params) => directories(params.path),
-  'sessions.list': () => sessions(),
   'sessions.update': async (params) => {
-    await updateSession(params.id, params.patch)
-    return sessions()
+    try {
+      await updateSession(params.id, params.patch)
+    } finally {
+      void publishSessions()
+    }
+    return null
   },
   'sessions.remove': async (params) => {
-    await removeSession(params.id)
-    return sessions()
+    try {
+      await removeSession(params.id)
+    } finally {
+      void publishSessions()
+    }
+    return null
   },
   'sessions.open': async (params, client) => {
     await open(client, params.sessionId, params.cwd)
@@ -93,20 +130,31 @@ const handlers: Handlers = {
     return null
   },
   'sessions.rewind': (params) => rewind(params),
-  'sessions.fork': (params) =>
-    fork(params.sessionId, params.cwd, params.messageId),
+  'sessions.fork': async (params) => {
+    const result = await fork(params.sessionId, params.cwd, params.messageId)
+    void publishSessions()
+    return result
+  },
   'accounts.list': () => accounts(),
   'accounts.add': (params) => {
     addAccount(params.name, params.configDir)
-    return accounts()
+    void publishAccounts()
+    return null
   },
   'accounts.update': (params) => {
     updateAccount(params.id, params.name, params.configDir)
-    return accounts()
+    void publishAccounts()
+    return null
   },
   'accounts.remove': (params) => {
     removeAccount(params.id)
-    return accounts()
+    void publishAccounts()
+    return null
+  },
+  'accounts.link': async (params) => {
+    await linkAccount(params.id)
+    void publishAccounts()
+    return null
   },
   capabilities: (params) => capabilities(params.accountId, params.cwd),
   'files.list': (params) => listFiles(params.cwd),
@@ -135,6 +183,10 @@ const handlers: Handlers = {
   'terminal.busy': (params) => busyTerminal(params.id),
   'terminal.paste': (params) =>
     savePastedImage(params.type, Buffer.from(params.data, 'base64')),
+  debug: (params) => {
+    console.log(`[paste-debug] ${params.line}`)
+    return null
+  },
 }
 
 export function connectClient(socket: WebSocket) {
@@ -146,9 +198,6 @@ export function connectClient(socket: WebSocket) {
     send: (message) => socket.send(JSON.stringify(message)),
   }
   clients.add(client)
-  client.send({ type: 'activity', activity: activity() })
-  client.send({ type: 'config', config: readConfig() })
-  client.send({ type: 'projects', projects: projects() })
   socket.on('message', (data, isBinary) => {
     client.heardAt = Date.now()
     if (isBinary) {

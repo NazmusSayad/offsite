@@ -11,6 +11,7 @@ const configFile = path.join(home, 'config.json')
 
 export const defaults: Config = {
   theme: schemes[0].id,
+  claudeBaseDir: path.join(os.homedir(), '.claude'),
   composer: {
     accountId: null,
     model: 'haiku',
@@ -122,6 +123,7 @@ export function saveConfig(value: unknown) {
   const error = invalid(value, defaults, [])
   if (error !== null) throw new Error(error)
   writeJson('config.json', value)
+  process.env.CLAUDE_CONFIG_DIR = (value as Config).claudeBaseDir
   broadcast({ type: 'config', config: value as Config })
   return value as Config
 }
@@ -169,6 +171,10 @@ function invalid(
     return null
   }
   if (nullable.includes(name) && value === null) return null
+  if (name === 'claudeBaseDir')
+    return typeof value === 'string' && path.isAbsolute(value)
+      ? null
+      : 'claudeBaseDir must be an absolute path'
   if (name in choices) {
     if (choices[name].includes(value as string)) return null
     return `${name} must be one of ${choices[name].join(', ')}`

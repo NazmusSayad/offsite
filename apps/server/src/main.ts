@@ -4,8 +4,10 @@ import path from 'node:path'
 import { WebSocketServer } from 'ws'
 import { args } from './args.ts'
 import { findClaude } from './claude.ts'
+import { readConfig } from './config.ts'
 import { startPush } from './push.ts'
 import { stopAll } from './runs.ts'
+import { watchSessions } from './sessions.ts'
 import { connectClient } from './socket.ts'
 
 const contentTypes: Record<string, string> = {
@@ -25,6 +27,9 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   console.error(`invalid port ${args.port}`)
   process.exit(1)
 }
+
+process.env.CLAUDE_CONFIG_DIR = readConfig().claudeBaseDir
+watchSessions()
 
 if (findClaude() === null) {
   console.error('could not find claude on PATH; install Claude Code first')
@@ -52,10 +57,13 @@ server.listen(port, args.host, () => {
   console.log(`offsite is running at http://${args.host}:${port}`)
 })
 
-process.on('SIGINT', () => {
+process.on('SIGINT', stop)
+process.on('SIGTERM', stop)
+
+function stop() {
   stopAll()
   process.exit(0)
-})
+}
 
 function serveFile(pathname: string, response: ServerResponse) {
   const requested = path.join(publicDir, path.normalize(pathname))

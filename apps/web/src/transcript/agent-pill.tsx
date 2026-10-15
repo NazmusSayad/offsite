@@ -1,8 +1,9 @@
-import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
+import { ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import type { subagents } from '@/transcript/agents-panel'
 import { text, type ToolUse } from '@/transcript/tool-details'
+import { Shimmer } from '@/transcript/tool-row'
 
 const tones = new Map([
   ['build', 'text-blue-400'],
@@ -10,6 +11,13 @@ const tones = new Map([
   ['plan', 'text-pink-400'],
   ['review', 'text-green-400'],
   ['writer', 'text-purple-400'],
+])
+
+const verbs = new Map([
+  ['Running', 'Launched agent'],
+  ['Done', 'Agent finished'],
+  ['Failed', 'Agent failed'],
+  ['Stopped', 'Agent stopped'],
 ])
 
 const palette = [
@@ -41,7 +49,7 @@ export function agentOf(tool: ToolUse) {
   }
 }
 
-function SubagentIcon(props: { className: string }) {
+export function SubagentIcon(props: { className: string }) {
   return (
     <svg
       viewBox="0 0 16 16"
@@ -61,7 +69,7 @@ function SubagentIcon(props: { className: string }) {
   )
 }
 
-function AgentSpinner(props: { className: string }) {
+export function AgentSpinner(props: { className: string }) {
   return (
     <svg
       viewBox="0 0 16 16"
@@ -86,65 +94,74 @@ function AgentSpinner(props: { className: string }) {
   )
 }
 
-export function AgentPill(props: {
+export function AgentLine(props: {
   tool: ToolUse
-  running: boolean
-  onOpen: () => void
+  agents: ReturnType<typeof subagents>['items']
+  sending: boolean
+  onOpen: (tool: ToolUse) => void
 }) {
-  const agent = agentOf(props.tool)
+  const input = props.tool.input
+  if (props.tool.name === 'SendMessage') {
+    const target = props.agents.find((item) => item.agentId === text(input.to))
+    const summary = text(input.summary)
+    return (
+      <Line
+        label="Messaged agent"
+        detail={summary === '' ? text(input.message).split('\n')[0] : summary}
+        pending={props.sending}
+        onOpen={target === undefined ? null : () => props.onOpen(target.tool)}
+      />
+    )
+  }
+  const agent = props.agents.find((item) => item.tool.id === props.tool.id)
+  if (agent === undefined)
+    throw new Error(`Agent ${props.tool.id} is missing from the thread`)
   return (
-    <button
-      type="button"
-      onClick={props.onOpen}
-      aria-label={`Open ${agent.name} agent: ${agent.description}`}
-      className="group/agent bg-secondary focus-visible:ring-ring/70 flex w-fit max-w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] leading-5 tracking-[-0.04px] select-none focus-visible:ring-2 focus-visible:outline-none"
-    >
-      {props.running ? (
-        <AgentSpinner className={agent.tone} />
-      ) : (
-        <SubagentIcon className={agent.tone} />
-      )}
-      <span className="text-foreground shrink-0 font-medium">{agent.name}</span>
-      {agent.description !== '' && (
-        <span className="text-foreground min-w-0 truncate">
-          {agent.description}
-        </span>
-      )}
-      <span className="text-muted-foreground/70 -ms-2 flex w-0 shrink-0 -translate-x-1 overflow-hidden opacity-0 transition-all group-hover/agent:ms-0 group-hover/agent:w-4 group-hover/agent:translate-x-0 group-hover/agent:opacity-100 group-focus-visible/agent:ms-0 group-focus-visible/agent:w-4 group-focus-visible/agent:translate-x-0 group-focus-visible/agent:opacity-100 pointer-coarse:ms-0 pointer-coarse:w-4 pointer-coarse:translate-x-0 pointer-coarse:opacity-100">
-        <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
-      </span>
-    </button>
+    <Line
+      label={verbs.get(agent.status) ?? `Agent ${agent.status.toLowerCase()}`}
+      detail={text(input.description)}
+      pending={agent.status === 'Running'}
+      onOpen={() => props.onOpen(agent.tool)}
+    />
   )
 }
 
-export function AgentHeader(props: {
-  tool: ToolUse
-  running: boolean
-  onBack: () => void
+function Line(props: {
+  label: string
+  detail: string
+  pending: boolean
+  onOpen: (() => void) | null
 }) {
-  const agent = agentOf(props.tool)
+  const content = (
+    <>
+      <span className="text-muted-foreground shrink-0">
+        <Shimmer
+          text={props.detail === '' ? props.label : `${props.label}:`}
+          active={props.pending}
+        />
+      </span>
+      {props.detail !== '' && (
+        <span className="text-foreground min-w-0 truncate">{props.detail}</span>
+      )}
+    </>
+  )
+  if (props.onOpen === null)
+    return (
+      <div className="flex min-h-7 min-w-0 items-center gap-1 text-[13px] leading-4 tracking-[-0.04px] select-none">
+        {content}
+      </div>
+    )
   return (
-    <div className="bg-background sticky top-0 z-30 flex min-w-0 items-center gap-2 pb-3 text-[13px] leading-5 tracking-[-0.04px]">
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        aria-label="Back to the main thread"
-        onClick={props.onBack}
-      >
-        <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-      </Button>
-      {props.running ? (
-        <AgentSpinner className={agent.tone} />
-      ) : (
-        <SubagentIcon className={agent.tone} />
-      )}
-      <span className="text-foreground shrink-0 font-medium">{agent.name}</span>
-      {agent.description !== '' && (
-        <span className="text-muted-foreground min-w-0 truncate">
-          {agent.description}
-        </span>
-      )}
-    </div>
+    <button
+      type="button"
+      title="Open in Agents panel"
+      onClick={props.onOpen}
+      className="group/agent focus-visible:ring-ring/70 flex min-h-7 w-fit max-w-full cursor-pointer items-center gap-1 rounded-md text-left text-[13px] leading-4 tracking-[-0.04px] select-none focus-visible:ring-2 focus-visible:outline-none"
+    >
+      {content}
+      <span className="text-muted-foreground/70 flex shrink-0 opacity-0 transition-opacity group-hover/agent:opacity-100 group-focus-visible/agent:opacity-100 pointer-coarse:opacity-100">
+        <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
+      </span>
+    </button>
   )
 }
