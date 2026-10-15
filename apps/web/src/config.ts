@@ -1,8 +1,4 @@
-import type {
-  OptionAsMeta,
-  TerminalBackground,
-  TerminalOptions,
-} from './ghostty/terminal'
+import type { OptionAsMeta, TerminalOptions } from './ghostty/terminal'
 import { type BuiltinTheme, themeColors } from './themes'
 
 export type Platform = 'macos' | 'linux' | 'windows'
@@ -10,8 +6,6 @@ export type Platform = 'macos' | 'linux' | 'windows'
 export type Shell = { command: string | null; cwd: string }
 
 export type TerminalIdentity = 'sshtty' | 'ghostty' | 'iterm2'
-
-export type ClipboardRead = 'ask' | 'allow' | 'deny'
 
 export type Config = {
   shell: Record<Platform, Shell>
@@ -30,14 +24,9 @@ export type Config = {
     bellSound: boolean
     terminalIdentity: TerminalIdentity
     shellIntegration: boolean
-    commandMarks: boolean
     clickToMoveCursor: boolean
     optionAsMeta: OptionAsMeta
-    clipboardRead: ClipboardRead
     confirmCloseBusyTab: boolean
-    backgroundImage: string | null
-    backgroundOpacity: number
-    backgroundFit: TerminalBackground['fit']
   }
 }
 
@@ -211,21 +200,6 @@ export async function saveConfig(config: Config) {
   return (await response.json()) as Config
 }
 
-export async function uploadBackground(file: File) {
-  const response = await fetch('/api/background', {
-    method: 'PUT',
-    headers: { 'Content-Type': file.type },
-    body: file,
-  })
-  if (!response.ok) throw new Error(await response.text())
-  return response.text()
-}
-
-export async function removeBackground() {
-  const response = await fetch('/api/background', { method: 'DELETE' })
-  if (!response.ok) throw new Error(await response.text())
-}
-
 export async function applyStyle(config: Config) {
   const font = `${config.font.size}px ${config.font.family}`
   await Promise.all([
@@ -259,10 +233,8 @@ export function terminalOptions(
     boldIsBright: config.theme.boldIsBright,
     colors: themeColors(config.theme),
     version: terminalVersion(config.behavior.terminalIdentity, version),
-    commandMarks: config.behavior.commandMarks,
     clickToMoveCursor: config.behavior.clickToMoveCursor,
     optionAsMeta: config.behavior.optionAsMeta,
-    promptEvents: config.behavior.clipboardRead !== 'deny',
   }
 }
 

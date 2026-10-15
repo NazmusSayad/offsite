@@ -668,10 +668,6 @@ export class GhosttyCore {
     return this.getFlag('ghostty_terminal_get', 8)
   }
 
-  isPendingWrap() {
-    return this.getFlag('ghostty_terminal_get', 5)
-  }
-
   isAlternateScreen() {
     this.runtime.dataView().setUint32(this.scratch, 0, true)
     return (
@@ -1002,16 +998,6 @@ export class GhosttyCore {
       this.cursorPoint()
     )
     this.check('ghostty_tracked_grid_ref_set', result)
-  }
-
-  wrapsToNext(y: number) {
-    const ref = this.gridRef(0, y, 2)
-    this.runtime.call('ghostty_grid_ref_row', ref, this.scratch)
-    const row = this.runtime.view(this.scratch, 8).getBigUint64(0, true)
-    this.runtime.bytes(this.scratch + 8, 1)[0] = 0
-    this.runtime.call('ghostty_row_get', row, 1, this.scratch + 8)
-    this.runtime.free(ref, this.runtime.layout('GhosttyGridRef').size)
-    return this.runtime.bytes(this.scratch + 8, 1)[0] !== 0
   }
 
   trackedPoint(ref: number) {

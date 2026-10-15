@@ -9,7 +9,7 @@ import {
   syncQuietTimers,
   unseenAttention,
 } from './attention'
-import { requestClipboardRead, writeClipboard } from './clipboard'
+import { readClipboard, writeClipboard } from './clipboard'
 import {
   applyStyle,
   type Config,
@@ -33,7 +33,6 @@ type Group = {
   name: string
   logo: string | null
   directory: string | null
-  background: string | null
   tabs: Tab[]
   activeTab: number | null
 }
@@ -391,9 +390,7 @@ function createSession(id: number) {
     onClipboard: writeClipboard,
     onClipboardRead: (query) => {
       if (!isSeen(id)) return
-      requestClipboardRead(id, state.config.behavior.clipboardRead, (text) =>
-        terminal.replyClipboard(text, query)
-      )
+      void readClipboard((text) => terminal.replyClipboard(text, query))
     },
     onLink: (uri) => window.open(uri, '_blank', 'noopener'),
     beforeKey: (event) => {
@@ -474,14 +471,13 @@ export function getSession(id: number) {
 
 export function mount(id: number, container: HTMLElement) {
   const terminal = getSession(id)
-  container.append(terminal.underlay, terminal.element)
+  container.append(terminal.element)
   terminal.fit()
   for (const other of sessions.values())
     other.presize(terminal.cols, terminal.rows)
   reportSize(id, terminal)
   terminal.focus()
   return () => {
-    terminal.underlay.remove()
     terminal.element.remove()
   }
 }

@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { useEffect, useState } from 'react'
 import {
   Select,
   SelectContent,
@@ -9,13 +8,10 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
-  type ClipboardRead,
   type Config,
   type Platform,
-  removeBackground,
   shellIntegrationIssue,
   type TerminalIdentity,
-  uploadBackground,
 } from '@/config'
 import {
   notificationPermission,
@@ -96,14 +92,6 @@ export function BehaviorSection(props: {
           />
         </div>
       </Row>
-      <Row
-        label={`Mark commands on the scroll bar, ${isMac ? 'Cmd+Up/Down' : 'Ctrl+Shift+Up/Down'} jumps between them`}
-      >
-        <Switch
-          checked={props.behavior.commandMarks}
-          onCheckedChange={(commandMarks) => props.onChange({ commandMarks })}
-        />
-      </Row>
       <Row label="Click moves the cursor in the command line">
         <Switch
           checked={props.behavior.clickToMoveCursor}
@@ -111,23 +99,6 @@ export function BehaviorSection(props: {
             props.onChange({ clickToMoveCursor })
           }
         />
-      </Row>
-      <Row label="Let programs read the clipboard">
-        <Select
-          value={props.behavior.clipboardRead}
-          onValueChange={(clipboardRead: ClipboardRead) =>
-            props.onChange({ clipboardRead })
-          }
-        >
-          <SelectTrigger className="w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ask">Ask each time</SelectItem>
-            <SelectItem value="allow">Allow</SelectItem>
-            <SelectItem value="deny">Deny</SelectItem>
-          </SelectContent>
-        </Select>
       </Row>
       <Row label="Ask before closing a tab that is running a program">
         <Switch
@@ -221,119 +192,6 @@ export function MacKeysSection(props: {
             <SelectItem value="left">Left Option</SelectItem>
             <SelectItem value="right">Right Option</SelectItem>
             <SelectItem value="both">Both Options</SelectItem>
-          </SelectContent>
-        </Select>
-      </Row>
-    </Section>
-  )
-}
-
-export function BackgroundSection(props: {
-  behavior: Behavior
-  onChange: (value: Partial<Behavior>) => void
-  onError: (message: string) => void
-}) {
-  const input = useRef<HTMLInputElement>(null)
-  const [image, setImage] = useState(props.behavior.backgroundImage)
-
-  async function upload(file: File) {
-    try {
-      setImage(await uploadBackground(file))
-    } catch (error) {
-      props.onError(error instanceof Error ? error.message : String(error))
-    }
-  }
-
-  async function remove() {
-    try {
-      await removeBackground()
-      setImage(null)
-    } catch (error) {
-      props.onError(error instanceof Error ? error.message : String(error))
-    }
-  }
-
-  return (
-    <Section
-      title="Background image"
-      note="A group can set its own from its menu"
-    >
-      <Row label="Image for all groups">
-        <div className="flex items-center gap-2">
-          {image !== null && (
-            <img
-              src={`/api/backgrounds/${image}`}
-              alt=""
-              className="h-7 w-11 rounded-md border object-cover"
-            />
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={
-              image === null
-                ? 'Choose image for all groups'
-                : 'Change image for all groups'
-            }
-            onClick={() => input.current?.click()}
-          >
-            {image === null ? 'Choose…' : 'Change…'}
-          </Button>
-          {image !== null && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-              onClick={() => void remove()}
-            >
-              Remove
-            </Button>
-          )}
-          <input
-            ref={input}
-            type="file"
-            accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              event.target.value = ''
-              if (file !== undefined) void upload(file)
-            }}
-          />
-        </div>
-      </Row>
-      <Row label="Opacity">
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            className="accent-primary w-40"
-            value={props.behavior.backgroundOpacity}
-            onChange={(event) =>
-              props.onChange({ backgroundOpacity: Number(event.target.value) })
-            }
-          />
-          <span className="text-muted-foreground w-9 text-right text-xs tabular-nums">
-            {Math.round(props.behavior.backgroundOpacity * 100)}%
-          </span>
-        </div>
-      </Row>
-      <Row label="Fit">
-        <Select
-          value={props.behavior.backgroundFit}
-          onValueChange={(backgroundFit: Behavior['backgroundFit']) =>
-            props.onChange({ backgroundFit })
-          }
-        >
-          <SelectTrigger className="w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="cover">Cover</SelectItem>
-            <SelectItem value="contain">Contain</SelectItem>
-            <SelectItem value="tile">Tile</SelectItem>
           </SelectContent>
         </Select>
       </Row>

@@ -63,9 +63,7 @@ async function openTab(tab) {
     type: 'window',
     includeUncontrolled: true,
   })
-  const page = windows.find(
-    (client) => new URL(client.url).pathname !== '/settings'
-  )
+  const page = windows[0]
   if (!page) {
     await self.clients.openWindow(
       tab ? `/?group=${tab.groupId}&tab=${tab.tabId}` : '/'

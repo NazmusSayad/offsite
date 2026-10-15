@@ -11,7 +11,7 @@ use uuid::Uuid;
 use super::app::App;
 use crate::utils::paths;
 
-pub(super) const TYPES: [(&str, &str); 7] = [
+const TYPES: [(&str, &str); 7] = [
     ("image/png", "png"),
     ("image/jpeg", "jpg"),
     ("image/gif", "gif"),

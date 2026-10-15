@@ -9,7 +9,7 @@ use portable_pty::CommandBuilder;
 use serde::{Deserialize, Serialize};
 
 use crate::utils::{
-    fs::{is_plain_file_name, lock_folder, write_atomic},
+    fs::{lock_folder, write_atomic},
     paths::{self, expand_home},
 };
 
@@ -44,14 +44,9 @@ struct Behavior {
     bell_sound: bool,
     terminal_identity: TerminalIdentity,
     shell_integration: bool,
-    command_marks: bool,
     click_to_move_cursor: bool,
     option_as_meta: OptionAsMeta,
-    clipboard_read: ClipboardRead,
     confirm_close_busy_tab: bool,
-    background_image: Option<String>,
-    background_opacity: f64,
-    background_fit: BackgroundFit,
 }
 
 impl Default for Behavior {
@@ -65,14 +60,9 @@ impl Default for Behavior {
             bell_sound: true,
             terminal_identity: TerminalIdentity::Sshtty,
             shell_integration: true,
-            command_marks: true,
             click_to_move_cursor: true,
             option_as_meta: OptionAsMeta::Off,
-            clipboard_read: ClipboardRead::Ask,
             confirm_close_busy_tab: true,
-            background_image: None,
-            background_opacity: 0.3,
-            background_fit: BackgroundFit::Cover,
         }
     }
 }
@@ -92,22 +82,6 @@ enum OptionAsMeta {
     Left,
     Right,
     Both,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum ClipboardRead {
-    Ask,
-    Allow,
-    Deny,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum BackgroundFit {
-    Cover,
-    Contain,
-    Tile,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -224,20 +198,7 @@ fn builtin_themes() -> Vec<BuiltinTheme> {
     serde_json::from_str(THEMES).expect("built-in themes are valid")
 }
 
-fn validate_behavior(behavior: &Behavior) -> Result<(), String> {
-    if !(0.0..=1.0).contains(&behavior.background_opacity) {
-        return Err("the background opacity must be between 0 and 1".to_string());
-    }
-    if let Some(file) = &behavior.background_image
-        && !is_plain_file_name(file)
-    {
-        return Err(format!("invalid background image {file}"));
-    }
-    Ok(())
-}
-
 fn validate(config: &Config) -> Result<(), String> {
-    validate_behavior(&config.behavior)?;
     let theme = &config.theme;
     if theme.name == CUSTOM_THEME {
         if theme.colors.is_none() {
@@ -308,11 +269,8 @@ fn merge(
         .iter()
         .fold(&mut candidate, |value, parent| &mut value[parent]);
     parent[key] = user.clone();
-    match serde_json::from_value::<Config>(candidate.clone())
-        .map_err(|error| error.to_string())
-        .and_then(|parsed| validate_behavior(&parsed.behavior))
-    {
-        Ok(()) => *config = candidate,
+    match serde_json::from_value::<Config>(candidate.clone()) {
+        Ok(_) => *config = candidate,
         Err(error) => tracing::warn!(
             "invalid {} in {}, using its default: {error}",
             keys.join("."),
@@ -407,26 +365,11 @@ fn failed(error: io::Error) -> (StatusCode, String) {
     (StatusCode::INTERNAL_SERVER_ERROR, error.to_string())
 }
 
-pub fn save(mut config: Config) -> Result<Config, (StatusCode, String)> {
+pub fn save(config: Config) -> Result<Config, (StatusCode, String)> {
     let _lock = lock_folder().map_err(failed)?;
-    config.behavior.background_image = read().behavior.background_image;
     validate(&config).map_err(|error| (StatusCode::BAD_REQUEST, error))?;
     store(&config).map_err(failed)?;
     Ok(config)
-}
-
-pub fn background_image() -> Option<String> {
-    read().behavior.background_image
-}
-
-pub fn set_background_image(
-    file: Option<String>,
-) -> Result<(Config, Option<String>), (StatusCode, String)> {
-    let _lock = lock_folder().map_err(failed)?;
-    let mut config = read();
-    let previous = std::mem::replace(&mut config.behavior.background_image, file);
-    store(&config).map_err(failed)?;
-    Ok((config, previous))
 }
 
 pub fn launch(directory: Option<&str>) -> Result<Launch, String> {

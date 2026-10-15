@@ -17,7 +17,6 @@ use serde::Serialize;
 use tokio::sync::{Notify, mpsc};
 
 use super::{
-    backgrounds,
     groups::{self, Group, Groups, unused_name},
     logos,
     messages::{Event, GroupLayout, Layout, Request},
@@ -282,7 +281,6 @@ impl App {
                         name,
                         logo: None,
                         directory: None,
-                        background: None,
                     });
                     Some(id)
                 });
@@ -307,9 +305,6 @@ impl App {
                 if let Ok(Some(group)) = removed {
                     if let Some(logo) = group.logo {
                         logos::delete(&logo);
-                    }
-                    if let Some(background) = group.background {
-                        backgrounds::delete(&background);
                     }
                 }
                 self.ensure_group();
@@ -634,7 +629,6 @@ impl App {
                     name: "~".to_string(),
                     logo: None,
                     directory: None,
-                    background: None,
                 });
             });
         }
@@ -706,35 +700,6 @@ impl App {
             .groups
             .iter()
             .any(|group| group.logo.as_deref() == Some(file))
-    }
-
-    pub(super) fn replace_background(
-        &self,
-        group_id: u64,
-        background: Option<String>,
-    ) -> Result<Option<String>, StatusCode> {
-        let replaced = self.update_groups(|groups| {
-            let group = groups
-                .groups
-                .iter_mut()
-                .find(|group| group.id == group_id)?;
-            Some(std::mem::replace(&mut group.background, background))
-        });
-        let previous = match replaced {
-            Ok(Some(previous)) => previous,
-            Ok(None) => return Err(StatusCode::NOT_FOUND),
-            Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
-        };
-        publish(&self.lock());
-        Ok(previous)
-    }
-
-    pub(super) fn has_background(&self, file: &str) -> bool {
-        let inner = self.lock();
-        inner
-            .groups
-            .iter()
-            .any(|group| group.background.as_deref() == Some(file))
     }
 
     pub(super) fn publish_config(&self, config: &config::Config) {

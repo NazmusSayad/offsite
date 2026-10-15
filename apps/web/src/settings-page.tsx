@@ -1,4 +1,4 @@
-import { ArrowLeft01Icon } from '@hugeicons/core-free-icons'
+import { Cancel01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useRef, useState } from 'react'
 import {
@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { DialogClose, DialogTitle } from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -28,15 +28,13 @@ import {
   paletteNames,
   type Platform,
   platforms,
-  removeBackground,
   saveConfig,
   type Shell,
   type ThemeColors,
 } from '@/config'
-import { cn } from '@/lib/utils'
+import { ColorInput, NumberInput, Swatch, TextInput } from '@/settings-inputs'
 import { Row, Section } from '@/settings-layout'
 import {
-  BackgroundSection,
   BehaviorSection,
   IdentitySection,
   MacKeysSection,
@@ -56,8 +54,6 @@ const namedColors: {
   { key: 'selectionBackground', label: 'Selection background' },
   { key: 'selectionForeground', label: 'Selection foreground' },
 ]
-
-const hexColor = /^#[0-9a-f]{6}$/i
 
 export function SettingsPage(props: {
   config: Config
@@ -97,7 +93,6 @@ export function SettingsPage(props: {
     )
     setRevision(revision + 1)
     commit(props.defaults)
-    void removeBackground().catch(fail)
   }
 
   function updateColors(value: Partial<ThemeColors>) {
@@ -119,34 +114,33 @@ export function SettingsPage(props: {
   }
 
   return (
-    <div className="h-dvh overflow-auto px-6 pt-4 pb-7">
-      <div key={revision} className="mx-auto w-full max-w-160 space-y-5">
+    <>
+      <div key={revision} className="w-full space-y-5">
         <div className="mb-6 flex h-9 min-w-0 items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="-ml-2"
-            aria-label="Back to terminal"
-            asChild
-          >
-            <a href="/">
-              <HugeiconsIcon icon={ArrowLeft01Icon} />
-            </a>
-          </Button>
-          <h1 className="shrink-0 text-xl font-semibold tracking-tight">
+          <DialogTitle className="shrink-0 text-xl font-semibold tracking-tight">
             Settings
-          </h1>
+          </DialogTitle>
           <p className="text-muted-foreground min-w-0 truncate text-sm">
             ~/.sshtty/config.json
           </p>
           <Button
             variant="ghost"
             size="sm"
-            className="text-muted-foreground -mr-2.5 ml-auto"
+            className="text-muted-foreground ml-auto"
             onClick={() => setConfirming(true)}
           >
             Restore defaults
           </Button>
+          <DialogClose asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="-mr-2"
+              aria-label="Close settings"
+            >
+              <HugeiconsIcon icon={Cancel01Icon} />
+            </Button>
+          </DialogClose>
         </div>
         {error && (
           <p className="text-destructive text-sm whitespace-pre-wrap">
@@ -393,11 +387,6 @@ export function SettingsPage(props: {
             </Section>
           </>
         )}
-        <BackgroundSection
-          behavior={draft.behavior}
-          onChange={(value) => update('behavior', value)}
-          onError={setError}
-        />
       </div>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>
@@ -416,101 +405,6 @@ export function SettingsPage(props: {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  )
-}
-
-function TextInput(props: {
-  value: string
-  placeholder?: string
-  className?: string
-  type?: 'text' | 'number'
-  step?: number
-  valid?: (text: string) => boolean
-  onCommit: (text: string) => void
-}) {
-  const [text, setText] = useState(props.value)
-
-  function finish() {
-    if (text === props.value) return
-    if (props.valid && !props.valid(text)) {
-      setText(props.value)
-      return
-    }
-    props.onCommit(text)
-  }
-
-  return (
-    <Input
-      className={cn('w-56', props.className)}
-      type={props.type}
-      min={props.type === 'number' ? 0 : undefined}
-      step={props.step}
-      placeholder={props.placeholder}
-      value={text}
-      onChange={(event) => setText(event.target.value)}
-      onBlur={finish}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur()
-      }}
-    />
-  )
-}
-
-function NumberInput(props: {
-  value: number
-  step?: number
-  onCommit: (value: number) => void
-}) {
-  return (
-    <TextInput
-      key={props.value}
-      type="number"
-      className="w-24"
-      step={props.step ?? 1}
-      value={String(props.value)}
-      valid={(text) => text !== '' && Number(text) >= 0}
-      onCommit={(text) => props.onCommit(Number(text))}
-    />
-  )
-}
-
-function ColorInput(props: {
-  label: string
-  value: string
-  onCommit: (value: string) => void
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <Swatch
-        label={props.label}
-        value={props.value}
-        onChange={props.onCommit}
-      />
-      <TextInput
-        key={props.value}
-        className="w-24 font-mono uppercase"
-        value={props.value}
-        valid={(text) => hexColor.test(text)}
-        onCommit={props.onCommit}
-      />
-    </div>
-  )
-}
-
-function Swatch(props: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <input
-      type="color"
-      aria-label={props.label}
-      title={`${props.label} ${props.value.toUpperCase()}`}
-      className="size-7 cursor-pointer rounded-md border bg-transparent p-0.5 [&::-moz-color-swatch]:rounded-sm [&::-moz-color-swatch]:border-0 [&::-webkit-color-swatch]:rounded-sm [&::-webkit-color-swatch]:border-0 [&::-webkit-color-swatch-wrapper]:p-0"
-      value={props.value}
-      onChange={(event) => props.onChange(event.target.value)}
-    />
+    </>
   )
 }

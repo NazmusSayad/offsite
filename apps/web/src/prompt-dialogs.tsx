@@ -7,11 +7,6 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import {
-  answerClipboardRead,
-  clipboardReadRequest,
-  subscribeClipboardRead,
-} from '@/clipboard'
 import { dismissClosing, getClosing, subscribeClosing } from '@/close-tab'
 import {
   AlertDialog,
@@ -33,10 +28,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { loadSettings, saveConfig } from '@/config'
 import { getState, send } from '@/session'
 import { focusTerminal } from '@/shortcuts'
-import { showToast } from '@/toast'
 
 export function RenameDialog(props: {
   target: 'tab' | 'group'
@@ -347,76 +340,5 @@ export function FolderDialog(props: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-}
-
-export function ClipboardReadDialog() {
-  const request = useSyncExternalStore(
-    subscribeClipboardRead,
-    clipboardReadRequest
-  )
-  const opener = useRef<Element | null>(null)
-  if (request === null) return null
-
-  function allowAlways() {
-    answerClipboardRead(true)
-    loadSettings()
-      .then((settings) =>
-        saveConfig({
-          ...settings.config,
-          behavior: { ...settings.config.behavior, clipboardRead: 'allow' },
-        })
-      )
-      .catch((error: unknown) => {
-        console.error('could not save the clipboard setting', error)
-        showToast('Could not save the clipboard setting')
-      })
-  }
-
-  return (
-    <AlertDialog
-      open
-      onOpenChange={(open) => {
-        if (!open) answerClipboardRead(false)
-      }}
-    >
-      <AlertDialogContent
-        onOpenAutoFocus={() => {
-          opener.current = document.activeElement
-        }}
-        onCloseAutoFocus={(event) => {
-          const element = opener.current
-          if (
-            element instanceof HTMLElement &&
-            element.isConnected &&
-            (element.closest(
-              '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
-            ) !== null ||
-              element.matches('[data-find]'))
-          ) {
-            event.preventDefault()
-            element.focus()
-            return
-          }
-          restoreFocus(event)
-        }}
-      >
-        <AlertDialogHeader>
-          <AlertDialogTitle>Let this tab read the clipboard?</AlertDialogTitle>
-          <AlertDialogDescription>
-            A program in this tab wants the text you last copied.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Deny</AlertDialogCancel>
-          <AlertDialogAction variant="outline" onClick={allowAlways}>
-            Always allow
-          </AlertDialogAction>
-          <AlertDialogAction onClick={() => answerClipboardRead(true)}>
-            Allow once
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   )
 }

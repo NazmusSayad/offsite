@@ -1,15 +1,10 @@
 export type OutputEvent =
   | { type: 'osc'; data: Uint8Array; terminator: string }
   | { type: 'sixel'; data: Uint8Array }
-  | { type: 'clear' }
-  | { type: 'clearBelow' }
-  | { type: 'clearScrollback' }
-  | { type: 'alternate' }
 
 type State =
   | 'ground'
   | 'escape'
-  | 'csi'
   | 'osc'
   | 'oscEscape'
   | 'dcsHeader'
@@ -23,11 +18,8 @@ const SUB = 0x1a
 const PAYLOAD_LIMIT = 32 * 1024 * 1024
 
 export class OutputScanner {
-  screenEvents = false
   private state: State = 'ground'
   private params = ''
-  private csiParam = 0
-  private csiPrivate = false
   private collecting = false
   private chunks: Uint8Array[] = []
   private size = 0
@@ -65,51 +57,7 @@ export class OutputScanner {
           this.state = 'dcsHeader'
           continue
         }
-        if (byte === 0x5b && this.screenEvents) {
-          this.state = 'csi'
-          this.csiParam = 0
-          this.csiPrivate = false
-          continue
-        }
         this.state = byte === ESC ? 'escape' : 'ground'
-        continue
-      }
-      if (this.state === 'csi') {
-        if (byte >= 0x30 && byte <= 0x39) {
-          this.csiParam =
-            this.csiParam >= 0 && this.csiParam < 100000
-              ? this.csiParam * 10 + byte - 0x30
-              : -1
-          continue
-        }
-        if (byte >= 0x20 && byte <= 0x3f) {
-          if (byte === 0x3f && this.csiParam === 0 && !this.csiPrivate)
-            this.csiPrivate = true
-          else this.csiParam = -1
-          continue
-        }
-        if (byte === ESC) {
-          this.state = 'escape'
-          continue
-        }
-        if (byte < 0x20) continue
-        this.state = 'ground'
-        if (this.csiPrivate) {
-          if (
-            byte === 0x68 &&
-            (this.csiParam === 1049 ||
-              this.csiParam === 1047 ||
-              this.csiParam === 47)
-          )
-            if (onEvent({ type: 'alternate' }, index)) return index
-          continue
-        }
-        if (byte === 0x4a && this.csiParam === 0)
-          if (onEvent({ type: 'clearBelow' }, index + 1)) return index + 1
-        if (byte === 0x4a && this.csiParam === 2)
-          if (onEvent({ type: 'clear' }, index + 1)) return index + 1
-        if (byte === 0x4a && this.csiParam === 3)
-          if (onEvent({ type: 'clearScrollback' }, index)) return index
         continue
       }
       if (this.state === 'osc') {
