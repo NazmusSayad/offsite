@@ -1,471 +1,268 @@
 import {
-  Add01Icon,
-  Cancel01Icon,
-  GitBranchIcon,
-  Menu01Icon,
-  Settings01Icon,
+  AlertCircleIcon,
+  PanelBottomIcon,
+  PanelLeftIcon,
+  PanelRightIcon,
+  XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { closeGroup, closeTab } from '@/close-tab'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { Fragment, useState, useSyncExternalStore } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
+import { AccountsDialog } from '@/accounts/accounts-dialog'
+import { ProjectIcon } from '@/components/icons'
+import { Toast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { loadSettings } from '@/config'
-import { FindBar } from '@/find-bar'
-import type { Progress } from '@/ghostty/terminal'
-import { ItemMenu } from '@/item-menu'
-import { cn } from '@/lib/utils'
-import { AttentionDot, CountBadge, MinimizedTabs } from '@/minimized-tabs'
-import { NewTerminalCanvas } from '@/new-terminal-canvas'
+import { Composer } from '@/composer/composer'
+import { DiffPanel } from '@/git/diff-panel'
+import { GitActions, useGitStatus } from '@/git/git-menu'
+import { projectName } from '@/lib/format'
+import { cn, drag, mod } from '@/lib/utils'
+import { SettingsDialog } from '@/settings/dialog'
+import { Palette } from '@/sidebar/palette'
+import { Sidebar } from '@/sidebar/sidebar'
 import {
-  CloseDialog,
-  FolderDialog,
-  RenameDialog,
-  restoreFocus,
-} from '@/prompt-dialogs'
-import {
+  dismissError,
   getState,
-  mount,
-  removeLogo,
-  send,
-  sendInput,
-  subscribe,
-  tabTitle,
-  toggleCtrl,
-  uploadLogo,
-} from '@/session'
-import { SettingsPage } from '@/settings-page'
-import { DropIndicator, SortableGroup } from '@/sortable-group'
-import { StatusOverlay } from '@/status-overlay'
-import { showToast, Toast } from '@/toast'
+  showPalette,
+  selectedRunning,
+  useStore,
+} from '@/store'
+import { TerminalPanel } from '@/terminal/panel'
+import {
+  getState as terminalState,
+  setOpen as setTerminal,
+  subscribe as subscribeTerminal,
+} from '@/terminal/session'
+import { Transcript } from '@/transcript/transcript'
 
-type Prompt = {
-  type: 'rename' | 'folder'
-  target: 'tab' | 'group'
-  id: number
-  name: string
-}
-
-const keys = [
-  { label: 'Esc', sequence: '\x1b' },
-  { label: 'Tab', sequence: '\t' },
-  { label: '↑', sequence: '\x1b[A' },
-  { label: '↓', sequence: '\x1b[B' },
-  { label: '←', sequence: '\x1b[D' },
-  { label: '→', sequence: '\x1b[C' },
-]
+const desktop = window.matchMedia('(min-width: 768px)')
+const toggle =
+  'text-foreground hover:bg-accent data-[pressed=true]:bg-accent grid h-7 min-w-7 cursor-pointer place-items-center rounded-lg border border-transparent [&_svg]:size-4 [&_svg]:opacity-80'
 
 export function App() {
-  const state = useSyncExternalStore(subscribe, getState)
-  const [drawer, setDrawer] = useState(false)
-  const [prompt, setPrompt] = useState<Prompt | null>(null)
-  const logoInput = useRef<HTMLInputElement>(null)
-  const logoGroup = useRef<number | null>(null)
-  const [logoError, setLogoError] = useState<string | null>(null)
-  const [settings, setSettings] = useState<Awaited<
-    ReturnType<typeof loadSettings>
-  > | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const selection = useStore((state) => state.selection)
+  const sessions = useStore((state) => state.sessions)
+  const connected = useStore((state) => state.connected)
+  const error = useStore((state) => state.error)
+  const [sidebar, setSidebar] = useState(desktop.matches)
+  const [panel, setPanel] = useState(false)
+  const [panelWidth, setPanelWidth] = useState(540)
+  const terminal = useSyncExternalStore(
+    subscribeTerminal,
+    () => terminalState().open
+  )
+  const terminalAlert = useSyncExternalStore(
+    subscribeTerminal,
+    () => terminalState().alerts.length > 0
+  )
+  const running = useStore(selectedRunning)
+  const git = useGitStatus(selection?.cwd ?? null, running)
+  const session = sessions.find((item) => item.id === selection?.sessionId)
 
-  function showError(error: unknown) {
-    setLogoError(error instanceof Error ? error.message : String(error))
-  }
-
-  function openSettings() {
-    loadSettings().then(
-      (loaded) => {
-        setSettings(loaded)
-        setSettingsOpen(true)
-      },
-      (error: unknown) =>
-        showToast(
-          `Settings not loaded: ${error instanceof Error ? error.message : String(error)}`
-        )
-    )
-  }
-  const layout = state.layout
-  const group = layout.groups.find((item) => item.id === layout.activeGroup)
-  const tabId = group?.activeTab ?? null
-  const visibleTabs = group?.tabs.filter((tab) => !tab.minimized) ?? []
-  const minimizedTabs = group?.tabs.filter((tab) => tab.minimized) ?? []
+  useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
+    enableOnFormTags: true,
+    preventDefault: true,
+  })
+  useHotkeys(
+    'mod+j',
+    (event) => {
+      event.stopPropagation()
+      setTerminal(!terminalState().open)
+    },
+    {
+      enableOnFormTags: true,
+      preventDefault: true,
+      eventListenerOptions: { capture: true },
+    }
+  )
+  useHotkeys('mod+b', () => setSidebar((open) => !open), {
+    enableOnFormTags: true,
+    preventDefault: true,
+  })
 
   return (
     <div className="flex h-dvh text-sm">
-      {drawer && (
+      {sidebar && (
         <div
-          className="fixed inset-0 z-10 bg-black/50 md:hidden"
-          onClick={() => setDrawer(false)}
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setSidebar(false)}
         />
       )}
-      <aside
+      <Sidebar
         className={cn(
-          'fixed inset-y-0 left-0 z-20 flex w-60 -translate-x-full flex-col gap-0.5 overflow-y-auto border-r bg-sidebar md:border-r-0 p-2 transition-transform select-none motion-reduce:transition-none md:relative md:w-14 md:gap-1 md:translate-x-0 md:items-center md:px-0',
-          drawer && 'translate-x-0'
+          'fixed inset-y-0 left-0 z-40 transition-transform motion-reduce:transition-none md:relative md:z-auto',
+          sidebar ? 'translate-x-0' : '-translate-x-full md:hidden'
         )}
-      >
-        {layout.groups.map((item, index) => (
-          <SortableGroup key={item.id} id={item.id} index={index}>
-            <ItemMenu
-              closeLabel="Close group"
-              onChangeLogo={() => {
-                logoGroup.current = item.id
-                logoInput.current?.click()
-              }}
-              onRemoveLogo={
-                item.logo === null
-                  ? undefined
-                  : () => void removeLogo(item.id).catch(showError)
-              }
-              onSetFolder={() =>
-                setPrompt({
-                  type: 'folder',
-                  target: 'group',
-                  id: item.id,
-                  name: item.name,
-                })
-              }
-              onRename={() =>
-                setPrompt({
-                  type: 'rename',
-                  target: 'group',
-                  id: item.id,
-                  name: item.name,
-                })
-              }
-              onClose={() => void closeGroup(item.id)}
-            >
-              <button
-                className={cn(
-                  'relative flex h-8 flex-none items-center rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-10 md:justify-center md:px-0 md:text-[13px] md:font-medium',
-                  item.id === layout.activeGroup && 'bg-accent text-foreground'
-                )}
-                title={item.name}
-                onClick={() => {
-                  send({ type: 'select', groupId: item.id, tabId: null })
-                  setDrawer(false)
-                }}
-              >
-                {item.logo !== null && (
-                  <img
-                    src={`/api/logos/${item.logo}`}
-                    alt=""
-                    draggable={false}
-                    className="mr-2 size-4 flex-none rounded-[3px] object-cover md:mr-0 md:size-6 md:rounded-[6px]"
-                  />
-                )}
-                {item.logo === null && (
-                  <span className="hidden md:inline">
-                    {initials(item.name)}
-                  </span>
-                )}
-                <span className="truncate md:hidden">{item.name}</span>
-                {item.tabs.length > 0 && (
-                  <CountBadge
-                    className="md:ring-sidebar ml-1.5 md:absolute md:right-0 md:bottom-0 md:ml-0 md:ring-2"
-                    count={item.tabs.length}
-                    alert={false}
-                  />
-                )}
-                <AttentionDot
-                  ids={item.tabs.map((tab) => tab.id)}
-                  className="absolute top-1/2 right-2.5 size-2 -translate-y-1/2 rounded-full md:top-1 md:right-1 md:translate-y-0"
-                />
-              </button>
-            </ItemMenu>
-          </SortableGroup>
-        ))}
-        <DropIndicator />
-        <button
-          className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
-          title="New group"
-          onClick={() => {
-            send({ type: 'createGroup' })
-            setDrawer(false)
-          }}
-        >
-          <HugeiconsIcon icon={Add01Icon} className="size-4 md:size-4.5" />
-          <span className="md:hidden">New group</span>
-        </button>
-        <input
-          ref={logoInput}
-          type="file"
-          accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            const groupId = logoGroup.current
-            event.target.value = ''
-            if (file === undefined || groupId === null) return
-            void uploadLogo(groupId, file).catch(showError)
-          }}
-        />
-        <button
-          className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
-          title="Settings"
-          onClick={openSettings}
-        >
-          <HugeiconsIcon icon={Settings01Icon} className="size-4 md:size-4.5" />
-          <span className="md:hidden">Settings</span>
-        </button>
-      </aside>
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header
-          className={cn(
-            'flex h-8 flex-none select-none',
-            visibleTabs.length === 1 ? 'bg-background' : 'bg-sidebar',
-            group && group.tabs.length === 0 && 'md:hidden'
-          )}
-        >
-          <button
-            className={cn(
-              'text-muted-foreground hover:text-foreground grid w-9 flex-none place-items-center md:hidden',
-              visibleTabs.length > 1 && 'border-b'
-            )}
-            aria-label="Groups"
-            onClick={() => setDrawer(!drawer)}
+        onNavigate={() => {
+          if (!desktop.matches) setSidebar(false)
+        }}
+        onHide={() => setSidebar(false)}
+      />
+      {!sidebar && (
+        <div className="fixed top-0 left-3 z-50 flex h-(--workspace-topbar-height) items-center">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Show sidebar"
+            title={`Show sidebar (${mod}+B)`}
+            onClick={() => setSidebar(true)}
           >
-            <HugeiconsIcon icon={Menu01Icon} className="size-4" />
-          </button>
-          {group && (
-            <>
-              {minimizedTabs.length > 0 && (
-                <MinimizedTabs
-                  groupId={group.id}
-                  tabs={minimizedTabs}
-                  alerts={state.alerts}
-                  bordered={visibleTabs.length > 1}
-                />
-              )}
-              <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
-                {visibleTabs.map((tab) => (
-                  <ItemMenu
-                    key={tab.id}
-                    closeLabel="Close tab"
-                    onMinimize={
-                      visibleTabs.length > 1
-                        ? () => send({ type: 'minimizeTab', id: tab.id })
-                        : undefined
-                    }
-                    onRename={() =>
-                      setPrompt({
-                        type: 'rename',
-                        target: 'tab',
-                        id: tab.id,
-                        name: tab.customName ?? '',
-                      })
-                    }
-                    onClose={() => void closeTab(tab.id)}
-                    tabId={tab.id}
+            <HugeiconsIcon icon={PanelLeftIcon} />
+          </Button>
+        </div>
+      )}
+      <main className="bg-background relative flex min-w-0 flex-1 overflow-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
+          <header
+            className={cn(
+              'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-3 pl-[3.25rem] sm:pr-5',
+              sidebar && 'md:pl-5',
+              !panel && 'pr-24 sm:pr-24'
+            )}
+          >
+            {selection !== null && (
+              <nav className="min-w-0 flex-1">
+                <ol className="flex min-w-0 items-center gap-2 text-sm sm:gap-3">
+                  <li
+                    className="text-muted-foreground flex min-w-0 shrink items-center gap-1.5 font-medium"
+                    title={selection.cwd}
                   >
-                    <div
-                      className={cn(
-                        'group/tab relative flex min-w-28 flex-1 items-center justify-center border-r border-b px-7 text-xs text-muted-foreground transition-colors last:border-r-0 hover:text-foreground',
-                        tab.id === tabId &&
-                          'bg-background text-foreground border-b-transparent md:first:border-l'
-                      )}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() =>
-                        send({
-                          type: 'select',
-                          groupId: group.id,
-                          tabId: tab.id,
-                        })
-                      }
-                    >
-                      <span className="truncate">{tabTitle(tab)}</span>
-                      <AttentionDot
-                        ids={[tab.id]}
-                        className="ml-1.5 size-1.5 flex-none rounded-full"
-                      />
-                      {state.config.behavior.showGitBranch &&
-                        state.branches[tab.id] && (
-                          <span className="ml-2 flex min-w-0 flex-none items-center gap-1 opacity-60">
-                            <HugeiconsIcon
-                              icon={GitBranchIcon}
-                              className="size-3 flex-none"
-                            />
-                            <span className="max-w-40 truncate">
-                              {state.branches[tab.id]}
-                            </span>
-                          </span>
-                        )}
-                      <TabProgress progress={state.progress[tab.id]} />
-                      <button
-                        className={cn(
-                          'absolute left-1.5 grid size-4.5 place-items-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/tab:opacity-100 hover:bg-accent hover:text-foreground',
-                          tab.id === tabId && 'pointer-coarse:opacity-100'
-                        )}
-                        aria-label="Close tab"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          void closeTab(tab.id)
-                        }}
-                      >
-                        <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
-                      </button>
-                    </div>
-                  </ItemMenu>
-                ))}
+                    <ProjectIcon cwd={selection.cwd} className="size-3.5" />
+                    <span className="max-w-40 truncate">
+                      {projectName(selection.cwd)}
+                    </span>
+                  </li>
+                  <li aria-hidden className="text-icon-muted shrink-0">
+                    /
+                  </li>
+                  <li className="text-foreground min-w-10 flex-1 truncate font-medium">
+                    {session?.title ?? 'New thread'}
+                  </li>
+                </ol>
+              </nav>
+            )}
+            {selection === null && <span className="flex-1" />}
+            {!connected && (
+              <span className="text-warning-foreground shrink-0 text-xs">
+                Reconnecting…
+              </span>
+            )}
+            {selection !== null && git.status !== null && (
+              <GitActions
+                cwd={selection.cwd}
+                status={git.status}
+                onStatus={git.setStatus}
+                onRefresh={git.refresh}
+              />
+            )}
+          </header>
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+            {error !== null && (
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center px-4 pt-3">
+                <div className="border-error/30 bg-background/80 text-error-foreground pointer-events-auto flex w-fit max-w-[min(48rem,100%)] items-start gap-2 rounded-xl border px-3.5 py-3 text-sm backdrop-blur-md">
+                  <HugeiconsIcon
+                    icon={AlertCircleIcon}
+                    className="text-error mt-0.5 size-4 shrink-0"
+                  />
+                  <div className="line-clamp-3 min-w-0 flex-1 whitespace-pre-wrap">
+                    {error}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label="Dismiss"
+                    onClick={dismissError}
+                  >
+                    <HugeiconsIcon icon={XIcon} />
+                  </Button>
+                </div>
               </div>
-              <button
-                className={cn(
-                  'grid w-8 flex-none place-items-center text-muted-foreground transition-colors hover:text-foreground',
-                  visibleTabs.length > 1 && 'border-l border-b'
-                )}
-                aria-label="New tab"
-                title="New tab"
-                onClick={() => send({ type: 'createTab', groupId: group.id })}
-              >
-                <HugeiconsIcon icon={Add01Icon} className="size-4" />
-              </button>
-            </>
-          )}
-        </header>
-        <div className="relative min-h-0 flex-1 md:border-l">
-          {tabId !== null && <TerminalPane key={tabId} id={tabId} />}
-          {tabId !== null && state.finding === tabId && (
-            <FindBar key={tabId} id={tabId} />
-          )}
-          {group && group.tabs.length === 0 && (
-            <NewTerminalCanvas
-              animated={state.config.emptyScreenAnimation}
-              onOpen={() => send({ type: 'createTab', groupId: group.id })}
-            />
+            )}
+            {selection === null && (
+              <div className="grid flex-1 place-items-center p-6 text-center">
+                <div>
+                  <h1 className="text-foreground text-2xl font-normal tracking-tight sm:text-3xl">
+                    Pick a thread, or start one
+                  </h1>
+                  <p className="text-muted-foreground mt-2 text-sm">
+                    Open a project from the sidebar to talk to Claude.
+                  </p>
+                </div>
+              </div>
+            )}
+            {selection !== null && (
+              <Fragment key={selection.sessionId ?? selection.cwd}>
+                <Transcript onOpenDiff={() => setPanel(true)} />
+                <Composer branch={git.status?.branch ?? null} />
+              </Fragment>
+            )}
+          </div>
+          {selection !== null && terminal && (
+            <aside className="border-border/80 bg-background h-70 shrink-0 overflow-hidden border-t">
+              <TerminalPanel cwd={selection.cwd} />
+            </aside>
           )}
         </div>
-        {tabId !== null && (
-          <div className="bg-card hidden flex-none gap-1.5 overflow-x-auto border-t p-1.5 pointer-coarse:flex">
-            {keys.map((key) => (
-              <Button
-                key={key.label}
-                variant="secondary"
-                className="min-w-11"
-                onPointerDown={(event) => event.preventDefault()}
-                onClick={() => sendInput(tabId, key.sequence)}
-              >
-                {key.label}
-              </Button>
-            ))}
-            <Button
-              variant={state.ctrl ? 'default' : 'secondary'}
-              className="min-w-11"
-              onPointerDown={(event) => event.preventDefault()}
-              onClick={toggleCtrl}
+        {selection !== null && panel && (
+          <div
+            className="bg-background fixed inset-0 z-40 flex flex-col md:relative md:inset-auto md:z-auto md:shrink-0 md:border-l"
+            style={desktop.matches ? { width: panelWidth } : undefined}
+          >
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              className="group absolute inset-y-0 -left-1 z-20 hidden w-2 cursor-col-resize select-none md:block"
+              onPointerDown={(event) =>
+                drag(event, (next) => {
+                  const max = Math.max(360, Math.floor(window.innerWidth * 0.7))
+                  setPanelWidth(
+                    Math.min(
+                      max,
+                      Math.max(360, window.innerWidth - next.clientX)
+                    )
+                  )
+                })
+              }
             >
-              Ctrl
-            </Button>
+              <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
+            </div>
+            <DiffPanel
+              cwd={selection.cwd}
+              running={running}
+              onClose={() => setPanel(false)}
+            />
           </div>
         )}
       </main>
-      {prompt?.type === 'rename' && (
-        <RenameDialog
-          key={prompt.id}
-          target={prompt.target}
-          id={prompt.id}
-          name={prompt.name}
-          onDone={() => setPrompt(null)}
-        />
+      {selection !== null && (
+        <div className="fixed top-0 right-3 z-50 flex h-(--workspace-topbar-height) items-center gap-1">
+          <button
+            className={cn(toggle, 'relative')}
+            data-pressed={terminal}
+            aria-label="Toggle terminal"
+            title={`Terminal (${mod}+J)`}
+            onClick={() => setTerminal(!terminal)}
+          >
+            <HugeiconsIcon icon={PanelBottomIcon} />
+            {terminalAlert && (
+              <span className="bg-primary absolute top-1 right-1 size-1.5 rounded-full" />
+            )}
+          </button>
+          <button
+            className={toggle}
+            data-pressed={panel}
+            aria-label="Toggle diff panel"
+            title="Diff"
+            onClick={() => setPanel(!panel)}
+          >
+            <HugeiconsIcon icon={PanelRightIcon} />
+          </button>
+        </div>
       )}
-      {prompt?.type === 'folder' && (
-        <FolderDialog
-          key={prompt.id}
-          groupId={prompt.id}
-          directory={
-            layout.groups.find((item) => item.id === prompt.id)?.directory ??
-            null
-          }
-          onDone={() => setPrompt(null)}
-        />
-      )}
-      <CloseDialog />
-      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent
-          showCloseButton={false}
-          aria-describedby={undefined}
-          onCloseAutoFocus={restoreFocus}
-          className="block max-h-[calc(100dvh-2rem)] overflow-auto px-6 pt-4 pb-7 sm:max-w-172"
-        >
-          {settings !== null && (
-            <SettingsPage
-              config={settings.config}
-              defaults={settings.defaults}
-              platform={settings.platform}
-              defaultShell={settings.defaultShell}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-      <AlertDialog
-        open={logoError !== null}
-        onOpenChange={(open) => {
-          if (!open) setLogoError(null)
-        }}
-      >
-        <AlertDialogContent onCloseAutoFocus={restoreFocus}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Logo not updated</AlertDialogTitle>
-            <AlertDialogDescription>{logoError}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction>OK</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      {state.status !== 'active' && <StatusOverlay status={state.status} />}
+      <AccountsDialog />
+      <Palette />
+      <SettingsDialog />
       <Toast />
     </div>
   )
-}
-
-function TerminalPane(props: { id: number }) {
-  const container = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!container.current) throw new Error('terminal container missing')
-    return mount(props.id, container.current)
-  }, [props.id])
-
-  return (
-    <div
-      className="bg-background absolute inset-0 pt-(--pad-top) pr-(--pad-right) pb-(--pad-bottom) pl-(--pad-left)"
-      ref={container}
-    />
-  )
-}
-
-function TabProgress(props: { progress: Progress | undefined }) {
-  const progress = props.progress
-  if (!progress || progress.state === 0) return null
-  if (progress.state === 3)
-    return (
-      <span className="bg-primary absolute inset-x-0 bottom-0 h-0.5 animate-pulse" />
-    )
-  return (
-    <span
-      className={cn(
-        'absolute bottom-0 left-0 h-0.5 transition-[width]',
-        progress.state === 1 && 'bg-primary',
-        progress.state === 2 && 'bg-destructive',
-        progress.state === 4 && 'bg-yellow-500'
-      )}
-      style={{
-        width: `${progress.state !== 1 && progress.value === 0 ? 100 : progress.value}%`,
-      }}
-    />
-  )
-}
-
-function initials(name: string) {
-  const words = name.trim().split(/\s+/)
-  if (words.length > 1) return (words[0][0] + words[1][0]).toUpperCase()
-  return name.slice(0, 2).toUpperCase()
 }

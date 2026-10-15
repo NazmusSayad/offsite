@@ -1,9 +1,23 @@
 import { convertIndexedToRgb, decode } from 'fast-png'
 import { PALETTE_ANSI_256, PALETTE_VT340_COLOR } from 'sixel/lib/Colors'
 import { decodeAsync } from 'sixel/lib/Decoder'
+import type { GhosttyCore } from './core'
 
 const palette = PALETTE_ANSI_256.slice()
 palette.set(PALETTE_VT340_COLOR)
+const IMAGE_LIMIT = 200
+const encoder = new TextEncoder()
+
+export const IMAGE_MARKER = 'offsite-image:'
+
+type Image = {
+  ref: number
+  marker: string
+  bitmap: ImageBitmap
+  width: number
+  height: number
+  alternate: boolean
+}
 
 export type Area = {
   cellWidth: number
@@ -142,37 +156,82 @@ export function decodePng(bytes: Uint8Array) {
   return { width, height, data }
 }
 
-const KITTY_CHANNELS = new Map([
-  [0, 3],
-  [1, 4],
-  [3, 2],
-  [4, 1],
-])
+export class InlineImages {
+  private readonly core: GhosttyCore
+  private images: Image[] = []
+  private nextImage = 0
 
-export function kittyBitmap(image: {
-  width: number
-  height: number
-  format: number
-  pixels: Uint8Array
-}) {
-  const channels = KITTY_CHANNELS.get(image.format)
-  if (channels === undefined)
-    throw new Error(`unsupported kitty image format ${image.format}`)
-  const count = image.width * image.height
-  const source = image.pixels
-  const data = new Uint8ClampedArray(count * 4)
-  if (channels === 4) data.set(source.subarray(0, count * 4))
-  else
-    for (let pixel = 0; pixel < count; pixel += 1) {
-      const from = pixel * channels
-      const to = pixel * 4
-      if (channels === 3) data.set(source.subarray(from, from + 3), to)
-      else data.fill(source[from], to, to + 3)
-      data[to + 3] = channels === 2 ? source[from + 1] : 255
+  constructor(core: GhosttyCore) {
+    this.core = core
+  }
+
+  place(bitmap: ImageBitmap, pixelRatio: number, cellHeight: number) {
+    const marker = `${IMAGE_MARKER}${this.nextImage++}`
+    this.core.write(encoder.encode(`\x1b]8;;${marker}\x1b\\ \x1b]8;;\x1b\\\b`))
+    const image = {
+      ref: this.core.trackCursor(),
+      marker,
+      bitmap,
+      width: bitmap.width / pixelRatio,
+      height: bitmap.height / pixelRatio,
+      alternate: this.core.isAlternateScreen(),
     }
-  const canvas = new OffscreenCanvas(image.width, image.height)
-  const context = canvas.getContext('2d')
-  if (!context) throw new Error('could not create a canvas for a kitty image')
-  context.putImageData(new ImageData(data, image.width, image.height), 0, 0)
-  return canvas
+    this.images.push(image)
+    if (this.images.length > IMAGE_LIMIT) {
+      const oldest = this.images.shift()
+      if (oldest) this.remove(oldest)
+    }
+    const rows = Math.ceil(image.height / cellHeight)
+    if (rows > 1) this.core.write(encoder.encode('\x1bD'.repeat(rows - 1)))
+  }
+
+  visible(top: number, rows: number, cellHeight: number) {
+    if (this.images.length === 0) return []
+    const alternate = this.core.isAlternateScreen()
+    const visible: {
+      bitmap: ImageBitmap
+      width: number
+      height: number
+      x: number
+      y: number
+    }[] = []
+    const kept: Image[] = []
+    for (const image of this.images) {
+      if (image.alternate !== alternate) {
+        kept.push(image)
+        continue
+      }
+      const point = this.core.trackedPoint(image.ref)
+      if (
+        point === null ||
+        this.core.trackedHyperlink(image.ref) !== image.marker
+      ) {
+        this.remove(image)
+        continue
+      }
+      kept.push(image)
+      const y = point.y - top
+      const height = Math.ceil(image.height / cellHeight)
+      if (y + height <= 0 || y >= rows) continue
+      visible.push({
+        bitmap: image.bitmap,
+        width: image.width,
+        height: image.height,
+        x: point.x,
+        y,
+      })
+    }
+    this.images = kept
+    return visible
+  }
+
+  clear() {
+    for (const image of this.images) this.remove(image)
+    this.images = []
+  }
+
+  private remove(image: Image) {
+    this.core.untrack(image.ref)
+    image.bitmap.close()
+  }
 }

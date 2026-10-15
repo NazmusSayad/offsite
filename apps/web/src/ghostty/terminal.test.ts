@@ -23,7 +23,7 @@ const options = {
       (_, index) => `#${index.toString(16).padStart(2, '0').repeat(3)}`
     ),
   },
-  version: 'sshtty 0.0.0',
+  version: 'offsite 0.0.0',
   clickToMoveCursor: true,
   optionAsMeta: 'off' as const,
 }

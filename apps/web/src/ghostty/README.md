@@ -16,20 +16,25 @@ Update this table after every sync.
 
 ## Files
 
-| Our file               | T3 Code file                   | Notes                                                                                                                                      |
-| ---------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ghostty-vt.wasm`      | `vendor/ghostty-vt.wasm`       | Built by `scripts/build-ghostty-wasm.mts` with kitty graphics turned on                                                                    |
-| `kitty-graphics.patch` | none                           | Ours. The Ghostty change that turns on kitty graphics in the WASM build                                                                    |
-| `ghostty-LICENSE.txt`  | `native/libghostty-vt/LICENSE` | Copied as is                                                                                                                               |
-| `keys.ts`              | `keyCodes.ts`                  | Mostly the same                                                                                                                            |
-| `runtime.ts`           | `runtime.ts`                   | Rewritten. We build the callback module in JS instead of their `ghostty-write-pty.wasm`, and also answer device attribute and size queries |
-| `core.ts`              | `core.ts`                      | Rewritten. Adds image anchors, the size report and kitty image placements                                                                  |
-| `renderer.ts`          | `renderer.ts`                  | Rewritten. Adds find highlights, the ligature setting, drawn box characters and kitty image layers                                         |
-| `terminal.ts`          | `surface.ts`                   | Rewritten for sshtty. Adds images, kitty images, OSC 52, OSC 9;4 progress, find, OSC 8 links and mobile input                              |
-| `glyphs.ts`            | none                           | Ours. Box, block and shade characters drawn as shapes                                                                                      |
-| `images.ts`            | none                           | Ours. Sixel, iTerm2 and PNG decoding, and kitty image pixels                                                                               |
-| `output.ts`            | none                           | Ours. Finds OSC and sixel sequences in program output                                                                                      |
-| `placeholders.ts`      | none                           | Ours. Port of Ghostty's `src/terminal/kitty/graphics_unicode.zig`: kitty Unicode placeholders, which Ghostty draws in its renderer         |
+| Our file               | T3 Code file                   | Notes                                                                                                                                                                       |
+| ---------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ghostty-vt.wasm`      | `vendor/ghostty-vt.wasm`       | Built by `scripts/build-ghostty-wasm.mts` with kitty graphics turned on                                                                                                     |
+| `kitty-graphics.patch` | none                           | Ours. The Ghostty change that turns on kitty graphics in the WASM build                                                                                                     |
+| `ghostty-LICENSE.txt`  | `native/libghostty-vt/LICENSE` | Copied as is                                                                                                                                                                |
+| `keys.ts`              | `keyCodes.ts`                  | Mostly the same. Also has the key, paste and mouse encoders                                                                                                                 |
+| `runtime.ts`           | `runtime.ts`                   | Rewritten. We build the callback module in JS instead of their `ghostty-write-pty.wasm`, and also answer device attribute and size queries                                  |
+| `core.ts`              | `core.ts`                      | Rewritten. Adds image anchors and the size report                                                                                                                           |
+| `render-state.ts`      | `core.ts`                      | Split from `core.ts`. Reads rows, cells and colors for each frame                                                                                                           |
+| `renderer.ts`          | `renderer.ts`                  | Rewritten. Adds find highlights, the ligature setting, drawn box characters and kitty image layers                                                                          |
+| `terminal.ts`          | `surface.ts`                   | Rewritten for offsite. Adds images, kitty images, OSC 52, OSC 9;4 progress, find, OSC 8 links and mobile input                                                              |
+| `pointer.ts`           | `surface.ts`                   | Split from `terminal.ts`. Mouse reports, selection, links, wheel and the scroll bar                                                                                         |
+| `osc.ts`               | none                           | Ours. Clipboard, color, progress and notification sequences                                                                                                                 |
+| `find.ts`              | none                           | Ours. Find in the terminal                                                                                                                                                  |
+| `prompt.ts`            | none                           | Ours. Prompt marks and click to move the cursor                                                                                                                             |
+| `glyphs.ts`            | none                           | Ours. Box, block and shade characters drawn as shapes                                                                                                                       |
+| `images.ts`            | none                           | Ours. Sixel, iTerm2 and PNG decoding, and inline image anchors                                                                                                              |
+| `kitty.ts`             | none                           | Ours. Kitty image placements and pixels, and a port of Ghostty's `src/terminal/kitty/graphics_unicode.zig`: kitty Unicode placeholders, which Ghostty draws in its renderer |
+| `output.ts`            | none                           | Ours. Finds OSC and sixel sequences in program output                                                                                                                       |
 
 ## How to sync with T3 Code
 
@@ -54,10 +59,10 @@ Struct layouts are read from the WASM file at startup (`ghostty_type_json`), so 
 
 - Terminal option numbers: `OPTION` in `runtime.ts`, and the `ghostty_terminal_set` calls in `core.ts` (`terminal.h`, `GhosttyTerminalOption`).
 - Callback signatures in `CALLBACKS_WASM` in `runtime.ts`: write PTY is `(i32, i32, i32, i32) -> void`, device attributes and size are `(i32, i32, i32) -> i32` (`terminal.h`), and PNG decoding is `(i32, i32, i32, i32, i32) -> i32` (`sys.h`).
-- Kitty graphics numbers: `KITTY_*` in `core.ts` (`kitty_graphics.h` and the kitty data keys in `terminal.h`), and `SYS_DECODE_PNG` and the `GhosttySysImage` offsets in `SYS_IMAGE` in `runtime.ts` (`sys.h`). `GhosttyKittyGraphicsPlacementRenderInfo` and `GhosttySysImage` are not in `ghostty_type_json`, so their offsets in `KITTY_RENDER_INFO` and `SYS_IMAGE` are written by hand for wasm32.
-- Enum values used in `core.ts` and `keys.ts`, such as cell and style data keys, cursor styles, modes, key codes and mouse buttons.
-- Terminal data keys for the color replies in `core.ts`: 18 foreground, 19 background, 20 cursor and 21 palette (`terminal.h`, `GhosttyTerminalData`), and mode 1004 for focus events (`modes.h`).
-- Underline values 0 to 5 in `renderer.ts` and the style color tags `STYLE_COLOR_PALETTE` and `STYLE_COLOR_RGB` in `core.ts` (`style.h`).
+- Kitty graphics numbers: `KITTY_*` in `kitty.ts` (`kitty_graphics.h` and the kitty data keys in `terminal.h`), and `SYS_DECODE_PNG` and the `GhosttySysImage` offsets in `SYS_IMAGE` in `runtime.ts` (`sys.h`). `GhosttyKittyGraphicsPlacementRenderInfo` and `GhosttySysImage` are not in `ghostty_type_json`, so their offsets in `KITTY_RENDER_INFO` and `SYS_IMAGE` are written by hand for wasm32.
+- Enum values used in `core.ts`, `render-state.ts` and `keys.ts`, such as cell and style data keys, cursor styles, modes, key codes and mouse buttons.
+- Terminal data keys for the color replies in `core.ts` and `render-state.ts`: 18 foreground, 19 background, 20 cursor and 21 palette (`terminal.h`, `GhosttyTerminalData`), and mode 1004 for focus events (`modes.h`).
+- Underline values 0 to 5 in `renderer.ts` and the style color tags `STYLE_COLOR_PALETTE` and `STYLE_COLOR_RGB` in `render-state.ts` (`style.h`).
 - `PAGE_BYTES` and `PAGE_GRID_BYTES` in `core.ts`. At this Ghostty version `max_scrollback` is a byte limit counted in whole pages (`PageList.zig`), although `terminal.h` calls it lines, so `core.ts` turns the scrollback lines setting into pages, capped at 50 MB per terminal like Ghostty's default `scrollback-limit-bytes`. A page is 589,824 bytes in the WASM build and holds `381888 / (8 * (cols + 1))` rows. To check a new WASM file, write lines into terminals of a few widths with `max_scrollback` set to 1 and look at the largest scroll bar total: it should be twice the rows per page. Newer Ghostty versions have `GHOSTTY_TERMINAL_OPT_SCROLLBACK_MAX_LINES`, which can replace this.
 
 Ghostty says that the libghostty-vt API is not stable yet, so expect changes here.

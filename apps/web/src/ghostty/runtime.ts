@@ -47,10 +47,13 @@ const OPTION = {
 } as const
 
 const SYS_DECODE_PNG = 1
+const OUT_OF_SPACE = -3
 const SYS_IMAGE = { width: 0, height: 4, data: 8, length: 12 } as const
 
 const decoder = new TextDecoder()
 const encoder = new TextEncoder()
+
+export const SUCCESS = 0
 
 export class GhosttyRuntime {
   readonly memory: WebAssembly.Memory
@@ -152,6 +155,42 @@ export class GhosttyRuntime {
 
   readPointer(slot: number) {
     return this.dataView().getUint32(slot, true)
+  }
+
+  check(operation: string, result: number) {
+    if (result !== SUCCESS)
+      throw new Error(`${operation} failed with result ${result}`)
+  }
+
+  flag(
+    operation: 'ghostty_terminal_get' | 'ghostty_terminal_mode_get',
+    terminal: number,
+    key: number
+  ) {
+    const pointer = this.alloc(1)
+    const result = this.call(operation, terminal, key, pointer)
+    const value = this.bytes(pointer, 1)[0]
+    this.free(pointer, 1)
+    return result === SUCCESS && value !== 0
+  }
+
+  encodeOutput(
+    encode: (output: number, size: number, written: number) => number
+  ) {
+    const written = this.call('ghostty_wasm_alloc_usize')
+    let encoded = ''
+    const sizeResult = encode(0, 0, written)
+    const size = this.view(written, 4).getUint32(0, true)
+    if (sizeResult === OUT_OF_SPACE && size > 0) {
+      const output = this.alloc(size)
+      const result = encode(output, size, written)
+      const length = this.view(written, 4).getUint32(0, true)
+      if (result === SUCCESS)
+        encoded = decoder.decode(this.bytes(output, length))
+      this.free(output, size)
+    }
+    this.call('ghostty_wasm_free_usize', written)
+    return encoded
   }
 
   attachHost(terminal: number, host: TerminalHost) {

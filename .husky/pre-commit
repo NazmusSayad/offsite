@@ -1,4 +1,0 @@
-#!/usr/bin/env sh
-
-pnpm typecheck
-pnpm exec lint-staged --verbose

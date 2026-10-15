@@ -27,7 +27,7 @@ export default defineConfig({
   },
   overrides: [
     {
-      files: ['scripts/**'],
+      files: ['apps/server/**'],
       env: { node: true },
     },
     {
@@ -107,11 +107,7 @@ export default defineConfig({
       },
     },
     {
-      files: [
-        '*.config.{js,ts,mjs}',
-        './src/app/**',
-        'apps/website/src/app/**',
-      ],
+      files: ['*.config.{js,ts,mjs}'],
       rules: { 'import/no-default-export': 'off' },
     },
     {

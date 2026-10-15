@@ -1,66 +1,50 @@
-# sshtty
+# offsite
 
-A terminal in your browser, with groups and tabs, that keeps your shells running.
-
-[![sshtty in action](https://raw.githubusercontent.com/NazmusSayad/sshtty/main/.github/assets/sshtty.gif)](https://github.com/NazmusSayad/sshtty/raw/main/.github/assets/sshtty.mp4)
-
-▶️ [Watch the 1-minute video](https://github.com/NazmusSayad/sshtty/raw/main/.github/assets/sshtty.mp4)
+A better UI for Claude Code, in your browser. Same sessions as the CLI: start in one, resume in the other.
 
 ## Quick start
 
+Requires Node.js 24+, pnpm and [Claude Code](https://code.claude.com) installed and logged in.
+
 ```sh
-npx sshtty
+pnpm install
+pnpm build
+pnpm start
 ```
 
-Then open [http://127.0.0.1:47831](http://127.0.0.1:47831).
-
-Runs on macOS (Apple Silicon and Intel), Linux (x64 and arm64) and Windows (x64).
+Then open [http://127.0.0.1:47841](http://127.0.0.1:47841).
 
 ## Features
 
-- **Groups and tabs.** A tab for every task, a group for every project. Give each group its own logo.
-- **Shells that keep running.** Close the browser and reopen it: your terminals are still there, mid-command.
-- **Images in the terminal.** Shows sixel, iTerm2 and kitty images, on Windows too. Windows Terminal shows sixel but not iTerm2 or kitty images.
-- **Paste images.** Paste an image and sshtty saves it to a file and types its path. Coding agents like Claude Code and OpenCode pick it up directly.
-- **Built for coding agents.** Run Claude Code, OpenCode or any other terminal app, each in its own tab.
-- **Themes and fonts.** 9 built-in themes (One Dark Extreme, Dracula, Tokyo Night, Catppuccin Mocha, Nord, Gruvbox Dark, Solarized Dark, GitHub Dark, Rosé Pine), custom colors, and bundled Nerd Fonts with ligatures.
-- **Works on your phone.** The layout adapts to small screens.
-- **The usual terminal comforts.** Search, clickable links, a large scrollback buffer and a settings page for shell, font, cursor and padding.
+- **Same sessions as the CLI.** Projects and sessions come straight from `~/.claude/projects`. Sessions started here show up in `claude --resume`, and the other way around.
+- **Sessions keep running.** Close the tab and come back; the session is still working.
+- **Readable transcripts.** Markdown, tool calls with their output, and file edits as diffs.
+- **Prompts in the page.** Approve or deny tool calls, answer Claude's questions and approve plans.
+- **Permission modes.** Switch modes from the composer or with Shift+Tab. Esc stops Claude.
+- **Your Claude Code setup.** Uses your installed `claude`, with your settings, CLAUDE.md, MCP servers, skills and slash commands.
+- **Multiple Claude accounts.** Add accounts with `claude setup-token`, see each one's usage limits, and pick the account per message.
+- **A full composer.** Model, effort and mode pickers, `/` commands, `@` file mentions, pasted or dropped images and files, a message queue, and Ctrl/⌘+Enter to steer a running turn.
+- **Session management.** Rename, pin, archive and delete sessions, search with Ctrl/⌘+K, and get notified when Claude finishes or needs you.
+- **Review and rewind.** A Changes panel with the working tree diff, highlighted code, and rewind or fork from any of your messages, restoring files too.
+- **Terminal and git.** A terminal drawer (Ctrl/⌘+J), the branch in the header, and commit (with a message written by Claude), push and pull requests through `gh`.
+- **Dark and light themes**, and a layout that works on phones.
 
 ## Usage
 
 ```sh
-sshtty [OPTIONS]
+node apps/server/dist/main.js [--host 127.0.0.1] [--port 47841]
 ```
 
-| Option          | Default     | Description                                                                 |
-| --------------- | ----------- | --------------------------------------------------------------------------- |
-| `--host <HOST>` | `127.0.0.1` | Address to listen on                                                        |
-| `--port <PORT>` | `47831`     | Port to listen on                                                           |
-| `--dir <DIR>`   | `~/.sshtty` | Folder for settings and groups; servers with different folders are separate |
-| `--debug`       |             | Write detailed logs and serve them at `/api/debug/logs`                     |
-
-Press Ctrl+C to stop sshtty and end all its terminals.
-
-Run several on different ports, they share groups.
-
 > [!WARNING]
-> sshtty has no login. Anyone who can reach its port gets a shell on your machine. Keep the default `127.0.0.1`, and only change `--host` on a network you trust.
+> offsite has no login. Anyone who can reach its port can run Claude Code and open a terminal on your machine. Keep the default `127.0.0.1`.
+
+Avoid using one session in offsite and the CLI at the same time. Switching between them is fine.
 
 ## Development
-
-Requires Node.js, pnpm and Rust.
 
 ```sh
 pnpm install
 pnpm dev
-pnpm build
 ```
 
-## Status
-
-sshtty is in its early stages and actively maintained.
-
-## License
-
-[MIT](LICENSE)
+Opens the web app at [http://localhost:5173](http://localhost:5173), with the server on port 47841.

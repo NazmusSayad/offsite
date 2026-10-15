@@ -12,7 +12,8 @@
     "verbatimModuleSyntax": true,
     "types": ["vite/client", "node"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@server/*": ["../server/src/*"]
     }
   },
   "include": ["src"]
