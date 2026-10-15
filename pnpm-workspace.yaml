@@ -1,6 +1,2 @@
 packages:
   - 'apps/*'
-
-allowBuilds:
-  sharp: false
-  unrs-resolver: false

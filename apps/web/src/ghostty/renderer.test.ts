@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Cell, Color } from './core'
+import type { Cell, Color } from './render-state'
 import { render } from './renderer'
 
 type Call = { name: string; args: number[]; fillStyle: string }

@@ -1,5 +1,5 @@
-import { CELL_WIDE, type Cell, type Color, type Snapshot } from './core'
 import { drawGlyph, isGlyph } from './glyphs'
+import { CELL_WIDE, type Cell, type Color, type Snapshot } from './render-state'
 
 export type Metrics = {
   width: number

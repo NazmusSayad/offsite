@@ -1,4 +1,8 @@
-const storageKey = 'sshtty-notifications'
+import type { PushSubscriptionInfo } from '@server/protocol'
+import { call } from './connection'
+import { getState, openSession } from './store'
+
+const storageKey = 'notifications'
 
 export function notificationPermission() {
   if (!window.isSecureContext) return 'insecure'
@@ -28,16 +32,46 @@ export async function watchPermission(
   status.addEventListener('change', listener, { signal })
 }
 
+export function notify(ids: string[], what: string) {
+  if (!document.hidden) return
+  for (const id of ids)
+    show(
+      id,
+      `Claude ${what}`,
+      getState().sessions.find((item) => item.id === id)?.title ?? 'Session',
+      id
+    )
+}
+
+export function push(sessionId: string, message: string) {
+  show(
+    sessionId,
+    getState().sessions.find((item) => item.id === sessionId)?.title ??
+      'Claude',
+    message,
+    `push:${sessionId}`
+  )
+}
+
+function show(sessionId: string, title: string, body: string, tag: string) {
+  if (notificationPermission() !== 'granted' || !notificationsWanted()) return
+  const notification = new Notification(title, { body, tag })
+  notification.onclick = () => {
+    window.focus()
+    const session = getState().sessions.find((item) => item.id === sessionId)
+    if (session !== undefined) openSession({ cwd: session.cwd, sessionId })
+  }
+}
+
 export async function showNotification(
   title: string,
   body: string,
-  tab: { groupId: number; tabId: number }
+  tab: { cwd: string; tabId: number }
 ) {
   if (notificationPermission() !== 'granted' || !notificationsWanted()) return
   const registration = await navigator.serviceWorker.ready
   await registration.showNotification(title, {
     body,
-    icon: '/icon-192.png',
     data: tab,
   })
 }
@@ -75,9 +109,7 @@ export async function subscribePush() {
 }
 
 async function pushKey() {
-  const response = await fetch('/api/push/key')
-  if (!response.ok) throw new Error(await response.text())
-  const key = (await response.json()) as { publicKey: string }
+  const key = await call('push.key', undefined)
   return key.publicKey
 }
 
@@ -96,12 +128,7 @@ export async function unsubscribePush() {
   const registration = await navigator.serviceWorker.ready
   const subscription = await registration.pushManager.getSubscription()
   if (!subscription) return
-  const response = await fetch('/api/push/subscription', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ endpoint: subscription.endpoint }),
-  })
-  if (!response.ok) throw new Error(await response.text())
+  await call('push.unsubscribe', { endpoint: subscription.endpoint })
   await subscription.unsubscribe()
 }
 
@@ -125,10 +152,5 @@ function base64Url(buffer: ArrayBuffer) {
 }
 
 async function savePushSubscription(subscription: PushSubscription) {
-  const response = await fetch('/api/push/subscription', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(subscription),
-  })
-  if (!response.ok) throw new Error(await response.text())
+  await call('push.subscribe', subscription.toJSON() as PushSubscriptionInfo)
 }
