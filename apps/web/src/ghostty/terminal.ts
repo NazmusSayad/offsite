@@ -1940,6 +1940,10 @@ export class Terminal {
       this.suppressedKeys.add(event.code)
       return
     }
+    if (isMac && event.metaKey && key === 'q') {
+      this.suppressedKeys.add(event.code)
+      return
+    }
     const data = this.core.encodeKey(event, 'press', optionAsMeta)
     if (data.length === 0) return
     this.suppressedKeys.delete(event.code)
