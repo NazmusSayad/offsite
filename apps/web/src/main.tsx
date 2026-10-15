@@ -2,17 +2,11 @@ import './styles.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './app'
-import { startBackgrounds } from './backgrounds'
 import { applyStyle, loadSettings } from './config'
 import { loadGhostty } from './ghostty/runtime'
-import {
-  pushSubscribed,
-  pushSupport,
-  refreshPushSubscription,
-} from './notifications'
+import { refreshPushSubscription } from './notifications'
 import { ClipboardReadDialog } from './prompt-dialogs'
 import { getState, send, start, subscribe } from './session'
-import { SettingsPage } from './settings-page'
 import { startShortcuts } from './shortcuts'
 import { setThemes } from './themes'
 
@@ -21,35 +15,14 @@ if (!root) throw new Error('root element missing')
 
 async function main(container: HTMLElement) {
   try {
-    const [{ config, defaults, themes, platform, version, defaultShell }] =
-      await Promise.all([loadSettings(), loadGhostty()])
+    const [{ config, themes, platform, version }] = await Promise.all([
+      loadSettings(),
+      loadGhostty(),
+    ])
     setThemes(themes)
     await applyStyle(config)
-    if (location.pathname === '/settings') {
-      document.title = 'Settings'
-      if (pushSupport() === 'supported')
-        pushSubscribed()
-          .then((subscribed) => {
-            if (subscribed) connectSettingsPage()
-          })
-          .catch((error: unknown) =>
-            console.error('could not read the push subscription', error)
-          )
-      createRoot(container).render(
-        <StrictMode>
-          <SettingsPage
-            config={config}
-            defaults={defaults}
-            platform={platform}
-            defaultShell={defaultShell}
-          />
-        </StrictMode>
-      )
-      return
-    }
     start(config, platform, version)
     startShortcuts()
-    startBackgrounds()
     selectLinkedTab()
     refreshPushSubscription().catch((error: unknown) =>
       console.error('could not refresh the push subscription', error)
@@ -63,20 +36,6 @@ async function main(container: HTMLElement) {
   } catch (error) {
     container.className = 'p-4 whitespace-pre-wrap text-red-400'
     container.textContent = String(error)
-  }
-}
-
-function connectSettingsPage() {
-  const socket = new WebSocket(
-    `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`
-  )
-  const timer = window.setInterval(() => {
-    if (socket.readyState === WebSocket.OPEN)
-      socket.send(JSON.stringify({ type: 'ping' }))
-  }, 30_000)
-  socket.onclose = () => {
-    window.clearInterval(timer)
-    window.setTimeout(connectSettingsPage, 1000)
   }
 }
 

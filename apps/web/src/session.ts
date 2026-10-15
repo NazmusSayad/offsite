@@ -33,7 +33,6 @@ type Group = {
   name: string
   logo: string | null
   directory: string | null
-  background: string | null
   tabs: Tab[]
   activeTab: number | null
 }
@@ -474,14 +473,13 @@ export function getSession(id: number) {
 
 export function mount(id: number, container: HTMLElement) {
   const terminal = getSession(id)
-  container.append(terminal.underlay, terminal.element)
+  container.append(terminal.element)
   terminal.fit()
   for (const other of sessions.values())
     other.presize(terminal.cols, terminal.rows)
   reportSize(id, terminal)
   terminal.focus()
   return () => {
-    terminal.underlay.remove()
     terminal.element.remove()
   }
 }

@@ -69,7 +69,6 @@ function draw(
         wrapsToNext: false,
       })),
     },
-    backdrop: null,
     metrics: { width, height, baseline: height - 4, faceWidth: width },
     appearance: {
       fontSize: 14,

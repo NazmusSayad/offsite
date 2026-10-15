@@ -1,6 +1,5 @@
 mod app;
 mod assets;
-mod backgrounds;
 mod directories;
 mod groups;
 mod logos;
@@ -88,19 +87,6 @@ async fn serve(app: Arc<App>, host: String, port: u16, debug: bool) {
         )
         .route("/api/logos/{file}", get(logos::serve))
         .route("/api/tabs/{ids}/busy", get(busy))
-        .route(
-            "/api/groups/{id}/background",
-            put(backgrounds::upload_group)
-                .delete(backgrounds::remove_group)
-                .layer(DefaultBodyLimit::max(20 * 1024 * 1024)),
-        )
-        .route(
-            "/api/background",
-            put(backgrounds::upload)
-                .delete(backgrounds::remove)
-                .layer(DefaultBodyLimit::max(20 * 1024 * 1024)),
-        )
-        .route("/api/backgrounds/{file}", get(backgrounds::serve))
         .route(
             "/api/paste",
             post(paste::upload).layer(DefaultBodyLimit::max(50 * 1024 * 1024)),

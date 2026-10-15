@@ -58,10 +58,6 @@ pub fn logos_directory() -> PathBuf {
     root().join("logos")
 }
 
-pub fn backgrounds_directory() -> PathBuf {
-    root().join("backgrounds")
-}
-
 pub fn sessions_directory() -> PathBuf {
     root().join("sessions")
 }

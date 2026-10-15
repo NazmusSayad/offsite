@@ -24,7 +24,6 @@ const options = {
     ),
   },
   version: 'sshtty 0.0.0',
-  commandMarks: true,
   clickToMoveCursor: true,
   optionAsMeta: 'off' as const,
   promptEvents: true,

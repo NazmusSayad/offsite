@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { loadSettings } from '@/config'
 import { FindBar } from '@/find-bar'
 import type { Progress } from '@/ghostty/terminal'
 import { ItemMenu } from '@/item-menu'
@@ -41,9 +42,10 @@ import {
   toggleCtrl,
   uploadLogo,
 } from '@/session'
+import { SettingsDialog } from '@/settings-page'
 import { DropIndicator, SortableGroup } from '@/sortable-group'
 import { StatusOverlay } from '@/status-overlay'
-import { Toast } from '@/toast'
+import { showToast, Toast } from '@/toast'
 
 type Prompt = {
   type: 'rename' | 'folder'
@@ -68,9 +70,20 @@ export function App() {
   const logoInput = useRef<HTMLInputElement>(null)
   const logoGroup = useRef<number | null>(null)
   const [logoError, setLogoError] = useState<string | null>(null)
+  const [settings, setSettings] = useState<Awaited<
+    ReturnType<typeof loadSettings>
+  > | null>(null)
 
   function showError(error: unknown) {
     setLogoError(error instanceof Error ? error.message : String(error))
+  }
+
+  function openSettings() {
+    loadSettings().then(setSettings, (error: unknown) =>
+      showToast(
+        `Settings not loaded: ${error instanceof Error ? error.message : String(error)}`
+      )
+    )
   }
   const layout = state.layout
   const group = layout.groups.find((item) => item.id === layout.activeGroup)
@@ -105,7 +118,6 @@ export function App() {
                   ? undefined
                   : () => void removeLogo(item.id).catch(showError)
               }
-              backgroundGroup={item}
               onSetFolder={() =>
                 setPrompt({
                   type: 'folder',
@@ -189,14 +201,14 @@ export function App() {
             void uploadLogo(groupId, file).catch(showError)
           }}
         />
-        <a
-          href="/settings"
+        <button
           className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
           title="Settings"
+          onClick={openSettings}
         >
           <HugeiconsIcon icon={Settings01Icon} className="size-4 md:size-4.5" />
           <span className="md:hidden">Settings</span>
-        </a>
+        </button>
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">
         <header
@@ -368,6 +380,15 @@ export function App() {
         />
       )}
       <CloseDialog />
+      {settings !== null && (
+        <SettingsDialog
+          config={settings.config}
+          defaults={settings.defaults}
+          platform={settings.platform}
+          defaultShell={settings.defaultShell}
+          onClose={() => setSettings(null)}
+        />
+      )}
       <AlertDialog
         open={logoError !== null}
         onOpenChange={(open) => {

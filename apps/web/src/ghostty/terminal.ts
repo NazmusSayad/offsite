@@ -42,19 +42,12 @@ export type TerminalOptions = {
   boldIsBright: boolean
   colors: TerminalColors
   version: string
-  commandMarks: boolean
   clickToMoveCursor: boolean
   optionAsMeta: OptionAsMeta
   promptEvents: boolean
 }
 
 export type OptionAsMeta = 'off' | 'left' | 'right' | 'both'
-
-export type TerminalBackground = {
-  url: string
-  opacity: number
-  fit: 'cover' | 'contain' | 'tile'
-}
 
 export type TerminalHandlers = {
   onData: (data: string) => void
@@ -96,14 +89,6 @@ type Image = {
 }
 
 type Chunk = { data: Uint8Array; replay: boolean }
-
-type Prompt = {
-  row: number
-  x: number
-  line: number | null
-  column: number
-  exitCode: number | null
-}
 
 const isMac = navigator.userAgent.includes('Mac')
 const BLINK_INTERVAL = 600
@@ -154,16 +139,6 @@ function percent(value: number) {
   return Math.min(Math.max(value, 0), 100)
 }
 
-function fitScale(
-  fit: 'cover' | 'contain',
-  horizontal: number,
-  vertical: number
-) {
-  if (fit === 'cover') return Math.max(horizontal, vertical)
-  if (fit === 'contain') return Math.min(horizontal, vertical)
-  throw new Error(`unknown background fit ${fit}`)
-}
-
 function mouseButton(button: number) {
   if (button === 0) return 1
   if (button === 1) return 3
@@ -207,14 +182,12 @@ function occurrences(text: string, query: string) {
 
 export class Terminal {
   readonly element: HTMLDivElement
-  readonly underlay: HTMLCanvasElement
   cols = 80
   rows = 24
   private readonly canvas: HTMLCanvasElement
   private readonly input: HTMLTextAreaElement
   private readonly scrollbar: HTMLDivElement
   private readonly thumb: HTMLDivElement
-  private readonly marks: HTMLDivElement
   private readonly context: CanvasRenderingContext2D
   private readonly core: GhosttyCore
   private readonly scanner = new OutputScanner()
@@ -237,21 +210,12 @@ export class Terminal {
   private readonly suppressedKeys = new Set<string>()
   private readonly heldOptionKeys = new Set<string>()
   private backlog: Chunk[] = []
-  private marksTimer: number | null = null
   private shell: 'unknown' | 'prompt' | 'command' = 'unknown'
   private promptGeneration = 0
   private promptNative = false
   private promptInput = false
   private clickEvents = false
-  private prompts: Prompt[] = []
-  private currentPrompt: Prompt | null = null
-  private anchor: number | null = null
-  private anchorRow = 0
-  private anchorLine = 0
-  private frameCols = 0
-  private linesStale = false
   private inputRef: number | null = null
-  private ticks = ''
   private clickMove: Point | null = null
   private blocked = false
   private epoch = 0
@@ -285,10 +249,6 @@ export class Terminal {
   private matchesStale = false
   private findTimer: number | null = null
   private readonly findListeners = new Set<(results: FindResults) => void>()
-  private background: TerminalBackground | null = null
-  private backgroundImage: HTMLImageElement | null = null
-  private backdrop: OffscreenCanvas | null = null
-  private backdropColor = ''
   private disposed = false
 
   constructor(options: TerminalOptions, handlers: TerminalHandlers) {
@@ -296,9 +256,6 @@ export class Terminal {
     this.handlers = handlers
     this.element = document.createElement('div')
     this.element.className = 'relative h-full overflow-hidden'
-    this.underlay = document.createElement('canvas')
-    this.underlay.className = 'absolute inset-0 size-full'
-    this.underlay.hidden = true
     this.canvas = document.createElement('canvas')
     this.canvas.className = 'absolute top-0 left-0 cursor-text touch-none'
     this.input = document.createElement('textarea')
@@ -315,9 +272,7 @@ export class Terminal {
     this.thumb = document.createElement('div')
     this.thumb.className =
       'bg-foreground/15 hover:bg-foreground/30 absolute inset-x-0.5 top-0 rounded-full'
-    this.marks = document.createElement('div')
-    this.marks.className = 'pointer-events-none absolute inset-0'
-    this.scrollbar.append(this.marks, this.thumb)
+    this.scrollbar.append(this.thumb)
     this.element.append(this.canvas, this.input, this.scrollbar)
     const context = this.canvas.getContext('2d', { alpha: false })
     if (!context) throw new Error('canvas 2d is unavailable')
@@ -354,26 +309,12 @@ export class Terminal {
       options.lineHeight,
       window.devicePixelRatio || 1
     )
-    if (!options.commandMarks) this.clearPrompts()
     if (!options.clickToMoveCursor) this.releaseInput()
     if (!this.tracksPrompts()) this.shell = 'unknown'
     this.applyTerminalOptions()
     this.resizeCore()
     this.forceFull = true
     this.fit()
-    this.requestRender()
-    this.scheduleMarks()
-  }
-
-  setBackground(background: TerminalBackground | null) {
-    if (JSON.stringify(background) === JSON.stringify(this.background)) return
-    if (background?.url !== this.background?.url) {
-      this.backgroundImage = null
-      if (background !== null) void this.loadBackground(background.url)
-    }
-    this.background = background
-    this.backdrop = null
-    this.forceFull = true
     this.requestRender()
   }
 
@@ -388,12 +329,10 @@ export class Terminal {
     this.backlog = []
     this.blocked = false
     this.scanner.reset()
-    this.clearPrompts()
     this.releaseInput()
     this.shell = 'unknown'
     this.promptInput = false
     this.clickEvents = false
-    this.scheduleMarks()
     this.core.reset()
     this.applyTerminalOptions()
     for (const image of this.images) this.removeImage(image)
@@ -418,7 +357,6 @@ export class Terminal {
 
   presize(cols: number, rows: number) {
     if (this.fitted || (cols === this.cols && rows === this.rows)) return
-    if (cols !== this.cols && this.linesStale) this.assignPending()
     this.cols = cols
     this.rows = rows
     this.resizeCore()
@@ -432,7 +370,6 @@ export class Terminal {
       this.sized = false
       return
     }
-    if (!this.sized && this.anchor !== null) this.scheduleMarks()
     this.sized = true
     this.fitted = true
     const ratio = window.devicePixelRatio || 1
@@ -460,17 +397,11 @@ export class Terminal {
     const cols = Math.max(1, Math.floor(width / this.metrics.width))
     const rows = Math.max(1, Math.floor(height / this.metrics.height))
     if (cols !== this.cols || rows !== this.rows) {
-      if (cols !== this.cols && this.linesStale) this.assignPending()
       this.cols = cols
       this.rows = rows
       this.resizeCore()
       this.forceFull = true
       this.handlers.onResize(cols, rows)
-      if (this.anchor !== null) {
-        if (this.marksTimer !== null) window.clearTimeout(this.marksTimer)
-        this.marksTimer = null
-        this.scheduleMarks()
-      }
     }
     this.renderFrame()
   }
@@ -528,101 +459,11 @@ export class Terminal {
     if (this.selectionScroll !== null)
       window.clearInterval(this.selectionScroll)
     if (this.findTimer !== null) window.clearTimeout(this.findTimer)
-    if (this.marksTimer !== null) window.clearTimeout(this.marksTimer)
     window.removeEventListener('focus', this.onWindowFocus)
     document.removeEventListener('visibilitychange', this.onVisibilityChange)
     for (const image of this.images) this.removeImage(image)
     this.core.dispose()
     this.element.remove()
-  }
-
-  private async loadBackground(url: string) {
-    const image = new Image()
-    image.src = url
-    try {
-      await image.decode()
-    } catch (error) {
-      console.warn('could not load the background image', error)
-      return
-    }
-    if (this.disposed || this.background?.url !== url) return
-    if (image.naturalWidth === 0 || image.naturalHeight === 0) {
-      console.warn('the background image has no size', url)
-      return
-    }
-    this.backgroundImage = image
-    this.backdrop = null
-    this.forceFull = true
-    this.requestRender()
-  }
-
-  private backdropFor(snapshot: Snapshot) {
-    const background = this.background
-    const image = this.backgroundImage
-    if (background === null || image === null) {
-      this.underlay.hidden = true
-      return null
-    }
-    const pane = this.element.parentElement
-    if (!pane) throw new Error('terminal is not mounted')
-    const color = `rgb(${snapshot.background.r}, ${snapshot.background.g}, ${snapshot.background.b})`
-    const ratio = this.context.getTransform().a
-    const width = pane.clientWidth
-    const height = pane.clientHeight
-    if (
-      this.backdrop !== null &&
-      this.backdrop.width === this.canvas.width &&
-      this.backdrop.height === this.canvas.height &&
-      this.underlay.width === Math.round(width * ratio) &&
-      this.underlay.height === Math.round(height * ratio) &&
-      this.backdropColor === color
-    )
-      return this.backdrop
-    this.underlay.width = Math.round(width * ratio)
-    this.underlay.height = Math.round(height * ratio)
-    const context = this.underlay.getContext('2d', { alpha: false })
-    if (!context) throw new Error('canvas 2d is unavailable')
-    context.setTransform(ratio, 0, 0, ratio, 0, 0)
-    context.fillStyle = color
-    context.fillRect(0, 0, width, height)
-    context.globalAlpha = background.opacity
-    if (background.fit === 'tile') {
-      const pattern = context.createPattern(image, 'repeat')
-      if (!pattern) throw new Error('could not tile the background image')
-      context.fillStyle = pattern
-      context.fillRect(0, 0, width, height)
-    } else {
-      const scale = fitScale(
-        background.fit,
-        width / image.naturalWidth,
-        height / image.naturalHeight
-      )
-      const imageWidth = image.naturalWidth * scale
-      const imageHeight = image.naturalHeight * scale
-      context.drawImage(
-        image,
-        (width - imageWidth) / 2,
-        (height - imageHeight) / 2,
-        imageWidth,
-        imageHeight
-      )
-    }
-    this.underlay.hidden = false
-    const backdrop = new OffscreenCanvas(this.canvas.width, this.canvas.height)
-    const backdropContext = backdrop.getContext('2d', { alpha: false })
-    if (!backdropContext) throw new Error('canvas 2d is unavailable')
-    backdrop.addEventListener('contextrestored', this.onContextRestored)
-    const paneBounds = pane.getBoundingClientRect()
-    const bounds = this.canvas.getBoundingClientRect()
-    backdropContext.drawImage(
-      this.underlay,
-      Math.round((paneBounds.left - bounds.left) * ratio),
-      Math.round((paneBounds.top - bounds.top) * ratio)
-    )
-    this.backdrop = backdrop
-    this.backdropColor = color
-    this.forceFull = true
-    return backdrop
   }
 
   private resizeCore() {
@@ -661,15 +502,10 @@ export class Terminal {
     this.core.boldIsBright = this.options.boldIsBright
     this.core.version = this.options.version
     this.core.invalidate()
-    this.scanner.screenEvents = this.options.commandMarks
   }
 
   private tracksPrompts() {
-    return (
-      this.options.commandMarks ||
-      this.options.clickToMoveCursor ||
-      this.options.promptEvents
-    )
+    return this.options.clickToMoveCursor || this.options.promptEvents
   }
 
   private drain() {
@@ -683,7 +519,6 @@ export class Terminal {
       this.handlers.onTitle(title)
     }
     if (this.query !== '') this.scheduleFindRefresh()
-    if (this.anchor !== null) this.scheduleMarks()
     this.cursorOn = true
     this.requestRender()
   }
@@ -693,16 +528,6 @@ export class Terminal {
     this.core.setReplies(!replay)
     let start = 0
     const consumed = this.scanner.scan(data, (event, end) => {
-      if (
-        (event.type === 'clear' || event.type === 'clearBelow') &&
-        this.anchor !== null &&
-        this.frameCols !== this.cols &&
-        !this.core.isAlternateScreen()
-      ) {
-        this.core.write(data.subarray(start, end - 1))
-        start = end - 1
-        this.syncPrompts()
-      }
       this.core.write(data.subarray(start, end))
       start = end
       return this.handleOutput(event, replay)
@@ -730,15 +555,10 @@ export class Terminal {
       if (this.options.clickToMoveCursor) this.trackInput()
       if (duplicate) {
         this.clickEvents = this.clickEvents || clickEvents
-        if (this.options.commandMarks) {
-          if (this.prompts.at(-1) === this.currentPrompt) this.prompts.pop()
-          this.addPrompt()
-        }
         return
       }
       this.promptInput = false
       this.clickEvents = clickEvents
-      if (this.options.commandMarks) this.addPrompt()
       if (repaint) return
       this.promptGeneration += 1
       return
@@ -756,11 +576,6 @@ export class Terminal {
     if (kind === 'D') {
       if (this.shell === 'prompt' && !this.promptInput) return
       this.shell = 'unknown'
-      if (this.currentPrompt !== null) {
-        const code = text.split(';')[2] ?? ''
-        this.currentPrompt.exitCode = /^\d+$/.test(code) ? Number(code) : null
-        this.scheduleMarks()
-      }
     }
   }
 
@@ -772,235 +587,6 @@ export class Terminal {
   private releaseInput() {
     if (this.inputRef !== null) this.core.untrack(this.inputRef)
     this.inputRef = null
-  }
-
-  private addPrompt() {
-    const previous =
-      this.anchor === null ? null : this.core.trackedPoint(this.anchor)
-    if (previous === null) this.clearPrompts()
-    else if (this.frameCols !== this.cols) this.rescan(previous)
-    if (this.anchor === null) this.anchor = this.core.trackCursor()
-    else this.core.retrack(this.anchor)
-    const point = this.core.trackedPoint(this.anchor)
-    if (point === null) {
-      this.clearPrompts()
-      return
-    }
-    if (previous === null) {
-      this.anchorRow = point.y
-      this.frameCols = this.cols
-    } else {
-      this.anchorRow += point.y - previous.y
-    }
-    const wrapped = point.x === this.cols - 1 && this.core.isPendingWrap()
-    const row = wrapped ? this.anchorRow + 1 : this.anchorRow
-    const shift = point.y - this.anchorRow
-    while ((this.prompts.at(-1)?.row ?? -Infinity) >= row) this.prompts.pop()
-    while (this.prompts.length > 0 && this.prompts[0].row + shift < 0)
-      this.prompts.shift()
-    this.currentPrompt = {
-      row,
-      x: wrapped ? 0 : point.x,
-      line: null,
-      column: 0,
-      exitCode: null,
-    }
-    this.prompts.push(this.currentPrompt)
-    this.linesStale = true
-    this.scheduleMarks()
-  }
-
-  private clearPrompts() {
-    if (this.anchor !== null) this.core.untrack(this.anchor)
-    this.anchor = null
-    this.prompts = []
-    this.currentPrompt = null
-    this.linesStale = false
-    this.scheduleMarks()
-  }
-
-  private assignPending() {
-    if (this.core.isAlternateScreen()) {
-      this.clearPrompts()
-      return
-    }
-    if (this.anchor === null) return
-    const anchor = this.core.trackedPoint(this.anchor)
-    if (anchor === null) this.clearPrompts()
-    else this.assignLines(anchor)
-  }
-
-  private syncPrompts() {
-    if (this.anchor === null) return null
-    const anchor = this.core.trackedPoint(this.anchor)
-    if (anchor === null) {
-      this.clearPrompts()
-      return null
-    }
-    if (this.frameCols !== this.cols) this.rescan(anchor)
-    if (this.linesStale) this.assignLines(anchor)
-    const shift = anchor.y - this.anchorRow
-    let trimmed = 0
-    while (
-      trimmed < this.prompts.length &&
-      this.prompts[trimmed].row + shift < 0
-    )
-      trimmed += 1
-    this.prompts.splice(0, trimmed)
-    return shift
-  }
-
-  private lineStart(y: number) {
-    let start = y
-    while (start > 0 && this.core.wrapsToNext(start - 1)) start -= 1
-    return start
-  }
-
-  private assignLines(anchor: Point) {
-    const shift = anchor.y - this.anchorRow
-    let start = this.lineStart(anchor.y)
-    let count = 0
-    let index = this.prompts.length - 1
-    this.anchorLine = 0
-    while (index >= 0) {
-      const prompt = this.prompts[index]
-      const row = prompt.row + shift
-      while (start > row && start > 0) {
-        start = this.lineStart(start - 1)
-        count += 1
-      }
-      if (start > row) {
-        this.prompts.splice(0, index + 1)
-        index = -1
-        break
-      }
-      if (prompt.line !== null) {
-        this.anchorLine = prompt.line + count
-        break
-      }
-      prompt.line = -count
-      prompt.column = prompt.x + (row - start) * this.cols
-      index -= 1
-    }
-    for (const prompt of this.prompts.slice(index + 1))
-      if (prompt.line !== null) prompt.line += this.anchorLine
-    this.linesStale = false
-  }
-
-  private rescan(anchor: Point) {
-    let start = this.lineStart(anchor.y)
-    let line = this.anchorLine
-    for (let index = this.prompts.length - 1; index >= 0; index -= 1) {
-      const prompt = this.prompts[index]
-      const target = prompt.line
-      if (target === null) {
-        this.prompts.splice(0, index + 1)
-        break
-      }
-      while (line > target && start > 0) {
-        start = this.lineStart(start - 1)
-        line -= 1
-      }
-      if (line !== target) {
-        this.prompts.splice(0, index + 1)
-        break
-      }
-      prompt.row = start + Math.floor(prompt.column / this.cols)
-    }
-    this.anchorRow = anchor.y
-    this.frameCols = this.cols
-  }
-
-  private handleClear() {
-    if (this.anchor === null || this.core.isAlternateScreen()) return
-    const shift = this.syncPrompts()
-    const state = this.core.scrollbarState()
-    if (shift === null || state === null) return
-    const top = state.total - state.len
-    while ((this.prompts.at(-1)?.row ?? -Infinity) + shift >= top)
-      this.prompts.pop()
-    if (
-      this.shell !== 'command' &&
-      this.currentPrompt !== null &&
-      this.currentPrompt.exitCode === null &&
-      this.prompts.at(-1) !== this.currentPrompt
-    )
-      this.addPrompt()
-    this.scheduleMarks()
-  }
-
-  private handleClearScrollback() {
-    if (this.anchor === null || this.core.isAlternateScreen()) return
-    const anchor = this.core.trackedPoint(this.anchor)
-    const state = this.core.scrollbarState()
-    if (anchor === null || state === null || anchor.y < state.total - state.len)
-      this.clearPrompts()
-  }
-
-  private scheduleMarks() {
-    if (this.marksTimer !== null) return
-    this.marksTimer = window.setTimeout(() => {
-      this.marksTimer = null
-      this.updateMarks()
-    }, 200)
-  }
-
-  private updateMarks() {
-    const height = this.element.clientHeight
-    if (height === 0) return
-    const state = this.core.scrollbarState()
-    const shift = this.core.isAlternateScreen() ? null : this.syncPrompts()
-    const palette = this.options.colors.palette
-    const ticks = new Map<number, string>()
-    if (
-      shift !== null &&
-      state !== null &&
-      this.scrollbarGeometry(state, height) !== null
-    )
-      for (const prompt of this.prompts) {
-        const top = Math.min(
-          height - 2,
-          Math.round(((prompt.row + shift) / state.total) * height)
-        )
-        const color =
-          prompt.exitCode === null
-            ? palette[8]
-            : prompt.exitCode === 0
-              ? palette[2]
-              : palette[1]
-        if (ticks.get(top) !== palette[1]) ticks.set(top, color)
-      }
-    const key = JSON.stringify([...ticks])
-    if (key === this.ticks) return
-    this.ticks = key
-    this.marks.replaceChildren()
-    for (const [top, color] of ticks) {
-      const tick = document.createElement('div')
-      tick.className = 'absolute right-0 h-0.5 w-0.5'
-      tick.style.top = `${top}px`
-      tick.style.backgroundColor = color
-      this.marks.append(tick)
-    }
-  }
-
-  private jumpToPrompt(direction: 'previous' | 'next') {
-    if (
-      !this.options.commandMarks ||
-      this.shell !== 'prompt' ||
-      this.core.isAlternateScreen()
-    )
-      return false
-    const shift = this.syncPrompts()
-    if (shift === null) return false
-    const top = this.viewportTop()
-    const rows = this.prompts.map((prompt) => prompt.row + shift)
-    const target =
-      direction === 'previous'
-        ? rows.filter((row) => row < top).at(-1)
-        : rows.find((row) => row > top)
-    if (target === undefined) return false
-    this.scrollViewport(target - top)
-    return this.viewportTop() !== top
   }
 
   private moveCursorTo(cell: Point) {
@@ -1070,25 +656,6 @@ export class Terminal {
 
   private handleOutput(event: OutputEvent, replay: boolean) {
     if (event.type === 'sixel') return this.decodeImage(decodeSixel(event.data))
-    if (event.type === 'clear') {
-      this.handleClear()
-      return false
-    }
-    if (event.type === 'clearBelow') {
-      if (this.anchor !== null) {
-        const cursor = this.core.cursorPosition()
-        if (cursor.x === 0 && cursor.y === 0) this.handleClear()
-      }
-      return false
-    }
-    if (event.type === 'clearScrollback') {
-      this.handleClearScrollback()
-      return false
-    }
-    if (event.type === 'alternate') {
-      if (this.linesStale) this.assignPending()
-      return false
-    }
     const text = latin1.decode(event.data)
     if (text.startsWith('1337;File='))
       return this.decodeImage(
@@ -1441,11 +1008,9 @@ export class Terminal {
     if (!blinking) this.cursorOn = true
     const images = this.visibleImages()
     const kitty = this.kittyImages()
-    const backdrop = this.backdropFor(snapshot)
     render({
       context: this.context,
       snapshot,
-      backdrop,
       metrics: this.metrics,
       appearance: this.appearance,
       forceFull: this.forceFull || images.length > 0 || kitty.length > 0,
@@ -1909,18 +1474,6 @@ export class Terminal {
       this.suppressedKeys.add(event.code)
       return
     }
-    const jump = isMac
-      ? event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey
-      : event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey
-    if (
-      jump &&
-      (event.code === 'ArrowUp' || event.code === 'ArrowDown') &&
-      this.jumpToPrompt(event.code === 'ArrowUp' ? 'previous' : 'next')
-    ) {
-      event.preventDefault()
-      this.suppressedKeys.add(event.code)
-      return
-    }
     const key = event.key.toLowerCase()
     const copy = isMac
       ? event.metaKey && key === 'c'
@@ -2006,14 +1559,12 @@ export class Terminal {
   private readonly onContextRestored = () => {
     const ratio = window.devicePixelRatio || 1
     this.context.setTransform(ratio, 0, 0, ratio, 0, 0)
-    this.backdrop = null
     this.forceFull = true
     this.requestRender()
   }
 
   private readonly onVisibilityChange = () => {
     if (document.visibilityState !== 'visible') return
-    this.backdrop = null
     this.forceFull = true
     this.requestRender()
   }
@@ -2244,7 +1795,6 @@ export class Terminal {
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false })
     this.canvas.addEventListener('mousedown', this.onMouseDown)
     this.canvas.addEventListener('contextrestored', this.onContextRestored)
-    this.underlay.addEventListener('contextrestored', this.onContextRestored)
     this.scrollbar.addEventListener('pointerdown', this.onScrollbarDown)
     this.scrollbar.addEventListener('pointermove', this.onScrollbarMove)
     this.scrollbar.addEventListener('pointerup', this.onScrollbarUp)

@@ -38,14 +38,6 @@ fn temporary_path(path: &Path) -> io::Result<(PathBuf, OsString)> {
     Ok((path, temporary))
 }
 
-pub fn is_plain_file_name(name: &str) -> bool {
-    !name.is_empty()
-        && !name.starts_with('.')
-        && name.chars().all(|character| {
-            character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '_')
-        })
-}
-
 pub fn lock_folder() -> io::Result<File> {
     fs::create_dir_all(paths::root())?;
     let file = OpenOptions::new()
