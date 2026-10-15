@@ -242,6 +242,10 @@ export type Methods = {
   }
   'sessions.remove': { params: { id: string }; result: Session[] }
   'sessions.open': { params: { sessionId: string; cwd: string }; result: null }
+  'sessions.earlier': {
+    params: { sessionId: string; cwd: string; before: number }
+    result: { messages: Message[]; before: number | null }
+  }
   'sessions.send': {
     params: {
       sessionId: string | null
@@ -367,6 +371,7 @@ export type ServerEvent =
       queue: Queued[]
       settings: Settings | null
       context: Context | null
+      before: number | null
     }
   | { type: 'message'; sessionId: string; message: Message }
   | { type: 'delta'; sessionId: string; text: string }

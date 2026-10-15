@@ -23,6 +23,7 @@ export function UserMessage(props: {
   blocks: Block[]
   first: boolean
   running: boolean
+  rewind: boolean
   onRewind: (target: RewindTarget) => void
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -134,24 +135,29 @@ export function UserMessage(props: {
           )}
           {prompt !== '' && (
             <div className="flex items-center gap-0.5">
-              <Tooltip label="Edit from here">
-                <Button
-                  type="button"
-                  size="icon-xs"
-                  variant="ghost-muted"
-                  aria-label="Edit from here"
-                  disabled={props.running}
-                  onClick={() =>
-                    props.onRewind({
-                      messageId: props.uuid,
-                      text: prompt,
-                      first: props.first,
-                    })
-                  }
-                >
-                  <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
-                </Button>
-              </Tooltip>
+              {props.rewind && (
+                <Tooltip label="Edit from here">
+                  <Button
+                    type="button"
+                    size="icon-xs"
+                    variant="ghost-muted"
+                    aria-label="Edit from here"
+                    disabled={props.running}
+                    onClick={() =>
+                      props.onRewind({
+                        messageId: props.uuid,
+                        text: prompt,
+                        first: props.first,
+                      })
+                    }
+                  >
+                    <HugeiconsIcon
+                      icon={PencilEdit02Icon}
+                      className="size-3.5"
+                    />
+                  </Button>
+                </Tooltip>
+              )}
               <MessageCopyButton text={prompt} />
             </div>
           )}

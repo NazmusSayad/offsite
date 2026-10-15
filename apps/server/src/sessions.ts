@@ -5,6 +5,7 @@ import {
   listSessions,
   renameSession,
 } from '@anthropic-ai/claude-agent-sdk'
+import { sessionEntries } from './history.ts'
 import type { Session, SessionPatch } from './protocol.ts'
 import { runs } from './run.ts'
 import { readJson, writeJson } from './storage.ts'
@@ -12,7 +13,13 @@ import { readJson, writeJson } from './storage.ts'
 type Marks = { pinned: string[]; archived: string[] }
 
 export async function sessions(): Promise<Session[]> {
-  const items = await listSessions({ includeProgrammatic: false })
+  const listed = await listSessions({ includeProgrammatic: false })
+  const items = await Promise.all(
+    listed.map(async (item) => ({
+      ...item,
+      cwd: item.cwd ?? (await diskCwd(item.sessionId)),
+    }))
+  )
   const marks = readMarks()
   return items.flatMap((item) =>
     item.cwd === undefined
@@ -64,6 +71,13 @@ export async function fork(sessionId: string, cwd: string, messageId: string) {
     upToMessageId: messageId,
   })
   return { sessionId: result.sessionId }
+}
+
+async function diskCwd(sessionId: string) {
+  const entry = (await sessionEntries(sessionId)).find(
+    (item) => typeof item.cwd === 'string'
+  )
+  return typeof entry?.cwd === 'string' ? entry.cwd : undefined
 }
 
 function readMarks() {

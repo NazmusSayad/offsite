@@ -10,7 +10,7 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { clock, fullTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Markdown } from '@/markdown/markdown'
-import { forkFrom, selectedRunning, useStore } from '@/store'
+import { forkFrom, loadEarlier, selectedRunning, useStore } from '@/store'
 import { AgentHeader, AgentPill } from '@/transcript/agent-pill'
 import { ChangedFilesCard } from '@/transcript/changed-files'
 import { PlanCard } from '@/transcript/plan-card'
@@ -31,10 +31,14 @@ export function Transcript(props: { onOpenDiff: () => void }) {
   const selection = useStore((state) => state.selection)
   const loaded = useStore((state) => state.loaded)
   const messages = useStore((state) => state.messages)
+  const earlier = useStore((state) => state.earlier)
+  const before = useStore((state) => state.before)
   const partial = useStore((state) => state.partial)
   const requests = useStore((state) => state.requests)
   const scroller = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
+  const fromBottom = useRef<number | null>(null)
+  const [loadingEarlier, setLoadingEarlier] = useState(false)
   const [rewind, setRewind] = useState<RewindTarget | null>(null)
   const [expanded, setExpanded] = useState<string[]>([])
   const [opened, setOpened] = useState<{
@@ -47,7 +51,8 @@ export function Transcript(props: { onOpenDiff: () => void }) {
 
   const results = new Map<string, ToolResult>()
   const tools = new Map<string, ToolUse>()
-  for (const message of messages)
+  const allMessages = [...earlier, ...messages]
+  for (const message of allMessages)
     if (message.type !== 'notice')
       for (const block of message.content) {
         if (block.type === 'tool_result') results.set(block.toolUseId, block)
@@ -64,6 +69,13 @@ export function Transcript(props: { onOpenDiff: () => void }) {
     if (element !== null && pinned.current)
       element.scrollTop = element.scrollHeight
   }, [messages, partial, requests, running, agent?.id])
+
+  useLayoutEffect(() => {
+    const element = scroller.current
+    if (element !== null && fromBottom.current !== null && earlier.length > 0)
+      element.scrollTop = element.scrollHeight - fromBottom.current
+    fromBottom.current = null
+  }, [earlier])
 
   function toggle(key: string) {
     setExpanded(
@@ -82,16 +94,17 @@ export function Transcript(props: { onOpenDiff: () => void }) {
   const agentMessages =
     agent === null
       ? []
-      : messages.filter(
+      : allMessages.filter(
           (message) => message.type !== 'notice' && message.parent === agent.id
         )
   const agentPrompt =
     agentMessages[0]?.type === 'user' && isPrompt(agentMessages[0].content)
       ? agentMessages[0]
       : null
+  const olderRows = agent === null ? mainRows(earlier, cwd, false, '') : []
   const rows =
     agent === null
-      ? mainRows(messages, cwd, running, partial)
+      ? [...olderRows, ...mainRows(messages, cwd, running, partial)]
       : turnRows(
           {
             prompt: null,
@@ -147,8 +160,29 @@ export function Transcript(props: { onOpenDiff: () => void }) {
             )}
           </>
         )}
+        {agent === null && before !== null && (
+          <div className="flex justify-center pb-4">
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost-muted"
+              disabled={loadingEarlier}
+              onClick={async () => {
+                const element = scroller.current
+                if (element !== null)
+                  fromBottom.current = element.scrollHeight - element.scrollTop
+                setLoadingEarlier(true)
+                await loadEarlier()
+                setLoadingEarlier(false)
+              }}
+            >
+              {loadingEarlier ? 'Loading…' : 'Load earlier conversation'}
+            </Button>
+          </div>
+        )}
         {rows.map((row, index) => {
           const previous = rows[index - 1]
+          const older = index < olderRows.length
           return (
             <div
               key={row.key}
@@ -171,7 +205,8 @@ export function Transcript(props: { onOpenDiff: () => void }) {
                 row={row}
                 results={results}
                 running={running}
-                fork={agent === null}
+                fork={agent === null && !older}
+                rewind={!older}
                 expanded={expanded.includes(row.key)}
                 onToggle={() => toggle(row.key)}
                 onOpenAgent={openAgent}
@@ -194,6 +229,7 @@ function RowView(props: {
   cwd: string
   running: boolean
   fork: boolean
+  rewind: boolean
   expanded: boolean
   onToggle: () => void
   onOpenAgent: (tool: ToolUse) => void
@@ -210,6 +246,7 @@ function RowView(props: {
           blocks={row.message.content}
           first={row.first}
           running={props.running}
+          rewind={props.rewind}
           onRewind={props.onRewind}
         />
       )
