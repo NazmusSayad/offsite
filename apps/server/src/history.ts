@@ -11,14 +11,9 @@ import { contextTokens, toMessage } from './content.ts'
 import type { Message, ServerEvent } from './protocol.ts'
 import { runs } from './run.ts'
 
-const projectsDir = path.join(
-  process.env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), '.claude'),
-  'projects'
-)
+const projectsDir = path.join(os.homedir(), '.claude', 'projects')
 
-export async function sessionEntries(
-  sessionId: string
-): Promise<SessionStoreEntry[]> {
+async function sessionEntries(sessionId: string): Promise<SessionStoreEntry[]> {
   for (const dir of await readdir(projectsDir)) {
     let text: string
     try {

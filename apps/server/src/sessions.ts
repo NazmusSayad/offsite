@@ -5,7 +5,7 @@ import {
   listSessions,
   renameSession,
 } from '@anthropic-ai/claude-agent-sdk'
-import { sessionEntries } from './history.ts'
+import { projects } from './projects.ts'
 import type { Session, SessionPatch } from './protocol.ts'
 import { runs } from './run.ts'
 import { readJson, writeJson } from './storage.ts'
@@ -13,29 +13,27 @@ import { readJson, writeJson } from './storage.ts'
 type Marks = { pinned: string[]; archived: string[] }
 
 export async function sessions(): Promise<Session[]> {
-  const listed = await listSessions({ includeProgrammatic: false })
-  const items = await Promise.all(
-    listed.map(async (item) => ({
-      ...item,
-      cwd: item.cwd ?? (await diskCwd(item.sessionId)),
-    }))
-  )
   const marks = readMarks()
-  return items.flatMap((item) =>
-    item.cwd === undefined
-      ? []
-      : [
-          {
-            id: item.sessionId,
-            title: item.summary,
-            cwd: item.cwd,
-            branch: item.gitBranch ?? null,
-            updatedAt: item.lastModified,
-            pinned: marks.pinned.includes(item.sessionId),
-            archived: marks.archived.includes(item.sessionId),
-          },
-        ]
+  const lists = await Promise.all(
+    projects().map(async (project) =>
+      (
+        await listSessions({
+          dir: project.path,
+          includeWorktrees: false,
+          includeProgrammatic: false,
+        })
+      ).map((item) => ({
+        id: item.sessionId,
+        title: item.summary,
+        cwd: project.path,
+        branch: item.gitBranch ?? null,
+        updatedAt: item.lastModified,
+        pinned: marks.pinned.includes(item.sessionId),
+        archived: marks.archived.includes(item.sessionId),
+      }))
+    )
   )
+  return lists.flat()
 }
 
 export async function updateSession(id: string, patch: SessionPatch) {
@@ -71,13 +69,6 @@ export async function fork(sessionId: string, cwd: string, messageId: string) {
     upToMessageId: messageId,
   })
   return { sessionId: result.sessionId }
-}
-
-async function diskCwd(sessionId: string) {
-  const entry = (await sessionEntries(sessionId)).find(
-    (item) => typeof item.cwd === 'string'
-  )
-  return typeof entry?.cwd === 'string' ? entry.cwd : undefined
 }
 
 function readMarks() {

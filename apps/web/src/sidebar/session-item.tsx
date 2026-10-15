@@ -22,8 +22,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { projectName, timeAgo } from '@/lib/format'
+import { timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useProjectName } from '@/projects'
 import { editSession, removeSession } from '@/store'
 
 const surface =
@@ -39,6 +40,7 @@ export function SessionItem(props: {
   onSelect: () => void
 }) {
   const session = props.session
+  const projectTitle = useProjectName(session.cwd)
   const [title, setTitle] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const field = useRef<HTMLInputElement>(null)
@@ -226,7 +228,7 @@ export function SessionItem(props: {
                 recede ? 'font-normal' : 'font-medium'
               )}
             >
-              {projectName(session.cwd)}
+              {projectTitle}
               {session.branch !== null && (
                 <span className="text-muted-foreground/40 font-normal">
                   {` | ${session.branch}`}
@@ -302,6 +304,7 @@ export function SessionItem(props: {
 }
 
 export function DraftRow(props: { cwd: string; onSelect: () => void }) {
+  const projectTitle = useProjectName(props.cwd)
   return (
     <li className="list-none py-0.5">
       <div
@@ -319,7 +322,7 @@ export function DraftRow(props: { cwd: string; onSelect: () => void }) {
           </div>
           <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
             <span className="min-w-0 flex-1 truncate font-medium">
-              {projectName(props.cwd)}
+              {projectTitle}
               <span className="text-muted-foreground/40 font-normal">
                 {' | Draft'}
               </span>

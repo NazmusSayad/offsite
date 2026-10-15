@@ -14,8 +14,8 @@ import { Button } from '@/components/ui/button'
 import { Composer } from '@/composer/composer'
 import { DiffPanel } from '@/git/diff-panel'
 import { GitActions, useGitStatus } from '@/git/git-menu'
-import { projectName } from '@/lib/format'
 import { cn, drag, mod } from '@/lib/utils'
+import { useProjectName } from '@/projects'
 import { SettingsDialog } from '@/settings/dialog'
 import { Palette } from '@/sidebar/palette'
 import { Sidebar } from '@/sidebar/sidebar'
@@ -58,6 +58,7 @@ export function App() {
   const git = useGitStatus(selection?.cwd ?? null, running)
   const session = sessions.find((item) => item.id === selection?.sessionId)
 
+  const projectTitle = useProjectName(selection?.cwd ?? '')
   useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
     enableOnFormTags: true,
     preventDefault: true,
@@ -127,9 +128,7 @@ export function App() {
                     title={selection.cwd}
                   >
                     <ProjectIcon cwd={selection.cwd} className="size-3.5" />
-                    <span className="max-w-40 truncate">
-                      {projectName(selection.cwd)}
-                    </span>
+                    <span className="max-w-40 truncate">{projectTitle}</span>
                   </li>
                   <li aria-hidden className="text-icon-muted shrink-0">
                     /
@@ -192,7 +191,7 @@ export function App() {
             {selection !== null && (
               <Fragment key={selection.sessionId ?? selection.cwd}>
                 <Transcript onOpenDiff={() => setPanel(true)} />
-                <Composer branch={git.status?.branch ?? null} />
+                <Composer />
               </Fragment>
             )}
           </div>
