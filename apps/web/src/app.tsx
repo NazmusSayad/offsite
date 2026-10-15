@@ -1,8 +1,9 @@
 import {
   AlertCircleIcon,
-  PanelBottomIcon,
+  BotIcon,
+  GitCompareIcon,
   PanelLeftIcon,
-  PanelRightIcon,
+  SquareTerminalIcon,
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -32,6 +33,7 @@ import {
   setOpen as setTerminal,
   subscribe as subscribeTerminal,
 } from '@/terminal/session'
+import { AgentsPanel, subagents } from '@/transcript/agents-panel'
 import { Transcript } from '@/transcript/transcript'
 
 const desktop = window.matchMedia('(min-width: 768px)')
@@ -44,7 +46,8 @@ export function App() {
   const connected = useStore((state) => state.connected)
   const error = useStore((state) => state.error)
   const [sidebar, setSidebar] = useState(desktop.matches)
-  const [panel, setPanel] = useState(false)
+  const [panel, setPanel] = useState<'diff' | 'agents' | null>(null)
+  const [agentId, setAgentId] = useState<string | null>(null)
   const [panelWidth, setPanelWidth] = useState(540)
   const terminal = useSyncExternalStore(
     subscribeTerminal,
@@ -55,6 +58,14 @@ export function App() {
     () => terminalState().alerts.length > 0
   )
   const running = useStore(selectedRunning)
+  const runningAgents = useStore((state) => {
+    const sessionId = state.selection?.sessionId ?? null
+    if (sessionId === null) return 0
+    return subagents(
+      [...state.earlier, ...state.messages],
+      state.activity[sessionId]
+    ).items.filter((item) => item.status === 'Running').length
+  })
   const git = useGitStatus(selection?.cwd ?? null, running)
   const session = sessions.find((item) => item.id === selection?.sessionId)
 
@@ -117,7 +128,7 @@ export function App() {
             className={cn(
               'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-3 pl-[3.25rem] sm:pr-5',
               sidebar && 'md:pl-5',
-              !panel && 'pr-24 sm:pr-24'
+              panel === null && 'pr-32 sm:pr-32'
             )}
           >
             {selection !== null && (
@@ -190,7 +201,13 @@ export function App() {
             )}
             {selection !== null && (
               <Fragment key={selection.sessionId ?? selection.cwd}>
-                <Transcript onOpenDiff={() => setPanel(true)} />
+                <Transcript
+                  onOpenDiff={() => setPanel('diff')}
+                  onOpenAgent={(id) => {
+                    setAgentId(id)
+                    setPanel('agents')
+                  }}
+                />
                 <Composer />
               </Fragment>
             )}
@@ -201,7 +218,7 @@ export function App() {
             </aside>
           )}
         </div>
-        {selection !== null && panel && (
+        {selection !== null && panel !== null && (
           <div
             className="bg-background fixed inset-0 z-40 flex flex-col md:relative md:inset-auto md:z-auto md:shrink-0 md:border-l"
             style={desktop.matches ? { width: panelWidth } : undefined}
@@ -224,11 +241,22 @@ export function App() {
             >
               <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
             </div>
-            <DiffPanel
-              cwd={selection.cwd}
-              running={running}
-              onClose={() => setPanel(false)}
-            />
+            {panel === 'diff' && (
+              <DiffPanel
+                cwd={selection.cwd}
+                running={running}
+                onClose={() => setPanel(null)}
+              />
+            )}
+            {panel === 'agents' && (
+              <AgentsPanel
+                cwd={selection.cwd}
+                agentId={agentId}
+                onSelect={setAgentId}
+                onOpenDiff={() => setPanel('diff')}
+                onClose={() => setPanel(null)}
+              />
+            )}
           </div>
         )}
       </main>
@@ -236,24 +264,41 @@ export function App() {
         <div className="fixed top-0 right-3 z-50 flex h-(--workspace-topbar-height) items-center gap-1">
           <button
             className={cn(toggle, 'relative')}
+            data-pressed={panel === 'agents'}
+            aria-label="Toggle agents panel"
+            title="Agents"
+            onClick={() => {
+              setAgentId(null)
+              setPanel(panel === 'agents' ? null : 'agents')
+            }}
+          >
+            <HugeiconsIcon icon={BotIcon} />
+            {runningAgents > 0 && (
+              <span className="bg-primary text-primary-foreground absolute -top-0.5 -right-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full px-0.5 text-[9px] leading-none font-medium tabular-nums">
+                {runningAgents}
+              </span>
+            )}
+          </button>
+          <button
+            className={cn(toggle, 'relative')}
             data-pressed={terminal}
             aria-label="Toggle terminal"
             title={`Terminal (${mod}+J)`}
             onClick={() => setTerminal(!terminal)}
           >
-            <HugeiconsIcon icon={PanelBottomIcon} />
+            <HugeiconsIcon icon={SquareTerminalIcon} />
             {terminalAlert && (
               <span className="bg-primary absolute top-1 right-1 size-1.5 rounded-full" />
             )}
           </button>
           <button
             className={toggle}
-            data-pressed={panel}
+            data-pressed={panel === 'diff'}
             aria-label="Toggle diff panel"
             title="Diff"
-            onClick={() => setPanel(!panel)}
+            onClick={() => setPanel(panel === 'diff' ? null : 'diff')}
           >
-            <HugeiconsIcon icon={PanelRightIcon} />
+            <HugeiconsIcon icon={GitCompareIcon} />
           </button>
         </div>
       )}

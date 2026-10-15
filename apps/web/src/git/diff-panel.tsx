@@ -2,7 +2,6 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   ChevronsDownUpIcon,
-  FileDiffIcon,
   LayoutTwoColumnIcon,
   RefreshCwIcon,
   Rows3Icon,
@@ -76,27 +75,10 @@ export function DiffPanel(props: {
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-1 pr-28 pl-2">
-        <button
-          className="group bg-accent text-foreground flex h-6 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-medium"
-          title="Close"
-          onClick={props.onClose}
-        >
-          <HugeiconsIcon
-            icon={FileDiffIcon}
-            className="size-3 group-hover:hidden"
-          />
-          <HugeiconsIcon
-            icon={XIcon}
-            className="hidden size-3 group-hover:block"
-          />
-          Diff
-        </button>
-      </div>
-      <div className="border-border/60 bg-background flex h-10 min-h-10 shrink-0 items-center justify-between gap-2 border-b px-2">
-        <Button variant="secondary" size="xs" className="min-w-0">
-          <span className="truncate">Uncommitted changes</span>
-        </Button>
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-32 pl-3">
+        <span className="text-foreground min-w-0 truncate text-xs font-medium">
+          Uncommitted changes
+        </span>
         <div className="flex shrink-0 items-center gap-1">
           {list.length > 0 && (
             <span className="text-2xs mr-1 inline-flex items-center gap-1 font-mono tabular-nums">
@@ -156,6 +138,15 @@ export function DiffPanel(props: {
           >
             <HugeiconsIcon icon={TextWrapIcon} className="size-3.5" />
           </button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title="Close"
+            aria-label="Close"
+            onClick={props.onClose}
+          >
+            <HugeiconsIcon icon={XIcon} className="size-3.5" />
+          </Button>
         </div>
       </div>
       <div className="diff-render-surface min-h-0 flex-1 overflow-y-auto [--code-background:var(--background)]">

@@ -1,5 +1,4 @@
 import { readdir, readFile } from 'node:fs/promises'
-import os from 'node:os'
 import path from 'node:path'
 import {
   getSessionMessages,
@@ -7,13 +6,13 @@ import {
   type SessionMessage,
   type SessionStoreEntry,
 } from '@anthropic-ai/claude-agent-sdk'
+import { readConfig } from './config.ts'
 import { contextTokens, toMessage } from './content.ts'
 import type { Message, ServerEvent } from './protocol.ts'
 import { runs } from './run.ts'
 
-const projectsDir = path.join(os.homedir(), '.claude', 'projects')
-
 async function sessionEntries(sessionId: string): Promise<SessionStoreEntry[]> {
+  const projectsDir = path.join(readConfig().claudeBaseDir, 'projects')
   for (const dir of await readdir(projectsDir)) {
     let text: string
     try {

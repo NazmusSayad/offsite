@@ -32,6 +32,12 @@ export type Directories = {
   directories: { name: string; path: string }[]
 }
 
+export type Snapshot = ConfigInfo & {
+  projects: Project[]
+  sessions: Session[]
+  activity: Record<string, Activity>
+}
+
 export type SessionPatch = {
   title?: string
   pinned?: boolean
@@ -58,6 +64,7 @@ export type Account = {
   plan: string | null
   error: string | null
   limits: RateLimit[]
+  linked: boolean
 }
 
 export type Model = {
@@ -130,6 +137,7 @@ export type TerminalConfig = {
 
 export type Config = {
   theme: string
+  claudeBaseDir: string
   composer: Settings
   terminal: TerminalConfig
 }
@@ -242,9 +250,9 @@ export type PushSubscriptionInfo = {
 
 export type Methods = {
   ping: { params: void; result: null }
+  sync: { params: void; result: Snapshot }
   'config.get': { params: void; result: ConfigInfo }
   'config.save': { params: Config; result: Config }
-  'projects.list': { params: void; result: Project[] }
   'projects.add': { params: { path: string }; result: Project }
   'projects.update': {
     params: { path: string; patch: ProjectPatch }
@@ -252,12 +260,11 @@ export type Methods = {
   }
   'projects.remove': { params: { path: string }; result: null }
   'directories.list': { params: { path: string }; result: Directories }
-  'sessions.list': { params: void; result: Session[] }
   'sessions.update': {
     params: { id: string; patch: SessionPatch }
-    result: Session[]
+    result: null
   }
-  'sessions.remove': { params: { id: string }; result: Session[] }
+  'sessions.remove': { params: { id: string }; result: null }
   'sessions.open': { params: { sessionId: string; cwd: string }; result: null }
   'sessions.earlier': {
     params: { sessionId: string; cwd: string; before: number }
@@ -299,13 +306,14 @@ export type Methods = {
   'accounts.list': { params: void; result: Account[] }
   'accounts.add': {
     params: { name: string; configDir: string }
-    result: Account[]
+    result: null
   }
   'accounts.update': {
     params: { id: string; name: string; configDir: string }
-    result: Account[]
+    result: null
   }
-  'accounts.remove': { params: { id: string }; result: Account[] }
+  'accounts.remove': { params: { id: string }; result: null }
+  'accounts.link': { params: { id: string }; result: null }
   capabilities: {
     params: { accountId: string; cwd: string }
     result: Capabilities
@@ -331,6 +339,7 @@ export type Methods = {
   'terminal.shells': { params: void; result: Shell[] }
   'terminal.busy': { params: { id: number }; result: BusyResult }
   'terminal.paste': { params: { type: string; data: string }; result: string }
+  debug: { params: { line: string }; result: null }
 }
 
 export type Method = keyof Methods
@@ -379,6 +388,8 @@ export type ServerEvent =
   | { type: 'limits'; accountId: string; limits: RateLimit[] }
   | { type: 'config'; config: Config }
   | { type: 'projects'; projects: Project[] }
+  | { type: 'sessions'; sessions: Session[] }
+  | { type: 'accounts'; accounts: Account[] }
   | { type: 'started'; sessionId: string; cwd: string }
   | {
       type: 'history'

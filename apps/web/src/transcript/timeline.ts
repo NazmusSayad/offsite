@@ -212,6 +212,7 @@ function segmentsOf(message: Message): Segment[] {
             return []
           case 'Agent':
           case 'Task':
+          case 'SendMessage':
             return [{ kind: 'agent', key, tool: block }]
           case 'ExitPlanMode':
             return [

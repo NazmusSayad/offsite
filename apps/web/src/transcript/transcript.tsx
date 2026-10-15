@@ -11,23 +11,21 @@ import { clock, fullTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Markdown } from '@/markdown/markdown'
 import { forkFrom, loadEarlier, selectedRunning, useStore } from '@/store'
-import { AgentHeader, AgentPill } from '@/transcript/agent-pill'
+import { AgentLine } from '@/transcript/agent-pill'
+import { subagents } from '@/transcript/agents-panel'
 import { ChangedFilesCard } from '@/transcript/changed-files'
 import { PlanCard } from '@/transcript/plan-card'
 import { RewindDialog, type RewindTarget } from '@/transcript/rewind-dialog'
-import {
-  isPrompt,
-  isTool,
-  mainRows,
-  type Row,
-  turnRows,
-} from '@/transcript/timeline'
+import { isTool, mainRows, type Row } from '@/transcript/timeline'
 import type { ToolResult, ToolUse } from '@/transcript/tool-details'
 import { ContextGroup } from '@/transcript/tool-group'
-import { Shimmer, ToolRow } from '@/transcript/tool-row'
+import { Shimmer } from '@/transcript/tool-row'
 import { MessageCopyButton, UserMessage } from '@/transcript/user-message'
 
-export function Transcript(props: { onOpenDiff: () => void }) {
+export function Transcript(props: {
+  onOpenDiff: () => void
+  onOpenAgent: (id: string) => void
+}) {
   const selection = useStore((state) => state.selection)
   const loaded = useStore((state) => state.loaded)
   const messages = useStore((state) => state.messages)
@@ -35,40 +33,30 @@ export function Transcript(props: { onOpenDiff: () => void }) {
   const before = useStore((state) => state.before)
   const partial = useStore((state) => state.partial)
   const requests = useStore((state) => state.requests)
+  const activity = useStore((state) => {
+    const sessionId = state.selection?.sessionId ?? null
+    return sessionId === null ? undefined : state.activity[sessionId]
+  })
   const scroller = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
   const fromBottom = useRef<number | null>(null)
   const [loadingEarlier, setLoadingEarlier] = useState(false)
   const [rewind, setRewind] = useState<RewindTarget | null>(null)
   const [expanded, setExpanded] = useState<string[]>([])
-  const [opened, setOpened] = useState<{
-    sessionId: string
-    toolId: string
-  } | null>(null)
-  const sessionId = selection?.sessionId ?? null
   const cwd = selection?.cwd ?? ''
   const running = useStore(selectedRunning)
 
   const results = new Map<string, ToolResult>()
-  const tools = new Map<string, ToolUse>()
-  const allMessages = [...earlier, ...messages]
-  for (const message of allMessages)
+  for (const message of [...earlier, ...messages])
     if (message.type !== 'notice')
-      for (const block of message.content) {
+      for (const block of message.content)
         if (block.type === 'tool_result') results.set(block.toolUseId, block)
-        if (block.type === 'tool_use') tools.set(block.id, block)
-      }
-
-  const agent =
-    opened !== null && opened.sessionId === sessionId
-      ? (tools.get(opened.toolId) ?? null)
-      : null
 
   useLayoutEffect(() => {
     const element = scroller.current
     if (element !== null && pinned.current)
       element.scrollTop = element.scrollHeight
-  }, [messages, partial, requests, running, agent?.id])
+  }, [messages, partial, requests, running])
 
   useLayoutEffect(() => {
     const element = scroller.current
@@ -85,36 +73,9 @@ export function Transcript(props: { onOpenDiff: () => void }) {
     )
   }
 
-  function openAgent(tool: ToolUse) {
-    if (sessionId === null) return
-    pinned.current = true
-    setOpened({ sessionId, toolId: tool.id })
-  }
-
-  const agentMessages =
-    agent === null
-      ? []
-      : allMessages.filter(
-          (message) => message.type !== 'notice' && message.parent === agent.id
-        )
-  const agentPrompt =
-    agentMessages[0]?.type === 'user' && isPrompt(agentMessages[0].content)
-      ? agentMessages[0]
-      : null
-  const olderRows = agent === null ? mainRows(earlier, cwd, false, '') : []
-  const rows =
-    agent === null
-      ? [...olderRows, ...mainRows(messages, cwd, running, partial)]
-      : turnRows(
-          {
-            prompt: null,
-            first: false,
-            items:
-              agentPrompt === null ? agentMessages : agentMessages.slice(1),
-          },
-          cwd,
-          running && !results.has(agent.id) ? { partial: '' } : null
-        )
+  const agents = subagents([...earlier, ...messages], activity).items
+  const olderRows = mainRows(earlier, cwd, false, '')
+  const rows = [...olderRows, ...mainRows(messages, cwd, running, partial)]
 
   return (
     <div
@@ -132,34 +93,7 @@ export function Transcript(props: { onOpenDiff: () => void }) {
             Loading…
           </p>
         )}
-        {agent !== null && (
-          <>
-            <AgentHeader
-              tool={agent}
-              running={running && !results.has(agent.id)}
-              onBack={() => setOpened(null)}
-            />
-            {agentPrompt !== null && (
-              <ToolRow
-                title="Prompt"
-                pending={false}
-                grouped
-                open={expanded.includes(`prompt:${agent.id}`)}
-                onToggle={() => toggle(`prompt:${agent.id}`)}
-              >
-                <Markdown
-                  text={agentPrompt.content
-                    .flatMap((block) =>
-                      block.type === 'text' ? [block.text] : []
-                    )
-                    .join('\n')}
-                  className="text-muted-foreground text-[13px]"
-                />
-              </ToolRow>
-            )}
-          </>
-        )}
-        {agent === null && before !== null && (
+        {before !== null && (
           <div className="flex justify-center pb-4">
             <Button
               type="button"
@@ -187,9 +121,7 @@ export function Transcript(props: { onOpenDiff: () => void }) {
               key={row.key}
               className={cn(
                 previous === undefined
-                  ? agent === null
-                    ? undefined
-                    : 'pt-2'
+                  ? undefined
                   : row.kind === 'user'
                     ? 'pt-6'
                     : row.kind === 'working'
@@ -203,12 +135,13 @@ export function Transcript(props: { onOpenDiff: () => void }) {
               <RowView
                 row={row}
                 results={results}
+                agents={agents}
                 running={running}
-                fork={agent === null && !older}
+                fork={!older}
                 rewind={!older}
                 expanded={expanded.includes(row.key)}
                 onToggle={() => toggle(row.key)}
-                onOpenAgent={openAgent}
+                onOpenAgent={(tool) => props.onOpenAgent(tool.id)}
                 onRewind={setRewind}
                 onOpenDiff={props.onOpenDiff}
                 cwd={cwd}
@@ -222,9 +155,10 @@ export function Transcript(props: { onOpenDiff: () => void }) {
   )
 }
 
-function RowView(props: {
+export function RowView(props: {
   row: Row
   results: Map<string, ToolResult>
+  agents: ReturnType<typeof subagents>['items']
   cwd: string
   running: boolean
   fork: boolean
@@ -268,10 +202,11 @@ function RowView(props: {
       )
     case 'agent':
       return (
-        <AgentPill
+        <AgentLine
           tool={row.tool}
-          running={row.live && !props.results.has(row.tool.id)}
-          onOpen={() => props.onOpenAgent(row.tool)}
+          agents={props.agents}
+          sending={row.live && !props.results.has(row.tool.id)}
+          onOpen={props.onOpenAgent}
         />
       )
     case 'assistant':

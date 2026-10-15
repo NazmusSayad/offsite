@@ -7,23 +7,25 @@ import {
   SearchIcon,
   Settings01Icon,
   SquarePenIcon,
-  XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Project, Session } from '@server/protocol'
 import { useState } from 'react'
 import { ProjectIcon } from '@/components/icons'
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { projectName } from '@/lib/format'
 import { cn, drag, mod } from '@/lib/utils'
 import { EditProjectDialog, FolderDialog } from '@/sidebar/project-dialogs'
 import { DraftRow, SessionItem } from '@/sidebar/session-item'
-import { openSession, showSettings, useStore } from '@/store'
+import { openSession, showPalette, showSettings, useStore } from '@/store'
 
 const iconButton =
   'text-sidebar-muted-foreground/80 hover:bg-sidebar-row-hover hover:text-sidebar-foreground flex shrink-0 cursor-pointer items-center justify-center rounded-[var(--control-radius)] [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-(--sidebar-icon-color) hover:[&>svg]:text-sidebar-foreground'
@@ -38,22 +40,17 @@ export function Sidebar(props: {
   const sessions = useStore((state) => state.sessions)
   const activity = useStore((state) => state.activity)
   const unseen = useStore((state) => state.unseen)
-  const [query, setQuery] = useState('')
   const [scope, setScope] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Project | null>(null)
+  const [picking, setPicking] = useState(false)
   const [archivedOpen, setArchivedOpen] = useState(false)
   const [width, setWidth] = useState(
     Number(localStorage.getItem('sidebarWidth') ?? 240)
   )
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
   const projects = [...registered].sort((a, b) => a.name.localeCompare(b.name))
   const shown = sessions
     .filter((session) => scope === null || session.cwd === scope)
-    .filter((session) => {
-      const text = `${session.title} ${nameOf(session.cwd)}`.toLowerCase()
-      return words.every((word) => text.includes(word))
-    })
     .sort(
       (a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt
     )
@@ -132,125 +129,105 @@ export function Sidebar(props: {
         props.className
       )}
     >
-      <div className="border-sidebar-border flex w-14 shrink-0 [scrollbar-width:none] flex-col items-center gap-1 overflow-y-auto border-r py-2">
-        <button
-          className={cn(
-            'relative flex size-10 flex-none cursor-pointer items-center justify-center rounded-md text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-            scope === null && 'bg-accent text-foreground'
-          )}
-          title="Inbox"
-          aria-label="Inbox"
-          aria-current={scope === null}
-          onClick={() => setScope(null)}
-        >
-          <HugeiconsIcon icon={InboxIcon} className="size-4.5" />
-          {attention.length > 0 && (
-            <span className="ring-sidebar text-foreground absolute right-0 bottom-0 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[9px] leading-none font-medium tabular-nums ring-2">
-              {attention.length}
-            </span>
-          )}
-        </button>
-        {projects.map((project) => {
-          const count = attention.filter(
-            (session) => session.cwd === project.path
-          ).length
-          return (
-            <ContextMenu key={project.path}>
-              <ContextMenuTrigger asChild>
-                <button
-                  className={cn(
-                    'relative flex size-10 flex-none cursor-pointer items-center justify-center rounded-md text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                    scope === project.path && 'bg-accent text-foreground'
-                  )}
-                  title={`${project.name}\n${project.path}`}
-                  aria-label={project.name}
-                  aria-current={scope === project.path}
-                  onClick={() => setScope(project.path)}
-                >
-                  <ProjectIcon
-                    cwd={project.path}
-                    className="size-6 [&>img]:rounded-[6px] [&>svg]:rounded-[6px]"
-                  />
-                  {count > 0 && (
-                    <span className="ring-sidebar text-foreground absolute right-0 bottom-0 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[9px] leading-none font-medium tabular-nums ring-2">
-                      {count}
-                    </span>
-                  )}
-                </button>
-              </ContextMenuTrigger>
-              <ContextMenuContent className="w-44">
-                <ContextMenuItem onSelect={() => setEditing(project)}>
-                  <HugeiconsIcon icon={PencilEdit02Icon} />
-                  Edit project
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
-          )
-        })}
-        <button
-          className="text-muted-foreground hover:bg-accent hover:text-foreground relative flex size-10 flex-none cursor-pointer items-center justify-center rounded-md text-[13px] font-medium transition-colors"
-          title="Add project"
-          aria-label="Add project"
-          onClick={() => setAdding(true)}
-        >
-          <HugeiconsIcon icon={Add01Icon} className="size-4.5" />
-        </button>
-        <button
-          className="text-muted-foreground hover:bg-accent hover:text-foreground relative mt-auto flex size-10 flex-none cursor-pointer items-center justify-center rounded-md text-[13px] font-medium transition-colors"
-          title={`Hide sidebar (${mod}+B)`}
-          aria-label="Hide sidebar"
-          onClick={props.onHide}
-        >
-          <HugeiconsIcon icon={PanelLeftCloseIcon} className="size-4.5" />
-        </button>
-        <button
-          className="text-muted-foreground hover:bg-accent hover:text-foreground relative flex size-10 flex-none cursor-pointer items-center justify-center rounded-md text-[13px] font-medium transition-colors"
-          title="Settings"
-          aria-label="Settings"
-          onClick={() => showSettings(true)}
-        >
-          <HugeiconsIcon icon={Settings01Icon} className="size-4.5" />
-        </button>
-      </div>
       <div className="relative flex min-w-0 flex-col" style={{ width }}>
         <div className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 px-3">
-          {scope === null ? (
-            <span className="max-w-[45%] shrink-0 truncate text-sm font-medium">
-              Inbox
-            </span>
-          ) : (
-            <span
-              className="max-w-[45%] shrink-0 truncate text-sm font-medium"
-              title={scope}
-            >
-              {nameOf(scope)}
-            </span>
-          )}
-          <label className="text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground flex h-8 min-w-0 flex-1 cursor-text items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium">
-            <HugeiconsIcon
-              icon={SearchIcon}
-              className="size-4 shrink-0 text-(--sidebar-icon-color)"
-            />
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') setQuery('')
-              }}
-              placeholder="Search"
-              className="text-sidebar-foreground placeholder:text-sidebar-muted-foreground min-w-0 flex-1 bg-transparent p-0 font-medium outline-none [&::-webkit-search-cancel-button]:hidden"
-            />
-            {query !== '' && (
+          <DropdownMenu open={picking} onOpenChange={setPicking}>
+            <DropdownMenuTrigger asChild>
               <button
-                className="hover:text-sidebar-foreground grid size-5 place-items-center rounded-sm"
-                aria-label="Clear search"
-                onClick={() => setQuery('')}
+                className="hover:bg-sidebar-row-hover data-[state=open]:bg-sidebar-row-hover -ml-1.5 flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-[var(--control-radius)] px-1.5 text-sm font-medium"
+                title={scope === null ? 'Inbox' : scope}
               >
-                <HugeiconsIcon icon={XIcon} className="size-3" />
+                {scope === null ? (
+                  <HugeiconsIcon
+                    icon={InboxIcon}
+                    className="size-4 shrink-0 text-(--sidebar-icon-color)"
+                  />
+                ) : (
+                  <ProjectIcon
+                    cwd={scope}
+                    className="size-4 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
+                  />
+                )}
+                <span className="truncate">
+                  {scope === null ? 'Inbox' : nameOf(scope)}
+                </span>
+                <HugeiconsIcon
+                  icon={ChevronDownIcon}
+                  className="text-sidebar-muted-foreground size-3.5 shrink-0"
+                />
               </button>
-            )}
-          </label>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-64">
+              <DropdownMenuRadioGroup value={scope ?? ''}>
+                <DropdownMenuRadioItem value="" onSelect={() => setScope(null)}>
+                  <HugeiconsIcon icon={InboxIcon} />
+                  <span className="min-w-0 flex-1 truncate">Inbox</span>
+                  {attention.length > 0 && (
+                    <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+                      {attention.length}
+                    </span>
+                  )}
+                </DropdownMenuRadioItem>
+                {projects.map((project) => {
+                  const count = attention.filter(
+                    (session) => session.cwd === project.path
+                  ).length
+                  return (
+                    <DropdownMenuRadioItem
+                      key={project.path}
+                      value={project.path}
+                      title={project.path}
+                      className="group/project"
+                      onSelect={() => setScope(project.path)}
+                      onContextMenu={(event) => {
+                        event.preventDefault()
+                        setPicking(false)
+                        setEditing(project)
+                      }}
+                    >
+                      <ProjectIcon
+                        cwd={project.path}
+                        className="size-4 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
+                      />
+                      <span className="min-w-0 flex-1 truncate">
+                        {project.name}
+                      </span>
+                      {count > 0 && (
+                        <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+                          {count}
+                        </span>
+                      )}
+                      <button
+                        className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 -my-0.5 grid size-5 shrink-0 cursor-pointer place-items-center rounded-sm opacity-0 group-data-highlighted/project:opacity-100 [&_svg]:size-3.5"
+                        title="Edit project"
+                        aria-label={`Edit ${project.name}`}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setPicking(false)
+                          setEditing(project)
+                        }}
+                      >
+                        <HugeiconsIcon icon={PencilEdit02Icon} />
+                      </button>
+                    </DropdownMenuRadioItem>
+                  )
+                })}
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setAdding(true)}>
+                <HugeiconsIcon icon={Add01Icon} />
+                Add project…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button
+            className={cn(iconButton, 'ml-auto size-7')}
+            title={`Search (${mod}+K)`}
+            aria-label="Search"
+            onClick={() => showPalette(true)}
+          >
+            <HugeiconsIcon icon={SearchIcon} />
+          </button>
           <button
             className={cn(iconButton, 'size-7')}
             title="New thread"
@@ -273,7 +250,7 @@ export function Sidebar(props: {
               started === null &&
               selection?.sessionId !== null && (
                 <li className="text-sidebar-muted-foreground/60 px-2.5 py-6 text-center text-xs">
-                  {words.length > 0 ? 'No matching threads' : 'No threads yet'}
+                  No threads yet
                 </li>
               )}
             {archived.length > 0 && (
@@ -302,6 +279,24 @@ export function Sidebar(props: {
             {archivedOpen && archived.map((session) => row(session, true))}
           </ul>
         </nav>
+        <div className="flex shrink-0 items-center gap-1 px-(--sidebar-content-inset) pb-(--sidebar-content-inset)">
+          <button
+            className={cn(iconButton, 'h-7 gap-2 px-2 text-sm')}
+            title="Settings"
+            onClick={() => showSettings(true)}
+          >
+            <HugeiconsIcon icon={Settings01Icon} />
+            Settings
+          </button>
+          <button
+            className={cn(iconButton, 'ml-auto size-7')}
+            title={`Hide sidebar (${mod}+B)`}
+            aria-label="Hide sidebar"
+            onClick={props.onHide}
+          >
+            <HugeiconsIcon icon={PanelLeftCloseIcon} />
+          </button>
+        </div>
         <div
           role="separator"
           aria-orientation="vertical"

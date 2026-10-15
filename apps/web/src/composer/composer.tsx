@@ -1,12 +1,12 @@
-import { ListPlusIcon, PaperclipIcon, XIcon } from '@hugeicons/core-free-icons'
+import { ListPlusIcon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Delivery, Image, Message } from '@server/protocol'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ComposerMenu, type Suggestion } from '@/composer/composer-menu'
-import { ContextMeter } from '@/composer/context-meter'
+import { MoreMenu, modes } from '@/composer/more-menu'
 import { PermissionPrompt } from '@/composer/permission-prompt'
-import { AccountPicker, modes, Pickers } from '@/composer/pickers'
+import { Pickers } from '@/composer/pickers'
 import { call } from '@/connection'
 import { cn, mod } from '@/lib/utils'
 import { useProjectName } from '@/projects'
@@ -36,7 +36,6 @@ export function Composer() {
   const queue = useStore((state) => state.queue)
   const draft = useStore((state) => state.draft)
   const capabilities = useStore((state) => state.capabilities)
-  const context = useStore((state) => state.context)
   const noAccount = useStore((state) => state.settings.accountId === null)
   const [text, setText] = useState('')
   const [images, setImages] = useState<Image[]>([])
@@ -54,7 +53,7 @@ export function Composer() {
   const hero = loaded && blank && !running
   const request = requests.at(0)
 
-  useEffect(() => input.current?.focus(), [])
+  useEffect(() => input.current?.focus(), [selection])
 
   useEffect(() => {
     if (draft === null) return
@@ -241,6 +240,13 @@ export function Composer() {
               hero ? 'rounded-3xl' : 'rounded-t-3xl border-b-0',
               request?.toolName === 'AskUserQuestion' && 'hidden'
             )}
+            onMouseDown={(event) => {
+              if (!(event.target instanceof Element)) return
+              if (!event.currentTarget.contains(event.target)) return
+              if (event.target.closest('button, a, input, textarea')) return
+              event.preventDefault()
+              input.current?.focus()
+            }}
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault()
@@ -277,6 +283,7 @@ export function Composer() {
               )}
               <textarea
                 ref={input}
+                data-composer
                 rows={1}
                 spellCheck={false}
                 autoCorrect="off"
@@ -292,6 +299,7 @@ export function Composer() {
                   setCaret(event.currentTarget.selectionStart)
                 }
                 onPaste={(event) => {
+                  if (event.clipboardData.getData('text/plain') !== '') return
                   const pasted = [...event.clipboardData.files]
                   if (pasted.length === 0) return
                   event.preventDefault()
@@ -362,7 +370,6 @@ export function Composer() {
             >
               <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-1 overflow-x-auto p-1 ps-3.5">
                 <Pickers />
-                <AccountPicker />
               </div>
               <div className="flex shrink-0 items-center justify-end gap-2">
                 <input
@@ -380,16 +387,7 @@ export function Composer() {
                     Uploading…
                   </span>
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  title="Attach files"
-                  aria-label="Attach files"
-                  onClick={() => picker.current?.click()}
-                >
-                  <HugeiconsIcon icon={PaperclipIcon} />
-                </Button>
-                {context !== null && <ContextMeter context={context} />}
+                <MoreMenu onAttach={() => picker.current?.click()} />
                 {running && empty ? (
                   <button
                     className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors"
