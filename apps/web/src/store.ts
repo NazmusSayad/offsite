@@ -24,14 +24,21 @@ import { notify, push } from './notifications'
 
 export type Selection = { cwd: string; sessionId: string | null }
 
+export type SettingsPage =
+  | 'General'
+  | 'Terminal'
+  | 'Notifications'
+  | 'Accounts'
+  | 'Shortcuts'
+
 type State = {
   connected: boolean
   sessions: Session[]
   folders: string[]
   accounts: Account[]
-  accountsOpen: boolean
   paletteOpen: boolean
   settingsOpen: boolean
+  settingsPage: SettingsPage
   config: Config
   configError: string | null
   system: Omit<ConfigInfo, 'config'>
@@ -86,9 +93,9 @@ export function start(info: ConfigInfo) {
     sessions: [],
     folders: [],
     accounts: [],
-    accountsOpen: false,
     paletteOpen: false,
     settingsOpen: false,
+    settingsPage: 'General',
     config,
     configError: null,
     system,
@@ -204,12 +211,10 @@ export function respond(
 
 export function setAccounts(accounts: Account[]) {
   update({ accounts })
-  if (!accounts.some((item) => item.id === state.settings.accountId))
-    changeSettings({ accountId: 'default' })
-}
-
-export function showAccounts(accountsOpen: boolean) {
-  update({ accountsOpen, paletteOpen: false })
+  if (accounts.some((item) => item.id === state.settings.accountId)) return
+  if (accounts.length > 0) changeSettings({ accountId: accounts[0].id })
+  else if (state.settings.accountId !== null)
+    changeSettings({ accountId: null })
 }
 
 export async function forkFrom(messageId: string) {
@@ -248,6 +253,10 @@ export function showPalette(paletteOpen: boolean) {
 
 export function showSettings(settingsOpen: boolean) {
   update({ settingsOpen, paletteOpen: false })
+}
+
+export function showSettingsPage(settingsPage: SettingsPage) {
+  update({ settingsOpen: true, settingsPage, paletteOpen: false })
 }
 
 export function updateConfig(config: Config) {
@@ -417,6 +426,10 @@ async function refreshCapabilities() {
   const cwd = state.selection?.cwd
   if (cwd === undefined) return
   const accountId = state.settings.accountId
+  if (accountId === null) {
+    update({ capabilities: null })
+    return
+  }
   try {
     const capabilities = await call('capabilities', { accountId, cwd })
     if (state.selection?.cwd === cwd && state.settings.accountId === accountId)

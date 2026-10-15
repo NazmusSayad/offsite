@@ -48,6 +48,7 @@ export function Composer(props: { branch: string | null }) {
   const draft = useStore((state) => state.draft)
   const capabilities = useStore((state) => state.capabilities)
   const context = useStore((state) => state.context)
+  const noAccount = useStore((state) => state.settings.accountId === null)
   const [text, setText] = useState('')
   const [images, setImages] = useState<Image[]>([])
   const [uploads, setUploads] = useState(0)
@@ -121,7 +122,10 @@ export function Composer(props: { branch: string | null }) {
             }))
   const activeIndex = Math.min(active, suggestions.length - 1)
   const empty =
-    (text.trim() === '' && images.length === 0) || uploads > 0 || sending
+    (text.trim() === '' && images.length === 0) ||
+    uploads > 0 ||
+    sending ||
+    noAccount
 
   function edit(value: string, position: number) {
     setText(value)
@@ -361,9 +365,11 @@ export function Composer(props: { branch: string | null }) {
                   if (event.key === 'Escape' && running) interrupt()
                 }}
                 placeholder={
-                  running
-                    ? `Queue a follow-up… (${mod}+Enter to send now)`
-                    : 'Ask anything, @tag files/folders, or / for commands'
+                  noAccount
+                    ? 'Add a Claude account in Settings → Accounts to start'
+                    : running
+                      ? `Queue a follow-up… (${mod}+Enter to send now)`
+                      : 'Ask anything, @tag files/folders, or / for commands'
                 }
                 className="placeholder:text-placeholder/75 block [field-sizing:content] max-h-52 min-h-19.5 w-full resize-none bg-transparent text-sm leading-relaxed outline-none"
               />

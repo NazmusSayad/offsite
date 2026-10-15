@@ -27,20 +27,27 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn, isMac, mod } from '@/lib/utils'
-import { showAccounts, showSettings, updateConfig, useStore } from '@/store'
+import {
+  type SettingsPage,
+  showSettings,
+  showSettingsPage,
+  updateConfig,
+  useStore,
+} from '@/store'
+import { AccountsPage } from './accounts'
 import { Row, Section } from './controls'
 import { BellSection, NotificationSection } from './sections'
 import { TerminalPage } from './terminal'
 
 const terminalMod = isMac ? '⌘' : 'Ctrl+Shift'
 
-const pages = [
+const pages: SettingsPage[] = [
   'General',
   'Terminal',
   'Notifications',
   'Accounts',
   'Shortcuts',
-] as const
+]
 
 const shortcuts = [
   ['Enter', 'Send, or queue while Claude works'],
@@ -66,8 +73,7 @@ export function SettingsDialog() {
   const config = useStore((state) => state.config)
   const configError = useStore((state) => state.configError)
   const system = useStore((state) => state.system)
-  const accounts = useStore((state) => state.accounts)
-  const [page, setPage] = useState<(typeof pages)[number]>('General')
+  const page = useStore((state) => state.settingsPage)
   const [confirming, setConfirming] = useState(false)
   const [revision, setRevision] = useState(0)
 
@@ -89,7 +95,7 @@ export function SettingsDialog() {
                 'text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center rounded-md px-2 text-sm transition-colors',
                 item === page && 'bg-accent text-foreground'
               )}
-              onClick={() => setPage(item)}
+              onClick={() => showSettingsPage(item)}
             >
               {item}
             </button>
@@ -175,28 +181,7 @@ export function SettingsDialog() {
                 />
               </>
             )}
-            {page === 'Accounts' && (
-              <Section title="Claude accounts">
-                <Row
-                  label={
-                    accounts.length === 1
-                      ? '1 account'
-                      : `${accounts.length} accounts`
-                  }
-                >
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      showSettings(false)
-                      showAccounts(true)
-                    }}
-                  >
-                    Manage
-                  </Button>
-                </Row>
-              </Section>
-            )}
+            {page === 'Accounts' && <AccountsPage />}
             {page === 'Shortcuts' && (
               <Section title="Keyboard shortcuts">
                 {shortcuts.map(([keys, action]) => (

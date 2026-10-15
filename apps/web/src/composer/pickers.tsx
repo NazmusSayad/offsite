@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import { changeSettings, showAccounts, useStore } from '@/store'
+import { changeSettings, showSettingsPage, useStore } from '@/store'
 
 type Option = { value: string; label: string; description: string | null }
 
@@ -143,6 +143,8 @@ export function AccountPicker() {
   const accounts = useStore((state) => state.accounts)
   const account = accounts.find((item) => item.id === settings.accountId)
 
+  if (settings.accountId === null) return null
+
   return (
     <Picker
       title="Account"
@@ -166,7 +168,7 @@ export function AccountPicker() {
       onChange={(accountId) => changeSettings({ accountId })}
       footer={{
         label: 'Manage accounts…',
-        onSelect: () => showAccounts(true),
+        onSelect: () => showSettingsPage('Accounts'),
       }}
     />
   )

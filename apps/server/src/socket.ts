@@ -1,5 +1,11 @@
 import type { WebSocket } from 'ws'
-import { accounts, addAccount, capabilities, removeAccount } from './claude.ts'
+import {
+  accounts,
+  addAccount,
+  capabilities,
+  removeAccount,
+  updateAccount,
+} from './claude.ts'
 import { configInfo, readConfig, saveConfig } from './config.ts'
 import { listFiles, saveUpload } from './files.ts'
 import { folders, saveFolders } from './folders.ts'
@@ -78,7 +84,11 @@ const handlers: Handlers = {
     fork(params.sessionId, params.cwd, params.messageId),
   'accounts.list': () => accounts(),
   'accounts.add': (params) => {
-    addAccount(params.name, params.token)
+    addAccount(params.name, params.configDir)
+    return accounts()
+  },
+  'accounts.update': (params) => {
+    updateAccount(params.id, params.name, params.configDir)
     return accounts()
   },
   'accounts.remove': (params) => {

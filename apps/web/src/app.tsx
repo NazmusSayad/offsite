@@ -8,7 +8,6 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Fragment, useState, useSyncExternalStore } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { AccountsDialog } from '@/accounts/accounts-dialog'
 import { ProjectIcon } from '@/components/icons'
 import { Toast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
@@ -259,7 +258,6 @@ export function App() {
           </button>
         </div>
       )}
-      <AccountsDialog />
       <Palette />
       <SettingsDialog />
       <Toast />

@@ -43,6 +43,7 @@ export type Context = {
 export type Account = {
   id: string
   name: string
+  configDir: string
   email: string | null
   plan: string | null
   error: string | null
@@ -61,7 +62,7 @@ export type Command = { name: string; description: string; hint: string }
 export type Capabilities = { models: Model[]; commands: Command[] }
 
 export type Settings = {
-  accountId: string
+  accountId: string | null
   model: string | null
   effort: EffortLevel | null
   permissionMode: PermissionMode | null
@@ -275,7 +276,14 @@ export type Methods = {
     result: { sessionId: string }
   }
   'accounts.list': { params: void; result: Account[] }
-  'accounts.add': { params: { name: string; token: string }; result: Account[] }
+  'accounts.add': {
+    params: { name: string; configDir: string }
+    result: Account[]
+  }
+  'accounts.update': {
+    params: { id: string; name: string; configDir: string }
+    result: Account[]
+  }
   'accounts.remove': { params: { id: string }; result: Account[] }
   capabilities: {
     params: { accountId: string; cwd: string }
@@ -292,7 +300,7 @@ export type Methods = {
   'git.push': { params: { cwd: string }; result: GitStatus | null }
   'git.pullRequest': { params: { cwd: string }; result: { url: string } }
   'git.message': {
-    params: { accountId: string; cwd: string }
+    params: { accountId: string | null; cwd: string }
     result: { message: string }
   }
   'push.key': { params: void; result: { publicKey: string } }

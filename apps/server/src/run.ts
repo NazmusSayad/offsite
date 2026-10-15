@@ -296,13 +296,17 @@ export class Run {
             text: message.event.delta.text,
           })
         return
-      case 'rate_limit_event':
+      case 'rate_limit_event': {
+        const accountId = this.settings.accountId
+        if (accountId === null)
+          throw new Error('Rate limit event for a run without an account')
         broadcast({
           type: 'limits',
-          accountId: this.settings.accountId,
-          limits: recordLimit(this.settings.accountId, message.rate_limit_info),
+          accountId,
+          limits: recordLimit(accountId, message.rate_limit_info),
         })
         return
+      }
       case 'result':
         if (message.subtype !== 'success')
           this.add(notice(message.errors.join('\n') || message.subtype))
