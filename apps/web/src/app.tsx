@@ -1,7 +1,6 @@
 import {
   Add01Icon,
   Cancel01Icon,
-  FullScreenIcon,
   GitBranchIcon,
   Menu01Icon,
   Settings01Icon,
@@ -42,7 +41,6 @@ import {
   toggleCtrl,
   uploadLogo,
 } from '@/session'
-import { toggleFullscreen } from '@/shortcuts'
 import { DropIndicator, SortableGroup } from '@/sortable-group'
 import { StatusOverlay } from '@/status-overlay'
 import { Toast } from '@/toast'
@@ -191,25 +189,9 @@ export function App() {
             void uploadLogo(groupId, file).catch(showError)
           }}
         />
-        {state.config.behavior.captureShortcuts && (
-          <button
-            className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
-            title="Fullscreen"
-            onClick={() => void toggleFullscreen().catch(showError)}
-          >
-            <HugeiconsIcon
-              icon={FullScreenIcon}
-              className="size-4 md:size-4.5"
-            />
-            <span className="md:hidden">Fullscreen</span>
-          </button>
-        )}
         <a
           href="/settings"
-          className={cn(
-            'text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0',
-            !state.config.behavior.captureShortcuts && 'mt-auto'
-          )}
+          className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-10 md:justify-center md:px-0"
           title="Settings"
         >
           <HugeiconsIcon icon={Settings01Icon} className="size-4 md:size-4.5" />

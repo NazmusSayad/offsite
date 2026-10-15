@@ -1,27 +1,10 @@
 import { closeTab } from './close-tab'
 import { getSession, getState, send } from './session'
 
-const capturedKeys = ['KeyT', 'KeyN', 'KeyW', 'Tab', 'Escape']
 const isMac = navigator.userAgent.includes('Mac')
 
 export function startShortcuts() {
   window.addEventListener('keydown', handleShortcut, true)
-}
-
-export async function toggleFullscreen() {
-  if (document.fullscreenElement) {
-    await document.exitFullscreen()
-    return
-  }
-  await document.documentElement.requestFullscreen()
-  const { keyboard } = navigator as Navigator & {
-    keyboard?: { lock: (keys: string[]) => Promise<void> }
-  }
-  if (!keyboard) {
-    console.warn('this browser cannot capture shortcuts, use Chrome or Edge')
-    return
-  }
-  await keyboard.lock(capturedKeys)
 }
 
 export function focusTerminal() {
@@ -48,7 +31,6 @@ function shortcutName(event: KeyboardEvent) {
 function handleShortcut(event: KeyboardEvent) {
   const state = getState()
   if (!state.config.behavior.captureShortcuts) return
-  if (!document.fullscreenElement) return
   const shortcut = shortcutName(event)
   if (shortcut === null) return
   event.preventDefault()
