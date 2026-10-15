@@ -4,7 +4,7 @@ import type {
   TerminalIdentity,
 } from '@server/protocol'
 import type { TerminalOptions } from '@/ghostty/terminal'
-import { currentScheme } from '@/store'
+import { currentScheme } from '@/theme'
 
 const iterm2Version = '3.6.8'
 const ghosttyVersion = '1.3.1'

@@ -17,6 +17,7 @@ import {
   suggestCommitMessage,
   workingDiff,
 } from './git.ts'
+import { earlier } from './history.ts'
 import { type Client, clients } from './hub.ts'
 import type { Call, Method, Methods } from './protocol.ts'
 import { pushKey, subscribe, unsubscribe } from './push.ts'
@@ -57,6 +58,8 @@ const handlers: Handlers = {
     await open(client, params.sessionId, params.cwd)
     return null
   },
+  'sessions.earlier': (params) =>
+    earlier(params.sessionId, params.cwd, params.before),
   'sessions.send': async (params, client) => {
     await send(client, params)
     return null

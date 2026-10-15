@@ -4,6 +4,8 @@ import path from 'node:path'
 import {
   getSessionMessages,
   getSubagentMessages,
+  type SessionMessage,
+  type SessionStoreEntry,
 } from '@anthropic-ai/claude-agent-sdk'
 import { contextTokens, toMessage } from './content.ts'
 import type { Message, ServerEvent } from './protocol.ts'
@@ -14,8 +16,9 @@ const projectsDir = path.join(
   'projects'
 )
 
-async function messageTimes(sessionId: string) {
-  const times = new Map<string, number>()
+export async function sessionEntries(
+  sessionId: string
+): Promise<SessionStoreEntry[]> {
   for (const dir of await readdir(projectsDir)) {
     let text: string
     try {
@@ -27,18 +30,37 @@ async function messageTimes(sessionId: string) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
       throw error
     }
-    for (const line of text.split('\n')) {
+    return text.split('\n').flatMap((line) => {
       const entry = parseLine(line)
-      if (
-        entry !== null &&
-        typeof entry.uuid === 'string' &&
-        typeof entry.timestamp === 'string'
-      )
-        times.set(entry.uuid, Date.parse(entry.timestamp))
-    }
-    return times
+      return entry !== null && typeof entry.type === 'string'
+        ? [{ ...entry, type: entry.type }]
+        : []
+    })
   }
+  return []
+}
+
+function messageTimes(entries: SessionStoreEntry[]) {
+  const times = new Map<string, number>()
+  for (const entry of entries)
+    if (typeof entry.uuid === 'string' && typeof entry.timestamp === 'string')
+      times.set(entry.uuid, Date.parse(entry.timestamp))
   return times
+}
+
+function compactedBefore(
+  entries: SessionStoreEntry[],
+  uuid: string | undefined
+) {
+  if (uuid === undefined) return null
+  const start = entries.findIndex((entry) => entry.uuid === uuid)
+  const index = entries.findLastIndex(
+    (entry, position) =>
+      position < start &&
+      entry.type === 'system' &&
+      entry.subtype === 'compact_boundary'
+  )
+  return index < 0 ? null : index
 }
 
 function parseLine(line: string): Record<string, unknown> | null {
@@ -49,25 +71,29 @@ function parseLine(line: string): Record<string, unknown> | null {
   }
 }
 
+function mainMessages(disk: SessionMessage[], times: Map<string, number>) {
+  return disk.flatMap((item) =>
+    item.type === 'system' || item.parent_tool_use_id !== null
+      ? []
+      : [toMessage(item.type, item, times.get(item.uuid) ?? null)]
+  )
+}
+
 export async function history(
   sessionId: string,
   cwd: string
 ): Promise<ServerEvent> {
   const run = runs.get(sessionId)
-  const [disk, times] = await Promise.all([
+  const [disk, entries] = await Promise.all([
     getSessionMessages(sessionId, { dir: cwd }),
-    messageTimes(sessionId),
+    sessionEntries(sessionId),
   ])
   const resumeAt = run?.resumeAt ?? null
   const kept =
     resumeAt === null
       ? disk
       : disk.slice(0, disk.findIndex((item) => item.uuid === resumeAt) + 1)
-  const messages = kept.flatMap((item) =>
-    item.type === 'system' || item.parent_tool_use_id !== null
-      ? []
-      : [toMessage(item.type, item, times.get(item.uuid) ?? null)]
-  )
+  const messages = mainMessages(kept, messageTimes(entries))
   messages.push(...(await subagentMessages(sessionId, cwd, messages)))
   const seen = new Set(messages.map((item) => item.uuid))
   const last = kept.findLast(
@@ -89,7 +115,26 @@ export async function history(
       (tokens === null
         ? null
         : { tokens, window: null, model: null, categories: [], sections: [] }),
+    before: compactedBefore(entries, disk[0]?.uuid),
   }
+}
+
+export async function earlier(sessionId: string, cwd: string, before: number) {
+  const entries = await sessionEntries(sessionId)
+  const kept = entries.slice(0, before)
+  const disk = await getSessionMessages(sessionId, {
+    sessionStore: { append: () => Promise.resolve(), load: async () => kept },
+  })
+  const messages = mainMessages(disk, messageTimes(entries))
+  messages.push(...(await subagentMessages(sessionId, cwd, messages)))
+  messages.push({
+    type: 'notice',
+    uuid: `compacted:${before}`,
+    time: null,
+    text: 'Conversation compacted',
+    isError: false,
+  })
+  return { messages, before: compactedBefore(entries, disk[0]?.uuid) }
 }
 
 async function subagentMessages(

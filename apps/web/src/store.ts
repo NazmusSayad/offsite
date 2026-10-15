@@ -16,11 +16,12 @@ import type {
   SessionPatch,
   Settings,
 } from '@server/protocol'
-import { schemes } from '@server/schemes'
 import { useSyncExternalStore } from 'react'
 import { errorMessage } from '@/lib/utils'
 import { call, isConnected, listen } from './connection'
 import { notify, push } from './notifications'
+import { applyTheme } from './theme'
+import { selectionFromUrl, syncUrl } from './url'
 
 export type Selection = { cwd: string; sessionId: string | null }
 
@@ -47,6 +48,8 @@ type State = {
   selection: Selection | null
   loaded: boolean
   messages: Message[]
+  earlier: Message[]
+  before: number | null
   partial: string
   requests: PermissionRequest[]
   queue: Queued[]
@@ -104,6 +107,8 @@ export function start(info: ConfigInfo) {
     selection,
     loaded: selection?.sessionId === null,
     messages: [],
+    earlier: [],
+    before: null,
     partial: '',
     requests: [],
     queue: [],
@@ -131,6 +136,8 @@ export function openSession(selection: Selection) {
     selection,
     loaded: selection.sessionId === null,
     messages: [],
+    earlier: [],
+    before: null,
     partial: '',
     requests: [],
     queue: [],
@@ -228,6 +235,27 @@ export async function forkFrom(messageId: string) {
     })
     await refreshSessions()
     openSession({ cwd: selection.cwd, sessionId: result.sessionId })
+  } catch (error) {
+    showError(error)
+  }
+}
+
+export async function loadEarlier() {
+  const selection = state.selection
+  const before = state.before
+  if (selection === null || selection.sessionId === null || before === null)
+    return
+  try {
+    const result = await call('sessions.earlier', {
+      sessionId: selection.sessionId,
+      cwd: selection.cwd,
+      before,
+    })
+    if (state.selection !== selection || state.before !== before) return
+    update({
+      earlier: [...result.messages, ...state.earlier],
+      before: result.before,
+    })
   } catch (error) {
     showError(error)
   }
@@ -359,6 +387,8 @@ function receive(event: ServerEvent) {
         selection: { cwd: event.cwd, sessionId: event.sessionId },
         loaded: true,
         messages: [],
+        earlier: [],
+        before: null,
         partial: '',
         requests: [],
         queue: [],
@@ -375,6 +405,8 @@ function receive(event: ServerEvent) {
       update({
         loaded: true,
         messages: event.messages,
+        earlier: [],
+        before: event.before,
         requests: event.requests,
         queue: event.queue,
         settings: event.settings ?? state.settings,
@@ -497,43 +529,4 @@ function applyConfig(config: Config) {
 function update(patch: Partial<State>) {
   state = { ...state, ...patch }
   for (const listener of listeners) listener()
-}
-
-export function currentScheme() {
-  const scheme = schemes.find((item) => item.id === state.config.theme)
-  if (scheme === undefined)
-    throw new Error(`unknown theme ${state.config.theme}`)
-  return scheme
-}
-
-function applyTheme() {
-  const scheme = currentScheme()
-  const style = document.documentElement.style
-  style.setProperty('--bg', scheme.background)
-  style.setProperty('--text', scheme.foreground)
-  style.setProperty('--brand', scheme.palette[4])
-  style.setProperty('--danger', scheme.palette[1])
-  style.setProperty('--green', scheme.palette[2])
-  style.setProperty('--yellow', scheme.palette[3])
-  document
-    .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', scheme.background)
-}
-
-function selectionFromUrl(): Selection | null {
-  const params = new URLSearchParams(location.search)
-  const cwd = params.get('cwd')
-  if (cwd === null) return null
-  return { cwd, sessionId: params.get('session') }
-}
-
-function syncUrl() {
-  const selection = state.selection
-  const params = new URLSearchParams()
-  if (selection !== null) {
-    params.set('cwd', selection.cwd)
-    if (selection.sessionId !== null) params.set('session', selection.sessionId)
-  }
-  const search = params.toString()
-  history.replaceState(null, '', search === '' ? '/' : `/?${search}`)
 }
