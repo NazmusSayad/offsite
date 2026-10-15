@@ -46,7 +46,6 @@ struct Behavior {
     shell_integration: bool,
     click_to_move_cursor: bool,
     option_as_meta: OptionAsMeta,
-    clipboard_read: ClipboardRead,
     confirm_close_busy_tab: bool,
 }
 
@@ -63,7 +62,6 @@ impl Default for Behavior {
             shell_integration: true,
             click_to_move_cursor: true,
             option_as_meta: OptionAsMeta::Off,
-            clipboard_read: ClipboardRead::Ask,
             confirm_close_busy_tab: true,
         }
     }
@@ -84,14 +82,6 @@ enum OptionAsMeta {
     Left,
     Right,
     Both,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum ClipboardRead {
-    Ask,
-    Allow,
-    Deny,
 }
 
 #[derive(Serialize, Deserialize)]

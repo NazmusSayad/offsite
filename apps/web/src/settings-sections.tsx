@@ -8,7 +8,6 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
-  type ClipboardRead,
   type Config,
   type Platform,
   shellIntegrationIssue,
@@ -100,23 +99,6 @@ export function BehaviorSection(props: {
             props.onChange({ clickToMoveCursor })
           }
         />
-      </Row>
-      <Row label="Let programs read the clipboard">
-        <Select
-          value={props.behavior.clipboardRead}
-          onValueChange={(clipboardRead: ClipboardRead) =>
-            props.onChange({ clipboardRead })
-          }
-        >
-          <SelectTrigger className="w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ask">Ask each time</SelectItem>
-            <SelectItem value="allow">Allow</SelectItem>
-            <SelectItem value="deny">Deny</SelectItem>
-          </SelectContent>
-        </Select>
       </Row>
       <Row label="Ask before closing a tab that is running a program">
         <Switch

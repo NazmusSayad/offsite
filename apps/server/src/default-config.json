@@ -26,10 +26,10 @@
   "padding": {
     "top": 4,
     "right": 4,
-    "bottom": 4,
-    "left": 6
+    "bottom": 0,
+    "left": 4
   },
-  "scrollback": 10000,
+  "scrollback": 1000,
   "theme": {
     "name": "one-dark-darker",
     "boldIsBright": true
@@ -46,7 +46,6 @@
     "shellIntegration": true,
     "clickToMoveCursor": true,
     "optionAsMeta": "off",
-    "clipboardRead": "ask",
     "confirmCloseBusyTab": true
   }
 }

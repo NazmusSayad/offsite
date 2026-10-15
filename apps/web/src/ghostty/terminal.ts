@@ -44,7 +44,6 @@ export type TerminalOptions = {
   version: string
   clickToMoveCursor: boolean
   optionAsMeta: OptionAsMeta
-  promptEvents: boolean
 }
 
 export type OptionAsMeta = 'off' | 'left' | 'right' | 'both'
@@ -310,7 +309,6 @@ export class Terminal {
       window.devicePixelRatio || 1
     )
     if (!options.clickToMoveCursor) this.releaseInput()
-    if (!this.tracksPrompts()) this.shell = 'unknown'
     this.applyTerminalOptions()
     this.resizeCore()
     this.forceFull = true
@@ -504,10 +502,6 @@ export class Terminal {
     this.core.invalidate()
   }
 
-  private tracksPrompts() {
-    return this.options.clickToMoveCursor || this.options.promptEvents
-  }
-
   private drain() {
     while (!this.blocked && this.backlog.length > 0) {
       const chunk = this.backlog.shift()
@@ -668,7 +662,7 @@ export class Terminal {
         })
       )
     if (text.startsWith('133;') || text.startsWith('6973;')) {
-      if (this.tracksPrompts()) this.handlePromptMark(text)
+      this.handlePromptMark(text)
       return false
     }
     if (text.startsWith('52;')) {

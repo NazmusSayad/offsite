@@ -9,7 +9,7 @@ import {
   syncQuietTimers,
   unseenAttention,
 } from './attention'
-import { requestClipboardRead, writeClipboard } from './clipboard'
+import { readClipboard, writeClipboard } from './clipboard'
 import {
   applyStyle,
   type Config,
@@ -390,9 +390,7 @@ function createSession(id: number) {
     onClipboard: writeClipboard,
     onClipboardRead: (query) => {
       if (!isSeen(id)) return
-      requestClipboardRead(id, state.config.behavior.clipboardRead, (text) =>
-        terminal.replyClipboard(text, query)
-      )
+      void readClipboard((text) => terminal.replyClipboard(text, query))
     },
     onLink: (uri) => window.open(uri, '_blank', 'noopener'),
     beforeKey: (event) => {

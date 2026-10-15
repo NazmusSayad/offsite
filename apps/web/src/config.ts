@@ -7,8 +7,6 @@ export type Shell = { command: string | null; cwd: string }
 
 export type TerminalIdentity = 'sshtty' | 'ghostty' | 'iterm2'
 
-export type ClipboardRead = 'ask' | 'allow' | 'deny'
-
 export type Config = {
   shell: Record<Platform, Shell>
   font: { family: string; size: number; lineHeight: number; ligatures: boolean }
@@ -28,7 +26,6 @@ export type Config = {
     shellIntegration: boolean
     clickToMoveCursor: boolean
     optionAsMeta: OptionAsMeta
-    clipboardRead: ClipboardRead
     confirmCloseBusyTab: boolean
   }
 }
@@ -238,7 +235,6 @@ export function terminalOptions(
     version: terminalVersion(config.behavior.terminalIdentity, version),
     clickToMoveCursor: config.behavior.clickToMoveCursor,
     optionAsMeta: config.behavior.optionAsMeta,
-    promptEvents: config.behavior.clipboardRead !== 'deny',
   }
 }
 

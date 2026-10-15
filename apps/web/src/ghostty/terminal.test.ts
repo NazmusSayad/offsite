@@ -26,7 +26,6 @@ const options = {
   version: 'sshtty 0.0.0',
   clickToMoveCursor: true,
   optionAsMeta: 'off' as const,
-  promptEvents: true,
 }
 
 function open() {

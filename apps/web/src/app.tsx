@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { loadSettings } from '@/config'
 import { FindBar } from '@/find-bar'
 import type { Progress } from '@/ghostty/terminal'
@@ -42,7 +43,7 @@ import {
   toggleCtrl,
   uploadLogo,
 } from '@/session'
-import { SettingsDialog } from '@/settings-page'
+import { SettingsPage } from '@/settings-page'
 import { DropIndicator, SortableGroup } from '@/sortable-group'
 import { StatusOverlay } from '@/status-overlay'
 import { showToast, Toast } from '@/toast'
@@ -73,16 +74,22 @@ export function App() {
   const [settings, setSettings] = useState<Awaited<
     ReturnType<typeof loadSettings>
   > | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   function showError(error: unknown) {
     setLogoError(error instanceof Error ? error.message : String(error))
   }
 
   function openSettings() {
-    loadSettings().then(setSettings, (error: unknown) =>
-      showToast(
-        `Settings not loaded: ${error instanceof Error ? error.message : String(error)}`
-      )
+    loadSettings().then(
+      (loaded) => {
+        setSettings(loaded)
+        setSettingsOpen(true)
+      },
+      (error: unknown) =>
+        showToast(
+          `Settings not loaded: ${error instanceof Error ? error.message : String(error)}`
+        )
     )
   }
   const layout = state.layout
@@ -380,15 +387,23 @@ export function App() {
         />
       )}
       <CloseDialog />
-      {settings !== null && (
-        <SettingsDialog
-          config={settings.config}
-          defaults={settings.defaults}
-          platform={settings.platform}
-          defaultShell={settings.defaultShell}
-          onClose={() => setSettings(null)}
-        />
-      )}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent
+          showCloseButton={false}
+          aria-describedby={undefined}
+          onCloseAutoFocus={restoreFocus}
+          className="block max-h-[calc(100dvh-2rem)] overflow-auto px-6 pt-4 pb-7 sm:max-w-172"
+        >
+          {settings !== null && (
+            <SettingsPage
+              config={settings.config}
+              defaults={settings.defaults}
+              platform={settings.platform}
+              defaultShell={settings.defaultShell}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
       <AlertDialog
         open={logoError !== null}
         onOpenChange={(open) => {

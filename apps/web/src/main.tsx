@@ -5,7 +5,6 @@ import { App } from './app'
 import { applyStyle, loadSettings } from './config'
 import { loadGhostty } from './ghostty/runtime'
 import { refreshPushSubscription } from './notifications'
-import { ClipboardReadDialog } from './prompt-dialogs'
 import { getState, send, start, subscribe } from './session'
 import { startShortcuts } from './shortcuts'
 import { setThemes } from './themes'
@@ -30,7 +29,6 @@ async function main(container: HTMLElement) {
     createRoot(container).render(
       <StrictMode>
         <App />
-        <ClipboardReadDialog />
       </StrictMode>
     )
   } catch (error) {
