@@ -23,6 +23,8 @@ import { ContextGroup } from '@/transcript/tool-group'
 import { Shimmer } from '@/transcript/tool-row'
 import { MessageCopyButton, UserMessage } from '@/transcript/user-message'
 
+const PAGE = 30
+
 export function Transcript(props: {
   onOpenDiff: () => void
   onOpenTask: (id: string) => void
@@ -44,6 +46,7 @@ export function Transcript(props: {
   const [loadingEarlier, setLoadingEarlier] = useState(false)
   const [rewind, setRewind] = useState<RewindTarget | null>(null)
   const [expanded, setExpanded] = useState<string[]>([])
+  const [top, setTop] = useState<{ key: string; above: number } | null>(null)
   const cwd = selection?.cwd ?? ''
   const running = useStore(selectedRunning)
 
@@ -59,12 +62,34 @@ export function Transcript(props: {
       element.scrollTop = element.scrollHeight
   }, [messages, partial, requests, running])
 
+  const found = threadTasks([...earlier, ...messages], activity)
+  const olderRows = mainRows(earlier, cwd, false, '')
+  const rows = [...olderRows, ...mainRows(messages, cwd, running, partial)]
+  const topIndex = rows.findIndex((row) => row.key === top?.key)
+  const start = Math.max(
+    0,
+    topIndex === -1 ? rows.length - PAGE : topIndex - (top?.above ?? 0)
+  )
+
   useLayoutEffect(() => {
     const element = scroller.current
-    if (element !== null && fromBottom.current !== null && earlier.length > 0)
+    if (element !== null && fromBottom.current !== null)
       element.scrollTop = element.scrollHeight - fromBottom.current
     fromBottom.current = null
-  }, [earlier])
+  }, [start])
+
+  useLayoutEffect(() => {
+    const element = scroller.current
+    if (element === null || rows.length === 0) return
+    if (topIndex === -1) setTop({ key: rows[start].key, above: 0 })
+    else showMore(element)
+  })
+
+  function showMore(element: HTMLDivElement) {
+    if (start === 0 || element.scrollTop >= element.clientHeight) return
+    fromBottom.current = element.scrollHeight - element.scrollTop
+    setTop({ key: rows[start].key, above: PAGE })
+  }
 
   function toggle(key: string) {
     setExpanded(
@@ -74,10 +99,6 @@ export function Transcript(props: {
     )
   }
 
-  const found = threadTasks([...earlier, ...messages], activity)
-  const olderRows = mainRows(earlier, cwd, false, '')
-  const rows = [...olderRows, ...mainRows(messages, cwd, running, partial)]
-
   return (
     <div
       ref={scroller}
@@ -86,6 +107,7 @@ export function Transcript(props: {
         const element = event.currentTarget
         pinned.current =
           element.scrollHeight - element.scrollTop - element.clientHeight < 40
+        showMore(element)
       }}
     >
       <div className="mx-auto w-full max-w-(--chat-content-max-width) pt-3">
@@ -94,7 +116,7 @@ export function Transcript(props: {
             Loading…
           </p>
         )}
-        {before !== null && (
+        {before !== null && start === 0 && (
           <div className="flex justify-center pb-4">
             <Button
               type="button"
@@ -105,6 +127,7 @@ export function Transcript(props: {
                 const element = scroller.current
                 if (element !== null)
                   fromBottom.current = element.scrollHeight - element.scrollTop
+                setTop({ key: rows[0].key, above: PAGE })
                 setLoadingEarlier(true)
                 await loadEarlier()
                 setLoadingEarlier(false)
@@ -114,7 +137,8 @@ export function Transcript(props: {
             </Button>
           </div>
         )}
-        {rows.map((row, index) => {
+        {rows.slice(start).map((row, offset) => {
+          const index = start + offset
           const previous = rows[index - 1]
           const older = index < olderRows.length
           return (
