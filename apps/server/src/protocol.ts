@@ -45,13 +45,6 @@ export type SessionPatch = {
 export type Context = {
   tokens: number
   window: number | null
-  model: string | null
-  categories: {
-    name: string
-    tokens: number
-    kind: 'used' | 'free' | 'buffer'
-  }[]
-  sections: { title: string; items: { name: string; tokens: number }[] }[]
 }
 
 export type Account = {
@@ -433,5 +426,5 @@ export type ServerEvent =
   | { type: 'requestDone'; sessionId: string; requestId: string }
   | { type: 'queue'; sessionId: string; queue: Queued[] }
   | { type: 'settings'; sessionId: string; settings: Settings }
-  | { type: 'context'; sessionId: string; context: Context }
+  | { type: 'context'; sessionId: string; context: Context | null }
   | { type: 'notification'; sessionId: string; message: string }

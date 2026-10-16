@@ -157,6 +157,19 @@
   );
 }
 
+:is(
+  [data-slot='dialog-content'],
+  [data-slot='alert-dialog-content'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='context-menu-content'],
+  [data-slot='context-menu-sub-content'],
+  [data-slot='popover-content'],
+  [data-slot='select-content']
+) {
+  --accent: color-mix(in srgb, var(--popover) 90%, var(--text));
+}
+
 @supports (corner-shape: squircle) {
   :root {
     --radius: 0.9rem;

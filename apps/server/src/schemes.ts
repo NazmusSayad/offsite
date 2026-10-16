@@ -2,6 +2,7 @@ export const schemes = [
   {
     id: 'one-dark-darker',
     name: 'One Dark Darker',
+    codeTheme: 'one-dark-pro',
     background: '#15181C',
     foreground: '#ABB2BF',
     cursor: '#B3BAC5',
@@ -28,6 +29,7 @@ export const schemes = [
   {
     id: 'one-dark-pro',
     name: 'One Dark Pro',
+    codeTheme: 'one-dark-pro',
     background: '#282C34',
     foreground: '#ABB2BF',
     cursor: '#528BFF',
@@ -54,6 +56,7 @@ export const schemes = [
   {
     id: 'dracula',
     name: 'Dracula',
+    codeTheme: 'dracula',
     background: '#282A36',
     foreground: '#F8F8F2',
     cursor: '#F8F8F2',
@@ -80,6 +83,7 @@ export const schemes = [
   {
     id: 'tokyo-night',
     name: 'Tokyo Night',
+    codeTheme: 'tokyo-night',
     background: '#1A1B26',
     foreground: '#C0CAF5',
     cursor: '#C0CAF5',
@@ -106,6 +110,7 @@ export const schemes = [
   {
     id: 'catppuccin-mocha',
     name: 'Catppuccin Mocha',
+    codeTheme: 'catppuccin-mocha',
     background: '#1E1E2E',
     foreground: '#CDD6F4',
     cursor: '#F5E0DC',
@@ -132,6 +137,7 @@ export const schemes = [
   {
     id: 'nord',
     name: 'Nord',
+    codeTheme: 'nord',
     background: '#2E3440',
     foreground: '#D8DEE9',
     cursor: '#D8DEE9',
@@ -158,6 +164,7 @@ export const schemes = [
   {
     id: 'gruvbox-dark',
     name: 'Gruvbox Dark',
+    codeTheme: 'gruvbox-dark-medium',
     background: '#282828',
     foreground: '#EBDBB2',
     cursor: '#EBDBB2',
@@ -184,6 +191,7 @@ export const schemes = [
   {
     id: 'solarized-dark',
     name: 'Solarized Dark',
+    codeTheme: 'solarized-dark',
     background: '#002B36',
     foreground: '#839496',
     cursor: '#839496',
@@ -210,6 +218,7 @@ export const schemes = [
   {
     id: 'github-dark',
     name: 'GitHub Dark',
+    codeTheme: 'github-dark',
     background: '#0D1117',
     foreground: '#E6EDF3',
     cursor: '#E6EDF3',
@@ -236,6 +245,7 @@ export const schemes = [
   {
     id: 'rose-pine',
     name: 'Rosé Pine',
+    codeTheme: 'rose-pine',
     background: '#191724',
     foreground: '#E0DEF4',
     cursor: '#E0DEF4',

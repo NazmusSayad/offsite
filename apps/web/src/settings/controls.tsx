@@ -13,7 +13,7 @@ export function Section(props: {
         {props.title}
         {props.note && <span className="font-normal"> · {props.note}</span>}
       </h2>
-      <div className="bg-card divide-y overflow-hidden rounded-xl border">
+      <div className="divide-y overflow-hidden rounded-xl border">
         {props.children}
       </div>
     </section>

@@ -1,4 +1,9 @@
-import { ArrowUp02Icon, ListPlusIcon, XIcon } from '@hugeicons/core-free-icons'
+import {
+  ArrowUp02Icon,
+  ListPlusIcon,
+  PaperclipIcon,
+  XIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Delivery, Message } from '@server/protocol'
 import { useEffect, useRef, useState } from 'react'
@@ -417,7 +422,16 @@ export function Composer() {
                     Uploading…
                   </span>
                 )}
-                <MoreMenu onAttach={() => picker.current?.click()} />
+                <MoreMenu />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  title="Attach files"
+                  aria-label="Attach files"
+                  onClick={() => picker.current?.click()}
+                >
+                  <HugeiconsIcon icon={PaperclipIcon} />
+                </Button>
                 {running && empty ? (
                   <button
                     className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors"

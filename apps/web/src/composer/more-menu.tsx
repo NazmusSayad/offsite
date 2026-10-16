@@ -1,10 +1,8 @@
 import {
   ChartRingIcon,
   FilePenIcon,
-  FoldVerticalIcon,
   ListTodoIcon,
   MoreHorizontalIcon,
-  PaperclipIcon,
   ShieldCheckIcon,
   ShieldOffIcon,
   SparklesIcon,
@@ -15,20 +13,16 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { compact } from '@/lib/format'
-import { cn } from '@/lib/utils'
 import { changeSettings, sendPrompt, showError, useStore } from '@/store'
 
 export const modes: {
@@ -47,14 +41,10 @@ export const modes: {
   },
 ]
 
-export function MoreMenu(props: { onAttach: () => void }) {
+export function MoreMenu() {
   const permissionMode = useStore((state) => state.settings.permissionMode)
   const context = useStore((state) => state.context)
   const mode = modes.find((item) => item.value === permissionMode)
-  const percent =
-    context === null || context.window === null
-      ? null
-      : Math.max(0, Math.min(100, (context.tokens / context.window) * 100))
 
   return (
     <DropdownMenu>
@@ -108,90 +98,27 @@ export function MoreMenu(props: { onAttach: () => void }) {
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>
-        <DropdownMenuItem onSelect={props.onAttach}>
-          <HugeiconsIcon icon={PaperclipIcon} />
-          Attach files
-        </DropdownMenuItem>
         {context !== null && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <HugeiconsIcon icon={ChartRingIcon} />
-                <span className="flex-1">Context usage</span>
-                <DropdownMenuShortcut
-                  className={cn(
-                    'tracking-normal tabular-nums',
-                    percent !== null && percent > 90 && 'text-error'
-                  )}
-                >
-                  {percent === null
-                    ? compact(context.tokens)
-                    : `${Math.round(percent)}%`}
-                </DropdownMenuShortcut>
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent className="max-h-(--radix-dropdown-menu-content-available-height) w-72 overflow-y-auto">
-                  <DropdownMenuLabel className="text-foreground flex justify-between">
-                    <span>Context window</span>
-                    <span className="tabular-nums">
-                      {context.window === null
-                        ? `${compact(context.tokens)} tokens`
-                        : `${compact(context.tokens)} / ${compact(context.window)} · ${Math.round(percent ?? 0)}%`}
-                    </span>
-                  </DropdownMenuLabel>
-                  {context.model !== null && (
-                    <div className="text-muted-foreground -mt-1 px-2 pb-1 text-xs">
-                      {context.model}
-                    </div>
-                  )}
-                  {context.categories.length > 0 && <DropdownMenuSeparator />}
-                  {context.categories.map((category) => (
-                    <div
-                      key={category.name}
-                      className={`flex justify-between px-2 py-1 text-xs ${category.kind === 'used' ? '' : 'text-muted-foreground'}`}
-                    >
-                      <span>{category.name}</span>
-                      <span className="tabular-nums">
-                        {compact(category.tokens)}
-                        {context.window !== null &&
-                          ` · ${((category.tokens / context.window) * 100).toFixed(1)}%`}
-                      </span>
-                    </div>
-                  ))}
-                  {context.sections.map((section) => (
-                    <div key={section.title}>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel>{section.title}</DropdownMenuLabel>
-                      {section.items.map((item) => (
-                        <div
-                          key={item.name}
-                          className="flex justify-between gap-3 px-2 py-1 text-xs"
-                        >
-                          <span className="truncate" title={item.name}>
-                            {item.name}
-                          </span>
-                          <span className="text-muted-foreground shrink-0 tabular-nums">
-                            {compact(item.tokens)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-            <DropdownMenuItem
-              onSelect={() =>
+          <div className="flex min-h-7 items-center gap-2 px-2 py-1 text-sm [&_svg]:size-4">
+            <HugeiconsIcon icon={ChartRingIcon} />
+            <span className="flex-1">Context</span>
+            <span className="text-muted-foreground text-xs tabular-nums">
+              {context.window === null
+                ? compact(context.tokens)
+                : `${compact(context.tokens)} / ${compact(context.window)}`}
+            </span>
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() =>
                 sendPrompt({ text: '/compact', images: [] }, 'queue').catch(
                   showError
                 )
               }
             >
-              <HugeiconsIcon icon={FoldVerticalIcon} />
-              Compact conversation
-            </DropdownMenuItem>
-          </>
+              Compact
+            </Button>
+          </div>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

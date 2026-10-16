@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { call } from '@/connection'
 import { errorMessage } from '@/lib/utils'
 import { getState, updateConfig, useStore } from '@/store'
+import { useCodeTheme } from '@/theme'
 import diffCss from '@/git/diff.css?raw'
 
 const toggle =
@@ -34,6 +35,7 @@ export function DiffPanel(props: {
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
   const diff = useStore((state) => state.config.diff)
+  const codeTheme = useCodeTheme()
   const [collapsed, setCollapsed] = useState<string[]>(() => {
     const stored = localStorage.getItem(`diffCollapsed:${props.cwd}`)
     if (stored === null) return []
@@ -217,7 +219,7 @@ export function DiffPanel(props: {
                   diffStyle: diff.split ? 'split' : 'unified',
                   lineDiffType: 'none',
                   overflow: diff.wrap ? 'wrap' : 'scroll',
-                  theme: 'pierre-dark',
+                  theme: codeTheme,
                   themeType: 'dark',
                   unsafeCSS: diffCss,
                 }}

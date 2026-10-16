@@ -8,7 +8,7 @@ import {
   type SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk'
 import { claudeOptions, recordLimit } from './claude.ts'
-import { toContext, toMessage } from './content.ts'
+import { contextTokens, toMessage } from './content.ts'
 import { broadcast, publish } from './hub.ts'
 import type {
   Activity,
@@ -61,6 +61,7 @@ export class Run {
   queue: Queued[] = []
   settings: Settings
   context: Context | null = null
+  private model: string | null = null
   running = false
   prompted = false
   backgroundTasks = 0
@@ -240,8 +241,7 @@ export class Run {
     broadcastActivity()
   }
 
-  private async refreshContext() {
-    this.context = toContext(await this.query.getContextUsage())
+  private publishContext() {
     publish(this.sessionId, {
       type: 'context',
       sessionId: this.sessionId,
@@ -279,8 +279,13 @@ export class Run {
 
   private receive(message: SDKMessage) {
     switch (message.type) {
-      case 'assistant':
+      case 'assistant': {
         this.add(toMessage('assistant', message, Date.now()))
+        const tokens = contextTokens(message.message)
+        if (message.parent_tool_use_id === null && tokens !== null) {
+          this.model = message.message.model
+          this.context = { tokens, window: this.context?.window ?? null }
+        }
         if (message.error === 'rate_limit')
           this.add(
             notice(
@@ -288,6 +293,7 @@ export class Run {
             )
           )
         return
+      }
       case 'user':
         if (message.isSynthetic) return
         this.add(
@@ -321,12 +327,17 @@ export class Run {
         })
         return
       }
-      case 'result':
+      case 'result': {
         if (message.subtype !== 'success')
           this.add(notice(message.errors.join('\n') || message.subtype))
         this.finishTurn()
-        this.refreshContext().catch((error: unknown) => console.error(error))
+        const usage =
+          this.model === null ? undefined : message.modelUsage[this.model]
+        if (this.context !== null && usage !== undefined)
+          this.context = { ...this.context, window: usage.contextWindow }
+        this.publishContext()
         return
+      }
       case 'system':
         switch (message.subtype) {
           case 'init':
@@ -368,7 +379,13 @@ export class Run {
                 permissionMode: message.permissionMode,
               })
             return
-          case 'compact_boundary':
+          case 'compact_boundary': {
+            const tokens = message.compact_metadata.post_tokens
+            this.context =
+              tokens === undefined
+                ? null
+                : { tokens, window: this.context?.window ?? null }
+            this.publishContext()
             this.add({
               type: 'notice',
               uuid: message.uuid,
@@ -377,6 +394,7 @@ export class Run {
               isError: false,
             })
             return
+          }
           case 'local_command_output':
             this.add({
               type: 'notice',

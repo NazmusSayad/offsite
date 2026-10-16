@@ -182,10 +182,7 @@ export async function history(
     queue: run?.queue ?? [],
     settings: run?.settings ?? null,
     context:
-      run?.context ??
-      (tokens === null
-        ? null
-        : { tokens, window: null, model: null, categories: [], sections: [] }),
+      run?.context ?? (tokens === null ? null : { tokens, window: null }),
     before: compactedBefore(entries, disk[0]?.uuid),
   }
 }

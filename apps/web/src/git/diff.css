@@ -1,3 +1,4 @@
+:host,
 [data-diffs-header],
 [data-diff],
 [data-file],
@@ -32,14 +33,9 @@
     var(--code-foreground)
   );
 
-  --diffs-bg-addition-override: light-dark(
-    color-mix(in srgb, var(--code-background) 50%, var(--diff-addition)),
-    color-mix(in srgb, var(--code-background) 70%, var(--diff-addition))
-  );
-  --diffs-bg-addition-number-override: light-dark(
-    color-mix(in srgb, var(--code-background) 35%, var(--diff-addition)),
-    color-mix(in srgb, var(--code-background) 60%, var(--diff-addition))
-  );
+  --diffs-bg-context-gutter-override: var(--code-background);
+  --diffs-addition-color-override: var(--diff-addition);
+  --diffs-deletion-color-override: var(--diff-deletion);
   --diffs-bg-addition-hover-override: color-mix(
     in srgb,
     var(--code-background) 85%,
@@ -51,14 +47,6 @@
     var(--diff-addition)
   );
 
-  --diffs-bg-deletion-override: light-dark(
-    color-mix(in srgb, var(--code-background) 50%, var(--diff-deletion)),
-    color-mix(in srgb, var(--code-background) 70%, var(--diff-deletion))
-  );
-  --diffs-bg-deletion-number-override: light-dark(
-    color-mix(in srgb, var(--code-background) 35%, var(--diff-deletion)),
-    color-mix(in srgb, var(--code-background) 60%, var(--diff-deletion))
-  );
   --diffs-bg-deletion-hover-override: color-mix(
     in srgb,
     var(--code-background) 85%,

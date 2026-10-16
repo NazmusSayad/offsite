@@ -12,6 +12,7 @@ import { useCopy } from '@/lib/clipboard'
 import { errorMessage } from '@/lib/utils'
 import { Markdown } from '@/markdown/markdown'
 import { useStore } from '@/store'
+import { useCodeTheme } from '@/theme'
 import diffCss from '@/git/diff.css?raw'
 
 export function FilePreview(props: {
@@ -67,6 +68,7 @@ function PreviewBody(props: {
   const [preview, setPreview] = useState<Preview | null>(null)
   const [error, setError] = useState<string | null>(null)
   const clipboard = useCopy()
+  const codeTheme = useCodeTheme()
 
   useEffect(() => {
     let current = true
@@ -157,7 +159,7 @@ function PreviewBody(props: {
             options={{
               disableFileHeader: true,
               overflow: 'scroll',
-              theme: 'pierre-dark',
+              theme: codeTheme,
               themeType: 'dark',
               unsafeCSS: diffCss,
             }}
