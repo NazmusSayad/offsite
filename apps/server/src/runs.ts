@@ -6,15 +6,23 @@ import { type Client, publish } from './hub.ts'
 import type { Methods, Rewind, RewindResult, Settings } from './protocol.ts'
 import { Run, runs } from './run.ts'
 
+const locks = new Map<string, Promise<void>>()
+
 export function stopAll() {
   for (const run of runs.values()) run.stop()
 }
 
-export async function rewind(request: Rewind): Promise<RewindResult> {
+export function rewind(request: Rewind): Promise<RewindResult> {
+  return locked(request.sessionId, () => rewindNow(request))
+}
+
+async function rewindNow(request: Rewind): Promise<RewindResult> {
   const sessionId = request.sessionId
   if (runs.get(sessionId)?.running === true)
     throw new Error('Stop Claude before rewinding')
-  const run = runFor(sessionId, request.cwd, request.settings)
+  if ((runs.get(sessionId)?.backgroundTasks ?? 0) > 0)
+    throw new Error('Wait for background tasks to finish before rewinding')
+  const run = await runFor(sessionId, request.cwd, request.settings)
   let result: RewindResult = null
   if (request.code) {
     const files = await run.query.rewindFiles(request.messageId, {
@@ -74,27 +82,57 @@ export async function send(
     run.submit(request.prompt, request.delivery)
     return
   }
-  const existing = runs.get(request.sessionId)
+  const sessionId = request.sessionId
+  await locked(sessionId, () => sendExisting(client, sessionId, request))
+}
+
+async function sendExisting(
+  client: Client,
+  sessionId: string,
+  request: Methods['sessions.send']['params']
+) {
+  const existing = runs.get(sessionId)
   if (
     existing !== undefined &&
     !existing.running &&
+    existing.backgroundTasks === 0 &&
     (await changedElsewhere(existing, request.cwd))
-  )
+  ) {
     existing.stop()
-  const run = runFor(request.sessionId, request.cwd, request.settings)
+    await existing.closed
+  }
+  const run = await runFor(sessionId, request.cwd, request.settings)
   if (run === existing) await run.configure(request.settings)
-  else await open(client, request.sessionId, request.cwd)
+  else await open(client, sessionId, request.cwd)
   run.submit(request.prompt, request.delivery)
 }
 
-function runFor(sessionId: string, cwd: string, settings: Settings) {
+async function locked<T>(sessionId: string, task: () => Promise<T>) {
+  const previous = locks.get(sessionId) ?? Promise.resolve()
+  const result = previous.then(task)
+  const done = result.then(
+    () => undefined,
+    () => undefined
+  )
+  locks.set(sessionId, done)
+  await done
+  if (locks.get(sessionId) === done) locks.delete(sessionId)
+  return result
+}
+
+async function runFor(sessionId: string, cwd: string, settings: Settings) {
   const run = runs.get(sessionId)
   if (run !== undefined && run.settings.accountId === settings.accountId)
     return run
   if (run !== undefined) {
     if (run.running)
       throw new Error('Wait for this turn to finish before switching accounts')
+    if (run.backgroundTasks > 0)
+      throw new Error(
+        'Wait for background tasks to finish before switching accounts'
+      )
     run.stop()
+    await run.closed
   }
   return new Run({ sessionId, cwd, resume: true, resumeAt: null, settings })
 }

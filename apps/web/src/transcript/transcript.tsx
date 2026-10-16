@@ -76,7 +76,7 @@ export function Transcript(props: {
     if (element !== null && fromBottom.current !== null)
       element.scrollTop = element.scrollHeight - fromBottom.current
     fromBottom.current = null
-  }, [start])
+  }, [earlier, start])
 
   useLayoutEffect(() => {
     const element = scroller.current

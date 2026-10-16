@@ -59,6 +59,7 @@ export class Run {
   settings: Settings
   context: Context | null = null
   running = false
+  backgroundTasks = 0
   private readonly inbox: SDKUserMessage[] = []
   private wake: (() => void) | null = null
   private idleTimer: NodeJS.Timeout | undefined
@@ -316,10 +317,19 @@ export class Run {
       case 'system':
         switch (message.subtype) {
           case 'init':
+            clearTimeout(this.idleTimer)
+            this.running = true
+            broadcastActivity()
             this.updateSettings({
               ...this.settings,
               permissionMode: message.permissionMode,
             })
+            return
+          case 'background_tasks_changed':
+            this.backgroundTasks = message.tasks.filter(
+              (task) => task.ambient !== true
+            ).length
+            this.armIdleTimer()
             return
           case 'status':
             if (message.permissionMode !== undefined)
@@ -359,6 +369,12 @@ export class Run {
     }
     this.running = false
     broadcastActivity()
+    this.armIdleTimer()
+  }
+
+  private armIdleTimer() {
+    clearTimeout(this.idleTimer)
+    if (this.running || this.backgroundTasks > 0) return
     this.idleTimer = setTimeout(() => {
       if (!this.running && this.pending.size === 0) this.stop()
     }, IDLE_LIMIT)
