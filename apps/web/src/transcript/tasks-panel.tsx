@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { call } from '@/connection'
 import { cn, errorMessage } from '@/lib/utils'
 import { Markdown } from '@/markdown/markdown'
-import { loadAgent, useStore } from '@/store'
+import { loadAgent, stopTask, useStore } from '@/store'
 import { AgentSpinner, agentOf, SubagentIcon } from '@/transcript/agent-pill'
 import { taskTitle, threadTasks } from '@/transcript/tasks'
 import { isPrompt, isTool, turnRows } from '@/transcript/timeline'
@@ -73,6 +73,14 @@ export function TasksPanel(props: {
                     {info.description}
                   </span>
                 )}
+                {agent.status === 'Running' &&
+                  agent.agentId !== '' &&
+                  props.sessionId !== null && (
+                    <StopButton
+                      sessionId={props.sessionId}
+                      taskId={agent.agentId}
+                    />
+                  )}
               </>
             )}
             {task !== undefined && (
@@ -92,6 +100,14 @@ export function TasksPanel(props: {
                 >
                   {task.status}
                 </span>
+                {task.status === 'Running' &&
+                  task.taskId !== '' &&
+                  props.sessionId !== null && (
+                    <StopButton
+                      sessionId={props.sessionId}
+                      taskId={task.taskId}
+                    />
+                  )}
               </>
             )}
           </div>
@@ -222,6 +238,19 @@ export function TasksPanel(props: {
         />
       )}
     </div>
+  )
+}
+
+function StopButton(props: { sessionId: string; taskId: string }) {
+  return (
+    <Button
+      size="xs"
+      variant="outline"
+      className="shrink-0"
+      onClick={() => stopTask(props.sessionId, props.taskId)}
+    >
+      Stop
+    </Button>
   )
 }
 

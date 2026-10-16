@@ -281,6 +281,7 @@ export function App() {
             )}
             {panel === 'diff' && (
               <DiffPanel
+                key={selection.cwd}
                 cwd={selection.cwd}
                 running={running}
                 onClose={() => setPanel(null)}

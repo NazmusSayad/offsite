@@ -136,13 +136,14 @@ export function threadTasks(
     agents: [...agents.values()].map((agent) => ({
       tool: agent.tool,
       agentId: agent.agentId,
-      status: statusOf(agent.state, activity),
+      status: statusOf(agent.state, agent.agentId, activity),
     })),
     tasks: [...tasks.values()].map((task) => ({
       tool: task.tool,
+      taskId: task.taskId,
       path: task.path,
       events: task.events,
-      status: statusOf(task.state, activity),
+      status: statusOf(task.state, task.taskId, activity),
     })),
   }
 }
@@ -152,10 +153,12 @@ export function taskTitle(tool: ToolUse) {
   return description === '' ? text(tool.input.command) : description
 }
 
-function statusOf(state: string, activity: Activity | undefined) {
+function statusOf(state: string, id: string, activity: Activity | undefined) {
+  const live = activity?.tasks[id]
+  if (live === 'running') return 'Running'
+  if (live !== undefined) return labels.get(live) ?? live
   if (state === 'foreground')
     return activity?.running === true ? 'Running' : 'Stopped'
-  if (state === 'background')
-    return activity === undefined ? 'Stopped' : 'Running'
+  if (state === 'background') return 'Stopped'
   return labels.get(state) ?? state
 }

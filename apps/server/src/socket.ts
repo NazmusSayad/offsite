@@ -122,6 +122,10 @@ const handlers: Handlers = {
     await runs.get(params.sessionId)?.query.interrupt()
     return null
   },
+  'sessions.stopTask': async (params) => {
+    await runs.get(params.sessionId)?.query.stopTask(params.taskId)
+    return null
+  },
   'sessions.configure': async (params) => {
     await runs.get(params.sessionId)?.configure(params.settings)
     return null

@@ -33,7 +33,19 @@ export function DiffPanel(props: {
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
   const diff = useStore((state) => state.config.diff)
-  const [collapsed, setCollapsed] = useState<string[]>([])
+  const [collapsed, setCollapsed] = useState<string[]>(() => {
+    const stored = localStorage.getItem(`diffCollapsed:${props.cwd}`)
+    if (stored === null) return []
+    const names: unknown = JSON.parse(stored)
+    if (Array.isArray(names) && names.every((name) => typeof name === 'string'))
+      return names
+    throw new Error(`invalid diffCollapsed:${props.cwd} in localStorage`)
+  })
+
+  function collapse(names: string[]) {
+    setCollapsed(names)
+    localStorage.setItem(`diffCollapsed:${props.cwd}`, JSON.stringify(names))
+  }
 
   useEffect(() => {
     if (props.running) return
@@ -102,7 +114,7 @@ export function DiffPanel(props: {
               variant="ghost"
               title={allCollapsed ? 'Expand all files' : 'Collapse all files'}
               onClick={() =>
-                setCollapsed(allCollapsed ? [] : list.map((file) => file.name))
+                collapse(allCollapsed ? [] : list.map((file) => file.name))
               }
             >
               {allCollapsed ? (
@@ -201,7 +213,7 @@ export function DiffPanel(props: {
                     className="text-muted-foreground hover:text-foreground flex size-5 cursor-pointer items-center justify-center"
                     aria-label={closed ? 'Expand file' : 'Collapse file'}
                     onClick={() =>
-                      setCollapsed(
+                      collapse(
                         closed
                           ? collapsed.filter((name) => name !== file.name)
                           : [...collapsed, file.name]

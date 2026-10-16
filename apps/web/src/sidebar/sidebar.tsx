@@ -58,6 +58,7 @@ export function Sidebar(props: {
     (session) =>
       activity[session.id]?.running === true ||
       activity[session.id]?.waiting === true ||
+      Object.values(activity[session.id]?.tasks ?? {}).includes('running') ||
       unseen.includes(session.id)
   )
   const active = shown.filter((session) => !session.archived)

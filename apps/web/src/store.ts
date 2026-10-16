@@ -146,6 +146,10 @@ export function interrupt() {
   call('sessions.interrupt', { sessionId }).catch(showError)
 }
 
+export function stopTask(sessionId: string, taskId: string) {
+  call('sessions.stopTask', { sessionId, taskId }).catch(showError)
+}
+
 export function changeSettings(patch: Partial<Settings>) {
   const settings = { ...getState().settings, ...patch }
   update({ settings })

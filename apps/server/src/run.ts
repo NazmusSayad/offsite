@@ -19,6 +19,7 @@ import type {
   Prompt,
   Queued,
   Settings,
+  TaskStatus,
 } from './protocol.ts'
 
 const IDLE_LIMIT = 10 * 60 * 1000
@@ -40,6 +41,7 @@ export function activity() {
     result[run.sessionId] = {
       running: run.running,
       waiting: run.pending.size > 0,
+      tasks: run.tasks,
     }
   return result
 }
@@ -60,6 +62,7 @@ export class Run {
   context: Context | null = null
   running = false
   backgroundTasks = 0
+  tasks: Record<string, TaskStatus> = {}
   private readonly inbox: SDKUserMessage[] = []
   private wake: (() => void) | null = null
   private idleTimer: NodeJS.Timeout | undefined
@@ -325,11 +328,27 @@ export class Run {
               permissionMode: message.permissionMode,
             })
             return
-          case 'background_tasks_changed':
-            this.backgroundTasks = message.tasks.filter(
-              (task) => task.ambient !== true
-            ).length
+          case 'background_tasks_changed': {
+            const live = message.tasks.filter((task) => task.ambient !== true)
+            this.backgroundTasks = live.length
+            this.tasks = {
+              ...Object.fromEntries(
+                Object.entries(this.tasks).filter(
+                  ([, status]) => status !== 'running'
+                )
+              ),
+              ...Object.fromEntries(
+                live.map((task) => [task.task_id, 'running' as const])
+              ),
+            }
+            broadcastActivity()
             this.armIdleTimer()
+            return
+          }
+          case 'task_notification':
+            if (message.ambient === true) return
+            this.tasks = { ...this.tasks, [message.task_id]: message.status }
+            broadcastActivity()
             return
           case 'status':
             if (message.permissionMode !== undefined)

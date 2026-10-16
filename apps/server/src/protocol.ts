@@ -238,7 +238,13 @@ export type PermissionRequest = {
   canAlwaysAllow: boolean
 }
 
-export type Activity = { running: boolean; waiting: boolean }
+export type TaskStatus = 'running' | 'completed' | 'failed' | 'stopped'
+
+export type Activity = {
+  running: boolean
+  waiting: boolean
+  tasks: Record<string, TaskStatus>
+}
 
 export type Delivery = 'queue' | 'steer'
 
@@ -294,6 +300,10 @@ export type Methods = {
     result: null
   }
   'sessions.interrupt': { params: { sessionId: string }; result: null }
+  'sessions.stopTask': {
+    params: { sessionId: string; taskId: string }
+    result: null
+  }
   'sessions.configure': {
     params: { sessionId: string; settings: Settings }
     result: null

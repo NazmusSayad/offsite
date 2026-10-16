@@ -45,7 +45,10 @@ export function SessionItem(props: {
   const [confirming, setConfirming] = useState(false)
   const field = useRef<HTMLInputElement>(null)
   const waiting = props.activity?.waiting === true
-  const working = !waiting && props.activity?.running === true
+  const working =
+    !waiting &&
+    (props.activity?.running === true ||
+      Object.values(props.activity?.tasks ?? {}).includes('running'))
   const done = !waiting && !working && props.unseen
   const recede = !props.selected && !waiting && !done
 
