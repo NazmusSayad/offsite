@@ -183,10 +183,6 @@ const handlers: Handlers = {
   'terminal.busy': (params) => busyTerminal(params.id),
   'terminal.paste': (params) =>
     savePastedImage(params.type, Buffer.from(params.data, 'base64')),
-  debug: (params) => {
-    console.log(`[paste-debug] ${params.line}`)
-    return null
-  },
 }
 
 export function connectClient(socket: WebSocket) {

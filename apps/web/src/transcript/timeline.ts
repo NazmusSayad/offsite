@@ -29,6 +29,7 @@ type Segment =
       time: number | null
     }
   | { kind: 'plan'; key: string; plan: string }
+  | { kind: 'question'; key: string; tool: ToolUse }
 
 export type Row =
   | {
@@ -53,6 +54,7 @@ export type Row =
   | { kind: 'error'; key: string; text: string; time: number | null }
   | { kind: 'notice'; key: string; text: string }
   | { kind: 'plan'; key: string; plan: string }
+  | { kind: 'question'; key: string; tool: ToolUse }
 
 export function isTool(row: Row) {
   return row.kind === 'group' || row.kind === 'agent'
@@ -167,6 +169,8 @@ function segmentRow(
         : { kind: 'notice', key: segment.key, text: segment.text }
     case 'plan':
       return { kind: 'plan', key: segment.key, plan: segment.plan }
+    case 'question':
+      return { kind: 'question', key: segment.key, tool: segment.tool }
   }
 }
 
@@ -214,6 +218,8 @@ function segmentsOf(message: Message): Segment[] {
           case 'Task':
           case 'SendMessage':
             return [{ kind: 'agent', key, tool: block }]
+          case 'AskUserQuestion':
+            return [{ kind: 'question', key, tool: block }]
           case 'ExitPlanMode':
             return [
               {

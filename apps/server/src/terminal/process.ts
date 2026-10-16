@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { readFileSync, realpathSync, statSync } from 'node:fs'
-import { readFile, readlink, stat } from 'node:fs/promises'
+import { readFile, readlink } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { spawn } from '@lydell/node-pty'
@@ -117,36 +117,6 @@ async function programName(pid: number) {
     return (await readFile(`/proc/${pid}/comm`, 'utf8')).trimEnd()
   const { stdout } = await run('ps', ['-o', 'comm=', '-p', String(pid)])
   return path.basename(stdout.trim())
-}
-
-export async function gitBranch(directory: string) {
-  let git: string | null = null
-  for (let folder = directory; ; folder = path.dirname(folder)) {
-    const candidate = path.join(folder, '.git')
-    if ((await stat(candidate).catch(() => null)) !== null) {
-      git = candidate
-      break
-    }
-    if (path.dirname(folder) === folder) break
-  }
-  if (git === null) return null
-  const info = await stat(git)
-  if (info.isFile()) {
-    const text = await readSmallFile(git)
-    if (text === null || !text.startsWith('gitdir:')) return null
-    git = path.resolve(path.dirname(git), text.slice('gitdir:'.length).trim())
-  }
-  const head = (await readSmallFile(path.join(git, 'HEAD')))?.trim()
-  if (head === undefined) return null
-  if (head.startsWith('ref: refs/heads/'))
-    return head.slice('ref: refs/heads/'.length)
-  return head.length >= 7 ? head.slice(0, 7) : null
-}
-
-async function readSmallFile(file: string) {
-  const info = await stat(file).catch(() => null)
-  if (info === null || !info.isFile()) return null
-  return (await readFile(file, 'utf8')).slice(0, 4096)
 }
 
 function launch() {

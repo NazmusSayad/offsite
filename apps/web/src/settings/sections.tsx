@@ -61,12 +61,6 @@ export function BehaviorSection(props: {
           }
         />
       </Row>
-      <Row label="Show the git branch in tab titles">
-        <Switch
-          checked={props.behavior.showGitBranch}
-          onCheckedChange={(showGitBranch) => props.onChange({ showGitBranch })}
-        />
-      </Row>
       <Row label="Capture browser shortcuts">
         <Switch
           checked={props.behavior.captureShortcuts}

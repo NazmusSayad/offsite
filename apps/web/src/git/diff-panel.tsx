@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { call } from '@/connection'
 import { errorMessage } from '@/lib/utils'
+import { getState, updateConfig, useStore } from '@/store'
 import diffCss from '@/git/diff.css?raw'
 
 const toggle =
@@ -31,8 +32,7 @@ export function DiffPanel(props: {
   const [files, setFiles] = useState<FileDiffMetadata[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
-  const [split, setSplit] = useState(false)
-  const [wrap, setWrap] = useState(true)
+  const diff = useStore((state) => state.config.diff)
   const [collapsed, setCollapsed] = useState<string[]>([])
 
   useEffect(() => {
@@ -115,26 +115,41 @@ export function DiffPanel(props: {
           <div className="bg-input/40 flex shrink-0 items-center rounded-lg p-0.5">
             <button
               className={segment}
-              aria-pressed={!split}
+              aria-pressed={!diff.split}
               aria-label="Stacked diff view"
-              onClick={() => setSplit(false)}
+              onClick={() =>
+                updateConfig({
+                  ...getState().config,
+                  diff: { ...diff, split: false },
+                })
+              }
             >
               <HugeiconsIcon icon={Rows3Icon} className="size-3.5" />
             </button>
             <button
               className={segment}
-              aria-pressed={split}
+              aria-pressed={diff.split}
               aria-label="Split diff view"
-              onClick={() => setSplit(true)}
+              onClick={() =>
+                updateConfig({
+                  ...getState().config,
+                  diff: { ...diff, split: true },
+                })
+              }
             >
               <HugeiconsIcon icon={LayoutTwoColumnIcon} className="size-3.5" />
             </button>
           </div>
           <button
             className={toggle}
-            aria-pressed={wrap}
-            title={wrap ? 'Disable line wrapping' : 'Enable line wrapping'}
-            onClick={() => setWrap(!wrap)}
+            aria-pressed={diff.wrap}
+            title={diff.wrap ? 'Disable line wrapping' : 'Enable line wrapping'}
+            onClick={() =>
+              updateConfig({
+                ...getState().config,
+                diff: { ...diff, wrap: !diff.wrap },
+              })
+            }
           >
             <HugeiconsIcon icon={TextWrapIcon} className="size-3.5" />
           </button>
@@ -174,9 +189,9 @@ export function DiffPanel(props: {
                 fileDiff={file}
                 options={{
                   collapsed: closed,
-                  diffStyle: split ? 'split' : 'unified',
+                  diffStyle: diff.split ? 'split' : 'unified',
                   lineDiffType: 'none',
-                  overflow: wrap ? 'wrap' : 'scroll',
+                  overflow: diff.wrap ? 'wrap' : 'scroll',
                   theme: 'pierre-dark',
                   themeType: 'dark',
                   unsafeCSS: diffCss,

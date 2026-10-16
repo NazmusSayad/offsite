@@ -33,7 +33,6 @@ export const defaults: Config = {
     behavior: {
       modernizeShiftEnter: true,
       pasteBrowserImages: true,
-      showGitBranch: true,
       captureShortcuts: true,
       bellFlash: true,
       bellSound: true,
@@ -44,6 +43,7 @@ export const defaults: Config = {
       confirmCloseBusyTab: true,
     },
   },
+  diff: { split: false, wrap: true },
 }
 
 const choices: Record<string, string[]> = {

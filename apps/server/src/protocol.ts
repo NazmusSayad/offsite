@@ -123,7 +123,6 @@ export type TerminalConfig = {
   behavior: {
     modernizeShiftEnter: boolean
     pasteBrowserImages: boolean
-    showGitBranch: boolean
     captureShortcuts: boolean
     bellFlash: boolean
     bellSound: boolean
@@ -140,6 +139,7 @@ export type Config = {
   claudeBaseDir: string
   composer: Settings
   terminal: TerminalConfig
+  diff: { split: boolean; wrap: boolean }
 }
 
 export type ConfigInfo = {
@@ -170,14 +170,8 @@ export type TerminalRequest =
   | { type: 'resize'; id: number; cols: number; rows: number }
 
 export type TerminalEvent =
-  | {
-      type: 'active'
-      layout: TerminalLayout
-      instance: string
-      branches: Record<number, string>
-    }
+  | { type: 'active'; layout: TerminalLayout; instance: string }
   | { type: 'layout'; layout: TerminalLayout }
-  | { type: 'branch'; id: number; branch: string | null }
 
 export type Shell = { name: string; path: string }
 
@@ -211,6 +205,7 @@ export type Block =
       toolUseId: string
       content: Block[]
       isError: boolean
+      answers: Record<string, string> | null
     }
 
 export type Message =
@@ -339,7 +334,6 @@ export type Methods = {
   'terminal.shells': { params: void; result: Shell[] }
   'terminal.busy': { params: { id: number }; result: BusyResult }
   'terminal.paste': { params: { type: string; data: string }; result: string }
-  debug: { params: { line: string }; result: null }
 }
 
 export type Method = keyof Methods

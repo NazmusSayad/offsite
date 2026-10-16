@@ -3,14 +3,21 @@ import type { Block, Context, Message } from './protocol.ts'
 
 export function toMessage(
   type: 'user' | 'assistant',
-  item: { uuid: string; message: unknown; parent_tool_use_id: string | null },
+  item: {
+    uuid: string
+    message: unknown
+    parent_tool_use_id: string | null
+    tool_use_result?: unknown
+  },
   time: number | null
 ): Message {
   return {
     type,
     uuid: item.uuid,
     time,
-    content: isRecord(item.message) ? toBlocks(item.message.content) : [],
+    content: isRecord(item.message)
+      ? toBlocks(item.message.content, answersOf(item.tool_use_result))
+      : [],
     parent: item.parent_tool_use_id,
   }
 }
@@ -126,7 +133,20 @@ export function toContext(usage: SDKControlGetContextUsageResponse): Context {
   }
 }
 
-function toBlocks(content: unknown): Block[] {
+function answersOf(output: unknown) {
+  if (!isRecord(output) || !isRecord(output.answers)) return null
+  const answers: Record<string, string> = {}
+  for (const [question, answer] of Object.entries(output.answers)) {
+    if (typeof answer !== 'string') return null
+    answers[question] = answer
+  }
+  return answers
+}
+
+function toBlocks(
+  content: unknown,
+  answers: Record<string, string> | null
+): Block[] {
   if (typeof content === 'string') return [{ type: 'text', text: content }]
   if (!Array.isArray(content)) return []
   return content.flatMap((block): Block[] => {
@@ -170,8 +190,9 @@ function toBlocks(content: unknown): Block[] {
               {
                 type: 'tool_result',
                 toolUseId: block.tool_use_id,
-                content: toBlocks(block.content),
+                content: toBlocks(block.content, null),
                 isError: block.is_error === true,
+                answers,
               },
             ]
           : []

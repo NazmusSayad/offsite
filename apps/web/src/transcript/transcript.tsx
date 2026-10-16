@@ -15,6 +15,7 @@ import { AgentLine } from '@/transcript/agent-pill'
 import { subagents } from '@/transcript/agents-panel'
 import { ChangedFilesCard } from '@/transcript/changed-files'
 import { PlanCard } from '@/transcript/plan-card'
+import { QuestionCard } from '@/transcript/question-card'
 import { RewindDialog, type RewindTarget } from '@/transcript/rewind-dialog'
 import { isTool, mainRows, type Row } from '@/transcript/timeline'
 import type { ToolResult, ToolUse } from '@/transcript/tool-details'
@@ -273,6 +274,10 @@ export function RowView(props: {
         <div className="min-w-0">
           <PlanCard plan={row.plan} />
         </div>
+      )
+    case 'question':
+      return (
+        <QuestionCard tool={row.tool} result={props.results.get(row.tool.id)} />
       )
   }
 }

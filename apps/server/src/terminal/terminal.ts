@@ -20,12 +20,7 @@ import {
 import { pushActive, sendPush } from '../push.ts'
 import { home } from '../storage.ts'
 import { ALERT_DELAY, type Alert, Alerts, Scanner } from './alerts.ts'
-import {
-  busyProgram,
-  currentDirectory,
-  gitBranch,
-  startShell,
-} from './process.ts'
+import { busyProgram, currentDirectory, startShell } from './process.ts'
 
 type Connection = {
   client: Client
@@ -36,7 +31,6 @@ type Terminal = {
   pty: IPty
   history: Buffer[]
   historySize: number
-  branch: string | null
   owner: Connection | null
   alerts: Alerts
   scanner: Scanner
@@ -59,12 +53,8 @@ const projects = new Map<string, TerminalProject>()
 const terminals = new Map<number, Terminal>()
 const connections = new Map<Client, Connection>()
 const paused = new Set<IPty>()
-const branchFailures = new Set<number>()
 let nextTab = 0
 let draining: NodeJS.Timeout | null = null
-let watching = false
-
-if (process.platform !== 'win32') setInterval(() => void watchBranches(), 1000)
 
 export async function terminalRequest(
   client: Client,
@@ -129,11 +119,6 @@ function attach(client: Client) {
     type: 'active',
     layout: layout(),
     instance,
-    branches: Object.fromEntries(
-      [...terminals].flatMap(([id, terminal]) =>
-        terminal.branch === null ? [] : [[id, terminal.branch]]
-      )
-    ),
   })
   for (const project of projects.values())
     for (const tab of project.tabs)
@@ -266,7 +251,6 @@ async function createTab(cwd: string) {
     pty,
     history: [],
     historySize: 0,
-    branch: null,
     owner: null,
     alerts: new Alerts(),
     scanner: new Scanner(),
@@ -278,7 +262,6 @@ async function createTab(cwd: string) {
   pty.onExit(() => {
     terminals.delete(id)
     paused.delete(pty)
-    branchFailures.delete(id)
     if (closeTab(id)) publish()
   })
 }
@@ -397,30 +380,6 @@ function browserOpen() {
   return [...connections.values()].some(
     (connection) => Date.now() - connection.client.heardAt < SILENCE_LIMIT
   )
-}
-
-async function watchBranches() {
-  if (watching) return
-  watching = true
-  for (const [id, terminal] of terminals) {
-    let branch: string | null
-    try {
-      branch = await gitBranch(await currentDirectory(terminal.pty.pid))
-    } catch (error) {
-      if (!branchFailures.has(id))
-        console.warn(
-          `could not read the git branch of terminal ${id}: ${error}`
-        )
-      branchFailures.add(id)
-      continue
-    }
-    branchFailures.delete(id)
-    if (terminal.branch === branch || terminals.get(id) !== terminal) continue
-    terminal.branch = branch
-    for (const connection of connections.values())
-      send(connection, { type: 'branch', id, branch })
-  }
-  watching = false
 }
 
 function findTab(id: number): TerminalTab | undefined {

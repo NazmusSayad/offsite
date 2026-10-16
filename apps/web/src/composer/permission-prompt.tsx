@@ -308,7 +308,12 @@ function QuestionPrompt(props: { request: PermissionRequest }) {
                 rows={1}
                 onChange={(event) => write(question, event.target.value)}
                 onPaste={(event) => {
-                  if (event.clipboardData.getData('text/plain') !== '') return
+                  const text = event.clipboardData.getData('text/plain')
+                  if (text !== '') {
+                    event.preventDefault()
+                    document.execCommand('insertText', false, text)
+                    return
+                  }
                   const files = [...event.clipboardData.files]
                   if (files.length === 0) return
                   event.preventDefault()

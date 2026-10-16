@@ -299,7 +299,12 @@ export function Composer() {
                   setCaret(event.currentTarget.selectionStart)
                 }
                 onPaste={(event) => {
-                  if (event.clipboardData.getData('text/plain') !== '') return
+                  const text = event.clipboardData.getData('text/plain')
+                  if (text !== '') {
+                    event.preventDefault()
+                    document.execCommand('insertText', false, text)
+                    return
+                  }
                   const pasted = [...event.clipboardData.files]
                   if (pasted.length === 0) return
                   event.preventDefault()

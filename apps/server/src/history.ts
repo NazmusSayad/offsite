@@ -42,6 +42,14 @@ function messageTimes(entries: SessionStoreEntry[]) {
   return times
 }
 
+function toolOutputs(entries: SessionStoreEntry[]) {
+  const outputs = new Map<string, unknown>()
+  for (const entry of entries)
+    if (typeof entry.uuid === 'string' && entry.toolUseResult !== undefined)
+      outputs.set(entry.uuid, entry.toolUseResult)
+  return outputs
+}
+
 function compactedBefore(
   entries: SessionStoreEntry[],
   uuid: string | undefined
@@ -65,11 +73,19 @@ function parseLine(line: string): Record<string, unknown> | null {
   }
 }
 
-function mainMessages(disk: SessionMessage[], times: Map<string, number>) {
+function mainMessages(disk: SessionMessage[], entries: SessionStoreEntry[]) {
+  const times = messageTimes(entries)
+  const outputs = toolOutputs(entries)
   return disk.flatMap((item) =>
     item.type === 'system' || item.parent_tool_use_id !== null
       ? []
-      : [toMessage(item.type, item, times.get(item.uuid) ?? null)]
+      : [
+          toMessage(
+            item.type,
+            { ...item, tool_use_result: outputs.get(item.uuid) },
+            times.get(item.uuid) ?? null
+          ),
+        ]
   )
 }
 
@@ -87,7 +103,7 @@ export async function history(
     resumeAt === null
       ? disk
       : disk.slice(0, disk.findIndex((item) => item.uuid === resumeAt) + 1)
-  const messages = mainMessages(kept, messageTimes(entries))
+  const messages = mainMessages(kept, entries)
   messages.push(...(await subagentMessages(sessionId, cwd, messages)))
   const seen = new Set(messages.map((item) => item.uuid))
   const last = kept.findLast(
@@ -119,7 +135,7 @@ export async function earlier(sessionId: string, cwd: string, before: number) {
   const disk = await getSessionMessages(sessionId, {
     sessionStore: { append: () => Promise.resolve(), load: async () => kept },
   })
-  const messages = mainMessages(disk, messageTimes(entries))
+  const messages = mainMessages(disk, entries)
   messages.push(...(await subagentMessages(sessionId, cwd, messages)))
   messages.push({
     type: 'notice',

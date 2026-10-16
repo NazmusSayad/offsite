@@ -49,6 +49,7 @@ export function App() {
   const [panel, setPanel] = useState<'diff' | 'agents' | null>(null)
   const [agentId, setAgentId] = useState<string | null>(null)
   const [panelWidth, setPanelWidth] = useState(540)
+  const [terminalHeight, setTerminalHeight] = useState(280)
   const terminal = useSyncExternalStore(
     subscribeTerminal,
     () => terminalState().open
@@ -213,7 +214,31 @@ export function App() {
             )}
           </div>
           {selection !== null && terminal && (
-            <aside className="border-border/80 bg-background h-70 shrink-0 overflow-hidden border-t">
+            <aside
+              className="border-border/80 bg-background relative shrink-0 overflow-hidden border-t"
+              style={{ height: terminalHeight }}
+            >
+              <div
+                role="separator"
+                aria-orientation="horizontal"
+                className="group absolute inset-x-0 top-0 z-30 h-1.5 cursor-row-resize touch-none select-none"
+                onPointerDown={(event) =>
+                  drag(event, (next) => {
+                    const max = Math.max(
+                      120,
+                      Math.floor(window.innerHeight * 0.8)
+                    )
+                    setTerminalHeight(
+                      Math.min(
+                        max,
+                        Math.max(120, window.innerHeight - next.clientY)
+                      )
+                    )
+                  })
+                }
+              >
+                <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-x-0 top-0 h-px transition-colors" />
+              </div>
               <TerminalPanel cwd={selection.cwd} />
             </aside>
           )}

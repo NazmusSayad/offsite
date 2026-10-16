@@ -47,7 +47,6 @@ type State = {
   layout: TerminalLayout
   ctrl: boolean
   titles: Record<number, string>
-  branches: Record<number, string>
   progress: Record<number, Progress>
   alerts: number[]
   finding: number | null
@@ -67,7 +66,6 @@ let state: State = {
   layout: {},
   ctrl: false,
   titles: {},
-  branches: {},
   progress: {},
   alerts: [],
   finding: null,
@@ -222,13 +220,6 @@ function receiveFrame(frame: { kind: number; id: number; data: Uint8Array }) {
 }
 
 function handle(message: TerminalEvent) {
-  if (message.type === 'branch') {
-    const branches = { ...state.branches }
-    if (message.branch === null) delete branches[message.id]
-    else branches[message.id] = message.branch
-    setState({ branches })
-    return
-  }
   const restarted =
     message.type === 'active' && message.instance !== state.instance
   if (restarted) sync({})
@@ -250,7 +241,6 @@ function handle(message: TerminalEvent) {
       }),
       status: awaitingReplay.size === 0 ? 'active' : 'connecting',
       layout: message.layout,
-      branches: message.branches,
     })
     return
   }
