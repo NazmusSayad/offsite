@@ -1,4 +1,5 @@
 import type { Config, Platform, TerminalConfig } from '@server/protocol'
+import { shellIntegrationIssue } from '@server/terminal/shell-check'
 import { useState } from 'react'
 import {
   Select,
@@ -8,72 +9,33 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { updateConfig } from '@/store'
+import { updateConfig } from '@/machine-config'
+import type { Prefs, TerminalPrefs } from '@/prefs'
+import { updatePrefs } from '@/store'
 import { builtinFonts, platforms } from '@/terminal/config'
 import { NumberInput, Row, Section, TextInput } from './controls'
-import { BehaviorSection, IdentitySection, MacKeysSection } from './sections'
+import { BehaviorSection, IdentityRow, MacKeysSection } from './sections'
 import { ShellInput } from './shell-input'
 
-export function TerminalPage(props: {
-  config: Config
-  platform: Platform
-  defaultShell: string
-}) {
-  const terminal = props.config.terminal
+export function TerminalLookPage(props: { prefs: Prefs }) {
+  const terminal = props.prefs.terminal
   const [customFont, setCustomFont] = useState(
     !builtinFonts.some((font) => font.family === terminal.font.family)
   )
-  const [platform, setPlatform] = useState(props.platform)
 
-  function commit(next: TerminalConfig) {
-    updateConfig({ ...props.config, terminal: next })
+  function commit(next: TerminalPrefs) {
+    updatePrefs({ ...props.prefs, terminal: next })
   }
 
   function update<
-    Key extends Exclude<keyof TerminalConfig, 'scrollback' | 'boldIsBright'>,
-  >(key: Key, value: Partial<TerminalConfig[Key]>) {
+    Key extends Exclude<keyof TerminalPrefs, 'scrollback' | 'boldIsBright'>,
+  >(key: Key, value: Partial<TerminalPrefs[Key]>) {
     commit({ ...terminal, [key]: { ...terminal[key], ...value } })
   }
 
   return (
     <>
-      <Section title="Shell" note="Applies to new terminals">
-        <Row label="Platform">
-          <Select
-            value={platform}
-            onValueChange={(value: Platform) => setPlatform(value)}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {platforms.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                  {item.value === props.platform && (
-                    <span className="text-muted-foreground">(this device)</span>
-                  )}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Row>
-        <Row label="Command">
-          <ShellInput
-            key={`${platform}-command`}
-            platform={platform}
-            device={props.platform}
-            value={terminal.shell[platform]}
-            onCommit={(command) =>
-              commit({
-                ...terminal,
-                shell: { ...terminal.shell, [platform]: command },
-              })
-            }
-          />
-        </Row>
-      </Section>
-      <Section title="Font">
+      <Section title="Font" note="This browser">
         <Row label="Family">
           <Select
             value={customFont ? 'custom' : terminal.font.family}
@@ -133,11 +95,11 @@ export function TerminalPage(props: {
           />
         </Row>
       </Section>
-      <Section title="Cursor">
+      <Section title="Cursor" note="This browser">
         <Row label="Style">
           <Select
             value={terminal.cursor.style}
-            onValueChange={(style: TerminalConfig['cursor']['style']) =>
+            onValueChange={(style: TerminalPrefs['cursor']['style']) =>
               update('cursor', { style })
             }
           >
@@ -160,20 +122,13 @@ export function TerminalPage(props: {
       </Section>
       <BehaviorSection
         behavior={terminal.behavior}
-        platform={props.platform}
-        shellCommand={terminal.shell[props.platform]}
-        defaultShell={props.defaultShell}
         onChange={(value) => update('behavior', value)}
       />
       <MacKeysSection
         behavior={terminal.behavior}
         onChange={(value) => update('behavior', value)}
       />
-      <IdentitySection
-        behavior={terminal.behavior}
-        onChange={(value) => update('behavior', value)}
-      />
-      <Section title="Layout">
+      <Section title="Layout" note="This browser">
         {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
           <Row key={side} label={`Padding ${side}`}>
             <NumberInput
@@ -191,5 +146,92 @@ export function TerminalPage(props: {
         </Row>
       </Section>
     </>
+  )
+}
+
+export function TerminalMachinePage(props: {
+  machine: string
+  config: Config
+  platform: Platform
+  defaultShell: string
+}) {
+  const terminal = props.config.terminal
+  const [platform, setPlatform] = useState(props.platform)
+  const shellIssue = shellIntegrationIssue(
+    terminal.shell[props.platform],
+    props.platform,
+    props.defaultShell
+  )
+
+  function commit(next: TerminalConfig) {
+    updateConfig(props.machine, { ...props.config, terminal: next })
+  }
+
+  return (
+    <Section title="Shell" note="Applies to new terminals">
+      <Row label="Platform">
+        <Select
+          value={platform}
+          onValueChange={(value: Platform) => setPlatform(value)}
+        >
+          <SelectTrigger className="w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {platforms.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+                {item.value === props.platform && (
+                  <span className="text-muted-foreground">(this machine)</span>
+                )}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Row>
+      <Row label="Command">
+        <ShellInput
+          key={`${props.machine}-${platform}-command`}
+          machine={props.machine}
+          platform={platform}
+          device={props.platform}
+          value={terminal.shell[platform]}
+          onCommit={(command) =>
+            commit({
+              ...terminal,
+              shell: { ...terminal.shell, [platform]: command },
+            })
+          }
+        />
+      </Row>
+      <Row label="Mark prompts and commands (shell integration)">
+        <div className="flex items-center gap-3">
+          {shellIssue !== null && (
+            <span className="text-muted-foreground max-w-32 text-right text-xs sm:max-w-none">
+              {shellIssue}
+            </span>
+          )}
+          <Switch
+            checked={shellIssue === null && terminal.behavior.shellIntegration}
+            disabled={shellIssue !== null}
+            onCheckedChange={(shellIntegration) =>
+              commit({
+                ...terminal,
+                behavior: { ...terminal.behavior, shellIntegration },
+              })
+            }
+          />
+        </div>
+      </Row>
+      <IdentityRow
+        identity={terminal.behavior.terminalIdentity}
+        onChange={(terminalIdentity) =>
+          commit({
+            ...terminal,
+            behavior: { ...terminal.behavior, terminalIdentity },
+          })
+        }
+      />
+    </Section>
   )
 }

@@ -64,6 +64,10 @@ export async function terminalRequest(
     attach(client)
     return
   }
+  if (message.type === 'detach') {
+    detachTerminal(client)
+    return
+  }
   const connection = connections.get(client)
   if (connection === undefined) throw new Error('the terminal is not attached')
   await request(connection, message)
@@ -132,7 +136,7 @@ function attach(client: Client) {
 
 async function request(
   connection: Connection,
-  message: Exclude<TerminalRequest, { type: 'attach' }>
+  message: Exclude<TerminalRequest, { type: 'attach' | 'detach' }>
 ) {
   switch (message.type) {
     case 'resize': {

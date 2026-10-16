@@ -6,6 +6,7 @@ import {
   getState,
   setState,
   tabTitle,
+  terminalMachine,
 } from './session'
 
 const notifiedAt = new Map<number, number>()
@@ -60,6 +61,7 @@ function notify(id: number, title: string, body: string) {
   const tab = found?.project.tabs.find((item) => item.id === id)
   if (!found || !tab) return
   showNotification(title || tabTitle(tab), body, {
+    machine: terminalMachine(),
     cwd: found.cwd,
     tabId: id,
   }).catch((error: unknown) =>
@@ -118,7 +120,7 @@ function startQuietTimer(id: number) {
 }
 
 async function confirmQuiet() {
-  if (await checkConnection()) noteMessage()
+  if (await checkConnection(terminalMachine())) noteMessage()
 }
 
 function notifyQuiet(id: number) {

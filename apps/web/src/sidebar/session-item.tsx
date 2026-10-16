@@ -13,7 +13,7 @@ import {
   SquarePenIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Activity, Session } from '@server/protocol'
+import type { Activity } from '@server/protocol'
 import { useRef, useState } from 'react'
 import { ProjectIcon } from '@/components/icons'
 import {
@@ -23,16 +23,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { timeAgo } from '@/lib/format'
+import { providerNames, timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useProjectName } from '@/projects'
-import { editSession, removeSession } from '@/store'
+import { editSession, type MachineSession, removeSession } from '@/store'
 
 const surface =
   'group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
 
 export function SessionItem(props: {
-  session: Session
+  session: MachineSession
   slim: boolean
   selected: boolean
   activity: Activity | undefined
@@ -41,7 +41,7 @@ export function SessionItem(props: {
   onSelect: () => void
 }) {
   const session = props.session
-  const projectTitle = useProjectName(session.cwd)
+  const projectTitle = useProjectName(session.machine, session.cwd)
   const [title, setTitle] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const field = useRef<HTMLInputElement>(null)
@@ -49,8 +49,7 @@ export function SessionItem(props: {
   const turning = !waiting && props.activity?.running === true
   const working =
     turning ||
-    (!waiting &&
-      Object.values(props.activity?.tasks ?? {}).includes('running'))
+    (!waiting && Object.values(props.activity?.tasks ?? {}).includes('running'))
   const done = !waiting && !working && props.unseen
   const recede = !props.selected && !waiting && !done
 
@@ -82,7 +81,7 @@ export function SessionItem(props: {
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() =>
-            void editSession(session.id, {
+            void editSession(session.machine, session.id, {
               status: session.status === 'pinned' ? 'active' : 'pinned',
             })
           }
@@ -96,7 +95,7 @@ export function SessionItem(props: {
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() =>
-            void editSession(session.id, {
+            void editSession(session.machine, session.id, {
               status: session.status === 'minimized' ? 'active' : 'minimized',
             })
           }
@@ -111,7 +110,9 @@ export function SessionItem(props: {
         {session.status !== 'inactive' && (
           <DropdownMenuItem
             onSelect={() =>
-              void editSession(session.id, { status: 'inactive' })
+              void editSession(session.machine, session.id, {
+                status: 'inactive',
+              })
             }
           >
             <HugeiconsIcon icon={Plug01Icon} />
@@ -121,10 +122,10 @@ export function SessionItem(props: {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
-          title="Also removes it from Claude Code"
+          title={`Also removes it from ${providerNames[session.provider]}`}
           onSelect={(event) => {
             if (confirming) {
-              void removeSession(session.id)
+              void removeSession(session.machine, session.id)
               return
             }
             event.preventDefault()
@@ -158,7 +159,7 @@ export function SessionItem(props: {
           const value = title.trim()
           setTitle(null)
           if (value !== '' && value !== session.title)
-            void editSession(session.id, { title: value })
+            void editSession(session.machine, session.id, { title: value })
         }}
       >
         <input
@@ -203,7 +204,7 @@ export function SessionItem(props: {
           }}
         >
           <span className="flex shrink-0 items-center opacity-40 grayscale transition-opacity group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0">
-            <ProjectIcon cwd={session.cwd} />
+            <ProjectIcon machine={session.machine} cwd={session.cwd} />
           </span>
           {titleText}
           <span className="relative ml-auto flex h-6 min-w-8 shrink-0 items-center justify-end">
@@ -237,7 +238,11 @@ export function SessionItem(props: {
       >
         <div className="px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
           <div className="flex h-6 min-w-0 items-center gap-2">
-            <ProjectIcon cwd={session.cwd} className="size-5" />
+            <ProjectIcon
+              machine={session.machine}
+              cwd={session.cwd}
+              className="size-5"
+            />
             {titleText}
             {session.status === 'pinned' && (
               <HugeiconsIcon
@@ -314,7 +319,9 @@ export function SessionItem(props: {
                 aria-label="Make inactive"
                 onClick={(event) => {
                   event.stopPropagation()
-                  void editSession(session.id, { status: 'inactive' })
+                  void editSession(session.machine, session.id, {
+                    status: 'inactive',
+                  })
                 }}
               >
                 <HugeiconsIcon
@@ -331,8 +338,12 @@ export function SessionItem(props: {
   )
 }
 
-export function DraftRow(props: { cwd: string; onSelect: () => void }) {
-  const projectTitle = useProjectName(props.cwd)
+export function DraftRow(props: {
+  machine: string
+  cwd: string
+  onSelect: () => void
+}) {
+  const projectTitle = useProjectName(props.machine, props.cwd)
   return (
     <li className="list-none py-0.5">
       <div
@@ -343,7 +354,11 @@ export function DraftRow(props: { cwd: string; onSelect: () => void }) {
       >
         <div className="px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
           <div className="flex h-6 min-w-0 items-center gap-2">
-            <ProjectIcon cwd={props.cwd} className="size-5" />
+            <ProjectIcon
+              machine={props.machine}
+              cwd={props.cwd}
+              className="size-5"
+            />
             <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
               New thread
             </span>

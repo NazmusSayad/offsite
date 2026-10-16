@@ -63,6 +63,7 @@ function ShellLogo(props: { logo: keyof typeof logos }) {
 }
 
 export function ShellInput(props: {
+  machine: string
   platform: Platform
   device: Platform
   value: string | null
@@ -79,10 +80,11 @@ export function ShellInput(props: {
 
   useEffect(() => {
     if (!isDevice) return
-    call('terminal.shells', undefined).then(setInstalled, (failure: unknown) =>
-      setError(errorMessage(failure))
+    call(props.machine, 'terminal.shells', undefined).then(
+      setInstalled,
+      (failure: unknown) => setError(errorMessage(failure))
     )
-  }, [isDevice])
+  }, [props.machine, isDevice])
 
   function commit(next: string) {
     setText(next)

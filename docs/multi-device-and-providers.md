@@ -88,11 +88,11 @@ OpenCode permissions come from the user's own OpenCode config. Offsite does not 
 | Codex | A `CODEX_HOME` folder | It mirrors `~/.codex` and someone is logged in |
 | OpenCode | No accounts. One OpenCode per machine | Always |
 
-Invalid accounts appear in Settings with the problem and a fix (Link, or log in). They never appear in a picker. The default account, which is Claude's base folder or the real `~/.codex`, is always valid because it is the shared folder.
+Invalid accounts appear in Settings with the problem and how to fix it by hand. They never appear in a picker. Offsite never alters a provider's folders, so it only detects linking and mirroring. It does not create or remove links, and the existing Link button for Claude accounts goes away. The default account, which is Claude's base folder or the real `~/.codex`, is always valid because it is the shared folder.
 
 The user logs in to an account in a terminal, as with Claude today. For Codex that is `CODEX_HOME=<folder> codex login`.
 
-A Codex account folder mirrors `~/.codex` the way t3code's "shadow home" does (`apps/server/src/provider/Drivers/CodexHomeLayout.ts` in t3code). Every entry in the folder is a symlink to the same entry in `~/.codex`, with these exceptions:
+A valid Codex account folder mirrors `~/.codex` the way t3code's "shadow home" does (`apps/server/src/provider/Drivers/CodexHomeLayout.ts` in t3code). Every entry in the folder is a symlink to the same entry in `~/.codex`, with these exceptions:
 
 - `auth.json` and `models_cache.json` stay private to the account.
 - `log`, `memories`, and `tmp` stay local to the account.

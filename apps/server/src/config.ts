@@ -2,7 +2,6 @@ import os from 'node:os'
 import path from 'node:path'
 import { broadcast } from './hub.ts'
 import type { Config, ConfigInfo, Platform } from './protocol.ts'
-import { schemes } from './schemes.ts'
 import { home, readJson, writeJson } from './storage.ts'
 
 export const version = '0.0.0'
@@ -10,46 +9,64 @@ export const version = '0.0.0'
 const configFile = path.join(home, 'config.json')
 
 export const defaults: Config = {
-  theme: schemes[0].id,
   claudeBaseDir: path.join(os.homedir(), '.claude'),
   composer: {
-    accountId: null,
-    model: 'haiku',
-    effort: 'low',
-    permissionMode: 'bypassPermissions',
+    provider: 'claude',
+    claude: {
+      accountId: null,
+      model: 'haiku',
+      effort: 'low',
+      mode: 'bypassPermissions',
+      plan: false,
+    },
+    codex: {
+      accountId: null,
+      model: null,
+      effort: null,
+      mode: 'auto',
+      plan: false,
+    },
+    opencode: {
+      accountId: 'opencode',
+      model: null,
+      effort: null,
+      mode: null,
+      plan: false,
+    },
   },
+  commitModels: { claude: 'haiku', codex: 'gpt-6-luna', opencode: null },
   terminal: {
     shell: { macos: null, linux: null, windows: null },
-    font: {
-      family: 'FiraCode Nerd Font',
-      size: 14,
-      lineHeight: 1.35,
-      ligatures: true,
-    },
-    cursor: { style: 'bar', blink: true },
-    padding: { top: 4, right: 4, bottom: 0, left: 4 },
-    scrollback: 1000,
-    boldIsBright: true,
-    behavior: {
-      modernizeShiftEnter: true,
-      pasteBrowserImages: true,
-      captureShortcuts: true,
-      bellFlash: true,
-      bellSound: true,
-      terminalIdentity: 'offsite',
-      shellIntegration: true,
-      clickToMoveCursor: true,
-      optionAsMeta: 'off',
-      confirmCloseBusyTab: true,
-    },
+    behavior: { terminalIdentity: 'offsite', shellIntegration: true },
   },
-  diff: { split: false, wrap: true },
 }
 
+const retired = [
+  'theme',
+  'diff',
+  'terminal.font',
+  'terminal.cursor',
+  'terminal.padding',
+  'terminal.scrollback',
+  'terminal.boldIsBright',
+  'terminal.behavior.modernizeShiftEnter',
+  'terminal.behavior.pasteBrowserImages',
+  'terminal.behavior.captureShortcuts',
+  'terminal.behavior.bellFlash',
+  'terminal.behavior.bellSound',
+  'terminal.behavior.clickToMoveCursor',
+  'terminal.behavior.optionAsMeta',
+  'terminal.behavior.confirmCloseBusyTab',
+  'composer.accountId',
+  'composer.model',
+  'composer.effort',
+  'composer.permissionMode',
+]
+
 const choices: Record<string, string[]> = {
-  theme: schemes.map((scheme) => scheme.id),
-  'composer.effort': ['low', 'medium', 'high', 'xhigh', 'max'],
-  'composer.permissionMode': [
+  'composer.provider': ['claude', 'codex', 'opencode'],
+  'composer.claude.effort': ['low', 'medium', 'high', 'xhigh', 'max'],
+  'composer.claude.mode': [
     'default',
     'acceptEdits',
     'bypassPermissions',
@@ -57,25 +74,28 @@ const choices: Record<string, string[]> = {
     'dontAsk',
     'auto',
   ],
-  'terminal.cursor.style': ['block', 'bar', 'underline'],
+  'composer.codex.mode': ['read-only', 'auto', 'full-access'],
   'terminal.behavior.terminalIdentity': ['offsite', 'ghostty', 'iterm2'],
-  'terminal.behavior.optionAsMeta': ['off', 'left', 'right', 'both'],
 }
 const nullable = [
-  'composer.accountId',
-  'composer.model',
-  'composer.effort',
-  'composer.permissionMode',
+  'composer.claude.accountId',
+  'composer.claude.model',
+  'composer.claude.effort',
+  'composer.claude.mode',
+  'composer.codex.accountId',
+  'composer.codex.model',
+  'composer.codex.effort',
+  'composer.codex.mode',
+  'composer.opencode.accountId',
+  'composer.opencode.model',
+  'composer.opencode.effort',
+  'composer.opencode.mode',
+  'commitModels.claude',
+  'commitModels.codex',
+  'commitModels.opencode',
   'terminal.shell.macos',
   'terminal.shell.linux',
   'terminal.shell.windows',
-]
-const integers = [
-  'terminal.scrollback',
-  'terminal.padding.top',
-  'terminal.padding.right',
-  'terminal.padding.bottom',
-  'terminal.padding.left',
 ]
 
 export function platform(): Platform {
@@ -129,6 +149,7 @@ export function saveConfig(value: unknown) {
 }
 
 function merge(config: unknown, keys: string[], user: unknown): unknown {
+  if (retired.includes(keys.join('.'))) return config
   const template = keys.reduce<unknown>(
     (value, key) => (isObject(value) ? value[key] : undefined),
     config
@@ -185,11 +206,6 @@ function invalid(
   }
   if (typeof value !== typeof template)
     return `${name} must be a ${typeof template}`
-  if (typeof value !== 'number') return null
-  if (!Number.isFinite(value) || value < 0)
-    return `${name} must be a number of at least 0`
-  if (integers.includes(name) && !Number.isInteger(value))
-    return `${name} must be a whole number`
   return null
 }
 

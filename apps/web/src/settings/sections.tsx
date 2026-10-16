@@ -1,9 +1,4 @@
-import type {
-  Platform,
-  TerminalConfig,
-  TerminalIdentity,
-} from '@server/protocol'
-import { shellIntegrationIssue } from '@server/terminal/shell-check'
+import type { TerminalIdentity } from '@server/protocol'
 import { useEffect, useState } from 'react'
 import {
   Select,
@@ -24,23 +19,16 @@ import {
   unsubscribePush,
   watchPermission,
 } from '@/notifications'
+import type { TerminalPrefs } from '@/prefs'
 import { imagePasteKeys } from '@/terminal/clipboard'
 import { Row, Section } from './controls'
 
-type Behavior = TerminalConfig['behavior']
+type Behavior = TerminalPrefs['behavior']
 
 export function BehaviorSection(props: {
   behavior: Behavior
-  platform: Platform
-  shellCommand: string | null
-  defaultShell: string
   onChange: (value: Partial<Behavior>) => void
 }) {
-  const shellIssue = shellIntegrationIssue(
-    props.shellCommand,
-    props.platform,
-    props.defaultShell
-  )
   return (
     <Section title="Behavior">
       <Row label="Modernize Shift+Enter">
@@ -52,7 +40,7 @@ export function BehaviorSection(props: {
         />
       </Row>
       <Row
-        label={`${imagePasteKeys[props.platform].label} pastes images from the browser clipboard`}
+        label={`${imagePasteKeys.linux.label} (${imagePasteKeys.windows.label} on Windows machines) pastes images from the browser clipboard`}
       >
         <Switch
           checked={props.behavior.pasteBrowserImages}
@@ -68,22 +56,6 @@ export function BehaviorSection(props: {
             props.onChange({ captureShortcuts })
           }
         />
-      </Row>
-      <Row label="Mark prompts and commands (shell integration)">
-        <div className="flex items-center gap-3">
-          {shellIssue !== null && (
-            <span className="text-muted-foreground max-w-32 text-right text-xs sm:max-w-none">
-              {shellIssue}
-            </span>
-          )}
-          <Switch
-            checked={shellIssue === null && props.behavior.shellIntegration}
-            disabled={shellIssue !== null}
-            onCheckedChange={(shellIntegration) =>
-              props.onChange({ shellIntegration })
-            }
-          />
-        </div>
       </Row>
       <Row label="Click moves the cursor in the command line">
         <Switch
@@ -140,30 +112,23 @@ export function BellSection(props: {
   )
 }
 
-export function IdentitySection(props: {
-  behavior: Behavior
-  onChange: (value: Partial<Behavior>) => void
+export function IdentityRow(props: {
+  identity: TerminalIdentity
+  onChange: (identity: TerminalIdentity) => void
 }) {
   return (
-    <Section title="Terminal identity" note="Applies to new terminals">
-      <Row label="Report the terminal as">
-        <Select
-          value={props.behavior.terminalIdentity}
-          onValueChange={(terminalIdentity: TerminalIdentity) =>
-            props.onChange({ terminalIdentity })
-          }
-        >
-          <SelectTrigger className="w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="offsite">offsite</SelectItem>
-            <SelectItem value="ghostty">Ghostty</SelectItem>
-            <SelectItem value="iterm2">iTerm2</SelectItem>
-          </SelectContent>
-        </Select>
-      </Row>
-    </Section>
+    <Row label="Report the terminal as">
+      <Select value={props.identity} onValueChange={props.onChange}>
+        <SelectTrigger className="w-56">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="offsite">offsite</SelectItem>
+          <SelectItem value="ghostty">Ghostty</SelectItem>
+          <SelectItem value="iterm2">iTerm2</SelectItem>
+        </SelectContent>
+      </Select>
+    </Row>
   )
 }
 

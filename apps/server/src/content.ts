@@ -1,4 +1,37 @@
-import type { Block, Message } from './protocol.ts'
+export type Block =
+  | { type: 'text'; text: string }
+  | { type: 'thinking'; thinking: string }
+  | { type: 'image'; mediaType: string; data: string | null }
+  | {
+      type: 'tool_use'
+      id: string
+      name: string
+      input: Record<string, unknown>
+    }
+  | {
+      type: 'tool_result'
+      toolUseId: string
+      content: Block[]
+      isError: boolean
+      answers: Record<string, string> | null
+    }
+
+export type Message =
+  | {
+      type: 'user' | 'assistant'
+      uuid: string
+      time: number | null
+      content: Block[]
+      parent: string | null
+    }
+  | {
+      type: 'notice'
+      uuid: string
+      time: number | null
+      text: string
+      isError: boolean
+    }
+  | { type: 'compaction'; uuid: string; time: number | null }
 
 export function toMessage(
   type: 'user' | 'assistant',
@@ -106,6 +139,6 @@ function toBlocks(
   })
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

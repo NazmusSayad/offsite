@@ -59,7 +59,10 @@ export function isImagePasteKey(event: KeyboardEvent, platform: Platform) {
   )
 }
 
-export async function pasteClipboardImages(terminal: Terminal) {
+export async function pasteClipboardImages(
+  machine: string,
+  terminal: Terminal
+) {
   const images: Blob[] = []
   for (const item of await navigator.clipboard.read()) {
     const type = item.types.find((type) => type.startsWith('image/'))
@@ -69,14 +72,18 @@ export async function pasteClipboardImages(terminal: Terminal) {
     showToast('No image in the clipboard')
     return false
   }
-  await pasteImages(terminal, images)
+  await pasteImages(machine, terminal, images)
   return true
 }
 
-export async function pasteImages(terminal: Terminal, images: Blob[]) {
+export async function pasteImages(
+  machine: string,
+  terminal: Terminal,
+  images: Blob[]
+) {
   const paths: string[] = []
   for (const image of images) {
-    const path = await call('terminal.paste', {
+    const path = await call(machine, 'terminal.paste', {
       type: image.type,
       data: await readBase64(image),
     })

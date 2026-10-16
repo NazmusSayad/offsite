@@ -1,5 +1,11 @@
 import { call } from '@/connection'
-import { findProject, send, tabTitle, terminalConfig } from './session'
+import {
+  findProject,
+  send,
+  tabTitle,
+  terminalConfig,
+  terminalMachine,
+} from './session'
 
 export type Closing = { id: number; name: string; program: string | null }
 
@@ -43,7 +49,7 @@ function findTab(id: number) {
 async function busyProgram(id: number) {
   try {
     const result = await Promise.race([
-      call('terminal.busy', { id }),
+      call(terminalMachine(), 'terminal.busy', { id }),
       new Promise<never>((_resolve, reject) =>
         window.setTimeout(() => reject(new Error('timed out')), 5000)
       ),

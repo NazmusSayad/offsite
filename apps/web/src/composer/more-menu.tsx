@@ -8,10 +8,11 @@ import {
   SparklesIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
-import type { PermissionMode } from '@server/protocol'
+import type { Capabilities, Provider } from '@server/protocol'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuPortal,
@@ -25,26 +26,47 @@ import {
 import { compact } from '@/lib/format'
 import { changeSettings, sendPrompt, showError, useStore } from '@/store'
 
-export const modes: {
-  value: PermissionMode
-  label: string
-  icon: IconSvgElement
-}[] = [
-  { value: 'default', label: 'Ask before edits', icon: ShieldCheckIcon },
-  { value: 'acceptEdits', label: 'Accept edits', icon: FilePenIcon },
-  { value: 'plan', label: 'Plan mode', icon: ListTodoIcon },
-  { value: 'auto', label: 'Auto mode', icon: SparklesIcon },
-  {
-    value: 'bypassPermissions',
-    label: 'Bypass permissions',
-    icon: ShieldOffIcon,
-  },
-]
+const fixedModes: Record<
+  Exclude<Provider, 'opencode'>,
+  { value: string; label: string; icon: IconSvgElement }[]
+> = {
+  claude: [
+    { value: 'default', label: 'Ask before edits', icon: ShieldCheckIcon },
+    { value: 'acceptEdits', label: 'Accept edits', icon: FilePenIcon },
+    { value: 'plan', label: 'Plan mode', icon: ListTodoIcon },
+    { value: 'auto', label: 'Auto mode', icon: SparklesIcon },
+    {
+      value: 'bypassPermissions',
+      label: 'Bypass permissions',
+      icon: ShieldOffIcon,
+    },
+  ],
+  codex: [
+    { value: 'read-only', label: 'Read only', icon: ShieldCheckIcon },
+    { value: 'auto', label: 'Auto', icon: FilePenIcon },
+    { value: 'full-access', label: 'Full access', icon: ShieldOffIcon },
+  ],
+}
+
+export function providerModes(
+  provider: Provider,
+  capabilities: Capabilities | null
+) {
+  if (provider !== 'opencode') return fixedModes[provider]
+  return (capabilities?.agents ?? []).map((agent) => ({
+    value: agent.id,
+    label: agent.name,
+    icon: agent.id === 'plan' ? ListTodoIcon : FilePenIcon,
+  }))
+}
 
 export function MoreMenu() {
-  const permissionMode = useStore((state) => state.settings.permissionMode)
+  const settings = useStore((state) => state.settings)
   const context = useStore((state) => state.context)
-  const mode = modes.find((item) => item.value === permissionMode)
+  const capabilities = useStore((state) => state.capabilities)
+  const modes = providerModes(settings.provider, capabilities)
+  const mode = modes.find((item) => item.value === settings.mode)
+  const title = settings.provider === 'opencode' ? 'Agent' : 'Permission mode'
 
   return (
     <DropdownMenu>
@@ -70,25 +92,23 @@ export function MoreMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <HugeiconsIcon icon={mode?.icon ?? ShieldCheckIcon} />
-            <span className="flex-1 whitespace-nowrap">Permission mode</span>
+            <span className="flex-1 whitespace-nowrap">{title}</span>
             <span className="text-muted-foreground min-w-0 truncate text-xs">
-              {mode?.label ?? 'From settings'}
+              {mode?.label ?? 'Default'}
             </span>
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent className="w-56">
               <DropdownMenuLabel className="flex justify-between">
-                <span>Permission mode</span>
+                <span>{title}</span>
                 <span>Shift+Tab</span>
               </DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={permissionMode ?? ''}>
+              <DropdownMenuRadioGroup value={settings.mode ?? ''}>
                 {modes.map((item) => (
                   <DropdownMenuRadioItem
                     key={item.value}
                     value={item.value}
-                    onSelect={() =>
-                      changeSettings({ permissionMode: item.value })
-                    }
+                    onSelect={() => changeSettings({ mode: item.value })}
                   >
                     <HugeiconsIcon icon={item.icon} />
                     {item.label}
@@ -98,6 +118,15 @@ export function MoreMenu() {
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>
+        {settings.provider === 'codex' && (
+          <DropdownMenuCheckboxItem
+            checked={settings.plan}
+            onCheckedChange={(plan) => changeSettings({ plan })}
+          >
+            <HugeiconsIcon icon={ListTodoIcon} />
+            Plan first
+          </DropdownMenuCheckboxItem>
+        )}
         {context !== null && (
           <div className="flex min-h-7 items-center gap-2 px-2 py-1 text-sm [&_svg]:size-4">
             <HugeiconsIcon icon={ChartRingIcon} />

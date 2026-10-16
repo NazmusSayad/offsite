@@ -7,10 +7,11 @@ import type {
   Context,
   Decision,
   Delivery,
-  Message,
+  Item,
   Project,
   Prompt,
   PermissionRequest,
+  Provider,
   Queued,
   Session,
   SessionPatch,
@@ -23,36 +24,56 @@ import {
   saveDraftSettings,
 } from '@/composer/drafts'
 import { errorMessage } from '@/lib/utils'
-import { call, isConnected } from './connection'
+import { call } from './connection'
+import { updateConfig } from './machine-config'
+import { home, machineKey } from './machines'
+import { type Prefs, savePrefs } from './prefs'
 import { applyTheme } from './theme'
 import { syncUrl } from './url'
 
-export type Selection = { cwd: string; sessionId: string | null }
+export type Selection = {
+  machine: string
+  cwd: string
+  sessionId: string | null
+}
 
 export type SettingsPage =
   | 'General'
   | 'Terminal'
   | 'Notifications'
   | 'Accounts'
+  | 'Machines'
   | 'Shortcuts'
 
-export type State = {
-  connected: boolean
-  sessions: Session[]
-  projects: Project[]
+export type Machine = {
+  origin: string
+  status: 'connecting' | 'online' | 'offline' | 'outdated'
+  name: string
+  config: Config | null
+  configError: string | null
+  system: Omit<ConfigInfo, 'config'> | null
   accounts: Account[]
+  activity: Record<string, Activity>
+}
+
+export type MachineProject = Project & { machine: string }
+
+export type MachineSession = Session & { machine: string }
+
+export type State = {
+  machines: Machine[]
+  sessions: MachineSession[]
+  projects: MachineProject[]
+  prefs: Prefs
   paletteOpen: boolean
   settingsOpen: boolean
   settingsPage: SettingsPage
-  config: Config
-  configError: string | null
-  system: Omit<ConfigInfo, 'config'>
-  activity: Record<string, Activity>
+  settingsMachine: string
   unseen: string[]
   selection: Selection | null
   loaded: boolean
-  messages: Message[]
-  earlier: Message[]
+  items: Item[]
+  earlier: Item[]
   before: number | null
   partial: string
   requests: PermissionRequest[]
@@ -65,9 +86,23 @@ export type State = {
   sentAt: number
 }
 
-let configWrites = 0
-let configVersion = 0
-let configTimer: number | undefined
+export const emptySettings: Settings = {
+  provider: 'claude',
+  accountId: null,
+  model: null,
+  effort: null,
+  mode: null,
+  plan: false,
+}
+
+export function providerSettings(
+  config: Config | null,
+  provider: Provider
+): Settings {
+  if (config === null) return { ...emptySettings, provider }
+  return { provider, ...config.composer[provider] }
+}
+
 let store: StoreApi<State>
 
 export function createAppStore(initial: State) {
@@ -90,32 +125,80 @@ export function update(patch: Partial<State>) {
   store.setState(patch)
 }
 
+export function machineOf(state: State, origin: string) {
+  const machine = state.machines.find((item) => item.origin === origin)
+  if (machine === undefined) throw new Error(`unknown machine ${origin}`)
+  return machine
+}
+
+export function setMachine(origin: string, patch: Partial<Machine>) {
+  update({
+    machines: getState().machines.map((item) =>
+      item.origin === origin ? { ...item, ...patch } : item
+    ),
+  })
+}
+
+export function activityOf(
+  machines: Machine[],
+  machine: string,
+  sessionId: string | null
+) {
+  if (sessionId === null) return undefined
+  return machines.find((item) => item.origin === machine)?.activity[sessionId]
+}
+
+export function selectedActivity(state: State) {
+  const selection = state.selection
+  if (selection === null) return undefined
+  return activityOf(state.machines, selection.machine, selection.sessionId)
+}
+
 export function selectedRunning(state: State) {
-  const sessionId = state.selection?.sessionId ?? null
-  return sessionId !== null && state.activity[sessionId]?.running === true
+  return selectedActivity(state)?.running === true
+}
+
+export function draftKey(selection: Selection) {
+  return machineKey(selection.machine, selection.sessionId ?? selection.cwd)
 }
 
 export function openSession(selection: Selection) {
+  const machine = machineOf(getState(), selection.machine)
   update({
     selection,
     loaded: selection.sessionId === null,
-    messages: [],
+    items: [],
     earlier: [],
     before: null,
     partial: '',
     requests: [],
     queue: [],
     settings:
-      getDraftSettings(selection.sessionId ?? selection.cwd) ??
-      getState().config.composer,
+      getDraftSettings(draftKey(selection)) ??
+      providerSettings(
+        machine.config,
+        getState().sessions.find(
+          (item) =>
+            item.machine === selection.machine &&
+            item.id === selection.sessionId
+        )?.provider ??
+          machine.config?.composer.provider ??
+          'claude'
+      ),
     context: null,
     paletteOpen: false,
-    unseen: getState().unseen.filter((id) => id !== selection.sessionId),
+    unseen: getState().unseen.filter(
+      (key) =>
+        selection.sessionId === null ||
+        key !== machineKey(selection.machine, selection.sessionId)
+    ),
   })
   syncUrl()
+  if (machine.accounts.length > 0)
+    setAccounts(selection.machine, machine.accounts)
   void refreshCapabilities()
-  if (selection.sessionId !== null && isConnected())
-    call('sessions.open', {
+  if (selection.sessionId !== null && machine.status === 'online')
+    call(selection.machine, 'sessions.open', {
       cwd: selection.cwd,
       sessionId: selection.sessionId,
     }).catch(showError)
@@ -127,7 +210,7 @@ export async function sendPrompt(prompt: Prompt, delivery: Delivery) {
   if ('Notification' in window && Notification.permission === 'default')
     void Notification.requestPermission()
   update({ sentAt: Date.now() })
-  await call('sessions.send', {
+  await call(selection.machine, 'sessions.send', {
     sessionId: selection.sessionId,
     cwd: selection.cwd,
     prompt,
@@ -137,42 +220,68 @@ export async function sendPrompt(prompt: Prompt, delivery: Delivery) {
 }
 
 export function unqueue(id: string) {
-  const sessionId = getState().selection?.sessionId
-  if (sessionId === undefined || sessionId === null) return
-  call('sessions.unqueue', { sessionId, id }).catch(showError)
+  const selection = getState().selection
+  if (selection === null || selection.sessionId === null) return
+  call(selection.machine, 'sessions.unqueue', {
+    sessionId: selection.sessionId,
+    id,
+  }).catch(showError)
 }
 
 export function steer(id: string) {
-  const sessionId = getState().selection?.sessionId
-  if (sessionId === undefined || sessionId === null) return
-  call('sessions.steer', { sessionId, id }).catch(showError)
+  const selection = getState().selection
+  if (selection === null || selection.sessionId === null) return
+  call(selection.machine, 'sessions.steer', {
+    sessionId: selection.sessionId,
+    id,
+  }).catch(showError)
 }
 
 export function interrupt() {
-  const sessionId = getState().selection?.sessionId
-  if (sessionId === undefined || sessionId === null) return
-  call('sessions.interrupt', { sessionId }).catch(showError)
+  const selection = getState().selection
+  if (selection === null || selection.sessionId === null) return
+  call(selection.machine, 'sessions.interrupt', {
+    sessionId: selection.sessionId,
+  }).catch(showError)
 }
 
-export function stopTask(sessionId: string, taskId: string) {
-  call('sessions.stopTask', { sessionId, taskId }).catch(showError)
+export function stopTask(machine: string, sessionId: string, taskId: string) {
+  call(machine, 'sessions.stopTask', { sessionId, taskId }).catch(showError)
 }
 
 export function changeSettings(patch: Partial<Settings>) {
   const settings = { ...getState().settings, ...patch }
   update({ settings })
   const selection = getState().selection
-  if (selection !== null)
-    saveDraftSettings(selection.sessionId ?? selection.cwd, settings)
-  updateConfig({ ...getState().config, composer: settings })
+  if (selection === null) return
+  saveDraftSettings(draftKey(selection), settings)
+  const config = machineOf(getState(), selection.machine).config
+  if (config !== null)
+    updateConfig(selection.machine, {
+      ...config,
+      composer: {
+        ...config.composer,
+        provider: settings.provider,
+        [settings.provider]: {
+          accountId: settings.accountId,
+          model: settings.model,
+          effort: settings.effort,
+          mode: settings.mode,
+          plan: settings.plan,
+        },
+      },
+    })
   if (patch.accountId !== undefined) void refreshCapabilities()
-  const sessionId = getState().selection?.sessionId
-  if (sessionId === undefined || sessionId === null) return
   if (
-    getState().activity[sessionId] !== undefined &&
+    selection.sessionId !== null &&
+    activityOf(getState().machines, selection.machine, selection.sessionId) !==
+      undefined &&
     patch.accountId === undefined
   )
-    call('sessions.configure', { sessionId, settings }).catch(showError)
+    call(selection.machine, 'sessions.configure', {
+      sessionId: selection.sessionId,
+      settings,
+    }).catch(showError)
 }
 
 export function respond(
@@ -180,31 +289,47 @@ export function respond(
   decision: Decision,
   answers: Record<string, string> | null
 ) {
-  const sessionId = getState().selection?.sessionId
-  if (sessionId === undefined || sessionId === null) return
-  call('sessions.respond', { sessionId, requestId, decision, answers }).catch(
-    showError
-  )
+  const selection = getState().selection
+  if (selection === null || selection.sessionId === null) return
+  call(selection.machine, 'sessions.respond', {
+    sessionId: selection.sessionId,
+    requestId,
+    decision,
+    answers,
+  }).catch(showError)
 }
 
-export function setAccounts(accounts: Account[]) {
-  update({ accounts })
-  if (accounts.some((item) => item.id === getState().settings.accountId)) return
-  if (accounts.length > 0) changeSettings({ accountId: accounts[0].id })
-  else if (getState().settings.accountId !== null)
-    changeSettings({ accountId: null })
+export function setAccounts(machine: string, accounts: Account[]) {
+  setMachine(machine, { accounts })
+  if (getState().selection?.machine !== machine) return
+  const settings = getState().settings
+  const valid = accounts.filter((item) => item.valid)
+  if (valid.some((item) => item.id === settings.accountId)) return
+  const same = valid.find((item) => item.provider === settings.provider)
+  const other =
+    getState().selection?.sessionId === null ? valid.at(0) : undefined
+  if (same !== undefined) changeSettings({ accountId: same.id })
+  else if (other !== undefined)
+    changeSettings({
+      ...providerSettings(
+        machineOf(getState(), machine).config,
+        other.provider
+      ),
+      accountId: other.id,
+    })
+  else if (settings.accountId !== null) changeSettings({ accountId: null })
 }
 
 export async function forkFrom(messageId: string) {
   const selection = getState().selection
   if (selection === null || selection.sessionId === null) return
   try {
-    const result = await call('sessions.fork', {
+    const result = await call(selection.machine, 'sessions.fork', {
       sessionId: selection.sessionId,
       cwd: selection.cwd,
       messageId,
     })
-    openSession({ cwd: selection.cwd, sessionId: result.sessionId })
+    openSession({ ...selection, sessionId: result.sessionId })
   } catch (error) {
     showError(error)
   }
@@ -216,14 +341,14 @@ export async function loadEarlier() {
   if (selection === null || selection.sessionId === null || before === null)
     return
   try {
-    const result = await call('sessions.earlier', {
+    const result = await call(selection.machine, 'sessions.earlier', {
       sessionId: selection.sessionId,
       before,
     })
     if (getState().selection !== selection || getState().before !== before)
       return
     update({
-      earlier: [...result.messages, ...getState().earlier],
+      earlier: [...result.items, ...getState().earlier],
       before: result.before,
     })
   } catch (error) {
@@ -235,27 +360,20 @@ export async function loadAgent(parent: string, agentId: string) {
   const selection = getState().selection
   if (selection === null || selection.sessionId === null) return
   try {
-    const loaded = await call('sessions.agent', {
+    const loaded = await call(selection.machine, 'sessions.agent', {
       sessionId: selection.sessionId,
       cwd: selection.cwd,
       agentId,
       parent,
     })
     if (getState().selection !== selection) return
-    const uuids = new Set(loaded.map((item) => item.uuid))
-    const messages = getState().messages
+    const ids = new Set(loaded.map((item) => item.id))
+    const items = getState().items
     update({
-      messages: [
-        ...messages.filter(
-          (item) => item.type === 'notice' || item.parent !== parent
-        ),
+      items: [
+        ...items.filter((item) => item.parent !== parent),
         ...loaded,
-        ...messages.filter(
-          (item) =>
-            item.type !== 'notice' &&
-            item.parent === parent &&
-            !uuids.has(item.uuid)
-        ),
+        ...items.filter((item) => item.parent === parent && !ids.has(item.id)),
       ],
     })
   } catch (error) {
@@ -272,46 +390,61 @@ export function showPalette(paletteOpen: boolean) {
 }
 
 export function showSettings(settingsOpen: boolean) {
-  update({ settingsOpen, paletteOpen: false })
+  update({
+    settingsOpen,
+    paletteOpen: false,
+    ...(settingsOpen && {
+      settingsMachine: getState().selection?.machine ?? home,
+    }),
+  })
 }
 
 export function showSettingsPage(settingsPage: SettingsPage) {
-  update({ settingsOpen: true, settingsPage, paletteOpen: false })
+  update({
+    settingsOpen: true,
+    settingsPage,
+    paletteOpen: false,
+    ...(!getState().settingsOpen && {
+      settingsMachine: getState().selection?.machine ?? home,
+    }),
+  })
 }
 
-export function updateConfig(config: Config) {
-  update({ config })
+export function updatePrefs(prefs: Prefs) {
+  update({ prefs })
+  savePrefs(prefs)
   applyTheme()
-  if (configTimer === undefined) configWrites += 1
-  configVersion += 1
-  window.clearTimeout(configTimer)
-  configTimer = window.setTimeout(() => {
-    configTimer = undefined
-    void saveConfig(config)
-  }, 300)
 }
 
-export async function editSession(id: string, patch: SessionPatch) {
+export async function editSession(
+  machine: string,
+  id: string,
+  patch: SessionPatch
+) {
   update({
     sessions: getState().sessions.map((item) =>
-      item.id === id ? { ...item, ...patch } : item
+      item.machine === machine && item.id === id ? { ...item, ...patch } : item
     ),
   })
   try {
-    await call('sessions.update', { id, patch })
+    await call(machine, 'sessions.update', { id, patch })
   } catch (error) {
     showError(error)
   }
 }
 
-export async function removeSession(id: string) {
-  update({ sessions: getState().sessions.filter((item) => item.id !== id) })
-  deleteDraft(id)
+export async function removeSession(machine: string, id: string) {
+  update({
+    sessions: getState().sessions.filter(
+      (item) => item.machine !== machine || item.id !== id
+    ),
+  })
+  deleteDraft(machineKey(machine, id))
   const selection = getState().selection
-  if (selection?.sessionId === id)
-    openSession({ cwd: selection.cwd, sessionId: null })
+  if (selection?.machine === machine && selection.sessionId === id)
+    openSession({ ...selection, sessionId: null })
   try {
-    await call('sessions.remove', { id })
+    await call(machine, 'sessions.remove', { id })
   } catch (error) {
     showError(error)
   }
@@ -325,81 +458,34 @@ export function dismissError() {
   update({ error: null })
 }
 
-export async function refreshAccounts() {
+export async function refreshAccounts(machine: string) {
   try {
-    setAccounts(await call('accounts.list', undefined))
+    setAccounts(machine, await call(machine, 'accounts.list', undefined))
   } catch (error) {
     showError(error)
   }
 }
 
 export async function refreshCapabilities() {
-  const cwd = getState().selection?.cwd
-  if (cwd === undefined) return
+  const selection = getState().selection
+  if (selection === null) return
   const accountId = getState().settings.accountId
   if (accountId === null) {
     update({ capabilities: null })
     return
   }
   try {
-    const capabilities = await call('capabilities', { accountId, cwd })
+    const capabilities = await call(selection.machine, 'capabilities', {
+      accountId,
+      cwd: selection.cwd,
+    })
     if (
-      getState().selection?.cwd === cwd &&
+      getState().selection?.machine === selection.machine &&
+      getState().selection?.cwd === selection.cwd &&
       getState().settings.accountId === accountId
     )
       update({ capabilities })
   } catch (error) {
     showError(error)
   }
-}
-
-async function saveConfig(config: Config) {
-  let saved: Config | null = null
-  try {
-    saved = await call('config.save', config)
-    update({ configError: null })
-  } catch (error) {
-    update({
-      configError: errorMessage(error),
-    })
-  }
-  configWrites -= 1
-  if (configWrites > 0) return
-  if (saved === null) await refreshConfig()
-  else applyConfig(saved)
-}
-
-export function receiveConfig(config: Config) {
-  if (configWrites === 0) applyConfig(config)
-}
-
-async function refreshConfig() {
-  const version = configVersion
-  try {
-    const info = await call('config.get', undefined)
-    if (configWrites === 0 && version === configVersion)
-      applyConfig(info.config)
-  } catch (error) {
-    showError(error)
-  }
-}
-
-function applyConfig(config: Config) {
-  const selection = getState().selection
-  const sessionId = selection?.sessionId ?? null
-  const live =
-    sessionId !== null && getState().activity[sessionId] !== undefined
-  const settings =
-    (selection === null
-      ? null
-      : getDraftSettings(selection.sessionId ?? selection.cwd)) ??
-    config.composer
-  const accountChanged =
-    !live && settings.accountId !== getState().settings.accountId
-  update({
-    config,
-    ...(live ? {} : { settings }),
-  })
-  applyTheme()
-  if (accountChanged) void refreshCapabilities()
 }

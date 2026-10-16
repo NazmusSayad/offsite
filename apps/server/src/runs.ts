@@ -1,16 +1,35 @@
 import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
 import { getSessionMessages } from '@anthropic-ai/claude-agent-sdk'
+import { providerName } from './accounts.ts'
+import { stopAppServers } from './codex/app-server.ts'
+import { CodexRun } from './codex/run.ts'
+import { codexHistory, revertThread } from './codex/sessions.ts'
 import { history } from './history.ts'
 import { type Client, publish } from './hub.ts'
+import { runs } from './live.ts'
+import { OpenCodeRun } from './opencode/run.ts'
+import { openCodeHistory, rewindOpenCode } from './opencode/sessions.ts'
 import type { Methods, Rewind, RewindResult, Settings } from './protocol.ts'
-import { Run, runs } from './run.ts'
-import { recordInteraction } from './sessions.ts'
+import { Run } from './run.ts'
+import { providerOf, recordInteraction } from './sessions.ts'
 
 const locks = new Map<string, Promise<void>>()
 
 export function stopAll() {
   for (const run of runs.values()) run.stop()
+  stopAppServers()
+}
+
+export function sessionHistory(sessionId: string, cwd: string) {
+  switch (providerOf(sessionId)) {
+    case 'claude':
+      return history(sessionId, cwd)
+    case 'codex':
+      return codexHistory(sessionId)
+    case 'opencode':
+      return openCodeHistory(sessionId, cwd)
+  }
 }
 
 export function rewind(request: Rewind): Promise<RewindResult> {
@@ -24,6 +43,21 @@ async function rewindNow(request: Rewind): Promise<RewindResult> {
   if ((runs.get(sessionId)?.backgroundTasks ?? 0) > 0)
     throw new Error('Wait for background tasks to finish before rewinding')
   const run = await runFor(sessionId, request.cwd, request.settings)
+  if (run.provider === 'codex') {
+    if (request.code) throw new Error('Codex cannot restore files')
+    if (request.dryRun || !request.conversation) return null
+    await revertThread(sessionId, request.messageId)
+    run.items.clear()
+    publish(sessionId, await codexHistory(sessionId))
+    return null
+  }
+  if (run.provider === 'opencode') {
+    const result = await rewindOpenCode(request)
+    if (request.dryRun) return result
+    run.items.clear()
+    publish(sessionId, await openCodeHistory(sessionId, request.cwd))
+    return result
+  }
   let result: RewindResult = null
   if (request.code) {
     const files = await run.query.rewindFiles(request.messageId, {
@@ -56,7 +90,7 @@ async function rewindNow(request: Rewind): Promise<RewindResult> {
 
 export async function open(client: Client, sessionId: string, cwd: string) {
   client.opening = sessionId
-  const event = await history(sessionId, cwd)
+  const event = await sessionHistory(sessionId, cwd)
   if (client.opening !== sessionId) return
   client.sessionId = sessionId
   client.send(event)
@@ -69,18 +103,12 @@ export async function send(
   if (!statSync(request.cwd, { throwIfNoEntry: false })?.isDirectory())
     throw new Error(`${request.cwd} is not a folder`)
   if (request.sessionId === null) {
-    const sessionId = randomUUID()
-    const run = new Run({
-      sessionId,
-      cwd: request.cwd,
-      resume: false,
-      resumeAt: null,
-      settings: request.settings,
-    })
+    const run = await startRun(request.cwd, request.settings)
+    const sessionId = run.sessionId
     client.opening = sessionId
     client.sessionId = sessionId
     client.send({ type: 'started', sessionId, cwd: request.cwd })
-    run.submit(request.prompt, request.delivery)
+    await run.submit(request.prompt, request.delivery)
     recordInteraction(sessionId)
     return
   }
@@ -93,9 +121,12 @@ async function sendExisting(
   sessionId: string,
   request: Methods['sessions.send']['params']
 ) {
+  const provider = providerOf(sessionId)
+  if (request.settings.provider !== provider)
+    throw new Error(`This session belongs to ${providerName(provider)}`)
   const existing = runs.get(sessionId)
   if (
-    existing !== undefined &&
+    existing?.provider === 'claude' &&
     !existing.running &&
     existing.backgroundTasks === 0 &&
     (await changedElsewhere(existing, request.cwd))
@@ -106,7 +137,7 @@ async function sendExisting(
   const run = await runFor(sessionId, request.cwd, request.settings)
   if (run === existing) await run.configure(request.settings)
   else await open(client, sessionId, request.cwd)
-  run.submit(request.prompt, request.delivery)
+  await run.submit(request.prompt, request.delivery)
   recordInteraction(sessionId)
 }
 
@@ -137,7 +168,31 @@ async function runFor(sessionId: string, cwd: string, settings: Settings) {
     run.stop()
     await run.closed
   }
-  return new Run({ sessionId, cwd, resume: true, resumeAt: null, settings })
+  switch (settings.provider) {
+    case 'claude':
+      return new Run({ sessionId, cwd, resume: true, resumeAt: null, settings })
+    case 'codex':
+      return CodexRun.resume(sessionId, cwd, settings)
+    case 'opencode':
+      return OpenCodeRun.resume(sessionId, cwd, settings)
+  }
+}
+
+async function startRun(cwd: string, settings: Settings) {
+  switch (settings.provider) {
+    case 'claude':
+      return new Run({
+        sessionId: randomUUID(),
+        cwd,
+        resume: false,
+        resumeAt: null,
+        settings,
+      })
+    case 'codex':
+      return CodexRun.start(cwd, settings)
+    case 'opencode':
+      return OpenCodeRun.start(cwd, settings)
+  }
 }
 
 async function changedElsewhere(run: Run, cwd: string) {

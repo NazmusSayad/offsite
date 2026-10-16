@@ -7,9 +7,10 @@ import {
   type SessionStoreEntry,
 } from '@anthropic-ai/claude-agent-sdk'
 import { readConfig } from './config.ts'
-import { contextTokens, toMessage } from './content.ts'
-import type { Message, ServerEvent } from './protocol.ts'
-import { runs } from './run.ts'
+import { contextTokens, type Message, toMessage } from './content.ts'
+import { toItems } from './items.ts'
+import { runs } from './live.ts'
+import type { Item, ServerEvent } from './protocol.ts'
 
 async function sessionFile(sessionId: string) {
   const projectsDir = path.join(readConfig().claudeBaseDir, 'projects')
@@ -144,8 +145,10 @@ export async function image(sessionId: string, uuid: string, index: number) {
   if (item === undefined) throw new Error(`message ${uuid} not found`)
   if (item.type === 'system' || item.parent_tool_use_id !== null)
     throw new Error(`message ${uuid} has no image ${index}`)
-  const block = toMessage(item.type, item, null).content[index]
-  if (block?.type !== 'image' || block.data === null)
+  const block = toMessage(item.type, item, null).content.filter(
+    (candidate) => candidate.type === 'image'
+  )[index]
+  if (block === undefined || block.data === null)
     throw new Error(`message ${uuid} has no image ${index}`)
   return { mediaType: block.mediaType, data: block.data }
 }
@@ -154,7 +157,8 @@ export async function history(
   sessionId: string,
   cwd: string
 ): Promise<ServerEvent> {
-  const run = runs.get(sessionId)
+  const found = runs.get(sessionId)
+  const run = found?.provider === 'claude' ? found : undefined
   const [disk, session] = await Promise.all([
     getSessionMessages(sessionId, { dir: cwd }),
     loadSession(sessionId),
@@ -174,16 +178,18 @@ export async function history(
   return {
     type: 'history',
     sessionId,
-    messages: [
+    provider: 'claude',
+    items: toItems([
       ...messages,
       ...(run?.messages.filter((item) => !seen.has(item.uuid)) ?? []),
-    ],
+    ]),
     requests: [...(run?.pending.values() ?? [])].map((item) => item.request),
     queue: run?.queue ?? [],
     settings: run?.settings ?? null,
     context:
       run?.context ?? (tokens === null ? null : { tokens, window: null }),
     before: compactedBefore(entries, disk[0]?.uuid),
+    partial: run?.partial ?? '',
   }
 }
 
@@ -192,15 +198,11 @@ export async function earlier(sessionId: string, before: number) {
   if (session === null) throw new Error(`session ${sessionId} not found`)
   const index = session.pages.findIndex((page) => page.before === before)
   if (index < 0) throw new Error(`no messages before entry ${before}`)
-  const messages = mainMessages(session.pages[index].disk, session.entries)
-  messages.push({
-    type: 'notice',
-    uuid: `compacted:${before}`,
-    time: null,
-    text: 'Conversation compacted',
-    isError: false,
-  })
-  return { messages, before: session.pages[index + 1]?.before ?? null }
+  const items = toItems([
+    ...mainMessages(session.pages[index].disk, session.entries),
+    { type: 'compaction', uuid: `compacted:${before}`, time: null },
+  ])
+  return { items, before: session.pages[index + 1]?.before ?? null }
 }
 
 export async function agentMessages(
@@ -208,12 +210,14 @@ export async function agentMessages(
   cwd: string,
   agentId: string,
   parent: string
-): Promise<Message[]> {
+): Promise<Item[]> {
   if (!/^\w+$/.test(agentId)) throw new Error(`invalid agent id ${agentId}`)
   const disk = await getSubagentMessages(sessionId, agentId, { dir: cwd })
-  return disk.flatMap((item) =>
-    item.type === 'system'
-      ? []
-      : [toMessage(item.type, { ...item, parent_tool_use_id: parent }, null)]
+  return toItems(
+    disk.flatMap((item): Message[] =>
+      item.type === 'system'
+        ? []
+        : [toMessage(item.type, { ...item, parent_tool_use_id: parent }, null)]
+    )
   )
 }

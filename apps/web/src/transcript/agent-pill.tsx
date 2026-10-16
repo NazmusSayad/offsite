@@ -1,8 +1,9 @@
 import { ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import type { Item } from '@server/protocol'
 import { cn } from '@/lib/utils'
 import { taskTitle, type threadTasks } from '@/transcript/tasks'
-import { text, type ToolUse } from '@/transcript/tool-details'
+import type { AgentItem } from '@/transcript/timeline'
 import { Shimmer } from '@/transcript/tool-row'
 
 const tones = new Map([
@@ -42,16 +43,15 @@ const palette = [
   'text-red-400',
 ]
 
-export function agentOf(tool: ToolUse) {
-  const raw = text(tool.input.subagent_type)
-  const type = raw === '' ? 'general-purpose' : raw
+export function agentOf(item: Extract<Item, { kind: 'subagent' }>) {
+  const type = item.agent
   const key = type.toLowerCase()
   let hash = 0
   for (const character of key)
     hash = (hash * 31 + character.charCodeAt(0)) >>> 0
   return {
     name: type[0].toUpperCase() + type.slice(1),
-    description: text(tool.input.description),
+    description: item.description,
     tone: tones.get(key) ?? palette[hash % palette.length],
   }
 }
@@ -102,50 +102,49 @@ export function AgentSpinner(props: { className: string }) {
 }
 
 export function AgentLine(props: {
-  tool: ToolUse
+  item: AgentItem
   agents: ReturnType<typeof threadTasks>['agents']
   tasks: ReturnType<typeof threadTasks>['tasks']
   sending: boolean
-  onOpen: (tool: ToolUse) => void
+  onOpen: (id: string) => void
 }) {
-  const input = props.tool.input
-  if (props.tool.name === 'SendMessage') {
-    const target = props.agents.find((item) => item.agentId === text(input.to))
-    const summary = text(input.summary)
+  const item = props.item
+  if (item.kind === 'agent_message') {
+    const target = item.target
     return (
       <Line
         label="Messaged agent"
-        detail={summary === '' ? text(input.message).split('\n')[0] : summary}
+        detail={item.summary}
         pending={props.sending}
-        onOpen={target === undefined ? null : () => props.onOpen(target.tool)}
+        onOpen={target === null ? null : () => props.onOpen(target)}
       />
     )
   }
-  if (props.tool.name === 'Bash' || props.tool.name === 'Monitor') {
-    const task = props.tasks.find((item) => item.tool.id === props.tool.id)
+  if (item.kind === 'command') {
+    const task = props.tasks.find((candidate) => candidate.item.id === item.id)
     if (task === undefined)
-      throw new Error(`Task ${props.tool.id} is missing from the thread`)
+      throw new Error(`Task ${item.id} is missing from the thread`)
     return (
       <Line
         label={
           taskVerbs.get(task.status) ??
           `Background task ${task.status.toLowerCase()}`
         }
-        detail={taskTitle(task.tool)}
+        detail={taskTitle(task.item)}
         pending={task.status === 'Running'}
-        onOpen={() => props.onOpen(task.tool)}
+        onOpen={() => props.onOpen(item.id)}
       />
     )
   }
-  const agent = props.agents.find((item) => item.tool.id === props.tool.id)
+  const agent = props.agents.find((candidate) => candidate.item.id === item.id)
   if (agent === undefined)
-    throw new Error(`Agent ${props.tool.id} is missing from the thread`)
+    throw new Error(`Agent ${item.id} is missing from the thread`)
   return (
     <Line
       label={verbs.get(agent.status) ?? `Agent ${agent.status.toLowerCase()}`}
-      detail={text(input.description)}
+      detail={item.description}
       pending={agent.status === 'Running'}
-      onOpen={() => props.onOpen(agent.tool)}
+      onOpen={() => props.onOpen(item.id)}
     />
   )
 }

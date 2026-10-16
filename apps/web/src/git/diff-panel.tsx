@@ -17,7 +17,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { call } from '@/connection'
 import { errorMessage } from '@/lib/utils'
-import { getState, updateConfig, useStore } from '@/store'
+import { getState, updatePrefs, useStore } from '@/store'
 import { useCodeTheme } from '@/theme'
 import diffCss from '@/git/diff.css?raw'
 
@@ -27,6 +27,7 @@ const segment =
   'text-muted-foreground hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground dark:aria-pressed:bg-input/72 inline-flex h-6 cursor-pointer items-center justify-center rounded-md px-2.5 aria-pressed:shadow-xs'
 
 export function DiffPanel(props: {
+  machine: string
   cwd: string
   running: boolean
   onClose: () => void
@@ -34,7 +35,7 @@ export function DiffPanel(props: {
   const [files, setFiles] = useState<FileDiffMetadata[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
-  const diff = useStore((state) => state.config.diff)
+  const diff = useStore((state) => state.prefs.diff)
   const codeTheme = useCodeTheme()
   const [collapsed, setCollapsed] = useState<string[]>(() => {
     const stored = localStorage.getItem(`diffCollapsed:${props.cwd}`)
@@ -52,7 +53,7 @@ export function DiffPanel(props: {
 
   useEffect(() => {
     let current = true
-    call('git.diff', { cwd: props.cwd }).then(
+    call(props.machine, 'git.diff', { cwd: props.cwd }).then(
       (patch) => {
         if (!current) return
         setFiles(
@@ -71,7 +72,7 @@ export function DiffPanel(props: {
     return () => {
       current = false
     }
-  }, [props.cwd, props.running, version])
+  }, [props.machine, props.cwd, props.running, version])
 
   const list = files ?? []
   const added = list.reduce(
@@ -143,8 +144,8 @@ export function DiffPanel(props: {
               aria-pressed={!diff.split}
               aria-label="Stacked diff view"
               onClick={() =>
-                updateConfig({
-                  ...getState().config,
+                updatePrefs({
+                  ...getState().prefs,
                   diff: { ...diff, split: false },
                 })
               }
@@ -156,8 +157,8 @@ export function DiffPanel(props: {
               aria-pressed={diff.split}
               aria-label="Split diff view"
               onClick={() =>
-                updateConfig({
-                  ...getState().config,
+                updatePrefs({
+                  ...getState().prefs,
                   diff: { ...diff, split: true },
                 })
               }
@@ -170,8 +171,8 @@ export function DiffPanel(props: {
             aria-pressed={diff.wrap}
             title={diff.wrap ? 'Disable line wrapping' : 'Enable line wrapping'}
             onClick={() =>
-              updateConfig({
-                ...getState().config,
+              updatePrefs({
+                ...getState().prefs,
                 diff: { ...diff, wrap: !diff.wrap },
               })
             }

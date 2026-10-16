@@ -11,8 +11,10 @@ import { call, isConnected, listen, sendFrame } from '@/connection'
 import { loadGhostty } from '@/ghostty/runtime'
 import { type FindResults, type Progress, Terminal } from '@/ghostty/terminal'
 import { errorMessage, isMac } from '@/lib/utils'
+import { home } from '@/machines'
 import {
   getState as appState,
+  machineOf,
   openSession,
   subscribe as subscribeApp,
 } from '@/store'
@@ -72,6 +74,8 @@ let state: State = {
   quiet: [],
 }
 let mounted: number | null = null
+let machine: string | null = null
+let attached = false
 
 export async function startTerminal() {
   try {
@@ -85,15 +89,19 @@ export async function startTerminal() {
     return
   }
   listen({
-    open: () => send({ type: 'attach' }),
-    close: () => setState({ status: 'connecting' }),
-    terminal: (event) => {
+    close: (origin) => {
+      if (origin === machine) setState({ status: 'connecting' })
+    },
+    terminal: (origin, event) => {
+      if (origin !== machine) return
       handle(event)
       noteMessage()
     },
-    frame: receiveFrame,
+    frame: (origin, frame) => {
+      if (origin === machine) receiveFrame(frame)
+    },
   })
-  if (isConnected()) send({ type: 'attach' })
+  followSelection()
   document.addEventListener('visibilitychange', () => setState({}))
   window.addEventListener('focus', () => {
     setState({})
@@ -103,18 +111,76 @@ export async function startTerminal() {
   if ('serviceWorker' in navigator)
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data.type !== 'select') return
-      showTab(event.data.cwd, event.data.tabId)
+      showTab(event.data.machine ?? home, event.data.cwd, event.data.tabId)
     })
-  let previous = appState().config
+  let previous = appState().prefs
+  let previousIdentity = identity()
   subscribeApp(() => {
-    const next = appState().config
-    if (next === previous) return
+    followSelection()
+    const next = appState().prefs
+    const nextIdentity = identity()
     const changed =
-      next.theme !== previous.theme || next.terminal !== previous.terminal
+      next.theme !== previous.theme ||
+      next.terminal !== previous.terminal ||
+      nextIdentity !== previousIdentity
     previous = next
+    previousIdentity = nextIdentity
     if (changed) void applyConfig()
   })
   selectLinkedTab()
+}
+
+function followSelection() {
+  const target = appState().selection?.machine ?? null
+  if (target !== machine) {
+    if (machine !== null && attached) send({ type: 'detach' })
+    sync({})
+    awaitingReplay.clear()
+    machine = target
+    attached = false
+    setState({
+      status: 'connecting',
+      instance: null,
+      layout: {},
+      titles: {},
+      progress: {},
+      alerts: [],
+      finding: null,
+      quiet: [],
+    })
+  }
+  if (machine === null) return
+  const online = machineOf(appState(), machine).status === 'online'
+  if (online && !attached) {
+    attached = true
+    send({ type: 'attach' })
+  }
+  if (!online) attached = false
+}
+
+function identity() {
+  if (machine === null) return null
+  return (
+    machineOf(appState(), machine).config?.terminal.behavior.terminalIdentity ??
+    null
+  )
+}
+
+function currentOptions() {
+  if (machine === null) throw new Error('the terminal has no machine')
+  const target = machineOf(appState(), machine)
+  if (target.config === null || target.system === null)
+    throw new Error(`${target.name} is not connected`)
+  return terminalOptions(
+    terminalConfig(),
+    target.config.terminal.behavior.terminalIdentity,
+    target.system.version
+  )
+}
+
+export function terminalMachine() {
+  if (machine === null) throw new Error('the terminal has no machine')
+  return machine
 }
 
 export function subscribe(listener: () => void) {
@@ -136,7 +202,7 @@ export function setState(next: Partial<State>) {
 }
 
 export function terminalConfig() {
-  return appState().config.terminal
+  return appState().prefs.terminal
 }
 
 export function currentProject() {
@@ -159,21 +225,25 @@ export function setOpen(open: boolean) {
   setState({ open })
 }
 
-export function showTab(cwd: string, tabId: number) {
-  if (appState().selection?.cwd !== cwd) openSession({ cwd, sessionId: null })
+export function showTab(target: string, cwd: string, tabId: number) {
+  const selection = appState().selection
+  if (selection?.machine !== target || selection.cwd !== cwd)
+    openSession({ machine: target, cwd, sessionId: null })
   setState({ open: true })
   send({ type: 'select', cwd, tabId })
 }
 
 export function send(request: TerminalRequest) {
-  if (!isConnected()) return
-  call('terminal', request).catch((error: unknown) =>
+  if (machine === null || !isConnected(machine)) return
+  call(machine, 'terminal', request).catch((error: unknown) =>
     console.error('terminal request failed', error)
   )
 }
 
 export function sendInput(id: number, data: string | Uint8Array) {
+  if (machine === null) return
   sendFrame(
+    machine,
     FRAME_INPUT,
     id,
     typeof data === 'string' ? encoder.encode(data) : data
@@ -292,85 +362,85 @@ function isShiftEnter(event: KeyboardEvent) {
 }
 
 function createSession(id: number) {
-  const terminal = new Terminal(
-    terminalOptions(terminalConfig(), appState().system.version),
-    {
-      onData: (data) => {
-        if (state.status !== 'active') return
-        sendInput(id, applyCtrl(data))
-      },
-      onReply: (data) => {
-        if (data === '\x1b[I' || data === '\x1b[O') sendInput(id, data)
-        else sendFrame(FRAME_REPLY, id, encoder.encode(data))
-      },
-      onResize: (cols, rows) => send({ type: 'resize', id, cols, rows }),
-      onTitle: (title) =>
-        setState({ titles: { ...state.titles, [id]: title } }),
-      onProgress: (progress) =>
-        setState({ progress: { ...state.progress, [id]: progress } }),
-      onBell: () => {
-        const behavior = terminalConfig().behavior
-        if (behavior.bellSound) beep()
-        if (
-          behavior.bellFlash &&
-          terminal.element.isConnected &&
-          !document.hidden
-        )
-          terminal.element.animate([{ opacity: 0.4 }, { opacity: 1 }], {
-            duration: 200,
-            easing: 'ease-out',
-          })
-        ringBell(id)
-      },
-      onNotify: (title, body) => notifyFromProgram(id, title, body),
-      onClipboard: writeClipboard,
-      onClipboardRead: (query) => {
-        if (!isSeen(id)) return
-        void readClipboard((text) => terminal.replyClipboard(text, query))
-      },
-      onLink: (uri) => window.open(uri, '_blank', 'noopener'),
-      beforeKey: (event) => {
-        if (event.type !== 'keydown') return true
-        const config = terminalConfig()
-        const platform = appState().system.platform
-        if (
-          state.status === 'active' &&
-          config.behavior.modernizeShiftEnter &&
-          isShiftEnter(event) &&
-          !terminal.isKittyKeyboard()
-        ) {
-          event.preventDefault()
-          terminal.beforeInput('\x1b\r')
-          sendInput(id, '\x1b\r')
-          return false
-        }
-        if (
-          state.status === 'active' &&
-          config.behavior.pasteBrowserImages &&
-          window.isSecureContext &&
-          isImagePasteKey(event, platform)
-        ) {
-          event.preventDefault()
-          const data = imagePasteKeys[platform].data
-          terminal.beforeInput(data)
-          pasteClipboardImages(terminal)
-            .then((pasted) => {
-              if (!pasted) sendInput(id, data)
-            })
-            .catch((error: unknown) => {
-              reportPasteError(error)
-              sendInput(id, data)
-            })
-          return false
-        }
-        if (!isFindShortcut(event)) return true
+  const terminal = new Terminal(currentOptions(), {
+    onData: (data) => {
+      if (state.status !== 'active') return
+      sendInput(id, applyCtrl(data))
+    },
+    onReply: (data) => {
+      if (data === '\x1b[I' || data === '\x1b[O') sendInput(id, data)
+      else if (machine !== null)
+        sendFrame(machine, FRAME_REPLY, id, encoder.encode(data))
+    },
+    onResize: (cols, rows) => send({ type: 'resize', id, cols, rows }),
+    onTitle: (title) => setState({ titles: { ...state.titles, [id]: title } }),
+    onProgress: (progress) =>
+      setState({ progress: { ...state.progress, [id]: progress } }),
+    onBell: () => {
+      const behavior = terminalConfig().behavior
+      if (behavior.bellSound) beep()
+      if (
+        behavior.bellFlash &&
+        terminal.element.isConnected &&
+        !document.hidden
+      )
+        terminal.element.animate([{ opacity: 0.4 }, { opacity: 1 }], {
+          duration: 200,
+          easing: 'ease-out',
+        })
+      ringBell(id)
+    },
+    onNotify: (title, body) => notifyFromProgram(id, title, body),
+    onClipboard: writeClipboard,
+    onClipboardRead: (query) => {
+      if (!isSeen(id)) return
+      void readClipboard((text) => terminal.replyClipboard(text, query))
+    },
+    onLink: (uri) => window.open(uri, '_blank', 'noopener'),
+    beforeKey: (event) => {
+      if (event.type !== 'keydown') return true
+      const config = terminalConfig()
+      const system = machineOf(appState(), terminalMachine()).system
+      if (system === null)
+        throw new Error('the terminal machine is not connected')
+      const platform = system.platform
+      if (
+        state.status === 'active' &&
+        config.behavior.modernizeShiftEnter &&
+        isShiftEnter(event) &&
+        !terminal.isKittyKeyboard()
+      ) {
         event.preventDefault()
-        setState({ finding: id })
-        document.querySelector<HTMLInputElement>('[data-find]')?.select()
+        terminal.beforeInput('\x1b\r')
+        sendInput(id, '\x1b\r')
         return false
-      },
-    }
-  )
+      }
+      if (
+        state.status === 'active' &&
+        config.behavior.pasteBrowserImages &&
+        window.isSecureContext &&
+        isImagePasteKey(event, platform)
+      ) {
+        event.preventDefault()
+        const data = imagePasteKeys[platform].data
+        terminal.beforeInput(data)
+        pasteClipboardImages(terminalMachine(), terminal)
+          .then((pasted) => {
+            if (!pasted) sendInput(id, data)
+          })
+          .catch((error: unknown) => {
+            reportPasteError(error)
+            sendInput(id, data)
+          })
+        return false
+      }
+      if (!isFindShortcut(event)) return true
+      event.preventDefault()
+      setState({ finding: id })
+      document.querySelector<HTMLInputElement>('[data-find]')?.select()
+      return false
+    },
+  })
   terminal.element.addEventListener(
     'paste',
     (event) => {
@@ -382,7 +452,7 @@ function createSession(id: number) {
       if (images.length === 0) return
       event.preventDefault()
       event.stopPropagation()
-      pasteImages(terminal, images).catch(reportPasteError)
+      pasteImages(terminalMachine(), terminal, images).catch(reportPasteError)
     },
     true
   )
@@ -425,23 +495,24 @@ export function mount(id: number, container: HTMLElement) {
 
 async function applyConfig() {
   await applyStyle(terminalConfig())
-  for (const terminal of sessions.values())
-    terminal.setOptions(
-      terminalOptions(terminalConfig(), appState().system.version)
-    )
+  if (sessions.size > 0) {
+    const options = currentOptions()
+    for (const terminal of sessions.values()) terminal.setOptions(options)
+  }
   setState({})
 }
 
 function selectLinkedTab() {
   const params = new URLSearchParams(location.search)
+  const target = params.get('machine') ?? home
   const cwd = params.get('cwd')
   const tabId = params.get('terminal')
   if (cwd === null || tabId === null) return
   params.delete('terminal')
   history.replaceState(null, '', `/?${params}`)
   const unsubscribe = subscribe(() => {
-    if (state.status !== 'active') return
+    if (state.status !== 'active' || machine !== target) return
     unsubscribe()
-    showTab(cwd, Number(tabId))
+    showTab(target, cwd, Number(tabId))
   })
 }

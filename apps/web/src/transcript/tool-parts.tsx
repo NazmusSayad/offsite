@@ -5,113 +5,82 @@ import { FileTypeIcon } from '@/components/file-icon'
 import { Markdown } from '@/markdown/markdown'
 import { DiffStatLabel } from '@/transcript/changed-files'
 import {
-  editedFile,
   editStats,
+  type FileChangeItem,
+  readPath,
   relative,
-  resultText,
   text,
   ToolDetails,
-  type ToolResult,
-  type ToolUse,
+  toolKind,
+  type WorkItem,
 } from '@/transcript/tool-details'
 import { Disclosure, Shimmer, ToolRow } from '@/transcript/tool-row'
 import { MessageCopyButton } from '@/transcript/user-message'
 
-export function toolTitle(tool: ToolUse) {
-  switch (tool.name) {
-    case 'Bash':
+export type ToolItem = Exclude<WorkItem, { kind: 'reasoning' }>
+
+export function toolTitle(item: ToolItem) {
+  switch (item.kind) {
+    case 'command':
       return 'Shell'
-    case 'Edit':
-    case 'MultiEdit':
-    case 'NotebookEdit':
+    case 'file_change':
       return 'Edit'
-    case 'WebFetch':
-      return 'Webfetch'
-    case 'WebSearch':
-      return 'Web Search'
-    case 'Agent':
-    case 'Task':
-      return 'Agent'
-    default:
-      return tool.name
+    case 'web_search':
+      return item.url === null ? 'Web Search' : 'Webfetch'
+    case 'skill':
+      return 'Skill'
+    case 'tool':
+      return item.name
   }
 }
 
-export function isFileChange(tool: ToolUse) {
-  return (
-    tool.name === 'Edit' ||
-    tool.name === 'MultiEdit' ||
-    tool.name === 'Write' ||
-    tool.name === 'NotebookEdit'
-  )
-}
-
 export function ToolPart(props: {
-  tool: ToolUse
-  result: ToolResult | undefined
+  item: ToolItem
   cwd: string
   live: boolean
 }) {
-  const tool = props.tool
-  const input = tool.input
-  const pending = props.live && props.result === undefined
-  if (props.result?.isError === true)
+  const item = props.item
+  const pending = props.live && item.status === 'running'
+  if (item.status === 'failed')
     return (
       <ErrorCard
-        title={toolTitle(tool)}
-        subtitle={subtitleOf(tool, props.cwd)}
-        error={resultText(props.result)}
+        title={toolTitle(item)}
+        subtitle={subtitleOf(item, props.cwd)}
+        error={item.output}
       />
     )
-  switch (tool.name) {
-    case 'Bash':
+  switch (item.kind) {
+    case 'command':
       return (
         <ShellTool
-          command={text(input.command)}
-          output={props.result === undefined ? '' : resultText(props.result)}
+          command={item.command}
+          output={item.output}
           pending={pending}
         />
       )
-    case 'Read':
-      return (
-        <ToolRow
-          title="Read"
-          subtitle={fileName(text(input.file_path))}
-          args={args(input, ['offset', 'limit'])}
-          pending={pending}
-          grouped
-          open={false}
-          onToggle={null}
-        />
-      )
-    case 'Grep':
-    case 'Glob':
-      return (
-        <ToolRow
-          title={tool.name}
-          subtitle={subtitleOf(tool, props.cwd)}
-          args={[
-            ...args(input, ['pattern']),
-            ...(text(input.glob) === '' ? [] : [`include=${text(input.glob)}`]),
-          ]}
-          pending={pending}
-          grouped
-          open={false}
-          onToggle={null}
-        />
-      )
-    case 'WebFetch':
+    case 'file_change':
+      return <FileChanges items={[item]} cwd={props.cwd} live={props.live} />
+    case 'web_search': {
+      const url = item.url
+      if (url === null)
+        return (
+          <WebSearchTool
+            query={item.query ?? ''}
+            links={item.results}
+            pending={pending}
+          />
+        )
       return (
         <ToolRow
           title="Webfetch"
           subtitle={
             <a
-              href={text(input.url)}
+              href={url}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline hover:underline-offset-2"
             >
-              {text(input.url)}
+              {url}
             </a>
           }
           pending={pending}
@@ -120,44 +89,75 @@ export function ToolPart(props: {
           onToggle={null}
         />
       )
-    case 'WebSearch':
-      return (
-        <WebSearchTool
-          query={text(input.query)}
-          output={props.result === undefined ? '' : resultText(props.result)}
-          pending={pending}
-        />
-      )
-    case 'Skill':
+    }
+    case 'skill':
       return (
         <div className="flex min-h-7 items-center gap-1 text-[13px] leading-4 tracking-[-0.04px]">
           <span className="text-muted-foreground">Loaded</span>
           <span className="text-foreground">
-            <Shimmer text={text(input.skill)} active={pending} />
+            <Shimmer text={item.skill} active={pending} />
           </span>
           <span className="text-muted-foreground">skill</span>
         </div>
       )
-    default:
-      return (
-        <ToolRow
-          title={`Called ${tool.name}`}
-          subtitle={subtitleOf(tool, props.cwd)}
-          args={args(
-            input,
-            Object.keys(input).filter(
-              (key) =>
-                !['description', 'query', 'url', 'path', 'pattern'].includes(
-                  key
+    case 'tool': {
+      const input = item.input
+      switch (toolKind(item.name)) {
+        case 'read':
+          return (
+            <ToolRow
+              title="Read"
+              subtitle={fileName(readPath(input))}
+              args={args(input, ['offset', 'limit'])}
+              pending={pending}
+              grouped
+              open={false}
+              onToggle={null}
+            />
+          )
+        case 'search':
+          return (
+            <ToolRow
+              title={item.name}
+              subtitle={subtitleOf(item, props.cwd)}
+              args={[
+                ...args(input, ['pattern']),
+                ...(text(input.glob) === ''
+                  ? []
+                  : [`include=${text(input.glob)}`]),
+              ]}
+              pending={pending}
+              grouped
+              open={false}
+              onToggle={null}
+            />
+          )
+        case 'other':
+          return (
+            <ToolRow
+              title={`Called ${item.name}`}
+              subtitle={subtitleOf(item, props.cwd)}
+              args={args(
+                input,
+                Object.keys(input).filter(
+                  (key) =>
+                    ![
+                      'description',
+                      'query',
+                      'url',
+                      'path',
+                      'pattern',
+                    ].includes(key)
                 )
-            )
-          ).slice(0, 3)}
-          pending={pending}
-          grouped
-          open={false}
-          onToggle={null}
-        />
-      )
+              ).slice(0, 3)}
+              pending={pending}
+              grouped
+              open={false}
+              onToggle={null}
+            />
+          )
+      }
+    }
   }
 }
 
@@ -203,13 +203,11 @@ function ShellTool(props: {
 
 function WebSearchTool(props: {
   query: string
-  output: string
+  links: { title: string; url: string }[]
   pending: boolean
 }) {
   const [open, setOpen] = useState(false)
-  const links = [
-    ...props.output.matchAll(/"title":"((?:[^"\\]|\\.)*)","url":"([^"]+)"/g),
-  ].map((match) => ({ title: match[1], url: match[2] }))
+  const links = props.links
   return (
     <ToolRow
       title="Web Search"
@@ -262,26 +260,24 @@ export function ReasoningPart(props: { text: string; streaming: boolean }) {
 }
 
 export function FileChanges(props: {
-  tools: ToolUse[]
-  results: Map<string, ToolResult>
+  items: FileChangeItem[]
   cwd: string
   live: boolean
 }) {
-  const files = new Map<string, ToolUse[]>()
-  for (const tool of props.tools) {
-    const file = relative(editedFile(tool), props.cwd)
-    files.set(file, [...(files.get(file) ?? []), tool])
+  const files = new Map<string, FileChangeItem[]>()
+  for (const item of props.items) {
+    const file = relative(item.path, props.cwd)
+    files.set(file, [...(files.get(file) ?? []), item])
   }
   return (
     <div className="border-border overflow-hidden rounded-md border">
-      {[...files].map(([file, tools]) => (
+      {[...files].map(([file, items]) => (
         <FileChange
           key={file}
           file={file}
-          tools={tools}
+          items={items}
           pending={
-            props.live &&
-            tools.some((tool) => props.results.get(tool.id) === undefined)
+            props.live && items.some((item) => item.status === 'running')
           }
         />
       ))}
@@ -291,17 +287,17 @@ export function FileChanges(props: {
 
 function FileChange(props: {
   file: string
-  tools: ToolUse[]
+  items: FileChangeItem[]
   pending: boolean
 }) {
   const [open, setOpen] = useState(false)
   const slash = props.file.lastIndexOf('/')
   let added = 0
   let removed = 0
-  for (const tool of props.tools) {
-    const stats = editStats(tool)
-    added += stats?.added ?? 0
-    removed += stats?.removed ?? 0
+  for (const item of props.items) {
+    const stats = editStats(item)
+    added += stats.added
+    removed += stats.removed
   }
   return (
     <div className="border-border border-b last:border-b-0">
@@ -335,8 +331,8 @@ function FileChange(props: {
       </button>
       {open && (
         <div className="border-border flex flex-col gap-2 border-t p-2">
-          {props.tools.map((tool) => (
-            <ToolDetails key={tool.id} tool={tool} />
+          {props.items.map((item) => (
+            <ToolDetails key={item.id} item={item} />
           ))}
         </div>
       )}
@@ -395,22 +391,28 @@ export function ErrorCard(props: {
   )
 }
 
-function subtitleOf(tool: ToolUse, cwd: string) {
-  const input = tool.input
-  switch (tool.name) {
-    case 'Bash':
-      return text(input.command)
-    case 'Grep':
-    case 'Glob': {
-      const path = text(input.path)
-      return path === '' || path === cwd ? '' : relative(path, cwd)
-    }
-    default:
+function subtitleOf(item: ToolItem, cwd: string) {
+  switch (item.kind) {
+    case 'command':
+      return item.command
+    case 'file_change':
+      return item.path
+    case 'web_search':
+      return item.url ?? item.query ?? ''
+    case 'skill':
+      return item.skill
+    case 'tool': {
+      const input = item.input
+      if (toolKind(item.name) === 'search') {
+        const path = text(input.path)
+        return path === '' || path === cwd ? '' : relative(path, cwd)
+      }
       return (
         ['description', 'query', 'url', 'file_path', 'path', 'pattern']
           .map((key) => text(input[key]))
           .find((value) => value !== '') ?? ''
       )
+    }
   }
 }
 

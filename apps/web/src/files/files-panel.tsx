@@ -18,7 +18,11 @@ type Folder = { folders: Map<string, Folder>; files: string[] }
 
 const MATCH_LIMIT = 200
 
-export function FilesPanel(props: { cwd: string; onClose: () => void }) {
+export function FilesPanel(props: {
+  machine: string
+  cwd: string
+  onClose: () => void
+}) {
   const [files, setFiles] = useState<string[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
@@ -28,7 +32,7 @@ export function FilesPanel(props: { cwd: string; onClose: () => void }) {
 
   useEffect(() => {
     let current = true
-    call('files.list', { cwd: props.cwd }).then(
+    call(props.machine, 'files.list', { cwd: props.cwd }).then(
       (list) => {
         if (!current) return
         setFiles(list)
@@ -41,7 +45,7 @@ export function FilesPanel(props: { cwd: string; onClose: () => void }) {
     return () => {
       current = false
     }
-  }, [props.cwd, version])
+  }, [props.machine, props.cwd, version])
 
   const tree = useMemo(() => buildTree(files ?? []), [files])
   const search = query.trim().toLowerCase()
@@ -197,6 +201,7 @@ export function FilesPanel(props: { cwd: string; onClose: () => void }) {
         )}
       </div>
       <FilePreview
+        machine={props.machine}
         cwd={props.cwd}
         path={preview}
         onClose={() => setPreview(null)}

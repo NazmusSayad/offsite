@@ -4,8 +4,7 @@ import {
   PencilEdit02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Block } from '@server/protocol'
-import { type ReactNode, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { call } from '@/connection'
@@ -15,62 +14,21 @@ import { cn } from '@/lib/utils'
 import { Markdown } from '@/markdown/markdown'
 import { showError, useStore } from '@/store'
 import type { RewindTarget } from '@/transcript/rewind-dialog'
+import type { UserItem } from '@/transcript/timeline'
 
 const fade =
   'linear-gradient(to bottom, black calc(100% - 1.75rem), transparent)'
 
 export function UserMessage(props: {
-  uuid: string
-  time: number | null
-  blocks: Block[]
+  item: UserItem
   first: boolean
   running: boolean
   onRewind: ((target: RewindTarget) => void) | null
 }) {
   const [expanded, setExpanded] = useState(false)
   const onRewind = props.onRewind
-  const prompt = props.blocks
-    .flatMap((block) => {
-      if (block.type !== 'text') return []
-      const shown = userText(block.text)
-      return shown.kind === 'text' ? [shown.text] : []
-    })
-    .join('\n')
-  const images = props.blocks.flatMap((block, index) =>
-    block.type === 'image' ? [{ block, index }] : []
-  )
-  const parts: ReactNode[] = props.blocks.flatMap((block, index) => {
-    if (block.type !== 'text') return []
-    const shown = userText(block.text)
-    switch (shown.kind) {
-      case 'command':
-        return [
-          <span key={index} className="font-mono text-sm">
-            {shown.text}
-          </span>,
-        ]
-      case 'output':
-        return [
-          <pre
-            key={index}
-            className="text-muted-foreground font-mono text-xs whitespace-pre-wrap"
-          >
-            {shown.text}
-          </pre>,
-        ]
-      case 'text':
-        return [
-          <Markdown
-            key={index}
-            text={shown.text}
-            className="text-foreground"
-            lineBreaks
-            rawHtml={false}
-          />,
-        ]
-    }
-  })
-  if (parts.length === 0 && images.length === 0) return null
+  const item = props.item
+  const prompt = item.format === 'text' ? item.text : ''
   const canCollapse =
     prompt.trim() !== '' &&
     (prompt.length > 600 || prompt.split('\n').length > 8)
@@ -78,24 +36,24 @@ export function UserMessage(props: {
   return (
     <div className="group flex flex-col items-end gap-1">
       <div className="bg-message text-message-foreground relative max-w-[80%] rounded-2xl px-3 py-2">
-        {images.length > 0 && (
+        {item.images.length > 0 && (
           <div className="mb-2 grid max-w-[210px] grid-cols-2 gap-2">
-            {images.map((image) => (
+            {item.images.map((image, index) => (
               <div
-                key={image.index}
+                key={index}
                 className="border-border/80 bg-background/70 aspect-[4/3] overflow-hidden rounded-lg border"
               >
                 <PromptImage
-                  uuid={props.uuid}
-                  index={image.index}
-                  mediaType={image.block.mediaType}
-                  data={image.block.data}
+                  itemId={item.id}
+                  index={index}
+                  mediaType={image.mediaType}
+                  data={image.data}
                 />
               </div>
             ))}
           </div>
         )}
-        {parts.length > 0 && (
+        {item.text !== '' && (
           <div>
             <div
               className={cn(
@@ -108,7 +66,22 @@ export function UserMessage(props: {
                   : undefined
               }
             >
-              {parts}
+              {item.format === 'command' && (
+                <span className="font-mono text-sm">{item.text}</span>
+              )}
+              {item.format === 'output' && (
+                <pre className="text-muted-foreground font-mono text-xs whitespace-pre-wrap">
+                  {item.text}
+                </pre>
+              )}
+              {item.format === 'text' && (
+                <Markdown
+                  text={item.text}
+                  className="text-foreground"
+                  lineBreaks
+                  rawHtml={false}
+                />
+              )}
             </div>
             {canCollapse && (
               <div className="mt-1.5 flex items-center justify-end gap-2">
@@ -129,10 +102,10 @@ export function UserMessage(props: {
       </div>
       <div className="flex w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
         <div className="flex shrink-0 items-center gap-2">
-          {props.time !== null && (
-            <Tooltip label={fullTime(props.time)}>
+          {item.time !== null && (
+            <Tooltip label={fullTime(item.time)}>
               <p className="text-muted-foreground text-xs tabular-nums">
-                {clock(props.time)}
+                {clock(item.time)}
               </p>
             </Tooltip>
           )}
@@ -148,7 +121,7 @@ export function UserMessage(props: {
                     disabled={props.running}
                     onClick={() =>
                       onRewind({
-                        messageId: props.uuid,
+                        messageId: item.id,
                         text: prompt,
                         first: props.first,
                       })
@@ -192,20 +165,22 @@ export function MessageCopyButton(props: { text: string }) {
 }
 
 function PromptImage(props: {
-  uuid: string
+  itemId: string
   index: number
   mediaType: string
   data: string | null
 }) {
-  const sessionId = useStore((state) => state.selection?.sessionId ?? null)
+  const selection = useStore((state) => state.selection)
+  const machine = selection?.machine ?? null
+  const sessionId = selection?.sessionId ?? null
   const [loaded, setLoaded] = useState<string | null>(null)
 
   useEffect(() => {
-    if (props.data !== null || sessionId === null) return
+    if (props.data !== null || machine === null || sessionId === null) return
     let current = true
-    call('sessions.image', {
+    call(machine, 'sessions.image', {
       sessionId,
-      uuid: props.uuid,
+      itemId: props.itemId,
       index: props.index,
     })
       .then((result) => {
@@ -215,7 +190,7 @@ function PromptImage(props: {
     return () => {
       current = false
     }
-  }, [props.data, props.uuid, props.index, sessionId])
+  }, [props.data, props.itemId, props.index, machine, sessionId])
 
   const data = props.data ?? loaded
   if (data === null) return null
@@ -226,21 +201,4 @@ function PromptImage(props: {
       className="block size-full object-cover"
     />
   )
-}
-
-function userText(text: string): {
-  kind: 'command' | 'output' | 'text'
-  text: string
-} {
-  const command = /<command-name>(.*?)<\/command-name>/s.exec(text)
-  if (command !== null) {
-    const args = /<command-args>(.*?)<\/command-args>/s.exec(text)
-    return { kind: 'command', text: `${command[1]} ${args?.[1] ?? ''}`.trim() }
-  }
-  const output =
-    /^<local-command-(?:stdout|stderr)>(.*)<\/local-command-(?:stdout|stderr)>$/s.exec(
-      text.trim()
-    )
-  if (output !== null) return { kind: 'output', text: output[1] }
-  return { kind: 'text', text }
 }
