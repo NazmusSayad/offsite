@@ -49,7 +49,7 @@ export function Palette() {
   const sessions: Item[] = sessionList.map((session) => ({
     key: session.id,
     label: session.title,
-    detail: `${session.archived ? 'Archived · ' : ''}${session.cwd}`,
+    detail: `${session.status === 'minimized' ? 'Minimized · ' : ''}${session.cwd}`,
     run: () => openSession({ cwd: session.cwd, sessionId: session.id }),
   }))
   const items = [...actions, ...sessions]

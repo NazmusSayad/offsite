@@ -15,9 +15,12 @@ db.exec(`
   )
 `)
 
+db.exec('DROP TABLE IF EXISTS prompts')
+
 db.exec(`
-  CREATE TABLE IF NOT EXISTS prompts (
+  CREATE TABLE IF NOT EXISTS sessions (
     session_id TEXT PRIMARY KEY,
-    time INTEGER NOT NULL
+    interacted_at INTEGER,
+    status TEXT NOT NULL CHECK (status IN ('active', 'pinned', 'minimized'))
   )
 `)

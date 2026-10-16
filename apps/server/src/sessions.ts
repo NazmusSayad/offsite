@@ -13,16 +13,14 @@ import { broadcast } from './hub.ts'
 import { projects } from './projects.ts'
 import type { Session, SessionPatch } from './protocol.ts'
 import { runs } from './run.ts'
-import { readJson, writeJson } from './storage.ts'
 
-type Marks = { pinned: string[]; archived: string[] }
+const day = 24 * 60 * 60 * 1000
 
 let watcher: FSWatcher | null = null
 let timer: NodeJS.Timeout | undefined
 
 export async function sessions(): Promise<Session[]> {
-  const marks = readMarks()
-  const prompts = readPrompts()
+  const records = readRecords()
   const lists = await Promise.all(
     projects().map(async (project) =>
       (
@@ -31,23 +29,30 @@ export async function sessions(): Promise<Session[]> {
           includeWorktrees: false,
           includeProgrammatic: false,
         })
-      ).map((item) => ({
-        id: item.sessionId,
-        title: item.summary,
-        cwd: project.path,
-        branch: item.gitBranch ?? null,
-        updatedAt: prompts.get(item.sessionId) ?? item.lastModified,
-        pinned: marks.pinned.includes(item.sessionId),
-        archived: marks.archived.includes(item.sessionId),
-      }))
+      ).map((item): Session => {
+        const record = records.get(item.sessionId)
+        const updatedAt = record?.interactedAt ?? item.lastModified
+        return {
+          id: item.sessionId,
+          title: item.summary,
+          cwd: project.path,
+          branch: item.gitBranch ?? null,
+          updatedAt,
+          status:
+            record === undefined ||
+            (record.status === 'active' && Date.now() - updatedAt > day)
+              ? 'inactive'
+              : record.status,
+        }
+      })
     )
   )
   return lists.flat()
 }
 
-export function recordPrompt(id: string) {
+export function recordInteraction(id: string) {
   db.prepare(
-    'INSERT INTO prompts (session_id, time) VALUES (?, ?) ON CONFLICT (session_id) DO UPDATE SET time = excluded.time'
+    "INSERT INTO sessions (session_id, interacted_at, status) VALUES (?, ?, 'active') ON CONFLICT (session_id) DO UPDATE SET interacted_at = excluded.interacted_at, status = CASE status WHEN 'pinned' THEN 'pinned' ELSE 'active' END"
   ).run(id, Date.now())
 }
 
@@ -84,12 +89,12 @@ export function watchSessions() {
 
 export async function updateSession(id: string, patch: SessionPatch) {
   if (patch.title !== undefined) await renameSession(id, patch.title)
-  const marks = readMarks()
-  if (patch.pinned !== undefined)
-    marks.pinned = mark(marks.pinned, id, patch.pinned)
-  if (patch.archived !== undefined)
-    marks.archived = mark(marks.archived, id, patch.archived)
-  writeMarks(marks)
+  if (patch.status === 'inactive')
+    db.prepare('DELETE FROM sessions WHERE session_id = ?').run(id)
+  else if (patch.status !== undefined)
+    db.prepare(
+      'INSERT INTO sessions (session_id, status) VALUES (?, ?) ON CONFLICT (session_id) DO UPDATE SET status = excluded.status'
+    ).run(id, patch.status)
 }
 
 export async function removeSession(id: string) {
@@ -99,12 +104,7 @@ export async function removeSession(id: string) {
     await run.closed
   }
   await deleteSession(id)
-  const marks = readMarks()
-  writeMarks({
-    pinned: mark(marks.pinned, id, false),
-    archived: mark(marks.archived, id, false),
-  })
-  db.prepare('DELETE FROM prompts WHERE session_id = ?').run(id)
+  db.prepare('DELETE FROM sessions WHERE session_id = ?').run(id)
 }
 
 export async function fork(sessionId: string, cwd: string, messageId: string) {
@@ -118,27 +118,26 @@ export async function fork(sessionId: string, cwd: string, messageId: string) {
   return { sessionId: result.sessionId }
 }
 
-function readMarks() {
-  return (
-    (readJson('sessions.json') as Marks | null) ?? { pinned: [], archived: [] }
-  )
-}
-
-function readPrompts() {
-  const prompts = new Map<string, number>()
-  for (const row of db.prepare('SELECT session_id, time FROM prompts').all()) {
-    if (typeof row.session_id !== 'string' || typeof row.time !== 'number')
-      throw new Error('The prompts table has an unexpected row')
-    prompts.set(row.session_id, row.time)
+function readRecords() {
+  const records = new Map<
+    string,
+    { interactedAt: number | null; status: 'active' | 'pinned' | 'minimized' }
+  >()
+  for (const row of db
+    .prepare('SELECT session_id, interacted_at, status FROM sessions')
+    .all()) {
+    if (
+      typeof row.session_id !== 'string' ||
+      (typeof row.interacted_at !== 'number' && row.interacted_at !== null) ||
+      (row.status !== 'active' &&
+        row.status !== 'pinned' &&
+        row.status !== 'minimized')
+    )
+      throw new Error('The sessions table has an unexpected row')
+    records.set(row.session_id, {
+      interactedAt: row.interacted_at,
+      status: row.status,
+    })
   }
-  return prompts
-}
-
-function writeMarks(marks: Marks) {
-  writeJson('sessions.json', marks)
-}
-
-function mark(ids: string[], id: string, on: boolean) {
-  const rest = ids.filter((item) => item !== id)
-  return on ? [...rest, id] : rest
+  return records
 }

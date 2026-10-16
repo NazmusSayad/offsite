@@ -5,7 +5,7 @@ import { history } from './history.ts'
 import { type Client, publish } from './hub.ts'
 import type { Methods, Rewind, RewindResult, Settings } from './protocol.ts'
 import { Run, runs } from './run.ts'
-import { recordPrompt } from './sessions.ts'
+import { recordInteraction } from './sessions.ts'
 
 const locks = new Map<string, Promise<void>>()
 
@@ -81,7 +81,7 @@ export async function send(
     client.sessionId = sessionId
     client.send({ type: 'started', sessionId, cwd: request.cwd })
     run.submit(request.prompt, request.delivery)
-    recordPrompt(sessionId)
+    recordInteraction(sessionId)
     return
   }
   const sessionId = request.sessionId
@@ -107,7 +107,7 @@ async function sendExisting(
   if (run === existing) await run.configure(request.settings)
   else await open(client, sessionId, request.cwd)
   run.submit(request.prompt, request.delivery)
-  recordPrompt(sessionId)
+  recordInteraction(sessionId)
 }
 
 async function locked<T>(sessionId: string, task: () => Promise<T>) {

@@ -2,7 +2,6 @@ import {
   Add01Icon,
   ChevronDownIcon,
   InboxIcon,
-  PencilEdit02Icon,
   PanelLeftCloseIcon,
   SearchIcon,
   Settings01Icon,
@@ -45,16 +44,15 @@ export function Sidebar(props: {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Project | null>(null)
   const [picking, setPicking] = useState(false)
-  const [archivedOpen, setArchivedOpen] = useState(false)
+  const [minimizedOpen, setMinimizedOpen] = useState(false)
+  const [inactiveOpen, setInactiveOpen] = useState(false)
   const [width, setWidth] = useState(
     Number(localStorage.getItem('sidebarWidth') ?? 240)
   )
   const projects = [...registered].sort((a, b) => a.name.localeCompare(b.name))
   const shown = sessions
     .filter((session) => scope === null || session.cwd === scope)
-    .sort(
-      (a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt
-    )
+    .sort((a, b) => b.updatedAt - a.updatedAt)
   const attention = sessions.filter(
     (session) =>
       activity[session.id]?.running === true ||
@@ -62,8 +60,12 @@ export function Sidebar(props: {
       Object.values(activity[session.id]?.tasks ?? {}).includes('running') ||
       unseen.includes(session.id)
   )
-  const active = shown.filter((session) => !session.archived)
-  const archived = shown.filter((session) => session.archived)
+  const active = [
+    ...shown.filter((session) => session.status === 'pinned'),
+    ...shown.filter((session) => session.status === 'active'),
+  ]
+  const minimized = shown.filter((session) => session.status === 'minimized')
+  const inactive = shown.filter((session) => session.status === 'inactive')
   const started =
     selection !== null &&
     selection.sessionId !== null &&
@@ -74,8 +76,7 @@ export function Sidebar(props: {
           cwd: selection.cwd,
           branch: null,
           updatedAt: Date.now(),
-          pinned: false,
-          archived: false,
+          status: 'active' as const,
         }
       : null
 
@@ -129,6 +130,40 @@ export function Sidebar(props: {
     )
   }
 
+  function section(
+    label: string,
+    items: Session[],
+    open: boolean,
+    onToggle: () => void,
+    first: boolean
+  ) {
+    if (items.length === 0) return null
+    return (
+      <>
+        <li className={cn('mx-0.5 h-8 pt-2', first && 'mt-auto')}>
+          <button
+            aria-expanded={open}
+            className="text-sidebar-muted-foreground/60 flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs font-medium"
+            onClick={onToggle}
+          >
+            <span className="shrink-0">
+              {open ? label : `${label} (${items.length})`}
+            </span>
+            <span className="bg-sidebar-border/60 h-px min-w-2 flex-1" />
+            <HugeiconsIcon
+              icon={ChevronDownIcon}
+              className={cn(
+                'size-3 shrink-0 transition-transform',
+                !open && 'rotate-180'
+              )}
+            />
+          </button>
+        </li>
+        {open && items.map((session) => row(session, true))}
+      </>
+    )
+  }
+
   return (
     <aside
       className={cn(
@@ -174,7 +209,11 @@ export function Sidebar(props: {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-64">
               <DropdownMenuRadioGroup value={scope ?? ''}>
-                <DropdownMenuRadioItem value="" onSelect={() => setScope(null)}>
+                <DropdownMenuRadioItem
+                  value=""
+                  className="pr-9 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
+                  onSelect={() => setScope(null)}
+                >
                   <HugeiconsIcon icon={InboxIcon} />
                   <span className="min-w-0 flex-1 truncate">Inbox</span>
                   {attention.length > 0 && (
@@ -192,7 +231,7 @@ export function Sidebar(props: {
                       key={project.path}
                       value={project.path}
                       title={project.path}
-                      className="group/project"
+                      className="pr-2 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
                       onSelect={() => setScope(project.path)}
                       onContextMenu={(event) => {
                         event.preventDefault()
@@ -213,23 +252,26 @@ export function Sidebar(props: {
                         </span>
                       )}
                       <button
-                        className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 -my-0.5 grid size-5 shrink-0 cursor-pointer place-items-center rounded-sm opacity-0 group-data-highlighted/project:opacity-100 [&_svg]:size-3.5"
-                        title="Edit project"
-                        aria-label={`Edit ${project.name}`}
+                        className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 -my-0.5 grid size-5 shrink-0 cursor-pointer place-items-center rounded-sm [&_svg]:size-3.5"
+                        title="Configure project"
+                        aria-label={`Configure ${project.name}`}
                         onClick={(event) => {
                           event.stopPropagation()
                           setPicking(false)
                           setEditing(project)
                         }}
                       >
-                        <HugeiconsIcon icon={PencilEdit02Icon} />
+                        <HugeiconsIcon icon={Settings01Icon} />
                       </button>
                     </DropdownMenuRadioItem>
                   )
                 })}
               </DropdownMenuRadioGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setAdding(true)}>
+              <DropdownMenuItem
+                className="pl-8"
+                onSelect={() => setAdding(true)}
+              >
                 <HugeiconsIcon icon={Add01Icon} />
                 Add project…
               </DropdownMenuItem>
@@ -268,30 +310,20 @@ export function Sidebar(props: {
                   No threads yet
                 </li>
               )}
-            {archived.length > 0 && (
-              <li className="mx-0.5 mt-auto h-8 pt-2">
-                <button
-                  aria-expanded={archivedOpen}
-                  className="text-sidebar-muted-foreground/60 flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs font-medium"
-                  onClick={() => setArchivedOpen(!archivedOpen)}
-                >
-                  <span className="shrink-0">
-                    {archivedOpen
-                      ? 'Archived'
-                      : `Archived (${archived.length})`}
-                  </span>
-                  <span className="bg-sidebar-border/60 h-px min-w-2 flex-1" />
-                  <HugeiconsIcon
-                    icon={ChevronDownIcon}
-                    className={cn(
-                      'size-3 shrink-0 transition-transform',
-                      !archivedOpen && 'rotate-180'
-                    )}
-                  />
-                </button>
-              </li>
+            {section(
+              'Minimized',
+              minimized,
+              minimizedOpen,
+              () => setMinimizedOpen(!minimizedOpen),
+              true
             )}
-            {archivedOpen && archived.map((session) => row(session, true))}
+            {section(
+              'Inactive',
+              inactive,
+              inactiveOpen,
+              () => setInactiveOpen(!inactiveOpen),
+              minimized.length === 0
+            )}
           </ul>
         </nav>
         <div className="flex shrink-0 items-center gap-1 px-(--sidebar-content-inset) pb-(--sidebar-content-inset)">

@@ -3,7 +3,9 @@ import {
   Cancel01Icon,
   Folder01Icon,
   Home07Icon,
+  Image01Icon,
   Search01Icon,
+  Upload04Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Directories, Project } from '@server/protocol'
@@ -26,6 +28,8 @@ import { projectName } from '@/lib/format'
 import { errorMessage } from '@/lib/utils'
 import { addProject, removeProject, updateProject } from '@/projects'
 import { readBase64 } from '@/upload'
+
+const IMAGE_FILE = /\.(png|jpe?g|gif|webp|svg)$/i
 
 export function FolderDialog(props: {
   onClose: () => void
@@ -188,6 +192,7 @@ export function EditProjectDialog(props: {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [picking, setPicking] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
 
   return (
@@ -218,31 +223,51 @@ export function EditProjectDialog(props: {
               {path}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center gap-4">
-            <ProjectBadge
-              name={name.trim() === '' ? projectName(path) : name}
-              logo={logo}
-              className="size-12 [&>img]:rounded-xl [&>svg]:rounded-xl"
-            />
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => picker.current?.click()}
-              >
-                {logo === null ? 'Add icon' : 'Change icon'}
-              </Button>
-              {logo !== null && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setLogo(null)}
-                >
-                  Remove icon
-                </Button>
-              )}
+          <div className="grid gap-2">
+            <Label>Icon</Label>
+            <div className="flex items-center gap-3">
+              <ProjectBadge
+                name={name.trim() === '' ? projectName(path) : name}
+                logo={logo}
+                className="size-12 [&>img]:rounded-xl [&>svg]:rounded-xl"
+              />
+              <div className="grid gap-1.5">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    title="Upload an image from this device"
+                    onClick={() => picker.current?.click()}
+                  >
+                    <HugeiconsIcon icon={Upload04Icon} />
+                    Upload
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    title="Choose an image from the project on the server"
+                    onClick={() => setPicking(true)}
+                  >
+                    <HugeiconsIcon icon={Folder01Icon} />
+                    Choose from project
+                  </Button>
+                  {logo !== null && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setLogo(null)}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  PNG, JPG, GIF, WebP, SVG or ICO, up to 384 KB
+                </p>
+              </div>
             </div>
             <input
               ref={picker}
@@ -298,6 +323,124 @@ export function EditProjectDialog(props: {
             </Button>
           </DialogFooter>
         </form>
+        {picking && (
+          <IconPickerDialog
+            cwd={path}
+            onClose={() => setPicking(false)}
+            onPick={(next) => {
+              setLogo(next)
+              setPicking(false)
+            }}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function IconPickerDialog(props: {
+  cwd: string
+  onClose: () => void
+  onPick: (logo: string) => void
+}) {
+  const [files, setFiles] = useState<string[] | null>(null)
+  const [search, setSearch] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const images = files?.filter(
+    (file) =>
+      IMAGE_FILE.test(file) && file.toLowerCase().includes(search.toLowerCase())
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const next = await call('files.list', { cwd: props.cwd })
+        if (!cancelled) setFiles(next)
+      } catch (failure) {
+        if (!cancelled) setError(errorMessage(failure))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [props.cwd])
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) props.onClose()
+      }}
+    >
+      <DialogContent
+        className="gap-0 overflow-hidden p-0 sm:max-w-lg"
+        showCloseButton={false}
+        aria-describedby={undefined}
+      >
+        <DialogTitle className="sr-only">Pick icon</DialogTitle>
+        <div className="flex items-center gap-1 border-b p-1">
+          <label className="flex h-7 min-w-0 flex-1 items-center gap-2.5 px-2">
+            <HugeiconsIcon
+              icon={Search01Icon}
+              className="text-muted-foreground size-4 flex-none"
+            />
+            <input
+              className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-sm outline-none"
+              placeholder="Search images in this project"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Close">
+              <HugeiconsIcon icon={Cancel01Icon} />
+            </Button>
+          </DialogClose>
+        </div>
+        <div className="h-72 overflow-y-auto p-1">
+          {images?.map((file) => (
+            <button
+              key={file}
+              className="hover:bg-muted flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors"
+              onClick={async () => {
+                try {
+                  const preview = await call('files.read', {
+                    cwd: props.cwd,
+                    path: file,
+                  })
+                  if (preview.kind === 'image')
+                    props.onPick(
+                      `data:${preview.mediaType};base64,${preview.data}`
+                    )
+                  else if (preview.kind === 'large')
+                    setError(`${file} is too large`)
+                  else setError(`${file} is not an image`)
+                } catch (failure) {
+                  setError(errorMessage(failure))
+                }
+              }}
+            >
+              <HugeiconsIcon
+                icon={Image01Icon}
+                className="text-muted-foreground size-4 flex-none"
+              />
+              <span className="truncate font-mono text-xs">{file}</span>
+            </button>
+          ))}
+          {images?.length === 0 && (
+            <p className="text-muted-foreground grid h-full place-items-center text-sm">
+              {search === ''
+                ? 'No images in this project'
+                : 'No matching images'}
+            </p>
+          )}
+        </div>
+        {error !== null && (
+          <p className="text-destructive border-t px-3 py-2 text-sm break-all">
+            {error}
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   )

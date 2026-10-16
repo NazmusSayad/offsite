@@ -69,21 +69,46 @@ export function turnRows(
   const turnKey = turn.prompt?.uuid ?? 'start'
   const segments = turn.items.flatMap(segmentsOf)
 
-  if (turn.prompt !== null && turn.prompt.type !== 'notice')
-    rows.push(
-      turn.prompt.content.some(
-        (block) =>
-          block.type === 'text' &&
-          block.text.startsWith('[Request interrupted by user')
-      )
-        ? { kind: 'notice', key: turn.prompt.uuid, text: 'Interrupted' }
-        : {
-            kind: 'user',
-            key: turn.prompt.uuid,
-            message: turn.prompt,
-            first: turn.first,
-          }
+  if (turn.prompt !== null && turn.prompt.type !== 'notice') {
+    const prompt = turn.prompt
+    const notifications = prompt.content.flatMap((block) =>
+      block.type === 'text' && block.text.startsWith('<task-notification>')
+        ? [block.text]
+        : []
     )
+    const summaries = notifications.flatMap((notification) =>
+      [
+        ...notification.matchAll(
+          /<task-notification>([\s\S]*?)<\/task-notification>/g
+        ),
+      ].map(
+        (match) =>
+          /<summary>([\s\S]*?)<\/summary>/.exec(match[1])?.[1] ??
+          'Background task updated'
+      )
+    )
+    for (const [index, summary] of summaries.entries())
+      rows.push({
+        kind: 'notice',
+        key: `${prompt.uuid}:${index}`,
+        text: summary,
+      })
+    if (notifications.length === 0)
+      rows.push(
+        prompt.content.some(
+          (block) =>
+            block.type === 'text' &&
+            block.text.startsWith('[Request interrupted by user')
+        )
+          ? { kind: 'notice', key: prompt.uuid, text: 'Interrupted' }
+          : {
+              kind: 'user',
+              key: prompt.uuid,
+              message: prompt,
+              first: turn.first,
+            }
+      )
+  }
 
   for (const segment of segments) {
     const previous = rows.at(-1)

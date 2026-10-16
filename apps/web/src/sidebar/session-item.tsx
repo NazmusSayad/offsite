@@ -1,13 +1,14 @@
 import {
-  ArchiveIcon,
-  ArchiveRestoreIcon,
   CircleCheckIcon,
   CircleDashedIcon,
   Delete02Icon,
   EllipsisIcon,
+  MaximizeIcon,
+  MinimizeIcon,
   PencilIcon,
   PinIcon,
   PinOffIcon,
+  Plug01Icon,
   ShieldQuestionMarkIcon,
   SquarePenIcon,
 } from '@hugeicons/core-free-icons'
@@ -81,28 +82,42 @@ export function SessionItem(props: {
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() =>
-            void editSession(session.id, { pinned: !session.pinned })
+            void editSession(session.id, {
+              status: session.status === 'pinned' ? 'active' : 'pinned',
+            })
           }
         >
-          {session.pinned ? (
+          {session.status === 'pinned' ? (
             <HugeiconsIcon icon={PinOffIcon} />
           ) : (
             <HugeiconsIcon icon={PinIcon} />
           )}
-          {session.pinned ? 'Unpin' : 'Pin'}
+          {session.status === 'pinned' ? 'Unpin' : 'Pin'}
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() =>
-            void editSession(session.id, { archived: !session.archived })
+            void editSession(session.id, {
+              status: session.status === 'minimized' ? 'active' : 'minimized',
+            })
           }
         >
-          {session.archived ? (
-            <HugeiconsIcon icon={ArchiveRestoreIcon} />
+          {session.status === 'minimized' ? (
+            <HugeiconsIcon icon={MaximizeIcon} />
           ) : (
-            <HugeiconsIcon icon={ArchiveIcon} />
+            <HugeiconsIcon icon={MinimizeIcon} />
           )}
-          {session.archived ? 'Unarchive' : 'Archive'}
+          {session.status === 'minimized' ? 'Restore' : 'Minimize'}
         </DropdownMenuItem>
+        {session.status !== 'inactive' && (
+          <DropdownMenuItem
+            onSelect={() =>
+              void editSession(session.id, { status: 'inactive' })
+            }
+          >
+            <HugeiconsIcon icon={Plug01Icon} />
+            Make inactive
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
@@ -224,7 +239,7 @@ export function SessionItem(props: {
           <div className="flex h-6 min-w-0 items-center gap-2">
             <ProjectIcon cwd={session.cwd} className="size-5" />
             {titleText}
-            {session.pinned && (
+            {session.status === 'pinned' && (
               <HugeiconsIcon
                 icon={PinIcon}
                 className="text-muted-foreground/65 size-3 shrink-0"
@@ -295,14 +310,17 @@ export function SessionItem(props: {
             <div className="flex h-6 items-center">
               <button
                 className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
-                title="Archive"
-                aria-label="Archive"
+                title="Make inactive"
+                aria-label="Make inactive"
                 onClick={(event) => {
                   event.stopPropagation()
-                  void editSession(session.id, { archived: true })
+                  void editSession(session.id, { status: 'inactive' })
                 }}
               >
-                <HugeiconsIcon icon={ArchiveIcon} className="size-3.5" />
+                <HugeiconsIcon
+                  icon={Plug01Icon}
+                  className="size-3.5 scale-160"
+                />
               </button>
             </div>
             <div className="mt-1 flex h-5 items-center">{menu}</div>

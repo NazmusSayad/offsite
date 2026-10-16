@@ -34,6 +34,7 @@ import { open, rewind, send } from './runs.ts'
 import {
   fork,
   publishSessions,
+  recordInteraction,
   removeSession,
   sessions,
   updateSession,
@@ -118,6 +119,10 @@ const handlers: Handlers = {
     runs.get(params.sessionId)?.unqueue(params.id)
     return null
   },
+  'sessions.steer': (params) => {
+    runs.get(params.sessionId)?.steer(params.id)
+    return null
+  },
   'sessions.interrupt': async (params) => {
     await runs.get(params.sessionId)?.query.interrupt()
     return null
@@ -131,9 +136,10 @@ const handlers: Handlers = {
     return null
   },
   'sessions.respond': (params) => {
-    runs
-      .get(params.sessionId)
-      ?.respond(params.requestId, params.decision, params.answers)
+    const run = runs.get(params.sessionId)
+    if (run === undefined) return null
+    run.respond(params.requestId, params.decision, params.answers)
+    recordInteraction(params.sessionId)
     return null
   },
   'sessions.rewind': (params) => rewind(params),

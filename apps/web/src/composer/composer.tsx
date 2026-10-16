@@ -1,4 +1,4 @@
-import { ListPlusIcon, XIcon } from '@hugeicons/core-free-icons'
+import { ArrowUp02Icon, ListPlusIcon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Delivery, Message } from '@server/protocol'
 import { useEffect, useRef, useState } from 'react'
@@ -18,6 +18,7 @@ import {
   sendPrompt,
   setDraft,
   showError,
+  steer,
   unqueue,
   selectedRunning,
   useStore,
@@ -208,7 +209,7 @@ export function Composer() {
               {queue.map((item) => (
                 <div
                   key={item.id}
-                  className="grid min-h-6 grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-x-1"
+                  className="grid min-h-6 grid-cols-[1.5rem_minmax(0,1fr)_auto_auto] items-center gap-x-1"
                 >
                   <HugeiconsIcon
                     icon={ListPlusIcon}
@@ -219,6 +220,14 @@ export function Composer() {
                       ? `${item.prompt.images.length} image(s)`
                       : item.prompt.text}
                   </span>
+                  <Button
+                    variant="ghost-muted"
+                    size="icon-xs"
+                    title="Send now"
+                    onClick={() => steer(item.id)}
+                  >
+                    <HugeiconsIcon icon={ArrowUp02Icon} />
+                  </Button>
                   <Button
                     variant="ghost-muted"
                     size="icon-xs"

@@ -133,6 +133,13 @@ export class Run {
     this.publishQueue()
   }
 
+  steer(id: string) {
+    const item = this.queue.find((queued) => queued.id === id)
+    if (item === undefined) return
+    this.unqueue(id)
+    this.submit(item.prompt, 'steer')
+  }
+
   async configure(settings: Settings) {
     if (settings.model !== this.settings.model)
       await this.query.setModel(settings.model ?? undefined)

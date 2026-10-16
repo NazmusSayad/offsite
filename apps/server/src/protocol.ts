@@ -18,8 +18,7 @@ export type Session = {
   cwd: string
   branch: string | null
   updatedAt: number
-  pinned: boolean
-  archived: boolean
+  status: 'active' | 'pinned' | 'minimized' | 'inactive'
 }
 
 export type Project = { path: string; name: string; logo: string | null }
@@ -40,8 +39,7 @@ export type Snapshot = ConfigInfo & {
 
 export type SessionPatch = {
   title?: string
-  pinned?: boolean
-  archived?: boolean
+  status?: 'active' | 'pinned' | 'minimized' | 'inactive'
 }
 
 export type Context = {
@@ -297,6 +295,10 @@ export type Methods = {
     result: null
   }
   'sessions.unqueue': {
+    params: { sessionId: string; id: string }
+    result: null
+  }
+  'sessions.steer': {
     params: { sessionId: string; id: string }
     result: null
   }

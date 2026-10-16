@@ -140,6 +140,12 @@ export function unqueue(id: string) {
   call('sessions.unqueue', { sessionId, id }).catch(showError)
 }
 
+export function steer(id: string) {
+  const sessionId = getState().selection?.sessionId
+  if (sessionId === undefined || sessionId === null) return
+  call('sessions.steer', { sessionId, id }).catch(showError)
+}
+
 export function interrupt() {
   const sessionId = getState().selection?.sessionId
   if (sessionId === undefined || sessionId === null) return
