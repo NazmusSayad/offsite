@@ -85,7 +85,7 @@ export async function suggestCommitMessage(
   const prompt = `Write a git commit message for this diff. Reply with only the message: a short summary line, optionally followed by a blank line and a brief body.\n\n${diff}`
   if (provider === 'codex')
     return codexCommitMessage(accountId, cwd, model, prompt)
-  if (provider === 'opencode') return openCodeCommitMessage(model, prompt)
+  if (provider === 'opencode') return openCodeCommitMessage(cwd, model, prompt)
   const conversation = query({
     prompt,
     options: {

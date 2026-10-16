@@ -17,6 +17,9 @@ import { findOpenCode, openCode } from './client.ts'
 import { messageItems } from './items.ts'
 
 const PAGE = 100
+const COMMIT_LIMIT = 2 * 60 * 1000
+
+const temporary = new Set<string>()
 
 export function openCodeAccount(): Account {
   return {
@@ -101,7 +104,7 @@ export async function openCodeSessions(paths: string[]) {
       return found
     })
   )
-  return lists.flat()
+  return lists.flat().filter((session) => !temporary.has(session.id))
 }
 
 export async function openCodeHistory(
@@ -177,11 +180,40 @@ export async function rewindOpenCode(request: Rewind): Promise<RewindResult> {
   return result
 }
 
-export async function openCodeCommitMessage(model: string, prompt: string) {
-  const result = await (
-    await openCode()
-  ).generate.text({ prompt, model: modelRef(model, null) })
-  return { message: result.text.trim() }
+export async function openCodeCommitMessage(
+  cwd: string,
+  model: string,
+  prompt: string
+) {
+  const client = await openCode()
+  const session = await client.session.create({
+    location: { directory: cwd },
+    agent: 'plan',
+    model: modelRef(model, null),
+  })
+  temporary.add(session.id)
+  try {
+    await client.session.prompt({ sessionID: session.id, text: prompt })
+    await client.session.wait(
+      { sessionID: session.id },
+      { signal: AbortSignal.timeout(COMMIT_LIMIT) }
+    )
+    const messages = await allMessages(client, session.id)
+    for (const message of messages.toReversed()) {
+      if (message.type === 'idle' && message.outcome === 'failed')
+        throw new Error(message.error?.message ?? 'OpenCode failed')
+      if (message.type !== 'assistant') continue
+      const text = message.content
+        .flatMap((part) => (part.type === 'text' ? [part.text] : []))
+        .join('')
+        .trim()
+      if (text !== '') return { message: text }
+    }
+    throw new Error('OpenCode did not reply')
+  } finally {
+    await client.session.remove({ sessionID: session.id })
+    temporary.delete(session.id)
+  }
 }
 
 export async function contextOf(
