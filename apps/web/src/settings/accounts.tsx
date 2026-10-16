@@ -2,7 +2,6 @@ import { Delete02Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Account, Config, Provider } from '@server/protocol'
 import { useState } from 'react'
-import { resetLabel, windowName } from '@/accounts/limits'
 import { ProviderIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -184,36 +183,6 @@ export function AccountsPage(props: {
                   </code>
                   .
                 </p>
-              )}
-              {account.limits.map((limit) => (
-                <div key={limit.window} className="flex flex-col gap-1">
-                  <div className="text-muted-foreground flex justify-between text-xs">
-                    <span>
-                      {windowName(limit)}
-                      {limit.utilization !== null &&
-                        ` · ${Math.round(limit.utilization * 100)}% used`}
-                      {limit.rejected && ' · limit reached'}
-                    </span>
-                    <span>{resetLabel(limit)}</span>
-                  </div>
-                  <div className="bg-muted h-1.5 overflow-hidden rounded-full">
-                    <div
-                      className={cn(
-                        'bg-primary h-full',
-                        (limit.rejected || (limit.utilization ?? 0) > 0.8) &&
-                          'bg-destructive'
-                      )}
-                      style={{
-                        width: `${limit.rejected ? 100 : Math.round((limit.utilization ?? 0) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-              {account.limits.length === 0 && (
-                <div className="text-muted-foreground text-xs">
-                  Usage shows up after the first message on this account.
-                </div>
               )}
             </div>
           ))}
