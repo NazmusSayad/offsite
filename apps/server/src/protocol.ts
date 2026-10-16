@@ -243,6 +243,7 @@ export type TaskStatus = 'running' | 'completed' | 'failed' | 'stopped'
 export type Activity = {
   running: boolean
   waiting: boolean
+  prompted: boolean
   tasks: Record<string, TaskStatus>
 }
 

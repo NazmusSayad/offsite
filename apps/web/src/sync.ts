@@ -105,7 +105,10 @@ function receive(event: ServerEvent) {
         (id) =>
           event.activity[id].waiting && state.activity[id]?.waiting !== true
       )
-      notify(finished, 'finished')
+      notify(
+        finished.filter((id) => state.activity[id].prompted),
+        'finished'
+      )
       notify(waiting, 'needs your input')
       update({
         activity: event.activity,

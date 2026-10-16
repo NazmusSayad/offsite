@@ -41,6 +41,7 @@ export function activity() {
     result[run.sessionId] = {
       running: run.running,
       waiting: run.pending.size > 0,
+      prompted: run.prompted,
       tasks: run.tasks,
     }
   return result
@@ -61,6 +62,7 @@ export class Run {
   settings: Settings
   context: Context | null = null
   running = false
+  prompted = false
   backgroundTasks = 0
   tasks: Record<string, TaskStatus> = {}
   private readonly inbox: SDKUserMessage[] = []
@@ -227,6 +229,7 @@ export class Run {
       parent: null,
     })
     this.running = true
+    this.prompted = true
     broadcastActivity()
   }
 
@@ -321,6 +324,7 @@ export class Run {
         switch (message.subtype) {
           case 'init':
             clearTimeout(this.idleTimer)
+            if (!this.running) this.prompted = false
             this.running = true
             broadcastActivity()
             this.updateSettings({
