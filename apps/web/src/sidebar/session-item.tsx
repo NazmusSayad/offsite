@@ -224,30 +224,12 @@ export function SessionItem(props: {
           <div className="flex h-6 min-w-0 items-center gap-2">
             <ProjectIcon cwd={session.cwd} className="size-5" />
             {titleText}
-          </div>
-          <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
-            <span
-              className={cn(
-                'min-w-0 flex-1 truncate',
-                recede ? 'font-normal' : 'font-medium'
-              )}
-            >
-              {projectTitle}
-              {session.branch !== null && (
-                <span className="text-muted-foreground/40 font-normal">
-                  {` | ${session.branch}`}
-                </span>
-              )}
-            </span>
             {session.pinned && (
               <HugeiconsIcon
                 icon={PinIcon}
                 className="text-muted-foreground/65 size-3 shrink-0"
               />
             )}
-            <span className="shrink-0 tabular-nums">
-              {timeAgo(session.updatedAt)}
-            </span>
             {working && (
               <span
                 title={turning ? 'Working' : 'Running in background'}
@@ -282,6 +264,24 @@ export function SessionItem(props: {
               </span>
             )}
           </div>
+          <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
+            <span
+              className={cn(
+                'min-w-0 flex-1 truncate',
+                recede ? 'font-normal' : 'font-medium'
+              )}
+            >
+              {projectTitle}
+              {session.branch !== null && (
+                <span className="text-muted-foreground/40 font-normal">
+                  {` | ${session.branch}`}
+                </span>
+              )}
+            </span>
+            <span className="shrink-0 tabular-nums">
+              {timeAgo(session.updatedAt)}
+            </span>
+          </div>
         </div>
         {props.saved && (
           <div
@@ -292,8 +292,7 @@ export function SessionItem(props: {
                 : 'from-sidebar-row-hover'
             )}
           >
-            <div className="flex h-6 items-center">{menu}</div>
-            <div className="mt-1 flex h-5 items-center">
+            <div className="flex h-6 items-center">
               <button
                 className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
                 title="Archive"
@@ -306,6 +305,7 @@ export function SessionItem(props: {
                 <HugeiconsIcon icon={ArchiveIcon} className="size-3.5" />
               </button>
             </div>
+            <div className="mt-1 flex h-5 items-center">{menu}</div>
           </div>
         )}
       </div>
@@ -329,6 +329,10 @@ export function DraftRow(props: { cwd: string; onSelect: () => void }) {
             <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
               New thread
             </span>
+            <HugeiconsIcon
+              icon={SquarePenIcon}
+              className="text-warning-foreground size-4 shrink-0"
+            />
           </div>
           <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
             <span className="min-w-0 flex-1 truncate font-medium">
@@ -338,10 +342,6 @@ export function DraftRow(props: { cwd: string; onSelect: () => void }) {
               </span>
             </span>
             <span className="shrink-0 tabular-nums">now</span>
-            <HugeiconsIcon
-              icon={SquarePenIcon}
-              className="text-warning-foreground size-4 shrink-0"
-            />
           </div>
         </div>
       </div>
