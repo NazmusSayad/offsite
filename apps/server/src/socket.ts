@@ -14,9 +14,9 @@ import {
   commit,
   createPullRequest,
   gitStatus,
+  projectDiff,
   push,
   suggestCommitMessage,
-  workingDiff,
 } from './git.ts'
 import { agentMessages, earlier, image } from './history.ts'
 import { type Client, clients } from './hub.ts'
@@ -176,7 +176,7 @@ const handlers: Handlers = {
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
   'tasks.output': (params) => taskOutput(params.sessionId, params.path),
   'git.status': (params) => gitStatus(params.cwd),
-  'git.diff': (params) => workingDiff(params.cwd),
+  'git.diff': (params) => projectDiff(params.cwd),
   'git.commit': (params) => commit(params.cwd, params.message),
   'git.push': (params) => push(params.cwd),
   'git.pullRequest': (params) => createPullRequest(params.cwd),

@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { query } from '@anthropic-ai/claude-agent-sdk'
@@ -9,6 +9,7 @@ import type { GitStatus } from './protocol.ts'
 const DIFF_LIMIT = 80_000
 const UNTRACKED_LIMIT = 100
 const NEW_FILE_LIMIT = 256 * 1024
+const REPO_DEPTH = 3
 
 export async function gitStatus(cwd: string): Promise<GitStatus | null> {
   let output
@@ -93,28 +94,19 @@ export async function suggestCommitMessage(
 }
 
 export async function workingDiff(cwd: string) {
-  try {
-    await git(cwd, ['rev-parse', '--is-inside-work-tree'])
-  } catch {
-    throw new Error(`${cwd} is not a git repository`)
-  }
-  const tracked = await git(cwd, [
-    'diff',
-    'HEAD',
-    '--no-color',
-    '--no-ext-diff',
-  ])
-  const untracked = await git(cwd, [
-    'ls-files',
-    '--others',
-    '--exclude-standard',
-  ])
-  const added = untracked.stdout
-    .split('\n')
-    .filter(Boolean)
-    .slice(0, UNTRACKED_LIMIT)
-    .map((file) => newFilePatch(cwd, file))
-  return [tracked.stdout, ...added].join('')
+  if (!(await isRepo(cwd))) throw new Error(`${cwd} is not a git repository`)
+  return repoDiff(cwd, '')
+}
+
+export async function projectDiff(cwd: string) {
+  if (await isRepo(cwd)) return repoDiff(cwd, '')
+  const repos = childRepos(cwd, '', REPO_DEPTH)
+  if (repos.length === 0)
+    throw new Error(`${cwd} is not a git repository and has none inside it`)
+  const diffs = await Promise.all(
+    repos.map((repo) => repoDiff(path.join(cwd, repo), `${repo}/`))
+  )
+  return diffs.join('')
 }
 
 export function git(cwd: string, args: string[]) {
@@ -124,8 +116,75 @@ export function git(cwd: string, args: string[]) {
   })
 }
 
-function newFilePatch(cwd: string, file: string) {
-  const header = `diff --git a/${file} b/${file}\nnew file\n--- /dev/null\n+++ b/${file}\n`
+async function isRepo(cwd: string) {
+  try {
+    await git(cwd, ['rev-parse', '--is-inside-work-tree'])
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function repoDiff(repo: string, prefix: string) {
+  const tracked = await git(repo, [
+    'diff',
+    await diffBase(repo),
+    '--no-color',
+    '--no-ext-diff',
+    `--src-prefix=a/${prefix}`,
+    `--dst-prefix=b/${prefix}`,
+  ])
+  const untracked = await git(repo, [
+    'ls-files',
+    '--others',
+    '--exclude-standard',
+  ])
+  const added = untracked.stdout
+    .split('\n')
+    .filter(Boolean)
+    .slice(0, UNTRACKED_LIMIT)
+    .map((file) => newFilePatch(repo, file, prefix))
+  return [tracked.stdout, ...added].join('')
+}
+
+async function diffBase(repo: string) {
+  try {
+    await git(repo, ['rev-parse', '--verify', '--quiet', 'HEAD'])
+    return 'HEAD'
+  } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 1))
+      throw error
+  }
+  const empty = await git(repo, ['hash-object', '-t', 'tree', '/dev/null'])
+  return empty.stdout.trim()
+}
+
+function childRepos(root: string, dir: string, depth: number): string[] {
+  if (depth === 0) return []
+  let entries
+  try {
+    entries = readdirSync(path.join(root, dir), { withFileTypes: true })
+  } catch {
+    return []
+  }
+  return entries
+    .filter(
+      (entry) =>
+        entry.isDirectory() &&
+        !entry.name.startsWith('.') &&
+        entry.name !== 'node_modules'
+    )
+    .flatMap((entry) => {
+      const relative = dir === '' ? entry.name : `${dir}/${entry.name}`
+      return existsSync(path.join(root, relative, '.git'))
+        ? [relative]
+        : childRepos(root, relative, depth - 1)
+    })
+}
+
+function newFilePatch(cwd: string, file: string, prefix: string) {
+  const name = `${prefix}${file}`
+  const header = `diff --git a/${name} b/${name}\nnew file\n--- /dev/null\n+++ b/${name}\n`
   const full = path.join(cwd, file)
   if (statSync(full).size > NEW_FILE_LIMIT)
     return `${header}Binary or large file\n`
