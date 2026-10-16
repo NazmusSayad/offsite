@@ -27,17 +27,22 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn, isMac, mod } from '@/lib/utils'
+import { updateConfig } from '@/machine-config'
+import { defaultPrefs } from '@/prefs'
 import {
+  machineOf,
   type SettingsPage,
   showSettings,
   showSettingsPage,
-  updateConfig,
+  update,
+  updatePrefs,
   useStore,
 } from '@/store'
 import { AccountsPage } from './accounts'
 import { Row, Section } from './controls'
+import { MachinesPage } from './machines'
 import { BellSection, NotificationSection } from './sections'
-import { TerminalPage } from './terminal'
+import { TerminalLookPage, TerminalMachinePage } from './terminal'
 
 const terminalMod = isMac ? '⌘' : 'Ctrl+Shift'
 
@@ -46,16 +51,17 @@ const pages: SettingsPage[] = [
   'Terminal',
   'Notifications',
   'Accounts',
+  'Machines',
   'Shortcuts',
 ]
 
 const shortcuts = [
-  ['Enter', 'Send, or queue while Claude works'],
+  ['Enter', 'Send, or queue while the agent works'],
   [`${mod}+Enter`, 'Send now, steering the current turn'],
   ['Shift+Enter', 'New line'],
   ['↑', 'Recall your last message'],
   ['Shift+Tab', 'Cycle permission mode'],
-  ['Esc', 'Stop Claude'],
+  ['Esc', 'Stop the agent'],
   ['/', 'Slash commands'],
   ['@', 'Mention a file'],
   [`${mod}+K`, 'Search sessions and actions'],
@@ -71,10 +77,13 @@ const shortcuts = [
 
 export function SettingsDialog() {
   const open = useStore((state) => state.settingsOpen)
-  const config = useStore((state) => state.config)
-  const configError = useStore((state) => state.configError)
-  const system = useStore((state) => state.system)
+  const prefs = useStore((state) => state.prefs)
+  const machines = useStore((state) => state.machines)
+  const machine = useStore((state) => machineOf(state, state.settingsMachine))
+  const config = machine.config
+  const system = machine.system
   const page = useStore((state) => state.settingsPage)
+  const machinePage = page === 'Terminal' || page === 'Accounts'
   const [confirming, setConfirming] = useState(false)
   const [revision, setRevision] = useState(0)
 
@@ -129,9 +138,34 @@ export function SettingsDialog() {
               </Button>
             </DialogClose>
           </div>
-          {configError !== null && (
+          {machinePage && machines.length > 1 && (
+            <div className="mb-5">
+              <Section title="Machine">
+                <Row label="Settings of">
+                  <Select
+                    value={machine.origin}
+                    onValueChange={(settingsMachine) =>
+                      update({ settingsMachine })
+                    }
+                  >
+                    <SelectTrigger className="w-56">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {machines.map((item) => (
+                        <SelectItem key={item.origin} value={item.origin}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Row>
+              </Section>
+            </div>
+          )}
+          {machinePage && machine.configError !== null && (
             <p className="text-destructive mb-5 text-sm whitespace-pre-wrap">
-              Not saved: {configError}
+              Not saved: {machine.configError}
             </p>
           )}
           <div key={revision} className="w-full space-y-5">
@@ -139,10 +173,8 @@ export function SettingsDialog() {
               <Section title="Appearance">
                 <Row label="Theme">
                   <Select
-                    value={config.theme}
-                    onValueChange={(theme) =>
-                      updateConfig({ ...config, theme })
-                    }
+                    value={prefs.theme}
+                    onValueChange={(theme) => updatePrefs({ ...prefs, theme })}
                   >
                     <SelectTrigger className="w-56">
                       <SelectValue />
@@ -158,31 +190,47 @@ export function SettingsDialog() {
                 </Row>
               </Section>
             )}
-            {page === 'Terminal' && (
-              <TerminalPage
+            {page === 'Terminal' && config !== null && system !== null && (
+              <TerminalMachinePage
+                key={machine.origin}
+                machine={machine.origin}
                 config={config}
                 platform={system.platform}
                 defaultShell={system.defaultShell}
               />
             )}
+            {machinePage && (config === null || system === null) && (
+              <p className="text-muted-foreground text-sm">
+                {machine.name} is not connected. Its settings show up once it
+                is.
+              </p>
+            )}
+            {page === 'Terminal' && <TerminalLookPage prefs={prefs} />}
             {page === 'Notifications' && (
               <>
                 <NotificationSection />
                 <BellSection
-                  behavior={config.terminal.behavior}
+                  behavior={prefs.terminal.behavior}
                   onChange={(value) =>
-                    updateConfig({
-                      ...config,
+                    updatePrefs({
+                      ...prefs,
                       terminal: {
-                        ...config.terminal,
-                        behavior: { ...config.terminal.behavior, ...value },
+                        ...prefs.terminal,
+                        behavior: { ...prefs.terminal.behavior, ...value },
                       },
                     })
                   }
                 />
               </>
             )}
-            {page === 'Accounts' && <AccountsPage />}
+            {page === 'Accounts' && config !== null && (
+              <AccountsPage
+                machine={machine.origin}
+                config={config}
+                accounts={machine.accounts}
+              />
+            )}
+            {page === 'Machines' && <MachinesPage />}
             {page === 'Shortcuts' && (
               <Section title="Keyboard shortcuts">
                 {shortcuts.map(([keys, action]) => (
@@ -201,9 +249,10 @@ export function SettingsDialog() {
             <AlertDialogHeader>
               <AlertDialogTitle>Restore defaults?</AlertDialogTitle>
               <AlertDialogDescription>
-                Every setting, including the theme, the defaults for new threads
-                and the terminal shell for all platforms, goes back to its
-                default.
+                The theme and terminal look of this browser go back to their
+                defaults, and so do the settings of {machine.name}, including
+                the defaults for new threads and the terminal shell for all
+                platforms.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -212,7 +261,9 @@ export function SettingsDialog() {
                 variant="destructive"
                 onClick={() => {
                   setRevision(revision + 1)
-                  updateConfig(system.defaults)
+                  updatePrefs(defaultPrefs)
+                  if (system !== null)
+                    updateConfig(machine.origin, system.defaults)
                 }}
               >
                 Restore defaults

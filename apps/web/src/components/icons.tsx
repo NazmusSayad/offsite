@@ -1,3 +1,6 @@
+import { ChatGptIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
+import type { Provider } from '@server/protocol'
 import { projectName } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/store'
@@ -23,9 +26,15 @@ const colors = [
   'text-rose-600 dark:text-rose-400',
 ]
 
-export function ProjectIcon(props: { cwd: string; className?: string }) {
+export function ProjectIcon(props: {
+  machine: string
+  cwd: string
+  className?: string
+}) {
   const project = useStore((state) =>
-    state.projects.find((item) => item.path === props.cwd)
+    state.projects.find(
+      (item) => item.machine === props.machine && item.path === props.cwd
+    )
   )
   return (
     <ProjectBadge
@@ -96,6 +105,33 @@ export function ProjectBadge(props: {
         </svg>
       )}
     </span>
+  )
+}
+
+export function ProviderIcon(props: {
+  provider: Provider
+  className?: string
+}) {
+  switch (props.provider) {
+    case 'claude':
+      return <ClaudeIcon className={props.className} />
+    case 'codex':
+      return <HugeiconsIcon icon={ChatGptIcon} className={props.className} />
+    case 'opencode':
+      return <OpenCodeIcon className={props.className} />
+  }
+}
+
+export function OpenCodeIcon(props: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 240 300"
+      aria-hidden="true"
+      className={cn('fill-current', props.className)}
+    >
+      <path d="M180 240H60V120H180V240Z" opacity="0.4" />
+      <path d="M180 60H60V240H180V60ZM240 300H0V0H240V300Z" />
+    </svg>
   )
 }
 

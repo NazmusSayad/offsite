@@ -1,121 +1,113 @@
-import type { Block } from '@server/protocol'
+import type { Item } from '@server/protocol'
 import { diffLines } from 'diff'
 import { cn } from '@/lib/utils'
 import { Markdown } from '@/markdown/markdown'
 
-export type ToolUse = Extract<Block, { type: 'tool_use' }>
+export type WorkItem = Extract<
+  Item,
+  {
+    kind:
+      | 'reasoning'
+      | 'command'
+      | 'file_change'
+      | 'web_search'
+      | 'skill'
+      | 'tool'
+  }
+>
 
-export type ToolResult = Extract<Block, { type: 'tool_result' }>
+export type FileChangeItem = Extract<Item, { kind: 'file_change' }>
 
-export type WorkEntry =
-  | { kind: 'thinking'; key: string; text: string }
-  | { kind: 'tool'; key: string; tool: ToolUse }
-
-type Todo = { content: string; status: 'pending' | 'in_progress' | 'completed' }
-
-type Edit = { old_string: string; new_string: string }
-
-export function ToolDetails(props: { tool: ToolUse }) {
-  const input = props.tool.input
-  switch (props.tool.name) {
-    case 'Bash':
-      return <Code text={`$ ${text(input.command)}`} />
-    case 'Edit':
-      return (
-        <Diff before={text(input.old_string)} after={text(input.new_string)} />
-      )
-    case 'MultiEdit':
+export function ToolDetails(props: { item: Item }) {
+  const item = props.item
+  switch (item.kind) {
+    case 'command':
+      return <Code text={`$ ${item.command}`} />
+    case 'file_change':
       return (
         <div className="flex flex-col gap-2">
-          {(input.edits as Edit[]).map((edit, index) => (
-            <Diff
-              key={index}
-              before={edit.old_string}
-              after={edit.new_string}
-            />
+          {item.diffs.map((diff, index) => (
+            <Diff key={index} before={diff.before} after={diff.after} />
           ))}
         </div>
       )
-    case 'Write':
-      return <Diff before="" after={text(input.content)} />
-    case 'TodoWrite':
+    case 'todo_list':
       return (
         <ul className="flex flex-col gap-1 text-sm">
-          {(input.todos as Todo[]).map((todo, index) => (
+          {item.steps.map((step, index) => (
             <li
               key={index}
               className={cn(
                 'text-secondary-label',
-                todo.status === 'completed' &&
+                step.status === 'completed' &&
                   'text-muted-foreground line-through',
-                todo.status === 'in_progress' && 'text-foreground'
+                step.status === 'running' && 'text-foreground'
               )}
             >
-              {todo.status === 'completed' ? '☑' : '☐'} {todo.content}
+              {step.status === 'completed' ? '☑' : '☐'} {step.text}
             </li>
           ))}
         </ul>
       )
-    case 'ExitPlanMode':
-      return <Markdown text={text(input.plan)} />
-    case 'Read':
-    case 'Glob':
-    case 'Grep':
-    case 'WebFetch':
-    case 'WebSearch':
-      return null
+    case 'plan':
+      return <Markdown text={item.plan} />
+    case 'tool':
+      return toolKind(item.name) === 'other' ? (
+        <Code text={JSON.stringify(item.input, null, 2)} />
+      ) : null
     default:
-      return <Code text={JSON.stringify(input, null, 2)} />
+      return null
   }
 }
 
-export function summary(tool: ToolUse, cwd: string) {
-  const input = tool.input
-  switch (tool.name) {
-    case 'Bash':
-      return text(input.command)
-    case 'Read':
-    case 'Edit':
-    case 'MultiEdit':
-    case 'Write':
-      return relative(text(input.file_path), cwd)
-    case 'NotebookEdit':
-      return relative(text(input.notebook_path), cwd)
-    case 'Grep':
-    case 'Glob':
-      return text(input.pattern)
-    case 'WebFetch':
-      return text(input.url)
-    case 'WebSearch':
-      return text(input.query)
-    case 'Task':
-    case 'Agent':
-      return text(input.description)
-    case 'Skill':
-      return text(input.skill)
+export function summary(item: Item, cwd: string) {
+  switch (item.kind) {
+    case 'command':
+      return item.command
+    case 'file_change':
+      return relative(item.path, cwd)
+    case 'web_search':
+      return item.url ?? item.query ?? ''
+    case 'subagent':
+      return item.description
+    case 'skill':
+      return item.skill
+    case 'tool': {
+      const kind = toolKind(item.name)
+      if (kind === 'read') return relative(readPath(item.input), cwd)
+      if (kind === 'search') return text(item.input.pattern)
+      return ''
+    }
     default:
       return ''
   }
 }
 
-export function editStats(tool: ToolUse) {
-  const input = tool.input
-  const pairs =
-    tool.name === 'Edit'
-      ? [{ before: text(input.old_string), after: text(input.new_string) }]
-      : tool.name === 'MultiEdit'
-        ? (input.edits as Edit[]).map((edit) => ({
-            before: edit.old_string,
-            after: edit.new_string,
-          }))
-        : tool.name === 'Write'
-          ? [{ before: '', after: text(input.content) }]
-          : null
-  if (pairs === null) return null
+export function toolKind(name: string) {
+  switch (name.toLowerCase()) {
+    case 'read':
+      return 'read'
+    case 'grep':
+    case 'glob':
+      return 'search'
+    default:
+      return 'other'
+  }
+}
+
+export function readPath(input: Record<string, unknown>) {
+  return (
+    [input.file_path, input.filePath, input.path]
+      .map(text)
+      .find((value) => value !== '') ?? ''
+  )
+}
+
+export function editStats(item: FileChangeItem) {
   let added = 0
   let removed = 0
-  for (const pair of pairs)
-    for (const part of diffLines(pair.before, pair.after)) {
+  for (const diff of item.diffs)
+    for (const part of diffLines(diff.before, diff.after)) {
       if (part.added) added += part.count
       if (part.removed) removed += part.count
     }
@@ -153,18 +145,6 @@ export function Diff(props: { before: string; after: string }) {
       )}
     </pre>
   )
-}
-
-export function resultText(result: ToolResult) {
-  return result.content
-    .flatMap((block) => (block.type === 'text' ? [block.text] : []))
-    .join('\n')
-}
-
-export function editedFile(tool: ToolUse) {
-  return tool.name === 'NotebookEdit'
-    ? text(tool.input.notebook_path)
-    : text(tool.input.file_path)
 }
 
 export function text(value: unknown) {

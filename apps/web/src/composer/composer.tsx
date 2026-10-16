@@ -5,16 +5,17 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Delivery, Message } from '@server/protocol'
+import type { Delivery, Item } from '@server/protocol'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ComposerMenu, type Suggestion } from '@/composer/composer-menu'
 import { editDraft, useDraft } from '@/composer/drafts'
-import { MoreMenu, modes } from '@/composer/more-menu'
+import { MoreMenu, providerModes } from '@/composer/more-menu'
 import { PermissionPrompt } from '@/composer/permission-prompt'
 import { Pickers } from '@/composer/pickers'
 import { call } from '@/connection'
 import { cn, mod } from '@/lib/utils'
+import { home, machineKey } from '@/machines'
 import { useProjectName } from '@/projects'
 import {
   changeSettings,
@@ -37,7 +38,7 @@ export function Composer() {
   const selection = useStore((state) => state.selection)
   const loaded = useStore((state) => state.loaded)
   const blank = useStore(
-    (state) => state.messages.length === 0 && state.partial === ''
+    (state) => state.items.length === 0 && state.partial === ''
   )
   const requests = useStore((state) => state.requests)
   const queue = useStore((state) => state.queue)
@@ -51,13 +52,14 @@ export function Composer() {
   const [files, setFiles] = useState<string[]>([])
   const input = useRef<HTMLTextAreaElement>(null)
   const picker = useRef<HTMLInputElement>(null)
+  const machine = selection?.machine ?? home
   const cwd = selection?.cwd ?? ''
-  const key = selection?.sessionId ?? cwd
+  const key = machineKey(machine, selection?.sessionId ?? cwd)
   const stored = useDraft(key)
   const text = stored.text
   const images = stored.images
   const [caret, setCaret] = useState(text.length)
-  const projectTitle = useProjectName(cwd)
+  const projectTitle = useProjectName(machine, cwd)
   const running = useStore(selectedRunning)
   const hero = loaded && blank && !running
   const request = requests.at(0)
@@ -78,8 +80,8 @@ export function Composer() {
   }, [draft, key])
 
   useEffect(() => {
-    call('files.list', { cwd }).then(setFiles, showError)
-  }, [cwd])
+    call(machine, 'files.list', { cwd }).then(setFiles, showError)
+  }, [machine, cwd])
 
   const before = text.slice(0, caret)
   const trigger =
@@ -150,10 +152,11 @@ export function Composer() {
   }
 
   function cycleMode() {
-    const index = modes.findIndex(
-      (mode) => mode.value === getState().settings.permissionMode
-    )
-    changeSettings({ permissionMode: modes[(index + 1) % modes.length].value })
+    const settings = getState().settings
+    const list = providerModes(settings.provider, getState().capabilities)
+    if (list.length === 0) return
+    const index = list.findIndex((mode) => mode.value === settings.mode)
+    changeSettings({ mode: list[(index + 1) % list.length].value })
   }
 
   async function attach(list: File[]) {
@@ -168,7 +171,7 @@ export function Composer() {
       }
       setUploads((count) => count + 1)
       try {
-        const path = await uploadFile(file)
+        const path = await uploadFile(machine, file)
         editDraft(key, (current) => ({
           ...current,
           text:
@@ -249,6 +252,7 @@ export function Composer() {
             <PermissionPrompt
               key={request.id}
               request={request}
+              machine={machine}
               cwd={cwd}
               count={requests.length}
             />
@@ -265,7 +269,7 @@ export function Composer() {
             className={cn(
               'composer-glass shadow-composer relative z-10 border border-(--composer-outline) dark:shadow-none',
               hero ? 'rounded-3xl' : 'rounded-t-3xl border-b-0',
-              request?.toolName === 'AskUserQuestion' && 'hidden'
+              request?.kind === 'question' && 'hidden'
             )}
             onMouseDown={(event) => {
               if (!(event.target instanceof Element)) return
@@ -379,7 +383,7 @@ export function Composer() {
                     return
                   }
                   if (event.key === 'ArrowUp' && text === '') {
-                    const last = lastUserText(getState().messages)
+                    const last = lastUserText(getState().items)
                     if (last === null) return
                     event.preventDefault()
                     edit(last, last.length)
@@ -389,7 +393,7 @@ export function Composer() {
                 }}
                 placeholder={
                   noAccount
-                    ? 'Add a Claude account in Settings → Accounts to start'
+                    ? 'Add an account in Settings → Accounts to start'
                     : running
                       ? `Queue a follow-up… (${mod}+Enter to send now)`
                       : 'Ask anything, @tag files/folders, or / for commands'
@@ -491,14 +495,16 @@ export function Composer() {
   )
 }
 
-function lastUserText(messages: Message[]) {
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const message = messages[index]
-    if (message.type !== 'user') continue
-    const block = message.content.find(
-      (item) => item.type === 'text' && !item.text.startsWith('<')
+function lastUserText(items: Item[]) {
+  for (let index = items.length - 1; index >= 0; index--) {
+    const item = items[index]
+    if (
+      item.kind === 'user' &&
+      item.parent === null &&
+      item.format === 'text' &&
+      item.text !== ''
     )
-    if (block?.type === 'text') return block.text
+      return item.text
   }
   return null
 }

@@ -7,47 +7,103 @@ import {
   listSessions,
   renameSession,
 } from '@anthropic-ai/claude-agent-sdk'
+import { codexBaseDir } from './codex/app-server.ts'
+import {
+  codexThreads,
+  deleteThread,
+  forkThread,
+  renameThread,
+} from './codex/sessions.ts'
 import { readConfig } from './config.ts'
 import { db } from './db.ts'
 import { broadcast } from './hub.ts'
+import { runs } from './live.ts'
+import {
+  forkOpenCode,
+  openCodeSessions,
+  removeOpenCode,
+  renameOpenCode,
+} from './opencode/sessions.ts'
 import { projects } from './projects.ts'
-import type { Session, SessionPatch } from './protocol.ts'
-import { runs } from './run.ts'
+import type { Provider, Session, SessionPatch } from './protocol.ts'
 
 const day = 24 * 60 * 60 * 1000
 
-let watcher: FSWatcher | null = null
+const providers = new Map<string, Provider>()
+let watchers: FSWatcher[] = []
 let timer: NodeJS.Timeout | undefined
 
 export async function sessions(): Promise<Session[]> {
   const records = readRecords()
-  const lists = await Promise.all(
-    projects().map(async (project) =>
-      (
-        await listSessions({
-          dir: project.path,
-          includeWorktrees: false,
-          includeProgrammatic: false,
-        })
-      ).map((item): Session => {
-        const record = records.get(item.sessionId)
-        const updatedAt = record?.interactedAt ?? item.lastModified
-        return {
+  const paths = projects().map((project) => project.path)
+  const [claude, codex, opencode] = await Promise.all([
+    Promise.all(
+      paths.map(async (cwd) =>
+        (
+          await listSessions({
+            dir: cwd,
+            includeWorktrees: false,
+            includeProgrammatic: false,
+          })
+        ).map((item) => ({
           id: item.sessionId,
+          provider: 'claude' as const,
           title: item.summary,
-          cwd: project.path,
+          cwd,
           branch: item.gitBranch ?? null,
-          updatedAt,
-          status:
-            record === undefined ||
-            (record.status === 'active' && Date.now() - updatedAt > day)
-              ? 'inactive'
-              : record.status,
-        }
-      })
-    )
-  )
-  return lists.flat()
+          updatedAt: item.lastModified,
+        }))
+      )
+    ),
+    codexThreads(paths).catch((error: unknown) => {
+      console.warn(`could not list Codex threads: ${error}`)
+      return []
+    }),
+    openCodeSessions(paths).catch((error: unknown) => {
+      console.warn(`could not list OpenCode sessions: ${error}`)
+      return []
+    }),
+  ])
+  const found = [
+    ...claude.flat(),
+    ...codex.map((thread) => ({
+      id: thread.id,
+      provider: 'codex' as const,
+      title: thread.name ?? thread.preview,
+      cwd: thread.cwd,
+      branch: thread.gitInfo?.branch ?? null,
+      updatedAt: thread.updatedAt * 1000,
+    })),
+    ...opencode.map((session) => ({
+      id: session.id,
+      provider: 'opencode' as const,
+      title: session.title ?? 'New session',
+      cwd: session.location.directory,
+      branch: null,
+      updatedAt: session.time.updated,
+    })),
+  ]
+  return found.map((item): Session => {
+    providers.set(item.id, item.provider)
+    const record = records.get(item.id)
+    const updatedAt = record?.interactedAt ?? item.updatedAt
+    return {
+      ...item,
+      updatedAt,
+      status:
+        record === undefined ||
+        (record.status === 'active' && Date.now() - updatedAt > day)
+          ? 'inactive'
+          : record.status,
+    }
+  })
+}
+
+export function providerOf(sessionId: string) {
+  const provider = runs.get(sessionId)?.provider ?? providers.get(sessionId)
+  if (provider === undefined)
+    throw new Error('offsite does not know this session yet, reload the page')
+  return provider
 }
 
 export function recordInteraction(id: string) {
@@ -65,30 +121,43 @@ export async function publishSessions() {
 }
 
 export function watchSessions() {
-  watcher?.close()
-  watcher = null
-  const dir = path.join(readConfig().claudeBaseDir, 'projects')
-  try {
-    watcher = watch(dir, { recursive: true }, () => {
-      timer ??= setTimeout(() => {
-        timer = undefined
-        void publishSessions()
-      }, 1000)
-    })
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-    console.warn(
-      `${dir} does not exist; threads changed outside offsite will not show`
-    )
-    return
-  }
-  watcher.on('error', (error) =>
-    console.warn(`stopped watching ${dir}: ${error}`)
-  )
+  for (const watcher of watchers) watcher.close()
+  watchers = [
+    path.join(readConfig().claudeBaseDir, 'projects'),
+    path.join(codexBaseDir, 'sessions'),
+  ].flatMap((dir) => {
+    try {
+      const watcher = watch(dir, { recursive: true }, refreshSessions)
+      watcher.on('error', (error) =>
+        console.warn(`stopped watching ${dir}: ${error}`)
+      )
+      return [watcher]
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+      return []
+    }
+  })
+}
+
+export function refreshSessions() {
+  timer ??= setTimeout(() => {
+    timer = undefined
+    void publishSessions()
+  }, 1000)
 }
 
 export async function updateSession(id: string, patch: SessionPatch) {
-  if (patch.title !== undefined) await renameSession(id, patch.title)
+  if (patch.title !== undefined)
+    switch (providerOf(id)) {
+      case 'claude':
+        await renameSession(id, patch.title)
+        break
+      case 'codex':
+        await renameThread(id, patch.title)
+        break
+      case 'opencode':
+        await renameOpenCode(id, patch.title)
+    }
   if (patch.status === 'inactive')
     db.prepare('DELETE FROM sessions WHERE session_id = ?').run(id)
   else if (patch.status !== undefined)
@@ -98,16 +167,29 @@ export async function updateSession(id: string, patch: SessionPatch) {
 }
 
 export async function removeSession(id: string) {
+  const provider = providerOf(id)
   const run = runs.get(id)
   if (run !== undefined) {
     run.stop()
     await run.closed
   }
-  await deleteSession(id)
+  switch (provider) {
+    case 'claude':
+      await deleteSession(id)
+      break
+    case 'codex':
+      await deleteThread(id)
+      break
+    case 'opencode':
+      await removeOpenCode(id)
+  }
   db.prepare('DELETE FROM sessions WHERE session_id = ?').run(id)
 }
 
 export async function fork(sessionId: string, cwd: string, messageId: string) {
+  if (providerOf(sessionId) === 'codex') return forkThread(sessionId, messageId)
+  if (providerOf(sessionId) === 'opencode')
+    return forkOpenCode(sessionId, messageId)
   const disk = await getSessionMessages(sessionId, { dir: cwd })
   const index = disk.findIndex((item) => item.uuid === messageId)
   if (index < 0) throw new Error('Cannot fork the session at that point')

@@ -1,6 +1,7 @@
 import {
   Add01Icon,
   ChevronDownIcon,
+  ComputerIcon,
   InboxIcon,
   PanelLeftCloseIcon,
   SearchIcon,
@@ -8,7 +9,6 @@ import {
   SquarePenIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Project, Session } from '@server/protocol'
 import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { ProjectIcon } from '@/components/icons'
@@ -23,9 +23,19 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { projectName } from '@/lib/format'
 import { cn, drag, mod } from '@/lib/utils'
+import { home, machineKey } from '@/machines'
+import { AddMachineDialog } from '@/sidebar/machine-dialog'
 import { EditProjectDialog, FolderDialog } from '@/sidebar/project-dialogs'
 import { DraftRow, SessionItem } from '@/sidebar/session-item'
-import { openSession, showPalette, showSettings, useStore } from '@/store'
+import {
+  activityOf,
+  type MachineProject,
+  type MachineSession,
+  openSession,
+  showPalette,
+  showSettings,
+  useStore,
+} from '@/store'
 
 const iconButton =
   'text-sidebar-muted-foreground/80 hover:bg-sidebar-row-hover hover:text-sidebar-foreground flex shrink-0 cursor-pointer items-center justify-center rounded-[var(--control-radius)] [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-(--sidebar-icon-color) hover:[&>svg]:text-sidebar-foreground'
@@ -36,30 +46,45 @@ export function Sidebar(props: {
   onHide: () => void
 }) {
   const selection = useStore((state) => state.selection)
+  const machines = useStore((state) => state.machines)
   const registered = useStore((state) => state.projects)
   const sessions = useStore((state) => state.sessions)
-  const activity = useStore((state) => state.activity)
+  const provider = useStore((state) => state.settings.provider)
   const unseen = useStore((state) => state.unseen)
-  const [scope, setScope] = useState<string | null>(null)
+  const [scope, setScope] = useState<{ machine: string; path: string } | null>(
+    null
+  )
   const [adding, setAdding] = useState(false)
-  const [editing, setEditing] = useState<Project | null>(null)
+  const [addingMachine, setAddingMachine] = useState(false)
+  const [editing, setEditing] = useState<MachineProject | null>(null)
   const [picking, setPicking] = useState(false)
   const [minimizedOpen, setMinimizedOpen] = useState(false)
   const [inactiveOpen, setInactiveOpen] = useState(false)
   const [width, setWidth] = useState(
     Number(localStorage.getItem('sidebarWidth') ?? 240)
   )
-  const projects = [...registered].sort((a, b) => a.name.localeCompare(b.name))
-  const shown = sessions
-    .filter((session) => scope === null || session.cwd === scope)
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-  const attention = sessions.filter(
-    (session) =>
-      activity[session.id]?.running === true ||
-      activity[session.id]?.waiting === true ||
-      Object.values(activity[session.id]?.tasks ?? {}).includes('running') ||
-      unseen.includes(session.id)
+  const projects = [...registered].sort(
+    (a, b) =>
+      machines.findIndex((item) => item.origin === a.machine) -
+        machines.findIndex((item) => item.origin === b.machine) ||
+      a.name.localeCompare(b.name)
   )
+  const shown = sessions
+    .filter(
+      (session) =>
+        scope === null ||
+        (session.machine === scope.machine && session.cwd === scope.path)
+    )
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+  const attention = sessions.filter((session) => {
+    const activity = activityOf(machines, session.machine, session.id)
+    return (
+      activity?.running === true ||
+      activity?.waiting === true ||
+      Object.values(activity?.tasks ?? {}).includes('running') ||
+      unseen.includes(machineKey(session.machine, session.id))
+    )
+  })
   const active = [
     ...shown.filter((session) => session.status === 'pinned'),
     ...shown.filter((session) => session.status === 'active'),
@@ -69,9 +94,15 @@ export function Sidebar(props: {
   const started =
     selection !== null &&
     selection.sessionId !== null &&
-    !sessions.some((session) => session.id === selection.sessionId)
+    !sessions.some(
+      (session) =>
+        session.machine === selection.machine &&
+        session.id === selection.sessionId
+    )
       ? {
+          machine: selection.machine,
           id: selection.sessionId,
+          provider,
           title: 'New thread',
           cwd: selection.cwd,
           branch: null,
@@ -80,25 +111,37 @@ export function Sidebar(props: {
         }
       : null
 
-  function nameOf(cwd: string) {
+  function nameOf(machine: string, cwd: string) {
     return (
-      registered.find((project) => project.path === cwd)?.name ??
-      projectName(cwd)
+      registered.find(
+        (project) => project.machine === machine && project.path === cwd
+      )?.name ?? projectName(cwd)
     )
   }
 
-  function select(cwd: string, sessionId: string | null) {
-    openSession({ cwd, sessionId })
+  function machineLabel(origin: string) {
+    const machine = machines.find((item) => item.origin === origin)
+    if (machine === undefined) return ''
+    if (machine.status === 'online') return machine.name
+    if (machine.status === 'outdated') return `${machine.name} · needs update`
+    return `${machine.name} · offline`
+  }
+
+  function select(machine: string, cwd: string, sessionId: string | null) {
+    openSession({ machine, cwd, sessionId })
     props.onNavigate()
   }
 
   function startThread() {
-    const cwd = scope ?? selection?.cwd ?? null
-    if (cwd === null) {
-      setAdding(true)
+    if (scope !== null) {
+      select(scope.machine, scope.path, null)
       return
     }
-    select(cwd, null)
+    if (selection !== null) {
+      select(selection.machine, selection.cwd, null)
+      return
+    }
+    setAdding(true)
   }
 
   useHotkeys(['mod+n', 'mod+t'], startThread, {
@@ -115,24 +158,27 @@ export function Sidebar(props: {
     })
   }
 
-  function row(session: Session, slim: boolean) {
+  function row(session: MachineSession, slim: boolean) {
     return (
       <SessionItem
-        key={session.id}
+        key={machineKey(session.machine, session.id)}
         session={session}
         slim={slim}
-        selected={selection?.sessionId === session.id}
-        activity={activity[session.id]}
-        unseen={unseen.includes(session.id)}
+        selected={
+          selection?.machine === session.machine &&
+          selection.sessionId === session.id
+        }
+        activity={activityOf(machines, session.machine, session.id)}
+        unseen={unseen.includes(machineKey(session.machine, session.id))}
         saved={session !== started}
-        onSelect={() => select(session.cwd, session.id)}
+        onSelect={() => select(session.machine, session.cwd, session.id)}
       />
     )
   }
 
   function section(
     label: string,
-    items: Session[],
+    items: MachineSession[],
     open: boolean,
     onToggle: () => void,
     first: boolean
@@ -185,7 +231,7 @@ export function Sidebar(props: {
             <DropdownMenuTrigger asChild>
               <button
                 className="hover:bg-sidebar-row-hover data-[state=open]:bg-sidebar-row-hover -ml-1.5 flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-[var(--control-radius)] px-1.5 text-sm font-medium"
-                title={scope === null ? 'Inbox' : scope}
+                title={scope === null ? 'Inbox' : scope.path}
               >
                 {scope === null ? (
                   <HugeiconsIcon
@@ -194,12 +240,13 @@ export function Sidebar(props: {
                   />
                 ) : (
                   <ProjectIcon
-                    cwd={scope}
+                    machine={scope.machine}
+                    cwd={scope.path}
                     className="size-4 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
                   />
                 )}
                 <span className="truncate">
-                  {scope === null ? 'Inbox' : nameOf(scope)}
+                  {scope === null ? 'Inbox' : nameOf(scope.machine, scope.path)}
                 </span>
                 <HugeiconsIcon
                   icon={ChevronDownIcon}
@@ -208,7 +255,11 @@ export function Sidebar(props: {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-64">
-              <DropdownMenuRadioGroup value={scope ?? ''}>
+              <DropdownMenuRadioGroup
+                value={
+                  scope === null ? '' : machineKey(scope.machine, scope.path)
+                }
+              >
                 <DropdownMenuRadioItem
                   value=""
                   className="pr-9 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
@@ -224,15 +275,22 @@ export function Sidebar(props: {
                 </DropdownMenuRadioItem>
                 {projects.map((project) => {
                   const count = attention.filter(
-                    (session) => session.cwd === project.path
+                    (session) =>
+                      session.machine === project.machine &&
+                      session.cwd === project.path
                   ).length
                   return (
                     <DropdownMenuRadioItem
-                      key={project.path}
-                      value={project.path}
+                      key={machineKey(project.machine, project.path)}
+                      value={machineKey(project.machine, project.path)}
                       title={project.path}
                       className="pr-2 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
-                      onSelect={() => setScope(project.path)}
+                      onSelect={() =>
+                        setScope({
+                          machine: project.machine,
+                          path: project.path,
+                        })
+                      }
                       onContextMenu={(event) => {
                         event.preventDefault()
                         setPicking(false)
@@ -240,11 +298,17 @@ export function Sidebar(props: {
                       }}
                     >
                       <ProjectIcon
+                        machine={project.machine}
                         cwd={project.path}
                         className="size-4 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
                       />
                       <span className="min-w-0 flex-1 truncate">
                         {project.name}
+                        {machines.length > 1 && (
+                          <span className="text-muted-foreground ml-1.5 text-xs">
+                            {machineLabel(project.machine)}
+                          </span>
+                        )}
                       </span>
                       {count > 0 && (
                         <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
@@ -275,6 +339,13 @@ export function Sidebar(props: {
                 <HugeiconsIcon icon={Add01Icon} />
                 Add project…
               </DropdownMenuItem>
+              <DropdownMenuItem
+                className="pl-8"
+                onSelect={() => setAddingMachine(true)}
+              >
+                <HugeiconsIcon icon={ComputerIcon} />
+                Add machine…
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <button
@@ -297,8 +368,9 @@ export function Sidebar(props: {
           <ul className="flex flex-1 flex-col gap-px">
             {selection !== null && selection.sessionId === null && (
               <DraftRow
+                machine={selection.machine}
                 cwd={selection.cwd}
-                onSelect={() => select(selection.cwd, null)}
+                onSelect={() => select(selection.machine, selection.cwd, null)}
               />
             )}
             {started !== null && row(started, false)}
@@ -347,20 +419,28 @@ export function Sidebar(props: {
       </div>
       {adding && (
         <FolderDialog
+          machine={scope?.machine ?? selection?.machine ?? home}
           onClose={() => setAdding(false)}
           onAdd={(project) => {
             setAdding(false)
-            setScope(project.path)
-            select(project.path, null)
+            setScope({ machine: project.machine, path: project.path })
+            select(project.machine, project.path, null)
           }}
         />
+      )}
+      {addingMachine && (
+        <AddMachineDialog onClose={() => setAddingMachine(false)} />
       )}
       {editing !== null && (
         <EditProjectDialog
           project={editing}
           onClose={() => setEditing(null)}
           onRemoved={() => {
-            if (scope === editing.path) setScope(null)
+            if (
+              scope?.machine === editing.machine &&
+              scope.path === editing.path
+            )
+              setScope(null)
             setEditing(null)
           }}
         />

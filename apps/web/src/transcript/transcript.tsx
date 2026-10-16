@@ -10,7 +10,13 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { clock, fullTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Markdown } from '@/markdown/markdown'
-import { forkFrom, loadEarlier, selectedRunning, useStore } from '@/store'
+import {
+  forkFrom,
+  loadEarlier,
+  selectedActivity,
+  selectedRunning,
+  useStore,
+} from '@/store'
 import { AgentLine } from '@/transcript/agent-pill'
 import { ChangedFilesCard } from '@/transcript/changed-files'
 import { PlanCard } from '@/transcript/plan-card'
@@ -18,7 +24,6 @@ import { QuestionCard } from '@/transcript/question-card'
 import { RewindDialog, type RewindTarget } from '@/transcript/rewind-dialog'
 import { threadTasks } from '@/transcript/tasks'
 import { isTool, mainRows, type Row } from '@/transcript/timeline'
-import type { ToolResult, ToolUse } from '@/transcript/tool-details'
 import { ContextGroup } from '@/transcript/tool-group'
 import { Shimmer } from '@/transcript/tool-row'
 import { MessageCopyButton, UserMessage } from '@/transcript/user-message'
@@ -31,15 +36,12 @@ export function Transcript(props: {
 }) {
   const selection = useStore((state) => state.selection)
   const loaded = useStore((state) => state.loaded)
-  const messages = useStore((state) => state.messages)
+  const items = useStore((state) => state.items)
   const earlier = useStore((state) => state.earlier)
   const before = useStore((state) => state.before)
   const partial = useStore((state) => state.partial)
   const requests = useStore((state) => state.requests)
-  const activity = useStore((state) => {
-    const sessionId = state.selection?.sessionId ?? null
-    return sessionId === null ? undefined : state.activity[sessionId]
-  })
+  const activity = useStore(selectedActivity)
   const scroller = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
   const fromBottom = useRef<number | null>(null)
@@ -50,12 +52,6 @@ export function Transcript(props: {
   const cwd = selection?.cwd ?? ''
   const running = useStore(selectedRunning)
   const sentAt = useStore((state) => state.sentAt)
-
-  const results = new Map<string, ToolResult>()
-  for (const message of [...earlier, ...messages])
-    if (message.type !== 'notice')
-      for (const block of message.content)
-        if (block.type === 'tool_result') results.set(block.toolUseId, block)
 
   useLayoutEffect(() => {
     const element = scroller.current
@@ -68,11 +64,11 @@ export function Transcript(props: {
     const element = scroller.current
     if (element !== null && pinned.current)
       element.scrollTop = element.scrollHeight
-  }, [messages, partial, requests, running])
+  }, [items, partial, requests, running])
 
-  const found = threadTasks([...earlier, ...messages], activity)
+  const found = threadTasks([...earlier, ...items], activity)
   const olderRows = mainRows(earlier, cwd, false, '')
-  const rows = [...olderRows, ...mainRows(messages, cwd, running, partial)]
+  const rows = [...olderRows, ...mainRows(items, cwd, running, partial)]
   const topIndex = rows.findIndex((row) => row.key === top?.key)
   const start = Math.max(
     0,
@@ -167,14 +163,13 @@ export function Transcript(props: {
             >
               <RowView
                 row={row}
-                results={results}
                 agents={found.agents}
                 tasks={found.tasks}
                 running={running}
                 fork={!older}
                 expanded={expanded.includes(row.key)}
                 onToggle={() => toggle(row.key)}
-                onOpenTask={(tool) => props.onOpenTask(tool.id)}
+                onOpenTask={props.onOpenTask}
                 onRewind={older ? null : setRewind}
                 onOpenDiff={props.onOpenDiff}
                 cwd={cwd}
@@ -190,7 +185,6 @@ export function Transcript(props: {
 
 export function RowView(props: {
   row: Row
-  results: Map<string, ToolResult>
   agents: ReturnType<typeof threadTasks>['agents']
   tasks: ReturnType<typeof threadTasks>['tasks']
   cwd: string
@@ -198,7 +192,7 @@ export function RowView(props: {
   fork: boolean
   expanded: boolean
   onToggle: () => void
-  onOpenTask: (tool: ToolUse) => void
+  onOpenTask: (id: string) => void
   onRewind: ((target: RewindTarget) => void) | null
   onOpenDiff: () => void
 }) {
@@ -207,9 +201,7 @@ export function RowView(props: {
     case 'user':
       return (
         <UserMessage
-          uuid={row.message.uuid}
-          time={row.message.time}
-          blocks={row.message.content}
+          item={row.item}
           first={row.first}
           running={props.running}
           onRewind={props.onRewind}
@@ -225,7 +217,6 @@ export function RowView(props: {
       return (
         <ContextGroup
           entries={row.entries}
-          results={props.results}
           cwd={props.cwd}
           live={row.live}
           open={props.expanded}
@@ -235,10 +226,10 @@ export function RowView(props: {
     case 'agent':
       return (
         <AgentLine
-          tool={row.tool}
+          item={row.item}
           agents={props.agents}
           tasks={props.tasks}
-          sending={row.live && !props.results.has(row.tool.id)}
+          sending={row.live && row.item.status === 'running'}
           onOpen={props.onOpenTask}
         />
       )
@@ -264,7 +255,7 @@ export function RowView(props: {
           {row.meta && (
             <div className="mt-1.5 flex items-center gap-2 text-xs tabular-nums opacity-0 transition-opacity duration-200 group-hover/assistant:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
               <MessageCopyButton text={row.text} />
-              {props.fork && <ForkButton uuid={row.uuid} />}
+              {props.fork && <ForkButton uuid={row.message} />}
               {row.time !== null && (
                 <Tooltip label={fullTime(row.time)}>
                   <p className="text-muted-foreground text-xs tabular-nums">
@@ -308,9 +299,7 @@ export function RowView(props: {
         </div>
       )
     case 'question':
-      return (
-        <QuestionCard tool={row.tool} result={props.results.get(row.tool.id)} />
-      )
+      return <QuestionCard item={row.item} />
   }
 }
 

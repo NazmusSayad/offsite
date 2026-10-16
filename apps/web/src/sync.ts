@@ -1,53 +1,73 @@
-import type { ServerEvent, Snapshot } from '@server/protocol'
+import { PROTOCOL, type ServerEvent } from '@server/protocol'
 import { getDraftSettings, saveDraftSettings } from './composer/drafts'
-import { call, isConnected, listen } from './connection'
+import { call, connectMachine, disconnectMachine, listen } from './connection'
+import { receiveConfig } from './machine-config'
+import {
+  home,
+  loadMachines,
+  machineKey,
+  machineOrigin,
+  saveMachines,
+} from './machines'
 import { notify, push } from './notifications'
+import { loadPrefs } from './prefs'
 import {
   createAppStore,
+  draftKey,
+  emptySettings,
   getState,
-  receiveConfig,
+  type MachineProject,
+  type MachineSession,
+  machineOf,
+  providerSettings,
   refreshAccounts,
   refreshCapabilities,
   setAccounts,
+  setMachine,
   showError,
   update,
 } from './store'
 import { applyTheme } from './theme'
 import { selectionFromUrl, syncUrl } from './url'
 
-export function start(snapshot: Snapshot) {
-  const selection = selectionFromUrl()
+export function start() {
+  const stored = loadMachines()
+  const selection = selectionFromUrl(stored.map((machine) => machine.origin))
   createAppStore({
-    connected: isConnected(),
-    sessions: snapshot.sessions,
-    projects: snapshot.projects,
-    accounts: [],
+    machines: stored.map((machine) => ({
+      origin: machine.origin,
+      status: 'connecting',
+      name: machine.name,
+      config: null,
+      configError: null,
+      system: null,
+      accounts: [],
+      activity: {},
+    })),
+    sessions: [],
+    projects: stored.flatMap((machine) =>
+      machine.projects.map((project) => ({
+        ...project,
+        machine: machine.origin,
+      }))
+    ),
+    prefs: loadPrefs(),
     paletteOpen: false,
     settingsOpen: false,
     settingsPage: 'General',
-    config: snapshot.config,
-    configError: null,
-    system: {
-      defaults: snapshot.defaults,
-      platform: snapshot.platform,
-      version: snapshot.version,
-      defaultShell: snapshot.defaultShell,
-    },
-    activity: snapshot.activity,
+    settingsMachine: stored[0].origin,
     unseen: [],
     selection,
     loaded: selection?.sessionId === null,
-    messages: [],
+    items: [],
     earlier: [],
     before: null,
     partial: '',
     requests: [],
     queue: [],
     settings:
-      (selection === null
-        ? null
-        : getDraftSettings(selection.sessionId ?? selection.cwd)) ??
-      snapshot.config.composer,
+      (selection === null ? null : getDraftSettings(draftKey(selection))) ??
+      emptySettings,
     draft: null,
     context: null,
     capabilities: null,
@@ -56,105 +76,163 @@ export function start(snapshot: Snapshot) {
   })
   applyTheme()
   listen({
-    open: () => void resync(),
-    close: () => update({ connected: false }),
+    open: (machine) => void resync(machine),
+    close: (machine) => {
+      const known = getState().machines.find((item) => item.origin === machine)
+      if (known !== undefined && known.status !== 'offline')
+        setMachine(machine, { status: 'offline' })
+    },
     event: receive,
   })
-  reopenThread()
-  void refreshAccounts()
-  void refreshCapabilities()
+  for (const machine of stored) connectMachine(machine.origin)
 }
 
-async function resync() {
-  update({ connected: true })
-  reopenThread()
-  void refreshAccounts()
+async function resync(machine: string) {
   try {
-    const snapshot = await call('sync', undefined)
-    update({
-      projects: snapshot.projects,
-      sessions: snapshot.sessions,
+    const snapshot = await call(machine, 'sync', undefined)
+    if (!getState().machines.some((item) => item.origin === machine)) return
+    if (snapshot.protocol !== PROTOCOL) {
+      setMachine(machine, { status: 'outdated' })
+      return
+    }
+    setMachine(machine, {
+      status: 'online',
+      name: snapshot.hostname,
+      system: {
+        defaults: snapshot.defaults,
+        platform: snapshot.platform,
+        version: snapshot.version,
+        defaultShell: snapshot.defaultShell,
+      },
       activity: snapshot.activity,
     })
-    receiveConfig(snapshot.config)
+    setProjects(
+      machine,
+      snapshot.projects.map((project) => ({ ...project, machine }))
+    )
+    setSessions(
+      machine,
+      snapshot.sessions.map((session) => ({ ...session, machine }))
+    )
+    receiveConfig(machine, snapshot.config)
+    reopenThread(machine)
+    void refreshAccounts(machine)
+    if (getState().selection?.machine === machine) void refreshCapabilities()
   } catch (error) {
     showError(error)
   }
 }
 
-function reopenThread() {
+function setProjects(machine: string, projects: MachineProject[]) {
+  update({
+    projects: [
+      ...getState().projects.filter((item) => item.machine !== machine),
+      ...projects,
+    ],
+  })
+  persistMachines()
+}
+
+function setSessions(machine: string, sessions: MachineSession[]) {
+  update({
+    sessions: [
+      ...getState().sessions.filter((item) => item.machine !== machine),
+      ...sessions,
+    ],
+  })
+}
+
+function reopenThread(machine: string) {
   const selection = getState().selection
-  if (selection !== null && selection.sessionId !== null)
-    call('sessions.open', {
+  if (
+    selection !== null &&
+    selection.machine === machine &&
+    selection.sessionId !== null
+  )
+    call(machine, 'sessions.open', {
       cwd: selection.cwd,
       sessionId: selection.sessionId,
     }).catch(showError)
 }
 
-function receive(event: ServerEvent) {
+function receive(machine: string, event: ServerEvent) {
   const state = getState()
-  const current = state.selection?.sessionId ?? null
+  const known = state.machines.find((item) => item.origin === machine)
+  if (known === undefined || known.status === 'outdated') return
+  const selected = state.selection?.machine === machine
+  const current = selected ? (state.selection?.sessionId ?? null) : null
   switch (event.type) {
     case 'activity': {
+      const previous = known.activity
       const running =
         current !== null && event.activity[current]?.running === true
-      const finished = Object.keys(state.activity).filter(
-        (id) =>
-          state.activity[id].running && event.activity[id]?.running !== true
+      const finished = Object.keys(previous).filter(
+        (id) => previous[id].running && event.activity[id]?.running !== true
       )
       const waiting = Object.keys(event.activity).filter(
-        (id) =>
-          event.activity[id].waiting && state.activity[id]?.waiting !== true
+        (id) => event.activity[id].waiting && previous[id]?.waiting !== true
       )
       notify(
-        finished.filter((id) => state.activity[id].prompted),
+        machine,
+        finished.filter((id) => previous[id].prompted),
         'finished'
       )
-      notify(waiting, 'needs your input')
+      notify(machine, waiting, 'needs your input')
+      setMachine(machine, { activity: event.activity })
       update({
-        activity: event.activity,
-        partial: running ? state.partial : '',
+        partial: running || !selected ? state.partial : '',
         unseen: [
           ...state.unseen,
-          ...finished.filter(
-            (id) => id !== current && !state.unseen.includes(id)
-          ),
+          ...finished
+            .filter((id) => id !== current)
+            .map((id) => machineKey(machine, id))
+            .filter((key) => !state.unseen.includes(key)),
         ],
       })
       return
     }
     case 'limits':
-      update({
-        accounts: state.accounts.map((item) =>
+      setMachine(machine, {
+        accounts: known.accounts.map((item) =>
           item.id === event.accountId ? { ...item, limits: event.limits } : item
         ),
       })
       return
     case 'config':
-      receiveConfig(event.config)
+      receiveConfig(machine, event.config)
       return
     case 'projects':
-      update({ projects: event.projects })
+      setProjects(
+        machine,
+        event.projects.map((project) => ({ ...project, machine }))
+      )
       return
     case 'sessions':
-      update({ sessions: event.sessions })
+      setSessions(
+        machine,
+        event.sessions.map((session) => ({ ...session, machine }))
+      )
       return
     case 'accounts':
-      setAccounts(event.accounts)
+      setAccounts(machine, event.accounts)
       return
     case 'started':
-      saveDraftSettings(event.sessionId, getDraftSettings(event.cwd))
-      saveDraftSettings(event.cwd, null)
+      saveDraftSettings(
+        machineKey(machine, event.sessionId),
+        getDraftSettings(machineKey(machine, event.cwd))
+      )
+      saveDraftSettings(machineKey(machine, event.cwd), null)
       if (
         state.selection === null ||
+        !selected ||
         state.selection.cwd !== event.cwd ||
         state.selection.sessionId !== null
       )
         return
       update({
-        selection: { cwd: event.cwd, sessionId: event.sessionId },
+        selection: { machine, cwd: event.cwd, sessionId: event.sessionId },
         loaded: true,
-        messages: [],
+        items: [],
         earlier: [],
         before: null,
         partial: '',
@@ -164,37 +242,53 @@ function receive(event: ServerEvent) {
       syncUrl()
       return
     case 'notification':
-      push(event.sessionId, event.message)
+      push(machine, event.sessionId, event.message)
       return
   }
-  if (event.sessionId !== current) return
+  if (current === null || event.sessionId !== current) return
   switch (event.type) {
     case 'history':
       update({
         loaded: true,
-        messages: event.messages,
+        items: event.items,
         earlier: [],
         before: event.before,
         requests: event.requests,
         queue: event.queue,
-        settings: event.settings ?? state.settings,
+        settings:
+          event.settings ??
+          (state.settings.provider === event.provider
+            ? state.settings
+            : providerSettings(
+                machineOf(state, machine).config,
+                event.provider
+              )),
         context: event.context,
-        partial: '',
+        partial: event.partial,
       })
       if (event.settings !== null)
-        saveDraftSettings(event.sessionId, event.settings)
+        saveDraftSettings(machineKey(machine, event.sessionId), event.settings)
       return
     case 'context':
       update({ context: event.context })
       return
-    case 'message':
-      if (state.messages.some((item) => item.uuid === event.message.uuid))
-        return
+    case 'items': {
+      const updates = new Map(event.items.map((item) => [item.id, item]))
       update({
-        messages: [...state.messages, event.message],
-        partial: event.message.type === 'assistant' ? '' : state.partial,
+        items: [
+          ...state.items.map((item) => updates.get(item.id) ?? item),
+          ...event.items.filter(
+            (item) => !state.items.some((existing) => existing.id === item.id)
+          ),
+        ],
+        partial: event.items.some(
+          (item) => item.kind === 'assistant' && item.parent === null
+        )
+          ? ''
+          : state.partial,
       })
       return
+    }
     case 'delta':
       update({ partial: state.partial + event.text })
       return
@@ -215,7 +309,64 @@ function receive(event: ServerEvent) {
         accountId: state.settings.accountId,
       }
       update({ settings })
-      saveDraftSettings(event.sessionId, settings)
+      saveDraftSettings(machineKey(machine, event.sessionId), settings)
     }
   }
+}
+
+export function addMachine(address: string) {
+  const origin = machineOrigin(address)
+  if (getState().machines.some((item) => item.origin === origin))
+    throw new Error(`${origin} is already in the list`)
+  update({
+    machines: [
+      ...getState().machines,
+      {
+        origin,
+        status: 'connecting',
+        name: new URL(origin).hostname,
+        config: null,
+        configError: null,
+        system: null,
+        accounts: [],
+        activity: {},
+      },
+    ],
+  })
+  persistMachines()
+  connectMachine(origin)
+  return origin
+}
+
+export function removeMachine(origin: string) {
+  if (origin === home) throw new Error('the machine serving this page stays')
+  disconnectMachine(origin)
+  const state = getState()
+  update({
+    machines: state.machines.filter((item) => item.origin !== origin),
+    projects: state.projects.filter((item) => item.machine !== origin),
+    sessions: state.sessions.filter((item) => item.machine !== origin),
+    unseen: state.unseen.filter((key) => !key.startsWith(`${origin} `)),
+    ...(state.settingsMachine === origin && { settingsMachine: home }),
+    ...(state.selection?.machine === origin && { selection: null }),
+  })
+  syncUrl()
+  persistMachines()
+}
+
+export function persistMachines() {
+  const state = getState()
+  saveMachines(
+    state.machines.map((machine) => ({
+      origin: machine.origin,
+      name: machine.name,
+      projects: state.projects
+        .filter((project) => project.machine === machine.origin)
+        .map((project) => ({
+          path: project.path,
+          name: project.name,
+          logo: project.logo,
+        })),
+    }))
+  )
 }

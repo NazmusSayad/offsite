@@ -10,12 +10,14 @@ import { editDraft } from '@/composer/drafts'
 import { call } from '@/connection'
 import { useCopy } from '@/lib/clipboard'
 import { errorMessage } from '@/lib/utils'
+import { machineKey } from '@/machines'
 import { Markdown } from '@/markdown/markdown'
 import { useStore } from '@/store'
 import { useCodeTheme } from '@/theme'
 import diffCss from '@/git/diff.css?raw'
 
 export function FilePreview(props: {
+  machine: string
   cwd: string
   path: string | null
   onClose: () => void
@@ -43,13 +45,17 @@ export function FilePreview(props: {
         {props.path !== null && (
           <PreviewBody
             key={props.path}
+            machine={props.machine}
             cwd={props.cwd}
             path={props.path}
             onInsert={(path) => {
-              editDraft(sessionId ?? props.cwd, (current) => ({
-                ...current,
-                text: `${current.text}${/(^|\s)$/.test(current.text) ? '' : ' '}@${path} `,
-              }))
+              editDraft(
+                machineKey(props.machine, sessionId ?? props.cwd),
+                (current) => ({
+                  ...current,
+                  text: `${current.text}${/(^|\s)$/.test(current.text) ? '' : ' '}@${path} `,
+                })
+              )
               inserted.current = true
               props.onClose()
             }}
@@ -61,6 +67,7 @@ export function FilePreview(props: {
 }
 
 function PreviewBody(props: {
+  machine: string
   cwd: string
   path: string
   onInsert: (path: string) => void
@@ -72,7 +79,10 @@ function PreviewBody(props: {
 
   useEffect(() => {
     let current = true
-    call('files.read', { cwd: props.cwd, path: props.path }).then(
+    call(props.machine, 'files.read', {
+      cwd: props.cwd,
+      path: props.path,
+    }).then(
       (result) => {
         if (current) setPreview(result)
       },
@@ -83,7 +93,7 @@ function PreviewBody(props: {
     return () => {
       current = false
     }
-  }, [props.cwd, props.path])
+  }, [props.machine, props.cwd, props.path])
 
   return (
     <>

@@ -4,23 +4,23 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Message, Methods } from '@server/protocol'
+import type { Item, Methods } from '@server/protocol'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { call } from '@/connection'
 import { cn, errorMessage } from '@/lib/utils'
 import { Markdown } from '@/markdown/markdown'
-import { loadAgent, stopTask, useStore } from '@/store'
+import { activityOf, loadAgent, stopTask, useStore } from '@/store'
 import { AgentSpinner, agentOf, SubagentIcon } from '@/transcript/agent-pill'
 import { taskTitle, threadTasks } from '@/transcript/tasks'
-import { isPrompt, isTool, turnRows } from '@/transcript/timeline'
-import { text, type ToolUse } from '@/transcript/tool-details'
+import { isTool, turnRows } from '@/transcript/timeline'
 import { ToolRow } from '@/transcript/tool-row'
 import { RowView } from '@/transcript/transcript'
 
 type Found = ReturnType<typeof threadTasks>
 
 export function TasksPanel(props: {
+  machine: string
   cwd: string
   sessionId: string | null
   selected: string | null
@@ -28,16 +28,16 @@ export function TasksPanel(props: {
   onOpenDiff: () => void
   onClose: () => void
 }) {
-  const messages = useStore((state) => state.messages)
+  const items = useStore((state) => state.items)
   const earlier = useStore((state) => state.earlier)
   const activity = useStore((state) =>
-    props.sessionId === null ? undefined : state.activity[props.sessionId]
+    activityOf(state.machines, props.machine, props.sessionId)
   )
-  const allMessages = [...earlier, ...messages]
-  const found = threadTasks(allMessages, activity)
-  const agent = found.agents.find((item) => item.tool.id === props.selected)
-  const task = found.tasks.find((item) => item.tool.id === props.selected)
-  const info = agent === undefined ? null : agentOf(agent.tool)
+  const allItems = [...earlier, ...items]
+  const found = threadTasks(allItems, activity)
+  const agent = found.agents.find((item) => item.item.id === props.selected)
+  const task = found.tasks.find((item) => item.item.id === props.selected)
+  const info = agent === undefined ? null : agentOf(agent.item)
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
@@ -83,9 +83,10 @@ export function TasksPanel(props: {
                   </span>
                 )}
                 {agent.status === 'Running' &&
-                  agent.agentId !== '' &&
+                  agent.agentId !== null &&
                   props.sessionId !== null && (
                     <StopButton
+                      machine={props.machine}
                       sessionId={props.sessionId}
                       taskId={agent.agentId}
                     />
@@ -99,7 +100,7 @@ export function TasksPanel(props: {
                   className="text-muted-foreground size-4 shrink-0"
                 />
                 <span className="text-foreground min-w-0 truncate font-medium">
-                  {taskTitle(task.tool)}
+                  {taskTitle(task.item)}
                 </span>
                 <span
                   className={cn(
@@ -110,9 +111,10 @@ export function TasksPanel(props: {
                   {task.status}
                 </span>
                 {task.status === 'Running' &&
-                  task.taskId !== '' &&
+                  task.taskId !== null &&
                   props.sessionId !== null && (
                     <StopButton
+                      machine={props.machine}
                       sessionId={props.sessionId}
                       taskId={task.taskId}
                     />
@@ -137,14 +139,14 @@ export function TasksPanel(props: {
               ...found.agents.filter((item) => item.status === 'Running'),
               ...found.agents.filter((item) => item.status !== 'Running'),
             ].map((item) => {
-              const itemInfo = agentOf(item.tool)
+              const itemInfo = agentOf(item.item)
               return (
                 <button
-                  key={item.tool.id}
+                  key={item.item.id}
                   type="button"
                   aria-label={`Open ${itemInfo.name} agent: ${itemInfo.description}`}
                   className="bg-secondary hover:bg-accent focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] leading-5 tracking-[-0.04px] select-none focus-visible:ring-2 focus-visible:outline-none"
-                  onClick={() => props.onSelect(item.tool.id)}
+                  onClick={() => props.onSelect(item.item.id)}
                 >
                   {item.status === 'Running' ? (
                     <AgentSpinner className={itemInfo.tone} />
@@ -183,11 +185,11 @@ export function TasksPanel(props: {
               ...found.tasks.filter((item) => item.status !== 'Running'),
             ].map((item) => (
               <button
-                key={item.tool.id}
+                key={item.item.id}
                 type="button"
-                aria-label={`Open task: ${taskTitle(item.tool)}`}
+                aria-label={`Open task: ${taskTitle(item.item)}`}
                 className="bg-secondary hover:bg-accent focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] leading-5 tracking-[-0.04px] select-none focus-visible:ring-2 focus-visible:outline-none"
-                onClick={() => props.onSelect(item.tool.id)}
+                onClick={() => props.onSelect(item.item.id)}
               >
                 <HugeiconsIcon
                   icon={CommandLineIcon}
@@ -199,7 +201,7 @@ export function TasksPanel(props: {
                   )}
                 />
                 <span className="text-foreground min-w-0 flex-1 truncate">
-                  {taskTitle(item.tool)}
+                  {taskTitle(item.item)}
                 </span>
                 <span
                   className={cn(
@@ -216,11 +218,11 @@ export function TasksPanel(props: {
       )}
       {agent !== undefined && (
         <AgentView
-          key={agent.tool.id}
-          tool={agent.tool}
+          key={agent.item.id}
+          item={agent.item}
           agentId={agent.agentId}
           running={agent.status === 'Running'}
-          messages={allMessages}
+          items={allItems}
           found={found}
           cwd={props.cwd}
           onSelect={props.onSelect}
@@ -229,9 +231,10 @@ export function TasksPanel(props: {
       )}
       {task !== undefined && props.sessionId !== null && (
         <TaskView
-          key={task.tool.id}
+          key={task.item.id}
+          machine={props.machine}
           sessionId={props.sessionId}
-          command={text(task.tool.input.command)}
+          command={task.item.command}
           path={task.path}
           events={task.events}
           running={task.status === 'Running'}
@@ -241,13 +244,17 @@ export function TasksPanel(props: {
   )
 }
 
-function StopButton(props: { sessionId: string; taskId: string }) {
+function StopButton(props: {
+  machine: string
+  sessionId: string
+  taskId: string
+}) {
   return (
     <Button
       size="xs"
       variant="outline"
       className="shrink-0"
-      onClick={() => stopTask(props.sessionId, props.taskId)}
+      onClick={() => stopTask(props.machine, props.sessionId, props.taskId)}
     >
       Stop
     </Button>
@@ -255,6 +262,7 @@ function StopButton(props: { sessionId: string; taskId: string }) {
 }
 
 function TaskView(props: {
+  machine: string
   sessionId: string
   command: string
   path: string | null
@@ -274,7 +282,7 @@ function TaskView(props: {
     let current = true
     async function load(file: string) {
       try {
-        const result = await call('tasks.output', {
+        const result = await call(props.machine, 'tasks.output', {
           sessionId: props.sessionId,
           path: file,
         })
@@ -293,7 +301,7 @@ function TaskView(props: {
       current = false
       if (timer !== null) window.clearInterval(timer)
     }
-  }, [props.sessionId, props.path, props.running])
+  }, [props.machine, props.sessionId, props.path, props.running])
 
   useLayoutEffect(() => {
     const element = scroller.current
@@ -355,10 +363,10 @@ function TaskView(props: {
 }
 
 function AgentView(props: {
-  tool: ToolUse
-  agentId: string
+  item: Extract<Item, { kind: 'subagent' }>
+  agentId: string | null
   running: boolean
-  messages: Message[]
+  items: Item[]
   found: Found
   cwd: string
   onSelect: (id: string) => void
@@ -372,7 +380,7 @@ function AgentView(props: {
     const element = scroller.current
     if (element !== null && pinned.current)
       element.scrollTop = element.scrollHeight
-  }, [props.messages, props.running])
+  }, [props.items, props.running])
 
   function toggle(key: string) {
     setExpanded(
@@ -382,25 +390,21 @@ function AgentView(props: {
     )
   }
 
-  const agentMessages = props.messages.filter(
-    (message) => message.type !== 'notice' && message.parent === props.tool.id
-  )
-  const missing = agentMessages.length === 0
+  const agentItems = props.items.filter((item) => item.parent === props.item.id)
+  const missing = agentItems.length === 0
 
   useEffect(() => {
-    if (missing && props.agentId !== '')
-      void loadAgent(props.tool.id, props.agentId)
-  }, [missing, props.tool.id, props.agentId])
+    if (missing && props.agentId !== null)
+      void loadAgent(props.item.id, props.agentId)
+  }, [missing, props.item.id, props.agentId])
 
-  const prompt =
-    agentMessages[0]?.type === 'user' && isPrompt(agentMessages[0].content)
-      ? agentMessages[0]
-      : null
+  const first = agentItems.at(0)
+  const prompt = first?.kind === 'user' ? first : null
   const rows = turnRows(
     {
       prompt: null,
       first: false,
-      items: prompt === null ? agentMessages : agentMessages.slice(1),
+      items: prompt === null ? agentItems : agentItems.slice(1),
     },
     props.cwd,
     props.running ? { partial: '' } : null
@@ -425,9 +429,7 @@ function AgentView(props: {
           onToggle={() => toggle('prompt')}
         >
           <Markdown
-            text={prompt.content
-              .flatMap((block) => (block.type === 'text' ? [block.text] : []))
-              .join('\n')}
+            text={prompt.text}
             className="text-muted-foreground text-[13px]"
           />
         </ToolRow>
@@ -450,14 +452,13 @@ function AgentView(props: {
           >
             <RowView
               row={row}
-              results={props.found.results}
               agents={props.found.agents}
               tasks={props.found.tasks}
               running={props.running}
               fork={false}
               expanded={expanded.includes(row.key)}
               onToggle={() => toggle(row.key)}
-              onOpenTask={(tool) => props.onSelect(tool.id)}
+              onOpenTask={props.onSelect}
               onRewind={null}
               onOpenDiff={props.onOpenDiff}
               cwd={props.cwd}

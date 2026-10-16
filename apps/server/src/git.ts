@@ -3,8 +3,12 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { query } from '@anthropic-ai/claude-agent-sdk'
+import { providerName } from './accounts.ts'
 import { claudeOptions } from './claude.ts'
-import type { GitStatus } from './protocol.ts'
+import { codexCommitMessage } from './codex/sessions.ts'
+import { readConfig } from './config.ts'
+import { openCodeCommitMessage } from './opencode/sessions.ts'
+import type { GitStatus, Provider } from './protocol.ts'
 
 const DIFF_LIMIT = 80_000
 const UNTRACKED_LIMIT = 100
@@ -67,18 +71,28 @@ export async function createPullRequest(cwd: string) {
 }
 
 export async function suggestCommitMessage(
+  provider: Provider,
   accountId: string | null,
   cwd: string
 ) {
   const diff = (await workingDiff(cwd)).slice(0, DIFF_LIMIT)
   if (diff === '') throw new Error('There is nothing to commit')
+  const model = readConfig().commitModels[provider]
+  if (model === null)
+    throw new Error(
+      `Choose a ${providerName(provider)} commit model in Settings → Accounts`
+    )
+  const prompt = `Write a git commit message for this diff. Reply with only the message: a short summary line, optionally followed by a blank line and a brief body.\n\n${diff}`
+  if (provider === 'codex')
+    return codexCommitMessage(accountId, cwd, model, prompt)
+  if (provider === 'opencode') return openCodeCommitMessage(model, prompt)
   const conversation = query({
-    prompt: `Write a git commit message for this diff. Reply with only the message: a short summary line, optionally followed by a blank line and a brief body.\n\n${diff}`,
+    prompt,
     options: {
       ...claudeOptions(accountId, cwd),
       systemPrompt: 'You write concise git commit messages.',
       tools: [],
-      model: 'haiku',
+      model,
       maxTurns: 1,
       persistSession: false,
     },

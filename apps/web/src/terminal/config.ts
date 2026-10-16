@@ -1,9 +1,6 @@
-import type {
-  Platform,
-  TerminalConfig,
-  TerminalIdentity,
-} from '@server/protocol'
+import type { Platform, TerminalIdentity } from '@server/protocol'
 import type { TerminalOptions } from '@/ghostty/terminal'
+import type { TerminalPrefs } from '@/prefs'
 import { currentScheme } from '@/theme'
 
 const iterm2Version = '3.6.8'
@@ -22,7 +19,7 @@ export const platforms: { value: Platform; label: string }[] = [
   { value: 'windows', label: 'Windows' },
 ]
 
-export async function applyStyle(config: TerminalConfig) {
+export async function applyStyle(config: TerminalPrefs) {
   const font = `${config.font.size}px ${config.font.family}`
   await Promise.all([
     document.fonts.load(font),
@@ -36,7 +33,8 @@ export async function applyStyle(config: TerminalConfig) {
 }
 
 export function terminalOptions(
-  config: TerminalConfig,
+  config: TerminalPrefs,
+  identity: TerminalIdentity,
   version: string
 ): TerminalOptions {
   const scheme = currentScheme()
@@ -58,7 +56,7 @@ export function terminalOptions(
       selectionForeground: scheme.foreground,
       palette: scheme.palette,
     },
-    version: terminalVersion(config.behavior.terminalIdentity, version),
+    version: terminalVersion(identity, version),
     clickToMoveCursor: config.behavior.clickToMoveCursor,
     optionAsMeta: config.behavior.optionAsMeta,
   }

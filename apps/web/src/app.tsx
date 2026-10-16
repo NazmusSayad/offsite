@@ -18,6 +18,7 @@ import { FilesPanel } from '@/files/files-panel'
 import { DiffPanel } from '@/git/diff-panel'
 import { GitActions, useGitStatus } from '@/git/git-menu'
 import { cn, drag, mod } from '@/lib/utils'
+import { home } from '@/machines'
 import { useProjectName } from '@/projects'
 import { SettingsDialog } from '@/settings/dialog'
 import { Palette } from '@/sidebar/palette'
@@ -25,6 +26,8 @@ import { Sidebar } from '@/sidebar/sidebar'
 import {
   dismissError,
   getState,
+  machineOf,
+  selectedActivity,
   showPalette,
   selectedRunning,
   useStore,
@@ -46,7 +49,9 @@ const toggle =
 export function App() {
   const selection = useStore((state) => state.selection)
   const sessions = useStore((state) => state.sessions)
-  const connected = useStore((state) => state.connected)
+  const machine = useStore((state) =>
+    machineOf(state, state.selection?.machine ?? home)
+  )
   const error = useStore((state) => state.error)
   const [sidebar, setSidebar] = useState(desktop.matches)
   const [panel, setPanel] = useState<'diff' | 'tasks' | 'files' | null>(null)
@@ -67,20 +72,26 @@ export function App() {
   )
   const running = useStore(selectedRunning)
   const runningTasks = useStore((state) => {
-    const sessionId = state.selection?.sessionId ?? null
-    if (sessionId === null) return 0
+    if (state.selection?.sessionId === null) return 0
     const found = threadTasks(
-      [...state.earlier, ...state.messages],
-      state.activity[sessionId]
+      [...state.earlier, ...state.items],
+      selectedActivity(state)
     )
     return [...found.agents, ...found.tasks].filter(
       (item) => item.status === 'Running'
     ).length
   })
-  const git = useGitStatus(selection?.cwd ?? null, running)
-  const session = sessions.find((item) => item.id === selection?.sessionId)
+  const git = useGitStatus(
+    machine.origin,
+    machine.status === 'online' ? (selection?.cwd ?? null) : null,
+    running
+  )
+  const session = sessions.find(
+    (item) =>
+      item.machine === selection?.machine && item.id === selection.sessionId
+  )
 
-  const projectTitle = useProjectName(selection?.cwd ?? '')
+  const projectTitle = useProjectName(machine.origin, selection?.cwd ?? '')
   useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
     enableOnFormTags: true,
     preventDefault: true,
@@ -147,9 +158,13 @@ export function App() {
                 <ol className="flex min-w-0 items-center gap-2 text-sm sm:gap-3">
                   <li
                     className="text-muted-foreground flex min-w-0 shrink items-center gap-1.5 font-medium"
-                    title={selection.cwd}
+                    title={`${machine.name}:${selection.cwd}`}
                   >
-                    <ProjectIcon cwd={selection.cwd} className="size-3.5" />
+                    <ProjectIcon
+                      machine={selection.machine}
+                      cwd={selection.cwd}
+                      className="size-3.5"
+                    />
                     <span className="max-w-40 truncate">{projectTitle}</span>
                   </li>
                   <li aria-hidden className="text-icon-muted shrink-0">
@@ -162,13 +177,17 @@ export function App() {
               </nav>
             )}
             {selection === null && <span className="flex-1" />}
-            {!connected && (
+            {(machine.status === 'connecting' ||
+              machine.status === 'offline') && (
               <span className="text-warning-foreground shrink-0 text-xs">
-                Reconnecting…
+                {machine.status === 'connecting'
+                  ? `Connecting to ${machine.name}…`
+                  : `${machine.name} is offline, reconnecting…`}
               </span>
             )}
             {selection !== null && git.status !== null && (
               <GitActions
+                machine={selection.machine}
                 cwd={selection.cwd}
                 status={git.status}
                 onStatus={git.setStatus}
@@ -210,8 +229,23 @@ export function App() {
                 </div>
               </div>
             )}
-            {selection !== null && (
-              <Fragment key={selection.sessionId ?? selection.cwd}>
+            {selection !== null && machine.status === 'outdated' && (
+              <div className="grid flex-1 place-items-center p-6 text-center">
+                <div>
+                  <h1 className="text-foreground text-2xl font-normal tracking-tight sm:text-3xl">
+                    {machine.name} needs an update
+                  </h1>
+                  <p className="text-muted-foreground mt-2 text-sm">
+                    It runs a version of offsite that this page cannot talk to.
+                    Update offsite on that machine and restart it.
+                  </p>
+                </div>
+              </div>
+            )}
+            {selection !== null && machine.status !== 'outdated' && (
+              <Fragment
+                key={`${selection.machine} ${selection.sessionId ?? selection.cwd}`}
+              >
                 <Transcript
                   onOpenDiff={() => setPanel('diff')}
                   onOpenTask={(id) => {
@@ -277,11 +311,16 @@ export function App() {
               <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
             </div>
             {panel === 'files' && (
-              <FilesPanel cwd={selection.cwd} onClose={() => setPanel(null)} />
+              <FilesPanel
+                machine={selection.machine}
+                cwd={selection.cwd}
+                onClose={() => setPanel(null)}
+              />
             )}
             {panel === 'diff' && (
               <DiffPanel
-                key={selection.cwd}
+                key={`${selection.machine} ${selection.cwd}`}
+                machine={selection.machine}
                 cwd={selection.cwd}
                 running={running}
                 onClose={() => setPanel(null)}
@@ -289,6 +328,7 @@ export function App() {
             )}
             {panel === 'tasks' && (
               <TasksPanel
+                machine={selection.machine}
                 cwd={selection.cwd}
                 sessionId={selection.sessionId}
                 selected={selectedTask}

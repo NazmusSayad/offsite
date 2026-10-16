@@ -1,22 +1,29 @@
-import { randomUUID } from 'node:crypto'
 import { realpathSync, statSync } from 'node:fs'
-import { mkdir, rm, symlink } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import {
+  type EffortLevel,
   type Options,
+  type PermissionMode,
   query,
   type SDKControlInitializeResponse,
   type SDKRateLimitInfo,
   type SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk'
+import { type StoredAccount, storedAccount } from './accounts.ts'
 import { readConfig } from './config.ts'
 import { broadcast } from './hub.ts'
 import type { Account, Capabilities, RateLimit } from './protocol.ts'
-import { readJson, writeJson } from './storage.ts'
 
-type StoredAccount = { id: string; name: string; configDir: string }
-
+const efforts: EffortLevel[] = ['low', 'medium', 'high', 'xhigh', 'max']
+const modes: PermissionMode[] = [
+  'default',
+  'acceptEdits',
+  'bypassPermissions',
+  'plan',
+  'dontAsk',
+  'auto',
+]
 const probes = new Map<string, Promise<SDKControlInitializeResponse>>()
 const limits = new Map<string, Map<string, RateLimit>>()
 let executable = ''
@@ -33,11 +40,20 @@ export function findClaude() {
   return null
 }
 
+export function claudeEffort(value: string) {
+  const effort = efforts.find((item) => item === value)
+  if (effort === undefined) throw new Error(`Claude has no ${value} effort`)
+  return effort
+}
+
+export function claudeMode(value: string) {
+  const mode = modes.find((item) => item === value)
+  if (mode === undefined) throw new Error(`Claude has no ${value} mode`)
+  return mode
+}
+
 export function claudeOptions(accountId: string | null, cwd: string): Options {
-  if (accountId === null)
-    throw new Error('Add a Claude account in Settings → Accounts')
-  const account = storedAccounts().find((item) => item.id === accountId)
-  if (account === undefined) throw new Error('That account was removed')
+  const account = storedAccount('claude', accountId)
   return {
     cwd,
     env: {
@@ -84,11 +100,11 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
   }
 }
 
-export async function capabilities(
-  accountId: string,
+export async function claudeCapabilities(
+  account: StoredAccount,
   cwd: string
 ): Promise<Capabilities> {
-  const result = await initialization(accountId, cwd)
+  const result = await initialization(account.id, cwd)
   return {
     models: result.models.map((model) => ({
       value: model.value,
@@ -101,74 +117,40 @@ export async function capabilities(
       description: command.description,
       hint: command.argumentHint,
     })),
+    agents: [],
   }
 }
 
-export async function accounts(): Promise<Account[]> {
-  return Promise.all(
-    storedAccounts().map(async (account) => {
-      try {
-        const info = (await initialization(account.id, os.homedir())).account
-        return {
-          ...account,
-          email: info.email ?? null,
-          plan: info.subscriptionType ?? null,
-          error: null,
-          limits: accountLimits(account.id),
-          linked: linked(account.configDir),
-        }
-      } catch (error) {
-        return {
-          ...account,
-          email: null,
-          plan: null,
-          error: error instanceof Error ? error.message : String(error),
-          limits: accountLimits(account.id),
-          linked: linked(account.configDir),
-        }
-      }
-    })
-  )
-}
-
-export async function publishAccounts() {
+export async function claudeAccount(account: StoredAccount): Promise<Account> {
+  const linked = isLinked(account.configDir)
   try {
-    broadcast({ type: 'accounts', accounts: await accounts() })
+    const info = (await initialization(account.id, os.homedir())).account
+    return {
+      ...account,
+      email: info.email ?? null,
+      plan: info.subscriptionType ?? null,
+      error: null,
+      limits: accountLimits(account.id),
+      linked,
+      valid: linked,
+    }
   } catch (error) {
-    console.warn(`could not list accounts: ${error}`)
+    return {
+      ...account,
+      email: null,
+      plan: null,
+      error: error instanceof Error ? error.message : String(error),
+      limits: accountLimits(account.id),
+      linked,
+      valid: linked,
+    }
   }
 }
 
-export function addAccount(name: string, configDir: string) {
-  saveAccounts([
-    ...storedAccounts(),
-    { id: randomUUID(), ...validAccount(name, configDir) },
-  ])
-}
-
-export function updateAccount(id: string, name: string, configDir: string) {
-  const account = validAccount(name, configDir)
-  saveAccounts(
-    storedAccounts().map((item) => (item.id === id ? { id, ...account } : item))
-  )
-  forget(id)
-}
-
-export function removeAccount(id: string) {
-  saveAccounts(storedAccounts().filter((item) => item.id !== id))
-  forget(id)
-}
-
-export async function linkAccount(id: string) {
-  const account = storedAccounts().find((item) => item.id === id)
-  if (account === undefined) throw new Error('That account was removed')
-  if (linked(account.configDir))
-    throw new Error('This account is already linked')
-  const base = path.join(readConfig().claudeBaseDir, 'projects')
-  const link = path.join(account.configDir, 'projects')
-  await mkdir(base, { recursive: true })
-  await rm(link, { recursive: true, force: true })
-  await symlink(base, link, 'junction')
+export function forgetClaude(accountId: string) {
+  for (const key of probes.keys())
+    if (key.startsWith(`${accountId}\n`)) probes.delete(key)
+  limits.delete(accountId)
 }
 
 export function recordLimit(accountId: string, info: SDKRateLimitInfo) {
@@ -197,19 +179,7 @@ export function recordLimit(accountId: string, info: SDKRateLimitInfo) {
   return accountLimits(accountId)
 }
 
-function validAccount(name: string, configDir: string) {
-  if (name.trim() === '') throw new Error('Give the account a name')
-  const dir = configDir.trim()
-  if (dir === '~' || dir.startsWith('~/'))
-    return {
-      name: name.trim(),
-      configDir: path.join(os.homedir(), dir.slice(1)),
-    }
-  if (path.isAbsolute(dir)) return { name: name.trim(), configDir: dir }
-  throw new Error('Use an absolute config directory or one starting with ~/')
-}
-
-function linked(configDir: string) {
+function isLinked(configDir: string) {
   const base = readConfig().claudeBaseDir
   try {
     if (realpathSync(configDir) === realpathSync(base)) return true
@@ -221,12 +191,6 @@ function linked(configDir: string) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
     throw error
   }
-}
-
-function forget(accountId: string) {
-  for (const key of probes.keys())
-    if (key.startsWith(`${accountId}\n`)) probes.delete(key)
-  limits.delete(accountId)
 }
 
 function accountLimits(accountId: string) {
@@ -260,14 +224,6 @@ async function runProbe(accountId: string, cwd: string) {
 async function* idle(until: Promise<void>): AsyncGenerator<SDKUserMessage> {
   await until
   yield* []
-}
-
-function storedAccounts() {
-  return (readJson('accounts.json') as StoredAccount[] | null) ?? []
-}
-
-function saveAccounts(items: StoredAccount[]) {
-  writeJson('accounts.json', items)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

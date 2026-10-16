@@ -25,12 +25,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { call } from '@/connection'
+import { providerNames } from '@/lib/format'
 import { errorMessage } from '@/lib/utils'
-import { getState, showError } from '@/store'
+import { machineKey } from '@/machines'
+import { getState, showError, useStore } from '@/store'
 
-export function useGitStatus(cwd: string | null, running: boolean) {
+export function useGitStatus(
+  machine: string,
+  cwd: string | null,
+  running: boolean
+) {
   const [result, setResult] = useState<{
-    cwd: string
+    key: string
     status: GitStatus | null
   } | null>(null)
   const [version, setVersion] = useState(0)
@@ -38,8 +44,8 @@ export function useGitStatus(cwd: string | null, running: boolean) {
   useEffect(() => {
     if (cwd === null || running) return
     let current = true
-    call('git.status', { cwd }).then((status) => {
-      if (current) setResult({ cwd, status })
+    call(machine, 'git.status', { cwd }).then((status) => {
+      if (current) setResult({ key: machineKey(machine, cwd), status })
     }, showError)
     function refresh() {
       setVersion((value) => value + 1)
@@ -49,17 +55,23 @@ export function useGitStatus(cwd: string | null, running: boolean) {
       current = false
       window.removeEventListener('focus', refresh)
     }
-  }, [cwd, running, version])
+  }, [machine, cwd, running, version])
 
   return {
-    status: result !== null && result.cwd === cwd ? result.status : null,
+    status:
+      result !== null && cwd !== null && result.key === machineKey(machine, cwd)
+        ? result.status
+        : null,
     setStatus: (status: GitStatus | null) =>
-      setResult(cwd === null ? null : { cwd, status }),
+      setResult(
+        cwd === null ? null : { key: machineKey(machine, cwd), status }
+      ),
     refresh: () => setVersion((value) => value + 1),
   }
 }
 
 export function GitActions(props: {
+  machine: string
   cwd: string
   status: GitStatus
   onStatus: (status: GitStatus | null) => void
@@ -84,13 +96,15 @@ export function GitActions(props: {
 
   function push() {
     void run(async () => {
-      props.onStatus(await call('git.push', { cwd: props.cwd }))
+      props.onStatus(await call(props.machine, 'git.push', { cwd: props.cwd }))
     })
   }
 
   function pullRequest() {
     void run(async () => {
-      const result = await call('git.pullRequest', { cwd: props.cwd })
+      const result = await call(props.machine, 'git.pullRequest', {
+        cwd: props.cwd,
+      })
       window.open(result.url, '_blank', 'noopener')
     })
   }
@@ -170,6 +184,7 @@ export function GitActions(props: {
         </DropdownMenu>
       </div>
       <CommitDialog
+        machine={props.machine}
         cwd={props.cwd}
         open={committing}
         onClose={() => setCommitting(false)}
@@ -183,11 +198,13 @@ export function GitActions(props: {
 }
 
 function CommitDialog(props: {
+  machine: string
   cwd: string
   open: boolean
   onClose: () => void
   onDone: (status: GitStatus | null) => void
 }) {
+  const provider = useStore((state) => state.settings.provider)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState<'generate' | 'commit' | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -197,17 +214,23 @@ function CommitDialog(props: {
     setError(null)
     try {
       if (kind === 'generate') {
-        const result = await call('git.message', {
+        const result = await call(props.machine, 'git.message', {
+          provider: getState().settings.provider,
           accountId: getState().settings.accountId,
           cwd: props.cwd,
         })
         setMessage(result.message)
         return
       }
-      const committed = await call('git.commit', { cwd: props.cwd, message })
+      const committed = await call(props.machine, 'git.commit', {
+        cwd: props.cwd,
+        message,
+      })
       setMessage('')
       props.onDone(
-        andPush ? await call('git.push', { cwd: props.cwd }) : committed
+        andPush
+          ? await call(props.machine, 'git.push', { cwd: props.cwd })
+          : committed
       )
     } catch (caught) {
       setError(errorMessage(caught))
@@ -245,7 +268,9 @@ function CommitDialog(props: {
             onClick={() => void act('generate', false)}
           >
             <HugeiconsIcon icon={SparklesIcon} />
-            {busy === 'generate' ? 'Writing…' : 'Write with Claude'}
+            {busy === 'generate'
+              ? 'Writing…'
+              : `Write with ${providerNames[provider]}`}
           </Button>
           <span className="flex-1" />
           <Button

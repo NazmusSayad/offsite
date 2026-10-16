@@ -8,20 +8,14 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { PermissionRequest } from '@server/protocol'
+import type { PermissionRequest, Question } from '@server/protocol'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { Markdown } from '@/markdown/markdown'
 import { respond, showError } from '@/store'
 import { summary, ToolDetails } from '@/transcript/tool-details'
 import { uploadFile } from '@/upload'
-
-type Question = {
-  question: string
-  header: string
-  multiSelect: boolean
-  options: { label: string; description: string }[]
-}
 
 const recommendedSuffix = '(Recommended)'
 
@@ -62,20 +56,15 @@ const attached =
 
 export function PermissionPrompt(props: {
   request: PermissionRequest
+  machine: string
   cwd: string
   count: number
 }) {
   const request = props.request
-  if (request.toolName === 'AskUserQuestion')
-    return <QuestionPrompt request={request} />
-  const tool = {
-    type: 'tool_use' as const,
-    id: request.id,
-    name: request.toolName,
-    input: request.input,
-  }
-  const plan = request.toolName === 'ExitPlanMode'
-  const detail = summary(tool, props.cwd)
+  if (request.kind === 'question')
+    return <QuestionPrompt machine={props.machine} request={request} />
+  const plan = request.kind === 'plan'
+  const detail = request.kind === 'plan' ? '' : summary(request.item, props.cwd)
   return (
     <div
       className={cn(
@@ -90,9 +79,7 @@ export function PermissionPrompt(props: {
         <span className="flex min-w-0 flex-col items-start gap-1">
           <span className="text-muted-foreground text-2xs flex w-full min-w-0 items-center gap-2">
             <span className="text-warning shrink-0 font-medium">
-              {plan
-                ? 'Ready to code?'
-                : (request.title ?? `Allow ${request.toolName}?`)}
+              {request.kind === 'plan' ? 'Ready to code?' : request.title}
             </span>
             {props.count > 1 && (
               <span className="ml-auto shrink-0 tabular-nums">
@@ -114,7 +101,7 @@ export function PermissionPrompt(props: {
           >
             {plan ? 'Keep planning' : 'Decline'}
           </Button>
-          {request.canAlwaysAllow && (
+          {request.kind === 'approval' && request.canAlwaysAllow && (
             <Button
               size="xs"
               variant="outline"
@@ -127,9 +114,14 @@ export function PermissionPrompt(props: {
             {plan ? 'Approve plan' : 'Approve'}
           </Button>
         </span>
-        {request.toolName !== 'Bash' && (
+        {request.kind === 'plan' && (
           <div className="col-span-3 max-h-60 overflow-auto px-1 empty:hidden">
-            <ToolDetails tool={tool} />
+            <Markdown text={request.plan} />
+          </div>
+        )}
+        {request.kind === 'approval' && request.item.kind !== 'command' && (
+          <div className="col-span-3 max-h-60 overflow-auto px-1 empty:hidden">
+            <ToolDetails item={request.item} />
           </div>
         )}
       </div>
@@ -137,8 +129,11 @@ export function PermissionPrompt(props: {
   )
 }
 
-function QuestionPrompt(props: { request: PermissionRequest }) {
-  const questions = props.request.input.questions as Question[]
+function QuestionPrompt(props: {
+  machine: string
+  request: Extract<PermissionRequest, { kind: 'question' }>
+}) {
+  const questions = props.request.questions
   const [active, setActive] = useState(0)
   const [picked, setPicked] = useState<Record<string, string[]>>({})
   const [other, setOther] = useState<Record<string, string>>({})
@@ -189,7 +184,7 @@ function QuestionPrompt(props: { request: PermissionRequest }) {
     for (const file of files) {
       setUploads((count) => count + 1)
       try {
-        const path = await uploadFile(file)
+        const path = await uploadFile(props.machine, file)
         setOther((current) => {
           const text = current[question.question] ?? ''
           return {

@@ -9,7 +9,7 @@ import {
   Upload04Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Directories, Project } from '@server/protocol'
+import type { Directories } from '@server/protocol'
 import { useEffect, useRef, useState } from 'react'
 import { ProjectBadge } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -24,18 +24,29 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { call } from '@/connection'
 import { projectName } from '@/lib/format'
 import { cn, errorMessage } from '@/lib/utils'
 import { addProject, removeProject, updateProject } from '@/projects'
+import { type MachineProject, useStore } from '@/store'
 import { readBase64 } from '@/upload'
 
 const IMAGE_FILE = /\.(png|jpe?g|gif|webp|svg)$/i
 
 export function FolderDialog(props: {
+  machine: string
   onClose: () => void
-  onAdd: (project: Project) => void
+  onAdd: (project: MachineProject) => void
 }) {
+  const machines = useStore((state) => state.machines)
+  const [machine, setMachine] = useState(props.machine)
   const [loaded, setLoaded] = useState<{
     path: string
     listing: Directories
@@ -59,7 +70,7 @@ export function FolderDialog(props: {
     let cancelled = false
     const timer = setTimeout(async () => {
       try {
-        const next = await call('directories.list', { path })
+        const next = await call(machine, 'directories.list', { path })
         if (cancelled) return
         setLoaded({ path, listing: next })
         setError(null)
@@ -73,7 +84,7 @@ export function FolderDialog(props: {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [path])
+  }, [machine, path])
 
   return (
     <Dialog
@@ -161,13 +172,41 @@ export function FolderDialog(props: {
           </p>
         )}
         <DialogFooter className="border-t p-3">
+          {machines.length > 1 && (
+            <Select
+              value={machine}
+              onValueChange={(next) => {
+                setMachine(next)
+                setLoaded(null)
+                open('~')
+              }}
+            >
+              <SelectTrigger className="sm:mr-auto sm:w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {machines.map((item) => (
+                  <SelectItem
+                    key={item.origin}
+                    value={item.origin}
+                    disabled={item.status !== 'online'}
+                  >
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button
             disabled={loaded?.path !== path || adding}
             onClick={async () => {
               if (loaded === null || loaded.path !== path) return
               setAdding(true)
               try {
-                props.onAdd(await addProject(loaded.listing.path))
+                props.onAdd({
+                  ...(await addProject(machine, loaded.listing.path)),
+                  machine,
+                })
               } catch (failure) {
                 setError(errorMessage(failure))
                 setAdding(false)
@@ -183,7 +222,7 @@ export function FolderDialog(props: {
 }
 
 export function EditProjectDialog(props: {
-  project: Project
+  project: MachineProject
   onClose: () => void
   onRemoved: () => void
 }) {
@@ -210,7 +249,7 @@ export function EditProjectDialog(props: {
             event.preventDefault()
             setSaving(true)
             try {
-              await updateProject(path, { name, logo })
+              await updateProject(props.project.machine, path, { name, logo })
               props.onClose()
             } catch (failure) {
               setError(errorMessage(failure))
@@ -309,14 +348,14 @@ export function EditProjectDialog(props: {
                 !confirming &&
                   'text-destructive hover:bg-destructive/10 hover:text-destructive'
               )}
-              title="Its threads stay in Claude Code"
+              title="Its threads stay in their provider"
               onClick={async () => {
                 if (!confirming) {
                   setConfirming(true)
                   return
                 }
                 try {
-                  await removeProject(path)
+                  await removeProject(props.project.machine, path)
                   props.onRemoved()
                 } catch (failure) {
                   setError(errorMessage(failure))
@@ -336,6 +375,7 @@ export function EditProjectDialog(props: {
         </form>
         {picking && (
           <IconPickerDialog
+            machine={props.project.machine}
             cwd={path}
             onClose={() => setPicking(false)}
             onPick={(next) => {
@@ -350,6 +390,7 @@ export function EditProjectDialog(props: {
 }
 
 function IconPickerDialog(props: {
+  machine: string
   cwd: string
   onClose: () => void
   onPick: (logo: string) => void
@@ -366,7 +407,9 @@ function IconPickerDialog(props: {
     let cancelled = false
     void (async () => {
       try {
-        const next = await call('files.list', { cwd: props.cwd })
+        const next = await call(props.machine, 'files.list', {
+          cwd: props.cwd,
+        })
         if (!cancelled) setFiles(next)
       } catch (failure) {
         if (!cancelled) setError(errorMessage(failure))
@@ -375,7 +418,7 @@ function IconPickerDialog(props: {
     return () => {
       cancelled = true
     }
-  }, [props.cwd])
+  }, [props.machine, props.cwd])
 
   return (
     <Dialog
@@ -416,7 +459,7 @@ function IconPickerDialog(props: {
               className="hover:bg-muted flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors"
               onClick={async () => {
                 try {
-                  const preview = await call('files.read', {
+                  const preview = await call(props.machine, 'files.read', {
                     cwd: props.cwd,
                     path: file,
                   })

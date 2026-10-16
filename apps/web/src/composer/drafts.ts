@@ -5,6 +5,7 @@ import {
   type PersistStorage,
   type StorageValue,
 } from 'zustand/middleware'
+import { home, machineKey } from '@/machines'
 
 type Draft = { text: string; images: Image[]; settings: Settings | null }
 type Drafts = { drafts: Record<string, Draft> }
@@ -31,9 +32,19 @@ const storage: PersistStorage<Drafts> = {
 const useDrafts = create<Drafts>()(
   persist(() => ({ drafts: {} }), {
     name: storageKey,
-    version: 2,
+    version: 3,
     storage,
-    migrate: () => ({ drafts: {} }),
+    migrate: (state, version) => {
+      if (version !== 2) return { drafts: {} }
+      return {
+        drafts: Object.fromEntries(
+          Object.entries((state as Drafts).drafts).map((entry) => [
+            machineKey(home, entry[0]),
+            { ...entry[1], settings: null },
+          ])
+        ),
+      }
+    },
   })
 )
 

@@ -7,14 +7,18 @@ import {
   type SDKMessage,
   type SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk'
-import { claudeOptions, recordLimit } from './claude.ts'
-import { contextTokens, toMessage } from './content.ts'
+import {
+  claudeEffort,
+  claudeMode,
+  claudeOptions,
+  recordLimit,
+} from './claude.ts'
+import { contextTokens, type Message, toMessage } from './content.ts'
 import { broadcast, publish } from './hub.ts'
+import { toItems, toRequest } from './items.ts'
+import { broadcastActivity, runs } from './live.ts'
 import type {
-  Activity,
-  Block,
   Context,
-  Message,
   PermissionRequest,
   Prompt,
   Queued,
@@ -27,40 +31,26 @@ const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 
 type Pending = {
   request: PermissionRequest
+  input: Record<string, unknown>
   suggestions: PermissionUpdate[]
   resolve: (result: PermissionResult) => void
 }
 
 type ImageType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
 
-export const runs = new Map<string, Run>()
-
-export function activity() {
-  const result: Record<string, Activity> = {}
-  for (const run of runs.values())
-    result[run.sessionId] = {
-      running: run.running,
-      waiting: run.pending.size > 0,
-      prompted: run.prompted,
-      tasks: run.tasks,
-    }
-  return result
-}
-
-export function broadcastActivity() {
-  broadcast({ type: 'activity', activity: activity() })
-}
-
 export class Run {
+  readonly provider = 'claude'
   readonly sessionId: string
   readonly messages: Message[] = []
   readonly pending = new Map<string, Pending>()
+  private readonly published = new Map<string, string>()
   readonly query: Query
   readonly closed: Promise<void>
   readonly resumeAt: string | null
   queue: Queued[] = []
   settings: Settings
   context: Context | null = null
+  partial = ''
   private model: string | null = null
   running = false
   prompted = false
@@ -93,11 +83,13 @@ export class Run {
           ? {}
           : { resumeSessionAt: options.resumeAt }),
         enableFileCheckpointing: true,
-        ...(settings.permissionMode === null
+        ...(settings.mode === null
           ? {}
-          : { permissionMode: settings.permissionMode }),
+          : { permissionMode: claudeMode(settings.mode) }),
         ...(settings.model === null ? {} : { model: settings.model }),
-        ...(settings.effort === null ? {} : { effort: settings.effort }),
+        ...(settings.effort === null
+          ? {}
+          : { effort: claudeEffort(settings.effort) }),
         allowDangerouslySkipPermissions: true,
         includePartialMessages: true,
         canUseTool: (toolName, input, context) =>
@@ -145,17 +137,25 @@ export class Run {
     if (settings.model !== this.settings.model)
       await this.query.setModel(settings.model ?? undefined)
     if (settings.effort !== this.settings.effort)
-      await this.query.applyFlagSettings({ effortLevel: settings.effort })
-    if (
-      settings.permissionMode !== null &&
-      settings.permissionMode !== this.settings.permissionMode
-    )
-      await this.query.setPermissionMode(settings.permissionMode)
+      await this.query.applyFlagSettings({
+        effortLevel:
+          settings.effort === null ? null : claudeEffort(settings.effort),
+      })
+    if (settings.mode !== null && settings.mode !== this.settings.mode)
+      await this.query.setPermissionMode(claudeMode(settings.mode))
     this.updateSettings({
       ...settings,
       accountId: this.settings.accountId,
-      permissionMode: settings.permissionMode ?? this.settings.permissionMode,
+      mode: settings.mode ?? this.settings.mode,
     })
+  }
+
+  async interrupt() {
+    await this.query.interrupt()
+  }
+
+  async stopTask(taskId: string) {
+    await this.query.stopTask(taskId)
   }
 
   respond(
@@ -165,7 +165,7 @@ export class Run {
   ) {
     const pending = this.pending.get(requestId)
     if (pending === undefined) return
-    const input = pending.request.input
+    const input = pending.input
     switch (decision) {
       case 'allow':
         this.settle(requestId, {
@@ -229,7 +229,7 @@ export class Run {
       uuid,
       time: Date.now(),
       content: [
-        ...prompt.images.map((image): Block => ({ type: 'image', ...image })),
+        ...prompt.images.map((image) => ({ type: 'image' as const, ...image })),
         ...(prompt.text === ''
           ? []
           : [{ type: 'text' as const, text: prompt.text }]),
@@ -280,6 +280,7 @@ export class Run {
   private receive(message: SDKMessage) {
     switch (message.type) {
       case 'assistant': {
+        if (message.parent_tool_use_id === null) this.partial = ''
         this.add(toMessage('assistant', message, Date.now()))
         const tokens = contextTokens(message.message)
         if (message.parent_tool_use_id === null && tokens !== null) {
@@ -309,12 +310,14 @@ export class Run {
           message.parent_tool_use_id === null &&
           message.event.type === 'content_block_delta' &&
           message.event.delta.type === 'text_delta'
-        )
+        ) {
+          this.partial += message.event.delta.text
           publish(this.sessionId, {
             type: 'delta',
             sessionId: this.sessionId,
             text: message.event.delta.text,
           })
+        }
         return
       case 'rate_limit_event': {
         const accountId = this.settings.accountId
@@ -347,7 +350,7 @@ export class Run {
             broadcastActivity()
             this.updateSettings({
               ...this.settings,
-              permissionMode: message.permissionMode,
+              mode: message.permissionMode,
             })
             return
           case 'background_tasks_changed': {
@@ -376,7 +379,7 @@ export class Run {
             if (message.permissionMode !== undefined)
               this.updateSettings({
                 ...this.settings,
-                permissionMode: message.permissionMode,
+                mode: message.permissionMode,
               })
             return
           case 'compact_boundary': {
@@ -387,11 +390,9 @@ export class Run {
                 : { tokens, window: this.context?.window ?? null }
             this.publishContext()
             this.add({
-              type: 'notice',
+              type: 'compaction',
               uuid: message.uuid,
               time: Date.now(),
-              text: 'Conversation compacted',
-              isError: false,
             })
             return
           }
@@ -408,6 +409,7 @@ export class Run {
   }
 
   private finishTurn() {
+    this.partial = ''
     const [next, ...rest] = this.queue
     if (next !== undefined) {
       this.queue = rest
@@ -435,16 +437,17 @@ export class Run {
     suggestions: PermissionUpdate[]
     signal: AbortSignal
   }) {
-    const request: PermissionRequest = {
+    const request = toRequest({
       id: randomUUID(),
       toolName: options.toolName,
       input: options.input,
       title: options.title,
       canAlwaysAllow: options.suggestions.length > 0,
-    }
+    })
     return new Promise<PermissionResult>((resolve) => {
       this.pending.set(request.id, {
         request,
+        input: options.input,
         suggestions: options.suggestions,
         resolve,
       })
@@ -476,10 +479,17 @@ export class Run {
   private add(message: Message) {
     if (this.messages.some((item) => item.uuid === message.uuid)) return
     this.messages.push(message)
+    const items = toItems(this.messages).filter((item) => {
+      const json = JSON.stringify(item)
+      if (this.published.get(item.id) === json) return false
+      this.published.set(item.id, json)
+      return true
+    })
+    if (items.length === 0) return
     publish(this.sessionId, {
-      type: 'message',
+      type: 'items',
       sessionId: this.sessionId,
-      message,
+      items,
     })
   }
 

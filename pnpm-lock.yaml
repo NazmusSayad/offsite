@@ -47,9 +47,15 @@ importers:
       '@lydell/node-pty':
         specifier: 1.2.0-beta.15
         version: 1.2.0-beta.15
+      '@opencode/client':
+        specifier: 2.0.30
+        version: 2.0.30(effect@4.0.1)
       consola:
         specifier: ^3.4.2
         version: 3.4.2
+      effect:
+        specifier: 4.0.1
+        version: 4.0.1
       web-push:
         specifier: ^3.6.7
         version: 3.6.7(supports-color@7.2.0)
@@ -559,6 +565,23 @@ packages:
 
   '@one-ini/wasm@0.2.1':
     resolution: {integrity: sha512-TUqERXGNTifZ9y2g3wPxQrw3HpHv/02DsW3D90T9x0hhonrL1ZqpSmNrU2XkoIq0fP1N6gZfVQzy2Fw1ZvGBNg==}
+
+  '@opencode/client@2.0.30':
+    resolution: {integrity: sha512-KUglC9ak8mhLDC84247i+laGVExvYQKrcMjkOozP9FOyMSHLh/o9fVDb85I6SD6lTM0mtexljXcZi6AbHEfvOQ==}
+    peerDependencies:
+      effect: 4.0.1
+      solid-js: '>=1.9.0'
+    peerDependenciesMeta:
+      effect:
+        optional: true
+      solid-js:
+        optional: true
+
+  '@opencode/protocol@2.0.30':
+    resolution: {integrity: sha512-2iHVE4z3iDBEW0JCV8K9xlNshO0x5Ers+xxlPrFS+51S+iA4dUdH8gi497PToBdmQHL94FOD8CHcND/QYxDAhA==}
+
+  '@opencode/schema@2.0.30':
+    resolution: {integrity: sha512-Yqe2bJHBZRxp+BsZrGhoqvtn5QQ6HTYu8mZ/VhfsTqbQYiLgr25a2bFB2OVqZXHqBFjyOBDxgpXQYSThw14a5w==}
 
   '@oxc-project/types@0.153.0':
     resolution: {integrity: sha512-jSNrRIyvPVLL5E1z/tS5zLAprosGz/FuI1PWwEOz59j3E4TTTzSpqKb/RDGqJhhW0QHYISGXxq582wGx6T11Tw==}
@@ -1743,6 +1766,9 @@ packages:
   '@stablelib/base64@1.0.1':
     resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
 
+  '@standard-schema/spec@1.1.0':
+    resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
   '@tailwindcss/node@4.3.3':
     resolution: {integrity: sha512-/T8IKEsf9VTU6tLjgC7+sv2mOPtQxzE2jMw7u4Tt40Tx+QSZxpzh95/H6cMKoja9XuW7iMdLJYBB0o9G1CaAgg==}
 
@@ -2600,6 +2626,9 @@ packages:
 
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
+
+  effect@4.0.1:
+    resolution: {integrity: sha512-b1VlQG9g8fwxE5QnIZuPoOP/0MsqHJSRKxUijjoM80E5q95FXrX5yWtY5XI8G+GJsBQAVSDbLS458z9a++uVvw==}
 
   electron-to-chromium@1.5.453:
     resolution: {integrity: sha512-9r/nz9akllr3SZsHUhfK10ktUH6j0Dbo3cKdh91khw0FvR6HhXGnATmOq5X8ena2aq4GXLQ1koh3nvKaQJaNmQ==}
@@ -5338,6 +5367,23 @@ snapshots:
 
   '@one-ini/wasm@0.2.1': {}
 
+  '@opencode/client@2.0.30(effect@4.0.1)':
+    dependencies:
+      '@opencode/protocol': 2.0.30
+      '@opencode/schema': 2.0.30
+    optionalDependencies:
+      effect: 4.0.1
+
+  '@opencode/protocol@2.0.30':
+    dependencies:
+      '@opencode/schema': 2.0.30
+      effect: 4.0.1
+
+  '@opencode/schema@2.0.30':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      effect: 4.0.1
+
   '@oxc-project/types@0.153.0': {}
 
   '@oxfmt/binding-android-arm-eabi@0.72.0':
@@ -6399,6 +6445,8 @@ snapshots:
 
   '@stablelib/base64@1.0.1': {}
 
+  '@standard-schema/spec@1.1.0': {}
+
   '@tailwindcss/node@4.3.3':
     dependencies:
       '@jridgewell/remapping': 2.3.5
@@ -7104,6 +7152,8 @@ snapshots:
       semver: 7.8.5
 
   ee-first@1.1.1: {}
+
+  effect@4.0.1: {}
 
   electron-to-chromium@1.5.453: {}
 

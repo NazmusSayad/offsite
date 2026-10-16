@@ -1,5 +1,7 @@
 import type { PushSubscriptionInfo } from '@server/protocol'
 import { call } from './connection'
+import { providerNames } from './lib/format'
+import { home, machineKey } from './machines'
 import { getState, openSession } from './store'
 
 const storageKey = 'notifications'
@@ -32,41 +34,57 @@ export async function watchPermission(
   status.addEventListener('change', listener, { signal })
 }
 
-export function notify(ids: string[], what: string) {
+export function notify(machine: string, ids: string[], what: string) {
   if (!document.hidden) return
-  for (const id of ids)
+  for (const id of ids) {
+    const session = findSession(machine, id)
     show(
+      machine,
       id,
-      `Claude ${what}`,
-      getState().sessions.find((item) => item.id === id)?.title ?? 'Session',
-      id
+      `${session === undefined ? 'Agent' : providerNames[session.provider]} ${what}`,
+      session?.title ?? 'Session',
+      machineKey(machine, id)
     )
+  }
 }
 
-export function push(sessionId: string, message: string) {
+export function push(machine: string, sessionId: string, message: string) {
   show(
+    machine,
     sessionId,
-    getState().sessions.find((item) => item.id === sessionId)?.title ??
-      'Claude',
+    findSession(machine, sessionId)?.title ?? 'Session',
     message,
-    `push:${sessionId}`
+    `push:${machineKey(machine, sessionId)}`
   )
 }
 
-function show(sessionId: string, title: string, body: string, tag: string) {
+function findSession(machine: string, id: string) {
+  return getState().sessions.find(
+    (item) => item.machine === machine && item.id === id
+  )
+}
+
+function show(
+  machine: string,
+  sessionId: string,
+  title: string,
+  body: string,
+  tag: string
+) {
   if (notificationPermission() !== 'granted' || !notificationsWanted()) return
   const notification = new Notification(title, { body, tag })
   notification.onclick = () => {
     window.focus()
-    const session = getState().sessions.find((item) => item.id === sessionId)
-    if (session !== undefined) openSession({ cwd: session.cwd, sessionId })
+    const session = findSession(machine, sessionId)
+    if (session !== undefined)
+      openSession({ machine, cwd: session.cwd, sessionId })
   }
 }
 
 export async function showNotification(
   title: string,
   body: string,
-  tab: { cwd: string; tabId: number }
+  tab: { machine: string; cwd: string; tabId: number }
 ) {
   if (notificationPermission() !== 'granted' || !notificationsWanted()) return
   const registration = await navigator.serviceWorker.ready
@@ -109,7 +127,7 @@ export async function subscribePush() {
 }
 
 async function pushKey() {
-  const key = await call('push.key', undefined)
+  const key = await call(home, 'push.key', undefined)
   return key.publicKey
 }
 
@@ -128,7 +146,7 @@ export async function unsubscribePush() {
   const registration = await navigator.serviceWorker.ready
   const subscription = await registration.pushManager.getSubscription()
   if (!subscription) return
-  await call('push.unsubscribe', { endpoint: subscription.endpoint })
+  await call(home, 'push.unsubscribe', { endpoint: subscription.endpoint })
   await subscription.unsubscribe()
 }
 
@@ -152,5 +170,9 @@ function base64Url(buffer: ArrayBuffer) {
 }
 
 async function savePushSubscription(subscription: PushSubscription) {
-  await call('push.subscribe', subscription.toJSON() as PushSubscriptionInfo)
+  await call(
+    home,
+    'push.subscribe',
+    subscription.toJSON() as PushSubscriptionInfo
+  )
 }

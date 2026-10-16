@@ -1,16 +1,10 @@
-import type { ToolResult, ToolUse } from '@/transcript/tool-details'
+import type { QuestionItem } from '@/transcript/timeline'
 
-export function QuestionCard(props: {
-  tool: ToolUse
-  result: ToolResult | undefined
-}) {
-  const questions = props.tool.input.questions as {
-    question: string
-    options: { label: string; description: string }[]
-  }[]
+export function QuestionCard(props: { item: QuestionItem }) {
+  const answers = props.item.answers
   return (
     <div className="flex min-w-0 flex-col gap-3 text-sm leading-6 select-text">
-      {questions.map((question) => (
+      {props.item.questions.map((question) => (
         <div key={question.question}>
           <p className="text-foreground font-medium">{question.question}</p>
           <ul className="text-secondary-label list-disc pl-5">
@@ -21,14 +15,14 @@ export function QuestionCard(props: {
               </li>
             ))}
           </ul>
-          {props.result?.answers?.[question.question] !== undefined && (
+          {answers?.[question.question] !== undefined && (
             <p className="text-foreground whitespace-pre-wrap">
-              Answer: {props.result.answers[question.question]}
+              Answer: {answers[question.question]}
             </p>
           )}
         </div>
       ))}
-      {props.result?.isError === true && (
+      {props.item.status === 'failed' && (
         <p className="text-muted-foreground">Skipped</p>
       )}
     </div>

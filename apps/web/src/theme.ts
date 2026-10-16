@@ -2,14 +2,14 @@ import { schemes } from '@server/schemes'
 import { getState, useStore } from './store'
 
 export function currentScheme() {
-  const theme = getState().config.theme
+  const theme = getState().prefs.theme
   const scheme = schemes.find((item) => item.id === theme)
   if (scheme === undefined) throw new Error(`unknown theme ${theme}`)
   return scheme
 }
 
 export function useCodeTheme() {
-  const theme = useStore((state) => state.config.theme)
+  const theme = useStore((state) => state.prefs.theme)
   const scheme = schemes.find((item) => item.id === theme)
   if (scheme === undefined) throw new Error(`unknown theme ${theme}`)
   return scheme.codeTheme

@@ -4,10 +4,10 @@ import {
   SearchIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { EffortLevel, Model } from '@server/protocol'
+import type { Model } from '@server/protocol'
 import { type ReactNode, useRef, useState } from 'react'
 import { limitLabel } from '@/accounts/limits'
-import { ClaudeIcon } from '@/components/icons'
+import { ProviderIcon } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +24,15 @@ import {
 import { Tooltip } from '@/components/ui/tooltip'
 import { call } from '@/connection'
 import { cn } from '@/lib/utils'
-import { changeSettings, showError, showSettingsPage, useStore } from '@/store'
+import {
+  changeSettings,
+  getState,
+  machineOf,
+  providerSettings,
+  showError,
+  showSettingsPage,
+  useStore,
+} from '@/store'
 
 export const control =
   'relative inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-(--control-radius) border border-transparent outline-none hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-64 [&_svg]:pointer-events-none [&_svg]:shrink-0'
@@ -60,9 +68,7 @@ export function Pickers() {
             })),
           ]}
           onChange={(value) =>
-            changeSettings({
-              effort: value === 'default' ? null : (value as EffortLevel),
-            })
+            changeSettings({ effort: value === 'default' ? null : value })
           }
         />
       )}
@@ -72,9 +78,20 @@ export function Pickers() {
 
 function ModelPicker() {
   const settings = useStore((state) => state.settings)
-  const accounts = useStore((state) => state.accounts)
+  const selection = useStore((state) => state.selection)
+  const accounts = (
+    useStore(
+      (state) =>
+        state.machines.find(
+          (machine) => machine.origin === state.selection?.machine
+        )?.accounts
+    ) ?? []
+  ).filter(
+    (item) =>
+      item.valid &&
+      (selection?.sessionId === null || item.provider === settings.provider)
+  )
   const capabilities = useStore((state) => state.capabilities)
-  const cwd = useStore((state) => state.selection?.cwd)
   const [open, setOpen] = useState(false)
   const [viewed, setViewed] = useState(settings.accountId)
   const [query, setQuery] = useState('')
@@ -99,10 +116,13 @@ function ModelPicker() {
     if (!next) return
     setViewed(settings.accountId)
     setQuery('')
-    if (cwd === undefined) return
+    if (selection === null) return
     for (const item of accounts) {
       if (item.id === settings.accountId || item.error !== null) continue
-      call('capabilities', { accountId: item.id, cwd }).then(
+      call(selection.machine, 'capabilities', {
+        accountId: item.id,
+        cwd: selection.cwd,
+      }).then(
         (result) =>
           setFetched((current) => ({ ...current, [item.id]: result.models })),
         showError
@@ -111,7 +131,19 @@ function ModelPicker() {
   }
 
   function pick(accountId: string, value: string) {
-    changeSettings({ accountId, model: value === 'default' ? null : value })
+    const model = value === 'default' ? null : value
+    const provider = accounts.find((item) => item.id === accountId)?.provider
+    if (provider === undefined || selection === null) return
+    if (provider === settings.provider) changeSettings({ accountId, model })
+    else
+      changeSettings({
+        ...providerSettings(
+          machineOf(getState(), selection.machine).config,
+          provider
+        ),
+        accountId,
+        model,
+      })
     setOpen(false)
   }
 
@@ -126,7 +158,7 @@ function ModelPicker() {
               : `${account.name} · ${model?.name ?? modelValue}`
           }
         >
-          <ClaudeIcon className="size-4" />
+          <ProviderIcon provider={settings.provider} className="size-4" />
           <span className="max-w-40 truncate">{model?.name ?? modelValue}</span>
           {accounts.length > 1 && account !== undefined && (
             <span className="text-muted-foreground max-w-28 truncate font-normal">
@@ -188,7 +220,7 @@ function ModelPicker() {
                       setViewed(item.id)
                     }}
                   >
-                    <ClaudeIcon className="size-5" />
+                    <ProviderIcon provider={item.provider} className="size-5" />
                     <span className="bg-card text-muted-foreground text-3xs pointer-events-none absolute right-0.5 bottom-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full border px-0.5 leading-none font-semibold shadow-sm">
                       {item.name.charAt(0).toUpperCase()}
                     </span>

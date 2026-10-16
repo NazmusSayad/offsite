@@ -1,13 +1,14 @@
+import os from 'node:os'
 import type { WebSocket } from 'ws'
 import {
   accounts,
   addAccount,
   capabilities,
-  linkAccount,
   publishAccounts,
   removeAccount,
   updateAccount,
-} from './claude.ts'
+} from './accounts.ts'
+import { codexAgent } from './codex/sessions.ts'
 import { configInfo, readConfig, saveConfig } from './config.ts'
 import { listFiles, readProjectFile, saveUpload, taskOutput } from './files.ts'
 import {
@@ -20,6 +21,8 @@ import {
 } from './git.ts'
 import { agentMessages, earlier, image } from './history.ts'
 import { type Client, clients } from './hub.ts'
+import { activity, runs } from './live.ts'
+import { openCodeAgent } from './opencode/sessions.ts'
 import {
   addProject,
   directories,
@@ -27,12 +30,12 @@ import {
   removeProject,
   updateProject,
 } from './projects.ts'
-import type { Call, Method, Methods } from './protocol.ts'
+import { type Call, type Method, type Methods, PROTOCOL } from './protocol.ts'
 import { pushKey, subscribe, unsubscribe } from './push.ts'
-import { activity, runs } from './run.ts'
 import { open, rewind, send } from './runs.ts'
 import {
   fork,
+  providerOf,
   publishSessions,
   recordInteraction,
   removeSession,
@@ -60,6 +63,8 @@ const handlers: Handlers = {
   ping: () => null,
   sync: async () => ({
     ...configInfo(),
+    protocol: PROTOCOL,
+    hostname: os.hostname(),
     projects: projects(),
     sessions: await sessions(),
     activity: activity(),
@@ -108,9 +113,22 @@ const handlers: Handlers = {
   },
   'sessions.earlier': (params) => earlier(params.sessionId, params.before),
   'sessions.image': (params) =>
-    image(params.sessionId, params.uuid, params.index),
-  'sessions.agent': (params) =>
-    agentMessages(params.sessionId, params.cwd, params.agentId, params.parent),
+    image(params.sessionId, params.itemId, params.index),
+  'sessions.agent': (params) => {
+    switch (providerOf(params.sessionId)) {
+      case 'claude':
+        return agentMessages(
+          params.sessionId,
+          params.cwd,
+          params.agentId,
+          params.parent
+        )
+      case 'codex':
+        return codexAgent(params.agentId, params.parent)
+      case 'opencode':
+        return openCodeAgent(params.agentId, params.parent)
+    }
+  },
   'sessions.send': async (params, client) => {
     await send(client, params)
     return null
@@ -124,21 +142,21 @@ const handlers: Handlers = {
     return null
   },
   'sessions.interrupt': async (params) => {
-    await runs.get(params.sessionId)?.query.interrupt()
+    await runs.get(params.sessionId)?.interrupt()
     return null
   },
   'sessions.stopTask': async (params) => {
-    await runs.get(params.sessionId)?.query.stopTask(params.taskId)
+    await runs.get(params.sessionId)?.stopTask(params.taskId)
     return null
   },
   'sessions.configure': async (params) => {
     await runs.get(params.sessionId)?.configure(params.settings)
     return null
   },
-  'sessions.respond': (params) => {
+  'sessions.respond': async (params) => {
     const run = runs.get(params.sessionId)
     if (run === undefined) return null
-    run.respond(params.requestId, params.decision, params.answers)
+    await run.respond(params.requestId, params.decision, params.answers)
     recordInteraction(params.sessionId)
     return null
   },
@@ -150,7 +168,7 @@ const handlers: Handlers = {
   },
   'accounts.list': () => accounts(),
   'accounts.add': (params) => {
-    addAccount(params.name, params.configDir)
+    addAccount(params.provider, params.name, params.configDir)
     void publishAccounts()
     return null
   },
@@ -161,11 +179,6 @@ const handlers: Handlers = {
   },
   'accounts.remove': (params) => {
     removeAccount(params.id)
-    void publishAccounts()
-    return null
-  },
-  'accounts.link': async (params) => {
-    await linkAccount(params.id)
     void publishAccounts()
     return null
   },
@@ -180,7 +193,8 @@ const handlers: Handlers = {
   'git.commit': (params) => commit(params.cwd, params.message),
   'git.push': (params) => push(params.cwd),
   'git.pullRequest': (params) => createPullRequest(params.cwd),
-  'git.message': (params) => suggestCommitMessage(params.accountId, params.cwd),
+  'git.message': (params) =>
+    suggestCommitMessage(params.provider, params.accountId, params.cwd),
   'push.key': () => pushKey(),
   'push.subscribe': (params) => {
     subscribe(params)

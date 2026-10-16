@@ -1,3 +1,11 @@
+import type { Provider } from '@server/protocol'
+
+export const providerNames: Record<Provider, string> = {
+  claude: 'Claude',
+  codex: 'Codex',
+  opencode: 'OpenCode',
+}
+
 export function projectName(cwd: string) {
   return cwd.split(/[\\/]/).filter(Boolean).at(-1) ?? cwd
 }

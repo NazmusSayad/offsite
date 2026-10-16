@@ -3,6 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { machineKey } from '@/machines'
 import {
   openSession,
   showPalette,
@@ -17,6 +18,7 @@ export function Palette() {
   const open = useStore((state) => state.paletteOpen)
   const selection = useStore((state) => state.selection)
   const sessionList = useStore((state) => state.sessions)
+  const machines = useStore((state) => state.machines)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const list = useRef<HTMLDivElement>(null)
@@ -30,7 +32,7 @@ export function Palette() {
             key: 'new',
             label: 'New thread',
             detail: selection.cwd,
-            run: () => openSession({ cwd: selection.cwd, sessionId: null }),
+            run: () => openSession({ ...selection, sessionId: null }),
           },
         ]),
     {
@@ -47,10 +49,15 @@ export function Palette() {
     },
   ]
   const sessions: Item[] = sessionList.map((session) => ({
-    key: session.id,
+    key: machineKey(session.machine, session.id),
     label: session.title,
-    detail: `${session.status === 'minimized' ? 'Minimized · ' : ''}${session.cwd}`,
-    run: () => openSession({ cwd: session.cwd, sessionId: session.id }),
+    detail: `${session.status === 'minimized' ? 'Minimized · ' : ''}${machines.length > 1 ? `${machines.find((item) => item.origin === session.machine)?.name ?? ''}:` : ''}${session.cwd}`,
+    run: () =>
+      openSession({
+        machine: session.machine,
+        cwd: session.cwd,
+        sessionId: session.id,
+      }),
   }))
   const items = [...actions, ...sessions]
     .filter((item) => {

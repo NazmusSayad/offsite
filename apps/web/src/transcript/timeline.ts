@@ -1,50 +1,28 @@
-import type { Block, Message } from '@server/protocol'
-import {
-  editedFile,
-  editStats,
-  relative,
-  type ToolUse,
-  type WorkEntry,
-} from '@/transcript/tool-details'
+import type { Item } from '@server/protocol'
+import { editStats, relative, type WorkItem } from '@/transcript/tool-details'
 
-export type Turn = { prompt: Message | null; first: boolean; items: Message[] }
+export type UserItem = Extract<Item, { kind: 'user' }>
+
+export type AgentItem = Extract<
+  Item,
+  { kind: 'subagent' | 'agent_message' | 'command' }
+>
+
+export type QuestionItem = Extract<Item, { kind: 'question' }>
+
+export type Turn = { prompt: UserItem | null; first: boolean; items: Item[] }
 
 export type Stat = { added: number; removed: number }
 
-type Segment =
-  | { kind: 'entry'; entry: WorkEntry }
-  | { kind: 'agent'; key: string; tool: ToolUse }
-  | {
-      kind: 'text'
-      key: string
-      uuid: string
-      text: string
-      time: number | null
-    }
-  | {
-      kind: 'notice'
-      key: string
-      text: string
-      isError: boolean
-      time: number | null
-    }
-  | { kind: 'plan'; key: string; plan: string }
-  | { kind: 'question'; key: string; tool: ToolUse }
-
 export type Row =
-  | {
-      kind: 'user'
-      key: string
-      message: Extract<Message, { type: 'user' | 'assistant' }>
-      first: boolean
-    }
+  | { kind: 'user'; key: string; item: UserItem; first: boolean }
   | { kind: 'working'; key: string }
-  | { kind: 'group'; key: string; entries: WorkEntry[]; live: boolean }
-  | { kind: 'agent'; key: string; tool: ToolUse; live: boolean }
+  | { kind: 'group'; key: string; entries: WorkItem[]; live: boolean }
+  | { kind: 'agent'; key: string; item: AgentItem; live: boolean }
   | {
       kind: 'assistant'
       key: string
-      uuid: string
+      message: string
       text: string
       time: number | null
       streaming: boolean
@@ -54,7 +32,7 @@ export type Row =
   | { kind: 'error'; key: string; text: string; time: number | null }
   | { kind: 'notice'; key: string; text: string }
   | { kind: 'plan'; key: string; plan: string }
-  | { kind: 'question'; key: string; tool: ToolUse }
+  | { kind: 'question'; key: string; item: QuestionItem }
 
 export function isTool(row: Row) {
   return row.kind === 'group' || row.kind === 'agent'
@@ -66,61 +44,22 @@ export function turnRows(
   live: { partial: string } | null
 ): Row[] {
   const rows: Row[] = []
-  const turnKey = turn.prompt?.uuid ?? 'start'
-  const segments = turn.items.flatMap(segmentsOf)
+  const turnKey = turn.prompt?.id ?? 'start'
 
-  if (turn.prompt !== null && turn.prompt.type !== 'notice') {
-    const prompt = turn.prompt
-    const notifications = prompt.content.flatMap((block) =>
-      block.type === 'text' && block.text.startsWith('<task-notification>')
-        ? [block.text]
-        : []
-    )
-    const summaries = notifications.flatMap((notification) =>
-      [
-        ...notification.matchAll(
-          /<task-notification>([\s\S]*?)<\/task-notification>/g
-        ),
-      ].map(
-        (match) =>
-          /<summary>([\s\S]*?)<\/summary>/.exec(match[1])?.[1] ??
-          'Background task updated'
-      )
-    )
-    for (const [index, summary] of summaries.entries())
-      rows.push({
-        kind: 'notice',
-        key: `${prompt.uuid}:${index}`,
-        text: summary,
-      })
-    if (notifications.length === 0)
-      rows.push(
-        prompt.content.some(
-          (block) =>
-            block.type === 'text' &&
-            block.text.startsWith('[Request interrupted by user')
-        )
-          ? { kind: 'notice', key: prompt.uuid, text: 'Interrupted' }
-          : {
-              kind: 'user',
-              key: prompt.uuid,
-              message: prompt,
-              first: turn.first,
-            }
-      )
-  }
+  if (turn.prompt !== null)
+    rows.push({
+      kind: 'user',
+      key: turn.prompt.id,
+      item: turn.prompt,
+      first: turn.first,
+    })
 
-  for (const segment of segments) {
+  for (const item of turn.items) {
+    const row = rowOf(item, live !== null)
     const previous = rows.at(-1)
-    if (segment.kind !== 'entry') rows.push(segmentRow(segment, live !== null))
-    else if (previous?.kind === 'group') previous.entries.push(segment.entry)
-    else
-      rows.push({
-        kind: 'group',
-        key: `group:${segment.entry.key}`,
-        entries: [segment.entry],
-        live: false,
-      })
+    if (row?.kind === 'group' && previous?.kind === 'group')
+      previous.entries.push(...row.entries)
+    else if (row !== null) rows.push(row)
   }
 
   const last = rows.at(-1)
@@ -130,7 +69,7 @@ export function turnRows(
     rows.push({
       kind: 'assistant',
       key: `${turnKey}:partial`,
-      uuid: '',
+      message: '',
       text: live.partial,
       time: null,
       streaming: true,
@@ -144,18 +83,17 @@ export function turnRows(
     rows[rows.length - 1] = {
       ...last,
       meta: true,
-      changed: changes(segments, cwd),
+      changed: changes(turn.items, cwd),
     }
   return rows
 }
 
-function changes(segments: Segment[], cwd: string) {
+function changes(items: Item[], cwd: string) {
   const changed = new Map<string, Stat>()
-  for (const segment of segments) {
-    if (segment.kind !== 'entry' || segment.entry.kind !== 'tool') continue
-    const stats = editStats(segment.entry.tool)
-    if (stats === null) continue
-    const file = relative(editedFile(segment.entry.tool), cwd)
+  for (const item of items) {
+    if (item.kind !== 'file_change' || item.diffs.length === 0) continue
+    const stats = editStats(item)
+    const file = relative(item.path, cwd)
     const current = changed.get(file) ?? { added: 0, removed: 0 }
     changed.set(file, {
       added: current.added + stats.added,
@@ -165,136 +103,80 @@ function changes(segments: Segment[], cwd: string) {
   return changed
 }
 
-function segmentRow(
-  segment: Exclude<Segment, { kind: 'entry' }>,
-  live: boolean
-): Row {
-  switch (segment.kind) {
-    case 'agent':
-      return { kind: 'agent', key: segment.key, tool: segment.tool, live }
-    case 'text':
+function rowOf(item: Item, live: boolean): Row | null {
+  switch (item.kind) {
+    case 'assistant':
       return {
         kind: 'assistant',
-        key: segment.key,
-        uuid: segment.uuid,
-        text: segment.text,
-        time: segment.time,
+        key: item.id,
+        message: item.message,
+        text: item.text,
+        time: item.time,
         streaming: false,
         meta: false,
         changed: new Map(),
       }
-    case 'notice':
-      return segment.isError
+    case 'reasoning':
+    case 'file_change':
+    case 'web_search':
+    case 'skill':
+    case 'tool':
+      return {
+        kind: 'group',
+        key: `group:${item.id}`,
+        entries: [item],
+        live: false,
+      }
+    case 'command':
+      return item.background === null
         ? {
-            kind: 'error',
-            key: segment.key,
-            text: segment.text,
-            time: segment.time,
+            kind: 'group',
+            key: `group:${item.id}`,
+            entries: [item],
+            live: false,
           }
-        : { kind: 'notice', key: segment.key, text: segment.text }
+        : { kind: 'agent', key: item.id, item, live }
+    case 'subagent':
+    case 'agent_message':
+      return { kind: 'agent', key: item.id, item, live }
     case 'plan':
-      return { kind: 'plan', key: segment.key, plan: segment.plan }
+      return { kind: 'plan', key: item.id, plan: item.plan }
     case 'question':
-      return { kind: 'question', key: segment.key, tool: segment.tool }
+      return { kind: 'question', key: item.id, item }
+    case 'notice':
+      return { kind: 'notice', key: item.id, text: item.text }
+    case 'compaction':
+      return { kind: 'notice', key: item.id, text: 'Conversation compacted' }
+    case 'error':
+      return { kind: 'error', key: item.id, text: item.text, time: item.time }
+    case 'user':
+    case 'todo_list':
+      return null
   }
 }
 
-function segmentsOf(message: Message): Segment[] {
-  if (message.type === 'notice')
-    return [
-      {
-        kind: 'notice',
-        key: message.uuid,
-        text: message.text,
-        isError: message.isError,
-        time: message.time,
-      },
-    ]
-  if (message.type === 'user') return []
-  return message.content.flatMap((block, index): Segment[] => {
-    const key = `${message.uuid}:${index}`
-    switch (block.type) {
-      case 'text':
-        return block.text.trim() === ''
-          ? []
-          : [
-              {
-                kind: 'text',
-                key,
-                uuid: message.uuid,
-                text: block.text,
-                time: message.time,
-              },
-            ]
-      case 'thinking':
-        return block.thinking.trim() === ''
-          ? []
-          : [
-              {
-                kind: 'entry',
-                entry: { kind: 'thinking', key, text: block.thinking },
-              },
-            ]
-      case 'tool_use':
-        switch (block.name) {
-          case 'TodoWrite':
-            return []
-          case 'Agent':
-          case 'Task':
-          case 'SendMessage':
-          case 'Monitor':
-            return [{ kind: 'agent', key, tool: block }]
-          case 'Bash':
-            return block.input.run_in_background === true
-              ? [{ kind: 'agent', key, tool: block }]
-              : [{ kind: 'entry', entry: { kind: 'tool', key, tool: block } }]
-          case 'AskUserQuestion':
-            return [{ kind: 'question', key, tool: block }]
-          case 'ExitPlanMode':
-            return [
-              {
-                kind: 'plan',
-                key,
-                plan:
-                  typeof block.input.plan === 'string' ? block.input.plan : '',
-              },
-            ]
-          default:
-            return [
-              {
-                kind: 'entry',
-                entry: { kind: 'tool', key, tool: block },
-              },
-            ]
-        }
-      case 'image':
-      case 'tool_result':
-        return []
-    }
-  })
-}
-
-export function isPrompt(blocks: Block[]) {
-  return blocks.some((block) => block.type === 'text' || block.type === 'image')
-}
-
 export function mainRows(
-  messages: Message[],
+  items: Item[],
   cwd: string,
   running: boolean,
   partial: string
 ) {
   const turns: Turn[] = []
   let answered = false
-  for (const message of messages) {
-    if (message.type !== 'notice' && message.parent !== null) continue
-    if (message.type === 'user' && isPrompt(message.content)) {
-      turns.push({ prompt: message, first: !answered, items: [] })
+  for (const item of items) {
+    if (item.parent !== null) continue
+    if (item.kind === 'user') {
+      turns.push({ prompt: item, first: !answered, items: [] })
       continue
     }
-    if (message.type === 'assistant') answered = true
+    if (
+      item.kind !== 'notice' &&
+      item.kind !== 'error' &&
+      item.kind !== 'compaction'
+    )
+      answered = true
     if (turns.length === 0) turns.push({ prompt: null, first: true, items: [] })
-    turns[turns.length - 1].items.push(message)
+    turns[turns.length - 1].items.push(item)
   }
   const rows = turns.flatMap((turn, index) =>
     turnRows(

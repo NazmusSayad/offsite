@@ -24,6 +24,9 @@ export function RewindDialog(props: {
   const [busy, setBusy] = useState(false)
   const target = props.target
   const selection = useStore((state) => state.selection)
+  const provider = useStore((state) => state.settings.provider)
+  const restoresCode = provider !== 'codex'
+  const machine = selection?.machine ?? null
   const sessionId = selection?.sessionId ?? null
   const cwd = selection?.cwd ?? ''
 
@@ -31,9 +34,15 @@ export function RewindDialog(props: {
     setPreview(null)
     setCodeError(null)
     setError(null)
-    if (target === null || sessionId === null) return
+    if (
+      target === null ||
+      machine === null ||
+      sessionId === null ||
+      !restoresCode
+    )
+      return
     let current = true
-    call('sessions.rewind', {
+    call(machine, 'sessions.rewind', {
       sessionId,
       cwd,
       messageId: target.messageId,
@@ -52,16 +61,17 @@ export function RewindDialog(props: {
     return () => {
       current = false
     }
-  }, [target, sessionId, cwd])
+  }, [target, machine, sessionId, cwd, restoresCode])
 
   async function apply(code: boolean, conversation: boolean) {
-    if (target === null || sessionId === null) return
+    if (target === null || machine === null || sessionId === null) return
     setBusy(true)
     setError(null)
     try {
-      const truncate = conversation && !target.first
+      const truncate =
+        conversation && (!target.first || provider === 'opencode')
       if (code || truncate)
-        await call('sessions.rewind', {
+        await call(machine, 'sessions.rewind', {
           sessionId,
           cwd,
           messageId: target.messageId,
@@ -70,7 +80,8 @@ export function RewindDialog(props: {
           conversation: truncate,
           dryRun: false,
         })
-      if (conversation && target.first) openSession({ cwd, sessionId: null })
+      if (conversation && target.first && provider !== 'opencode')
+        openSession({ machine, cwd, sessionId: null })
       if (conversation) setDraft(target.text)
       props.onClose()
     } catch (caught) {
@@ -91,57 +102,67 @@ export function RewindDialog(props: {
             back into the composer so you can edit and resend it.
           </DialogDescription>
         </DialogHeader>
-        <div className="bg-secondary dark:bg-input/20 text-muted-foreground rounded-lg px-3 py-2 text-xs">
-          {codeError !== null && `Code can't be restored: ${codeError}`}
-          {codeError === null && preview === null && 'Checking file changes…'}
-          {preview !== null &&
-            preview.files.length === 0 &&
-            'No file changes since this message.'}
-          {preview !== null && preview.files.length > 0 && (
-            <>
-              <div>
-                Restores {preview.files.length}{' '}
-                {preview.files.length === 1 ? 'file' : 'files'} (
-                <span className="text-diff-addition">
-                  +{preview.insertions}
-                </span>{' '}
-                <span className="text-diff-deletion">−{preview.deletions}</span>
-                )
-              </div>
-              <ul className="mt-1 max-h-32 overflow-y-auto font-mono">
-                {preview.files.map((file) => (
-                  <li key={file} className="truncate">
-                    {file.startsWith(`${cwd}/`)
-                      ? file.slice(cwd.length + 1)
-                      : file}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
+        {restoresCode && (
+          <div className="bg-secondary dark:bg-input/20 text-muted-foreground rounded-lg px-3 py-2 text-xs">
+            {codeError !== null && `Code can't be restored: ${codeError}`}
+            {codeError === null && preview === null && 'Checking file changes…'}
+            {preview !== null &&
+              preview.files.length === 0 &&
+              'No file changes since this message.'}
+            {preview !== null && preview.files.length > 0 && (
+              <>
+                <div>
+                  Restores {preview.files.length}{' '}
+                  {preview.files.length === 1 ? 'file' : 'files'} (
+                  <span className="text-diff-addition">
+                    +{preview.insertions}
+                  </span>{' '}
+                  <span className="text-diff-deletion">
+                    −{preview.deletions}
+                  </span>
+                  )
+                </div>
+                <ul className="mt-1 max-h-32 overflow-y-auto font-mono">
+                  {preview.files.map((file) => (
+                    <li key={file} className="truncate">
+                      {file.startsWith(`${cwd}/`)
+                        ? file.slice(cwd.length + 1)
+                        : file}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
         {error !== null && <p className="text-destructive text-xs">{error}</p>}
         <div className="flex flex-col gap-2">
+          {restoresCode && (
+            <Button
+              disabled={busy || !codeReady}
+              onClick={() => void apply(true, true)}
+            >
+              Restore code and conversation
+            </Button>
+          )}
           <Button
-            disabled={busy || !codeReady}
-            onClick={() => void apply(true, true)}
-          >
-            Restore code and conversation
-          </Button>
-          <Button
-            variant="secondary"
+            variant={restoresCode ? 'secondary' : 'default'}
             disabled={busy}
             onClick={() => void apply(false, true)}
           >
-            Restore conversation only
+            {restoresCode
+              ? 'Restore conversation only'
+              : 'Restore conversation'}
           </Button>
-          <Button
-            variant="secondary"
-            disabled={busy || !codeReady}
-            onClick={() => void apply(true, false)}
-          >
-            Restore code only
-          </Button>
+          {provider === 'claude' && (
+            <Button
+              variant="secondary"
+              disabled={busy || !codeReady}
+              onClick={() => void apply(true, false)}
+            >
+              Restore code only
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

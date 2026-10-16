@@ -1,9 +1,6 @@
-import type {
-  EffortLevel,
-  PermissionMode,
-} from '@anthropic-ai/claude-agent-sdk'
+export const PROTOCOL = 2
 
-export type { EffortLevel, PermissionMode }
+export type Provider = 'claude' | 'codex' | 'opencode'
 
 export type RateLimit = {
   window: string
@@ -14,6 +11,7 @@ export type RateLimit = {
 
 export type Session = {
   id: string
+  provider: Provider
   title: string
   cwd: string
   branch: string | null
@@ -32,6 +30,8 @@ export type Directories = {
 }
 
 export type Snapshot = ConfigInfo & {
+  protocol: number
+  hostname: string
   projects: Project[]
   sessions: Session[]
   activity: Record<string, Activity>
@@ -49,6 +49,7 @@ export type Context = {
 
 export type Account = {
   id: string
+  provider: Provider
   name: string
   configDir: string
   email: string | null
@@ -56,25 +57,35 @@ export type Account = {
   error: string | null
   limits: RateLimit[]
   linked: boolean
+  valid: boolean
 }
 
 export type Model = {
   value: string
   name: string
   description: string
-  efforts: EffortLevel[]
+  efforts: string[]
 }
 
 export type Command = { name: string; description: string; hint: string }
 
-export type Capabilities = { models: Model[]; commands: Command[] }
+export type Agent = { id: string; name: string; description: string }
 
-export type Settings = {
+export type Capabilities = {
+  models: Model[]
+  commands: Command[]
+  agents: Agent[]
+}
+
+export type ProviderSettings = {
   accountId: string | null
   model: string | null
-  effort: EffortLevel | null
-  permissionMode: PermissionMode | null
+  effort: string | null
+  mode: string | null
+  plan: boolean
 }
+
+export type Settings = ProviderSettings & { provider: Provider }
 
 export type Rewind = {
   sessionId: string
@@ -112,31 +123,14 @@ export type TerminalIdentity = 'offsite' | 'ghostty' | 'iterm2'
 
 export type TerminalConfig = {
   shell: Record<Platform, string | null>
-  font: { family: string; size: number; lineHeight: number; ligatures: boolean }
-  cursor: { style: 'block' | 'bar' | 'underline'; blink: boolean }
-  padding: { top: number; right: number; bottom: number; left: number }
-  scrollback: number
-  boldIsBright: boolean
-  behavior: {
-    modernizeShiftEnter: boolean
-    pasteBrowserImages: boolean
-    captureShortcuts: boolean
-    bellFlash: boolean
-    bellSound: boolean
-    terminalIdentity: TerminalIdentity
-    shellIntegration: boolean
-    clickToMoveCursor: boolean
-    optionAsMeta: 'off' | 'left' | 'right' | 'both'
-    confirmCloseBusyTab: boolean
-  }
+  behavior: { terminalIdentity: TerminalIdentity; shellIntegration: boolean }
 }
 
 export type Config = {
-  theme: string
   claudeBaseDir: string
-  composer: Settings
+  composer: { provider: Provider } & Record<Provider, ProviderSettings>
+  commitModels: Record<Provider, string | null>
   terminal: TerminalConfig
-  diff: { split: boolean; wrap: boolean }
 }
 
 export type ConfigInfo = {
@@ -159,6 +153,7 @@ export type TerminalLayout = Record<string, TerminalProject>
 
 export type TerminalRequest =
   | { type: 'attach' }
+  | { type: 'detach' }
   | { type: 'createTab'; cwd: string }
   | { type: 'closeTab'; id: number }
   | { type: 'renameTab'; id: number; name: string }
@@ -187,47 +182,108 @@ export type Prompt = { text: string; images: Image[] }
 
 export type Queued = { id: string; prompt: Prompt }
 
-export type Block =
-  | { type: 'text'; text: string }
-  | { type: 'thinking'; thinking: string }
-  | { type: 'image'; mediaType: string; data: string | null }
+export type ItemStatus = 'running' | 'completed' | 'failed' | 'stopped'
+
+export type ItemImage = { mediaType: string; data: string | null }
+
+export type Question = {
+  question: string
+  header: string
+  multiSelect: boolean
+  options: { label: string; description: string }[]
+}
+
+export type TodoStep = {
+  text: string
+  status: 'pending' | 'running' | 'completed'
+}
+
+export type Background = {
+  taskId: string | null
+  outputPath: string | null
+  events: string[]
+}
+
+export type Item = {
+  id: string
+  parent: string | null
+  time: number | null
+} & (
   | {
-      type: 'tool_use'
-      id: string
+      kind: 'user'
+      text: string
+      images: ItemImage[]
+      format: 'text' | 'command' | 'output'
+    }
+  | { kind: 'assistant'; text: string; message: string }
+  | { kind: 'reasoning'; text: string }
+  | {
+      kind: 'command'
+      command: string
+      description: string
+      output: string
+      status: ItemStatus
+      background: Background | null
+    }
+  | {
+      kind: 'file_change'
+      path: string
+      diffs: { before: string; after: string }[]
+      output: string
+      status: ItemStatus
+    }
+  | {
+      kind: 'web_search'
+      query: string | null
+      url: string | null
+      results: { title: string; url: string }[]
+      output: string
+      status: ItemStatus
+    }
+  | { kind: 'skill'; skill: string; output: string; status: ItemStatus }
+  | {
+      kind: 'tool'
       name: string
       input: Record<string, unknown>
+      output: string
+      status: ItemStatus
     }
+  | { kind: 'todo_list'; steps: TodoStep[] }
+  | { kind: 'plan'; plan: string }
   | {
-      type: 'tool_result'
-      toolUseId: string
-      content: Block[]
-      isError: boolean
+      kind: 'question'
+      questions: Question[]
       answers: Record<string, string> | null
-    }
-
-export type Message =
-  | {
-      type: 'user' | 'assistant'
-      uuid: string
-      time: number | null
-      content: Block[]
-      parent: string | null
+      status: ItemStatus
     }
   | {
-      type: 'notice'
-      uuid: string
-      time: number | null
-      text: string
-      isError: boolean
+      kind: 'subagent'
+      agent: string
+      description: string
+      agentId: string | null
+      status: ItemStatus
     }
+  | {
+      kind: 'agent_message'
+      target: string | null
+      summary: string
+      status: ItemStatus
+    }
+  | { kind: 'compaction' }
+  | { kind: 'notice'; text: string }
+  | { kind: 'error'; text: string }
+)
 
-export type PermissionRequest = {
-  id: string
-  toolName: string
-  input: Record<string, unknown>
-  title: string | null
-  canAlwaysAllow: boolean
-}
+export type PermissionRequest =
+  | {
+      id: string
+      kind: 'approval'
+      title: string
+      canAlwaysAllow: boolean
+      item: Item
+    }
+  | { id: string; kind: 'plan'; plan: string }
+  | { id: string; kind: 'question'; questions: Question[] }
 
 export type TaskStatus = 'running' | 'completed' | 'failed' | 'stopped'
 
@@ -267,15 +323,15 @@ export type Methods = {
   'sessions.open': { params: { sessionId: string; cwd: string }; result: null }
   'sessions.earlier': {
     params: { sessionId: string; before: number }
-    result: { messages: Message[]; before: number | null }
+    result: { items: Item[]; before: number | null }
   }
   'sessions.image': {
-    params: { sessionId: string; uuid: string; index: number }
+    params: { sessionId: string; itemId: string; index: number }
     result: Image
   }
   'sessions.agent': {
     params: { sessionId: string; cwd: string; agentId: string; parent: string }
-    result: Message[]
+    result: Item[]
   }
   'sessions.send': {
     params: {
@@ -320,7 +376,7 @@ export type Methods = {
   }
   'accounts.list': { params: void; result: Account[] }
   'accounts.add': {
-    params: { name: string; configDir: string }
+    params: { provider: Provider; name: string; configDir: string }
     result: null
   }
   'accounts.update': {
@@ -328,7 +384,6 @@ export type Methods = {
     result: null
   }
   'accounts.remove': { params: { id: string }; result: null }
-  'accounts.link': { params: { id: string }; result: null }
   capabilities: {
     params: { accountId: string; cwd: string }
     result: Capabilities
@@ -349,7 +404,7 @@ export type Methods = {
   'git.push': { params: { cwd: string }; result: GitStatus | null }
   'git.pullRequest': { params: { cwd: string }; result: { url: string } }
   'git.message': {
-    params: { accountId: string | null; cwd: string }
+    params: { provider: Provider; accountId: string | null; cwd: string }
     result: { message: string }
   }
   'push.key': { params: void; result: { publicKey: string } }
@@ -413,14 +468,16 @@ export type ServerEvent =
   | {
       type: 'history'
       sessionId: string
-      messages: Message[]
+      provider: Provider
+      items: Item[]
       requests: PermissionRequest[]
       queue: Queued[]
       settings: Settings | null
       context: Context | null
       before: number | null
+      partial: string
     }
-  | { type: 'message'; sessionId: string; message: Message }
+  | { type: 'items'; sessionId: string; items: Item[] }
   | { type: 'delta'; sessionId: string; text: string }
   | { type: 'request'; sessionId: string; request: PermissionRequest }
   | { type: 'requestDone'; sessionId: string; requestId: string }

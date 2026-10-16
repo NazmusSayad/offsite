@@ -4,7 +4,7 @@ self.addEventListener('push', (event) => {
     message
       ? self.registration.showNotification(message.title, {
           body: message.body,
-          data: { cwd: message.cwd, tabId: message.tabId },
+          data: { machine: null, cwd: message.cwd, tabId: message.tabId },
         })
       : self.registration.showNotification('offsite', { data: null })
   )
@@ -69,13 +69,24 @@ async function openTab(tab) {
   })
   const page = windows[0]
   if (!page) {
-    await self.clients.openWindow(
-      tab
-        ? `/?${new URLSearchParams({ cwd: tab.cwd, terminal: String(tab.tabId) })}`
-        : '/'
-    )
+    await self.clients.openWindow(tab ? `/?${tabParams(tab)}` : '/')
     return
   }
-  if (tab) page.postMessage({ type: 'select', cwd: tab.cwd, tabId: tab.tabId })
+  if (tab)
+    page.postMessage({
+      type: 'select',
+      machine: tab.machine,
+      cwd: tab.cwd,
+      tabId: tab.tabId,
+    })
   await page.focus()
+}
+
+function tabParams(tab) {
+  const params = new URLSearchParams()
+  if (tab.machine !== null && tab.machine !== self.location.origin)
+    params.set('machine', tab.machine)
+  params.set('cwd', tab.cwd)
+  params.set('terminal', String(tab.tabId))
+  return params
 }
