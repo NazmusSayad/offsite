@@ -45,9 +45,10 @@ export function SessionItem(props: {
   const [confirming, setConfirming] = useState(false)
   const field = useRef<HTMLInputElement>(null)
   const waiting = props.activity?.waiting === true
+  const turning = !waiting && props.activity?.running === true
   const working =
-    !waiting &&
-    (props.activity?.running === true ||
+    turning ||
+    (!waiting &&
       Object.values(props.activity?.tasks ?? {}).includes('running'))
   const done = !waiting && !working && props.unseen
   const recede = !props.selected && !waiting && !done
@@ -248,7 +249,13 @@ export function SessionItem(props: {
               {timeAgo(session.updatedAt)}
             </span>
             {working && (
-              <span title="Working" className="text-info flex">
+              <span
+                title={turning ? 'Working' : 'Running in background'}
+                className={cn(
+                  'flex',
+                  turning ? 'text-info' : 'text-muted-foreground'
+                )}
+              >
                 <HugeiconsIcon
                   icon={CircleDashedIcon}
                   className="size-4 shrink-0 animate-spin"

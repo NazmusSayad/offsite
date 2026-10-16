@@ -117,10 +117,21 @@ export function FilesPanel(props: { cwd: string; onClose: () => void }) {
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-36 pl-3">
-        <span className="text-foreground min-w-0 truncate text-xs font-medium">
-          Files
-        </span>
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-39 pl-3">
+        <div className="flex min-w-0 items-center gap-1">
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title="Close"
+            aria-label="Close"
+            onClick={props.onClose}
+          >
+            <HugeiconsIcon icon={XIcon} className="size-3.5" />
+          </Button>
+          <span className="text-foreground min-w-0 truncate text-xs font-medium">
+            Files
+          </span>
+        </div>
         <div className="flex shrink-0 items-center gap-1">
           <Button
             size="icon-sm"
@@ -130,15 +141,6 @@ export function FilesPanel(props: { cwd: string; onClose: () => void }) {
             onClick={() => setVersion(version + 1)}
           >
             <HugeiconsIcon icon={RefreshCwIcon} className="size-3.5" />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            title="Close"
-            aria-label="Close"
-            onClick={props.onClose}
-          >
-            <HugeiconsIcon icon={XIcon} className="size-3.5" />
           </Button>
         </div>
       </div>

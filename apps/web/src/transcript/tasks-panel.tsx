@@ -41,7 +41,16 @@ export function TasksPanel(props: {
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-36 pl-3">
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-1 border-b pr-39 pl-3">
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          title="Close"
+          aria-label="Close"
+          onClick={props.onClose}
+        >
+          <HugeiconsIcon icon={XIcon} className="size-3.5" />
+        </Button>
         {agent === undefined && task === undefined && (
           <span className="text-foreground min-w-0 truncate text-xs font-medium">
             Tasks
@@ -112,15 +121,6 @@ export function TasksPanel(props: {
             )}
           </div>
         )}
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          title="Close"
-          aria-label="Close"
-          onClick={props.onClose}
-        >
-          <HugeiconsIcon icon={XIcon} className="size-3.5" />
-        </Button>
       </div>
       {agent === undefined && task === undefined && (
         <div className="min-h-0 flex-1 overflow-y-auto p-3">

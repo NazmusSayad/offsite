@@ -86,7 +86,7 @@ export function App() {
     preventDefault: true,
   })
   useHotkeys(
-    'mod+j',
+    ['mod+j', 'meta+backquote', 'ctrl+backquote'],
     (event) => {
       event.stopPropagation()
       setTerminal(!terminalState().open)
@@ -302,6 +302,9 @@ export function App() {
       </main>
       {selection !== null && (
         <div className="fixed top-0 right-3 z-50 flex h-(--workspace-topbar-height) items-center gap-1">
+          {panel !== null && (
+            <span className="bg-foreground/15 mr-0.5 h-4 w-px" />
+          )}
           <button
             className={cn(toggle, 'relative')}
             data-pressed={panel === 'tasks'}
@@ -323,7 +326,7 @@ export function App() {
             className={cn(toggle, 'relative')}
             data-pressed={terminal}
             aria-label="Toggle terminal"
-            title={`Terminal (${mod}+J)`}
+            title={`Terminal (${mod}+\`)`}
             onClick={() => setTerminal(!terminal)}
           >
             <HugeiconsIcon icon={SquareTerminalIcon} />

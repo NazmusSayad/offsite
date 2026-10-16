@@ -11,6 +11,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Project, Session } from '@server/protocol'
 import { useState } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import { ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
@@ -99,6 +100,11 @@ export function Sidebar(props: {
     select(cwd, null)
   }
 
+  useHotkeys(['mod+n', 'mod+t'], startThread, {
+    enableOnFormTags: true,
+    preventDefault: true,
+  })
+
   function resize(event: React.PointerEvent<HTMLDivElement>) {
     const start = event.clientX - width
     drag(event, (next) => {
@@ -132,6 +138,14 @@ export function Sidebar(props: {
     >
       <div className="relative flex min-w-0 flex-col" style={{ width }}>
         <div className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 px-3">
+          <button
+            className={cn(iconButton, 'size-7')}
+            title={`Hide sidebar (${mod}+B)`}
+            aria-label="Hide sidebar"
+            onClick={props.onHide}
+          >
+            <HugeiconsIcon icon={PanelLeftCloseIcon} />
+          </button>
           <DropdownMenu open={picking} onOpenChange={setPicking}>
             <DropdownMenuTrigger asChild>
               <button
@@ -231,7 +245,7 @@ export function Sidebar(props: {
           </button>
           <button
             className={cn(iconButton, 'size-7')}
-            title="New thread"
+            title={`New thread (${mod}+N)`}
             onClick={startThread}
           >
             <HugeiconsIcon icon={SquarePenIcon} />
@@ -288,14 +302,6 @@ export function Sidebar(props: {
           >
             <HugeiconsIcon icon={Settings01Icon} />
             Settings
-          </button>
-          <button
-            className={cn(iconButton, 'ml-auto size-7')}
-            title={`Hide sidebar (${mod}+B)`}
-            aria-label="Hide sidebar"
-            onClick={props.onHide}
-          >
-            <HugeiconsIcon icon={PanelLeftCloseIcon} />
           </button>
         </div>
         <div

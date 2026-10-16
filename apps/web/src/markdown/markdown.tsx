@@ -240,7 +240,7 @@ function MarkdownView(props: {
   return (
     <div
       className={cn(
-        'chat-markdown text-foreground/80 w-full min-w-0 text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]',
+        'chat-markdown text-foreground w-full min-w-0 text-sm leading-relaxed [overflow-wrap:anywhere] [word-break:break-word]',
         props.className
       )}
       data-streaming={props.streaming === true ? '' : undefined}

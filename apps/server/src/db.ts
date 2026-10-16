@@ -14,3 +14,10 @@ db.exec(`
     logo TEXT
   )
 `)
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS prompts (
+    session_id TEXT PRIMARY KEY,
+    time INTEGER NOT NULL
+  )
+`)

@@ -8,6 +8,7 @@ import {
   renameSession,
 } from '@anthropic-ai/claude-agent-sdk'
 import { readConfig } from './config.ts'
+import { db } from './db.ts'
 import { broadcast } from './hub.ts'
 import { projects } from './projects.ts'
 import type { Session, SessionPatch } from './protocol.ts'
@@ -35,7 +36,7 @@ export async function sessions(): Promise<Session[]> {
         title: item.summary,
         cwd: project.path,
         branch: item.gitBranch ?? null,
-        updatedAt: prompts[item.sessionId] ?? item.lastModified,
+        updatedAt: prompts.get(item.sessionId) ?? item.lastModified,
         pinned: marks.pinned.includes(item.sessionId),
         archived: marks.archived.includes(item.sessionId),
       }))
@@ -45,7 +46,9 @@ export async function sessions(): Promise<Session[]> {
 }
 
 export function recordPrompt(id: string) {
-  writeJson('prompts.json', { ...readPrompts(), [id]: Date.now() })
+  db.prepare(
+    'INSERT INTO prompts (session_id, time) VALUES (?, ?) ON CONFLICT (session_id) DO UPDATE SET time = excluded.time'
+  ).run(id, Date.now())
 }
 
 export async function publishSessions() {
@@ -101,8 +104,7 @@ export async function removeSession(id: string) {
     pinned: mark(marks.pinned, id, false),
     archived: mark(marks.archived, id, false),
   })
-  const { [id]: _, ...prompts } = readPrompts()
-  writeJson('prompts.json', prompts)
+  db.prepare('DELETE FROM prompts WHERE session_id = ?').run(id)
 }
 
 export async function fork(sessionId: string, cwd: string, messageId: string) {
@@ -123,7 +125,13 @@ function readMarks() {
 }
 
 function readPrompts() {
-  return (readJson('prompts.json') as Record<string, number> | null) ?? {}
+  const prompts = new Map<string, number>()
+  for (const row of db.prepare('SELECT session_id, time FROM prompts').all()) {
+    if (typeof row.session_id !== 'string' || typeof row.time !== 'number')
+      throw new Error('The prompts table has an unexpected row')
+    prompts.set(row.session_id, row.time)
+  }
+  return prompts
 }
 
 function writeMarks(marks: Marks) {

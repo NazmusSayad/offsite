@@ -87,10 +87,21 @@ export function DiffPanel(props: {
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-36 pl-3">
-        <span className="text-foreground min-w-0 truncate text-xs font-medium">
-          Uncommitted changes
-        </span>
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-39 pl-3">
+        <div className="flex min-w-0 items-center gap-1">
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title="Close"
+            aria-label="Close"
+            onClick={props.onClose}
+          >
+            <HugeiconsIcon icon={XIcon} className="size-3.5" />
+          </Button>
+          <span className="text-foreground min-w-0 truncate text-xs font-medium">
+            Uncommitted changes
+          </span>
+        </div>
         <div className="flex shrink-0 items-center gap-1">
           {list.length > 0 && (
             <span className="text-2xs mr-1 inline-flex items-center gap-1 font-mono tabular-nums">
@@ -165,15 +176,6 @@ export function DiffPanel(props: {
           >
             <HugeiconsIcon icon={TextWrapIcon} className="size-3.5" />
           </button>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            title="Close"
-            aria-label="Close"
-            onClick={props.onClose}
-          >
-            <HugeiconsIcon icon={XIcon} className="size-3.5" />
-          </Button>
         </div>
       </div>
       <div className="diff-render-surface min-h-0 flex-1 overflow-y-auto [--code-background:var(--background)]">
