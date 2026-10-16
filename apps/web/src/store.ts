@@ -194,6 +194,8 @@ export function openSession(selection: Selection) {
     ),
   })
   syncUrl()
+  if (machine.accounts.length > 0)
+    setAccounts(selection.machine, machine.accounts)
   void refreshCapabilities()
   if (selection.sessionId !== null && machine.status === 'online')
     call(selection.machine, 'sessions.open', {

@@ -108,7 +108,7 @@ export function providerOf(sessionId: string) {
 
 export function recordInteraction(id: string) {
   db.prepare(
-    "INSERT INTO sessions (session_id, interacted_at, status) VALUES (?, ?, 'active') ON CONFLICT (session_id) DO UPDATE SET interacted_at = excluded.interacted_at, status = CASE status WHEN 'pinned' THEN 'pinned' ELSE 'active' END"
+    "INSERT INTO sessions (session_id, interacted_at, status) VALUES (?, ?, 'active') ON CONFLICT (session_id) DO UPDATE SET interacted_at = excluded.interacted_at, status = CASE status WHEN 'pinned' THEN 'pinned' WHEN 'minimized' THEN 'minimized' ELSE 'active' END"
   ).run(id, Date.now())
 }
 
@@ -187,9 +187,21 @@ export async function removeSession(id: string) {
 }
 
 export async function fork(sessionId: string, cwd: string, messageId: string) {
-  if (providerOf(sessionId) === 'codex') return forkThread(sessionId, messageId)
-  if (providerOf(sessionId) === 'opencode')
-    return forkOpenCode(sessionId, messageId)
+  const provider = providerOf(sessionId)
+  const result = await forkWith(provider, sessionId, cwd, messageId)
+  providers.set(result.sessionId, provider)
+  recordInteraction(result.sessionId)
+  return result
+}
+
+async function forkWith(
+  provider: Provider,
+  sessionId: string,
+  cwd: string,
+  messageId: string
+) {
+  if (provider === 'codex') return forkThread(sessionId, messageId)
+  if (provider === 'opencode') return forkOpenCode(sessionId, messageId)
   const disk = await getSessionMessages(sessionId, { dir: cwd })
   const index = disk.findIndex((item) => item.uuid === messageId)
   if (index < 0) throw new Error('Cannot fork the session at that point')

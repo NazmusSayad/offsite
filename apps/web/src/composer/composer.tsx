@@ -21,6 +21,7 @@ import {
   changeSettings,
   getState,
   interrupt,
+  machineOf,
   sendPrompt,
   setDraft,
   showError,
@@ -54,6 +55,7 @@ export function Composer() {
   const picker = useRef<HTMLInputElement>(null)
   const machine = selection?.machine ?? home
   const cwd = selection?.cwd ?? ''
+  const status = useStore((state) => machineOf(state, machine).status)
   const key = machineKey(machine, selection?.sessionId ?? cwd)
   const stored = useDraft(key)
   const text = stored.text
@@ -80,8 +82,9 @@ export function Composer() {
   }, [draft, key])
 
   useEffect(() => {
+    if (status !== 'online') return
     call(machine, 'files.list', { cwd }).then(setFiles, showError)
-  }, [machine, cwd])
+  }, [machine, cwd, status])
 
   const before = text.slice(0, caret)
   const trigger =
