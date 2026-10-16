@@ -1,6 +1,7 @@
 import {
   ArrowUp02Icon,
   Cancel01Icon,
+  Delete02Icon,
   Folder01Icon,
   Home07Icon,
   Image01Icon,
@@ -25,7 +26,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { call } from '@/connection'
 import { projectName } from '@/lib/format'
-import { errorMessage } from '@/lib/utils'
+import { cn, errorMessage } from '@/lib/utils'
 import { addProject, removeProject, updateProject } from '@/projects'
 import { readBase64 } from '@/upload'
 
@@ -202,9 +203,9 @@ export function EditProjectDialog(props: {
         if (!open) props.onClose()
       }}
     >
-      <DialogContent>
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
         <form
-          className="grid gap-5"
+          className="grid"
           onSubmit={async (event) => {
             event.preventDefault()
             setSaving(true)
@@ -217,88 +218,97 @@ export function EditProjectDialog(props: {
             }
           }}
         >
-          <DialogHeader>
-            <DialogTitle>Edit project</DialogTitle>
-            <DialogDescription className="font-mono text-xs break-all">
+          <DialogHeader className="gap-1 px-6 pt-4 pr-12">
+            <DialogTitle className="text-base">Edit project</DialogTitle>
+            <DialogDescription
+              className="truncate font-mono text-xs"
+              title={path}
+            >
               {path}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-2">
-            <Label>Icon</Label>
-            <div className="flex items-center gap-3">
-              <ProjectBadge
-                name={name.trim() === '' ? projectName(path) : name}
-                logo={logo}
-                className="size-12 [&>img]:rounded-xl [&>svg]:rounded-xl"
-              />
-              <div className="grid gap-1.5">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    title="Upload an image from this device"
-                    onClick={() => picker.current?.click()}
-                  >
-                    <HugeiconsIcon icon={Upload04Icon} />
-                    Upload
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    title="Choose an image from the project on the server"
-                    onClick={() => setPicking(true)}
-                  >
-                    <HugeiconsIcon icon={Folder01Icon} />
-                    Choose from project
-                  </Button>
-                  {logo !== null && (
+          <div className="grid gap-6 p-6">
+            <div className="grid gap-2.5">
+              <Label>Icon</Label>
+              <div className="flex items-center gap-4">
+                <ProjectBadge
+                  name={name.trim() === '' ? projectName(path) : name}
+                  logo={logo}
+                  className="ring-foreground/10 size-16 rounded-2xl ring-1 [&>img]:rounded-2xl [&>svg]:rounded-2xl"
+                />
+                <div className="grid gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      onClick={() => setLogo(null)}
+                      title="Upload an image from this device"
+                      onClick={() => picker.current?.click()}
                     >
-                      Remove
+                      <HugeiconsIcon icon={Upload04Icon} />
+                      Upload
                     </Button>
-                  )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      title="Choose an image from the project on the server"
+                      onClick={() => setPicking(true)}
+                    >
+                      <HugeiconsIcon icon={Folder01Icon} />
+                      Choose from project
+                    </Button>
+                    {logo !== null && (
+                      <Button
+                        type="button"
+                        variant="ghost-muted"
+                        size="sm"
+                        onClick={() => setLogo(null)}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    PNG, JPG, GIF, WebP, SVG or ICO, up to 384 KB
+                  </p>
                 </div>
-                <p className="text-muted-foreground text-xs">
-                  PNG, JPG, GIF, WebP, SVG or ICO, up to 384 KB
-                </p>
               </div>
+              <input
+                ref={picker}
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon"
+                hidden
+                onChange={async (event) => {
+                  const file = event.target.files?.[0]
+                  event.target.value = ''
+                  if (file === undefined) return
+                  setLogo(`data:${file.type};base64,${await readBase64(file)}`)
+                }}
+              />
             </div>
-            <input
-              ref={picker}
-              type="file"
-              accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon"
-              hidden
-              onChange={async (event) => {
-                const file = event.target.files?.[0]
-                event.target.value = ''
-                if (file === undefined) return
-                setLogo(`data:${file.type};base64,${await readBase64(file)}`)
-              }}
-            />
+            <div className="grid gap-2">
+              <Label htmlFor="project-name">Name</Label>
+              <Input
+                id="project-name"
+                placeholder={projectName(path)}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </div>
+            {error !== null && (
+              <p className="text-destructive text-sm break-all">{error}</p>
+            )}
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="project-name">Name</Label>
-            <Input
-              id="project-name"
-              placeholder={projectName(path)}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </div>
-          {error !== null && (
-            <p className="text-destructive text-sm break-all">{error}</p>
-          )}
-          <DialogFooter>
+          <DialogFooter className="bg-muted/40 border-t px-6 py-4">
             <Button
               type="button"
-              variant="ghost"
-              className="text-destructive hover:text-destructive sm:mr-auto"
+              variant={confirming ? 'destructive' : 'ghost'}
+              className={cn(
+                'sm:mr-auto',
+                !confirming &&
+                  'text-destructive hover:bg-destructive/10 hover:text-destructive'
+              )}
               title="Its threads stay in Claude Code"
               onClick={async () => {
                 if (!confirming) {
@@ -313,6 +323,7 @@ export function EditProjectDialog(props: {
                 }
               }}
             >
+              <HugeiconsIcon icon={Delete02Icon} className="text-current" />
               {confirming ? 'Click again to remove' : 'Remove project'}
             </Button>
             <Button type="button" variant="outline" onClick={props.onClose}>
