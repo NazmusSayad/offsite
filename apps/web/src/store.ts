@@ -62,6 +62,7 @@ export type State = {
   context: Context | null
   capabilities: Capabilities | null
   error: string | null
+  sentAt: number
 }
 
 let configWrites = 0
@@ -125,6 +126,7 @@ export async function sendPrompt(prompt: Prompt, delivery: Delivery) {
   if (selection === null) throw new Error('no session selected')
   if ('Notification' in window && Notification.permission === 'default')
     void Notification.requestPermission()
+  update({ sentAt: Date.now() })
   await call('sessions.send', {
     sessionId: selection.sessionId,
     cwd: selection.cwd,

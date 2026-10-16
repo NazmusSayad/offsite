@@ -52,6 +52,7 @@ export function start(snapshot: Snapshot) {
     context: null,
     capabilities: null,
     error: null,
+    sentAt: 0,
   })
   applyTheme()
   listen({

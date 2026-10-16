@@ -49,12 +49,20 @@ export function Transcript(props: {
   const [top, setTop] = useState<{ key: string; above: number } | null>(null)
   const cwd = selection?.cwd ?? ''
   const running = useStore(selectedRunning)
+  const sentAt = useStore((state) => state.sentAt)
 
   const results = new Map<string, ToolResult>()
   for (const message of [...earlier, ...messages])
     if (message.type !== 'notice')
       for (const block of message.content)
         if (block.type === 'tool_result') results.set(block.toolUseId, block)
+
+  useLayoutEffect(() => {
+    const element = scroller.current
+    if (element === null || sentAt === 0) return
+    pinned.current = true
+    element.scrollTop = element.scrollHeight
+  }, [sentAt])
 
   useLayoutEffect(() => {
     const element = scroller.current

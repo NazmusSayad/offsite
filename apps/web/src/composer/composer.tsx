@@ -185,7 +185,7 @@ export function Composer() {
         'pointer-events-none z-20',
         hero
           ? 'absolute inset-0 flex items-center'
-          : 'relative shrink-0 before:absolute before:inset-x-0 before:bottom-full before:h-8 before:bg-linear-to-t before:from-background before:to-transparent'
+          : 'relative shrink-0 before:absolute before:right-(--app-scrollbar-width) before:bottom-full before:left-0 before:h-8 before:bg-linear-to-t before:from-background before:to-transparent'
       )}
     >
       <div className={cn('w-full px-3 sm:px-12', hero && 'pb-3 sm:pb-4')}>

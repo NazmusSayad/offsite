@@ -2,6 +2,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   ChevronsDownUpIcon,
+  Coffee02Icon,
   LayoutTwoColumnIcon,
   RefreshCwIcon,
   Rows3Icon,
@@ -48,7 +49,6 @@ export function DiffPanel(props: {
   }
 
   useEffect(() => {
-    if (props.running) return
     let current = true
     call('git.diff', { cwd: props.cwd }).then(
       (patch) => {
@@ -190,9 +190,20 @@ export function DiffPanel(props: {
           </p>
         )}
         {error === null && files?.length === 0 && (
-          <p className="text-muted-foreground p-6 text-center text-xs">
-            No uncommitted changes.
-          </p>
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+            <HugeiconsIcon
+              icon={Coffee02Icon}
+              className="text-muted-foreground/40 size-8"
+            />
+            <div className="grid gap-1">
+              <p className="text-muted-foreground text-sm">
+                No uncommitted changes
+              </p>
+              <p className="text-muted-foreground/50 text-xs italic">
+                If it works, don&rsquo;t touch it.
+              </p>
+            </div>
+          </div>
         )}
         {error === null &&
           list.map((file) => {
