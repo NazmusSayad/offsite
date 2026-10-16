@@ -1,9 +1,9 @@
 import { ChatGptIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Provider } from '@server/protocol'
+import type { Provider } from '@offsite/core/protocol'
 import { projectName } from '@/lib/format'
+import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { useStore } from '@/store'
 
 const colors = [
   'text-gray-600 dark:text-gray-400',

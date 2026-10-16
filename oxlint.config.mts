@@ -111,7 +111,7 @@ export default defineConfig({
       rules: { 'import/no-default-export': 'off' },
     },
     {
-      files: ['apps/web/src/ghostty/**'],
+      files: ['apps/web/src/lib/ghostty/**'],
       rules: { 'max-lines': 'off' },
     },
   ],

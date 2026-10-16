@@ -11,3 +11,5 @@ const { values } = parseArgs({
 })
 
 export const args = { ...values, dir: path.resolve(values.dir) }
+
+export const serverDir = path.join(import.meta.dirname, '..')

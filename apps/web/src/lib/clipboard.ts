@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { showError } from '@/store'
+import { showError } from '@/lib/store'
 
 export function useCopy() {
   const [copied, setCopied] = useState(false)

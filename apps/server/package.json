@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch-path=src src/main.ts --port 47842 --dir $HOME/.offsite-dev",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsdown --config ./tsdown.config.ts",
     "typecheck": "tsc"
   },
   "dependencies": {
@@ -16,9 +16,11 @@
     "ws": "^8.22.0"
   },
   "devDependencies": {
+    "@offsite/core": "workspace:*",
     "@types/node": "^26.6.5",
     "@types/web-push": "^3.6.4",
     "@types/ws": "^8.18.2",
+    "tsdown": "^0.23.1",
     "typescript": "^7.0.2"
   }
 }

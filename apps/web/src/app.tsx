@@ -10,19 +10,27 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Fragment, useState, useSyncExternalStore } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { home } from '@/api/machines'
+import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { Toast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
-import { Composer } from '@/composer/composer'
-import { FilesPanel } from '@/files/files-panel'
-import { DiffPanel } from '@/git/diff-panel'
-import { GitActions, useGitStatus } from '@/git/git-menu'
-import { cn, drag, mod } from '@/lib/utils'
-import { home } from '@/machines'
-import { useProjectName } from '@/projects'
-import { SettingsDialog } from '@/settings/dialog'
-import { Palette } from '@/sidebar/palette'
-import { Sidebar } from '@/sidebar/sidebar'
+import { Composer } from '@/features/composer/composer'
+import { FilesPanel } from '@/features/files/files-panel'
+import { DiffPanel } from '@/features/git/diff-panel'
+import { GitActions, useGitStatus } from '@/features/git/git-menu'
+import { SettingsDialog } from '@/features/settings/dialog'
+import { Palette } from '@/features/sidebar/palette'
+import { Sidebar } from '@/features/sidebar/sidebar'
+import { TerminalPanel } from '@/features/terminal/panel'
+import {
+  getState as terminalState,
+  setOpen as setTerminal,
+  subscribe as subscribeTerminal,
+} from '@/features/terminal/session'
+import { threadTasks } from '@/features/transcript/tasks'
+import { TasksPanel } from '@/features/transcript/tasks-panel'
+import { Transcript } from '@/features/transcript/transcript'
 import {
   dismissError,
   getState,
@@ -31,16 +39,8 @@ import {
   showPalette,
   selectedRunning,
   useStore,
-} from '@/store'
-import { TerminalPanel } from '@/terminal/panel'
-import {
-  getState as terminalState,
-  setOpen as setTerminal,
-  subscribe as subscribeTerminal,
-} from '@/terminal/session'
-import { threadTasks } from '@/transcript/tasks'
-import { TasksPanel } from '@/transcript/tasks-panel'
-import { Transcript } from '@/transcript/transcript'
+} from '@/lib/store'
+import { cn, drag, mod } from '@/lib/utils'
 
 const desktop = window.matchMedia('(min-width: 768px)')
 const toggle =

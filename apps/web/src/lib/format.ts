@@ -1,4 +1,4 @@
-import type { Provider } from '@server/protocol'
+import type { Provider } from '@offsite/core/protocol'
 
 export const providerNames: Record<Provider, string> = {
   claude: 'Claude',
