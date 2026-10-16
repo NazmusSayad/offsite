@@ -21,6 +21,7 @@ let timer: NodeJS.Timeout | undefined
 
 export async function sessions(): Promise<Session[]> {
   const marks = readMarks()
+  const prompts = readPrompts()
   const lists = await Promise.all(
     projects().map(async (project) =>
       (
@@ -34,13 +35,17 @@ export async function sessions(): Promise<Session[]> {
         title: item.summary,
         cwd: project.path,
         branch: item.gitBranch ?? null,
-        updatedAt: item.lastModified,
+        updatedAt: prompts[item.sessionId] ?? item.lastModified,
         pinned: marks.pinned.includes(item.sessionId),
         archived: marks.archived.includes(item.sessionId),
       }))
     )
   )
   return lists.flat()
+}
+
+export function recordPrompt(id: string) {
+  writeJson('prompts.json', { ...readPrompts(), [id]: Date.now() })
 }
 
 export async function publishSessions() {
@@ -96,6 +101,8 @@ export async function removeSession(id: string) {
     pinned: mark(marks.pinned, id, false),
     archived: mark(marks.archived, id, false),
   })
+  const { [id]: _, ...prompts } = readPrompts()
+  writeJson('prompts.json', prompts)
 }
 
 export async function fork(sessionId: string, cwd: string, messageId: string) {
@@ -113,6 +120,10 @@ function readMarks() {
   return (
     (readJson('sessions.json') as Marks | null) ?? { pinned: [], archived: [] }
   )
+}
+
+function readPrompts() {
+  return (readJson('prompts.json') as Record<string, number> | null) ?? {}
 }
 
 function writeMarks(marks: Marks) {
