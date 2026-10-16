@@ -12,11 +12,11 @@ import { cn } from '@/lib/utils'
 import { Markdown } from '@/markdown/markdown'
 import { forkFrom, loadEarlier, selectedRunning, useStore } from '@/store'
 import { AgentLine } from '@/transcript/agent-pill'
-import { subagents } from '@/transcript/agents-panel'
 import { ChangedFilesCard } from '@/transcript/changed-files'
 import { PlanCard } from '@/transcript/plan-card'
 import { QuestionCard } from '@/transcript/question-card'
 import { RewindDialog, type RewindTarget } from '@/transcript/rewind-dialog'
+import { threadTasks } from '@/transcript/tasks'
 import { isTool, mainRows, type Row } from '@/transcript/timeline'
 import type { ToolResult, ToolUse } from '@/transcript/tool-details'
 import { ContextGroup } from '@/transcript/tool-group'
@@ -25,7 +25,7 @@ import { MessageCopyButton, UserMessage } from '@/transcript/user-message'
 
 export function Transcript(props: {
   onOpenDiff: () => void
-  onOpenAgent: (id: string) => void
+  onOpenTask: (id: string) => void
 }) {
   const selection = useStore((state) => state.selection)
   const loaded = useStore((state) => state.loaded)
@@ -74,7 +74,7 @@ export function Transcript(props: {
     )
   }
 
-  const agents = subagents([...earlier, ...messages], activity).items
+  const found = threadTasks([...earlier, ...messages], activity)
   const olderRows = mainRows(earlier, cwd, false, '')
   const rows = [...olderRows, ...mainRows(messages, cwd, running, partial)]
 
@@ -136,14 +136,14 @@ export function Transcript(props: {
               <RowView
                 row={row}
                 results={results}
-                agents={agents}
+                agents={found.agents}
+                tasks={found.tasks}
                 running={running}
                 fork={!older}
-                rewind={!older}
                 expanded={expanded.includes(row.key)}
                 onToggle={() => toggle(row.key)}
-                onOpenAgent={(tool) => props.onOpenAgent(tool.id)}
-                onRewind={setRewind}
+                onOpenTask={(tool) => props.onOpenTask(tool.id)}
+                onRewind={older ? null : setRewind}
                 onOpenDiff={props.onOpenDiff}
                 cwd={cwd}
               />
@@ -159,15 +159,15 @@ export function Transcript(props: {
 export function RowView(props: {
   row: Row
   results: Map<string, ToolResult>
-  agents: ReturnType<typeof subagents>['items']
+  agents: ReturnType<typeof threadTasks>['agents']
+  tasks: ReturnType<typeof threadTasks>['tasks']
   cwd: string
   running: boolean
   fork: boolean
-  rewind: boolean
   expanded: boolean
   onToggle: () => void
-  onOpenAgent: (tool: ToolUse) => void
-  onRewind: (target: RewindTarget) => void
+  onOpenTask: (tool: ToolUse) => void
+  onRewind: ((target: RewindTarget) => void) | null
   onOpenDiff: () => void
 }) {
   const row = props.row
@@ -180,7 +180,6 @@ export function RowView(props: {
           blocks={row.message.content}
           first={row.first}
           running={props.running}
-          rewind={props.rewind}
           onRewind={props.onRewind}
         />
       )
@@ -206,8 +205,9 @@ export function RowView(props: {
         <AgentLine
           tool={row.tool}
           agents={props.agents}
+          tasks={props.tasks}
           sending={row.live && !props.results.has(row.tool.id)}
-          onOpen={props.onOpenAgent}
+          onOpen={props.onOpenTask}
         />
       )
     case 'assistant':

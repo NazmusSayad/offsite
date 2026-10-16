@@ -1,7 +1,7 @@
 import { ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { cn } from '@/lib/utils'
-import type { subagents } from '@/transcript/agents-panel'
+import { taskTitle, type threadTasks } from '@/transcript/tasks'
 import { text, type ToolUse } from '@/transcript/tool-details'
 import { Shimmer } from '@/transcript/tool-row'
 
@@ -18,6 +18,13 @@ const verbs = new Map([
   ['Done', 'Agent finished'],
   ['Failed', 'Agent failed'],
   ['Stopped', 'Agent stopped'],
+])
+
+const taskVerbs = new Map([
+  ['Running', 'Started in background'],
+  ['Done', 'Background task finished'],
+  ['Failed', 'Background task failed'],
+  ['Stopped', 'Background task stopped'],
 ])
 
 const palette = [
@@ -96,7 +103,8 @@ export function AgentSpinner(props: { className: string }) {
 
 export function AgentLine(props: {
   tool: ToolUse
-  agents: ReturnType<typeof subagents>['items']
+  agents: ReturnType<typeof threadTasks>['agents']
+  tasks: ReturnType<typeof threadTasks>['tasks']
   sending: boolean
   onOpen: (tool: ToolUse) => void
 }) {
@@ -110,6 +118,22 @@ export function AgentLine(props: {
         detail={summary === '' ? text(input.message).split('\n')[0] : summary}
         pending={props.sending}
         onOpen={target === undefined ? null : () => props.onOpen(target.tool)}
+      />
+    )
+  }
+  if (props.tool.name === 'Bash' || props.tool.name === 'Monitor') {
+    const task = props.tasks.find((item) => item.tool.id === props.tool.id)
+    if (task === undefined)
+      throw new Error(`Task ${props.tool.id} is missing from the thread`)
+    return (
+      <Line
+        label={
+          taskVerbs.get(task.status) ??
+          `Background task ${task.status.toLowerCase()}`
+        }
+        detail={taskTitle(task.tool)}
+        pending={task.status === 'Running'}
+        onOpen={() => props.onOpen(task.tool)}
       />
     )
   }
@@ -154,7 +178,7 @@ function Line(props: {
   return (
     <button
       type="button"
-      title="Open in Agents panel"
+      title="Open in Tasks panel"
       onClick={props.onOpen}
       className="group/agent focus-visible:ring-ring/70 flex min-h-7 w-fit max-w-full cursor-pointer items-center gap-1 rounded-md text-left text-[13px] leading-4 tracking-[-0.04px] select-none focus-visible:ring-2 focus-visible:outline-none"
     >

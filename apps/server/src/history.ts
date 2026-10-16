@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import {
   getSessionMessages,
@@ -11,27 +11,68 @@ import { contextTokens, toMessage } from './content.ts'
 import type { Message, ServerEvent } from './protocol.ts'
 import { runs } from './run.ts'
 
-async function sessionEntries(sessionId: string): Promise<SessionStoreEntry[]> {
+async function sessionFile(sessionId: string) {
   const projectsDir = path.join(readConfig().claudeBaseDir, 'projects')
   for (const dir of await readdir(projectsDir)) {
-    let text: string
+    const file = path.join(projectsDir, dir, `${sessionId}.jsonl`)
     try {
-      text = await readFile(
-        path.join(projectsDir, dir, `${sessionId}.jsonl`),
-        'utf8'
-      )
+      return { file, stats: await stat(file) }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue
       throw error
     }
-    return text.split('\n').flatMap((line) => {
-      const entry = parseLine(line)
-      return entry !== null && typeof entry.type === 'string'
-        ? [{ ...entry, type: entry.type }]
-        : []
-    })
   }
-  return []
+  return null
+}
+
+async function readSession(sessionId: string, file: string) {
+  const text = await readFile(file, 'utf8')
+  const entries = text.split('\n').flatMap((line): SessionStoreEntry[] => {
+    const entry = parseLine(line)
+    return entry !== null && typeof entry.type === 'string'
+      ? [{ ...entry, type: entry.type }]
+      : []
+  })
+  const pages: { before: number; disk: SessionMessage[] }[] = []
+  const seen = new Set<string>()
+  let before: number | null = entries.length
+  while (before !== null) {
+    const kept = entries.slice(0, before)
+    const disk = await getSessionMessages(sessionId, {
+      sessionStore: { append: () => Promise.resolve(), load: async () => kept },
+    })
+    pages.push({ before, disk: disk.filter((item) => !seen.has(item.uuid)) })
+    for (const item of disk) seen.add(item.uuid)
+    before = compactedBefore(entries, disk[0]?.uuid)
+  }
+  return { entries, pages }
+}
+
+let cached: {
+  file: string
+  mtimeMs: number
+  size: number
+  session: ReturnType<typeof readSession>
+} | null = null
+
+async function loadSession(sessionId: string) {
+  const found = await sessionFile(sessionId)
+  if (found === null) return null
+  if (
+    cached !== null &&
+    cached.file === found.file &&
+    cached.mtimeMs === found.stats.mtimeMs &&
+    cached.size === found.stats.size
+  )
+    return cached.session
+  const session = readSession(sessionId, found.file)
+  cached = {
+    file: found.file,
+    mtimeMs: found.stats.mtimeMs,
+    size: found.stats.size,
+    session,
+  }
+  return session
 }
 
 function messageTimes(entries: SessionStoreEntry[]) {
@@ -76,17 +117,37 @@ function parseLine(line: string): Record<string, unknown> | null {
 function mainMessages(disk: SessionMessage[], entries: SessionStoreEntry[]) {
   const times = messageTimes(entries)
   const outputs = toolOutputs(entries)
-  return disk.flatMap((item) =>
-    item.type === 'system' || item.parent_tool_use_id !== null
-      ? []
-      : [
-          toMessage(
-            item.type,
-            { ...item, tool_use_result: outputs.get(item.uuid) },
-            times.get(item.uuid) ?? null
-          ),
-        ]
-  )
+  return disk.flatMap((item): Message[] => {
+    if (item.type === 'system' || item.parent_tool_use_id !== null) return []
+    const message = toMessage(
+      item.type,
+      { ...item, tool_use_result: outputs.get(item.uuid) },
+      times.get(item.uuid) ?? null
+    )
+    return [
+      {
+        ...message,
+        content: message.content.map((block) =>
+          block.type === 'image' ? { ...block, data: null } : block
+        ),
+      },
+    ]
+  })
+}
+
+export async function image(sessionId: string, uuid: string, index: number) {
+  const session = await loadSession(sessionId)
+  if (session === null) throw new Error(`session ${sessionId} not found`)
+  const item = session.pages
+    .flatMap((page) => page.disk)
+    .find((candidate) => candidate.uuid === uuid)
+  if (item === undefined) throw new Error(`message ${uuid} not found`)
+  if (item.type === 'system' || item.parent_tool_use_id !== null)
+    throw new Error(`message ${uuid} has no image ${index}`)
+  const block = toMessage(item.type, item, null).content[index]
+  if (block?.type !== 'image' || block.data === null)
+    throw new Error(`message ${uuid} has no image ${index}`)
+  return { mediaType: block.mediaType, data: block.data }
 }
 
 export async function history(
@@ -94,17 +155,17 @@ export async function history(
   cwd: string
 ): Promise<ServerEvent> {
   const run = runs.get(sessionId)
-  const [disk, entries] = await Promise.all([
+  const [disk, session] = await Promise.all([
     getSessionMessages(sessionId, { dir: cwd }),
-    sessionEntries(sessionId),
+    loadSession(sessionId),
   ])
+  const entries = session === null ? [] : session.entries
   const resumeAt = run?.resumeAt ?? null
   const kept =
     resumeAt === null
       ? disk
       : disk.slice(0, disk.findIndex((item) => item.uuid === resumeAt) + 1)
   const messages = mainMessages(kept, entries)
-  messages.push(...(await subagentMessages(sessionId, cwd, messages)))
   const seen = new Set(messages.map((item) => item.uuid))
   const last = kept.findLast(
     (item) => item.type === 'assistant' && item.parent_tool_use_id === null
@@ -129,14 +190,12 @@ export async function history(
   }
 }
 
-export async function earlier(sessionId: string, cwd: string, before: number) {
-  const entries = await sessionEntries(sessionId)
-  const kept = entries.slice(0, before)
-  const disk = await getSessionMessages(sessionId, {
-    sessionStore: { append: () => Promise.resolve(), load: async () => kept },
-  })
-  const messages = mainMessages(disk, entries)
-  messages.push(...(await subagentMessages(sessionId, cwd, messages)))
+export async function earlier(sessionId: string, before: number) {
+  const session = await loadSession(sessionId)
+  if (session === null) throw new Error(`session ${sessionId} not found`)
+  const index = session.pages.findIndex((page) => page.before === before)
+  if (index < 0) throw new Error(`no messages before entry ${before}`)
+  const messages = mainMessages(session.pages[index].disk, session.entries)
   messages.push({
     type: 'notice',
     uuid: `compacted:${before}`,
@@ -144,60 +203,20 @@ export async function earlier(sessionId: string, cwd: string, before: number) {
     text: 'Conversation compacted',
     isError: false,
   })
-  return { messages, before: compactedBefore(entries, disk[0]?.uuid) }
+  return { messages, before: session.pages[index + 1]?.before ?? null }
 }
 
-async function subagentMessages(
+export async function agentMessages(
   sessionId: string,
   cwd: string,
-  messages: Message[]
+  agentId: string,
+  parent: string
 ): Promise<Message[]> {
-  const agents = new Set(
-    messages.flatMap((message) =>
-      message.type === 'assistant'
-        ? message.content.flatMap((block) =>
-            block.type === 'tool_use' &&
-            (block.name === 'Agent' || block.name === 'Task')
-              ? [block.id]
-              : []
-          )
-        : []
-    )
+  if (!/^\w+$/.test(agentId)) throw new Error(`invalid agent id ${agentId}`)
+  const disk = await getSubagentMessages(sessionId, agentId, { dir: cwd })
+  return disk.flatMap((item) =>
+    item.type === 'system'
+      ? []
+      : [toMessage(item.type, { ...item, parent_tool_use_id: parent }, null)]
   )
-  const launches = messages.flatMap((message) =>
-    message.type === 'user'
-      ? message.content.flatMap((block) => {
-          if (block.type !== 'tool_result' || !agents.has(block.toolUseId))
-            return []
-          const agentId = /agentId: (\w+)/.exec(
-            block.content
-              .map((item) => (item.type === 'text' ? item.text : ''))
-              .join('\n')
-          )?.[1]
-          return agentId === undefined
-            ? []
-            : [{ agentId, parent: block.toolUseId }]
-        })
-      : []
-  )
-  const loaded = await Promise.all(
-    launches.map(async (launch) => {
-      const disk = await getSubagentMessages(sessionId, launch.agentId, {
-        dir: cwd,
-      })
-      const items = disk.flatMap((item) =>
-        item.type === 'system'
-          ? []
-          : [
-              toMessage(
-                item.type,
-                { ...item, parent_tool_use_id: launch.parent },
-                null
-              ),
-            ]
-      )
-      return [...items, ...(await subagentMessages(sessionId, cwd, items))]
-    })
-  )
-  return loaded.flat()
 }

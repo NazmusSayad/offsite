@@ -5,13 +5,15 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Block } from '@server/protocol'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
+import { call } from '@/connection'
 import { useCopy } from '@/lib/clipboard'
 import { clock, fullTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Markdown } from '@/markdown/markdown'
+import { showError, useStore } from '@/store'
 import type { RewindTarget } from '@/transcript/rewind-dialog'
 
 const fade =
@@ -23,10 +25,10 @@ export function UserMessage(props: {
   blocks: Block[]
   first: boolean
   running: boolean
-  rewind: boolean
-  onRewind: (target: RewindTarget) => void
+  onRewind: ((target: RewindTarget) => void) | null
 }) {
   const [expanded, setExpanded] = useState(false)
+  const onRewind = props.onRewind
   const prompt = props.blocks
     .flatMap((block) => {
       if (block.type !== 'text') return []
@@ -34,8 +36,8 @@ export function UserMessage(props: {
       return shown.kind === 'text' ? [shown.text] : []
     })
     .join('\n')
-  const images = props.blocks.flatMap((block) =>
-    block.type === 'image' ? [block] : []
+  const images = props.blocks.flatMap((block, index) =>
+    block.type === 'image' ? [{ block, index }] : []
   )
   const parts: ReactNode[] = props.blocks.flatMap((block, index) => {
     if (block.type !== 'text') return []
@@ -78,15 +80,16 @@ export function UserMessage(props: {
       <div className="bg-message text-message-foreground relative max-w-[80%] rounded-2xl px-3 py-2">
         {images.length > 0 && (
           <div className="mb-2 grid max-w-[210px] grid-cols-2 gap-2">
-            {images.map((image, index) => (
+            {images.map((image) => (
               <div
-                key={index}
+                key={image.index}
                 className="border-border/80 bg-background/70 aspect-[4/3] overflow-hidden rounded-lg border"
               >
-                <img
-                  src={`data:${image.mediaType};base64,${image.data}`}
-                  alt=""
-                  className="block size-full object-cover"
+                <PromptImage
+                  uuid={props.uuid}
+                  index={image.index}
+                  mediaType={image.block.mediaType}
+                  data={image.block.data}
                 />
               </div>
             ))}
@@ -135,7 +138,7 @@ export function UserMessage(props: {
           )}
           {prompt !== '' && (
             <div className="flex items-center gap-0.5">
-              {props.rewind && (
+              {onRewind !== null && (
                 <Tooltip label="Edit from here">
                   <Button
                     type="button"
@@ -144,7 +147,7 @@ export function UserMessage(props: {
                     aria-label="Edit from here"
                     disabled={props.running}
                     onClick={() =>
-                      props.onRewind({
+                      onRewind({
                         messageId: props.uuid,
                         text: prompt,
                         first: props.first,
@@ -185,6 +188,43 @@ export function MessageCopyButton(props: { text: string }) {
         />
       </Button>
     </Tooltip>
+  )
+}
+
+function PromptImage(props: {
+  uuid: string
+  index: number
+  mediaType: string
+  data: string | null
+}) {
+  const sessionId = useStore((state) => state.selection?.sessionId ?? null)
+  const [loaded, setLoaded] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (props.data !== null || sessionId === null) return
+    let current = true
+    call('sessions.image', {
+      sessionId,
+      uuid: props.uuid,
+      index: props.index,
+    })
+      .then((result) => {
+        if (current) setLoaded(result.data)
+      })
+      .catch(showError)
+    return () => {
+      current = false
+    }
+  }, [props.data, props.uuid, props.index, sessionId])
+
+  const data = props.data ?? loaded
+  if (data === null) return null
+  return (
+    <img
+      src={`data:${props.mediaType};base64,${data}`}
+      alt=""
+      className="block size-full object-cover"
+    />
   )
 }
 

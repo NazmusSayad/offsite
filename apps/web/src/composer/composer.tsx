@@ -1,9 +1,10 @@
 import { ListPlusIcon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Delivery, Image, Message } from '@server/protocol'
+import type { Delivery, Message } from '@server/protocol'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ComposerMenu, type Suggestion } from '@/composer/composer-menu'
+import { editDraft, useDraft } from '@/composer/drafts'
 import { MoreMenu, modes } from '@/composer/more-menu'
 import { PermissionPrompt } from '@/composer/permission-prompt'
 import { Pickers } from '@/composer/pickers'
@@ -37,31 +38,38 @@ export function Composer() {
   const draft = useStore((state) => state.draft)
   const capabilities = useStore((state) => state.capabilities)
   const noAccount = useStore((state) => state.settings.accountId === null)
-  const [text, setText] = useState('')
-  const [images, setImages] = useState<Image[]>([])
   const [uploads, setUploads] = useState(0)
   const [sending, setSending] = useState(false)
-  const [caret, setCaret] = useState(0)
   const [active, setActive] = useState(0)
   const [menuClosed, setMenuClosed] = useState(false)
   const [files, setFiles] = useState<string[]>([])
   const input = useRef<HTMLTextAreaElement>(null)
   const picker = useRef<HTMLInputElement>(null)
   const cwd = selection?.cwd ?? ''
+  const key = selection?.sessionId ?? cwd
+  const stored = useDraft(key)
+  const text = stored.text
+  const images = stored.images
+  const [caret, setCaret] = useState(text.length)
   const projectTitle = useProjectName(cwd)
   const running = useStore(selectedRunning)
   const hero = loaded && blank && !running
   const request = requests.at(0)
 
-  useEffect(() => input.current?.focus(), [selection])
+  useEffect(() => {
+    const element = input.current
+    if (element === null) return
+    element.focus()
+    element.setSelectionRange(element.value.length, element.value.length)
+  }, [selection])
 
   useEffect(() => {
     if (draft === null) return
-    setText(draft)
+    editDraft(key, (current) => ({ ...current, text: draft }))
     setCaret(draft.length)
     setDraft(null)
     input.current?.focus()
-  }, [draft])
+  }, [draft, key])
 
   useEffect(() => {
     call('files.list', { cwd }).then(setFiles, showError)
@@ -105,7 +113,7 @@ export function Composer() {
     noAccount
 
   function edit(value: string, position: number) {
-    setText(value)
+    editDraft(key, (current) => ({ ...current, text: value }))
     setCaret(position)
     setActive(0)
     setMenuClosed(false)
@@ -126,8 +134,8 @@ export function Composer() {
     setSending(true)
     try {
       await sendPrompt({ text: text.trim(), images }, delivery)
-      edit('', 0)
-      setImages([])
+      editDraft(key, (current) => ({ ...current, text: '', images: [] }))
+      setCaret(0)
     } catch (error) {
       showError(error)
     } finally {
@@ -146,17 +154,22 @@ export function Composer() {
     for (const file of list) {
       if (imageTypes.includes(file.type) && file.size <= maxImageSize) {
         const data = await readBase64(file)
-        setImages((current) => [...current, { mediaType: file.type, data }])
+        editDraft(key, (current) => ({
+          ...current,
+          images: [...current.images, { mediaType: file.type, data }],
+        }))
         continue
       }
       setUploads((count) => count + 1)
       try {
         const path = await uploadFile(file)
-        setText((current) =>
-          current === '' || /\s$/.test(current)
-            ? `${current}@${path} `
-            : `${current} @${path} `
-        )
+        editDraft(key, (current) => ({
+          ...current,
+          text:
+            current.text === '' || /\s$/.test(current.text)
+              ? `${current.text}@${path} `
+              : `${current.text} @${path} `,
+        }))
       } catch (error) {
         showError(error)
       } finally {
@@ -270,9 +283,12 @@ export function Composer() {
                         className="absolute top-1 right-1 grid size-5 cursor-pointer place-items-center rounded-full bg-black/60 text-white"
                         title="Remove image"
                         onClick={() =>
-                          setImages(
-                            images.filter((_, other) => other !== index)
-                          )
+                          editDraft(key, (current) => ({
+                            ...current,
+                            images: current.images.filter(
+                              (_, other) => other !== index
+                            ),
+                          }))
                         }
                       >
                         <HugeiconsIcon icon={XIcon} className="size-3" />

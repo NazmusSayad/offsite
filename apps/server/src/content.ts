@@ -10,7 +10,7 @@ export function toMessage(
     tool_use_result?: unknown
   },
   time: number | null
-): Message {
+): Extract<Message, { type: 'user' | 'assistant' }> {
   return {
     type,
     uuid: item.uuid,
@@ -190,7 +190,9 @@ function toBlocks(
               {
                 type: 'tool_result',
                 toolUseId: block.tool_use_id,
-                content: toBlocks(block.content, null),
+                content: toBlocks(block.content, null).filter(
+                  (item) => item.type === 'text'
+                ),
                 isError: block.is_error === true,
                 answers,
               },

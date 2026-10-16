@@ -17,6 +17,11 @@ import type {
   Settings,
 } from '@server/protocol'
 import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
+import {
+  deleteDraft,
+  getDraftSettings,
+  saveDraftSettings,
+} from '@/composer/drafts'
 import { errorMessage } from '@/lib/utils'
 import { call, isConnected } from './connection'
 import { applyTheme } from './theme'
@@ -99,7 +104,9 @@ export function openSession(selection: Selection) {
     partial: '',
     requests: [],
     queue: [],
-    settings: getState().config.composer,
+    settings:
+      getDraftSettings(selection.sessionId ?? selection.cwd) ??
+      getState().config.composer,
     context: null,
     paletteOpen: false,
     unseen: getState().unseen.filter((id) => id !== selection.sessionId),
@@ -142,6 +149,9 @@ export function interrupt() {
 export function changeSettings(patch: Partial<Settings>) {
   const settings = { ...getState().settings, ...patch }
   update({ settings })
+  const selection = getState().selection
+  if (selection !== null)
+    saveDraftSettings(selection.sessionId ?? selection.cwd, settings)
   updateConfig({ ...getState().config, composer: settings })
   if (patch.accountId !== undefined) void refreshCapabilities()
   const sessionId = getState().selection?.sessionId
@@ -196,7 +206,6 @@ export async function loadEarlier() {
   try {
     const result = await call('sessions.earlier', {
       sessionId: selection.sessionId,
-      cwd: selection.cwd,
       before,
     })
     if (getState().selection !== selection || getState().before !== before)
@@ -204,6 +213,38 @@ export async function loadEarlier() {
     update({
       earlier: [...result.messages, ...getState().earlier],
       before: result.before,
+    })
+  } catch (error) {
+    showError(error)
+  }
+}
+
+export async function loadAgent(parent: string, agentId: string) {
+  const selection = getState().selection
+  if (selection === null || selection.sessionId === null) return
+  try {
+    const loaded = await call('sessions.agent', {
+      sessionId: selection.sessionId,
+      cwd: selection.cwd,
+      agentId,
+      parent,
+    })
+    if (getState().selection !== selection) return
+    const uuids = new Set(loaded.map((item) => item.uuid))
+    const messages = getState().messages
+    update({
+      messages: [
+        ...messages.filter(
+          (item) => item.type === 'notice' || item.parent !== parent
+        ),
+        ...loaded,
+        ...messages.filter(
+          (item) =>
+            item.type !== 'notice' &&
+            item.parent === parent &&
+            !uuids.has(item.uuid)
+        ),
+      ],
     })
   } catch (error) {
     showError(error)
@@ -253,6 +294,7 @@ export async function editSession(id: string, patch: SessionPatch) {
 
 export async function removeSession(id: string) {
   update({ sessions: getState().sessions.filter((item) => item.id !== id) })
+  deleteDraft(id)
   const selection = getState().selection
   if (selection?.sessionId === id)
     openSession({ cwd: selection.cwd, sessionId: null })
@@ -331,14 +373,20 @@ async function refreshConfig() {
 }
 
 function applyConfig(config: Config) {
-  const sessionId = getState().selection?.sessionId ?? null
+  const selection = getState().selection
+  const sessionId = selection?.sessionId ?? null
   const live =
     sessionId !== null && getState().activity[sessionId] !== undefined
+  const settings =
+    (selection === null
+      ? null
+      : getDraftSettings(selection.sessionId ?? selection.cwd)) ??
+    config.composer
   const accountChanged =
-    !live && config.composer.accountId !== getState().settings.accountId
+    !live && settings.accountId !== getState().settings.accountId
   update({
     config,
-    ...(live ? {} : { settings: config.composer }),
+    ...(live ? {} : { settings }),
   })
   applyTheme()
   if (accountChanged) void refreshCapabilities()

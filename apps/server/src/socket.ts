@@ -9,7 +9,7 @@ import {
   updateAccount,
 } from './claude.ts'
 import { configInfo, readConfig, saveConfig } from './config.ts'
-import { listFiles, saveUpload } from './files.ts'
+import { listFiles, readProjectFile, saveUpload, taskOutput } from './files.ts'
 import {
   commit,
   createPullRequest,
@@ -18,7 +18,7 @@ import {
   suggestCommitMessage,
   workingDiff,
 } from './git.ts'
-import { earlier } from './history.ts'
+import { agentMessages, earlier, image } from './history.ts'
 import { type Client, clients } from './hub.ts'
 import {
   addProject,
@@ -105,8 +105,11 @@ const handlers: Handlers = {
     await open(client, params.sessionId, params.cwd)
     return null
   },
-  'sessions.earlier': (params) =>
-    earlier(params.sessionId, params.cwd, params.before),
+  'sessions.earlier': (params) => earlier(params.sessionId, params.before),
+  'sessions.image': (params) =>
+    image(params.sessionId, params.uuid, params.index),
+  'sessions.agent': (params) =>
+    agentMessages(params.sessionId, params.cwd, params.agentId, params.parent),
   'sessions.send': async (params, client) => {
     await send(client, params)
     return null
@@ -158,8 +161,10 @@ const handlers: Handlers = {
   },
   capabilities: (params) => capabilities(params.accountId, params.cwd),
   'files.list': (params) => listFiles(params.cwd),
+  'files.read': (params) => readProjectFile(params.cwd, params.path),
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
+  'tasks.output': (params) => taskOutput(params.sessionId, params.path),
   'git.status': (params) => gitStatus(params.cwd),
   'git.diff': (params) => workingDiff(params.cwd),
   'git.commit': (params) => commit(params.cwd, params.message),

@@ -217,7 +217,12 @@ function segmentsOf(message: Message): Segment[] {
           case 'Agent':
           case 'Task':
           case 'SendMessage':
+          case 'Monitor':
             return [{ kind: 'agent', key, tool: block }]
+          case 'Bash':
+            return block.input.run_in_background === true
+              ? [{ kind: 'agent', key, tool: block }]
+              : [{ kind: 'entry', entry: { kind: 'tool', key, tool: block } }]
           case 'AskUserQuestion':
             return [{ kind: 'question', key, tool: block }]
           case 'ExitPlanMode':

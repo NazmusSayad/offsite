@@ -1,9 +1,10 @@
 import {
   AlertCircleIcon,
-  BotIcon,
+  Folder01Icon,
   GitCompareIcon,
   PanelLeftIcon,
   SquareTerminalIcon,
+  TaskDaily01Icon,
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -13,6 +14,7 @@ import { ProjectIcon } from '@/components/icons'
 import { Toast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
 import { Composer } from '@/composer/composer'
+import { FilesPanel } from '@/files/files-panel'
 import { DiffPanel } from '@/git/diff-panel'
 import { GitActions, useGitStatus } from '@/git/git-menu'
 import { cn, drag, mod } from '@/lib/utils'
@@ -33,7 +35,8 @@ import {
   setOpen as setTerminal,
   subscribe as subscribeTerminal,
 } from '@/terminal/session'
-import { AgentsPanel, subagents } from '@/transcript/agents-panel'
+import { threadTasks } from '@/transcript/tasks'
+import { TasksPanel } from '@/transcript/tasks-panel'
 import { Transcript } from '@/transcript/transcript'
 
 const desktop = window.matchMedia('(min-width: 768px)')
@@ -46,9 +49,13 @@ export function App() {
   const connected = useStore((state) => state.connected)
   const error = useStore((state) => state.error)
   const [sidebar, setSidebar] = useState(desktop.matches)
-  const [panel, setPanel] = useState<'diff' | 'agents' | null>(null)
-  const [agentId, setAgentId] = useState<string | null>(null)
-  const [panelWidth, setPanelWidth] = useState(540)
+  const [panel, setPanel] = useState<'diff' | 'tasks' | 'files' | null>(null)
+  const [selectedTask, setSelectedTask] = useState<string | null>(null)
+  const [panelWidth, setPanelWidth] = useState(() => {
+    const stored = Number(localStorage.getItem('panelWidth') ?? 540)
+    if (Number.isFinite(stored) && stored >= 360) return stored
+    return 540
+  })
   const [terminalHeight, setTerminalHeight] = useState(280)
   const terminal = useSyncExternalStore(
     subscribeTerminal,
@@ -59,13 +66,16 @@ export function App() {
     () => terminalState().alerts.length > 0
   )
   const running = useStore(selectedRunning)
-  const runningAgents = useStore((state) => {
+  const runningTasks = useStore((state) => {
     const sessionId = state.selection?.sessionId ?? null
     if (sessionId === null) return 0
-    return subagents(
+    const found = threadTasks(
       [...state.earlier, ...state.messages],
       state.activity[sessionId]
-    ).items.filter((item) => item.status === 'Running').length
+    )
+    return [...found.agents, ...found.tasks].filter(
+      (item) => item.status === 'Running'
+    ).length
   })
   const git = useGitStatus(selection?.cwd ?? null, running)
   const session = sessions.find((item) => item.id === selection?.sessionId)
@@ -129,7 +139,7 @@ export function App() {
             className={cn(
               'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-3 pl-[3.25rem] sm:pr-5',
               sidebar && 'md:pl-5',
-              panel === null && 'pr-32 sm:pr-32'
+              panel === null && 'pr-36 sm:pr-36'
             )}
           >
             {selection !== null && (
@@ -204,9 +214,9 @@ export function App() {
               <Fragment key={selection.sessionId ?? selection.cwd}>
                 <Transcript
                   onOpenDiff={() => setPanel('diff')}
-                  onOpenAgent={(id) => {
-                    setAgentId(id)
-                    setPanel('agents')
+                  onOpenTask={(id) => {
+                    setSelectedTask(id)
+                    setPanel('tasks')
                   }}
                 />
                 <Composer />
@@ -255,17 +265,20 @@ export function App() {
               onPointerDown={(event) =>
                 drag(event, (next) => {
                   const max = Math.max(360, Math.floor(window.innerWidth * 0.7))
-                  setPanelWidth(
-                    Math.min(
-                      max,
-                      Math.max(360, window.innerWidth - next.clientX)
-                    )
+                  const value = Math.min(
+                    max,
+                    Math.max(360, window.innerWidth - next.clientX)
                   )
+                  setPanelWidth(value)
+                  localStorage.setItem('panelWidth', String(value))
                 })
               }
             >
               <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
             </div>
+            {panel === 'files' && (
+              <FilesPanel cwd={selection.cwd} onClose={() => setPanel(null)} />
+            )}
             {panel === 'diff' && (
               <DiffPanel
                 cwd={selection.cwd}
@@ -273,11 +286,12 @@ export function App() {
                 onClose={() => setPanel(null)}
               />
             )}
-            {panel === 'agents' && (
-              <AgentsPanel
+            {panel === 'tasks' && (
+              <TasksPanel
                 cwd={selection.cwd}
-                agentId={agentId}
-                onSelect={setAgentId}
+                sessionId={selection.sessionId}
+                selected={selectedTask}
+                onSelect={setSelectedTask}
                 onOpenDiff={() => setPanel('diff')}
                 onClose={() => setPanel(null)}
               />
@@ -289,18 +303,18 @@ export function App() {
         <div className="fixed top-0 right-3 z-50 flex h-(--workspace-topbar-height) items-center gap-1">
           <button
             className={cn(toggle, 'relative')}
-            data-pressed={panel === 'agents'}
-            aria-label="Toggle agents panel"
-            title="Agents"
+            data-pressed={panel === 'tasks'}
+            aria-label="Toggle tasks panel"
+            title="Tasks"
             onClick={() => {
-              setAgentId(null)
-              setPanel(panel === 'agents' ? null : 'agents')
+              setSelectedTask(null)
+              setPanel(panel === 'tasks' ? null : 'tasks')
             }}
           >
-            <HugeiconsIcon icon={BotIcon} />
-            {runningAgents > 0 && (
+            <HugeiconsIcon icon={TaskDaily01Icon} />
+            {runningTasks > 0 && (
               <span className="bg-primary text-primary-foreground absolute -top-0.5 -right-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full px-0.5 text-[9px] leading-none font-medium tabular-nums">
-                {runningAgents}
+                {runningTasks}
               </span>
             )}
           </button>
@@ -315,6 +329,15 @@ export function App() {
             {terminalAlert && (
               <span className="bg-primary absolute top-1 right-1 size-1.5 rounded-full" />
             )}
+          </button>
+          <button
+            className={toggle}
+            data-pressed={panel === 'files'}
+            aria-label="Toggle files panel"
+            title="Files"
+            onClick={() => setPanel(panel === 'files' ? null : 'files')}
+          >
+            <HugeiconsIcon icon={Folder01Icon} />
           </button>
           <button
             className={toggle}

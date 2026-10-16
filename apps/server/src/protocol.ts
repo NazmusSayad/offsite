@@ -109,6 +109,12 @@ export type GitStatus = {
   changed: number
 }
 
+export type FilePreview =
+  | { kind: 'text'; size: number; content: string }
+  | { kind: 'image'; size: number; mediaType: string; data: string }
+  | { kind: 'binary'; size: number }
+  | { kind: 'large'; size: number; limit: number }
+
 export type Platform = 'macos' | 'linux' | 'windows'
 
 export type TerminalIdentity = 'offsite' | 'ghostty' | 'iterm2'
@@ -193,7 +199,7 @@ export type Queued = { id: string; prompt: Prompt }
 export type Block =
   | { type: 'text'; text: string }
   | { type: 'thinking'; thinking: string }
-  | { type: 'image'; mediaType: string; data: string }
+  | { type: 'image'; mediaType: string; data: string | null }
   | {
       type: 'tool_use'
       id: string
@@ -262,8 +268,16 @@ export type Methods = {
   'sessions.remove': { params: { id: string }; result: null }
   'sessions.open': { params: { sessionId: string; cwd: string }; result: null }
   'sessions.earlier': {
-    params: { sessionId: string; cwd: string; before: number }
+    params: { sessionId: string; before: number }
     result: { messages: Message[]; before: number | null }
+  }
+  'sessions.image': {
+    params: { sessionId: string; uuid: string; index: number }
+    result: Image
+  }
+  'sessions.agent': {
+    params: { sessionId: string; cwd: string; agentId: string; parent: string }
+    result: Message[]
   }
   'sessions.send': {
     params: {
@@ -314,7 +328,12 @@ export type Methods = {
     result: Capabilities
   }
   'files.list': { params: { cwd: string }; result: string[] }
+  'files.read': { params: { cwd: string; path: string }; result: FilePreview }
   'files.upload': { params: { name: string; data: string }; result: string }
+  'tasks.output': {
+    params: { sessionId: string; path: string }
+    result: { text: string; truncated: boolean } | null
+  }
   'git.status': { params: { cwd: string }; result: GitStatus | null }
   'git.diff': { params: { cwd: string }; result: string }
   'git.commit': {

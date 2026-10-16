@@ -1,4 +1,5 @@
 import type { ServerEvent, Snapshot } from '@server/protocol'
+import { getDraftSettings, saveDraftSettings } from './composer/drafts'
 import { call, isConnected, listen } from './connection'
 import { notify, push } from './notifications'
 import {
@@ -42,7 +43,11 @@ export function start(snapshot: Snapshot) {
     partial: '',
     requests: [],
     queue: [],
-    settings: snapshot.config.composer,
+    settings:
+      (selection === null
+        ? null
+        : getDraftSettings(selection.sessionId ?? selection.cwd)) ??
+      snapshot.config.composer,
     draft: null,
     context: null,
     capabilities: null,
@@ -134,6 +139,8 @@ function receive(event: ServerEvent) {
       setAccounts(event.accounts)
       return
     case 'started':
+      saveDraftSettings(event.sessionId, getDraftSettings(event.cwd))
+      saveDraftSettings(event.cwd, null)
       if (
         state.selection === null ||
         state.selection.cwd !== event.cwd ||
@@ -170,6 +177,8 @@ function receive(event: ServerEvent) {
         context: event.context,
         partial: '',
       })
+      if (event.settings !== null)
+        saveDraftSettings(event.sessionId, event.settings)
       return
     case 'context':
       update({ context: event.context })
@@ -196,9 +205,13 @@ function receive(event: ServerEvent) {
     case 'queue':
       update({ queue: event.queue })
       return
-    case 'settings':
-      update({
-        settings: { ...event.settings, accountId: state.settings.accountId },
-      })
+    case 'settings': {
+      const settings = {
+        ...event.settings,
+        accountId: state.settings.accountId,
+      }
+      update({ settings })
+      saveDraftSettings(event.sessionId, settings)
+    }
   }
 }

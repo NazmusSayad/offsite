@@ -75,7 +75,7 @@ export function DiffPanel(props: {
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-32 pl-3">
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-36 pl-3">
         <span className="text-foreground min-w-0 truncate text-xs font-medium">
           Uncommitted changes
         </span>

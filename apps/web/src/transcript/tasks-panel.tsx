@@ -1,152 +1,98 @@
-import { ArrowLeft01Icon, XIcon } from '@hugeicons/core-free-icons'
+import {
+  ArrowLeft01Icon,
+  CommandLineIcon,
+  XIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Activity, Message } from '@server/protocol'
-import { useLayoutEffect, useRef, useState } from 'react'
+import type { Message, Methods } from '@server/protocol'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { call } from '@/connection'
+import { cn, errorMessage } from '@/lib/utils'
 import { Markdown } from '@/markdown/markdown'
-import { useStore } from '@/store'
+import { loadAgent, useStore } from '@/store'
 import { AgentSpinner, agentOf, SubagentIcon } from '@/transcript/agent-pill'
+import { taskTitle, threadTasks } from '@/transcript/tasks'
 import { isPrompt, isTool, turnRows } from '@/transcript/timeline'
-import { text, type ToolResult, type ToolUse } from '@/transcript/tool-details'
+import { text, type ToolUse } from '@/transcript/tool-details'
 import { ToolRow } from '@/transcript/tool-row'
 import { RowView } from '@/transcript/transcript'
 
-const notification = /<task-id>(\w+)<\/task-id>[\s\S]*?<status>(\w+)<\/status>/g
+type Found = ReturnType<typeof threadTasks>
 
-const labels = new Map([
-  ['completed', 'Done'],
-  ['failed', 'Failed'],
-  ['killed', 'Stopped'],
-  ['stopped', 'Stopped'],
-])
-
-export function subagents(messages: Message[], activity: Activity | undefined) {
-  const results = new Map<string, ToolResult>()
-  const agents = new Map<
-    string,
-    { tool: ToolUse; state: string; agentId: string }
-  >()
-  const owners = new Map<
-    string,
-    { tool: ToolUse; state: string; agentId: string }
-  >()
-  for (const message of messages) {
-    if (message.type === 'notice') continue
-    for (const block of message.content) {
-      if (
-        block.type === 'tool_use' &&
-        (block.name === 'Agent' || block.name === 'Task')
-      )
-        agents.set(block.id, {
-          tool: block,
-          state: 'foreground',
-          agentId: '',
-        })
-      if (block.type === 'tool_use' && block.name === 'SendMessage') {
-        const owner = owners.get(text(block.input.to))
-        if (owner !== undefined) owner.state = 'background'
-      }
-      if (block.type === 'tool_result') {
-        results.set(block.toolUseId, block)
-        const agent = agents.get(block.toolUseId)
-        if (agent !== undefined) {
-          const output = block.content
-            .map((item) => (item.type === 'text' ? item.text : ''))
-            .join('\n')
-          const agentId = /agentId: (\w+)/.exec(output)?.[1]
-          if (agentId !== undefined) {
-            owners.set(agentId, agent)
-            agent.agentId = agentId
-          }
-          agent.state = output.startsWith('Async agent launched')
-            ? 'background'
-            : block.isError
-              ? 'failed'
-              : 'completed'
-        }
-      }
-      if (
-        message.type === 'user' &&
-        block.type === 'text' &&
-        block.text.startsWith('<task-notification>')
-      )
-        for (const match of block.text.matchAll(notification)) {
-          const owner = owners.get(match[1])
-          if (owner !== undefined) owner.state = match[2]
-        }
-    }
-  }
-  return {
-    results,
-    items: [...agents.values()].map((agent) => ({
-      tool: agent.tool,
-      agentId: agent.agentId,
-      status: statusOf(agent.state, activity),
-    })),
-  }
-}
-
-function statusOf(state: string, activity: Activity | undefined) {
-  if (state === 'foreground')
-    return activity?.running === true ? 'Running' : 'Stopped'
-  if (state === 'background')
-    return activity === undefined ? 'Stopped' : 'Running'
-  return labels.get(state) ?? state
-}
-
-export function AgentsPanel(props: {
+export function TasksPanel(props: {
   cwd: string
-  agentId: string | null
+  sessionId: string | null
+  selected: string | null
   onSelect: (id: string | null) => void
   onOpenDiff: () => void
   onClose: () => void
 }) {
   const messages = useStore((state) => state.messages)
   const earlier = useStore((state) => state.earlier)
-  const activity = useStore((state) => {
-    const sessionId = state.selection?.sessionId ?? null
-    return sessionId === null ? undefined : state.activity[sessionId]
-  })
+  const activity = useStore((state) =>
+    props.sessionId === null ? undefined : state.activity[props.sessionId]
+  )
   const allMessages = [...earlier, ...messages]
-  const found = subagents(allMessages, activity)
-  const selected = found.items.find((item) => item.tool.id === props.agentId)
-  const agent =
-    selected === undefined
-      ? null
-      : { ...agentOf(selected.tool), running: selected.status === 'Running' }
+  const found = threadTasks(allMessages, activity)
+  const agent = found.agents.find((item) => item.tool.id === props.selected)
+  const task = found.tasks.find((item) => item.tool.id === props.selected)
+  const info = agent === undefined ? null : agentOf(agent.tool)
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-32 pl-3">
-        {agent === null && (
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-36 pl-3">
+        {agent === undefined && task === undefined && (
           <span className="text-foreground min-w-0 truncate text-xs font-medium">
-            Agents
+            Tasks
           </span>
         )}
-        {agent !== null && (
+        {(agent !== undefined || task !== undefined) && (
           <div className="flex min-w-0 items-center gap-2 text-xs">
             <Button
               size="icon-sm"
               variant="ghost"
-              title="Back to agents"
-              aria-label="Back to agents"
+              title="Back to tasks"
+              aria-label="Back to tasks"
               onClick={() => props.onSelect(null)}
             >
               <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" />
             </Button>
-            {agent.running ? (
-              <AgentSpinner className={agent.tone} />
-            ) : (
-              <SubagentIcon className={agent.tone} />
+            {agent !== undefined && info !== null && (
+              <>
+                {agent.status === 'Running' ? (
+                  <AgentSpinner className={info.tone} />
+                ) : (
+                  <SubagentIcon className={info.tone} />
+                )}
+                <span className="text-foreground shrink-0 font-medium">
+                  {info.name}
+                </span>
+                {info.description !== '' && (
+                  <span className="text-muted-foreground min-w-0 truncate">
+                    {info.description}
+                  </span>
+                )}
+              </>
             )}
-            <span className="text-foreground shrink-0 font-medium">
-              {agent.name}
-            </span>
-            {agent.description !== '' && (
-              <span className="text-muted-foreground min-w-0 truncate">
-                {agent.description}
-              </span>
+            {task !== undefined && (
+              <>
+                <HugeiconsIcon
+                  icon={CommandLineIcon}
+                  className="text-muted-foreground size-4 shrink-0"
+                />
+                <span className="text-foreground min-w-0 truncate font-medium">
+                  {taskTitle(task.tool)}
+                </span>
+                <span
+                  className={cn(
+                    'text-muted-foreground shrink-0',
+                    task.status === 'Failed' && 'text-destructive'
+                  )}
+                >
+                  {task.status}
+                </span>
+              </>
             )}
           </div>
         )}
@@ -160,37 +106,40 @@ export function AgentsPanel(props: {
           <HugeiconsIcon icon={XIcon} className="size-3.5" />
         </Button>
       </div>
-      {selected === undefined && (
+      {agent === undefined && task === undefined && (
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          {found.items.length === 0 && (
-            <p className="text-muted-foreground p-6 text-center text-xs">
+          <h2 className="text-muted-foreground px-1 pb-1.5 text-xs font-medium">
+            Agents
+          </h2>
+          {found.agents.length === 0 && (
+            <p className="text-muted-foreground px-1 py-1 text-xs">
               No agents in this thread.
             </p>
           )}
           <div className="flex flex-col gap-1.5">
             {[
-              ...found.items.filter((item) => item.status === 'Running'),
-              ...found.items.filter((item) => item.status !== 'Running'),
+              ...found.agents.filter((item) => item.status === 'Running'),
+              ...found.agents.filter((item) => item.status !== 'Running'),
             ].map((item) => {
-              const info = agentOf(item.tool)
+              const itemInfo = agentOf(item.tool)
               return (
                 <button
                   key={item.tool.id}
                   type="button"
-                  aria-label={`Open ${info.name} agent: ${info.description}`}
+                  aria-label={`Open ${itemInfo.name} agent: ${itemInfo.description}`}
                   className="bg-secondary hover:bg-accent focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] leading-5 tracking-[-0.04px] select-none focus-visible:ring-2 focus-visible:outline-none"
                   onClick={() => props.onSelect(item.tool.id)}
                 >
                   {item.status === 'Running' ? (
-                    <AgentSpinner className={info.tone} />
+                    <AgentSpinner className={itemInfo.tone} />
                   ) : (
-                    <SubagentIcon className={info.tone} />
+                    <SubagentIcon className={itemInfo.tone} />
                   )}
                   <span className="text-foreground shrink-0 font-medium">
-                    {info.name}
+                    {itemInfo.name}
                   </span>
                   <span className="text-foreground min-w-0 flex-1 truncate">
-                    {info.description}
+                    {itemInfo.description}
                   </span>
                   <span
                     className={cn(
@@ -204,20 +153,173 @@ export function AgentsPanel(props: {
               )
             })}
           </div>
+          <h2 className="text-muted-foreground px-1 pt-5 pb-1.5 text-xs font-medium">
+            Tasks
+          </h2>
+          {found.tasks.length === 0 && (
+            <p className="text-muted-foreground px-1 py-1 text-xs">
+              No background tasks in this thread.
+            </p>
+          )}
+          <div className="flex flex-col gap-1.5">
+            {[
+              ...found.tasks.filter((item) => item.status === 'Running'),
+              ...found.tasks.filter((item) => item.status !== 'Running'),
+            ].map((item) => (
+              <button
+                key={item.tool.id}
+                type="button"
+                aria-label={`Open task: ${taskTitle(item.tool)}`}
+                className="bg-secondary hover:bg-accent focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] leading-5 tracking-[-0.04px] select-none focus-visible:ring-2 focus-visible:outline-none"
+                onClick={() => props.onSelect(item.tool.id)}
+              >
+                <HugeiconsIcon
+                  icon={CommandLineIcon}
+                  className={cn(
+                    'size-4 shrink-0',
+                    item.status === 'Running'
+                      ? 'text-foreground animate-pulse'
+                      : 'text-muted-foreground'
+                  )}
+                />
+                <span className="text-foreground min-w-0 flex-1 truncate">
+                  {taskTitle(item.tool)}
+                </span>
+                <span
+                  className={cn(
+                    'text-muted-foreground shrink-0 text-xs',
+                    item.status === 'Failed' && 'text-destructive'
+                  )}
+                >
+                  {item.status}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
-      {selected !== undefined && (
+      {agent !== undefined && (
         <AgentView
-          key={selected.tool.id}
-          tool={selected.tool}
-          running={selected.status === 'Running'}
+          key={agent.tool.id}
+          tool={agent.tool}
+          agentId={agent.agentId}
+          running={agent.status === 'Running'}
           messages={allMessages}
-          results={found.results}
-          agents={found.items}
+          found={found}
           cwd={props.cwd}
           onSelect={props.onSelect}
           onOpenDiff={props.onOpenDiff}
         />
+      )}
+      {task !== undefined && props.sessionId !== null && (
+        <TaskView
+          key={task.tool.id}
+          sessionId={props.sessionId}
+          command={text(task.tool.input.command)}
+          path={task.path}
+          events={task.events}
+          running={task.status === 'Running'}
+        />
+      )}
+    </div>
+  )
+}
+
+function TaskView(props: {
+  sessionId: string
+  command: string
+  path: string | null
+  events: string[]
+  running: boolean
+}) {
+  const [output, setOutput] = useState<
+    Methods['tasks.output']['result'] | undefined
+  >(undefined)
+  const [error, setError] = useState<string | null>(null)
+  const scroller = useRef<HTMLDivElement>(null)
+  const pinned = useRef(true)
+
+  useEffect(() => {
+    const path = props.path
+    if (path === null) return
+    let current = true
+    async function load(file: string) {
+      try {
+        const result = await call('tasks.output', {
+          sessionId: props.sessionId,
+          path: file,
+        })
+        if (!current) return
+        setOutput(result)
+        setError(null)
+      } catch (caught) {
+        if (current) setError(errorMessage(caught))
+      }
+    }
+    void load(path)
+    const timer = props.running
+      ? window.setInterval(() => void load(path), 2000)
+      : null
+    return () => {
+      current = false
+      if (timer !== null) window.clearInterval(timer)
+    }
+  }, [props.sessionId, props.path, props.running])
+
+  useLayoutEffect(() => {
+    const element = scroller.current
+    if (element !== null && pinned.current)
+      element.scrollTop = element.scrollHeight
+  }, [output, props.events])
+
+  const shown =
+    props.path === null
+      ? props.events.join('\n')
+      : output === undefined || output === null
+        ? ''
+        : output.text
+
+  return (
+    <div
+      ref={scroller}
+      className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3"
+      onScroll={(event) => {
+        const element = event.currentTarget
+        pinned.current =
+          element.scrollHeight - element.scrollTop - element.clientHeight < 40
+      }}
+    >
+      {props.command !== '' && (
+        <p className="text-muted-foreground pb-2 font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap">
+          $ {props.command}
+        </p>
+      )}
+      {error !== null && <p className="text-destructive text-xs">{error}</p>}
+      {error === null && props.path !== null && output === undefined && (
+        <p className="text-muted-foreground text-xs">Loading…</p>
+      )}
+      {error === null && props.path !== null && output === null && (
+        <p className="text-muted-foreground text-xs">
+          The output file no longer exists.
+        </p>
+      )}
+      {output?.truncated === true && (
+        <p className="text-muted-foreground pb-2 text-xs">
+          Showing the end of the output.
+        </p>
+      )}
+      {props.path === null && props.events.length === 0 && (
+        <p className="text-muted-foreground text-xs">No events yet.</p>
+      )}
+      {output?.text === '' && (
+        <p className="text-muted-foreground text-xs">
+          {props.running ? 'No output yet.' : 'No output.'}
+        </p>
+      )}
+      {shown !== '' && (
+        <pre className="bg-secondary text-foreground rounded-lg p-3 font-mono text-xs leading-5 [overflow-wrap:anywhere] whitespace-pre-wrap select-text">
+          {shown}
+        </pre>
       )}
     </div>
   )
@@ -225,10 +327,10 @@ export function AgentsPanel(props: {
 
 function AgentView(props: {
   tool: ToolUse
+  agentId: string
   running: boolean
   messages: Message[]
-  results: Map<string, ToolResult>
-  agents: ReturnType<typeof subagents>['items']
+  found: Found
   cwd: string
   onSelect: (id: string) => void
   onOpenDiff: () => void
@@ -254,6 +356,13 @@ function AgentView(props: {
   const agentMessages = props.messages.filter(
     (message) => message.type !== 'notice' && message.parent === props.tool.id
   )
+  const missing = agentMessages.length === 0
+
+  useEffect(() => {
+    if (missing && props.agentId !== '')
+      void loadAgent(props.tool.id, props.agentId)
+  }, [missing, props.tool.id, props.agentId])
+
   const prompt =
     agentMessages[0]?.type === 'user' && isPrompt(agentMessages[0].content)
       ? agentMessages[0]
@@ -312,17 +421,15 @@ function AgentView(props: {
           >
             <RowView
               row={row}
-              results={props.results}
-              agents={props.agents}
+              results={props.found.results}
+              agents={props.found.agents}
+              tasks={props.found.tasks}
               running={props.running}
               fork={false}
-              rewind={false}
               expanded={expanded.includes(row.key)}
               onToggle={() => toggle(row.key)}
-              onOpenAgent={(tool) => props.onSelect(tool.id)}
-              onRewind={() => {
-                throw new Error('Rewind is not available in agent transcripts')
-              }}
+              onOpenTask={(tool) => props.onSelect(tool.id)}
+              onRewind={null}
               onOpenDiff={props.onOpenDiff}
               cwd={props.cwd}
             />
