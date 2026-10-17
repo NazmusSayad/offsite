@@ -99,7 +99,6 @@ export function AccountPage(props: {
             key={account.configDir}
             className="w-72 font-mono"
             value={account.configDir}
-            valid={(text) => text.trim() !== ''}
             onCommit={(configDir) => void save({ configDir })}
           />
         </Row>
@@ -227,9 +226,7 @@ export function NewAccountPage(props: {
             className="w-72 font-mono"
             value={configDir}
             onChange={(event) => setConfigDir(event.target.value)}
-            placeholder={
-              props.provider === 'claude' ? '~/.claude-work' : '~/.codex-work'
-            }
+            placeholder="Default"
           />
         </Row>
       </Section>
@@ -246,7 +243,7 @@ export function NewAccountPage(props: {
         </Button>
         <Button
           type="submit"
-          disabled={busy || name.trim() === '' || configDir.trim() === ''}
+          disabled={busy || name.trim() === ''}
         >
           Add account
         </Button>
