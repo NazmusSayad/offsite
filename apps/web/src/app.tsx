@@ -81,6 +81,11 @@ export function App() {
     subscribeTerminal,
     () => terminalState().alerts.length > 0
   )
+  const terminalTabs = useSyncExternalStore(subscribeTerminal, () =>
+    selection === null
+      ? 0
+      : (terminalState().layout[selection.projectId]?.tabs.length ?? 0)
+  )
   const running = useStore(selectedRunning)
   const runningTasks = useStore((state) => {
     if (state.selection?.sessionId === null) {
@@ -364,19 +369,14 @@ export function App() {
           )}
           <button
             className={cn(toggle, 'relative')}
-            data-pressed={panel === 'tasks'}
-            aria-label="Toggle tasks panel"
-            title="Tasks"
-            onClick={() => {
-              setSelectedTask(null)
-              setPanel(panel === 'tasks' ? null : 'tasks')
-            }}
+            data-pressed={panel === 'diff'}
+            aria-label="Toggle diff panel"
+            title="Diff"
+            onClick={() => setPanel(panel === 'diff' ? null : 'diff')}
           >
-            <HugeiconsIcon icon={TaskDaily01Icon} />
-            {runningTasks > 0 && (
-              <span className="text-foreground absolute -top-0.5 -right-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-0.5 text-[9px] leading-none font-medium tabular-nums">
-                {runningTasks}
-              </span>
+            <HugeiconsIcon icon={GitCompareIcon} />
+            {git.repos.some((repo) => repo.changed > 0) && (
+              <span className="bg-muted-foreground ring-background absolute top-0.5 right-0.5 size-1.5 rounded-full ring-2" />
             )}
           </button>
           <button
@@ -387,8 +387,34 @@ export function App() {
             onClick={() => setTerminal(!terminal)}
           >
             <HugeiconsIcon icon={SquareTerminalIcon} />
-            {terminalAlert && (
-              <span className="bg-primary absolute top-1 right-1 size-1.5 rounded-full" />
+            {terminalTabs > 0 && (
+              <span
+                className={cn(
+                  'absolute top-0 right-0 grid h-3 min-w-3 place-items-center rounded-full px-0.5 text-[8px] leading-none font-medium tabular-nums',
+                  terminalAlert
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-foreground bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))]'
+                )}
+              >
+                {terminalTabs}
+              </span>
+            )}
+          </button>
+          <button
+            className={cn(toggle, 'relative')}
+            data-pressed={panel === 'tasks'}
+            aria-label="Toggle tasks panel"
+            title="Tasks"
+            onClick={() => {
+              setSelectedTask(null)
+              setPanel(panel === 'tasks' ? null : 'tasks')
+            }}
+          >
+            <HugeiconsIcon icon={TaskDaily01Icon} />
+            {runningTasks > 0 && (
+              <span className="text-foreground absolute top-0 right-0 grid h-3 min-w-3 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-0.5 text-[8px] leading-none font-medium tabular-nums">
+                {runningTasks}
+              </span>
             )}
           </button>
           <button
@@ -399,15 +425,6 @@ export function App() {
             onClick={() => setPanel(panel === 'files' ? null : 'files')}
           >
             <HugeiconsIcon icon={Folder01Icon} />
-          </button>
-          <button
-            className={toggle}
-            data-pressed={panel === 'diff'}
-            aria-label="Toggle diff panel"
-            title="Diff"
-            onClick={() => setPanel(panel === 'diff' ? null : 'diff')}
-          >
-            <HugeiconsIcon icon={GitCompareIcon} />
           </button>
         </div>
       )}
