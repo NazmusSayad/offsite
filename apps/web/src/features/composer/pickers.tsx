@@ -5,7 +5,7 @@ import {
   UserSettings01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Model } from '@offsite/core/protocol'
+import type { Model } from '@offsite/core/providers'
 import { type ReactNode, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { ProviderIcon } from '@/components/icons'

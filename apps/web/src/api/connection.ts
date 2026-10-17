@@ -1,7 +1,7 @@
 import type {
-  Method,
-  Methods,
-  Reply,
+  RpcMethod,
+  RpcMethods,
+  RpcReply,
   ServerEvent,
   ServerMessage,
 } from '@offsite/core/protocol'
@@ -42,7 +42,7 @@ const PING_TIMEOUT = 10_000
 const CONNECT_TIMEOUT = 3000
 const CALL_TIMEOUT = 30_000
 const LONG_CALL_TIMEOUT = 5 * 60_000
-const longCalls: Method[] = [
+const longCalls: RpcMethod[] = [
   'sessions.send',
   'sessions.rewind',
   'sessions.fork',
@@ -135,10 +135,10 @@ export function machineUrl(machine: string) {
   return connection.url
 }
 
-export function call<M extends Method>(
+export function call<M extends RpcMethod>(
   machine: string,
   method: M,
-  params: Methods[M]['params']
+  params: RpcMethods[M]['params']
 ) {
   const connection = connections.get(machine)
   if (
@@ -158,7 +158,7 @@ export function call<M extends Method>(
   const id = nextId
   connection.socket.send(JSON.stringify({ id, method, params }))
   const timeout = longCalls.includes(method) ? LONG_CALL_TIMEOUT : CALL_TIMEOUT
-  return new Promise<Methods[M]['result']>((resolve, reject) => {
+  return new Promise<RpcMethods[M]['result']>((resolve, reject) => {
     const timer = window.setTimeout(() => {
       connection.pending.delete(id)
       reject(
@@ -170,7 +170,7 @@ export function call<M extends Method>(
     connection.pending.set(id, {
       resolve: (result) => {
         window.clearTimeout(timer)
-        resolve(result as Methods[M]['result'])
+        resolve(result as RpcMethods[M]['result'])
       },
       reject: (error) => {
         window.clearTimeout(timer)
@@ -356,7 +356,7 @@ function receive(machine: string, connection: Connection, data: unknown) {
   }
 }
 
-function settle(connection: Connection, reply: Reply) {
+function settle(connection: Connection, reply: RpcReply) {
   const waiter = connection.pending.get(reply.id)
   if (waiter === undefined) {
     return

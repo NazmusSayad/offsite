@@ -1,9 +1,5 @@
-import type {
-  Accounts,
-  Composer,
-  Provider,
-  Settings,
-} from '@offsite/core/protocol'
+import type { ComposerSettings, SessionSettings } from '@offsite/core/config'
+import type { Accounts, Provider } from '@offsite/core/providers'
 import { call } from '@/api/connection'
 import { updateComposer } from '@/api/machine-config'
 import { saveDraftSettings } from '@/features/composer/drafts'
@@ -16,7 +12,7 @@ import {
   showError,
   update,
 } from './store'
-export const emptySettings: Settings = {
+export const emptySettings: SessionSettings = {
   provider: 'claude',
   accountId: null,
   model: null,
@@ -26,16 +22,16 @@ export const emptySettings: Settings = {
 }
 
 export function providerSettings(
-  composer: Composer | null,
+  composer: ComposerSettings | null,
   provider: Provider
-): Settings {
+): SessionSettings {
   if (composer === null) {
     return { ...emptySettings, provider }
   }
   return { provider, ...composer[provider] }
 }
 
-export function changeSettings(patch: Partial<Settings>) {
+export function changeSettings(patch: Partial<SessionSettings>) {
   const settings = { ...getState().settings, ...patch }
   update({ settings })
   const selection = getState().selection

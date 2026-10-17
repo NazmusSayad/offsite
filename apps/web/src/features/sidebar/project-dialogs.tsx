@@ -9,7 +9,7 @@ import {
   Upload04Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Directories } from '@offsite/core/protocol'
+import type { DirectoryListing } from '@offsite/core/projects'
 import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { addProject, removeProject, updateProject } from '@/api/projects'
@@ -49,7 +49,7 @@ export function FolderDialog(props: {
   const [machine, setMachine] = useState(props.machine)
   const [loaded, setLoaded] = useState<{
     path: string
-    listing: Directories
+    listing: DirectoryListing
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [path, setPath] = useState('~')

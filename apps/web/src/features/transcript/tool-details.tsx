@@ -1,4 +1,4 @@
-import type { Item } from '@offsite/core/protocol'
+import type { Item } from '@offsite/core/items'
 import { diffLines } from 'diff'
 import { Markdown } from '@/components/markdown/markdown'
 import { cn } from '@/lib/utils'

@@ -1,4 +1,4 @@
-import type { Item, ItemImage, ItemStatus } from '@offsite/core/protocol'
+import type { Item, ItemImage, ItemStatus } from '@offsite/core/items'
 import { isRecord } from '../claude/content.ts'
 import type { Status, ThreadItem, Turn, UserInput } from './types.ts'
 

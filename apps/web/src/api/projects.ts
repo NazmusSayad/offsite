@@ -1,4 +1,4 @@
-import type { ProjectPatch } from '@offsite/core/protocol'
+import type { ProjectPatch } from '@offsite/core/projects'
 import { projectOf, useStore } from '@/lib/store'
 import { call } from './connection'
 

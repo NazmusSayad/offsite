@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
-import type { Item, ServerEvent } from '@offsite/core/protocol'
+import type { Item } from '@offsite/core/items'
+import type { ServerEvent } from '@offsite/core/protocol'
 import { storedAccount } from '../../services/accounts.ts'
 import { runs } from '../live.ts'
 import { appServer, codexBaseDir, findCodex } from './app-server.ts'

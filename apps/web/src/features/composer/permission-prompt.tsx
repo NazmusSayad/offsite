@@ -8,7 +8,7 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { PermissionRequest, Question } from '@offsite/core/protocol'
+import type { PermissionRequest, Question } from '@offsite/core/items'
 import { useEffect, useState } from 'react'
 import { uploadFile } from '@/api/upload'
 import { Markdown } from '@/components/markdown/markdown'

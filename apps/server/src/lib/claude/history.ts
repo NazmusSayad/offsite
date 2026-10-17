@@ -6,7 +6,8 @@ import {
   type SessionMessage,
   type SessionStoreEntry,
 } from '@anthropic-ai/claude-agent-sdk'
-import type { Item, ServerEvent } from '@offsite/core/protocol'
+import type { Item } from '@offsite/core/items'
+import type { ServerEvent } from '@offsite/core/protocol'
 import { claudeBaseDir } from '../../storage/config.ts'
 import { runs } from '../live.ts'
 import { contextTokens, type Message, toMessage } from './content.ts'

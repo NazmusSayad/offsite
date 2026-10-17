@@ -1,4 +1,4 @@
-import type { Project } from '@offsite/core/protocol'
+import type { Project } from '@offsite/core/projects'
 import type { MachineIcon } from '@/components/icons'
 import {
   getState,

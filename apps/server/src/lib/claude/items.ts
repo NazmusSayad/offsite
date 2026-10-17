@@ -1,11 +1,11 @@
 import type {
-  Background,
+  BackgroundTask,
   Item,
   ItemStatus,
   PermissionRequest,
   Question,
   TodoStep,
-} from '@offsite/core/protocol'
+} from '@offsite/core/items'
 import { type Block, isRecord, type Message } from './content.ts'
 
 type ToolUse = Extract<Block, { type: 'tool_use' }>
@@ -411,7 +411,7 @@ function applyResult(item: Item, result: ToolResult): Item {
           output
         )
       const monitor = /^Monitor started \(task (\w+),/.exec(output)
-      const background: Background =
+      const background: BackgroundTask =
         shell !== null
           ? { ...item.background, taskId: shell[1], outputPath: shell[2] }
           : monitor !== null

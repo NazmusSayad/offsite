@@ -4,7 +4,8 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Item, Methods } from '@offsite/core/protocol'
+import type { Item } from '@offsite/core/items'
+import type { RpcMethods } from '@offsite/core/protocol'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { Markdown } from '@/components/markdown/markdown'
@@ -275,7 +276,7 @@ function TaskView(props: {
   running: boolean
 }) {
   const [output, setOutput] = useState<
-    Methods['tasks.output']['result'] | undefined
+    RpcMethods['tasks.output']['result'] | undefined
   >(undefined)
   const [error, setError] = useState<string | null>(null)
   const scroller = useRef<HTMLDivElement>(null)

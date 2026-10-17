@@ -7,12 +7,8 @@ import {
   listSessions,
   renameSession,
 } from '@anthropic-ai/claude-agent-sdk'
-import type {
-  Provider,
-  ProviderStatus,
-  Session,
-  SessionPatch,
-} from '@offsite/core/protocol'
+import type { Provider, ProviderStatus } from '@offsite/core/providers'
+import type { Session, SessionPatch } from '@offsite/core/sessions'
 import { eq, sql } from 'drizzle-orm'
 import {
   codexBaseDir,

@@ -1,4 +1,4 @@
-import type { Item } from '@offsite/core/protocol'
+import type { Item } from '@offsite/core/items'
 import {
   editStats,
   relative,

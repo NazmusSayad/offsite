@@ -1,4 +1,4 @@
-import type { Platform } from '@offsite/core/protocol'
+import type { Platform } from '@offsite/core/config'
 import { call } from '@/api/connection'
 import { readBase64 } from '@/api/upload'
 import { showToast } from '@/components/toast'

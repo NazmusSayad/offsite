@@ -7,14 +7,13 @@ import {
   type SDKMessage,
   type SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk'
+import type { SessionSettings } from '@offsite/core/config'
 import type {
-  Context,
   PermissionRequest,
   Prompt,
-  Queued,
-  Settings,
-  TaskStatus,
-} from '@offsite/core/protocol'
+  QueuedPrompt,
+} from '@offsite/core/items'
+import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
 import { broadcast, publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import { claudeEffort, claudeMode, recordLimit, runOptions } from './claude.ts'
@@ -46,9 +45,9 @@ export class Run {
   readonly query: Query
   readonly closed: Promise<void>
   readonly resumeAt: string | null
-  queue: Queued[] = []
-  settings: Settings
-  context: Context | null = null
+  queue: QueuedPrompt[] = []
+  settings: SessionSettings
+  context: ContextUsage | null = null
   partial = ''
   private model: string | null = null
   running = false
@@ -65,7 +64,7 @@ export class Run {
     cwd: string
     resume: boolean
     resumeAt: string | null
-    settings: Settings
+    settings: SessionSettings
   }) {
     this.sessionId = options.sessionId
     this.resumeAt = options.resumeAt
@@ -117,7 +116,7 @@ export class Run {
     this.submit(item.prompt, 'steer')
   }
 
-  async configure(settings: Settings) {
+  async configure(settings: SessionSettings) {
     if (settings.model !== this.settings.model) {
       await this.query.setModel(settings.model ?? undefined)
     }
@@ -491,7 +490,7 @@ export class Run {
     })
   }
 
-  private updateSettings(settings: Settings) {
+  private updateSettings(settings: SessionSettings) {
     this.settings = settings
     publish(this.sessionId, {
       type: 'settings',

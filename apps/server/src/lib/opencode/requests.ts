@@ -1,4 +1,4 @@
-import type { Item, PermissionRequest } from '@offsite/core/protocol'
+import type { Item, PermissionRequest } from '@offsite/core/items'
 import type { PermissionRequest as OpenCodePermission } from '@opencode/client'
 
 export function permissionRequest(

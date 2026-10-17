@@ -1,12 +1,12 @@
+import type { SessionSettings } from '@offsite/core/config'
+import type { Item } from '@offsite/core/items'
+import type { ServerEvent } from '@offsite/core/protocol'
+import type { ProviderCapabilities } from '@offsite/core/providers'
 import type {
-  ProviderCapabilities,
-  Context,
-  Item,
-  Rewind,
+  ContextUsage,
+  RewindRequest,
   RewindResult,
-  ServerEvent,
-  Settings,
-} from '@offsite/core/protocol'
+} from '@offsite/core/sessions'
 import type {
   OpenCodeClient,
   SessionInfo,
@@ -144,7 +144,9 @@ export async function forkOpenCode(sessionId: string, messageId: string) {
   return { sessionId: result.id }
 }
 
-export async function rewindOpenCode(request: Rewind): Promise<RewindResult> {
+export async function rewindOpenCode(
+  request: RewindRequest
+): Promise<RewindResult> {
   if (request.code && !request.conversation && !request.dryRun) {
     throw new Error('OpenCode restores files only with the conversation')
   }
@@ -212,7 +214,7 @@ export async function contextOf(
   client: OpenCodeClient,
   cwd: string,
   messages: SessionMessageInfo[]
-): Promise<Context | null> {
+): Promise<ContextUsage | null> {
   const last = messages.findLast(
     (message) => message.type === 'assistant' && message.tokens !== undefined
   )
@@ -270,8 +272,8 @@ function openCodeRun(sessionId: string) {
 
 export function sessionSettings(
   session: SessionInfo,
-  settings: Settings
-): Settings {
+  settings: SessionSettings
+): SessionSettings {
   const variant = session.model?.variant
   return {
     ...settings,

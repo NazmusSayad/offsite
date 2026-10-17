@@ -1,6 +1,6 @@
 import { PaperclipIcon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Item } from '@offsite/core/protocol'
+import type { Item } from '@offsite/core/items'
 import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'

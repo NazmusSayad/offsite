@@ -1,12 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
 import { getSessionMessages } from '@anthropic-ai/claude-agent-sdk'
-import type {
-  Methods,
-  Rewind,
-  RewindResult,
-  Settings,
-} from '@offsite/core/protocol'
+import type { SessionSettings } from '@offsite/core/config'
+import type { RpcMethods } from '@offsite/core/protocol'
+import type { RewindRequest, RewindResult } from '@offsite/core/sessions'
 import { history, Run } from '../lib/claude/index.ts'
 import {
   stopAppServers,
@@ -45,11 +42,11 @@ function sessionHistory(sessionId: string, cwd: string) {
   }
 }
 
-export function rewind(request: Rewind): Promise<RewindResult> {
+export function rewind(request: RewindRequest): Promise<RewindResult> {
   return locked(request.sessionId, () => rewindNow(request))
 }
 
-async function rewindNow(request: Rewind): Promise<RewindResult> {
+async function rewindNow(request: RewindRequest): Promise<RewindResult> {
   const sessionId = request.sessionId
   const cwd = projectPath(request.projectId)
   if (runs.get(sessionId)?.running === true) {
@@ -133,7 +130,7 @@ export async function open(
 
 export async function send(
   client: Client,
-  request: Methods['sessions.send']['params']
+  request: RpcMethods['sessions.send']['params']
 ) {
   assertEnabled(request.settings.provider, request.settings.accountId)
   const cwd = projectPath(request.projectId)
@@ -158,7 +155,7 @@ async function sendExisting(
   client: Client,
   sessionId: string,
   cwd: string,
-  request: Methods['sessions.send']['params']
+  request: RpcMethods['sessions.send']['params']
 ) {
   const provider = providerOf(sessionId)
   if (request.settings.provider !== provider) {
@@ -203,7 +200,11 @@ async function locked<T>(sessionId: string, task: () => Promise<T>) {
   return result
 }
 
-async function runFor(sessionId: string, cwd: string, settings: Settings) {
+async function runFor(
+  sessionId: string,
+  cwd: string,
+  settings: SessionSettings
+) {
   const run = runs.get(sessionId)
   if (run !== undefined && run.settings.accountId === settings.accountId) {
     return run
@@ -230,7 +231,7 @@ async function runFor(sessionId: string, cwd: string, settings: Settings) {
   }
 }
 
-async function startRun(cwd: string, settings: Settings) {
+async function startRun(cwd: string, settings: SessionSettings) {
   switch (settings.provider) {
     case 'claude':
       return new Run({

@@ -1,12 +1,12 @@
 import { InformationCircleIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type {
-  Account,
   Config,
   Platform,
   TerminalConfig,
   TerminalIdentity,
-} from '@offsite/core/protocol'
+} from '@offsite/core/config'
+import type { Account } from '@offsite/core/providers'
 import { shellIntegrationIssue } from '@offsite/core/shell-check'
 import { useState } from 'react'
 import { updateConfig } from '@/api/machine-config'

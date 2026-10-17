@@ -1,6 +1,6 @@
 import { randomUUID, type UUID } from 'node:crypto'
 import type { SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
-import type { Prompt } from '@offsite/core/protocol'
+import type { Prompt } from '@offsite/core/items'
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 

@@ -1,4 +1,4 @@
-import type { Provider } from '@offsite/core/protocol'
+import type { Provider } from '@offsite/core/providers'
 
 export const deprecatedModels: Record<Provider, string[]> = {
   claude: [

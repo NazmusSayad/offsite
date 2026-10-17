@@ -6,7 +6,7 @@ import type {
   Accounts,
   Capabilities,
   Provider,
-} from '@offsite/core/protocol'
+} from '@offsite/core/providers'
 import {
   defaultEfforts,
   defaultModels,

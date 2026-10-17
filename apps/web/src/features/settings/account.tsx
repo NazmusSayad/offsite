@@ -1,8 +1,5 @@
-import type {
-  Account,
-  Capabilities,
-  ModelSetting,
-} from '@offsite/core/protocol'
+import type { ModelSetting } from '@offsite/core/config'
+import type { Account, Capabilities } from '@offsite/core/providers'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import {

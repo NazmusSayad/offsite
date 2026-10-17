@@ -4,7 +4,7 @@ import type {
   Account,
   ProviderCapabilities,
   RateLimit,
-} from '@offsite/core/protocol'
+} from '@offsite/core/providers'
 import { type StoredAccount, storedAccounts } from '../../services/accounts.ts'
 import { broadcast } from '../hub.ts'
 import { type AppServer, appServer, codexBaseDir } from './app-server.ts'

@@ -1,6 +1,6 @@
 import { ArrowDown01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Platform } from '@offsite/core/protocol'
+import type { Platform } from '@offsite/core/config'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'

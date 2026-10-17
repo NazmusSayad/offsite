@@ -1,4 +1,4 @@
-import type { Platform } from './protocol.ts'
+import type { Platform } from './config.ts'
 
 function zshOptionsSupported(options: string[]) {
   for (let position = 0; position < options.length; position++) {

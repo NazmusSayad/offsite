@@ -14,7 +14,7 @@ import {
   SquarePenIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Activity } from '@offsite/core/protocol'
+import type { SessionActivity } from '@offsite/core/sessions'
 import { useRef, useState } from 'react'
 import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
@@ -37,7 +37,7 @@ export function SessionItem(props: {
   session: MachineSession
   slim: boolean
   selected: boolean
-  activity: Activity | undefined
+  activity: SessionActivity | undefined
   unseen: boolean
   saved: boolean
   onSelect: () => void

@@ -11,12 +11,12 @@ import {
   type SDKRateLimitInfo,
   type SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk'
+import type { SessionSettings } from '@offsite/core/config'
 import type {
   Account,
   ProviderCapabilities,
   RateLimit,
-  Settings,
-} from '@offsite/core/protocol'
+} from '@offsite/core/providers'
 import { type StoredAccount, storedAccount } from '../../services/accounts.ts'
 import { notifierConnected, sendPush } from '../../services/push.ts'
 import { sessions } from '../../services/sessions.ts'
@@ -149,7 +149,7 @@ export function runOptions(options: {
   cwd: string
   resume: boolean
   resumeAt: string | null
-  settings: Settings
+  settings: SessionSettings
 }): Options {
   const settings = options.settings
   return {

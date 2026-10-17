@@ -1,4 +1,5 @@
-import type { Account, Config, Model } from '@offsite/core/protocol'
+import type { Config } from '@offsite/core/config'
+import type { Account, Model } from '@offsite/core/providers'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { updateConfig } from '@/api/machine-config'

@@ -1,8 +1,6 @@
-import {
-  type Project,
-  type ServerEvent,
-  type Session,
-} from '@offsite/core/protocol'
+import type { Project } from '@offsite/core/projects'
+import type { ServerEvent } from '@offsite/core/protocol'
+import type { Session } from '@offsite/core/sessions'
 import { getDraftSettings, saveDraftSettings } from '@/features/composer/drafts'
 import {
   emptySettings,

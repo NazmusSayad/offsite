@@ -1,4 +1,5 @@
-import type { Image, Settings } from '@offsite/core/protocol'
+import type { SessionSettings } from '@offsite/core/config'
+import type { ImageAttachment } from '@offsite/core/items'
 import { debounce } from 'es-toolkit'
 import { create } from 'zustand'
 import {
@@ -7,7 +8,11 @@ import {
   type StorageValue,
 } from 'zustand/middleware'
 
-type Draft = { text: string; images: Image[]; settings: Settings | null }
+type Draft = {
+  text: string
+  images: ImageAttachment[]
+  settings: SessionSettings | null
+}
 type Drafts = { drafts: Record<string, Draft> }
 
 const storageKey = 'composerDrafts'
@@ -83,6 +88,9 @@ export function getDraftSettings(key: string) {
   return useDrafts.getState().drafts[key]?.settings ?? null
 }
 
-export function saveDraftSettings(key: string, settings: Settings | null) {
+export function saveDraftSettings(
+  key: string,
+  settings: SessionSettings | null
+) {
   editDraft(key, (current) => ({ ...current, settings }))
 }

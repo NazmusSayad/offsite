@@ -1,9 +1,6 @@
-import type {
-  Decision,
-  Delivery,
-  Prompt,
-  SessionPatch,
-} from '@offsite/core/protocol'
+import type { PromptDelivery } from '@offsite/core/config'
+import type { PermissionDecision, Prompt } from '@offsite/core/items'
+import type { SessionPatch } from '@offsite/core/sessions'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { deleteDraft, getDraftSettings } from '@/features/composer/drafts'
@@ -71,7 +68,7 @@ export function openSession(selection: Selection) {
   }
 }
 
-export async function sendPrompt(prompt: Prompt, delivery: Delivery) {
+export async function sendPrompt(prompt: Prompt, delivery: PromptDelivery) {
   const selection = getState().selection
   if (selection === null) {
     throw new Error('no session selected')
@@ -127,7 +124,7 @@ export function stopTask(machine: string, sessionId: string, taskId: string) {
 
 export function respond(
   requestId: string,
-  decision: Decision,
+  decision: PermissionDecision,
   answers: Record<string, string> | null
 ) {
   const selection = getState().selection

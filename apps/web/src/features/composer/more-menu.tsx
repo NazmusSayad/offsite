@@ -8,7 +8,7 @@ import {
   SparklesIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
-import type { Capabilities, Provider } from '@offsite/core/protocol'
+import type { Capabilities, Provider } from '@offsite/core/providers'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,

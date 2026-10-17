@@ -1,6 +1,6 @@
 import { AtIcon, CheckIcon, CopyIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { FilePreview as Preview } from '@offsite/core/protocol'
+import type { FilePreview as Preview } from '@offsite/core/projects'
 import { File } from '@pierre/diffs/react'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'

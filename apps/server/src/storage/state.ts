@@ -1,12 +1,12 @@
 import path from 'node:path'
-import type { Composer } from '@offsite/core/protocol'
+import type { ComposerSettings } from '@offsite/core/config'
 import { z } from 'zod'
 import { broadcast } from '../lib/hub.ts'
 import { home, readJson, writeJson } from './storage.ts'
 
 const stateFile = path.join(home, 'state.json')
 
-const stateSchema: z.ZodType<{ composer: Composer }> = z.strictObject({
+const stateSchema: z.ZodType<{ composer: ComposerSettings }> = z.strictObject({
   composer: z
     .strictObject({
       provider: z.enum(['claude', 'codex', 'opencode']).default('claude'),

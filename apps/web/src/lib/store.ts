@@ -1,20 +1,22 @@
 import type {
-  Account,
-  Activity,
-  Capabilities,
-  Composer,
+  ComposerSettings,
   Config,
-  ConfigInfo,
-  Context,
-  Item,
-  Project,
-  PermissionRequest,
+  ConfigWithDefaults,
+  SessionSettings,
+} from '@offsite/core/config'
+import type { Item, PermissionRequest, QueuedPrompt } from '@offsite/core/items'
+import type { Project } from '@offsite/core/projects'
+import type {
+  Account,
+  Capabilities,
   Provider,
   ProviderStatus,
-  Queued,
+} from '@offsite/core/providers'
+import type {
+  SessionActivity,
+  ContextUsage,
   Session,
-  Settings,
-} from '@offsite/core/protocol'
+} from '@offsite/core/sessions'
 import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
 import { machineKey } from '@/api/machines'
 import type { MachineIcon } from '@/components/icons'
@@ -56,14 +58,14 @@ export type Machine = {
   icon: MachineIcon
   pairedAt: number | null
   config: Config | null
-  composer: Composer | null
+  composer: ComposerSettings | null
   configError: string | null
-  system: Omit<ConfigInfo, 'config'> | null
+  system: Omit<ConfigWithDefaults, 'config'> | null
   claudeAccounts: Account[]
   codexAccounts: Account[]
   openCode: { available: boolean }
   notifier: boolean
-  activity: Record<string, Activity>
+  activity: Record<string, SessionActivity>
   providers: ProviderStatus[]
 }
 
@@ -90,10 +92,10 @@ export type State = {
   before: number | null
   partial: string
   requests: PermissionRequest[]
-  queue: Queued[]
-  settings: Settings
+  queue: QueuedPrompt[]
+  settings: SessionSettings
   draft: string | null
-  context: Context | null
+  context: ContextUsage | null
   capabilities: Capabilities | null
   error: string | null
   sentAt: number

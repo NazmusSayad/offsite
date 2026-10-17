@@ -1,4 +1,4 @@
-import type { Platform, TerminalIdentity } from '@offsite/core/protocol'
+import type { Platform, TerminalIdentity } from '@offsite/core/config'
 import type { TerminalOptions } from '@/lib/ghostty/terminal'
 import type { TerminalPrefs } from '@/lib/prefs'
 import { currentScheme } from '@/lib/theme'

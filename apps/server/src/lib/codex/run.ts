@@ -1,13 +1,12 @@
 import { randomUUID } from 'node:crypto'
+import type { SessionSettings } from '@offsite/core/config'
 import type {
-  Context,
   Item,
   PermissionRequest,
   Prompt,
-  Queued,
-  Settings,
-  TaskStatus,
-} from '@offsite/core/protocol'
+  QueuedPrompt,
+} from '@offsite/core/items'
+import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
 import { storedAccount } from '../../services/accounts.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
@@ -65,7 +64,7 @@ type Pending = {
   params: Params
 }
 
-function codexServer(settings: Settings) {
+function codexServer(settings: SessionSettings) {
   return appServer(
     storedAccount('codex', settings.accountId).configDir ?? codexBaseDir
   )
@@ -79,9 +78,9 @@ export class CodexRun implements ThreadListener {
   readonly pending = new Map<string, Pending>()
   readonly items = new Map<string, Item>()
   readonly closed: Promise<void>
-  queue: Queued[] = []
-  settings: Settings
-  context: Context | null = null
+  queue: QueuedPrompt[] = []
+  settings: SessionSettings
+  context: ContextUsage | null = null
   partial = ''
   running = false
   prompted = false
@@ -93,7 +92,7 @@ export class CodexRun implements ThreadListener {
   private turnId: string | null = null
   private idleTimer: NodeJS.Timeout | undefined
 
-  static async start(cwd: string, settings: Settings) {
+  static async start(cwd: string, settings: SessionSettings) {
     const server = codexServer(settings)
     const result = await server.request<ThreadStarted>('thread/start', {
       cwd,
@@ -104,7 +103,11 @@ export class CodexRun implements ThreadListener {
     return new CodexRun(server, result.thread.id, cwd, result.model, settings)
   }
 
-  static async resume(sessionId: string, cwd: string, settings: Settings) {
+  static async resume(
+    sessionId: string,
+    cwd: string,
+    settings: SessionSettings
+  ) {
     const server = codexServer(settings)
     const result = await server.request<ThreadStarted>('thread/resume', {
       threadId: sessionId,
@@ -121,7 +124,7 @@ export class CodexRun implements ThreadListener {
     sessionId: string,
     cwd: string,
     model: string,
-    settings: Settings
+    settings: SessionSettings
   ) {
     this.server = server
     this.sessionId = sessionId
@@ -174,7 +177,7 @@ export class CodexRun implements ThreadListener {
     )
   }
 
-  configure(settings: Settings) {
+  configure(settings: SessionSettings) {
     this.settings = { ...settings, accountId: this.settings.accountId }
     publish(this.sessionId, {
       type: 'settings',
@@ -503,7 +506,7 @@ export class CodexRun implements ThreadListener {
   }
 }
 
-function threadPreset(settings: Settings) {
+function threadPreset(settings: SessionSettings) {
   const preset = modePreset(settings.mode)
   if (preset === null) {
     return {}

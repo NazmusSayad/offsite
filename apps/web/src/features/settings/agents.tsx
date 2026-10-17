@@ -1,4 +1,4 @@
-import type { Config } from '@offsite/core/protocol'
+import type { Config } from '@offsite/core/config'
 import { updateConfig } from '@/api/machine-config'
 import {
   Select,

@@ -1,4 +1,4 @@
-import type { PushSubscriptionInfo } from '@offsite/core/protocol'
+import type { PushSubscriptionInfo } from '@offsite/core/push'
 import { call, isConnected } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { providerNames } from './format'

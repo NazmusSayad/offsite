@@ -1,4 +1,5 @@
-import type { Activity, PermissionRequest } from '@offsite/core/protocol'
+import type { PermissionRequest } from '@offsite/core/items'
+import type { SessionActivity } from '@offsite/core/sessions'
 import { readConfig } from '../storage/config.ts'
 import type { Run } from './claude/index.ts'
 import type { CodexRun } from './codex/index.ts'
@@ -8,7 +9,7 @@ import type { OpenCodeRun } from './opencode/index.ts'
 export const runs = new Map<string, Run | CodexRun | OpenCodeRun>()
 
 export function activity() {
-  const result: Record<string, Activity> = {}
+  const result: Record<string, SessionActivity> = {}
   for (const run of runs.values()) {
     result[run.sessionId] = {
       running: run.running,

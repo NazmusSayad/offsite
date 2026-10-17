@@ -10,7 +10,7 @@ import {
 import { lstat, open, readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { mediaTypes } from '@offsite/core/media'
-import type { FilePreview } from '@offsite/core/protocol'
+import type { FilePreview } from '@offsite/core/projects'
 import { hasCode, home } from '../storage/storage.ts'
 
 const FILE_LIMIT = 20_000

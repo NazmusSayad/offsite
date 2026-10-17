@@ -1,15 +1,17 @@
 import { Add01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type {
-  Account,
-  Capabilities,
-  Composer,
+  ComposerSettings,
   Config,
   ModelSetting,
   Platform,
+} from '@offsite/core/config'
+import type {
+  Account,
+  Capabilities,
   Provider,
   RateLimit,
-} from '@offsite/core/protocol'
+} from '@offsite/core/providers'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { updateComposer, updateConfig } from '@/api/machine-config'
@@ -33,7 +35,7 @@ import { Row, Section, TextInput } from './controls'
 export function ProviderPage(props: {
   machine: string
   config: Config
-  composer: Composer
+  composer: ComposerSettings
   platform: Platform
   defaultClaudeBaseDir: string
   provider: Provider
@@ -137,7 +139,7 @@ export function ProviderPage(props: {
 function ProviderModels(props: {
   machine: string
   config: Config
-  composer: Composer
+  composer: ComposerSettings
   provider: Provider
   accountId: string | null
 }) {

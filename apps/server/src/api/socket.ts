@@ -1,6 +1,6 @@
 import os from 'node:os'
 import path from 'node:path'
-import { type Call, type Method, type Methods } from '@offsite/core/protocol'
+import type { RpcCall, RpcMethod, RpcMethods } from '@offsite/core/protocol'
 import type { WebSocket } from 'ws'
 import { agentMessages, earlier, image } from '../lib/claude/index.ts'
 import { codexAgent } from '../lib/codex/index.ts'
@@ -68,10 +68,10 @@ import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
 import { readComposer, saveComposer } from '../storage/state.ts'
 
 type Handlers = {
-  [M in Method]: (
-    params: Methods[M]['params'],
+  [M in RpcMethod]: (
+    params: RpcMethods[M]['params'],
     client: Client
-  ) => Methods[M]['result'] | Promise<Methods[M]['result']>
+  ) => RpcMethods[M]['result'] | Promise<RpcMethods[M]['result']>
 }
 
 const handlers: Handlers = {
@@ -322,9 +322,9 @@ export function connectClient(socket: WebSocket) {
 }
 
 async function answer(client: Client, text: string) {
-  let call: Call
+  let call: RpcCall
   try {
-    call = JSON.parse(text) as Call
+    call = JSON.parse(text) as RpcCall
   } catch (error) {
     console.warn(`ignoring a message that is not JSON: ${error}`)
     return

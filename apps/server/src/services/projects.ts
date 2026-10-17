@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto'
 import { readdir, stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import type { Directories, Project, ProjectPatch } from '@offsite/core/protocol'
+import type {
+  DirectoryListing,
+  Project,
+  ProjectPatch,
+} from '@offsite/core/projects'
 import { eq } from 'drizzle-orm'
 import { broadcast } from '../lib/hub.ts'
 import { db } from '../storage/db.ts'
@@ -83,7 +87,7 @@ export function removeProject(id: string) {
   publish()
 }
 
-export async function directories(input: string): Promise<Directories> {
+export async function directories(input: string): Promise<DirectoryListing> {
   const folder = path.resolve(expandHome(input.trim()))
   const entries = await readdir(folder, { withFileTypes: true })
   const parent = path.dirname(folder)

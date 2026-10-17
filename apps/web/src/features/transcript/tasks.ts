@@ -1,4 +1,5 @@
-import type { Activity, Item, ItemStatus } from '@offsite/core/protocol'
+import type { Item, ItemStatus } from '@offsite/core/items'
+import type { SessionActivity } from '@offsite/core/sessions'
 
 const labels: Record<ItemStatus, string> = {
   running: 'Running',
@@ -7,7 +8,10 @@ const labels: Record<ItemStatus, string> = {
   stopped: 'Stopped',
 }
 
-export function threadTasks(items: Item[], activity: Activity | undefined) {
+export function threadTasks(
+  items: Item[],
+  activity: SessionActivity | undefined
+) {
   return {
     agents: items.flatMap((item) =>
       item.kind === 'subagent'
@@ -43,7 +47,7 @@ export function taskTitle(item: Extract<Item, { kind: 'command' }>) {
 function statusOf(
   status: ItemStatus,
   id: string | null,
-  activity: Activity | undefined
+  activity: SessionActivity | undefined
 ) {
   const live = id === null ? undefined : activity?.tasks[id]
   if (live !== undefined) {

@@ -1,4 +1,4 @@
-import type { PushMessage, PushRegistration } from '@offsite/core/protocol'
+import type { PushMessage, PushRegistration } from '@offsite/core/push'
 import { and, eq, inArray } from 'drizzle-orm'
 import webPush from 'web-push'
 import { type Client, clients } from '../lib/hub.ts'

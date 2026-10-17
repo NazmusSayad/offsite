@@ -1,4 +1,4 @@
-import type { RewindResult } from '@offsite/core/protocol'
+import type { RewindResult } from '@offsite/core/sessions'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'

@@ -1,6 +1,6 @@
 import { ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Item } from '@offsite/core/protocol'
+import type { Item } from '@offsite/core/items'
 import { taskTitle, type threadTasks } from '@/features/transcript/tasks'
 import type { AgentItem } from '@/features/transcript/timeline'
 import { Shimmer } from '@/features/transcript/tool-row'

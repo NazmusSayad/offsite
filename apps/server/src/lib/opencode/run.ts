@@ -1,15 +1,13 @@
 import { randomUUID } from 'node:crypto'
+import type { PromptDelivery, SessionSettings } from '@offsite/core/config'
 import type {
-  Context,
-  Decision,
-  Delivery,
+  PermissionDecision,
   Item,
   PermissionRequest,
   Prompt,
-  Queued,
-  Settings,
-  TaskStatus,
-} from '@offsite/core/protocol'
+  QueuedPrompt,
+} from '@offsite/core/items'
+import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
 import type {
   FormInfo,
   OpenCodeClient,
@@ -28,7 +26,7 @@ import { contextOf, modelRef, sessionSettings } from './sessions.ts'
 const IDLE_LIMIT = 30 * 60 * 1000
 const RECENT = 30
 
-const replies: Record<Decision, PermissionReply> = {
+const replies: Record<PermissionDecision, PermissionReply> = {
   allow: 'once',
   always: 'always',
   deny: 'reject',
@@ -45,21 +43,21 @@ export class OpenCodeRun {
   readonly pending = new Map<string, Pending>()
   readonly items = new Map<string, Item>()
   readonly closed: Promise<void>
-  queue: Queued[] = []
-  settings: Settings
-  context: Context | null = null
+  queue: QueuedPrompt[] = []
+  settings: SessionSettings
+  context: ContextUsage | null = null
   partial = ''
   running = false
   prompted = false
   backgroundTasks = 0
   tasks: Record<string, TaskStatus> = {}
   private readonly close: () => void
-  private applied: Settings
+  private applied: SessionSettings
   private loading = Promise.resolve()
   private refreshTimer: NodeJS.Timeout | undefined
   private idleTimer: NodeJS.Timeout | undefined
 
-  static async start(cwd: string, settings: Settings) {
+  static async start(cwd: string, settings: SessionSettings) {
     const client = await openCode()
     const session = await client.session.create({
       location: { directory: cwd },
@@ -71,7 +69,11 @@ export class OpenCodeRun {
     return new OpenCodeRun(session.id, cwd, settings, settings)
   }
 
-  static async resume(sessionId: string, cwd: string, settings: Settings) {
+  static async resume(
+    sessionId: string,
+    cwd: string,
+    settings: SessionSettings
+  ) {
     const client = await openCode()
     const session = await client.session.get({ sessionID: sessionId })
     return new OpenCodeRun(
@@ -85,8 +87,8 @@ export class OpenCodeRun {
   private constructor(
     sessionId: string,
     cwd: string,
-    settings: Settings,
-    applied: Settings
+    settings: SessionSettings,
+    applied: SessionSettings
   ) {
     this.sessionId = sessionId
     this.cwd = cwd
@@ -99,7 +101,7 @@ export class OpenCodeRun {
     this.armIdleTimer()
   }
 
-  async submit(prompt: Prompt, delivery: Delivery) {
+  async submit(prompt: Prompt, delivery: PromptDelivery) {
     if (!this.running) {
       await this.startTurn(prompt)
       return
@@ -137,7 +139,7 @@ export class OpenCodeRun {
     )
   }
 
-  configure(settings: Settings) {
+  configure(settings: SessionSettings) {
     this.settings = { ...settings, accountId: this.settings.accountId }
     publish(this.sessionId, {
       type: 'settings',
@@ -156,7 +158,7 @@ export class OpenCodeRun {
 
   async respond(
     requestId: string,
-    decision: Decision,
+    decision: PermissionDecision,
     answers: Record<string, string> | null
   ) {
     const pending = this.pending.get(requestId)

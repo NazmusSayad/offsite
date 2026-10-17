@@ -1,9 +1,4 @@
-import type {
-  Item,
-  ItemStatus,
-  Question,
-  TodoStep,
-} from '@offsite/core/protocol'
+import type { Item, ItemStatus, Question, TodoStep } from '@offsite/core/items'
 import type {
   FormField,
   FormInfo,

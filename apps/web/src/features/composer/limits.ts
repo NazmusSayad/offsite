@@ -1,4 +1,4 @@
-import type { RateLimit } from '@offsite/core/protocol'
+import type { RateLimit } from '@offsite/core/providers'
 
 const windowNames: Record<string, string> = {
   five_hour: '5h',

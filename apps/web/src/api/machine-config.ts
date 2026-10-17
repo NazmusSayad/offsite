@@ -1,4 +1,4 @@
-import type { Composer, Config } from '@offsite/core/protocol'
+import type { ComposerSettings, Config } from '@offsite/core/config'
 import { getDraftSettings } from '@/features/composer/drafts'
 import { providerSettings, refreshCapabilities } from '@/lib/accounts'
 import {
@@ -107,7 +107,7 @@ const config = syncedValue<Config>({
   apply: (machine, value) => setMachine(machine, { config: value }),
 })
 
-const composer = syncedValue<Composer>({
+const composer = syncedValue<ComposerSettings>({
   set: (machine, value) => setMachine(machine, { composer: value }),
   save: async (machine, value) => {
     try {
@@ -126,7 +126,7 @@ export const receiveConfig = config.receive
 export const updateComposer = composer.update
 export const receiveComposer = composer.receive
 
-function applyComposer(machine: string, value: Composer) {
+function applyComposer(machine: string, value: ComposerSettings) {
   setMachine(machine, { composer: value })
   const selection = getState().selection
   if (selection === null || selection.machine !== machine) {

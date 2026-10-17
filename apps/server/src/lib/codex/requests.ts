@@ -1,4 +1,4 @@
-import type { Item, PermissionRequest } from '@offsite/core/protocol'
+import type { Item, PermissionRequest } from '@offsite/core/items'
 import type { Params } from './app-server.ts'
 import { itemId } from './items.ts'
 import type { Question } from './types.ts'

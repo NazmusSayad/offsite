@@ -10,7 +10,7 @@ import {
   ServerStack01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Provider } from '@offsite/core/protocol'
+import type { Provider } from '@offsite/core/providers'
 import { projectOf, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 

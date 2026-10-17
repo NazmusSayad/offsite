@@ -1,6 +1,6 @@
 import os from 'node:os'
 import path from 'node:path'
-import type { Config, ConfigInfo, Platform } from '@offsite/core/protocol'
+import type { Config, ConfigWithDefaults, Platform } from '@offsite/core/config'
 import { z } from 'zod'
 import { broadcast } from '../lib/hub.ts'
 import { home, readJson, writeJson } from './storage.ts'
@@ -125,7 +125,7 @@ export function defaultShell() {
   return os.userInfo().shell ?? '/bin/sh'
 }
 
-export function configInfo(): ConfigInfo {
+export function configInfo(): ConfigWithDefaults {
   return {
     config: readConfig(),
     defaults,
