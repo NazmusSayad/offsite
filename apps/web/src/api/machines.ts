@@ -2,7 +2,6 @@ import { HOSTED_APP, PROTOCOL, type Project } from '@offsite/core/protocol'
 import type { MachineIcon } from '@/components/icons'
 import {
   getState,
-  homeMachine,
   type Machine,
   type MachineProject,
   machineOf,
@@ -249,8 +248,6 @@ export function reconnectMachine(id: string) {
 }
 
 export function removeMachine(id: string) {
-  if (homeMachine(getState())?.id === id)
-    throw new Error('the machine serving this page stays')
   forgetMachine(id)
   persistMachines()
 }

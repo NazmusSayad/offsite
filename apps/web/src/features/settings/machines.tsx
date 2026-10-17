@@ -2,12 +2,16 @@ import {
   Add01Icon,
   ArrowRight01Icon,
   Delete02Icon,
+  DragDropVerticalIcon,
   Refresh01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useEffect, useRef, useState } from 'react'
+import { Reorder, useDragControls } from 'motion/react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import {
+  addMachine,
   editMachine,
+  home,
   readMachineLink,
   reconnectMachine,
   removeMachine,
@@ -28,7 +32,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
 import { providerNames } from '@/lib/format'
-import { type Machine, update, useStore } from '@/lib/store'
+import { type Machine, showError, update, useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 import { Row, Section, TextInput } from './controls'
 
@@ -44,7 +48,8 @@ const statuses = {
 
 export function MachinesPage() {
   const machines = useStore((state) => state.machines)
-  const home = useStore((state) => state.home)
+  const servingMachine = useStore((state) => state.home)
+  const homeAddress = home
   const edited = useStore((state) =>
     state.machines.find((item) => item.id === state.settingsEditedMachine)
   )
@@ -95,7 +100,7 @@ export function MachinesPage() {
                 machine.via !== null &&
                 machine.via !== machine.addresses[0] &&
                 ` · via ${new URL(machine.via).host}`}
-              {machine.id === home && ' · serves this page'}
+              {machine.id === servingMachine && ' · serves this page'}
             </span>
             <div className="flex shrink-0 items-center gap-1">
               <Button
@@ -118,9 +123,27 @@ export function MachinesPage() {
           </div>
         ))}
       </Section>
-      <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
-        Add machine…
-      </Button>
+      <div className="flex gap-2">
+        {homeAddress !== null &&
+          !machines.some((machine) =>
+            machine.addresses.includes(homeAddress)
+          ) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                addMachine(homeAddress, null, null).catch((error: unknown) =>
+                  showError(error)
+                )
+              }
+            >
+              Add built-in server
+            </Button>
+          )}
+        <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+          Add machine…
+        </Button>
+      </div>
       {adding && <AddMachineDialog onClose={() => setAdding(false)} />}
     </>
   )
@@ -128,9 +151,10 @@ export function MachinesPage() {
 
 function EditMachinePage(props: { machine: Machine }) {
   const machine = props.machine
-  const serving = useStore((state) => state.home) === machine.id
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [order, setOrder] = useState<string[] | null>(null)
+  const addresses = order ?? machine.addresses
   const newAddress = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -191,49 +215,47 @@ function EditMachinePage(props: { machine: Machine }) {
       </Section>
       <Section
         title="Addresses"
-        note={
-          serving
-            ? 'This machine serves this page, so its addresses stay'
-            : 'offsite tries them in order whenever it reconnects'
-        }
+        note="offsite tries them in order whenever it reconnects"
       >
-        {machine.addresses.map((address, index) => (
-          <div key={address} className="flex items-center gap-3 px-4 py-2.5">
-            {serving && (
-              <span className="min-w-0 flex-1 truncate font-mono text-sm">
-                {address}
-              </span>
-            )}
-            {!serving && (
-              <>
-                <TextInput
-                  className="flex-1 font-mono"
-                  value={address}
-                  onCommit={(text) =>
-                    saveAddresses(
-                      machine.addresses.map((item, at) =>
-                        at === index ? text : item
-                      )
-                    )
-                  }
-                />
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  title="Remove address"
-                  disabled={machine.addresses.length === 1}
-                  onClick={() =>
-                    saveAddresses(
-                      machine.addresses.filter((_, at) => at !== index)
-                    )
-                  }
-                >
-                  <HugeiconsIcon icon={Delete02Icon} />
-                </Button>
-              </>
-            )}
-          </div>
-        ))}
+        <Reorder.Group
+          as="div"
+          axis="y"
+          className="divide-y"
+          values={addresses}
+          onReorder={setOrder}
+        >
+          {addresses.map((address, index) => (
+            <AddressRow
+              key={address}
+              address={address}
+              onDragEnd={() => {
+                if (order !== null) saveAddresses(order)
+                setOrder(null)
+              }}
+            >
+              <TextInput
+                className="flex-1 font-mono"
+                value={address}
+                onCommit={(text) =>
+                  saveAddresses(
+                    addresses.map((item, at) => (at === index ? text : item))
+                  )
+                }
+              />
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                title="Remove address"
+                disabled={addresses.length === 1}
+                onClick={() =>
+                  saveAddresses(addresses.filter((_, at) => at !== index))
+                }
+              >
+                <HugeiconsIcon icon={Delete02Icon} />
+              </Button>
+            </AddressRow>
+          ))}
+        </Reorder.Group>
         {adding && (
           <div className="px-4 py-2.5">
             <Input
@@ -253,7 +275,7 @@ function EditMachinePage(props: { machine: Machine }) {
             />
           </div>
         )}
-        {!serving && !adding && (
+        {!adding && (
           <button
             type="button"
             className="text-muted-foreground hover:bg-muted/50 hover:text-foreground flex w-full items-center gap-2 px-4 py-3 text-sm transition-colors"
@@ -267,36 +289,62 @@ function EditMachinePage(props: { machine: Machine }) {
       {error !== null && (
         <p className="text-destructive px-1 text-xs break-all">{error}</p>
       )}
-      {!serving && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="outline" className="text-destructive">
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="outline" className="text-destructive">
+            Remove machine
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {machine.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This browser forgets the machine. The machine and its threads stay
+              untouched.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                update({ settingsEditedMachine: null })
+                removeMachine(machine.id)
+              }}
+            >
               Remove machine
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Remove {machine.name}?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This browser forgets the machine. The machine and its threads
-                stay untouched.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                onClick={() => {
-                  update({ settingsEditedMachine: null })
-                  removeMachine(machine.id)
-                }}
-              >
-                Remove machine
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
+  )
+}
+
+function AddressRow(props: {
+  address: string
+  onDragEnd: () => void
+  children: ReactNode
+}) {
+  const controls = useDragControls()
+
+  return (
+    <Reorder.Item
+      as="div"
+      value={props.address}
+      dragListener={false}
+      dragControls={controls}
+      onDragEnd={props.onDragEnd}
+      className="bg-background relative flex items-center gap-3 px-4 py-2.5"
+    >
+      <span
+        className="text-muted-foreground hover:text-foreground cursor-grab touch-none active:cursor-grabbing"
+        title="Drag to reorder"
+        onPointerDown={(event) => controls.start(event)}
+      >
+        <HugeiconsIcon icon={DragDropVerticalIcon} className="size-4" />
+      </span>
+      {props.children}
+    </Reorder.Item>
   )
 }

@@ -112,11 +112,9 @@ async function attach() {
     if (!server.serving)
       throw new Error(`${new URL(home).host} does not say it serves this page`)
     update({ home: server.id })
+    if (getState().machines.length === 0) await addMachine(home, null, null)
     const machine = homeMachine(getState())
-    if (machine === undefined) {
-      await addMachine(home, null, null)
-      return
-    }
+    if (machine === undefined) return
     shareToken(machine.token)
     if (machine.via !== null)
       refreshPushSubscription().catch((error: unknown) =>

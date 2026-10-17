@@ -19,6 +19,7 @@
     "es-toolkit": "^1.52.0",
     "fast-png": "^8.0.0",
     "hast-util-to-jsx-runtime": "^2.3.6",
+    "motion": "^14.3.0",
     "radix-ui": "^1.8.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
