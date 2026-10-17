@@ -331,8 +331,18 @@ export class Run {
         return
       }
       case 'result': {
-        if (message.subtype !== 'success')
-          this.add(notice(message.errors.join('\n') || message.subtype))
+        if (
+          message.subtype !== 'success' &&
+          message.terminal_reason !== 'aborted_streaming' &&
+          message.terminal_reason !== 'aborted_tools'
+        )
+          this.add(
+            notice(
+              message.errors
+                .filter((error) => !error.startsWith('[ede_diagnostic]'))
+                .join('\n') || message.subtype
+            )
+          )
         this.finishTurn()
         const usage =
           this.model === null ? undefined : message.modelUsage[this.model]
