@@ -7,7 +7,11 @@ import type {
   Capabilities,
   Provider,
 } from '@offsite/core/protocol'
-import { defaultModels, deprecatedModels } from '../constants.ts'
+import {
+  defaultEfforts,
+  defaultModels,
+  deprecatedModels,
+} from '../constants.ts'
 import {
   claudeAccount,
   claudeCapabilities,
@@ -161,11 +165,18 @@ export async function capabilities(
         hidden: deprecated,
         effort: null,
       }
+      const preferred = defaultEfforts[provider]
+      const effort =
+        preferred === null
+          ? null
+          : model.efforts.includes(preferred)
+            ? preferred
+            : (model.efforts.at(-1) ?? null)
       return {
         ...model,
         deprecated,
         hidden: overrides[model.value] ?? setting.hidden,
-        effort: setting.effort,
+        effort: setting.effort ?? effort,
       }
     }),
   }

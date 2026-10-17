@@ -185,7 +185,8 @@ function ProviderModels(props: {
           <Select
             value={defaultModel ?? undefined}
             onValueChange={(value) => {
-              const effort = settings[value]?.effort ?? null
+              const effort =
+                models?.find((model) => model.value === value)?.effort ?? null
               updateComposer(props.machine, {
                 ...props.composer,
                 [props.provider]: {
@@ -246,7 +247,7 @@ function ProviderModels(props: {
             </div>
             {model.efforts.length > 0 && (
               <Select
-                value={setting.effort ?? undefined}
+                value={setting.effort ?? model.effort ?? undefined}
                 onValueChange={(effort) =>
                   save(model.value, { ...setting, effort })
                 }

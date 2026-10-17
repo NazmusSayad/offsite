@@ -138,7 +138,20 @@ export async function refreshCapabilities() {
     )
       return
     update({ capabilities })
-    if (getState().settings.model !== null) return
+    const settings = getState().settings
+    if (settings.model !== null) {
+      const effort = capabilities.models.find(
+        (item) => item.value === settings.model
+      )?.effort
+      if (
+        settings.provider !== 'opencode' &&
+        settings.effort === null &&
+        effort !== undefined &&
+        effort !== null
+      )
+        changeSettings({ effort })
+      return
+    }
     const first =
       capabilities.models.find(
         (item) => !item.hidden && item.value === capabilities.defaultModel

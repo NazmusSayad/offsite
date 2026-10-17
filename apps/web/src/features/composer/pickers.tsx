@@ -61,7 +61,9 @@ export function Pickers() {
           }
           value={settings.effort ?? 'default'}
           options={[
-            { value: 'default', label: 'Default' },
+            ...(settings.provider === 'opencode'
+              ? [{ value: 'default', label: 'Default' }]
+              : []),
             ...model.efforts.map((effort) => ({
               value: effort,
               label: effort.charAt(0).toUpperCase() + effort.slice(1),

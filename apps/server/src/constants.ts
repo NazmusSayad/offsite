@@ -16,7 +16,13 @@ export const deprecatedModels: Record<Provider, string[]> = {
 }
 
 export const defaultModels: Record<Provider, string | null> = {
+  codex: 'gpt-6.1-sol',
   claude: 'claude-opus-5-5',
-  codex: null,
+  opencode: null,
+}
+
+export const defaultEfforts: Record<Provider, string | null> = {
+  codex: 'high',
+  claude: 'high',
   opencode: null,
 }
