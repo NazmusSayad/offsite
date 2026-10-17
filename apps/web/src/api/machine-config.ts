@@ -24,18 +24,26 @@ function syncedValue<T>(handlers: {
   >()
 
   function apply(machine: string, value: T) {
-    if (getState().machines.some((item) => item.id === machine))
+    if (getState().machines.some((item) => item.id === machine)) {
       handlers.apply(machine, value)
+    }
   }
 
   async function save(machine: string, value: T) {
     const saved = await handlers.save(machine, value)
     const pending = saves.get(machine)
-    if (pending === undefined) return
+    if (pending === undefined) {
+      return
+    }
     pending.writes -= 1
-    if (pending.writes > 0) return
-    if (saved === null) await refresh(machine)
-    else apply(machine, saved)
+    if (pending.writes > 0) {
+      return
+    }
+    if (saved === null) {
+      await refresh(machine)
+    } else {
+      apply(machine, saved)
+    }
   }
 
   async function refresh(machine: string) {
@@ -47,8 +55,9 @@ function syncedValue<T>(handlers: {
         pending !== undefined &&
         pending.writes === 0 &&
         pending.version === version
-      )
+      ) {
         apply(machine, value)
+      }
     } catch (error) {
       showError(error)
     }
@@ -63,7 +72,9 @@ function syncedValue<T>(handlers: {
         timer: undefined,
       }
       saves.set(machine, pending)
-      if (pending.timer === undefined) pending.writes += 1
+      if (pending.timer === undefined) {
+        pending.writes += 1
+      }
       pending.version += 1
       window.clearTimeout(pending.timer)
       pending.timer = window.setTimeout(() => {
@@ -72,7 +83,9 @@ function syncedValue<T>(handlers: {
       }, 300)
     },
     receive(machine: string, value: T) {
-      if ((saves.get(machine)?.writes ?? 0) === 0) apply(machine, value)
+      if ((saves.get(machine)?.writes ?? 0) === 0) {
+        apply(machine, value)
+      }
     },
   }
 }
@@ -116,10 +129,14 @@ export const receiveComposer = composer.receive
 function applyComposer(machine: string, value: Composer) {
   setMachine(machine, { composer: value })
   const selection = getState().selection
-  if (selection === null || selection.machine !== machine) return
+  if (selection === null || selection.machine !== machine) {
+    return
+  }
   const live =
     activityOf(getState().machines, machine, selection.sessionId) !== undefined
-  if (live) return
+  if (live) {
+    return
+  }
   const settings =
     (selection.sessionId === null
       ? null
@@ -134,5 +151,7 @@ function applyComposer(machine: string, value: Composer) {
     settings.provider !== getState().settings.provider ||
     settings.accountId !== getState().settings.accountId
   update({ settings })
-  if (accountChanged) void refreshCapabilities()
+  if (accountChanged) {
+    void refreshCapabilities()
+  }
 }

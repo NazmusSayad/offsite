@@ -29,8 +29,9 @@ export function findOpenCode() {
   const name = process.platform === 'win32' ? 'opencode.exe' : 'opencode'
   for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {
     const candidate = path.join(dir, name)
-    if (statSync(candidate, { throwIfNoEntry: false })?.isFile())
+    if (statSync(candidate, { throwIfNoEntry: false })?.isFile()) {
       return candidate
+    }
   }
   return null
 }
@@ -71,11 +72,14 @@ async function listen(client: OpenCodeClient) {
     for await (const event of client.event.subscribe({
       signal: controller.signal,
       onActivity: () => silence.refresh(),
-    }))
+    })) {
       route(event)
+    }
     console.warn('the OpenCode event stream ended')
   } catch (error) {
-    if (listener !== controller) return
+    if (listener !== controller) {
+      return
+    }
     console.warn(
       controller.signal.aborted
         ? `the OpenCode event stream was silent for ${SILENCE_LIMIT / 1000} seconds`
@@ -84,7 +88,9 @@ async function listen(client: OpenCodeClient) {
   } finally {
     clearTimeout(silence)
   }
-  if (listener !== controller) return
+  if (listener !== controller) {
+    return
+  }
   connection = reconnect()
   connection.catch(() => undefined)
 }
@@ -108,7 +114,9 @@ async function reconnect() {
   }
   console.warn(`could not reconnect to OpenCode: ${failure}`)
   connection = undefined
-  for (const run of openCodeRuns()) run.exited()
+  for (const run of openCodeRuns()) {
+    run.exited()
+  }
   refreshSessions('opencode')
   throw failure
 }
@@ -133,18 +141,27 @@ async function catchUp(client: OpenCodeClient) {
 }
 
 function route(event: V2Event) {
-  if (listChanges.has(event.type)) refreshSessions('opencode')
+  if (listChanges.has(event.type)) {
+    refreshSessions('opencode')
+  }
   const sessionId = sessionOf(event)
-  if (sessionId === null) return
+  if (sessionId === null) {
+    return
+  }
   const run = runs.get(sessionId)
-  if (run?.provider === 'opencode') run.receive(event)
+  if (run?.provider === 'opencode') {
+    run.receive(event)
+  }
 }
 
 function sessionOf(event: V2Event) {
-  if (event.type === 'form.created') return event.data.form.sessionID
+  if (event.type === 'form.created') {
+    return event.data.form.sessionID
+  }
   const data: unknown = 'data' in event ? event.data : null
-  if (isRecord(data) && typeof data.sessionID === 'string')
+  if (isRecord(data) && typeof data.sessionID === 'string') {
     return data.sessionID
+  }
   return null
 }
 

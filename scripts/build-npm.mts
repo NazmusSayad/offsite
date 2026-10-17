@@ -26,10 +26,11 @@ for (const folder of [
   ['apps', 'server', 'drizzle'],
   ['apps', 'server', 'src', 'services', 'terminal', 'shell-integration'],
   ['apps', 'web', 'dist'],
-])
+]) {
   cpSync(path.join(root, ...folder), path.join(output, ...folder), {
     recursive: true,
   })
+}
 mkdirSync(path.join(output, 'bin'), { recursive: true })
 writeFileSync(
   path.join(output, 'bin', 'offsite.js'),

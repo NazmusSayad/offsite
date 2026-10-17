@@ -81,8 +81,9 @@ export function ProjectBadge(props: {
     .slice(0, 2)
     .join('')
   let index = 0
-  for (const glyph of name.toLowerCase())
+  for (const glyph of name.toLowerCase()) {
     index = (index * 31 + (glyph.codePointAt(0) ?? 0)) % colors.length
+  }
 
   return (
     <span

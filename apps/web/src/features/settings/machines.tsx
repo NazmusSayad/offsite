@@ -50,7 +50,9 @@ export function MachinesPage() {
   )
   const [adding, setAdding] = useState(false)
 
-  if (edited !== undefined) return <EditMachinePage machine={edited} />
+  if (edited !== undefined) {
+    return <EditMachinePage machine={edited} />
+  }
 
   return (
     <>
@@ -137,7 +139,9 @@ function EditMachinePage(props: { machine: Machine }) {
   const newAddress = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (adding) newAddress.current?.focus()
+    if (adding) {
+      newAddress.current?.focus()
+    }
   }, [adding])
 
   function saveAddresses(addresses: string[]) {
@@ -160,12 +164,16 @@ function EditMachinePage(props: { machine: Machine }) {
   async function savePairing(text: string) {
     setError(null)
     const trimmed = text.trim()
-    if (trimmed === '') return true
+    if (trimmed === '') {
+      return true
+    }
     try {
       const code = trimmed.includes('#')
         ? readMachineLink(trimmed).code
         : trimmed
-      if (code === null) throw new Error('That link has no pairing code')
+      if (code === null) {
+        throw new Error('That link has no pairing code')
+      }
       await pairMachine(machine.id, code)
       return true
     } catch (failure) {
@@ -223,7 +231,9 @@ function EditMachinePage(props: { machine: Machine }) {
               className="flex flex-1 items-center gap-3"
               onSubmit={async (event) => {
                 event.preventDefault()
-                if (await savePairing(pairing)) setPairing('')
+                if (await savePairing(pairing)) {
+                  setPairing('')
+                }
               }}
             >
               <Input
@@ -263,7 +273,9 @@ function EditMachinePage(props: { machine: Machine }) {
               key={address}
               address={address}
               onDragEnd={() => {
-                if (order !== null) saveAddresses(order)
+                if (order !== null) {
+                  saveAddresses(order)
+                }
                 setOrder(null)
               }}
             >
@@ -300,11 +312,17 @@ function EditMachinePage(props: { machine: Machine }) {
               autoComplete="off"
               onBlur={(event) => {
                 const text = event.target.value.trim()
-                if (text === '' || saveAddresses([...machine.addresses, text]))
+                if (
+                  text === '' ||
+                  saveAddresses([...machine.addresses, text])
+                ) {
                   setAdding(false)
+                }
               }}
               onKeyDown={(event) => {
-                if (event.key === 'Enter') event.currentTarget.blur()
+                if (event.key === 'Enter') {
+                  event.currentTarget.blur()
+                }
               }}
             />
           </div>

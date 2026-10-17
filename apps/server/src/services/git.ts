@@ -73,11 +73,15 @@ export async function commit(cwd: string, message: string, andPush: boolean) {
 
 export async function push(cwd: string) {
   const status = await gitStatus(cwd)
-  if (status.branch === null) throw new Error('Cannot push a detached HEAD')
+  if (status.branch === null) {
+    throw new Error('Cannot push a detached HEAD')
+  }
   try {
-    if (status.upstream === null)
+    if (status.upstream === null) {
       await git(cwd, ['push', '--set-upstream', 'origin', 'HEAD'])
-    else await git(cwd, ['push'])
+    } else {
+      await git(cwd, ['push'])
+    }
   } catch (error) {
     throw new Error(
       (error instanceof Error ? error.message : String(error))
@@ -99,7 +103,9 @@ export async function preparePullRequest(
   commitChanges: boolean
 ): Promise<PullRequestDraft> {
   const head = (await gitStatus(cwd)).branch
-  if (head === null) throw new Error('Not on a branch')
+  if (head === null) {
+    throw new Error('Not on a branch')
+  }
   const base = (
     await run(
       'gh',
@@ -114,11 +120,16 @@ export async function preparePullRequest(
       { cwd }
     )
   ).stdout.trim()
-  if (base === head)
+  if (base === head) {
     throw new Error(`${head} is the default branch. Create a branch first.`)
-  if (commitChanges) await commit(cwd, '', true)
+  }
+  if (commitChanges) {
+    await commit(cwd, '', true)
+  }
   const status = await gitStatus(cwd)
-  if (status.upstream === null || status.ahead > 0) await push(cwd)
+  if (status.upstream === null || status.ahead > 0) {
+    await push(cwd)
+  }
   const open = (
     await run(
       'gh',
@@ -139,12 +150,16 @@ export async function preparePullRequest(
       { cwd }
     )
   ).stdout.trim()
-  if (open !== '') return { kind: 'open', url: open }
+  if (open !== '') {
+    return { kind: 'open', url: open }
+  }
   await git(cwd, ['fetch', 'origin', base])
   const commits = (
     await git(cwd, ['log', '--format=- %B', `origin/${base}..HEAD`])
   ).stdout.trim()
-  if (commits === '') throw new Error(`No commits between ${base} and ${head}`)
+  if (commits === '') {
+    throw new Error(`No commits between ${base} and ${head}`)
+  }
   const diff = (
     await git(cwd, [
       'diff',
@@ -166,7 +181,9 @@ export async function preparePullRequest(
     .replace(/^(\*\*|__|\*|_|`)+/, '')
     .replace(/(\*\*|__|\*|_|`)+$/, '')
     .trim()
-  if (title === '') throw new Error('The model returned an empty title')
+  if (title === '') {
+    throw new Error('The model returned an empty title')
+  }
   return {
     kind: 'draft',
     base,
@@ -203,13 +220,17 @@ export async function createPullRequest(
     .trim()
     .split('\n')
     .at(-1)
-  if (url === undefined) throw new Error('gh did not return a pull request URL')
+  if (url === undefined) {
+    throw new Error('gh did not return a pull request URL')
+  }
   return { url }
 }
 
 async function commitMessage(cwd: string) {
   const diff = (await repoDiff(cwd, '')).slice(0, DIFF_LIMIT)
-  if (diff === '') throw new Error('There is nothing to commit')
+  if (diff === '') {
+    throw new Error('There is nothing to commit')
+  }
   return generateText(
     cwd,
     'You write concise git commit messages.',
@@ -222,13 +243,16 @@ async function generateText(cwd: string, instructions: string, prompt: string) {
   const provider = settings.provider
   const accountId = settings.accountId
   const model = settings.model
-  if (provider === null || model === null)
+  if (provider === null || model === null) {
     throw new Error('Choose a model in Settings → Git')
+  }
   assertEnabled(provider, accountId)
-  if (provider === 'codex')
+  if (provider === 'codex') {
     return codexText(accountId, cwd, model, instructions, prompt)
-  if (provider === 'opencode')
+  }
+  if (provider === 'opencode') {
     return openCodeText(cwd, model, `${instructions}\n\n${prompt}`)
+  }
   const conversation = query({
     prompt,
     options: {
@@ -241,10 +265,15 @@ async function generateText(cwd: string, instructions: string, prompt: string) {
     },
   })
   for await (const message of conversation) {
-    if (message.type !== 'result') continue
-    if (message.subtype !== 'success')
+    if (message.type !== 'result') {
+      continue
+    }
+    if (message.subtype !== 'success') {
       throw new Error(message.errors.join('\n'))
-    if (message.is_error) throw new Error(message.result)
+    }
+    if (message.is_error) {
+      throw new Error(message.result)
+    }
     return message.result.trim()
   }
   throw new Error('Claude did not reply')
@@ -252,8 +281,9 @@ async function generateText(cwd: string, instructions: string, prompt: string) {
 
 export async function projectDiff(cwd: string) {
   const repos = await projectRepos(cwd)
-  if (repos.length === 0)
+  if (repos.length === 0) {
     throw new Error(`${cwd} is not a git repository and has none inside it`)
+  }
   const diffs = await Promise.all(
     repos.map((repo) =>
       repoDiff(path.join(cwd, repo), repo === '' ? '' : `${repo}/`)
@@ -281,11 +311,13 @@ async function gitStatus(cwd: string) {
   }
   for (const line of output.stdout.split('\n').filter(Boolean)) {
     const [marker, key, ...rest] = line.split(' ')
-    if (marker !== '#') status.changed++
-    else if (key === 'branch.head')
+    if (marker !== '#') {
+      status.changed++
+    } else if (key === 'branch.head') {
       status.branch = rest[0] === '(detached)' ? null : rest[0]
-    else if (key === 'branch.upstream') status.upstream = rest[0]
-    else if (key === 'branch.ab') {
+    } else if (key === 'branch.upstream') {
+      status.upstream = rest[0]
+    } else if (key === 'branch.ab') {
       status.ahead = Number(rest[0])
       status.behind = -Number(rest[1])
     }
@@ -329,15 +361,18 @@ async function diffBase(repo: string) {
     await git(repo, ['rev-parse', '--verify', '--quiet', 'HEAD'])
     return 'HEAD'
   } catch (error) {
-    if (!(error instanceof Error && 'code' in error && error.code === 1))
+    if (!(error instanceof Error && 'code' in error && error.code === 1)) {
       throw error
+    }
   }
   const empty = await git(repo, ['hash-object', '-t', 'tree', '/dev/null'])
   return empty.stdout.trim()
 }
 
 function childRepos(root: string, dir: string, depth: number): string[] {
-  if (depth === 0) return []
+  if (depth === 0) {
+    return []
+  }
   let entries
   try {
     entries = readdirSync(path.join(root, dir), { withFileTypes: true })
@@ -363,11 +398,16 @@ function newFilePatch(cwd: string, file: string, prefix: string) {
   const name = `${prefix}${file}`
   const header = `diff --git a/${name} b/${name}\nnew file\n--- /dev/null\n+++ b/${name}\n`
   const full = path.join(cwd, file)
-  if (statSync(full).size > NEW_FILE_LIMIT)
+  if (statSync(full).size > NEW_FILE_LIMIT) {
     return `${header}Binary or large file\n`
+  }
   const content = readFileSync(full, 'utf8')
-  if (content.includes('\0')) return `${header}Binary or large file\n`
+  if (content.includes('\0')) {
+    return `${header}Binary or large file\n`
+  }
   const lines = content.split('\n')
-  if (lines.at(-1) === '') lines.pop()
+  if (lines.at(-1) === '') {
+    lines.pop()
+  }
   return `${header}@@ -0,0 +1,${lines.length} @@\n${lines.map((line) => `+${line}\n`).join('')}`
 }

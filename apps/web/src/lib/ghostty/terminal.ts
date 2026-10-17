@@ -82,7 +82,9 @@ const decoder = new TextDecoder()
 
 function parseColor(value: string): Color {
   const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(value)
-  if (!match) throw new Error(`unsupported color ${value}`)
+  if (!match) {
+    throw new Error(`unsupported color ${value}`)
+  }
   return {
     r: parseInt(match[1], 16),
     g: parseInt(match[2], 16),
@@ -176,7 +178,9 @@ export class Terminal {
     scrollbar.append(thumb)
     this.element.append(this.canvas, this.input, scrollbar)
     const context = this.canvas.getContext('2d', { alpha: false })
-    if (!context) throw new Error('canvas 2d is unavailable')
+    if (!context) {
+      throw new Error('canvas 2d is unavailable')
+    }
     this.context = context
     this.appearance = this.appearanceFor(options)
     this.metrics = this.measure()
@@ -220,7 +224,9 @@ export class Terminal {
     this.options = options
     this.appearance = this.appearanceFor(options)
     this.metrics = this.measure()
-    if (!options.clickToMoveCursor) this.prompt.release()
+    if (!options.clickToMoveCursor) {
+      this.prompt.release()
+    }
     this.applyTerminalOptions()
     this.resizeCore()
     this.forceFull = true
@@ -229,9 +235,13 @@ export class Terminal {
   }
 
   write(data: Uint8Array, replay: boolean) {
-    if (this.disposed) return
+    if (this.disposed) {
+      return
+    }
     this.backlog.push({ data, replay })
-    if (!this.blocked) this.drain()
+    if (!this.blocked) {
+      this.drain()
+    }
   }
 
   reset() {
@@ -257,18 +267,24 @@ export class Terminal {
 
   paste(text: string) {
     const data = this.core.encoder.encodePaste(text)
-    if (data.length > 0) this.sendInput(data)
+    if (data.length > 0) {
+      this.sendInput(data)
+    }
   }
 
   presize(cols: number, rows: number) {
-    if (this.fitted || (cols === this.cols && rows === this.rows)) return
+    if (this.fitted || (cols === this.cols && rows === this.rows)) {
+      return
+    }
     this.cols = cols
     this.rows = rows
     this.resizeCore()
   }
 
   fit() {
-    if (this.disposed) return
+    if (this.disposed) {
+      return
+    }
     const width = this.element.clientWidth
     const height = this.element.clientHeight
     if (width === 0 || height === 0) {
@@ -308,8 +324,12 @@ export class Terminal {
   find(text: string, backwards: boolean, incremental: boolean) {
     const top = this.viewportTop()
     const active = this.search.find(text, backwards, incremental, top)
-    if (active !== null && (active.row < top || active.row >= top + this.rows))
+    if (
+      active !== null &&
+      (active.row < top || active.row >= top + this.rows)
+    ) {
       this.scrollViewport(active.row - top - Math.floor(this.rows / 2))
+    }
     this.redraw()
   }
 
@@ -327,8 +347,9 @@ export class Terminal {
       query.epoch !== this.epoch ||
       query.generation !== this.prompt.generation ||
       (query.atPrompt && this.prompt.shell !== 'prompt')
-    )
+    ) {
       return
+    }
     this.handlers.onReply(
       clipboardReply(text, query.selection, query.terminator)
     )
@@ -339,7 +360,9 @@ export class Terminal {
   }
 
   dispose() {
-    if (this.disposed) return
+    if (this.disposed) {
+      return
+    }
     this.disposed = true
     this.observer.disconnect()
     this.cancelRender()
@@ -409,7 +432,9 @@ export class Terminal {
   private drain() {
     while (!this.blocked && this.backlog.length > 0) {
       const chunk = this.backlog.shift()
-      if (chunk) this.process(chunk)
+      if (chunk) {
+        this.process(chunk)
+      }
     }
     const title = this.core.title()
     if (title !== this.title) {
@@ -432,14 +457,17 @@ export class Terminal {
       return this.handleOutput(event, replay)
     })
     this.core.write(data.subarray(start, consumed))
-    if (consumed < data.length)
+    if (consumed < data.length) {
       this.backlog.unshift({ data: data.subarray(consumed), replay })
+    }
   }
 
   private handleOutput(event: OutputEvent, replay: boolean) {
-    if (event.type === 'sixel') return this.decodeImage(decodeSixel(event.data))
+    if (event.type === 'sixel') {
+      return this.decodeImage(decodeSixel(event.data))
+    }
     const text = latin1.decode(event.data)
-    if (text.startsWith('1337;File='))
+    if (text.startsWith('1337;File=')) {
       return this.decodeImage(
         decodeInlineImage(text.slice('1337;File='.length), {
           cellWidth: this.metrics.width,
@@ -449,6 +477,7 @@ export class Terminal {
           pixelRatio: window.devicePixelRatio || 1,
         })
       )
+    }
     if (text.startsWith('133;') || text.startsWith('6973;')) {
       this.prompt.mark(text, this.options.clickToMoveCursor)
       return false
@@ -456,7 +485,9 @@ export class Terminal {
     if (text.startsWith('52;')) {
       const parts = text.split(';')
       const payload = parts[2]
-      if (replay || payload === undefined) return false
+      if (replay || payload === undefined) {
+        return false
+      }
       if (payload === '?') {
         this.handlers.onClipboardRead({
           selection: xtermSelection(parts[1]),
@@ -468,24 +499,29 @@ export class Terminal {
         return false
       }
       const clipboard = clipboardText(payload)
-      if (clipboard !== null) this.handlers.onClipboard(clipboard)
+      if (clipboard !== null) {
+        this.handlers.onClipboard(clipboard)
+      }
       return false
     }
     if (text === '10;?' || text === '11;?' || text === '12;?') {
-      if (!replay)
+      if (!replay) {
         this.handlers.onReply(
           colorReply(text, this.core.currentColors(), event.terminator)
         )
+      }
       return false
     }
     if (text.startsWith('4;')) {
-      if (!replay)
+      if (!replay) {
         for (const reply of paletteReplies(
           text,
           this.core.currentColors().palette,
           event.terminator
-        ))
+        )) {
           this.handlers.onReply(reply)
+        }
+      }
       return false
     }
     if (text === '9;4' || text.startsWith('9;4;')) {
@@ -496,12 +532,15 @@ export class Terminal {
       }
       return false
     }
-    if (replay) return false
+    if (replay) {
+      return false
+    }
     const notification = text.startsWith('99;')
       ? this.notifications.add(decoder.decode(event.data))
       : textNotification(text, event.data)
-    if (notification !== null)
+    if (notification !== null) {
       this.handlers.onNotify(notification.title, notification.body)
+    }
     return false
   }
 
@@ -526,28 +565,38 @@ export class Terminal {
         console.warn('image decoding took too long, skipping the image')
         void closeWhenDecoded(decoding)
       } else if (bitmap !== null) {
-        if (epoch === this.epoch && !this.disposed)
+        if (epoch === this.epoch && !this.disposed) {
           this.images.place(bitmap, pixelRatio, this.metrics.height)
-        else bitmap.close()
+        } else {
+          bitmap.close()
+        }
       }
     } catch (error) {
       console.warn('could not decode image', error)
     }
     window.clearTimeout(timer)
-    if (epoch !== this.epoch || this.disposed) return
+    if (epoch !== this.epoch || this.disposed) {
+      return
+    }
     this.blocked = false
     this.drain()
   }
 
   private moveCursorTo(cell: Point) {
-    if (!this.options.clickToMoveCursor) return
+    if (!this.options.clickToMoveCursor) {
+      return
+    }
     const data = this.prompt.moveCursorInput(
       cell,
       this.snapshot,
       this.viewportTop()
     )
-    if (data === null) return
-    if (data !== '') this.sendInput(data)
+    if (data === null) {
+      return
+    }
+    if (data !== '') {
+      this.sendInput(data)
+    }
     this.core.clearSelection()
     this.redraw()
   }
@@ -578,13 +627,17 @@ export class Terminal {
       rows =
         Math.max(0, Math.min(state.offset + rows, maxOffset)) - state.offset
     }
-    if (rows === 0) return
+    if (rows === 0) {
+      return
+    }
     this.core.scroll(rows)
     this.redraw()
   }
 
   private requestRender() {
-    if (this.disposed || !this.sized || this.frame !== 0) return
+    if (this.disposed || !this.sized || this.frame !== 0) {
+      return
+    }
     this.frame = window.requestAnimationFrame(() => {
       this.frame = 0
       this.renderFrame()
@@ -592,45 +645,61 @@ export class Terminal {
   }
 
   private cancelRender() {
-    if (this.frame !== 0) window.cancelAnimationFrame(this.frame)
+    if (this.frame !== 0) {
+      window.cancelAnimationFrame(this.frame)
+    }
     this.frame = 0
-    if (this.cursorTimer !== null) window.clearTimeout(this.cursorTimer)
+    if (this.cursorTimer !== null) {
+      window.clearTimeout(this.cursorTimer)
+    }
     this.cursorTimer = null
-    if (this.syncTimer !== null) window.clearTimeout(this.syncTimer)
+    if (this.syncTimer !== null) {
+      window.clearTimeout(this.syncTimer)
+    }
     this.syncTimer = null
   }
 
   private renderFrame() {
-    if (this.disposed || !this.sized || !this.element.isConnected) return
-    if (this.frame !== 0) window.cancelAnimationFrame(this.frame)
+    if (this.disposed || !this.sized || !this.element.isConnected) {
+      return
+    }
+    if (this.frame !== 0) {
+      window.cancelAnimationFrame(this.frame)
+    }
     this.frame = 0
     try {
       this.draw()
       this.renderFailed = false
     } catch (error) {
-      if (!this.renderFailed)
+      if (!this.renderFailed) {
         console.error('could not draw the terminal', error)
+      }
       this.renderFailed = true
     }
   }
 
   private draw() {
     if (this.core.isSynchronizedOutput()) {
-      if (this.syncTimer === null)
+      if (this.syncTimer === null) {
         this.syncTimer = window.setTimeout(() => {
           this.syncTimer = null
           this.core.endSynchronizedOutput()
           this.requestRender()
         }, SYNC_TIMEOUT)
+      }
       return
     }
-    if (this.syncTimer !== null) window.clearTimeout(this.syncTimer)
+    if (this.syncTimer !== null) {
+      window.clearTimeout(this.syncTimer)
+    }
     this.syncTimer = null
     const snapshot = this.core.snapshot()
     this.snapshot = snapshot
     const blinking =
       this.focused && snapshot.cursorBlinking && snapshot.cursorVisible
-    if (!blinking) this.cursorOn = true
+    if (!blinking) {
+      this.cursorOn = true
+    }
     const top = this.viewportTop()
     const images = this.images.visible(top, this.rows, this.metrics.height)
     const cell = this.core.cellSize()
@@ -651,7 +720,7 @@ export class Terminal {
         drawKitty(this.context, kitty, layer, this.metrics, cell),
     })
     drawKitty(this.context, kitty, 'aboveText', this.metrics, cell)
-    for (const image of images)
+    for (const image of images) {
       this.context.drawImage(
         image.bitmap,
         image.x * this.metrics.width,
@@ -659,6 +728,7 @@ export class Terminal {
         image.width,
         image.height
       )
+    }
     this.forceFull = images.length > 0 || kitty.length > 0
     this.renderedCursorY =
       this.cursorOn && snapshot.cursorVisible && snapshot.cursorY >= 0
@@ -669,19 +739,24 @@ export class Terminal {
       this.input.style.top = `${snapshot.cursorY * this.metrics.height}px`
     }
     this.pointer.updateScrollbar(this.element.clientHeight)
-    if (this.cursorTimer !== null) window.clearTimeout(this.cursorTimer)
+    if (this.cursorTimer !== null) {
+      window.clearTimeout(this.cursorTimer)
+    }
     this.cursorTimer = null
-    if (blinking)
+    if (blinking) {
       this.cursorTimer = window.setTimeout(() => {
         this.cursorTimer = null
         this.cursorOn = !this.cursorOn
         this.requestRender()
       }, BLINK_INTERVAL)
+    }
   }
 
   private copySelection() {
     const text = this.core.selectionText()
-    if (text.length === 0) return
+    if (text.length === 0) {
+      return
+    }
     if (!window.isSecureContext) {
       console.warn('copy from the terminal needs https or localhost')
       return
@@ -690,18 +765,29 @@ export class Terminal {
   }
 
   private optionIsMeta(event: KeyboardEvent) {
-    if (!isMac || !event.altKey || event.metaKey) return false
+    if (!isMac || !event.altKey || event.metaKey) {
+      return false
+    }
     const mode = this.options.optionAsMeta
-    if (mode === 'off') return false
-    if (mode === 'both') return true
-    if (mode === 'left') return this.heldOptionKeys.has('AltLeft')
-    if (mode === 'right') return this.heldOptionKeys.has('AltRight')
+    if (mode === 'off') {
+      return false
+    }
+    if (mode === 'both') {
+      return true
+    }
+    if (mode === 'left') {
+      return this.heldOptionKeys.has('AltLeft')
+    }
+    if (mode === 'right') {
+      return this.heldOptionKeys.has('AltRight')
+    }
     throw new Error(`unknown option as meta mode ${mode}`)
   }
 
   private readonly onKeyDown = (event: KeyboardEvent) => {
-    if (event.code === 'AltLeft' || event.code === 'AltRight')
+    if (event.code === 'AltLeft' || event.code === 'AltRight') {
       this.heldOptionKeys.add(event.code)
+    }
     if (!this.handlers.beforeKey(event)) {
       this.suppressedKeys.add(event.code)
       return
@@ -756,7 +842,9 @@ export class Terminal {
       return
     }
     const data = this.core.encoder.encodeKey(event, 'press', optionAsMeta)
-    if (data.length === 0) return
+    if (data.length === 0) {
+      return
+    }
     this.suppressedKeys.delete(event.code)
     event.preventDefault()
     event.stopPropagation()
@@ -769,24 +857,34 @@ export class Terminal {
 
   private readonly onKeyUp = (event: KeyboardEvent) => {
     this.heldOptionKeys.delete(event.code)
-    if (this.suppressedKeys.delete(event.code)) return
-    if (event.isComposing || this.composing) return
+    if (this.suppressedKeys.delete(event.code)) {
+      return
+    }
+    if (event.isComposing || this.composing) {
+      return
+    }
     const data = this.core.encoder.encodeKey(
       event,
       'release',
       this.optionIsMeta(event)
     )
-    if (data.length === 0) return
+    if (data.length === 0) {
+      return
+    }
     event.preventDefault()
     this.handlers.onData(data)
   }
 
   private readonly onInput = (event: Event) => {
     const inputEvent = event as InputEvent
-    if (this.composing || inputEvent.isComposing) return
+    if (this.composing || inputEvent.isComposing) {
+      return
+    }
     const data = this.input.value || inputEvent.data || ''
     this.input.value = ''
-    if (data.length > 0) this.sendInput(data)
+    if (data.length > 0) {
+      this.sendInput(data)
+    }
   }
 
   private readonly onCompositionStart = () => {
@@ -797,25 +895,32 @@ export class Terminal {
     this.composing = false
     const data = this.input.value || event.data
     this.input.value = ''
-    if (data.length > 0) this.sendInput(data)
+    if (data.length > 0) {
+      this.sendInput(data)
+    }
   }
 
   private readonly onPaste = (event: ClipboardEvent) => {
     event.preventDefault()
     const text = event.clipboardData?.getData('text/plain') ?? ''
-    if (text.length > 0) this.paste(text)
+    if (text.length > 0) {
+      this.paste(text)
+    }
   }
 
   private readonly onCopy = (event: ClipboardEvent) => {
     const text = this.core.selectionText()
-    if (text.length === 0 || !event.clipboardData) return
+    if (text.length === 0 || !event.clipboardData) {
+      return
+    }
     event.preventDefault()
     event.clipboardData.setData('text/plain', text)
   }
 
   private readonly onWindowFocus = () => {
-    if (isMac && this.options.optionAsMeta !== 'off')
+    if (isMac && this.options.optionAsMeta !== 'off') {
       this.core.encoder.refreshKeyboardLayout()
+    }
   }
 
   private readonly onContextRestored = () => {
@@ -825,7 +930,9 @@ export class Terminal {
   }
 
   private readonly onVisibilityChange = () => {
-    if (document.visibilityState !== 'visible') return
+    if (document.visibilityState !== 'visible') {
+      return
+    }
     this.redraw()
   }
 
@@ -833,8 +940,9 @@ export class Terminal {
     this.focused = true
     this.cursorOn = true
     this.requestRender()
-    if (!this.disposed && this.core.isFocusReporting())
+    if (!this.disposed && this.core.isFocusReporting()) {
       this.handlers.onReply('\x1b[I')
+    }
   }
 
   private readonly onBlur = () => {
@@ -842,8 +950,9 @@ export class Terminal {
     this.heldOptionKeys.clear()
     this.cursorOn = true
     this.requestRender()
-    if (!this.disposed && this.core.isFocusReporting())
+    if (!this.disposed && this.core.isFocusReporting()) {
       this.handlers.onReply('\x1b[O')
+    }
   }
 
   private installEvents() {

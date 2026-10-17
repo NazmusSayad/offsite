@@ -15,8 +15,11 @@ import type {
   Account,
   ProviderCapabilities,
   RateLimit,
+  Settings,
 } from '@offsite/core/protocol'
 import { type StoredAccount, storedAccount } from '../../services/accounts.ts'
+import { notifierConnected, sendPush } from '../../services/push.ts'
+import { sessions } from '../../services/sessions.ts'
 import { claudeBaseDir } from '../../storage/config.ts'
 import { broadcast } from '../hub.ts'
 import { isRecord } from './content.ts'
@@ -48,25 +51,31 @@ export function findClaude() {
 
 export function claudeEffort(value: string) {
   const effort = efforts.find((item) => item === value)
-  if (effort === undefined) throw new Error(`Claude has no ${value} effort`)
+  if (effort === undefined) {
+    throw new Error(`Claude has no ${value} effort`)
+  }
   return effort
 }
 
 export function claudeMode(value: string) {
   const mode = modes.find((item) => item === value)
-  if (mode === undefined) throw new Error(`Claude has no ${value} mode`)
+  if (mode === undefined) {
+    throw new Error(`Claude has no ${value} mode`)
+  }
   return mode
 }
 
 export function claudeOptions(accountId: string | null, cwd: string): Options {
   const account = storedAccount('claude', accountId)
+  const configDir = account.configDir ?? claudeBaseDir()
   const env: Record<string, string | undefined> = {
     ...process.env,
     CLAUDE_CODE_ENTRYPOINT: 'offsite',
-    CLAUDE_CONFIG_DIR: account.configDir,
+    CLAUDE_CONFIG_DIR: configDir,
   }
-  if (path.resolve(account.configDir) === path.join(os.homedir(), '.claude'))
+  if (path.resolve(configDir) === path.join(os.homedir(), '.claude')) {
     delete env.CLAUDE_CONFIG_DIR
+  }
   return {
     cwd,
     env,
@@ -82,20 +91,48 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
                 input.hook_event_name !== 'PostToolUse' ||
                 !isRecord(input.tool_input) ||
                 typeof input.tool_input.message !== 'string'
-              )
+              ) {
                 throw new Error('Unexpected PushNotification hook input')
+              }
+              const message = input.tool_input.message
               broadcast({
                 type: 'notification',
                 sessionId: input.session_id,
-                message: input.tool_input.message,
+                message,
+              })
+              if (notifierConnected()) {
+                return {
+                  hookSpecificOutput: {
+                    hookEventName: 'PostToolUse',
+                    updatedToolOutput: {
+                      message,
+                      localSent: true,
+                      disabledReason: 'no_transport',
+                    },
+                  },
+                }
+              }
+              const session = sessions().find(
+                (item) => item.id === input.session_id
+              )
+              if (session === undefined) {
+                throw new Error(`Session ${input.session_id} is not listed`)
+              }
+              const pushSent = await sendPush({
+                kind: 'session',
+                title: session.title,
+                body: message,
+                projectId: session.projectId,
+                sessionId: session.id,
               })
               return {
                 hookSpecificOutput: {
                   hookEventName: 'PostToolUse',
                   updatedToolOutput: {
-                    message: input.tool_input.message,
-                    localSent: true,
-                    disabledReason: 'no_transport',
+                    message,
+                    localSent: false,
+                    pushSent,
+                    ...(pushSent ? {} : { disabledReason: 'no_transport' }),
                   },
                 },
               }
@@ -104,6 +141,33 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
         },
       ],
     },
+  }
+}
+
+export function runOptions(options: {
+  sessionId: string
+  cwd: string
+  resume: boolean
+  resumeAt: string | null
+  settings: Settings
+}): Options {
+  const settings = options.settings
+  return {
+    ...claudeOptions(settings.accountId, options.cwd),
+    ...(options.resume
+      ? { resume: options.sessionId }
+      : { sessionId: options.sessionId }),
+    ...(options.resumeAt === null ? {} : { resumeSessionAt: options.resumeAt }),
+    enableFileCheckpointing: true,
+    ...(settings.mode === null
+      ? {}
+      : { permissionMode: claudeMode(settings.mode) }),
+    ...(settings.model === null ? {} : { model: settings.model }),
+    ...(settings.effort === null
+      ? {}
+      : { effort: claudeEffort(settings.effort) }),
+    allowDangerouslySkipPermissions: true,
+    includePartialMessages: true,
   }
 }
 
@@ -116,8 +180,9 @@ export async function claudeCapabilities(
     models: result.models
       .filter((model) => model.value !== 'default')
       .map((model) => {
-        if (model.resolvedModel === undefined)
+        if (model.resolvedModel === undefined) {
           throw new Error(`Claude did not resolve the ${model.value} model`)
+        }
         return {
           value: model.resolvedModel,
           name: model.displayName,
@@ -135,7 +200,7 @@ export async function claudeCapabilities(
 }
 
 export async function claudeAccount(account: StoredAccount): Promise<Account> {
-  const linked = isLinked(account.configDir)
+  const linked = isLinked(account.configDir ?? claudeBaseDir())
   try {
     const info = (await initialization(account.id, os.homedir())).account
     return {
@@ -161,17 +226,20 @@ export async function claudeAccount(account: StoredAccount): Promise<Account> {
 }
 
 export function forgetClaude(accountId: string) {
-  for (const key of probes.keys())
-    if (key.startsWith(`${accountId}\n`)) probes.delete(key)
+  for (const key of probes.keys()) {
+    if (key.startsWith(`${accountId}\n`)) {
+      probes.delete(key)
+    }
+  }
   limits.delete(accountId)
 }
 
 export function recordLimit(accountId: string, info: SDKRateLimitInfo) {
   const current = limits.get(accountId) ?? new Map<string, RateLimit>()
   const windows = (info as { unifiedWindows?: unknown }).unifiedWindows
-  if (isRecord(windows))
-    for (const [name, value] of Object.entries(windows))
-      if (isRecord(value))
+  if (isRecord(windows)) {
+    for (const [name, value] of Object.entries(windows)) {
+      if (isRecord(value)) {
         current.set(name, {
           window: name,
           utilization:
@@ -179,6 +247,9 @@ export function recordLimit(accountId: string, info: SDKRateLimitInfo) {
           resetsAt: typeof value.resetsAt === 'number' ? value.resetsAt : null,
           rejected: current.get(name)?.rejected ?? false,
         })
+      }
+    }
+  }
   if (info.rateLimitType !== undefined) {
     const existing = current.get(info.rateLimitType)
     current.set(info.rateLimitType, {
@@ -198,7 +269,9 @@ async function recordUsage(accountId: string, probe: Query) {
       await probe.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET({
         skipBehaviors: true,
       })
-    if (usage.rate_limits === null) return
+    if (usage.rate_limits === null) {
+      return
+    }
     const current = limits.get(accountId) ?? new Map<string, RateLimit>()
     const windows = {
       five_hour: usage.rate_limits.five_hour,
@@ -206,8 +279,8 @@ async function recordUsage(accountId: string, probe: Query) {
       seven_day_opus: usage.rate_limits.seven_day_opus,
       seven_day_sonnet: usage.rate_limits.seven_day_sonnet,
     }
-    for (const [name, window] of Object.entries(windows))
-      if (window !== undefined && window !== null)
+    for (const [name, window] of Object.entries(windows)) {
+      if (window !== undefined && window !== null) {
         current.set(name, {
           window: name,
           utilization:
@@ -218,6 +291,8 @@ async function recordUsage(accountId: string, probe: Query) {
               : Date.parse(window.resets_at) / 1000,
           rejected: window.utilization !== null && window.utilization >= 100,
         })
+      }
+    }
     limits.set(accountId, current)
   } catch (error) {
     console.warn(`could not read Claude usage limits: ${error}`)
@@ -227,13 +302,17 @@ async function recordUsage(accountId: string, probe: Query) {
 function isLinked(configDir: string) {
   const base = claudeBaseDir()
   try {
-    if (realpathSync(configDir) === realpathSync(base)) return true
+    if (realpathSync(configDir) === realpathSync(base)) {
+      return true
+    }
     return (
       realpathSync(path.join(configDir, 'projects')) ===
       realpathSync(path.join(base, 'projects'))
     )
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false
+    }
     throw error
   }
 }
@@ -245,7 +324,9 @@ function accountLimits(accountId: string) {
 function initialization(accountId: string, cwd: string) {
   const key = `${accountId}\n${cwd}`
   const existing = probes.get(key)
-  if (existing !== undefined) return existing
+  if (existing !== undefined) {
+    return existing
+  }
   const probe = runProbe(accountId, cwd)
   probes.set(key, probe)
   probe.catch(() => probes.delete(key))

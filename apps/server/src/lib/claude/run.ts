@@ -17,12 +17,7 @@ import type {
 } from '@offsite/core/protocol'
 import { broadcast, publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
-import {
-  claudeEffort,
-  claudeMode,
-  claudeOptions,
-  recordLimit,
-} from './claude.ts'
+import { claudeEffort, claudeMode, recordLimit, runOptions } from './claude.ts'
 import {
   contextTokens,
   type Message,
@@ -75,27 +70,10 @@ export class Run {
     this.sessionId = options.sessionId
     this.resumeAt = options.resumeAt
     this.settings = options.settings
-    const settings = options.settings
     this.query = query({
       prompt: this.input(),
       options: {
-        ...claudeOptions(settings.accountId, options.cwd),
-        ...(options.resume
-          ? { resume: options.sessionId }
-          : { sessionId: options.sessionId }),
-        ...(options.resumeAt === null
-          ? {}
-          : { resumeSessionAt: options.resumeAt }),
-        enableFileCheckpointing: true,
-        ...(settings.mode === null
-          ? {}
-          : { permissionMode: claudeMode(settings.mode) }),
-        ...(settings.model === null ? {} : { model: settings.model }),
-        ...(settings.effort === null
-          ? {}
-          : { effort: claudeEffort(settings.effort) }),
-        allowDangerouslySkipPermissions: true,
-        includePartialMessages: true,
+        ...runOptions(options),
         canUseTool: (toolName, input, context) =>
           this.ask({
             toolName,
@@ -132,21 +110,26 @@ export class Run {
 
   steer(id: string) {
     const item = this.queue.find((queued) => queued.id === id)
-    if (item === undefined) return
+    if (item === undefined) {
+      return
+    }
     this.unqueue(id)
     this.submit(item.prompt, 'steer')
   }
 
   async configure(settings: Settings) {
-    if (settings.model !== this.settings.model)
+    if (settings.model !== this.settings.model) {
       await this.query.setModel(settings.model ?? undefined)
-    if (settings.effort !== this.settings.effort)
+    }
+    if (settings.effort !== this.settings.effort) {
       await this.query.applyFlagSettings({
         effortLevel:
           settings.effort === null ? null : claudeEffort(settings.effort),
       })
-    if (settings.mode !== null && settings.mode !== this.settings.mode)
+    }
+    if (settings.mode !== null && settings.mode !== this.settings.mode) {
       await this.query.setPermissionMode(claudeMode(settings.mode))
+    }
     this.updateSettings({
       ...settings,
       accountId: this.settings.accountId,
@@ -168,7 +151,9 @@ export class Run {
     answers: Record<string, string> | null
   ) {
     const pending = this.pending.get(requestId)
-    if (pending === undefined) return
+    if (pending === undefined) {
+      return
+    }
     const input = pending.input
     switch (decision) {
       case 'allow':
@@ -233,15 +218,21 @@ export class Run {
 
   private async read() {
     try {
-      for await (const message of this.query) this.receive(message)
+      for await (const message of this.query) {
+        this.receive(message)
+      }
     } catch (error) {
-      if (!this.stopping)
+      if (!this.stopping) {
         this.add(notice(error instanceof Error ? error.message : String(error)))
+      }
     }
     clearTimeout(this.idleTimer)
-    for (const id of this.pending.keys())
+    for (const id of this.pending.keys()) {
       this.settle(id, { behavior: 'deny', message: 'Session ended' })
-    if (runs.get(this.sessionId) === this) runs.delete(this.sessionId)
+    }
+    if (runs.get(this.sessionId) === this) {
+      runs.delete(this.sessionId)
+    }
     this.running = false
     broadcastActivity()
   }
@@ -249,23 +240,28 @@ export class Run {
   private receive(message: SDKMessage) {
     switch (message.type) {
       case 'assistant': {
-        if (message.parent_tool_use_id === null) this.partial = ''
+        if (message.parent_tool_use_id === null) {
+          this.partial = ''
+        }
         this.add(toMessage('assistant', message, Date.now()))
         const tokens = contextTokens(message.message)
         if (message.parent_tool_use_id === null && tokens !== null) {
           this.model = message.message.model
           this.context = { tokens, window: this.context?.window ?? null }
         }
-        if (message.error === 'rate_limit')
+        if (message.error === 'rate_limit') {
           this.add(
             notice(
               'This account hit its usage limit. Pick another account below and send again.'
             )
           )
+        }
         return
       }
       case 'user':
-        if (message.isSynthetic) return
+        if (message.isSynthetic) {
+          return
+        }
         this.add(
           toMessage(
             'user',
@@ -290,8 +286,9 @@ export class Run {
         return
       case 'rate_limit_event': {
         const accountId = this.settings.accountId
-        if (accountId === null)
+        if (accountId === null) {
           throw new Error('Rate limit event for a run without an account')
+        }
         broadcast({
           type: 'limits',
           accountId,
@@ -304,7 +301,7 @@ export class Run {
           message.subtype !== 'success' &&
           message.terminal_reason !== 'aborted_streaming' &&
           message.terminal_reason !== 'aborted_tools'
-        )
+        ) {
           this.add(
             notice(
               message.errors
@@ -312,11 +309,13 @@ export class Run {
                 .join('\n') || message.subtype
             )
           )
+        }
         this.finishTurn()
         const usage =
           this.model === null ? undefined : message.modelUsage[this.model]
-        if (this.context !== null && usage !== undefined)
+        if (this.context !== null && usage !== undefined) {
           this.context = { ...this.context, window: usage.contextWindow }
+        }
         this.publishContext()
         return
       }
@@ -324,7 +323,9 @@ export class Run {
         switch (message.subtype) {
           case 'init':
             clearTimeout(this.idleTimer)
-            if (!this.running) this.prompted = false
+            if (!this.running) {
+              this.prompted = false
+            }
             this.running = true
             broadcastActivity()
             this.updateSettings({
@@ -350,16 +351,19 @@ export class Run {
             return
           }
           case 'task_notification':
-            if (message.ambient === true) return
+            if (message.ambient === true) {
+              return
+            }
             this.tasks = { ...this.tasks, [message.task_id]: message.status }
             broadcastActivity()
             return
           case 'status':
-            if (message.permissionMode !== undefined)
+            if (message.permissionMode !== undefined) {
               this.updateSettings({
                 ...this.settings,
                 mode: message.permissionMode,
               })
+            }
             return
           case 'compact_boundary': {
             const tokens = message.compact_metadata.post_tokens
@@ -403,9 +407,13 @@ export class Run {
 
   private armIdleTimer() {
     clearTimeout(this.idleTimer)
-    if (this.running || this.backgroundTasks > 0) return
+    if (this.running || this.backgroundTasks > 0) {
+      return
+    }
     this.idleTimer = setTimeout(() => {
-      if (!this.running && this.pending.size === 0) this.stop()
+      if (!this.running && this.pending.size === 0) {
+        this.stop()
+      }
     }, IDLE_LIMIT)
   }
 
@@ -445,7 +453,9 @@ export class Run {
 
   private settle(requestId: string, result: PermissionResult) {
     const pending = this.pending.get(requestId)
-    if (pending === undefined) return
+    if (pending === undefined) {
+      return
+    }
     this.pending.delete(requestId)
     pending.resolve(result)
     publish(this.sessionId, {
@@ -457,15 +467,21 @@ export class Run {
   }
 
   private add(message: Message) {
-    if (this.messages.some((item) => item.uuid === message.uuid)) return
+    if (this.messages.some((item) => item.uuid === message.uuid)) {
+      return
+    }
     this.messages.push(message)
     const items = toItems(this.messages).filter((item) => {
       const json = JSON.stringify(item)
-      if (this.published.get(item.id) === json) return false
+      if (this.published.get(item.id) === json) {
+        return false
+      }
       this.published.set(item.id, json)
       return true
     })
-    if (items.length === 0) return
+    if (items.length === 0) {
+      return
+    }
     publish(this.sessionId, {
       type: 'items',
       sessionId: this.sessionId,

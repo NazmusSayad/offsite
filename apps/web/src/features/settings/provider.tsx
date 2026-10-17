@@ -55,18 +55,20 @@ export function ProviderPage(props: {
     config.claudeBaseDir[props.platform] ?? props.defaultClaudeBaseDir
 
   if (props.selected === 'new') {
-    if (props.provider === 'opencode')
+    if (props.provider === 'opencode') {
       throw new Error('OpenCode accounts cannot be added')
+    }
     return <NewAccountPage machine={props.machine} provider={props.provider} />
   }
   if (props.selected !== null) {
     const selected = accounts.find((item) => item.id === props.selected)
-    if (selected === undefined)
+    if (selected === undefined) {
       return (
         <p className="text-muted-foreground text-sm">
           This account no longer exists.
         </p>
       )
+    }
     return (
       <AccountPage
         machine={props.machine}
@@ -157,10 +159,14 @@ function ProviderModels(props: {
       projectId: null,
     }).then(
       (result) => {
-        if (current) setCapabilities(result)
+        if (current) {
+          setCapabilities(result)
+        }
       },
       (caught: unknown) => {
-        if (current) setError(errorMessage(caught))
+        if (current) {
+          setError(errorMessage(caught))
+        }
       }
     )
     return () => {
@@ -396,7 +402,9 @@ function UsageMeter(props: { limit: RateLimit }) {
     : limit.utilization === null
       ? null
       : Math.min(100, Math.round(limit.utilization * 100))
-  if (percent === null) return null
+  if (percent === null) {
+    return null
+  }
   return (
     <Tooltip
       label={

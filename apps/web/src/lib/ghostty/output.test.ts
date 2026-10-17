@@ -4,9 +4,11 @@ import { OutputScanner } from './output'
 function scan(...chunks: string[]) {
   const scanner = new OutputScanner()
   const events: { text: string; terminator: string; end: number }[] = []
-  for (const chunk of chunks)
+  for (const chunk of chunks) {
     scanner.scan(new TextEncoder().encode(chunk), (event, end) => {
-      if (event.type !== 'osc') throw new Error(`unexpected ${event.type}`)
+      if (event.type !== 'osc') {
+        throw new Error(`unexpected ${event.type}`)
+      }
       events.push({
         text: new TextDecoder().decode(event.data),
         terminator: event.terminator,
@@ -14,6 +16,7 @@ function scan(...chunks: string[]) {
       })
       return false
     })
+  }
   return events
 }
 

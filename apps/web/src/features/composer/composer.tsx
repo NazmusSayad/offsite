@@ -5,17 +5,9 @@ import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { readBase64, uploadFile } from '@/api/upload'
-import { ProjectIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { changeSettings } from '@/lib/accounts'
-import { interrupt, openSession, sendPrompt } from '@/lib/sessions'
+import { interrupt, sendPrompt } from '@/lib/sessions'
 import {
   getState,
   machineOf,
@@ -31,6 +23,7 @@ import { editDraft, useDraft } from './drafts'
 import { MoreMenu, providerModes } from './more-menu'
 import { PermissionPrompt } from './permission-prompt'
 import { Pickers } from './pickers'
+import { ProjectHeading } from './project-heading'
 import { QueuedMessages } from './queue'
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
@@ -63,8 +56,6 @@ export function Composer() {
   const machine = selection?.machine ?? ''
   const projectId = selection?.projectId ?? ''
   const project = useStore((state) => projectOf(state, machine, projectId))
-  const projects = useStore((state) => state.projects)
-  const machines = useStore((state) => state.machines)
   const status = useStore((state) => machineOf(state, machine).status)
   const delivery = useStore(
     (state) => machineOf(state, machine).config?.delivery ?? null
@@ -80,13 +71,17 @@ export function Composer() {
 
   useEffect(() => {
     const element = input.current
-    if (element === null) return
+    if (element === null) {
+      return
+    }
     element.focus()
     element.setSelectionRange(element.value.length, element.value.length)
   }, [selection])
 
   useEffect(() => {
-    if (draft === null) return
+    if (draft === null) {
+      return
+    }
     editDraft(key, (current) => ({ ...current, text: draft }))
     setCaret(draft.length)
     setDraft(null)
@@ -94,7 +89,9 @@ export function Composer() {
   }, [draft, key])
 
   useEffect(() => {
-    if (status !== 'online') return
+    if (status !== 'online') {
+      return
+    }
     call(machine, 'files.list', { projectId }).then(setFiles, showError)
   }, [machine, projectId, status])
 
@@ -143,7 +140,9 @@ export function Composer() {
   }
 
   function pick(item: Suggestion) {
-    if (trigger === null) return
+    if (trigger === null) {
+      return
+    }
     const start = caret - trigger.length
     const position = start + item.insert.length + 1
     edit(`${text.slice(0, start)}${item.insert} ${text.slice(caret)}`, position)
@@ -153,10 +152,14 @@ export function Composer() {
   }
 
   async function submit(swap: boolean) {
-    if (empty) return
+    if (empty) {
+      return
+    }
     setSending(true)
     try {
-      if (delivery === null) throw new Error('This machine is not connected')
+      if (delivery === null) {
+        throw new Error('This machine is not connected')
+      }
       await sendPrompt(
         { text: text.trim(), images },
         swap ? (delivery === 'queue' ? 'steer' : 'queue') : delivery
@@ -173,7 +176,9 @@ export function Composer() {
   function cycleMode() {
     const settings = getState().settings
     const list = providerModes(settings.provider, getState().capabilities)
-    if (list.length === 0) return
+    if (list.length === 0) {
+      return
+    }
     const index = list.findIndex((mode) => mode.value === settings.mode)
     changeSettings({ mode: list[(index + 1) % list.length].value })
   }
@@ -215,88 +220,11 @@ export function Composer() {
       <div className={cn('w-full px-3 sm:px-12', hero && 'pb-3 sm:pb-4')}>
         <div className="pointer-events-auto relative z-10 mx-auto w-full max-w-(--chat-content-max-width)">
           {hero && (
-            <div className="absolute inset-x-0 bottom-full pb-4">
-              <h1 className="text-foreground w-full text-center text-2xl font-normal tracking-tight sm:text-3xl">
-                What should we build in{' '}
-                {selection?.sessionId === null ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className="border-muted-foreground/35 hover:border-foreground/60 inline-flex max-w-64 cursor-pointer border-b border-dotted align-bottom outline-none"
-                        title={project?.path}
-                      >
-                        <span className="min-w-0 truncate">
-                          {project?.name}
-                        </span>
-                        ?
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      className="max-h-80 w-64"
-                      onCloseAutoFocus={(event) => {
-                        event.preventDefault()
-                        input.current?.focus()
-                      }}
-                    >
-                      <DropdownMenuRadioGroup
-                        value={machineKey(machine, projectId)}
-                      >
-                        {[...projects]
-                          .sort(
-                            (a, b) =>
-                              machines.findIndex(
-                                (item) => item.id === a.machine
-                              ) -
-                                machines.findIndex(
-                                  (item) => item.id === b.machine
-                                ) || a.name.localeCompare(b.name)
-                          )
-                          .map((item) => (
-                            <DropdownMenuRadioItem
-                              key={machineKey(item.machine, item.id)}
-                              value={machineKey(item.machine, item.id)}
-                              title={item.path}
-                              onSelect={() =>
-                                openSession({
-                                  machine: item.machine,
-                                  projectId: item.id,
-                                  sessionId: null,
-                                })
-                              }
-                            >
-                              <ProjectIcon
-                                machine={item.machine}
-                                projectId={item.id}
-                                className="size-4 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
-                              />
-                              <span className="min-w-0 flex-1 truncate">
-                                {item.name}
-                                {machines.length > 1 && (
-                                  <span className="text-muted-foreground ml-1.5 text-xs">
-                                    {
-                                      machines.find(
-                                        (other) => other.id === item.machine
-                                      )?.name
-                                    }
-                                  </span>
-                                )}
-                              </span>
-                            </DropdownMenuRadioItem>
-                          ))}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <span
-                    className="border-muted-foreground/35 inline-block max-w-64 truncate border-b border-dotted align-bottom"
-                    title={project?.path}
-                  >
-                    {project?.name}
-                  </span>
-                )}
-                {selection?.sessionId !== null && '?'}
-              </h1>
-            </div>
+            <ProjectHeading
+              machine={machine}
+              projectId={projectId}
+              onCloseMenu={() => input.current?.focus()}
+            />
           )}
           {queue.length > 0 && suggestions.length === 0 && <QueuedMessages />}
           {request !== undefined && suggestions.length === 0 && (
@@ -323,9 +251,15 @@ export function Composer() {
               request?.kind === 'question' && 'hidden'
             )}
             onMouseDown={(event) => {
-              if (!(event.target instanceof Element)) return
-              if (!event.currentTarget.contains(event.target)) return
-              if (event.target.closest('button, a, input, textarea')) return
+              if (!(event.target instanceof Element)) {
+                return
+              }
+              if (!event.currentTarget.contains(event.target)) {
+                return
+              }
+              if (event.target.closest('button, a, input, textarea')) {
+                return
+              }
               event.preventDefault()
               input.current?.focus()
             }}
@@ -391,12 +325,16 @@ export function Composer() {
                     return
                   }
                   const pasted = [...event.clipboardData.files]
-                  if (pasted.length === 0) return
+                  if (pasted.length === 0) {
+                    return
+                  }
                   event.preventDefault()
                   void attach(pasted)
                 }}
                 onKeyDown={(event) => {
-                  if (event.nativeEvent.isComposing) return
+                  if (event.nativeEvent.isComposing) {
+                    return
+                  }
                   if (suggestions.length > 0) {
                     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                       event.preventDefault()
@@ -433,12 +371,16 @@ export function Composer() {
                   }
                   if (event.key === 'ArrowUp' && text === '') {
                     const last = lastUserText(getState().items)
-                    if (last === null) return
+                    if (last === null) {
+                      return
+                    }
                     event.preventDefault()
                     edit(last, last.length)
                     return
                   }
-                  if (event.key === 'Escape' && running) interrupt()
+                  if (event.key === 'Escape' && running) {
+                    interrupt()
+                  }
                 }}
                 placeholder={
                   noAccount
@@ -554,8 +496,9 @@ function lastUserText(items: Item[]) {
       item.parent === null &&
       item.format === 'text' &&
       item.text !== ''
-    )
+    ) {
       return item.text
+    }
   }
   return null
 }

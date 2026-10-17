@@ -31,7 +31,9 @@ export function FilePreview(props: {
         aria-describedby={undefined}
         className="flex h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
         onCloseAutoFocus={(event) => {
-          if (!inserted.current) return
+          if (!inserted.current) {
+            return
+          }
           inserted.current = false
           event.preventDefault()
           document.querySelector<HTMLElement>('[data-composer]')?.focus()
@@ -79,10 +81,14 @@ function PreviewBody(props: {
       path: props.path,
     }).then(
       (result) => {
-        if (current) setPreview(result)
+        if (current) {
+          setPreview(result)
+        }
       },
       (caught: unknown) => {
-        if (current) setError(errorMessage(caught))
+        if (current) {
+          setError(errorMessage(caught))
+        }
       }
     )
     return () => {
@@ -176,7 +182,11 @@ function PreviewBody(props: {
 }
 
 function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024) {
+    return `${bytes} B`
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`
+  }
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }

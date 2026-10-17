@@ -44,8 +44,9 @@ export function RewindDialog(props: {
       machine === null ||
       sessionId === null ||
       !restoresCode
-    )
+    ) {
       return
+    }
     let current = true
     call(machine, 'sessions.rewind', {
       sessionId,
@@ -57,10 +58,14 @@ export function RewindDialog(props: {
       dryRun: true,
     }).then(
       (result) => {
-        if (current) setPreview(result)
+        if (current) {
+          setPreview(result)
+        }
       },
       (caught: unknown) => {
-        if (current) setCodeError(errorMessage(caught))
+        if (current) {
+          setCodeError(errorMessage(caught))
+        }
       }
     )
     return () => {
@@ -69,13 +74,15 @@ export function RewindDialog(props: {
   }, [target, machine, sessionId, projectId, restoresCode])
 
   async function apply(code: boolean, conversation: boolean) {
-    if (target === null || machine === null || sessionId === null) return
+    if (target === null || machine === null || sessionId === null) {
+      return
+    }
     setBusy(true)
     setError(null)
     try {
       const truncate =
         conversation && (!target.first || provider === 'opencode')
-      if (code || truncate)
+      if (code || truncate) {
         await call(machine, 'sessions.rewind', {
           sessionId,
           projectId,
@@ -85,9 +92,13 @@ export function RewindDialog(props: {
           conversation: truncate,
           dryRun: false,
         })
-      if (conversation && target.first && provider !== 'opencode')
+      }
+      if (conversation && target.first && provider !== 'opencode') {
         openSession({ machine, projectId, sessionId: null })
-      if (conversation) setDraft(target.text)
+      }
+      if (conversation) {
+        setDraft(target.text)
+      }
       props.onClose()
     } catch (caught) {
       setError(errorMessage(caught))

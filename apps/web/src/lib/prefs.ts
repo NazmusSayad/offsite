@@ -64,7 +64,9 @@ export const defaultPrefs = prefsSchema.parse({})
 
 export function loadPrefs(): Prefs {
   const raw = localStorage.getItem(storageKey)
-  if (raw === null) return structuredClone(defaultPrefs)
+  if (raw === null) {
+    return structuredClone(defaultPrefs)
+  }
   const result = prefsSchema.safeParse(JSON.parse(raw))
   if (!result.success) {
     console.warn(

@@ -44,10 +44,14 @@ export function AccountPage(props: {
       projectId: null,
     }).then(
       (result) => {
-        if (current) setCapabilities(result)
+        if (current) {
+          setCapabilities(result)
+        }
       },
       (caught: unknown) => {
-        if (current) setModelsError(errorMessage(caught))
+        if (current) {
+          setModelsError(errorMessage(caught))
+        }
       }
     )
     return () => {
@@ -96,10 +100,14 @@ export function AccountPage(props: {
         </Row>
         <Row label="Config directory">
           <TextInput
-            key={account.configDir}
+            key={account.configDir ?? ''}
             className="w-72 font-mono"
-            value={account.configDir}
-            valid={(text) => text.trim() !== ''}
+            value={account.configDir ?? ''}
+            placeholder={
+              account.provider === 'claude'
+                ? '~/.claude or empty for default'
+                : '~/.codex or empty for default'
+            }
             onCommit={(configDir) => void save({ configDir })}
           />
         </Row>
@@ -140,9 +148,11 @@ export function AccountPage(props: {
                 checked={!hidden}
                 onCheckedChange={(shown) => {
                   const hiddenModels = { ...account.hiddenModels }
-                  if (!shown === providerHidden)
+                  if (!shown === providerHidden) {
                     delete hiddenModels[model.value]
-                  else hiddenModels[model.value] = !shown
+                  } else {
+                    hiddenModels[model.value] = !shown
+                  }
                   void save({ hiddenModels })
                 }}
                 aria-label={`Show ${model.name}`}
@@ -228,7 +238,9 @@ export function NewAccountPage(props: {
             value={configDir}
             onChange={(event) => setConfigDir(event.target.value)}
             placeholder={
-              props.provider === 'claude' ? '~/.claude-work' : '~/.codex-work'
+              props.provider === 'claude'
+                ? '~/.claude or empty for default'
+                : '~/.codex or empty for default'
             }
           />
         </Row>
@@ -244,10 +256,7 @@ export function NewAccountPage(props: {
         >
           Cancel
         </Button>
-        <Button
-          type="submit"
-          disabled={busy || name.trim() === '' || configDir.trim() === ''}
-        >
+        <Button type="submit" disabled={busy || name.trim() === ''}>
           Add account
         </Button>
       </div>

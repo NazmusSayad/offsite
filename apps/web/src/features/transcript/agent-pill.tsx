@@ -47,8 +47,9 @@ export function agentOf(item: Extract<Item, { kind: 'subagent' }>) {
   const type = item.agent
   const key = type.toLowerCase()
   let hash = 0
-  for (const character of key)
+  for (const character of key) {
     hash = (hash * 31 + character.charCodeAt(0)) >>> 0
+  }
   return {
     name: type[0].toUpperCase() + type.slice(1),
     description: item.description,
@@ -122,8 +123,9 @@ export function AgentLine(props: {
   }
   if (item.kind === 'command') {
     const task = props.tasks.find((candidate) => candidate.item.id === item.id)
-    if (task === undefined)
+    if (task === undefined) {
       throw new Error(`Task ${item.id} is missing from the thread`)
+    }
     return (
       <Line
         label={
@@ -137,8 +139,9 @@ export function AgentLine(props: {
     )
   }
   const agent = props.agents.find((candidate) => candidate.item.id === item.id)
-  if (agent === undefined)
+  if (agent === undefined) {
     throw new Error(`Agent ${item.id} is missing from the thread`)
+  }
   return (
     <Line
       label={verbs.get(agent.status) ?? `Agent ${agent.status.toLowerCase()}`}
@@ -168,12 +171,13 @@ function Line(props: {
       )}
     </>
   )
-  if (props.onOpen === null)
+  if (props.onOpen === null) {
     return (
       <div className="flex min-h-7 min-w-0 items-center gap-1 text-[13px] leading-4 tracking-[-0.04px] select-none">
         {content}
       </div>
     )
+  }
   return (
     <button
       type="button"

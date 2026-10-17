@@ -29,14 +29,17 @@ export function projectPath(id: string) {
     .from(projectsTable)
     .where(eq(projectsTable.id, id))
     .get()
-  if (project === undefined) throw new Error('That project was removed')
+  if (project === undefined) {
+    throw new Error('That project was removed')
+  }
   return project.path
 }
 
 export async function addProject(input: string) {
   const folder = path.resolve(expandHome(input.trim()))
-  if (!(await stat(folder)).isDirectory())
+  if (!(await stat(folder)).isDirectory()) {
     throw new Error(`${folder} is not a folder`)
+  }
   db.insert(projectsTable)
     .values({
       id: randomUUID(),
@@ -48,18 +51,24 @@ export async function addProject(input: string) {
     .run()
   publish()
   const project = projects().find((item) => item.path === folder)
-  if (project === undefined) throw new Error(`Could not add ${folder}`)
+  if (project === undefined) {
+    throw new Error(`Could not add ${folder}`)
+  }
   return project
 }
 
 export function updateProject(id: string, patch: ProjectPatch) {
   if (patch.name !== undefined) {
     const name = patch.name.trim()
-    if (name === '') throw new Error('Project name cannot be empty')
+    if (name === '') {
+      throw new Error('Project name cannot be empty')
+    }
     db.update(projectsTable).set({ name }).where(eq(projectsTable.id, id)).run()
   }
   if (patch.logo !== undefined) {
-    if (patch.logo !== null) checkLogo(patch.logo)
+    if (patch.logo !== null) {
+      checkLogo(patch.logo)
+    }
     db.update(projectsTable)
       .set({ logo: patch.logo })
       .where(eq(projectsTable.id, id))
@@ -97,14 +106,20 @@ function publish() {
 
 function checkLogo(logo: string) {
   const type = /^data:([^;,]+);base64,/.exec(logo)?.[1]
-  if (type === undefined || !LOGO_TYPES.includes(type))
+  if (type === undefined || !LOGO_TYPES.includes(type)) {
     throw new Error('Use a PNG, JPEG, GIF, WebP, SVG or ICO image')
-  if (logo.length > LOGO_LIMIT)
+  }
+  if (logo.length > LOGO_LIMIT) {
     throw new Error('Use an image smaller than 384 KB')
+  }
 }
 
 function expandHome(input: string) {
-  if (input === '~') return os.homedir()
-  if (input.startsWith('~/')) return path.join(os.homedir(), input.slice(2))
+  if (input === '~') {
+    return os.homedir()
+  }
+  if (input.startsWith('~/')) {
+    return path.join(os.homedir(), input.slice(2))
+  }
   return input
 }

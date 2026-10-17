@@ -123,7 +123,9 @@ export function update(patch: Partial<State>) {
 
 export function machineOf(state: State, id: string) {
   const machine = state.machines.find((item) => item.id === id)
-  if (machine === undefined) throw new Error(`unknown machine ${id}`)
+  if (machine === undefined) {
+    throw new Error(`unknown machine ${id}`)
+  }
   return machine
 }
 
@@ -150,13 +152,17 @@ export function activityOf(
   machine: string,
   sessionId: string | null
 ) {
-  if (sessionId === null) return undefined
+  if (sessionId === null) {
+    return undefined
+  }
   return machines.find((item) => item.id === machine)?.activity[sessionId]
 }
 
 export function selectedActivity(state: State) {
   const selection = state.selection
-  if (selection === null) return undefined
+  if (selection === null) {
+    return undefined
+  }
   return activityOf(state.machines, selection.machine, selection.sessionId)
 }
 

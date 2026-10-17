@@ -126,15 +126,23 @@ export function Sidebar(props: {
 
   function machineLabel(id: string) {
     const machine = machines.find((item) => item.id === id)
-    if (machine === undefined) return ''
-    if (machine.status === 'online') return machine.name
-    if (machine.status === 'unpaired') return `${machine.name} · needs pairing`
+    if (machine === undefined) {
+      return ''
+    }
+    if (machine.status === 'online') {
+      return machine.name
+    }
+    if (machine.status === 'unpaired') {
+      return `${machine.name} · needs pairing`
+    }
     return `${machine.name} · offline`
   }
 
   function machineIcon(id: string) {
     const machine = machines.find((item) => item.id === id)
-    if (machine === undefined) return null
+    if (machine === undefined) {
+      return null
+    }
     return (
       <HugeiconsIcon
         icon={machineIcons[machine.icon]}
@@ -154,8 +162,11 @@ export function Sidebar(props: {
 
   function startThread() {
     const target = scope ?? selection
-    if (target === null) setAdding(true)
-    else select(target.machine, target.projectId, null)
+    if (target === null) {
+      setAdding(true)
+    } else {
+      select(target.machine, target.projectId, null)
+    }
   }
 
   useHotkeys(['mod+n', 'mod+t'], startThread, {
@@ -197,7 +208,9 @@ export function Sidebar(props: {
     onToggle: () => void,
     first: boolean
   ) {
-    if (items.length === 0) return null
+    if (items.length === 0) {
+      return null
+    }
     return (
       <>
         <li className={cn('mx-0.5 h-9 pt-2', first && 'mt-auto')}>
@@ -470,8 +483,9 @@ export function Sidebar(props: {
             if (
               scope?.machine === editing.machine &&
               scope.projectId === editing.id
-            )
+            ) {
               setScope(null)
+            }
             setEditing(null)
           }}
         />

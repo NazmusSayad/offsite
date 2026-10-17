@@ -34,32 +34,44 @@ export class Prompt {
   mark(text: string, trackInput: boolean) {
     const native = text.startsWith('133;')
     const start = native ? 4 : 5
-    if (text.length > start + 1 && text[start + 1] !== ';') return
+    if (text.length > start + 1 && text[start + 1] !== ';') {
+      return
+    }
     const kind = text.charAt(start)
-    if (this.core.isAlternateScreen()) return
+    if (this.core.isAlternateScreen()) {
+      return
+    }
     if (kind === 'A') {
       const parts = text.split(';')
-      if (parts.includes('k=s') || parts.includes('k=c')) return
+      if (parts.includes('k=s') || parts.includes('k=c')) {
+        return
+      }
       const clickEvents = native && parts.includes('click_events=1')
       const repaint = this.shell === 'prompt'
       const duplicate = repaint && !this.input && this.native !== native
       this.shell = 'prompt'
       this.native = native
-      if (trackInput) this.trackInput()
+      if (trackInput) {
+        this.trackInput()
+      }
       if (duplicate) {
         this.clickEvents = this.clickEvents || clickEvents
         return
       }
       this.input = false
       this.clickEvents = clickEvents
-      if (repaint) return
+      if (repaint) {
+        return
+      }
       this.generation += 1
       return
     }
     if (kind === 'B') {
       this.shell = 'prompt'
       this.input = true
-      if (trackInput) this.trackInput()
+      if (trackInput) {
+        this.trackInput()
+      }
       return
     }
     if (kind === 'C') {
@@ -67,7 +79,9 @@ export class Prompt {
       return
     }
     if (kind === 'D') {
-      if (this.shell === 'prompt' && !this.input) return
+      if (this.shell === 'prompt' && !this.input) {
+        return
+      }
       this.shell = 'unknown'
     }
   }
@@ -76,8 +90,9 @@ export class Prompt {
     if (
       this.shell === 'prompt' &&
       COMMAND_ENDINGS.some((sequence) => data.includes(sequence))
-    )
+    ) {
       this.shell = 'unknown'
+    }
   }
 
   reset() {
@@ -88,7 +103,9 @@ export class Prompt {
   }
 
   release() {
-    if (this.inputRef !== null) this.core.untrack(this.inputRef)
+    if (this.inputRef !== null) {
+      this.core.untrack(this.inputRef)
+    }
     this.inputRef = null
   }
 
@@ -101,40 +118,61 @@ export class Prompt {
       snapshot.cursorY < 0 ||
       this.core.isAlternateScreen() ||
       this.core.isMouseTracking()
-    )
+    ) {
       return null
+    }
     const input = this.core.trackedPoint(this.inputRef)
-    if (input === null) return null
+    if (input === null) {
+      return null
+    }
     const start = { x: input.x, y: input.y - top }
-    if (isBefore(cell, start)) return null
+    if (isBefore(cell, start)) {
+      return null
+    }
     if (this.clickEvents) {
       const state = this.core.scrollbarState()
-      if (state === null) return null
+      if (state === null) {
+        return null
+      }
       const y = cell.y + top - (state.total - state.len)
-      if (y < 0) return null
+      if (y < 0) {
+        return null
+      }
       return `\x1b[<0;${cell.x + 1};${y + 1}M`
     }
-    if (!this.input) return null
+    if (!this.input) {
+      return null
+    }
     const target = { x: cell.x, y: cell.y }
     if (
       target.x > 0 &&
       snapshot.rowData[target.y]?.cells[target.x]?.wide === CELL_WIDE.spacerTail
-    )
+    ) {
       target.x -= 1
+    }
     const cursor = { x: snapshot.cursorX, y: snapshot.cursorY }
-    if (isBefore(target, start) || isBefore(cursor, start)) return null
+    if (isBefore(target, start) || isBefore(cursor, start)) {
+      return null
+    }
     const left = isBefore(target, cursor)
     const from = left ? target : cursor
     const to = left ? cursor : target
     let count = 0
     for (let y = from.y; y <= to.y; y += 1) {
       const row = snapshot.rowData[y]
-      if (row === undefined) return null
+      if (row === undefined) {
+        return null
+      }
       const last = y === to.y ? to.x : row.cells.length
-      for (let x = y === from.y ? from.x : 0; x < last; x += 1)
-        if (row.cells[x].text !== '') count += 1
+      for (let x = y === from.y ? from.x : 0; x < last; x += 1) {
+        if (row.cells[x].text !== '') {
+          count += 1
+        }
+      }
       if (y < to.y && !row.wrapsToNext) {
-        if (left) return null
+        if (left) {
+          return null
+        }
         break
       }
     }
@@ -146,7 +184,10 @@ export class Prompt {
   }
 
   private trackInput() {
-    if (this.inputRef === null) this.inputRef = this.core.trackCursor()
-    else this.core.retrack(this.inputRef)
+    if (this.inputRef === null) {
+      this.inputRef = this.core.trackCursor()
+    } else {
+      this.core.retrack(this.inputRef)
+    }
   }
 }

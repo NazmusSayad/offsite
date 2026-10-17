@@ -19,6 +19,7 @@ import {
 } from '../lib/claude/index.ts'
 import {
   codexAccount,
+  codexBaseDir,
   codexCapabilities,
   stopAppServer,
   stopAppServers,
@@ -36,7 +37,7 @@ export type StoredAccount = {
   id: string
   provider: Exclude<Provider, 'opencode'>
   name: string
-  configDir: string
+  configDir: string | null
   enabled: boolean
   hiddenModels: Record<string, boolean>
 }
@@ -53,59 +54,92 @@ export function providerName(provider: Provider) {
 
 export function storedAccounts(): StoredAccount[] {
   const config = readConfig()
-  return [...config.claudeAccounts, ...config.codexAccounts].flatMap((item) => {
-    const configDir = item.configDir[platform()]
-    if (configDir === null) return []
-    return [{ ...item, configDir }]
-  })
+  return [
+    ...config.claudeAccounts.map((item) => ({
+      ...item,
+      configDir: item.configDir[platform()],
+    })),
+    ...config.codexAccounts.map((item) => ({
+      ...item,
+      configDir: item.configDir[platform()],
+    })),
+  ]
 }
 
 export function assertEnabled(provider: Provider, accountId: string | null) {
-  if (!readConfig().enabledProviders[provider])
+  if (!readConfig().enabledProviders[provider]) {
     throw new Error(`${providerName(provider)} is disabled in Settings`)
-  if (provider === 'opencode') return
-  if (!storedAccount(provider, accountId).enabled)
+  }
+  if (provider === 'opencode') {
+    return
+  }
+  if (!storedAccount(provider, accountId).enabled) {
     throw new Error('That account is disabled in Settings')
+  }
 }
 
 export async function stopProvider(provider: Provider) {
   const stopping = [...runs.values()].filter((run) => run.provider === provider)
-  for (const run of stopping) run.stop()
+  for (const run of stopping) {
+    run.stop()
+  }
   await Promise.all(stopping.map((run) => run.closed))
-  if (provider === 'codex') stopAppServers()
-  if (provider === 'opencode') disconnectOpenCode()
-  if (provider === 'claude')
-    for (const account of storedAccounts())
-      if (account.provider === 'claude') forgetClaude(account.id)
+  if (provider === 'codex') {
+    stopAppServers()
+  }
+  if (provider === 'opencode') {
+    disconnectOpenCode()
+  }
+  if (provider === 'claude') {
+    for (const account of storedAccounts()) {
+      if (account.provider === 'claude') {
+        forgetClaude(account.id)
+      }
+    }
+  }
 }
 
 async function stopAccount(account: StoredAccount) {
   const stopping = [...runs.values()].filter(
     (run) => run.settings.accountId === account.id
   )
-  for (const run of stopping) run.stop()
+  for (const run of stopping) {
+    run.stop()
+  }
   await Promise.all(stopping.map((run) => run.closed))
-  if (account.provider === 'codex') stopAppServer(account.configDir)
-  if (account.provider === 'claude') forgetClaude(account.id)
+  if (account.provider === 'codex') {
+    stopAppServer(account.configDir ?? codexBaseDir)
+  }
+  if (account.provider === 'claude') {
+    forgetClaude(account.id)
+  }
 }
 
 export function storedAccount(provider: Provider, accountId: string | null) {
-  if (accountId === null)
+  if (accountId === null) {
     throw new Error(
       `Add a ${providerName(provider)} account in Settings → Accounts`
     )
+  }
   const account = storedAccounts().find((item) => item.id === accountId)
-  if (account === undefined) throw new Error('That account was removed')
-  if (account.provider !== provider)
+  if (account === undefined) {
+    throw new Error('That account was removed')
+  }
+  if (account.provider !== provider) {
     throw new Error(`That account is not a ${providerName(provider)} account`)
+  }
   return account
 }
 
 export async function accounts(): Promise<Accounts> {
   const stored = await Promise.all(
     storedAccounts().map((account) => {
-      if (!account.enabled || !readConfig().enabledProviders[account.provider])
+      if (
+        !account.enabled ||
+        !readConfig().enabledProviders[account.provider]
+      ) {
         return disabledAccount(account)
+      }
       switch (account.provider) {
         case 'claude':
           return claudeAccount(account)
@@ -193,10 +227,11 @@ function providerCapabilities(
     case 'codex':
       return codexCapabilities(storedAccount(provider, accountId), cwd)
     case 'opencode':
-      if (accountId !== null)
+      if (accountId !== null) {
         throw new Error(
           'OpenCode has no accounts. Connect providers in OpenCode'
         )
+      }
       return openCodeCapabilities(cwd)
   }
 }
@@ -227,7 +262,9 @@ export function addAccount(
 
 export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
   const before = storedAccounts().find((item) => item.id === update.id)
-  if (before === undefined) throw new Error('That account was removed')
+  if (before === undefined) {
+    throw new Error('That account was removed')
+  }
   const account = validAccount(update.name, update.configDir)
   const config = readConfig()
   const key = `${before.provider}Accounts` as const
@@ -246,7 +283,9 @@ export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
     ),
   })
   forgetClaude(update.id)
-  if (before.enabled && !update.enabled) await stopAccount(before)
+  if (before.enabled && !update.enabled) {
+    await stopAccount(before)
+  }
 }
 
 export function removeAccount(id: string) {
@@ -259,14 +298,25 @@ export function removeAccount(id: string) {
   forgetClaude(id)
 }
 
-function validAccount(name: string, configDir: string) {
-  if (name.trim() === '') throw new Error('Give the account a name')
+function validAccount(name: string, configDir: string | null) {
+  if (name.trim() === '') {
+    throw new Error('Give the account a name')
+  }
+  if (configDir === null) {
+    return { name: name.trim(), configDir: null }
+  }
   const dir = configDir.trim()
-  if (dir === '~' || dir.startsWith('~/'))
+  if (dir === '') {
+    return { name: name.trim(), configDir: null }
+  }
+  if (dir === '~' || dir.startsWith('~/')) {
     return {
       name: name.trim(),
       configDir: path.join(os.homedir(), dir.slice(1)),
     }
-  if (path.isAbsolute(dir)) return { name: name.trim(), configDir: dir }
+  }
+  if (path.isAbsolute(dir)) {
+    return { name: name.trim(), configDir: dir }
+  }
   throw new Error('Use an absolute config directory or one starting with ~/')
 }

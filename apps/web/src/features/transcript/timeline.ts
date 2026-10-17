@@ -50,26 +50,30 @@ export function turnRows(
   const rows: Row[] = []
   const turnKey = turn.prompt?.id ?? 'start'
 
-  if (turn.prompt !== null)
+  if (turn.prompt !== null) {
     rows.push({
       kind: 'user',
       key: turn.prompt.id,
       item: turn.prompt,
       first: turn.first,
     })
+  }
 
   for (const item of turn.items) {
     const row = rowOf(item, live !== null)
     const previous = rows.at(-1)
-    if (row?.kind === 'group' && previous?.kind === 'group')
+    if (row?.kind === 'group' && previous?.kind === 'group') {
       previous.entries.push(...row.entries)
-    else if (row !== null) rows.push(row)
+    } else if (row !== null) {
+      rows.push(row)
+    }
   }
 
   const last = rows.at(-1)
-  if (live !== null && live.partial === '' && last?.kind === 'group')
+  if (live !== null && live.partial === '' && last?.kind === 'group') {
     rows[rows.length - 1] = { ...last, live: true }
-  if (live !== null && live.partial !== '')
+  }
+  if (live !== null && live.partial !== '') {
     rows.push({
       kind: 'assistant',
       key: `${turnKey}:partial`,
@@ -80,22 +84,27 @@ export function turnRows(
       meta: false,
       changed: new Map(),
     })
-  if (live !== null && live.partial === '')
+  }
+  if (live !== null && live.partial === '') {
     rows.push({ kind: 'working', key: `${turnKey}:working` })
+  }
 
-  if (live === null && last?.kind === 'assistant')
+  if (live === null && last?.kind === 'assistant') {
     rows[rows.length - 1] = {
       ...last,
       meta: true,
       changed: changes(turn.items, cwd),
     }
+  }
   return rows
 }
 
 function changes(items: Item[], cwd: string) {
   const changed = new Map<string, Stat>()
   for (const item of items) {
-    if (item.kind !== 'file_change' || item.diffs.length === 0) continue
+    if (item.kind !== 'file_change' || item.diffs.length === 0) {
+      continue
+    }
     const stats = editStats(item)
     const file = relative(item.path, cwd)
     const current = changed.get(file) ?? { added: 0, removed: 0 }
@@ -168,7 +177,9 @@ export function mainRows(
   const turns: Turn[] = []
   let answered = false
   for (const item of items) {
-    if (item.parent !== null) continue
+    if (item.parent !== null) {
+      continue
+    }
     if (item.kind === 'user') {
       turns.push({ prompt: item, first: !answered, items: [] })
       continue
@@ -177,9 +188,12 @@ export function mainRows(
       item.kind !== 'notice' &&
       item.kind !== 'error' &&
       item.kind !== 'compaction'
-    )
+    ) {
       answered = true
-    if (turns.length === 0) turns.push({ prompt: null, first: true, items: [] })
+    }
+    if (turns.length === 0) {
+      turns.push({ prompt: null, first: true, items: [] })
+    }
     turns[turns.length - 1].items.push(item)
   }
   const rows = turns.flatMap((turn, index) =>
@@ -189,7 +203,8 @@ export function mainRows(
       running && index === turns.length - 1 ? { partial } : null
     )
   )
-  if (running && turns.length === 0)
+  if (running && turns.length === 0) {
     rows.push({ kind: 'working', key: 'working' })
+  }
   return rows
 }

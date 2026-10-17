@@ -26,7 +26,9 @@ export function GitSection(props: {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (settings.provider === null) return
+    if (settings.provider === null) {
+      return
+    }
     let current = true
     setModels(null)
     setError(null)
@@ -36,10 +38,14 @@ export function GitSection(props: {
       projectId: null,
     }).then(
       (capabilities) => {
-        if (current) setModels(capabilities.models)
+        if (current) {
+          setModels(capabilities.models)
+        }
       },
       (caught: unknown) => {
-        if (current) setError(errorMessage(caught))
+        if (current) {
+          setError(errorMessage(caught))
+        }
       }
     )
     return () => {
@@ -63,7 +69,9 @@ export function GitSection(props: {
     const account = [...props.claudeAccounts, ...props.codexAccounts].find(
       (item) => item.id === value
     )
-    if (account === undefined) throw new Error('That account was removed')
+    if (account === undefined) {
+      throw new Error('That account was removed')
+    }
     save({ provider: account.provider, accountId: account.id, model: null })
   }
 

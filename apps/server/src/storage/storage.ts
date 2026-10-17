@@ -28,7 +28,9 @@ function lock() {
     writeFileSync(lockFile, `${process.pid}\n`, { flag: 'wx' })
     return
   } catch (error) {
-    if (!hasCode(error, 'EEXIST')) throw error
+    if (!hasCode(error, 'EEXIST')) {
+      throw error
+    }
   }
   let content
   let modified
@@ -36,7 +38,9 @@ function lock() {
     content = readFileSync(lockFile, 'utf8')
     modified = statSync(lockFile).mtimeMs
   } catch (error) {
-    if (hasCode(error, 'ENOENT')) return lock()
+    if (hasCode(error, 'ENOENT')) {
+      return lock()
+    }
     throw error
   }
   const pid = Number(content)
@@ -55,8 +59,12 @@ function isRunning(pid: number) {
     process.kill(pid, 0)
     return true
   } catch (error) {
-    if (hasCode(error, 'ESRCH')) return false
-    if (hasCode(error, 'EPERM')) return true
+    if (hasCode(error, 'ESRCH')) {
+      return false
+    }
+    if (hasCode(error, 'EPERM')) {
+      return true
+    }
     throw error
   }
 }
@@ -69,7 +77,9 @@ export function readJson(name: string): unknown {
   try {
     return JSON.parse(readFileSync(path.join(home, name), 'utf8'))
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null
+    }
     throw error
   }
 }
@@ -81,7 +91,9 @@ export function writeJson(name: string, value: unknown) {
   try {
     file = realpathSync(file)
   } catch (error) {
-    if (!hasCode(error, 'ENOENT')) throw error
+    if (!hasCode(error, 'ENOENT')) {
+      throw error
+    }
   }
 
   writeFileSync(`${file}.tmp`, `${JSON.stringify(value, null, 2)}\n`, {

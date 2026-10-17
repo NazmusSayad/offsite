@@ -61,25 +61,30 @@ export function toItems(messages: Message[]): Item[] {
         }
         switch (block.type) {
           case 'text':
-            if (block.text.trim() !== '')
+            if (block.text.trim() !== '') {
               items.push({
                 ...shared,
                 kind: 'assistant',
                 text: block.text,
                 message: message.uuid,
               })
+            }
             break
           case 'thinking':
-            if (block.thinking.trim() !== '')
+            if (block.thinking.trim() !== '') {
               items.push({ ...shared, kind: 'reasoning', text: block.thinking })
+            }
             break
           case 'tool_use': {
             if (block.name === 'SendMessage') {
               const owner = owners.get(text(block.input.to))
-              if (owner !== undefined) change(owner, { status: 'running' })
+              if (owner !== undefined) {
+                change(owner, { status: 'running' })
+              }
             }
-            if (block.name === 'TaskStop')
+            if (block.name === 'TaskStop') {
               stops.set(block.id, text(block.input.task_id))
+            }
             tools.set(block.id, items.length)
             items.push(
               toolItem(block, message.parent, message.time, (to) => {
@@ -102,24 +107,31 @@ export function toItems(messages: Message[]): Item[] {
     for (const block of message.content) {
       if (block.type === 'tool_result') {
         const index = tools.get(block.toolUseId)
-        if (index === undefined) continue
+        if (index === undefined) {
+          continue
+        }
         const result = applyResult(items[index], block)
         items[index] = result
-        if (result.kind === 'subagent' && result.agentId !== null)
+        if (result.kind === 'subagent' && result.agentId !== null) {
           owners.set(result.agentId, index)
+        }
         if (
           result.kind === 'command' &&
           result.background !== null &&
           result.background.taskId !== null
-        )
+        ) {
           owners.set(result.background.taskId, index)
+        }
         const stopped = stops.get(block.toolUseId)
         const owner = stopped === undefined ? undefined : owners.get(stopped)
-        if (owner !== undefined && !block.isError)
+        if (owner !== undefined && !block.isError) {
           change(owner, { status: 'stopped' })
+        }
         continue
       }
-      if (block.type !== 'text') continue
+      if (block.type !== 'text') {
+        continue
+      }
       if (block.text.startsWith('<task-notification>')) {
         let count = 0
         for (const match of block.text.matchAll(notifications)) {
@@ -130,20 +142,25 @@ export function toItems(messages: Message[]): Item[] {
           const event = /<event>([\s\S]*?)<\/event>/.exec(body)?.[1]
           for (const id of body.matchAll(/<task-id>(\w+)<\/task-id>/g)) {
             const owner = owners.get(id[1])
-            if (owner === undefined) continue
-            if (status !== undefined) change(owner, { status })
+            if (owner === undefined) {
+              continue
+            }
+            if (status !== undefined) {
+              change(owner, { status })
+            }
             const task = items[owner]
             if (
               event !== undefined &&
               task.kind === 'command' &&
               task.background !== null
-            )
+            ) {
               change(owner, {
                 background: {
                   ...task.background,
                   events: [...task.background.events, event],
                 },
               })
+            }
           }
           items.push({
             id: `${message.uuid}:${count}`,
@@ -170,7 +187,9 @@ export function toItems(messages: Message[]): Item[] {
       }
       texts.push(userText(block.text))
     }
-    if (texts.length === 0 && images.length === 0) continue
+    if (texts.length === 0 && images.length === 0) {
+      continue
+    }
     items.push({
       id: message.uuid,
       parent: message.parent,
@@ -384,7 +403,9 @@ function applyResult(item: Item, result: ToolResult): Item {
   const status = result.isError ? 'failed' : 'completed'
   switch (item.kind) {
     case 'command': {
-      if (item.background === null) return { ...item, output, status }
+      if (item.background === null) {
+        return { ...item, output, status }
+      }
       const shell =
         /^Command running in background with ID: (\w+)\. Output is being written to: (.+?\.output)\./.exec(
           output
@@ -446,7 +467,9 @@ function userText(value: string): {
     /^<local-command-(?:stdout|stderr)>(.*)<\/local-command-(?:stdout|stderr)>$/s.exec(
       value.trim()
     )
-  if (output !== null) return { format: 'output', text: output[1] }
+  if (output !== null) {
+    return { format: 'output', text: output[1] }
+  }
   return { format: 'text', text: value }
 }
 

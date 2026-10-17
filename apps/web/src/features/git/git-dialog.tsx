@@ -81,7 +81,9 @@ export function GitDialog(props: {
         draft: null,
       }))
     )
-    for (const repo of chosen) void step(repo.path, () => task(repo.path))
+    for (const repo of chosen) {
+      void step(repo.path, () => task(repo.path))
+    }
   }
 
   function commit(andPush: boolean) {
@@ -429,14 +431,18 @@ export function GitDialog(props: {
 }
 
 export function eligible(repos: GitRepo[], action: Action) {
-  if (action === 'commit') return repos.filter((repo) => repo.changed > 0)
-  if (action === 'push')
+  if (action === 'commit') {
+    return repos.filter((repo) => repo.changed > 0)
+  }
+  if (action === 'push') {
     return repos.filter(
       (repo) =>
         repo.branch !== null && (repo.upstream === null || repo.ahead > 0)
     )
-  if (action === 'pullRequest')
+  }
+  if (action === 'pullRequest') {
     return repos.filter((repo) => repo.branch !== null)
+  }
   throw new Error(`Unknown git action ${String(action)}`)
 }
 

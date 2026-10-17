@@ -100,7 +100,9 @@ function displayedPlan(plan: string) {
   const source = /^\s{0,3}#{1,6}\s+/.test(lines[0] ?? '')
     ? lines.slice(1)
     : lines
-  while (source[0]?.trim() === '') source.shift()
+  while (source[0]?.trim() === '') {
+    source.shift()
+  }
   if (
     /^\s{0,3}#{1,6}\s+(.+)$/
       .exec(source[0] ?? '')?.[1]
@@ -108,7 +110,9 @@ function displayedPlan(plan: string) {
       .toLowerCase() === 'summary'
   ) {
     source.shift()
-    while (source[0]?.trim() === '') source.shift()
+    while (source[0]?.trim() === '') {
+      source.shift()
+    }
   }
   return source.join('\n')
 }
@@ -128,12 +132,19 @@ function planPreview(plan: string) {
       break
     }
     preview.push(line)
-    if (shown) visible += 1
+    if (shown) {
+      visible += 1
+    }
   }
-  while (preview.length > 0 && preview.at(-1)?.trim() === '') preview.pop()
-  if (preview.length === 0)
+  while (preview.length > 0 && preview.at(-1)?.trim() === '') {
+    preview.pop()
+  }
+  if (preview.length === 0) {
     return planTitle(plan) ?? 'Plan preview unavailable.'
-  if (more) preview.push('', '...')
+  }
+  if (more) {
+    preview.push('', '...')
+  }
   return preview.join('\n')
 }
 

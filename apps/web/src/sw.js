@@ -25,18 +25,36 @@ self.addEventListener('push', (event) => {
     message
       ? self.registration.showNotification(message.title, {
           body: message.body,
-          data: {
-            machine: message.machineId,
-            project: message.projectId,
-            tabId: message.tabId,
-          },
+          data: notificationData(message),
         })
       : self.registration.showNotification('OffSite', { data: null })
   )
 })
 
+function notificationData(message) {
+  if (message.kind === 'terminal') {
+    return {
+      kind: 'terminal',
+      machine: message.machineId,
+      project: message.projectId,
+      tabId: message.tabId,
+    }
+  }
+  if (message.kind === 'session') {
+    return {
+      kind: 'session',
+      machine: message.machineId,
+      project: message.projectId,
+      sessionId: message.sessionId,
+    }
+  }
+  throw new Error(`unknown push kind ${message.kind}`)
+}
+
 function readMessage(data) {
-  if (!data) return null
+  if (!data) {
+    return null
+  }
   try {
     return data.json()
   } catch {
@@ -50,7 +68,9 @@ self.addEventListener('pushsubscriptionchange', (event) => {
 
 async function renewSubscription(event) {
   const keys = await stored('/push-keys')
-  if (!keys) return
+  if (!keys) {
+    return
+  }
   const machines = (await stored('/machines')) ?? []
   const subscription =
     event.newSubscription ??
@@ -60,10 +80,11 @@ async function renewSubscription(event) {
     }))
   await Promise.allSettled(
     machines.map(async (machine) => {
-      if (event.oldSubscription)
+      if (event.oldSubscription) {
         await call(machine, 'push.unsubscribe', {
           endpoint: event.oldSubscription.endpoint,
         })
+      }
       await call(machine, 'push.subscribe', {
         subscription: subscription.toJSON(),
         ...keys,
@@ -97,7 +118,9 @@ async function callAddress(address, id, method, params) {
     method: 'POST',
     headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
   })
-  if (!response.ok) throw new Error(await response.text())
+  if (!response.ok) {
+    throw new Error(await response.text())
+  }
   const body = await response.json()
   const query =
     body.ticket === null
@@ -108,10 +131,15 @@ async function callAddress(address, id, method, params) {
     socket.onopen = () => socket.send(JSON.stringify({ id: 1, method, params }))
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data)
-      if (message.type !== 'reply') return
+      if (message.type !== 'reply') {
+        return
+      }
       socket.close()
-      if ('error' in message) reject(new Error(message.error))
-      else resolve(message.result)
+      if ('error' in message) {
+        reject(new Error(message.error))
+      } else {
+        resolve(message.result)
+      }
     }
     socket.onclose = () => reject(new Error('offsite closed the connection'))
   })
@@ -119,33 +147,47 @@ async function callAddress(address, id, method, params) {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  event.waitUntil(openTab(event.notification.data))
+  event.waitUntil(openTarget(event.notification.data))
 })
 
-async function openTab(tab) {
+async function openTarget(target) {
   const windows = await self.clients.matchAll({
     type: 'window',
     includeUncontrolled: true,
   })
   const page = windows[0]
   if (!page) {
-    await self.clients.openWindow(tab ? `/?${tabParams(tab)}` : '/')
+    await self.clients.openWindow(target ? `/?${targetParams(target)}` : '/')
     return
   }
-  if (tab)
+  if (target?.kind === 'terminal') {
     page.postMessage({
       type: 'select',
-      machine: tab.machine,
-      project: tab.project,
-      tabId: tab.tabId,
+      machine: target.machine,
+      project: target.project,
+      tabId: target.tabId,
     })
+  }
+  if (target?.kind === 'session') {
+    page.postMessage({
+      type: 'openSession',
+      machine: target.machine,
+      project: target.project,
+      sessionId: target.sessionId,
+    })
+  }
   await page.focus()
 }
 
-function tabParams(tab) {
+function targetParams(target) {
   const params = new URLSearchParams()
-  params.set('machine', tab.machine)
-  params.set('project', tab.project)
-  params.set('terminal', String(tab.tabId))
+  params.set('machine', target.machine)
+  params.set('project', target.project)
+  if (target.kind === 'terminal') {
+    params.set('terminal', String(target.tabId))
+  }
+  if (target.kind === 'session') {
+    params.set('session', target.sessionId)
+  }
   return params
 }

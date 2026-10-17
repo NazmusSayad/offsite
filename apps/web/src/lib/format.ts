@@ -12,9 +12,15 @@ export function projectName(cwd: string) {
 
 export function timeAgo(time: number) {
   const seconds = Math.round((Date.now() - time) / 1000)
-  if (seconds < 60) return 'now'
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
-  if (seconds < 86_400) return `${Math.floor(seconds / 3600)}h`
+  if (seconds < 60) {
+    return 'now'
+  }
+  if (seconds < 3600) {
+    return `${Math.floor(seconds / 60)}m`
+  }
+  if (seconds < 86_400) {
+    return `${Math.floor(seconds / 3600)}h`
+  }
   return `${Math.floor(seconds / 86_400)}d`
 }
 
@@ -30,8 +36,12 @@ export function clock(time: number) {
       new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()) /
       86_400_000
   )
-  if (days <= 0) return formatted
-  if (days === 1) return `yesterday at ${formatted}`
+  if (days <= 0) {
+    return formatted
+  }
+  if (days === 1) {
+    return `yesterday at ${formatted}`
+  }
   const day = date.toLocaleDateString(
     undefined,
     date.getFullYear() === now.getFullYear()

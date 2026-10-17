@@ -70,7 +70,9 @@ export function SessionItem(props: {
         className="w-44"
         onClick={(event) => event.stopPropagation()}
         onCloseAutoFocus={(event) => {
-          if (field.current === null) return
+          if (field.current === null) {
+            return
+          }
           event.preventDefault()
           field.current.focus()
           field.current.select()
@@ -155,8 +157,9 @@ export function SessionItem(props: {
           event.preventDefault()
           const value = title.trim()
           setTitle(null)
-          if (value !== '' && value !== session.title)
+          if (value !== '' && value !== session.title) {
             void editSession(session.machine, session.id, { title: value })
+          }
         }}
       >
         <input
@@ -167,7 +170,9 @@ export function SessionItem(props: {
           onBlur={() => setTitle(null)}
           onKeyDown={(event) => {
             event.stopPropagation()
-            if (event.key === 'Escape') setTitle(null)
+            if (event.key === 'Escape') {
+              setTitle(null)
+            }
           }}
           className="text-foreground ring-ring/50 focus:ring-ring w-full rounded-sm bg-transparent text-sm font-medium ring-1 outline-none ring-inset"
         />
@@ -183,7 +188,7 @@ export function SessionItem(props: {
       'text-sidebar-foreground hover:bg-sidebar-row-hover bg-transparent'
   )
 
-  if (props.slim)
+  if (props.slim) {
     return (
       <li className="list-none">
         <div
@@ -196,7 +201,9 @@ export function SessionItem(props: {
           )}
           onClick={props.onSelect}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') props.onSelect()
+            if (event.key === 'Enter') {
+              props.onSelect()
+            }
           }}
         >
           <span className="flex shrink-0 items-center opacity-40 grayscale transition-opacity group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0">
@@ -217,6 +224,7 @@ export function SessionItem(props: {
         </div>
       </li>
     )
+  }
 
   return (
     <li className="list-none py-0.5">
@@ -232,7 +240,9 @@ export function SessionItem(props: {
         )}
         onClick={props.onSelect}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') props.onSelect()
+          if (event.key === 'Enter') {
+            props.onSelect()
+          }
         }}
       >
         <div className="px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">

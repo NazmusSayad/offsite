@@ -79,7 +79,9 @@ export function ShellInput(props: {
     : knownShells[props.platform].map((name) => ({ name, path: null }))
 
   useEffect(() => {
-    if (!isDevice) return
+    if (!isDevice) {
+      return
+    }
     call(props.machine, 'terminal.shells', undefined).then(
       setInstalled,
       (failure: unknown) => setError(errorMessage(failure))
@@ -88,7 +90,9 @@ export function ShellInput(props: {
 
   function commit(next: string) {
     setText(next)
-    if (next === (props.value ?? '')) return
+    if (next === (props.value ?? '')) {
+      return
+    }
     props.onCommit(next === '' ? null : next)
   }
 
@@ -106,7 +110,9 @@ export function ShellInput(props: {
         onChange={(event) => setText(event.target.value)}
         onBlur={() => commit(text)}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur()
+          if (event.key === 'Enter') {
+            event.currentTarget.blur()
+          }
         }}
       />
       <DropdownMenu>

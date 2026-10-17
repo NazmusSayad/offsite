@@ -30,15 +30,23 @@ const MULTI_CLICK_INTERVAL = 500
 const URL_PATTERN = /https?:\/\/[^\s"'`<>]+/g
 
 function mouseButton(button: number) {
-  if (button === 0) return 1
-  if (button === 1) return 3
-  if (button === 2) return 2
+  if (button === 0) {
+    return 1
+  }
+  if (button === 1) {
+    return 3
+  }
+  if (button === 2) {
+    return 2
+  }
   return null
 }
 
 function scrollbarGeometry(state: Scrollbar, height: number) {
   const maxOffset = Math.max(0, state.total - state.len)
-  if (height <= 0 || state.len <= 0 || maxOffset === 0) return null
+  if (height <= 0 || state.len <= 0 || maxOffset === 0) {
+    return null
+  }
   const thumbHeight = Math.min(
     height,
     Math.max(20, (height * state.len) / state.total)
@@ -94,7 +102,9 @@ export class Pointer {
     const state = this.context.core.scrollbarState()
     const geometry = state === null ? null : scrollbarGeometry(state, height)
     this.context.scrollbar.hidden = geometry === null
-    if (geometry === null) return
+    if (geometry === null) {
+      return
+    }
     this.context.thumb.style.height = `${geometry.thumbHeight}px`
     this.context.thumb.style.transform = `translateY(${geometry.thumbTop}px)`
   }
@@ -109,10 +119,13 @@ export class Pointer {
       this.wheelRemainder + pixels / this.context.view().metrics.height
     const rows = Math.trunc(total)
     this.wheelRemainder = total - rows
-    if (rows === 0) return
+    if (rows === 0) {
+      return
+    }
     if (this.reportsMouse(event)) {
-      for (let index = 0; index < Math.abs(rows); index += 1)
+      for (let index = 0; index < Math.abs(rows); index += 1) {
         this.sendMouse('press', rows < 0 ? 4 : 5, event)
+      }
       return
     }
     if (core.isAlternateScreen()) {
@@ -179,9 +192,13 @@ export class Pointer {
       cellHeight: view.metrics.height * ratio,
       anyButtonPressed: event.buttons !== 0,
     })
-    if (data.length === 0) return
+    if (data.length === 0) {
+      return
+    }
     if (action === 'motion') {
-      if (data === this.lastMotion) return
+      if (data === this.lastMotion) {
+        return
+      }
       this.lastMotion = data
     } else {
       this.lastMotion = ''
@@ -193,7 +210,9 @@ export class Pointer {
     const view = this.context.view()
     const core = this.context.core
     const snapshot = view.snapshot
-    if (!snapshot) return null
+    if (!snapshot) {
+      return null
+    }
     const bounds = this.context.canvas.getBoundingClientRect()
     const gridX = clientX - bounds.left
     const gridY = clientY - bounds.top
@@ -202,39 +221,49 @@ export class Pointer {
       gridY < 0 ||
       gridX >= view.cols * view.metrics.width ||
       gridY >= view.rows * view.metrics.height
-    )
+    ) {
       return null
+    }
     const cell = {
       x: Math.floor(gridX / view.metrics.width),
       y: Math.floor(gridY / view.metrics.height),
     }
     const explicit = core.hyperlinkAt(cell.x, cell.y)
     if (explicit !== null) {
-      if (explicit.startsWith(IMAGE_MARKER)) return null
+      if (explicit.startsWith(IMAGE_MARKER)) {
+        return null
+      }
       let start = cell.x
       let end = cell.x
-      while (start > 0 && core.hyperlinkAt(start - 1, cell.y) === explicit)
+      while (start > 0 && core.hyperlinkAt(start - 1, cell.y) === explicit) {
         start -= 1
+      }
       while (
         end < view.cols - 1 &&
         core.hyperlinkAt(end + 1, cell.y) === explicit
-      )
+      ) {
         end += 1
+      }
       return {
         uri: explicit,
         range: { start: { x: start, y: cell.y }, end: { x: end, y: cell.y } },
       }
     }
     let first = cell.y
-    while (first > 0 && snapshot.rowData[first]?.isWrapContinuation) first -= 1
+    while (first > 0 && snapshot.rowData[first]?.isWrapContinuation) {
+      first -= 1
+    }
     let last = cell.y
-    while (last < snapshot.rows - 1 && snapshot.rowData[last]?.wrapsToNext)
+    while (last < snapshot.rows - 1 && snapshot.rowData[last]?.wrapsToNext) {
       last += 1
+    }
     let text = ''
     const points: Point[] = []
     for (let y = first; y <= last; y += 1) {
       const row = snapshot.rowData[y]
-      if (!row) break
+      if (!row) {
+        break
+      }
       const characters = rowCharacters(row, y)
       text += characters.text
       points.push(...characters.points)
@@ -243,9 +272,13 @@ export class Pointer {
       const uri = match[0].replace(/[.,;:!?)\]}'"]+$/, '')
       const startPoint = points[match.index]
       const endPoint = points[match.index + uri.length - 1]
-      if (!startPoint || !endPoint) continue
+      if (!startPoint || !endPoint) {
+        continue
+      }
       const range = { start: startPoint, end: endPoint }
-      if (inRange(range, cell.y, cell.x)) return { uri, range }
+      if (inRange(range, cell.y, cell.x)) {
+        return { uri, range }
+      }
     }
     return null
   }
@@ -257,8 +290,9 @@ export class Pointer {
       previous?.uri === link?.uri &&
       previous?.range.start.x === link?.range.start.x &&
       previous?.range.start.y === link?.range.start.y
-    )
+    ) {
       return
+    }
     this.hoveredLink = link
     this.context.redraw()
   }
@@ -267,7 +301,9 @@ export class Pointer {
     const core = this.context.core
     const cell = this.cellAt(event.clientX, event.clientY)
     const screen = core.toScreen(cell)
-    if (!screen) return
+    if (!screen) {
+      return
+    }
     this.selectionMoved = false
     this.selectionMode = count >= 3 ? 'line' : count === 2 ? 'word' : 'cell'
     const range =
@@ -290,10 +326,14 @@ export class Pointer {
   private extendSelection(clientX: number, clientY: number) {
     const core = this.context.core
     const anchor = this.selectionAnchor
-    if (!anchor) return
+    if (!anchor) {
+      return
+    }
     const cell = this.cellAt(clientX, clientY)
     const screen = core.toScreen(cell)
-    if (!screen) return
+    if (!screen) {
+      return
+    }
     this.selectionMoved = true
     const base = this.selectionBase
     if (base === null) {
@@ -317,26 +357,35 @@ export class Pointer {
   private setSelectionScroll(delta: number) {
     this.selectionScrollDelta = delta
     if (delta === 0) {
-      if (this.selectionScroll !== null)
+      if (this.selectionScroll !== null) {
         window.clearInterval(this.selectionScroll)
+      }
       this.selectionScroll = null
       return
     }
-    if (this.selectionScroll !== null) return
+    if (this.selectionScroll !== null) {
+      return
+    }
     this.selectionScroll = window.setInterval(() => {
       this.context.scrollViewport(this.selectionScrollDelta)
       const client = this.selectionClient
-      if (client) this.extendSelection(client.x, client.y)
+      if (client) {
+        this.extendSelection(client.x, client.y)
+      }
     }, 80)
   }
 
   private dragScrollbar(clientY: number) {
     const state = this.context.core.scrollbarState()
     const drag = this.scrollbarDrag
-    if (state === null || drag === null) return
+    if (state === null || drag === null) {
+      return
+    }
     const bounds = this.context.scrollbar.getBoundingClientRect()
     const geometry = scrollbarGeometry(state, bounds.height)
-    if (geometry === null || geometry.travel === 0) return
+    if (geometry === null || geometry.travel === 0) {
+      return
+    }
     const top = Math.max(
       0,
       Math.min(clientY - bounds.top - drag.offset, geometry.travel)
@@ -355,7 +404,9 @@ export class Pointer {
     }
     if (this.reportsMouse(event)) {
       const button = mouseButton(event.button)
-      if (button === null) return
+      if (button === null) {
+        return
+      }
       event.preventDefault()
       this.mousePointer = event.pointerId
       this.mouseButton = button
@@ -363,7 +414,9 @@ export class Pointer {
       canvas.setPointerCapture(event.pointerId)
       return
     }
-    if (event.button !== 0) return
+    if (event.button !== 0) {
+      return
+    }
     const link = this.linkAt(event.clientX, event.clientY)
     if (link && (isMac ? event.metaKey : event.ctrlKey)) {
       event.preventDefault()
@@ -400,7 +453,9 @@ export class Pointer {
     const touch = this.touch
     if (touch?.id === event.pointerId) {
       const delta = touch.y - event.clientY
-      if (Math.abs(delta) < 1) return
+      if (Math.abs(delta) < 1) {
+        return
+      }
       touch.y = event.clientY
       touch.moved = true
       this.scrollRows(delta, event)
@@ -420,8 +475,9 @@ export class Pointer {
       if (
         this.clickMove !== null &&
         (cell.x !== this.clickMove.x || cell.y !== this.clickMove.y)
-      )
+      ) {
         this.clickMove = null
+      }
       this.selectionClient = { x: event.clientX, y: event.clientY }
       const bounds = this.context.canvas.getBoundingClientRect()
       this.setSelectionScroll(
@@ -435,8 +491,9 @@ export class Pointer {
 
   private readonly onPointerUp = (event: PointerEvent) => {
     const canvas = this.context.canvas
-    if (canvas.hasPointerCapture(event.pointerId))
+    if (canvas.hasPointerCapture(event.pointerId)) {
       canvas.releasePointerCapture(event.pointerId)
+    }
     if (this.touch?.id === event.pointerId) {
       this.touch = null
       return
@@ -444,8 +501,9 @@ export class Pointer {
     if (this.linkPointer === event.pointerId) {
       this.linkPointer = null
       const link = this.linkAt(event.clientX, event.clientY)
-      if (link && event.type === 'pointerup')
+      if (link && event.type === 'pointerup') {
         this.context.onLink(link.uri, event)
+      }
       return
     }
     if (this.mousePointer === event.pointerId) {
@@ -464,8 +522,9 @@ export class Pointer {
       }
       const cell = this.clickMove
       this.clickMove = null
-      if (cell !== null && event.type === 'pointerup')
+      if (cell !== null && event.type === 'pointerup') {
         this.context.moveCursorTo(cell)
+      }
     }
   }
 
@@ -475,7 +534,9 @@ export class Pointer {
   }
 
   private readonly onWheel = (event: WheelEvent) => {
-    if (event.deltaY === 0) return
+    if (event.deltaY === 0) {
+      return
+    }
     event.preventDefault()
     const view = this.context.view()
     const pixels =
@@ -488,17 +549,23 @@ export class Pointer {
   }
 
   private readonly onMouseDown = (event: MouseEvent) => {
-    if (event.button === 0) event.preventDefault()
+    if (event.button === 0) {
+      event.preventDefault()
+    }
     this.context.focus()
   }
 
   private readonly onScrollbarDown = (event: PointerEvent) => {
     const state = this.context.core.scrollbarState()
-    if (event.button !== 0 || state === null) return
+    if (event.button !== 0 || state === null) {
+      return
+    }
     const scrollbar = this.context.scrollbar
     const bounds = scrollbar.getBoundingClientRect()
     const geometry = scrollbarGeometry(state, bounds.height)
-    if (geometry === null) return
+    if (geometry === null) {
+      return
+    }
     event.preventDefault()
     event.stopPropagation()
     this.scrollbarDrag = {
@@ -513,16 +580,21 @@ export class Pointer {
   }
 
   private readonly onScrollbarMove = (event: PointerEvent) => {
-    if (this.scrollbarDrag?.id !== event.pointerId) return
+    if (this.scrollbarDrag?.id !== event.pointerId) {
+      return
+    }
     event.preventDefault()
     this.dragScrollbar(event.clientY)
   }
 
   private readonly onScrollbarUp = (event: PointerEvent) => {
-    if (this.scrollbarDrag?.id !== event.pointerId) return
+    if (this.scrollbarDrag?.id !== event.pointerId) {
+      return
+    }
     this.scrollbarDrag = null
     const scrollbar = this.context.scrollbar
-    if (scrollbar.hasPointerCapture(event.pointerId))
+    if (scrollbar.hasPointerCapture(event.pointerId)) {
       scrollbar.releasePointerCapture(event.pointerId)
+    }
   }
 }

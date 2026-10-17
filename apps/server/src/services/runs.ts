@@ -28,7 +28,9 @@ import { listedUpdatedAt, providerOf, recordInteraction } from './sessions.ts'
 const locks = new Map<string, Promise<void>>()
 
 export function stopAll() {
-  for (const run of runs.values()) run.stop()
+  for (const run of runs.values()) {
+    run.stop()
+  }
   stopAppServers()
 }
 
@@ -50,16 +52,22 @@ export function rewind(request: Rewind): Promise<RewindResult> {
 async function rewindNow(request: Rewind): Promise<RewindResult> {
   const sessionId = request.sessionId
   const cwd = projectPath(request.projectId)
-  if (runs.get(sessionId)?.running === true)
+  if (runs.get(sessionId)?.running === true) {
     throw new Error(
       `Stop ${providerName(providerOf(sessionId))} before rewinding`
     )
-  if ((runs.get(sessionId)?.backgroundTasks ?? 0) > 0)
+  }
+  if ((runs.get(sessionId)?.backgroundTasks ?? 0) > 0) {
     throw new Error('Wait for background tasks to finish before rewinding')
+  }
   const run = await runFor(sessionId, cwd, request.settings)
   if (run.provider === 'codex') {
-    if (request.code) throw new Error('Codex cannot restore files')
-    if (request.dryRun || !request.conversation) return null
+    if (request.code) {
+      throw new Error('Codex cannot restore files')
+    }
+    if (request.dryRun || !request.conversation) {
+      return null
+    }
     await revertThread(sessionId, request.messageId)
     run.items.clear()
     publish(sessionId, await codexHistory(sessionId))
@@ -67,7 +75,9 @@ async function rewindNow(request: Rewind): Promise<RewindResult> {
   }
   if (run.provider === 'opencode') {
     const result = await rewindOpenCode(request)
-    if (request.dryRun) return result
+    if (request.dryRun) {
+      return result
+    }
     run.items.clear()
     publish(sessionId, await openCodeHistory(sessionId, cwd))
     return result
@@ -77,18 +87,23 @@ async function rewindNow(request: Rewind): Promise<RewindResult> {
     const files = await run.query.rewindFiles(request.messageId, {
       dryRun: request.dryRun,
     })
-    if (!files.canRewind)
+    if (!files.canRewind) {
       throw new Error(files.error ?? 'The files cannot be restored')
+    }
     result = {
       files: files.filesChanged ?? [],
       insertions: files.insertions ?? 0,
       deletions: files.deletions ?? 0,
     }
   }
-  if (request.dryRun || !request.conversation) return result
+  if (request.dryRun || !request.conversation) {
+    return result
+  }
   const disk = await getSessionMessages(sessionId, { dir: cwd })
   const index = disk.findIndex((item) => item.uuid === request.messageId)
-  if (index < 1) throw new Error('Cannot rewind the conversation to that point')
+  if (index < 1) {
+    throw new Error('Cannot rewind the conversation to that point')
+  }
   run.stop()
   await run.closed
   new Run({
@@ -109,7 +124,9 @@ export async function open(
 ) {
   client.opening = sessionId
   const event = await sessionHistory(sessionId, projectPath(projectId))
-  if (client.opening !== sessionId) return
+  if (client.opening !== sessionId) {
+    return
+  }
   client.sessionId = sessionId
   client.send(event)
 }
@@ -120,8 +137,9 @@ export async function send(
 ) {
   assertEnabled(request.settings.provider, request.settings.accountId)
   const cwd = projectPath(request.projectId)
-  if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory())
+  if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
     throw new Error(`${cwd} is not a folder`)
+  }
   if (request.sessionId === null) {
     const run = await startRun(cwd, request.settings)
     const sessionId = run.sessionId
@@ -143,8 +161,9 @@ async function sendExisting(
   request: Methods['sessions.send']['params']
 ) {
   const provider = providerOf(sessionId)
-  if (request.settings.provider !== provider)
+  if (request.settings.provider !== provider) {
     throw new Error(`This session belongs to ${providerName(provider)}`)
+  }
   const existing = runs.get(sessionId)
   if (
     (existing?.provider === 'claude' &&
@@ -160,8 +179,11 @@ async function sendExisting(
     await existing.closed
   }
   const run = await runFor(sessionId, cwd, request.settings)
-  if (run === existing) await run.configure(request.settings)
-  else await open(client, sessionId, request.projectId)
+  if (run === existing) {
+    await run.configure(request.settings)
+  } else {
+    await open(client, sessionId, request.projectId)
+  }
   await run.submit(request.prompt, request.delivery)
   recordInteraction(sessionId)
 }
@@ -175,21 +197,26 @@ async function locked<T>(sessionId: string, task: () => Promise<T>) {
   )
   locks.set(sessionId, done)
   await done
-  if (locks.get(sessionId) === done) locks.delete(sessionId)
+  if (locks.get(sessionId) === done) {
+    locks.delete(sessionId)
+  }
   return result
 }
 
 async function runFor(sessionId: string, cwd: string, settings: Settings) {
   const run = runs.get(sessionId)
-  if (run !== undefined && run.settings.accountId === settings.accountId)
+  if (run !== undefined && run.settings.accountId === settings.accountId) {
     return run
+  }
   if (run !== undefined) {
-    if (run.running)
+    if (run.running) {
       throw new Error('Wait for this turn to finish before switching accounts')
-    if (run.backgroundTasks > 0)
+    }
+    if (run.backgroundTasks > 0) {
       throw new Error(
         'Wait for background tasks to finish before switching accounts'
       )
+    }
     run.stop()
     await run.closed
   }
@@ -221,7 +248,9 @@ async function startRun(cwd: string, settings: Settings) {
 }
 
 async function changedElsewhere(run: Run, cwd: string) {
-  if (run.messages.length === 0) return false
+  if (run.messages.length === 0) {
+    return false
+  }
   const history = await getSessionMessages(run.sessionId, { dir: cwd })
   const last = history.at(-1)?.uuid
   return last !== undefined && !run.messages.some((item) => item.uuid === last)

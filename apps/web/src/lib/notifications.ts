@@ -2,7 +2,6 @@ import type { PushSubscriptionInfo } from '@offsite/core/protocol'
 import { call, isConnected } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { providerNames } from './format'
-import { openSession } from './sessions'
 import { getState, machineOf } from './store'
 
 type PushKeys = { publicKey: string; privateKey: string }
@@ -13,22 +12,30 @@ let pushWork: Promise<unknown> = Promise.resolve()
 const claiming = new Set<string>()
 
 export function notificationPermission() {
-  if (!window.isSecureContext) return 'insecure'
-  if (!('Notification' in window) || !('serviceWorker' in navigator))
+  if (!window.isSecureContext) {
+    return 'insecure'
+  }
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) {
     return 'unsupported'
+  }
   return Notification.permission
 }
 
 export function notificationsWanted() {
   const stored = localStorage.getItem(storageKey)
-  if (stored === null || stored === 'on') return true
-  if (stored === 'off') return false
+  if (stored === null || stored === 'on') {
+    return true
+  }
+  if (stored === 'off') {
+    return false
+  }
   throw new Error(`unknown notification setting ${stored}`)
 }
 
 export async function setNotificationsWanted(wanted: boolean) {
-  if (wanted && Notification.permission === 'default')
+  if (wanted && Notification.permission === 'default') {
     await Notification.requestPermission()
+  }
   localStorage.setItem(storageKey, wanted ? 'on' : 'off')
 }
 
@@ -41,7 +48,9 @@ export async function watchPermission(
 }
 
 export function notify(machine: string, ids: string[], what: string) {
-  if (!document.hidden) return
+  if (!document.hidden) {
+    return
+  }
   for (const id of ids) {
     const session = findSession(machine, id)
     show(
@@ -50,6 +59,8 @@ export function notify(machine: string, ids: string[], what: string) {
       `${session === undefined ? 'Agent' : providerNames[session.provider]} ${what}`,
       session?.title ?? 'Session',
       machineKey(machine, id)
+    ).catch((error: unknown) =>
+      console.error('could not show a notification', error)
     )
   }
 }
@@ -61,6 +72,8 @@ export function push(machine: string, sessionId: string, message: string) {
     findSession(machine, sessionId)?.title ?? 'Session',
     message,
     `push:${machineKey(machine, sessionId)}`
+  ).catch((error: unknown) =>
+    console.error('could not show a notification', error)
   )
 }
 
@@ -70,7 +83,7 @@ function findSession(machine: string, id: string) {
   )
 }
 
-function show(
+async function show(
   machine: string,
   sessionId: string,
   title: string,
@@ -81,15 +94,24 @@ function show(
     notificationPermission() !== 'granted' ||
     !notificationsWanted() ||
     !machineOf(getState(), machine).notifier
-  )
+  ) {
     return
-  const notification = new Notification(title, { body, tag })
-  notification.onclick = () => {
-    window.focus()
-    const session = findSession(machine, sessionId)
-    if (session !== undefined)
-      openSession({ machine, projectId: session.projectId, sessionId })
   }
+  const session = findSession(machine, sessionId)
+  const registration = await navigator.serviceWorker.ready
+  await registration.showNotification(title, {
+    body,
+    tag,
+    data:
+      session === undefined
+        ? null
+        : {
+            kind: 'session',
+            machine,
+            project: session.projectId,
+            sessionId,
+          },
+  })
 }
 
 export async function showNotification(
@@ -101,12 +123,13 @@ export async function showNotification(
     notificationPermission() !== 'granted' ||
     !notificationsWanted() ||
     !machineOf(getState(), tab.machine).notifier
-  )
+  ) {
     return
+  }
   const registration = await navigator.serviceWorker.ready
   await registration.showNotification(title, {
     body,
-    data: tab,
+    data: { kind: 'terminal', ...tab },
   })
 }
 
@@ -119,8 +142,12 @@ export function claimNotifications() {
         !claiming.has(machine.id)
     )
     .map((machine) => machine.id)
-  if (machines.length === 0) return
-  for (const machine of machines) claiming.add(machine)
+  if (machines.length === 0) {
+    return
+  }
+  for (const machine of machines) {
+    claiming.add(machine)
+  }
   pushEndpoint()
     .then((endpoint) =>
       Promise.all(
@@ -133,27 +160,38 @@ export function claimNotifications() {
       console.error('could not claim notifications', error)
     )
     .finally(() => {
-      for (const machine of machines) claiming.delete(machine)
+      for (const machine of machines) {
+        claiming.delete(machine)
+      }
     })
 }
 
 async function pushEndpoint() {
-  if (pushSupport() !== 'supported') return null
+  if (pushSupport() !== 'supported') {
+    return null
+  }
   const registration = await navigator.serviceWorker.getRegistration()
-  if (registration === undefined) return null
+  if (registration === undefined) {
+    return null
+  }
   const subscription = await registration.pushManager.getSubscription()
   return subscription === null ? null : subscription.endpoint
 }
 
 export function pushSupport() {
-  if (!window.isSecureContext) return 'insecure'
+  if (!window.isSecureContext) {
+    return 'insecure'
+  }
   if (
     !('Notification' in window) ||
     !('serviceWorker' in navigator) ||
     !('PushManager' in window)
-  )
+  ) {
     return isAppleMobile() ? 'install' : 'unsupported'
-  if (Notification.permission === 'denied') return 'denied'
+  }
+  if (Notification.permission === 'denied') {
+    return 'denied'
+  }
   return 'supported'
 }
 
@@ -170,9 +208,12 @@ export async function pushSubscribed() {
 }
 
 export async function subscribePush() {
-  if (Notification.permission === 'default')
+  if (Notification.permission === 'default') {
     await Notification.requestPermission()
-  if (Notification.permission !== 'granted') return false
+  }
+  if (Notification.permission !== 'granted') {
+    return false
+  }
   await queuePush(resubscribePush)
   return true
 }
@@ -183,15 +224,21 @@ export function unsubscribePush() {
 
 export function refreshPushSubscription(machine: string) {
   return queuePush(async () => {
-    if (pushSupport() !== 'supported') return
+    if (pushSupport() !== 'supported') {
+      return
+    }
     const registration = await navigator.serviceWorker.ready
     const subscription = await registration.pushManager.getSubscription()
-    if (!subscription) return
+    if (!subscription) {
+      return
+    }
     const keys = await pushKeys()
     const current = subscription.options.applicationServerKey
-    if (current !== null && base64Url(current) === keys.publicKey)
+    if (current !== null && base64Url(current) === keys.publicKey) {
       await savePushSubscription(machine, subscription, keys)
-    else await resubscribePush()
+    } else {
+      await resubscribePush()
+    }
   })
 }
 
@@ -219,7 +266,9 @@ async function resubscribePush() {
 async function removeSubscription() {
   const registration = await navigator.serviceWorker.ready
   const subscription = await registration.pushManager.getSubscription()
-  if (!subscription) return
+  if (!subscription) {
+    return
+  }
   await Promise.all(
     connectedMachines().map((machine) =>
       call(machine, 'push.unsubscribe', { endpoint: subscription.endpoint })
@@ -231,15 +280,18 @@ async function removeSubscription() {
 async function pushKeys(): Promise<PushKeys> {
   const cache = await caches.open('offsite-worker')
   const stored = await cache.match('/push-keys')
-  if (stored !== undefined) return await stored.json()
+  if (stored !== undefined) {
+    return await stored.json()
+  }
   const pair = await crypto.subtle.generateKey(
     { name: 'ECDSA', namedCurve: 'P-256' },
     true,
     ['sign', 'verify']
   )
   const privateKey = (await crypto.subtle.exportKey('jwk', pair.privateKey)).d
-  if (privateKey === undefined)
+  if (privateKey === undefined) {
     throw new Error('the browser did not export the push key')
+  }
   const keys = {
     publicKey: base64Url(await crypto.subtle.exportKey('raw', pair.publicKey)),
     privateKey,

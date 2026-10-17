@@ -158,7 +158,9 @@ function placeholderRuns(rows: Row[]) {
         run.width += 1
         continue
       }
-      if (run !== null) runs.push(completeRun(run))
+      if (run !== null) {
+        runs.push(completeRun(run))
+      }
       run =
         placeholder === null
           ? null
@@ -173,7 +175,9 @@ function placeholderRuns(rows: Row[]) {
               width: 1,
             }
     }
-    if (run !== null) runs.push(completeRun(run))
+    if (run !== null) {
+      runs.push(completeRun(run))
+    }
   }
   return runs
 }
@@ -259,7 +263,9 @@ function placeholderSlice(
     source.x -= padX
   }
 
-  if (source.width <= 0 || source.height <= 0) return null
+  if (source.width <= 0 || source.height <= 0) {
+    return null
+  }
   const slice = {
     xOffset: Math.round(xOffset * scale),
     yOffset: Math.round(yOffset * scale),
@@ -272,7 +278,9 @@ function placeholderSlice(
       height: Math.round(source.height),
     },
   }
-  if (slice.width === 0 || slice.height === 0) return null
+  if (slice.width === 0 || slice.height === 0) {
+    return null
+  }
   return slice
 }
 
@@ -327,7 +335,9 @@ export class KittyGraphics {
       found = data[index + 1] === 0x5f && data[index + 2] === 0x47
       index = data.indexOf(0x1b, index + 1)
     }
-    if (found) this.commands += 1
+    if (found) {
+      this.commands += 1
+    }
     this.tail = [...this.tail, ...data.subarray(-2)].slice(-2)
   }
 
@@ -406,8 +416,9 @@ export class KittyGraphics {
         graphics,
         imageId
       )
-      if (image === 0)
+      if (image === 0) {
         throw new Error(`kitty placement points to missing image ${imageId}`)
+      }
       runtime.bytes(this.info, KITTY_RENDER_INFO.size).fill(0)
       const info = runtime.view(this.info, KITTY_RENDER_INFO.size)
       info.setUint32(0, KITTY_RENDER_INFO.size, true)
@@ -421,7 +432,9 @@ export class KittyGraphics {
           this.info
         )
       )
-      if (info.getUint8(KITTY_RENDER_INFO.visible) === 0) continue
+      if (info.getUint8(KITTY_RENDER_INFO.visible) === 0) {
+        continue
+      }
       placements.push({
         ...this.image(image, imageId),
         z: this.placementData(iterator, KITTY_PLACEMENT.z).getInt32(0, true),
@@ -439,23 +452,31 @@ export class KittyGraphics {
         },
       })
     }
-    if (virtual.length === 0) return placements
+    if (virtual.length === 0) {
+      return placements
+    }
     for (const run of placeholderRuns(rows)) {
       const target = virtual.find(
         (placement) =>
           placement.imageId === run.imageId &&
           (run.placementId === 0 || placement.placementId === run.placementId)
       )
-      if (target === undefined) continue
+      if (target === undefined) {
+        continue
+      }
       const image = runtime.call(
         'ghostty_kitty_graphics_image',
         graphics,
         run.imageId
       )
-      if (image === 0) continue
+      if (image === 0) {
+        continue
+      }
       const kitty = this.image(image, run.imageId)
       const slice = placeholderSlice(run, target, kitty.image, cell)
-      if (slice === null) continue
+      if (slice === null) {
+        continue
+      }
       placements.push({
         ...kitty,
         ...slice,
@@ -525,7 +546,9 @@ export function drawKitty(
   const scaleY = metrics.height / cell.height
   for (const image of images) {
     const placement = image.placement
-    if (kittyLayer(placement.z) !== layer) continue
+    if (kittyLayer(placement.z) !== layer) {
+      continue
+    }
     context.drawImage(
       image.bitmap,
       placement.source.x,
@@ -541,30 +564,42 @@ export function drawKitty(
 }
 
 function kittyLayer(z: number): ImageLayer {
-  if (z < -1_073_741_824) return 'belowBackground'
-  if (z < 0) return 'belowText'
+  if (z < -1_073_741_824) {
+    return 'belowBackground'
+  }
+  if (z < 0) {
+    return 'belowText'
+  }
   return 'aboveText'
 }
 
 function kittyBitmap(image: KittyPlacement['image']) {
   const channels = KITTY_CHANNELS.get(image.format)
-  if (channels === undefined)
+  if (channels === undefined) {
     throw new Error(`unsupported kitty image format ${image.format}`)
+  }
   const count = image.width * image.height
   const source = image.pixels
   const data = new Uint8ClampedArray(count * 4)
-  if (channels === 4) data.set(source.subarray(0, count * 4))
-  else
+  if (channels === 4) {
+    data.set(source.subarray(0, count * 4))
+  } else {
     for (let pixel = 0; pixel < count; pixel += 1) {
       const from = pixel * channels
       const to = pixel * 4
-      if (channels === 3) data.set(source.subarray(from, from + 3), to)
-      else data.fill(source[from], to, to + 3)
+      if (channels === 3) {
+        data.set(source.subarray(from, from + 3), to)
+      } else {
+        data.fill(source[from], to, to + 3)
+      }
       data[to + 3] = channels === 2 ? source[from + 1] : 255
     }
+  }
   const canvas = new OffscreenCanvas(image.width, image.height)
   const context = canvas.getContext('2d')
-  if (!context) throw new Error('could not create a canvas for a kitty image')
+  if (!context) {
+    throw new Error('could not create a canvas for a kitty image')
+  }
   context.putImageData(new ImageData(data, image.width, image.height), 0, 0)
   return canvas
 }

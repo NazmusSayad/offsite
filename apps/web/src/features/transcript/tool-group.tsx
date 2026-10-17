@@ -132,8 +132,11 @@ function items(entries: WorkItem[]) {
     }
     const previous = grouped.at(-1)
     if (entry.status !== 'failed' && entry.kind === 'file_change') {
-      if (previous?.kind === 'files') previous.items.push(entry)
-      else grouped.push({ kind: 'files', key: entry.id, items: [entry] })
+      if (previous?.kind === 'files') {
+        previous.items.push(entry)
+      } else {
+        grouped.push({ kind: 'files', key: entry.id, items: [entry] })
+      }
       return
     }
     if (
@@ -141,8 +144,11 @@ function items(entries: WorkItem[]) {
       entry.kind === 'tool' &&
       toolKind(entry.name) === 'read'
     ) {
-      if (previous?.kind === 'reads') previous.items.push(entry)
-      else grouped.push({ kind: 'reads', key: entry.id, items: [entry] })
+      if (previous?.kind === 'reads') {
+        previous.items.push(entry)
+      } else {
+        grouped.push({ kind: 'reads', key: entry.id, items: [entry] })
+      }
       return
     }
     grouped.push({ kind: 'tool', key: entry.id, item: entry })

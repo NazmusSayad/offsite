@@ -8,7 +8,7 @@ import {
   PencilEdit02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { TerminalTab } from '@offsite/core/protocol'
+import type { TerminalTab } from '@offsite/core/terminal'
 import {
   type ReactNode,
   useEffect,
@@ -70,11 +70,12 @@ export function TerminalPanel(props: { projectId: string }) {
   const shortcuts = useTerminalShortcuts()
 
   useEffect(() => {
-    if (active)
+    if (active) {
       send({ type: 'select', projectId: props.projectId, tabId: null })
+    }
   }, [props.projectId, active])
 
-  if (!state.loaded)
+  if (!state.loaded) {
     return (
       <div className="text-muted-foreground grid h-full place-items-center p-4 text-xs whitespace-pre-wrap">
         {state.failure === null
@@ -82,6 +83,7 @@ export function TerminalPanel(props: { projectId: string }) {
           : `The terminal could not start: ${state.failure}`}
       </div>
     )
+  }
 
   return (
     <div ref={shortcuts} className="flex h-full flex-col text-sm">
@@ -223,7 +225,9 @@ function TerminalPane(props: { id: number }) {
   const container = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!container.current) throw new Error('terminal container missing')
+    if (!container.current) {
+      throw new Error('terminal container missing')
+    }
     return mount(props.id, container.current)
   }, [props.id])
 
@@ -323,7 +327,9 @@ function MinimizedTabs(props: {
 }
 
 function AttentionDot(props: { id: number; className: string }) {
-  if (!getState().alerts.includes(props.id)) return null
+  if (!getState().alerts.includes(props.id)) {
+    return null
+  }
   return <span className={cn('bg-primary', props.className)} />
 }
 
@@ -344,11 +350,14 @@ function CountBadge(props: { count: number; alert: boolean }) {
 
 function TabProgress(props: { progress: Progress | undefined }) {
   const progress = props.progress
-  if (!progress || progress.state === 0) return null
-  if (progress.state === 3)
+  if (!progress || progress.state === 0) {
+    return null
+  }
+  if (progress.state === 3) {
     return (
       <span className="bg-primary absolute inset-x-0 bottom-0 h-0.5 animate-pulse" />
     )
+  }
   return (
     <span
       className={cn(

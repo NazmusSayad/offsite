@@ -41,7 +41,9 @@ export function TextInput(props: {
   const [text, setText] = useState(props.value)
 
   function finish() {
-    if (text === props.value) return
+    if (text === props.value) {
+      return
+    }
     if (props.valid && !props.valid(text)) {
       setText(props.value)
       return
@@ -60,7 +62,9 @@ export function TextInput(props: {
       onChange={(event) => setText(event.target.value)}
       onBlur={finish}
       onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur()
+        if (event.key === 'Enter') {
+          event.currentTarget.blur()
+        }
       }}
     />
   )

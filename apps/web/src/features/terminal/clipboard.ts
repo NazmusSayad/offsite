@@ -66,7 +66,9 @@ export async function pasteClipboardImages(
   const images: Blob[] = []
   for (const item of await navigator.clipboard.read()) {
     const type = item.types.find((type) => type.startsWith('image/'))
-    if (type) images.push(await item.getType(type))
+    if (type) {
+      images.push(await item.getType(type))
+    }
   }
   if (images.length === 0) {
     showToast('No image in the clipboard')

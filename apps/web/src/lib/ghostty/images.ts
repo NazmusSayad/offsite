@@ -29,7 +29,9 @@ export type Area = {
 
 export async function decodeSixel(data: Uint8Array) {
   const result = await decodeAsync(data, { fillColor: 0, palette })
-  if (!result.width || !result.height) return null
+  if (!result.width || !result.height) {
+    return null
+  }
   return createImageBitmap(
     new ImageData(
       new Uint8ClampedArray(result.data8),
@@ -40,15 +42,23 @@ export async function decodeSixel(data: Uint8Array) {
 }
 
 function dimension(value: string | undefined, total: number, cell: number) {
-  if (value === undefined || value === 'auto') return 0
-  if (value.endsWith('%')) return (parseInt(value.slice(0, -1)) * total) / 100
-  if (value.endsWith('px')) return parseInt(value.slice(0, -2))
+  if (value === undefined || value === 'auto') {
+    return 0
+  }
+  if (value.endsWith('%')) {
+    return (parseInt(value.slice(0, -1)) * total) / 100
+  }
+  if (value.endsWith('px')) {
+    return parseInt(value.slice(0, -2))
+  }
   return parseInt(value) * cell
 }
 
 export async function decodeInlineImage(text: string, area: Area) {
   const separator = text.indexOf(':')
-  if (separator === -1) return null
+  if (separator === -1) {
+    return null
+  }
   const fields = new Map(
     text
       .slice(0, separator)
@@ -58,7 +68,9 @@ export async function decodeInlineImage(text: string, area: Area) {
         return [field.slice(0, index), field.slice(index + 1)] as const
       })
   )
-  if (fields.get('inline') !== '1') return null
+  if (fields.get('inline') !== '1') {
+    return null
+  }
   const bytes = Uint8Array.from(atob(text.slice(separator + 1)), (character) =>
     character.charCodeAt(0)
   )
@@ -71,7 +83,9 @@ export async function decodeInlineImage(text: string, area: Area) {
       area.width / image.width,
       (area.height - area.cellHeight) / image.height
     )
-    if (factor < 1) size = [image.width * factor, image.height * factor]
+    if (factor < 1) {
+      size = [image.width * factor, image.height * factor]
+    }
   } else if (!width) {
     size = [(image.width * height) / image.height, height]
   } else if (fields.get('preserveAspectRatio') !== '0' || !height) {
@@ -104,14 +118,20 @@ export function decodePng(bytes: Uint8Array) {
   const maximum = 2 ** depth - 1
   const rowBytes = Math.ceil((width * depth) / 8)
   function read(index: number) {
-    if (depth >= 8) return png.data[index]
+    if (depth >= 8) {
+      return png.data[index]
+    }
     const bit = (index % width) * depth
     const byte = png.data[Math.floor(index / width) * rowBytes + (bit >> 3)]
     return (byte >> (8 - depth - (bit & 7))) & maximum
   }
   function scale(value: number) {
-    if (depth === 16) return value >> 8
-    if (depth === 8) return value
+    if (depth === 16) {
+      return value >> 8
+    }
+    if (depth === 8) {
+      return value
+    }
     return Math.round((value * 255) / maximum)
   }
   const key = png.transparency
@@ -171,14 +191,20 @@ export class InlineImages {
     this.images.push(image)
     if (this.images.length > IMAGE_LIMIT) {
       const oldest = this.images.shift()
-      if (oldest) this.remove(oldest)
+      if (oldest) {
+        this.remove(oldest)
+      }
     }
     const rows = Math.ceil(image.height / cellHeight)
-    if (rows > 1) this.core.write(encoder.encode('\x1bD'.repeat(rows - 1)))
+    if (rows > 1) {
+      this.core.write(encoder.encode('\x1bD'.repeat(rows - 1)))
+    }
   }
 
   visible(top: number, rows: number, cellHeight: number) {
-    if (this.images.length === 0) return []
+    if (this.images.length === 0) {
+      return []
+    }
     const alternate = this.core.isAlternateScreen()
     const visible: {
       bitmap: ImageBitmap
@@ -204,7 +230,9 @@ export class InlineImages {
       kept.push(image)
       const y = point.y - top
       const height = Math.ceil(image.height / cellHeight)
-      if (y + height <= 0 || y >= rows) continue
+      if (y + height <= 0 || y >= rows) {
+        continue
+      }
       visible.push({
         bitmap: image.bitmap,
         width: image.width,
@@ -218,7 +246,9 @@ export class InlineImages {
   }
 
   clear() {
-    for (const image of this.images) this.remove(image)
+    for (const image of this.images) {
+      this.remove(image)
+    }
     this.images = []
   }
 
