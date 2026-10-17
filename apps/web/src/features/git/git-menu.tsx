@@ -11,6 +11,7 @@ import type { GitRepo } from '@offsite/core/git'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
+import { showToast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { showError } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { BranchPicker } from './branch-picker'
 import { type Action, eligible, GitDialog } from './git-dialog'
 
 export function useGitStatus(
@@ -74,11 +76,13 @@ export function GitActions(props: {
   const [action, setAction] = useState<Action | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [pushing, setPushing] = useState(false)
+  const [committing, setCommitting] = useState(false)
   const unpushed = props.repos.reduce((total, repo) => total + repo.ahead, 0)
   const branches = [
     ...new Set(props.repos.map((repo) => repo.branch ?? 'detached')),
   ]
   const pushable = eligible(props.repos, 'push')
+  const committable = eligible(props.repos, 'commit')
 
   async function push(repo: string) {
     setPushing(true)
@@ -96,23 +100,56 @@ export function GitActions(props: {
     }
   }
 
+  async function yoloCommit() {
+    setCommitting(true)
+    try {
+      for (const repo of committable) {
+        const result = await call(props.machine, 'git.commit', {
+          projectId: props.projectId,
+          repo: repo.path,
+          message: '',
+          push: false,
+        })
+        showToast(`Committed: ${result.message.split('\n')[0]}`)
+      }
+      setMenuOpen(false)
+    } catch (error) {
+      showError(error)
+    } finally {
+      setCommitting(false)
+      props.onRefresh()
+    }
+  }
+
   return (
-    <div className="flex w-fit items-center gap-2">
-      <span
-        className="text-muted-foreground hidden max-w-48 items-center gap-1 text-xs sm:flex"
-        title={props.repos
-          .map((repo) =>
-            repo.path === ''
-              ? (repo.branch ?? 'detached')
-              : `${repo.path}: ${repo.branch ?? 'detached'}`
-          )
-          .join('\n')}
-      >
-        <HugeiconsIcon icon={GitBranchIcon} className="size-3.5 shrink-0" />
-        <span className="truncate">
-          {branches.length === 1 ? branches[0] : `${branches.length} branches`}
+    <div className="flex w-fit items-center gap-3.5">
+      {props.repos.length === 1 && (
+        <BranchPicker
+          machine={props.machine}
+          projectId={props.projectId}
+          repo={props.repos[0]}
+          onRefresh={props.onRefresh}
+        />
+      )}
+      {props.repos.length > 1 && (
+        <span
+          className="text-muted-foreground hidden max-w-48 items-center gap-1 text-xs sm:flex"
+          title={props.repos
+            .map((repo) =>
+              repo.path === ''
+                ? (repo.branch ?? 'detached')
+                : `${repo.path}: ${repo.branch ?? 'detached'}`
+            )
+            .join('\n')}
+        >
+          <HugeiconsIcon icon={GitBranchIcon} className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {branches.length === 1
+              ? branches[0]
+              : `${branches.length} branches`}
+          </span>
         </span>
-      </span>
+      )}
       <div className="flex w-fit">
         <Button
           variant="outline"
@@ -124,31 +161,28 @@ export function GitActions(props: {
           <HugeiconsIcon icon={GitCommitHorizontalIcon} />
           <span className="hidden sm:inline">Commit</span>
         </Button>
-        <div className="bg-input dark:bg-input/32 w-px" />
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
               size="icon-xs"
-              className="rounded-s-none border-s-0"
+              className="rounded-s-none"
               aria-label="Git actions"
             >
               <HugeiconsIcon
-                icon={pushing ? CircleDashedIcon : ChevronDownIcon}
-                className={cn('size-4', pushing && 'animate-spin')}
+                icon={
+                  pushing || committing ? CircleDashedIcon : ChevronDownIcon
+                }
+                className={cn(
+                  'size-4',
+                  (pushing || committing) && 'animate-spin'
+                )}
               />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem
-              disabled={eligible(props.repos, 'commit').length === 0}
-              onSelect={() => setAction('commit')}
-            >
-              <HugeiconsIcon icon={GitCommitHorizontalIcon} />
-              Commit…
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={pushable.length === 0 || pushing}
+              disabled={pushable.length === 0 || pushing || committing}
               onSelect={(event) => {
                 if (pushable.length === 1) {
                   event.preventDefault()
@@ -162,12 +196,29 @@ export function GitActions(props: {
                 icon={pushing ? CircleDashedIcon : CloudUploadIcon}
                 className={cn(pushing && 'animate-spin')}
               />
-              {pushing ? 'Pushing…' : pushable.length > 1 ? 'Push…' : 'Push'}
+              {pushing
+                ? 'Pushing…'
+                : pushable.length > 1
+                  ? 'Just Push…'
+                  : 'Just Push'}
               {unpushed > 0 && (
                 <span className="text-muted-foreground ml-auto text-xs tabular-nums">
                   ↑{unpushed}
                 </span>
               )}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={committable.length === 0 || pushing || committing}
+              onSelect={(event) => {
+                event.preventDefault()
+                void yoloCommit()
+              }}
+            >
+              <HugeiconsIcon
+                icon={committing ? CircleDashedIcon : GitCommitHorizontalIcon}
+                className={cn(committing && 'animate-spin')}
+              />
+              {committing ? 'Committing…' : 'Yolo Commit'}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

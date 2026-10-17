@@ -98,6 +98,26 @@ export async function push(cwd: string) {
   }
 }
 
+export async function localBranches(cwd: string) {
+  return (
+    await git(cwd, [
+      'branch',
+      '--sort=-committerdate',
+      '--format=%(refname:short)',
+    ])
+  ).stdout
+    .split('\n')
+    .filter(Boolean)
+}
+
+export async function switchBranch(
+  cwd: string,
+  branch: string,
+  create: boolean
+) {
+  await git(cwd, create ? ['switch', '--create', branch] : ['switch', branch])
+}
+
 export async function pullRequestBranches(cwd: string) {
   const head = (await gitStatus(cwd)).branch
   if (head === null) {

@@ -475,6 +475,14 @@ export type Methods = {
     params: { projectId: string; repo: string }
     result: PullRequestBranches
   }
+  'git.localBranches': {
+    params: { projectId: string; repo: string }
+    result: string[]
+  }
+  'git.switch': {
+    params: { projectId: string; repo: string; branch: string; create: boolean }
+    result: null
+  }
   'git.pullRequest': {
     params: { projectId: string; repo: string; base: string; commit: boolean }
     result: PullRequestDraft

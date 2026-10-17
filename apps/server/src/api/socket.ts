@@ -26,10 +26,12 @@ import {
   commit,
   createPullRequest,
   gitRepos,
+  localBranches,
   preparePullRequest,
   projectDiff,
   pullRequestBranches,
   push,
+  switchBranch,
 } from '../services/git.ts'
 import {
   addProject,
@@ -247,6 +249,16 @@ const handlers: Handlers = {
   },
   'git.branches': (params) =>
     pullRequestBranches(path.join(projectPath(params.projectId), params.repo)),
+  'git.localBranches': (params) =>
+    localBranches(path.join(projectPath(params.projectId), params.repo)),
+  'git.switch': async (params) => {
+    await switchBranch(
+      path.join(projectPath(params.projectId), params.repo),
+      params.branch,
+      params.create
+    )
+    return null
+  },
   'git.pullRequest': (params) =>
     preparePullRequest(
       path.join(projectPath(params.projectId), params.repo),
