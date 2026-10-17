@@ -70,7 +70,6 @@ export type MachineSession = Session & { machine: string }
 
 export type State = {
   machines: Machine[]
-  home: string | null
   sessions: MachineSession[]
   projects: MachineProject[]
   prefs: Prefs
@@ -123,10 +122,6 @@ export function machineOf(state: State, id: string) {
   const machine = state.machines.find((item) => item.id === id)
   if (machine === undefined) throw new Error(`unknown machine ${id}`)
   return machine
-}
-
-export function homeMachine(state: State) {
-  return state.machines.find((item) => item.id === state.home)
 }
 
 export function projectOf(state: State, machine: string, projectId: string) {

@@ -1,4 +1,4 @@
-export const PROTOCOL = 3
+export const PROTOCOL = 4
 
 export type Provider = 'claude' | 'codex' | 'opencode'
 
@@ -340,6 +340,12 @@ export type PushSubscriptionInfo = {
   keys: { p256dh: string; auth: string }
 }
 
+export type PushRegistration = {
+  subscription: PushSubscriptionInfo
+  publicKey: string
+  privateKey: string
+}
+
 export type Methods = {
   ping: { params: void; result: null }
   sync: { params: void; result: Snapshot }
@@ -464,8 +470,7 @@ export type Methods = {
     params: { projectId: string }
     result: { message: string }
   }
-  'push.key': { params: void; result: { publicKey: string } }
-  'push.subscribe': { params: PushSubscriptionInfo; result: null }
+  'push.subscribe': { params: PushRegistration; result: null }
   'push.unsubscribe': { params: { endpoint: string }; result: null }
   terminal: { params: TerminalRequest; result: null }
   'terminal.shells': { params: void; result: Shell[] }

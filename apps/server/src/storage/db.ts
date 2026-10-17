@@ -4,7 +4,6 @@ import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { drizzle } from 'drizzle-orm/node-sqlite'
 import { migrate } from 'drizzle-orm/node-sqlite/migrator'
-import webPush from 'web-push'
 import { serverDir } from '../args.ts'
 import { machine } from './schema.ts'
 import { home } from './storage.ts'
@@ -28,14 +27,7 @@ migrate(db, { migrationsFolder: path.join(serverDir, 'drizzle') })
 db.transaction(
   (tx) => {
     if (tx.select().from(machine).get() !== undefined) return
-    const keys = webPush.generateVAPIDKeys()
-    tx.insert(machine)
-      .values({
-        id: randomUUID(),
-        pushPublicKey: keys.publicKey,
-        pushPrivateKey: keys.privateKey,
-      })
-      .run()
+    tx.insert(machine).values({ id: randomUUID() }).run()
   },
   { behavior: 'immediate' }
 )

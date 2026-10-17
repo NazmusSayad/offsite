@@ -25,8 +25,6 @@ export type StoredMachine = {
 const storageKey = 'machines'
 const PROBE_TIMEOUT = 5000
 
-export const home = location.origin
-
 export function loadMachines(): StoredMachine[] {
   const raw = localStorage.getItem(storageKey)
   return raw === null ? [] : JSON.parse(raw)
@@ -36,14 +34,19 @@ export function saveMachines(machines: StoredMachine[]) {
   localStorage.setItem(storageKey, JSON.stringify(machines))
 }
 
-async function shareWithWorker(token: string | null) {
+async function shareWithWorker(machines: StoredMachine[]) {
   if (!('caches' in window)) return
-  const params = new URLSearchParams({
-    protocol: String(PROTOCOL),
-    ...(token !== null && { token }),
-  })
+  const shared = machines.map((machine) => ({
+    addresses: machine.addresses,
+    query: String(
+      new URLSearchParams({
+        protocol: String(PROTOCOL),
+        ...(machine.token !== null && { token: machine.token }),
+      })
+    ),
+  }))
   const cache = await caches.open('offsite-worker')
-  await cache.put('/connection', new Response(String(params)))
+  await cache.put('/machines', new Response(JSON.stringify(shared)))
 }
 
 export async function probeMachine(address: string) {
@@ -57,13 +60,12 @@ export async function probeMachine(address: string) {
   }
   if (!response.ok)
     throw new Error(`${new URL(address).host} answered ${response.status}`)
-  const server: { machineId?: unknown; serving?: unknown } =
-    await response.json()
+  const server: { machineId?: unknown } = await response.json()
   if (typeof server.machineId !== 'string')
     throw new Error(
       `${new URL(address).host} runs a version of offsite that this page cannot talk to`
     )
-  return { id: server.machineId, serving: server.serving === true }
+  return { id: server.machineId }
 }
 
 export function pairingFromUrl() {
@@ -71,10 +73,10 @@ export function pairingFromUrl() {
   const params = new URLSearchParams(location.hash.slice(1))
   history.replaceState(null, '', '/')
   const machine = params.get('machine')
-  const address = machine === null ? home : readMachineLink(machine).address
+  if (machine === null) throw new Error('the pairing link has no machine')
   const fallback = params.get('fallback')
   return {
-    address,
+    address: readMachineLink(machine).address,
     fallback: fallback === null ? null : readMachineLink(fallback).address,
     token: params.get('token'),
   }
@@ -204,7 +206,6 @@ export async function addMachine(
   })
   persistMachines()
   connectMachine(id, addresses, token)
-  if (id === getState().home) shareToken(token)
   return id
 }
 
@@ -239,13 +240,11 @@ export function editMachine(
     next.token !== known.token
   )
     reconnectMachine(id)
-  if (id === getState().home && next.token !== known.token)
-    shareToken(next.token)
 }
 
-export function shareToken(token: string | null) {
-  shareWithWorker(token).catch((error: unknown) =>
-    console.error('could not share the token with the service worker', error)
+export function shareMachines(machines: StoredMachine[]) {
+  shareWithWorker(machines).catch((error: unknown) =>
+    console.error('could not share the machines with the service worker', error)
   )
 }
 
@@ -280,23 +279,23 @@ function forgetMachine(id: string) {
 
 export function persistMachines() {
   const state = getState()
-  saveMachines(
-    state.machines.map((machine) => ({
-      id: machine.id,
-      addresses: machine.addresses,
-      name: machine.hostname,
-      label: machine.label,
-      icon: machine.icon,
-      token: machine.token,
-      pairedAt: machine.pairedAt,
-      projects: state.projects
-        .filter((project) => project.machine === machine.id)
-        .map((project) => ({
-          id: project.id,
-          path: project.path,
-          name: project.name,
-          logo: project.logo,
-        })),
-    }))
-  )
+  const machines = state.machines.map((machine) => ({
+    id: machine.id,
+    addresses: machine.addresses,
+    name: machine.hostname,
+    label: machine.label,
+    icon: machine.icon,
+    token: machine.token,
+    pairedAt: machine.pairedAt,
+    projects: state.projects
+      .filter((project) => project.machine === machine.id)
+      .map((project) => ({
+        id: project.id,
+        path: project.path,
+        name: project.name,
+        logo: project.logo,
+      })),
+  }))
+  saveMachines(machines)
+  shareMachines(machines)
 }

@@ -1,11 +1,15 @@
 import type { PushSubscriptionInfo } from '@offsite/core/protocol'
-import { call } from '@/api/connection'
+import { call, isConnected } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { providerNames } from './format'
 import { openSession } from './sessions'
-import { getState, homeMachine } from './store'
+import { getState } from './store'
+
+type PushKeys = { publicKey: string; privateKey: string }
 
 const storageKey = 'notifications'
+
+let pushWork: Promise<unknown> = Promise.resolve()
 
 export function notificationPermission() {
   if (!window.isSecureContext) return 'insecure'
@@ -123,53 +127,85 @@ export async function subscribePush() {
   if (Notification.permission === 'default')
     await Notification.requestPermission()
   if (Notification.permission !== 'granted') return false
-  await resubscribePush(await pushKey())
+  await queuePush(resubscribePush)
   return true
 }
 
-async function pushKey() {
-  const key = await call(pushMachine(), 'push.key', undefined)
-  return key.publicKey
+export function unsubscribePush() {
+  return queuePush(removeSubscription)
 }
 
-async function resubscribePush(key: string) {
-  await unsubscribePush()
+export function refreshPushSubscription(machine: string) {
+  return queuePush(async () => {
+    if (pushSupport() !== 'supported') return
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.getSubscription()
+    if (!subscription) return
+    const keys = await pushKeys()
+    const current = subscription.options.applicationServerKey
+    if (current !== null && base64Url(current) === keys.publicKey)
+      await savePushSubscription(machine, subscription, keys)
+    else await resubscribePush()
+  })
+}
+
+function queuePush<T>(work: () => Promise<T>) {
+  const next = pushWork.then(work)
+  pushWork = next.catch(() => undefined)
+  return next
+}
+
+async function resubscribePush() {
+  await removeSubscription()
+  const keys = await pushKeys()
   const registration = await navigator.serviceWorker.ready
-  await savePushSubscription(
-    await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: key,
-    })
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: keys.publicKey,
+  })
+  await Promise.all(
+    connectedMachines().map((machine) =>
+      savePushSubscription(machine, subscription, keys)
+    )
   )
 }
 
-export async function unsubscribePush() {
+async function removeSubscription() {
   const registration = await navigator.serviceWorker.ready
   const subscription = await registration.pushManager.getSubscription()
   if (!subscription) return
-  await call(pushMachine(), 'push.unsubscribe', {
-    endpoint: subscription.endpoint,
-  })
+  await Promise.all(
+    connectedMachines().map((machine) =>
+      call(machine, 'push.unsubscribe', { endpoint: subscription.endpoint })
+    )
+  )
   await subscription.unsubscribe()
 }
 
-export async function refreshPushSubscription() {
-  if (pushSupport() !== 'supported') return
-  const registration = await navigator.serviceWorker.ready
-  const subscription = await registration.pushManager.getSubscription()
-  if (!subscription) return
-  const key = await pushKey()
-  const current = subscription.options.applicationServerKey
-  if (current !== null && base64Url(current) === key)
-    await savePushSubscription(subscription)
-  else await resubscribePush(key)
+async function pushKeys(): Promise<PushKeys> {
+  const cache = await caches.open('offsite-worker')
+  const stored = await cache.match('/push-keys')
+  if (stored !== undefined) return await stored.json()
+  const pair = await crypto.subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    true,
+    ['sign', 'verify']
+  )
+  const privateKey = (await crypto.subtle.exportKey('jwk', pair.privateKey)).d
+  if (privateKey === undefined)
+    throw new Error('the browser did not export the push key')
+  const keys = {
+    publicKey: base64Url(await crypto.subtle.exportKey('raw', pair.publicKey)),
+    privateKey,
+  }
+  await cache.put('/push-keys', new Response(JSON.stringify(keys)))
+  return keys
 }
 
-function pushMachine() {
-  const machine = homeMachine(getState())
-  if (machine === undefined)
-    throw new Error('the machine serving this page is not added yet')
-  return machine.id
+function connectedMachines() {
+  return getState()
+    .machines.filter((machine) => isConnected(machine.id))
+    .map((machine) => machine.id)
 }
 
 function base64Url(buffer: ArrayBuffer) {
@@ -179,10 +215,13 @@ function base64Url(buffer: ArrayBuffer) {
     .replace(/=+$/, '')
 }
 
-async function savePushSubscription(subscription: PushSubscription) {
-  await call(
-    pushMachine(),
-    'push.subscribe',
-    subscription.toJSON() as PushSubscriptionInfo
-  )
+async function savePushSubscription(
+  machine: string,
+  subscription: PushSubscription,
+  keys: PushKeys
+) {
+  await call(machine, 'push.subscribe', {
+    subscription: subscription.toJSON() as PushSubscriptionInfo,
+    ...keys,
+  })
 }

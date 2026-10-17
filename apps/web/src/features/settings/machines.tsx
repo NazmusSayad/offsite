@@ -10,9 +10,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { Reorder, useDragControls } from 'motion/react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import {
-  addMachine,
   editMachine,
-  home,
   readMachineLink,
   reconnectMachine,
   removeMachine,
@@ -33,7 +31,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
 import { fullTime, providerNames } from '@/lib/format'
-import { type Machine, showError, update, useStore } from '@/lib/store'
+import { type Machine, update, useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 import { Row, Section, TextInput } from './controls'
 
@@ -49,8 +47,6 @@ const statuses = {
 
 export function MachinesPage() {
   const machines = useStore((state) => state.machines)
-  const servingMachine = useStore((state) => state.home)
-  const homeAddress = home
   const edited = useStore((state) =>
     state.machines.find((item) => item.id === state.settingsEditedMachine)
   )
@@ -74,14 +70,7 @@ export function MachinesPage() {
               className="text-muted-foreground size-5 shrink-0"
             />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-medium">{machine.name}</p>
-                {machine.id === servingMachine && (
-                  <span className="bg-muted text-muted-foreground shrink-0 rounded px-1 py-px text-[10px] leading-4 font-medium">
-                    Owner
-                  </span>
-                )}
-              </div>
+              <p className="truncate text-sm font-medium">{machine.name}</p>
               {machine.addresses.map((address) => (
                 <p
                   key={address}
@@ -133,21 +122,6 @@ export function MachinesPage() {
         ))}
       </Section>
       <div className="flex gap-2">
-        {!machines.some((machine) =>
-          machine.addresses.includes(homeAddress)
-        ) && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              addMachine(homeAddress, null, null).catch((error: unknown) =>
-                showError(error)
-              )
-            }
-          >
-            Add built-in server
-          </Button>
-        )}
         <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
           Add machine…
         </Button>

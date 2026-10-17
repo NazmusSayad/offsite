@@ -1,7 +1,7 @@
-import type { PushSubscriptionInfo, TerminalPush } from '@offsite/core/protocol'
+import type { PushRegistration, TerminalPush } from '@offsite/core/protocol'
 import { and, eq, inArray } from 'drizzle-orm'
 import webPush from 'web-push'
-import { db, machineInfo } from '../storage/db.ts'
+import { db } from '../storage/db.ts'
 import { pushSubscriptions } from '../storage/schema.ts'
 
 const TITLE_LIMIT = 100
@@ -20,18 +20,16 @@ export function pushActive() {
   return ours().length > 0
 }
 
-export function pushKey() {
-  return { publicKey: machineInfo().pushPublicKey }
-}
-
-export function subscribe(subscription: PushSubscriptionInfo) {
-  const endpoint = new URL(subscription.endpoint)
+export function subscribe(registration: PushRegistration) {
+  const endpoint = new URL(registration.subscription.endpoint)
   if (endpoint.protocol !== 'https:')
     throw new Error('the endpoint must be an https URL')
   const values = {
-    endpoint: subscription.endpoint,
-    p256dh: subscription.keys.p256dh,
-    auth: subscription.keys.auth,
+    endpoint: registration.subscription.endpoint,
+    p256dh: registration.subscription.keys.p256dh,
+    auth: registration.subscription.keys.auth,
+    publicKey: registration.publicKey,
+    privateKey: registration.privateKey,
     server,
   }
   db.insert(pushSubscriptions)
@@ -51,7 +49,6 @@ export function unsubscribe(endpoint: string) {
 export async function sendPush(message: TerminalPush) {
   const subscriptions = ours()
   if (subscriptions.length === 0) return
-  const keys = machineInfo()
   const payload = JSON.stringify({
     ...message,
     title: [...message.title].slice(0, TITLE_LIMIT).join(''),
@@ -70,8 +67,8 @@ export async function sendPush(message: TerminalPush) {
           {
             vapidDetails: {
               subject: SUBJECT,
-              publicKey: keys.pushPublicKey,
-              privateKey: keys.pushPrivateKey,
+              publicKey: subscription.publicKey,
+              privateKey: subscription.privateKey,
             },
             TTL: TIME_TO_LIVE,
             urgency: 'high',

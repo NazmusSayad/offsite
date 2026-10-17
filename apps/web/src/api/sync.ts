@@ -12,13 +12,12 @@ import {
   refreshCapabilities,
   setAccounts,
 } from '@/lib/accounts'
-import { notify, push, refreshPushSubscription } from '@/lib/notifications'
+import { notify, push } from '@/lib/notifications'
 import { loadPrefs } from '@/lib/prefs'
 import {
   createAppStore,
   draftKey,
   getState,
-  homeMachine,
   machineOf,
   setMachine,
   showError,
@@ -30,16 +29,14 @@ import { call, connectMachine, listen } from './connection'
 import { receiveConfig } from './machine-config'
 import {
   addMachine,
-  home,
   loadMachines,
   machineKey,
   pairingFromUrl,
   persistMachines,
-  probeMachine,
   receiveMachines,
   restoreMachine,
   restoreProjects,
-  shareToken,
+  shareMachines,
 } from './machines'
 
 export function start() {
@@ -47,7 +44,6 @@ export function start() {
   const selection = selectionFromUrl(stored.map((machine) => machine.id))
   createAppStore({
     machines: stored.map(restoreMachine),
-    home: null,
     sessions: [],
     projects: stored.flatMap(restoreProjects),
     prefs: loadPrefs(),
@@ -95,6 +91,7 @@ export function start() {
   })
   for (const machine of stored)
     connectMachine(machine.id, machine.addresses, machine.token)
+  shareMachines(stored)
   void attach()
 }
 
@@ -103,22 +100,6 @@ async function attach() {
     const pairing = pairingFromUrl()
     if (pairing !== null)
       await addMachine(pairing.address, pairing.fallback, pairing.token)
-  } catch (error) {
-    showError(error)
-  }
-  try {
-    const server = await probeMachine(home)
-    if (!server.serving)
-      throw new Error(`${new URL(home).host} does not say it serves this page`)
-    update({ home: server.id })
-    if (getState().machines.length === 0) await addMachine(home, null, null)
-    const machine = homeMachine(getState())
-    if (machine === undefined) return
-    shareToken(machine.token)
-    if (machine.via !== null)
-      refreshPushSubscription().catch((error: unknown) =>
-        console.error('could not refresh the push subscription', error)
-      )
   } catch (error) {
     showError(error)
   }

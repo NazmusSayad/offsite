@@ -45,31 +45,51 @@ self.addEventListener('pushsubscriptionchange', (event) => {
 })
 
 async function renewSubscription(event) {
-  if (event.oldSubscription)
-    await call('push.unsubscribe', {
-      endpoint: event.oldSubscription.endpoint,
+  const keys = await stored('/push-keys')
+  if (!keys) return
+  const machines = (await stored('/machines')) ?? []
+  const subscription =
+    event.newSubscription ??
+    (await self.registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: keys.publicKey,
+    }))
+  await Promise.allSettled(
+    machines.map(async (machine) => {
+      if (event.oldSubscription)
+        await call(machine, 'push.unsubscribe', {
+          endpoint: event.oldSubscription.endpoint,
+        })
+      await call(machine, 'push.subscribe', {
+        subscription: subscription.toJSON(),
+        ...keys,
+      })
     })
-  const subscription = event.newSubscription ?? (await subscribeWithServerKey())
-  await call('push.subscribe', subscription.toJSON())
+  )
 }
 
-async function subscribeWithServerKey() {
-  const key = await call('push.key')
-  return self.registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: key.publicKey,
-  })
-}
-
-async function call(method, params) {
+async function stored(path) {
   const cache = await caches.open('offsite-worker')
-  const connection = await cache.match('/connection')
-  if (!connection)
-    throw new Error('the page has not shared its connection details')
-  const query = await connection.text()
+  const response = await cache.match(path)
+  return response ? response.json() : null
+}
+
+async function call(machine, method, params) {
+  let failure
+  for (const address of machine.addresses) {
+    try {
+      return await callAddress(address, machine.query, method, params)
+    } catch (error) {
+      failure ??= error
+    }
+  }
+  throw failure
+}
+
+function callAddress(address, query, method, params) {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(
-      `${self.location.protocol === 'https:' ? 'wss' : 'ws'}://${self.location.host}/ws?${query}`
+      `${address.replace(/^http/, 'ws')}/ws?${query}`
     )
     socket.onopen = () => socket.send(JSON.stringify({ id: 1, method, params }))
     socket.onmessage = (event) => {

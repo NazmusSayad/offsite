@@ -85,9 +85,6 @@ const server = createServer((request, response) => {
         protocol: PROTOCOL,
         machineId: machineInfo().id,
         authorized: authorized(url),
-        serving:
-          args.command === 'web' &&
-          request.headers['sec-fetch-site'] === 'same-origin',
       })
     )
     return
@@ -209,10 +206,10 @@ function readFallback(link: string) {
 
 function pairingLinks(token: string | null) {
   return {
-    local:
-      token === null
-        ? address
-        : `${address}/pair#${new URLSearchParams({ token })}`,
+    local: `${address}/pair#${new URLSearchParams({
+      machine: address,
+      ...(token !== null && { token }),
+    })}`,
   }
 }
 

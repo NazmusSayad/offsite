@@ -42,7 +42,7 @@ import {
   removeProject,
   updateProject,
 } from '../services/projects.ts'
-import { pushKey, subscribe, unsubscribe } from '../services/push.ts'
+import { subscribe, unsubscribe } from '../services/push.ts'
 import { open, rewind, send } from '../services/runs.ts'
 import {
   fork,
@@ -237,7 +237,6 @@ const handlers: Handlers = {
     createPullRequest(projectPath(params.projectId)),
   'git.message': (params) =>
     suggestCommitMessage(projectPath(params.projectId)),
-  'push.key': () => pushKey(),
   'push.subscribe': (params) => {
     subscribe(params)
     return null
