@@ -88,10 +88,11 @@ export async function revertThread(sessionId: string, messageId: string) {
   })
 }
 
-export async function codexCommitMessage(
+export async function codexText(
   accountId: string | null,
   cwd: string,
   model: string,
+  instructions: string,
   prompt: string
 ) {
   const server = appServer(
@@ -103,7 +104,7 @@ export async function codexCommitMessage(
     ephemeral: true,
     approvalPolicy: 'never',
     sandbox: 'read-only',
-    developerInstructions: 'You write concise git commit messages.',
+    developerInstructions: instructions,
   })
   const threadId = started.thread.id
   const reply = Promise.withResolvers<string>()
@@ -136,7 +137,7 @@ export async function codexCommitMessage(
       input: [{ type: 'text', text: prompt, text_elements: [] }],
       model,
     })
-    return { message: await reply.promise }
+    return await reply.promise
   } finally {
     server.threads.delete(threadId)
     await server.request('thread/unsubscribe', { threadId })

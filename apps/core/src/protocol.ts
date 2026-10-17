@@ -1,3 +1,4 @@
+import type { GitRepo, PullRequestBranches, PullRequestDraft } from './git.ts'
 import type {
   BusyResult,
   Shell,
@@ -140,14 +141,6 @@ export type RewindResult = {
   insertions: number
   deletions: number
 } | null
-
-export type GitStatus = {
-  branch: string | null
-  upstream: string | null
-  ahead: number
-  behind: number
-  changed: number
-}
 
 export type FilePreview =
   | { kind: 'text'; size: number; content: string }
@@ -471,20 +464,31 @@ export type Methods = {
     params: { sessionId: string; path: string }
     result: { text: string; truncated: boolean } | null
   }
-  'git.status': { params: { projectId: string }; result: GitStatus | null }
+  'git.status': { params: { projectId: string }; result: GitRepo[] }
   'git.diff': { params: { projectId: string }; result: string }
   'git.commit': {
-    params: { projectId: string; message: string }
-    result: GitStatus | null
-  }
-  'git.push': { params: { projectId: string }; result: GitStatus | null }
-  'git.pullRequest': {
-    params: { projectId: string }
-    result: { url: string }
-  }
-  'git.message': {
-    params: { projectId: string }
+    params: { projectId: string; repo: string; message: string; push: boolean }
     result: { message: string }
+  }
+  'git.push': { params: { projectId: string; repo: string }; result: null }
+  'git.branches': {
+    params: { projectId: string; repo: string }
+    result: PullRequestBranches
+  }
+  'git.pullRequest': {
+    params: { projectId: string; repo: string; base: string; commit: boolean }
+    result: PullRequestDraft
+  }
+  'git.createPullRequest': {
+    params: {
+      projectId: string
+      repo: string
+      base: string
+      head: string
+      title: string
+      body: string
+    }
+    result: { url: string }
   }
   'push.subscribe': { params: PushRegistration; result: null }
   'push.unsubscribe': { params: { endpoint: string }; result: null }

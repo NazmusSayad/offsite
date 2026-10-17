@@ -205,12 +205,11 @@ export function App() {
                   `${machine.name} needs pairing`}
               </span>
             )}
-            {selection !== null && git.status !== null && (
+            {selection !== null && git.repos.length > 0 && (
               <GitActions
                 machine={selection.machine}
                 projectId={selection.projectId}
-                status={git.status}
-                onStatus={git.setStatus}
+                repos={git.repos}
                 onRefresh={git.refresh}
               />
             )}

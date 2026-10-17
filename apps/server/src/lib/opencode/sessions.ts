@@ -171,11 +171,7 @@ export async function rewindOpenCode(request: Rewind): Promise<RewindResult> {
   return result
 }
 
-export async function openCodeCommitMessage(
-  cwd: string,
-  model: string,
-  prompt: string
-) {
+export async function openCodeText(cwd: string, model: string, prompt: string) {
   const client = await openCode()
   const session = await client.session.create({
     location: { directory: cwd },
@@ -202,7 +198,7 @@ export async function openCodeCommitMessage(
         .join('')
         .trim()
       if (text !== '') {
-        return { message: text }
+        return text
       }
     }
     throw new Error('OpenCode did not reply')

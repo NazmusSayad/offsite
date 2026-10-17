@@ -1,4 +1,5 @@
 import os from 'node:os'
+import path from 'node:path'
 import { type Call, type Method, type Methods } from '@offsite/core/protocol'
 import type { WebSocket } from 'ws'
 import { agentMessages, earlier, image } from '../lib/claude/index.ts'
@@ -24,10 +25,11 @@ import {
 import {
   commit,
   createPullRequest,
-  gitStatus,
+  gitRepos,
+  preparePullRequest,
   projectDiff,
+  pullRequestBranches,
   push,
-  suggestCommitMessage,
 } from '../services/git.ts'
 import {
   addProject,
@@ -231,15 +233,31 @@ const handlers: Handlers = {
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
   'tasks.output': (params) => taskOutput(params.sessionId, params.path),
-  'git.status': (params) => gitStatus(projectPath(params.projectId)),
+  'git.status': (params) => gitRepos(projectPath(params.projectId)),
   'git.diff': (params) => projectDiff(projectPath(params.projectId)),
   'git.commit': (params) =>
-    commit(projectPath(params.projectId), params.message),
-  'git.push': (params) => push(projectPath(params.projectId)),
+    commit(
+      path.join(projectPath(params.projectId), params.repo),
+      params.message,
+      params.push
+    ),
+  'git.push': async (params) => {
+    await push(path.join(projectPath(params.projectId), params.repo))
+    return null
+  },
+  'git.branches': (params) =>
+    pullRequestBranches(path.join(projectPath(params.projectId), params.repo)),
   'git.pullRequest': (params) =>
-    createPullRequest(projectPath(params.projectId)),
-  'git.message': (params) =>
-    suggestCommitMessage(projectPath(params.projectId)),
+    preparePullRequest(
+      path.join(projectPath(params.projectId), params.repo),
+      params.base,
+      params.commit
+    ),
+  'git.createPullRequest': (params) =>
+    createPullRequest(
+      path.join(projectPath(params.projectId), params.repo),
+      params
+    ),
   'push.subscribe': (params, client) => {
     subscribe(params, client)
     return null
