@@ -321,11 +321,15 @@ export async function updateSession(id: string, patch: SessionPatch) {
   if (patch.status === 'inactive') {
     db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
   } else if (patch.status !== undefined) {
+    const set =
+      patch.status === 'active'
+        ? { status: patch.status, interactedAt: Date.now() }
+        : { status: patch.status }
     db.insert(sessionsTable)
-      .values({ sessionId: id, status: patch.status })
+      .values({ sessionId: id, ...set })
       .onConflictDoUpdate({
         target: sessionsTable.sessionId,
-        set: { status: patch.status },
+        set,
       })
       .run()
   }

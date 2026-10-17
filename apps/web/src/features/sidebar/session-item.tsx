@@ -9,6 +9,7 @@ import {
   PinIcon,
   PinOffIcon,
   Plug01Icon,
+  PlugZapIcon,
   ShieldQuestionMarkIcon,
   SquarePenIcon,
 } from '@hugeicons/core-free-icons'
@@ -106,7 +107,18 @@ export function SessionItem(props: {
           />
           {session.status === 'minimized' ? 'Restore' : 'Minimize'}
         </DropdownMenuItem>
-        {session.status !== 'inactive' && (
+        {session.status === 'inactive' ? (
+          <DropdownMenuItem
+            onSelect={() =>
+              void editSession(session.machine, session.id, {
+                status: 'active',
+              })
+            }
+          >
+            <HugeiconsIcon icon={PlugZapIcon} />
+            Make active
+          </DropdownMenuItem>
+        ) : (
           <DropdownMenuItem
             onSelect={() =>
               void editSession(session.machine, session.id, {

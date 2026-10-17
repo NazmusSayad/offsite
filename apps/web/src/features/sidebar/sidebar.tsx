@@ -232,7 +232,8 @@ export function Sidebar(props: {
             />
           </button>
         </li>
-        {open && items.map((session) => row(session, true))}
+        {open &&
+          items.map((session) => row(session, session.status === 'inactive'))}
       </>
     )
   }
