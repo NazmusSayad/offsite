@@ -1,10 +1,10 @@
+<img src="apps/web/public/icon-512.png" width="96" alt="OffSite logo">
+
 # OffSite
 
-Claude Code in your browser. It uses the same sessions as the CLI, so you can start in one and resume in the other.
+Claude Code, Codex and OpenCode in your browser. It uses the same sessions as their CLIs, so you can start in one and resume in the other.
 
 ## Usage
-
-Requires Node.js 24+ and [Claude Code](https://code.claude.com), installed and logged in.
 
 ```sh
 npx offsite
@@ -27,11 +27,12 @@ Then open the pairing link it prints. It pairs this browser with the server, so 
 | `--dir`     | `~/.offsite` | Folder for settings and accounts                             |
 | `--no-auth` | auth on      | Accept connections without the pairing token                 |
 | `--no-pair` | pair on      | Don't create a pairing token or print pairing links on start |
+| `--pwa`     | off          | Serve the web app as an installable app that works offline   |
 
 Pairing tokens stay in `tokens.json` inside `--dir`. A running OffSite disconnects an unpaired browser within seconds.
 
 > [!WARNING]
-> With `--no-auth`, anyone who can reach its port, including any website open in your browser, can run Claude Code and open a terminal on your machine.
+> With `--no-auth`, anyone who can reach its port, including any website open in your browser, can run your coding agents and open a terminal on your machine.
 
 Don't use the same session in OffSite and the CLI at the same time. Switching between them is fine.
 
