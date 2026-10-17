@@ -6,6 +6,7 @@ import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { readBase64, uploadFile } from '@/api/upload'
 import { Button } from '@/components/ui/button'
+import { ViewableImage } from '@/components/viewable-image'
 import { changeSettings } from '@/lib/accounts'
 import { interrupt, sendPrompt } from '@/lib/sessions'
 import {
@@ -277,10 +278,12 @@ export function Composer() {
                       key={index}
                       className="border-border/80 bg-background relative size-16 overflow-hidden rounded-lg border"
                     >
-                      <img
+                      <ViewableImage
                         src={`data:${image.mediaType};base64,${image.data}`}
                         alt=""
-                        className="size-full object-cover"
+                        name="Image"
+                        className="block size-full"
+                        imageClassName="size-full object-cover"
                       />
                       <button
                         className="absolute top-1 right-1 grid size-5 cursor-pointer place-items-center rounded-full bg-black/60 text-white"

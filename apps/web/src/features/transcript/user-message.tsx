@@ -9,6 +9,7 @@ import { call } from '@/api/connection'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
+import { ViewableImage } from '@/components/viewable-image'
 import type { RewindTarget } from '@/features/transcript/rewind-dialog'
 import type { UserItem } from '@/features/transcript/timeline'
 import { useCopy } from '@/lib/clipboard'
@@ -202,10 +203,12 @@ function PromptImage(props: {
     return null
   }
   return (
-    <img
+    <ViewableImage
       src={`data:${props.mediaType};base64,${data}`}
       alt=""
-      className="block size-full object-cover"
+      name="Image"
+      className="block size-full"
+      imageClassName="block size-full object-cover"
     />
   )
 }

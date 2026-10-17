@@ -2,19 +2,27 @@ import { AtIcon, CheckIcon, CopyIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { FilePreview as Preview } from '@offsite/core/protocol'
 import { File } from '@pierre/diffs/react'
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
-import { FileTypeIcon } from '@/components/file-icon'
 import { Markdown } from '@/components/markdown/markdown'
+import { PreviewDialog, PreviewHeader } from '@/components/preview-dialog'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { editDraft } from '@/features/composer/drafts'
 import { useCopy } from '@/lib/clipboard'
+import { mediaKind, mediaUrl } from '@/lib/media'
 import { useStore } from '@/lib/store'
 import { useCodeTheme } from '@/lib/theme'
 import { errorMessage } from '@/lib/utils'
 import diffCss from '@/features/git/diff.css?raw'
+
+const VideoPlayer = lazy(async () => ({
+  default: (await import('@/components/video-player')).VideoPlayer,
+}))
+
+const ZoomableImage = lazy(async () => ({
+  default: (await import('@/components/zoomable-image')).ZoomableImage,
+}))
 
 export function FilePreview(props: {
   machine: string
@@ -26,40 +34,38 @@ export function FilePreview(props: {
   const inserted = useRef(false)
 
   return (
-    <Dialog open={props.path !== null} onOpenChange={() => props.onClose()}>
-      <DialogContent
-        aria-describedby={undefined}
-        className="flex h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
-        onCloseAutoFocus={(event) => {
-          if (!inserted.current) {
-            return
-          }
-          inserted.current = false
-          event.preventDefault()
-          document.querySelector<HTMLElement>('[data-composer]')?.focus()
-        }}
-      >
-        {props.path !== null && (
-          <PreviewBody
-            key={props.path}
-            machine={props.machine}
-            projectId={props.projectId}
-            path={props.path}
-            onInsert={(path) => {
-              editDraft(
-                machineKey(props.machine, sessionId ?? props.projectId),
-                (current) => ({
-                  ...current,
-                  text: `${current.text}${/(^|\s)$/.test(current.text) ? '' : ' '}@${path} `,
-                })
-              )
-              inserted.current = true
-              props.onClose()
-            }}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+    <PreviewDialog
+      open={props.path !== null}
+      onClose={props.onClose}
+      onCloseAutoFocus={(event) => {
+        if (!inserted.current) {
+          return
+        }
+        inserted.current = false
+        event.preventDefault()
+        document.querySelector<HTMLElement>('[data-composer]')?.focus()
+      }}
+    >
+      {props.path !== null && (
+        <PreviewBody
+          key={props.path}
+          machine={props.machine}
+          projectId={props.projectId}
+          path={props.path}
+          onInsert={(path) => {
+            editDraft(
+              machineKey(props.machine, sessionId ?? props.projectId),
+              (current) => ({
+                ...current,
+                text: `${current.text}${/(^|\s)$/.test(current.text) ? '' : ' '}@${path} `,
+              })
+            )
+            inserted.current = true
+            props.onClose()
+          }}
+        />
+      )}
+    </PreviewDialog>
   )
 }
 
@@ -69,40 +75,46 @@ function PreviewBody(props: {
   path: string
   onInsert: (path: string) => void
 }) {
+  const kind = mediaKind(props.path)
   const [preview, setPreview] = useState<Preview | null>(null)
+  const [media, setMedia] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const clipboard = useCopy()
   const codeTheme = useCodeTheme()
 
   useEffect(() => {
     let current = true
-    call(props.machine, 'files.read', {
-      projectId: props.projectId,
-      path: props.path,
-    }).then(
-      (result) => {
-        if (current) {
-          setPreview(result)
+    async function load() {
+      try {
+        if (kind === null) {
+          const result = await call(props.machine, 'files.read', {
+            projectId: props.projectId,
+            path: props.path,
+          })
+          if (current) {
+            setPreview(result)
+          }
+          return
         }
-      },
-      (caught: unknown) => {
+        const src = await mediaUrl(props.machine, props.projectId, props.path)
+        if (current) {
+          setMedia(src)
+        }
+      } catch (caught) {
         if (current) {
           setError(errorMessage(caught))
         }
       }
-    )
+    }
+    void load()
     return () => {
       current = false
     }
-  }, [props.machine, props.projectId, props.path])
+  }, [kind, props.machine, props.projectId, props.path])
 
   return (
     <>
-      <div className="border-border/60 flex h-11 shrink-0 items-center gap-2 border-b pr-12 pl-4">
-        <FileTypeIcon path={props.path} className="size-3.5" />
-        <DialogTitle className="min-w-0 truncate font-mono text-xs font-normal">
-          {props.path}
-        </DialogTitle>
+      <PreviewHeader title={props.path}>
         <Button
           size="icon-sm"
           variant="ghost"
@@ -129,14 +141,14 @@ function PreviewBody(props: {
             {formatSize(preview.size)}
           </span>
         )}
-      </div>
+      </PreviewHeader>
       <div className="min-h-0 flex-1 overflow-auto [--code-background:var(--popover)]">
         {error !== null && (
           <p className="text-muted-foreground p-6 text-center text-xs">
             {error}
           </p>
         )}
-        {error === null && preview === null && (
+        {error === null && preview === null && media === null && (
           <p className="text-muted-foreground p-6 text-center text-xs">
             Loading…
           </p>
@@ -152,17 +164,32 @@ function PreviewBody(props: {
             Binary file ({formatSize(preview.size)}), no preview.
           </p>
         )}
-        {preview?.kind === 'image' && (
-          <div className="grid min-h-full place-items-center p-6">
-            <img
-              src={`data:${preview.mediaType};base64,${preview.data}`}
-              alt={props.path}
-              className="max-h-full max-w-full object-contain"
+        {media !== null && kind === 'image' && (
+          <Suspense>
+            <ZoomableImage src={media} alt={props.path} />
+          </Suspense>
+        )}
+        {media !== null && kind === 'video' && (
+          <Suspense>
+            <VideoPlayer src={media} label={props.path} />
+          </Suspense>
+        )}
+        {media !== null && kind === 'audio' && (
+          <div className="grid size-full place-items-center p-6">
+            <audio
+              src={media}
+              aria-label={props.path}
+              controls
+              preload="metadata"
+              className="w-full max-w-md"
             />
           </div>
         )}
         {preview?.kind === 'text' && /\.(md|markdown)$/i.test(props.path) && (
-          <Markdown text={preview.content} className="px-8 py-6" />
+          <Markdown
+            text={preview.content}
+            className="mx-auto max-w-(--chat-content-max-width) px-8 py-6"
+          />
         )}
         {preview?.kind === 'text' && !/\.(md|markdown)$/i.test(props.path) && (
           <File

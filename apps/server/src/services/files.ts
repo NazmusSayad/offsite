@@ -1,56 +1,72 @@
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import {
+  existsSync,
   mkdirSync,
-  readdirSync,
   readFileSync,
   realpathSync,
   statSync,
   writeFileSync,
 } from 'node:fs'
-import { lstat, open } from 'node:fs/promises'
+import { lstat, open, readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
+import { mediaTypes } from '@offsite/core/media'
 import type { FilePreview } from '@offsite/core/protocol'
 import { hasCode, home } from '../storage/storage.ts'
-import { git } from './git.ts'
 
 const FILE_LIMIT = 20_000
 const OUTPUT_LIMIT = 256 * 1024
 const READ_LIMIT = 1024 * 1024
-const images = new Map([
-  ['.png', 'image/png'],
-  ['.jpg', 'image/jpeg'],
-  ['.jpeg', 'image/jpeg'],
-  ['.gif', 'image/gif'],
-  ['.webp', 'image/webp'],
-  ['.svg', 'image/svg+xml'],
+const MEDIA_LINK_LIFETIME = 60 * 60_000
+const mediaLinks = new Map<
+  string,
+  { file: string; mediaType: string; expiresAt: number }
+>()
+const skipped = new Set([
+  'node_modules',
+  '.git',
+  '.DS_Store',
+  'dist',
+  'target',
+  '.next',
+  '__pycache__',
+  '.venv',
 ])
-const skipped = new Set(['node_modules', '.git', 'dist', 'target', '.next'])
 
 export async function listFiles(cwd: string) {
-  try {
-    const { stdout } = await git(cwd, [
-      'ls-files',
-      '--cached',
-      '--others',
-      '--exclude-standard',
-    ])
-    return stdout.split('\n').filter(Boolean).slice(0, FILE_LIMIT)
-  } catch {
-    return walk(cwd)
+  const files: string[] = []
+  const pending = ['']
+  while (pending.length > 0 && files.length < FILE_LIMIT) {
+    const dir = pending.pop() ?? ''
+    let entries
+    try {
+      entries = await readdir(path.join(cwd, dir), { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const entry of entries) {
+      if (skipped.has(entry.name)) {
+        continue
+      }
+      const relative = dir === '' ? entry.name : `${dir}/${entry.name}`
+      if (entry.isDirectory()) {
+        pending.push(relative)
+      }
+      if (entry.isFile()) {
+        files.push(relative)
+      }
+      if (entry.isSymbolicLink()) {
+        const target = await stat(path.join(cwd, relative)).catch(() => null)
+        if (target?.isFile() === true) {
+          files.push(relative)
+        }
+      }
+    }
   }
+  return files.slice(0, FILE_LIMIT).sort()
 }
 
 export function readProjectFile(cwd: string, file: string): FilePreview {
-  const root = realpathSync(cwd)
-  const full = realpathSync(path.resolve(root, file))
-  const relative = path.relative(root, full)
-  if (
-    relative === '..' ||
-    relative.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(relative)
-  ) {
-    throw new Error(`${file} is outside the project`)
-  }
+  const full = resolveProjectFile(cwd, file)
   const stats = statSync(full)
   if (!stats.isFile()) {
     throw new Error(`${file} is not a file`)
@@ -59,8 +75,8 @@ export function readProjectFile(cwd: string, file: string): FilePreview {
     return { kind: 'large', size: stats.size, limit: READ_LIMIT }
   }
   const data = readFileSync(full)
-  const mediaType = images.get(path.extname(full).toLowerCase())
-  if (mediaType !== undefined) {
+  const mediaType = mediaTypes.get(path.extname(full).toLowerCase())
+  if (mediaType?.startsWith('image/') === true) {
     return {
       kind: 'image',
       size: stats.size,
@@ -72,6 +88,37 @@ export function readProjectFile(cwd: string, file: string): FilePreview {
     return { kind: 'binary', size: stats.size }
   }
   return { kind: 'text', size: stats.size, content: data.toString('utf8') }
+}
+
+export function linkProjectMedia(cwd: string, file: string) {
+  const full = resolveProjectFile(cwd, file)
+  const mediaType = mediaTypes.get(path.extname(full).toLowerCase())
+  if (mediaType === undefined) {
+    throw new Error(`${file} is not an image, video or audio file`)
+  }
+  for (const [token, link] of mediaLinks) {
+    if (link.expiresAt <= Date.now()) {
+      mediaLinks.delete(token)
+    }
+  }
+  const token = randomBytes(32).toString('base64url')
+  mediaLinks.set(token, {
+    file: full,
+    mediaType,
+    expiresAt: Date.now() + MEDIA_LINK_LIFETIME,
+  })
+  return token
+}
+
+export function findMediaLink(token: string | null) {
+  if (token === null) {
+    return null
+  }
+  const link = mediaLinks.get(token)
+  if (link === undefined || link.expiresAt <= Date.now()) {
+    return null
+  }
+  return link
 }
 
 export function saveUpload(name: string, data: Buffer) {
@@ -120,26 +167,20 @@ export async function taskOutput(sessionId: string, file: string) {
   }
 }
 
-function walk(root: string) {
-  const files: string[] = []
-  const pending = ['']
-  while (pending.length > 0 && files.length < FILE_LIMIT) {
-    const dir = pending.pop() ?? ''
-    let entries
-    try {
-      entries = readdirSync(path.join(root, dir), { withFileTypes: true })
-    } catch {
-      continue
-    }
-    for (const entry of entries) {
-      const relative = dir === '' ? entry.name : `${dir}/${entry.name}`
-      if (entry.isDirectory() && !skipped.has(entry.name)) {
-        pending.push(relative)
-      }
-      if (entry.isFile()) {
-        files.push(relative)
-      }
-    }
+function resolveProjectFile(cwd: string, file: string) {
+  const root = realpathSync(cwd)
+  const resolved = path.resolve(root, file)
+  if (!existsSync(resolved)) {
+    throw new Error(`${file} does not exist`)
   }
-  return files
+  const full = realpathSync(resolved)
+  const relative = path.relative(root, full)
+  if (
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error(`${file} is outside the project`)
+  }
+  return full
 }

@@ -127,6 +127,14 @@ export function isConnected(machine: string) {
   return connections.get(machine)?.connected === true
 }
 
+export function machineUrl(machine: string) {
+  const connection = connections.get(machine)
+  if (connection === undefined) {
+    throw new Error('This machine is not connected')
+  }
+  return connection.url
+}
+
 export function call<M extends Method>(
   machine: string,
   method: M,

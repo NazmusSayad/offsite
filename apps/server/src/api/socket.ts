@@ -17,6 +17,7 @@ import {
   updateAccount,
 } from '../services/accounts.ts'
 import {
+  linkProjectMedia,
   listFiles,
   readProjectFile,
   saveUpload,
@@ -232,6 +233,8 @@ const handlers: Handlers = {
   'files.list': (params) => listFiles(projectPath(params.projectId)),
   'files.read': (params) =>
     readProjectFile(projectPath(params.projectId), params.path),
+  'files.media': (params) =>
+    linkProjectMedia(projectPath(params.projectId), params.path),
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
   'tasks.output': (params) => taskOutput(params.sessionId, params.path),

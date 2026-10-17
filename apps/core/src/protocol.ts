@@ -458,6 +458,7 @@ export type Methods = {
     params: { projectId: string; path: string }
     result: FilePreview
   }
+  'files.media': { params: { projectId: string; path: string }; result: string }
   'files.upload': { params: { name: string; data: string }; result: string }
   'tasks.output': {
     params: { sessionId: string; path: string }

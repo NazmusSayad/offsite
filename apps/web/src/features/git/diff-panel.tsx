@@ -14,13 +14,15 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs'
 import { FileDiff } from '@pierre/diffs/react'
 import { sumBy } from 'es-toolkit'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { getState, updatePrefs, useStore } from '@/lib/store'
 import { useCodeTheme } from '@/lib/theme'
 import { errorMessage } from '@/lib/utils'
 import diffCss from '@/features/git/diff.css?raw'
+
+const DIFF_REFRESH = 3000
 
 const toggle =
   'text-foreground hover:bg-accent aria-pressed:bg-accent inline-flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-lg px-1.5 [&_svg]:opacity-80'
@@ -36,6 +38,10 @@ export function DiffPanel(props: {
   const [files, setFiles] = useState<FileDiffMetadata[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
+  const latest = useRef<{ patch: string | null; count: number }>({
+    patch: null,
+    count: 0,
+  })
   const diff = useStore((state) => state.prefs.diff)
   const codeTheme = useCodeTheme()
   const storageKey = `diffCollapsed:${props.machine}:${props.projectId}`
@@ -65,28 +71,52 @@ export function DiffPanel(props: {
 
   useEffect(() => {
     let current = true
-    call(props.machine, 'git.diff', { projectId: props.projectId }).then(
-      (patch) => {
+    let loading = false
+    async function load() {
+      if (loading) {
+        return
+      }
+      loading = true
+      try {
+        const patch = await call(props.machine, 'git.diff', {
+          projectId: props.projectId,
+        })
         if (!current) {
           return
         }
+        setError(null)
+        if (patch === latest.current.patch) {
+          return
+        }
+        latest.current = { patch, count: latest.current.count + 1 }
         setFiles(
           patch.trim() === ''
             ? []
-            : parsePatchFiles(patch, `${props.projectId}:${version}`).flatMap(
-                (patch) => patch.files
-              )
+            : parsePatchFiles(
+                patch,
+                `${props.projectId}:${latest.current.count}`
+              ).flatMap((patch) => patch.files)
         )
-        setError(null)
-      },
-      (caught: unknown) => {
+      } catch (caught) {
         if (current) {
           setError(errorMessage(caught))
         }
+      } finally {
+        loading = false
       }
-    )
+    }
+    function refresh() {
+      if (!document.hidden) {
+        void load()
+      }
+    }
+    void load()
+    const timer = window.setInterval(refresh, DIFF_REFRESH)
+    window.addEventListener('focus', refresh)
     return () => {
       current = false
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
     }
   }, [props.machine, props.projectId, props.running, version])
 

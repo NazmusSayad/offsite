@@ -377,6 +377,7 @@ async function isRepo(cwd: string) {
 
 async function repoDiff(repo: string, prefix: string) {
   const tracked = await git(repo, [
+    '--no-optional-locks',
     'diff',
     await diffBase(repo),
     '--no-color',

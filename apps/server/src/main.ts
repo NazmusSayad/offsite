@@ -11,6 +11,7 @@ import { type WebSocket, WebSocketServer } from 'ws'
 import { connectClient } from './api/socket.ts'
 import { args } from './args.ts'
 import { findClaude } from './lib/claude/index.ts'
+import { findMediaLink } from './services/files.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
 import { refreshAll, watchSessions } from './services/sessions.ts'
@@ -79,6 +80,10 @@ const tickets = new Map<string, { device: string; expiresAt: number }>()
 
 const server = createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
+  if (url.pathname === '/api/media') {
+    serveMedia(url.searchParams.get('token'), request, response)
+    return
+  }
   if (url.pathname.startsWith('/api/')) {
     answerApi(url.pathname, request, response)
     return
@@ -203,6 +208,77 @@ function answerApi(
   }
   response.statusCode = 404
   response.end('not found')
+}
+
+function serveMedia(
+  token: string | null,
+  request: IncomingMessage,
+  response: ServerResponse
+) {
+  if (request.method !== 'GET') {
+    response.statusCode = 405
+    response.end('use GET')
+    return
+  }
+  const link = findMediaLink(token)
+  if (link === null) {
+    response.statusCode = 404
+    response.end('This media link expired')
+    return
+  }
+  const stats = statSync(link.file, { throwIfNoEntry: false })
+  if (stats === undefined || !stats.isFile()) {
+    response.statusCode = 404
+    response.end('not found')
+    return
+  }
+  response.setHeader('content-type', link.mediaType)
+  response.setHeader('accept-ranges', 'bytes')
+  response.setHeader('cache-control', 'private, max-age=3600')
+  response.setHeader('content-security-policy', 'sandbox')
+  response.setHeader('x-content-type-options', 'nosniff')
+  if (request.headers.range === undefined) {
+    response.setHeader('content-length', stats.size)
+    createReadStream(link.file)
+      .on('error', () => response.destroy())
+      .pipe(response)
+    return
+  }
+  const range = byteRange(request.headers.range, stats.size)
+  if (range === null) {
+    response.statusCode = 416
+    response.setHeader('content-range', `bytes */${stats.size}`)
+    response.end()
+    return
+  }
+  response.statusCode = 206
+  response.setHeader(
+    'content-range',
+    `bytes ${range.start}-${range.end}/${stats.size}`
+  )
+  response.setHeader('content-length', range.end - range.start + 1)
+  createReadStream(link.file, range)
+    .on('error', () => response.destroy())
+    .pipe(response)
+}
+
+function byteRange(header: string, size: number) {
+  const match = /^bytes=(?:(\d+)-(\d*)|-(\d+))$/.exec(header)
+  if (match === null) {
+    return null
+  }
+  if (match[3] !== undefined) {
+    if (size === 0 || Number(match[3]) === 0) {
+      return null
+    }
+    return { start: Math.max(size - Number(match[3]), 0), end: size - 1 }
+  }
+  const start = Number(match[1])
+  const end = match[2] === '' ? size - 1 : Math.min(Number(match[2]), size - 1)
+  if (start > end) {
+    return null
+  }
+  return { start, end }
 }
 
 function answerJson(response: ServerResponse, body: unknown) {

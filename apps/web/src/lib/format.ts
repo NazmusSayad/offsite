@@ -75,3 +75,13 @@ export function fullTime(time: number) {
 export function compact(value: number) {
   return new Intl.NumberFormat(undefined, { notation: 'compact' }).format(value)
 }
+
+export function duration(seconds: number) {
+  const total = Math.round(seconds)
+  const minutes = Math.floor(total / 60)
+  const rest = String(total % 60).padStart(2, '0')
+  if (minutes < 60) {
+    return `${minutes}:${rest}`
+  }
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${rest}`
+}
