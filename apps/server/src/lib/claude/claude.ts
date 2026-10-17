@@ -62,12 +62,13 @@ export function claudeMode(value: string) {
 
 export function claudeOptions(accountId: string | null, cwd: string): Options {
   const account = storedAccount('claude', accountId)
+  const configDir = account.configDir ?? claudeBaseDir()
   const env: Record<string, string | undefined> = {
     ...process.env,
     CLAUDE_CODE_ENTRYPOINT: 'offsite',
-    CLAUDE_CONFIG_DIR: account.home,
+    CLAUDE_CONFIG_DIR: configDir,
   }
-  if (path.resolve(account.home) === path.join(os.homedir(), '.claude'))
+  if (path.resolve(configDir) === path.join(os.homedir(), '.claude'))
     delete env.CLAUDE_CONFIG_DIR
   return {
     cwd,
@@ -162,7 +163,7 @@ export async function claudeCapabilities(
 }
 
 export async function claudeAccount(account: StoredAccount): Promise<Account> {
-  const linked = isLinked(account.home)
+  const linked = isLinked(account.configDir ?? claudeBaseDir())
   try {
     const info = (await initialization(account.id, os.homedir())).account
     return {

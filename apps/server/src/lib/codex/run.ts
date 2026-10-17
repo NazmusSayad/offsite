@@ -15,6 +15,7 @@ import { skills } from './accounts.ts'
 import {
   type AppServer,
   appServer,
+  codexBaseDir,
   type Params,
   type ThreadListener,
 } from './app-server.ts'
@@ -65,7 +66,9 @@ type Pending = {
 }
 
 function codexServer(settings: Settings) {
-  return appServer(storedAccount('codex', settings.accountId).home)
+  return appServer(
+    storedAccount('codex', settings.accountId).configDir ?? codexBaseDir
+  )
 }
 
 export class CodexRun implements ThreadListener {

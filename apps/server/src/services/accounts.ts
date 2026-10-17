@@ -31,19 +31,13 @@ import {
   openCodeCapabilities,
   openCodeInstalled,
 } from '../lib/opencode/index.ts'
-import {
-  claudeBaseDir,
-  platform,
-  readConfig,
-  saveConfig,
-} from '../storage/config.ts'
+import { platform, readConfig, saveConfig } from '../storage/config.ts'
 
 export type StoredAccount = {
   id: string
   provider: Exclude<Provider, 'opencode'>
   name: string
   configDir: string | null
-  home: string
   enabled: boolean
   hiddenModels: Record<string, boolean>
 }
@@ -60,13 +54,16 @@ export function providerName(provider: Provider) {
 
 export function storedAccounts(): StoredAccount[] {
   const config = readConfig()
-  return [...config.claudeAccounts, ...config.codexAccounts].map((item) => {
-    const configDir = item.configDir[platform()]
-    if (configDir !== null) return { ...item, configDir, home: configDir }
-    if (item.provider === 'claude')
-      return { ...item, configDir, home: claudeBaseDir() }
-    return { ...item, configDir, home: codexBaseDir }
-  })
+  return [
+    ...config.claudeAccounts.map((item) => ({
+      ...item,
+      configDir: item.configDir[platform()],
+    })),
+    ...config.codexAccounts.map((item) => ({
+      ...item,
+      configDir: item.configDir[platform()],
+    })),
+  ]
 }
 
 export function assertEnabled(provider: Provider, accountId: string | null) {
@@ -94,7 +91,8 @@ async function stopAccount(account: StoredAccount) {
   )
   for (const run of stopping) run.stop()
   await Promise.all(stopping.map((run) => run.closed))
-  if (account.provider === 'codex') stopAppServer(account.home)
+  if (account.provider === 'codex')
+    stopAppServer(account.configDir ?? codexBaseDir)
   if (account.provider === 'claude') forgetClaude(account.id)
 }
 
@@ -234,9 +232,7 @@ export function addAccount(
   })
 }
 
-export async function updateAccount(
-  update: Omit<StoredAccount, 'provider' | 'home'>
-) {
+export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
   const before = storedAccounts().find((item) => item.id === update.id)
   if (before === undefined) throw new Error('That account was removed')
   const account = validAccount(update.name, update.configDir)
