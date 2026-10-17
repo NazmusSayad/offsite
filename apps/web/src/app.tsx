@@ -189,15 +189,16 @@ export function App() {
               </nav>
             )}
             {selection === null && <span className="flex-1" />}
-            {machine !== null &&
-              (machine.status === 'connecting' ||
-                machine.status === 'offline') && (
-                <span className="text-warning-foreground shrink-0 text-xs">
-                  {machine.status === 'connecting'
-                    ? `Connecting to ${machine.name}…`
-                    : `${machine.name} is offline, reconnecting…`}
-                </span>
-              )}
+            {machine !== null && machine.status !== 'online' && (
+              <span className="text-warning-foreground shrink-0 text-xs">
+                {machine.status === 'connecting' &&
+                  `Connecting to ${machine.name}…`}
+                {machine.status === 'offline' &&
+                  `${machine.name} is offline, reconnecting…`}
+                {machine.status === 'unpaired' &&
+                  `${machine.name} needs pairing`}
+              </span>
+            )}
             {selection !== null && git.status !== null && (
               <GitActions
                 machine={selection.machine}

@@ -8,6 +8,7 @@ import {
   setMachine,
   update,
 } from '@/lib/store'
+import { removeToken, saveToken } from '@/lib/tokens'
 import { syncUrl } from '@/lib/url'
 import { connectMachine, disconnectMachine } from './connection'
 
@@ -17,7 +18,6 @@ export type StoredMachine = {
   name: string
   label: string | null
   icon: MachineIcon
-  token: string | null
   pairedAt: number | null
   projects: Project[]
 }
@@ -38,11 +38,6 @@ async function shareWithWorker(machines: StoredMachine[]) {
   const shared = machines.map((machine) => ({
     id: machine.id,
     addresses: machine.addresses,
-    query: String(
-      new URLSearchParams(
-        machine.token === null ? {} : { token: machine.token }
-      )
-    ),
   }))
   const cache = await caches.open('offsite-worker')
   await cache.put('/machines', new Response(JSON.stringify(shared)))
@@ -56,13 +51,13 @@ export function pairingFromUrl() {
   if (machine === null) throw new Error('the pairing link has no machine')
   return {
     address: readMachineLink(machine).address,
-    token: params.get('token'),
+    code: params.get('code'),
   }
 }
 
 export function readMachineLink(link: string): {
   address: string
-  token: string | null
+  code: string | null
 } {
   const trimmed = link.trim()
   const url = new URL(
@@ -74,7 +69,7 @@ export function readMachineLink(link: string): {
   const machine = params.get('machine')
   return {
     address: machine === null ? url.origin : readMachineLink(machine).address,
-    token: params.get('token'),
+    code: params.get('code'),
   }
 }
 
@@ -92,7 +87,6 @@ export function restoreMachine(machine: StoredMachine): Machine {
     hostname: machine.name,
     label: machine.label,
     icon: machine.icon,
-    token: machine.token,
     pairedAt: machine.pairedAt ?? null,
     config: null,
     configError: null,
@@ -127,7 +121,7 @@ export function receiveMachines() {
         machines: [...state.machines, restoreMachine(machine)],
         projects: [...state.projects, ...restoreProjects(machine)],
       })
-      connectMachine(machine.id, machine.addresses, machine.token)
+      connectMachine(machine.id, machine.addresses)
       continue
     }
     setMachine(machine.id, {
@@ -137,11 +131,10 @@ export function receiveMachines() {
     })
     if (
       machine.addresses.join(' ') !== current.addresses.join(' ') ||
-      machine.token !== current.token
+      machine.pairedAt !== current.pairedAt
     ) {
       setMachine(machine.id, {
         addresses: machine.addresses,
-        token: machine.token,
         pairedAt: machine.pairedAt,
       })
       reconnectMachine(machine.id)
@@ -149,17 +142,18 @@ export function receiveMachines() {
   }
 }
 
-export function addMachine(address: string, token: string | null) {
+export async function addMachine(address: string, code: string | null) {
   const existing = getState().machines.find((item) =>
     item.addresses.includes(address)
   )
   if (existing !== undefined) {
-    if (token !== null) editMachine(existing.id, { token })
+    if (code !== null) await pairMachine(existing.id, code)
     return existing.id
   }
   const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
     byte.toString(16).padStart(2, '0')
   ).join('')
+  if (code !== null) await saveToken(id, await redeemCode([address], code))
   update({
     machines: [
       ...getState().machines,
@@ -169,35 +163,54 @@ export function addMachine(address: string, token: string | null) {
         name: new URL(address).hostname,
         label: null,
         icon: 'computer',
-        token,
-        pairedAt: token === null ? null : Date.now(),
+        pairedAt: code === null ? null : Date.now(),
         projects: [],
       }),
     ],
   })
   persistMachines()
-  connectMachine(id, [address], token)
+  connectMachine(id, [address])
   return id
+}
+
+export async function pairMachine(id: string, code: string) {
+  const known = machineOf(getState(), id)
+  await saveToken(id, await redeemCode(known.addresses, code))
+  setMachine(id, { pairedAt: Date.now() })
+  persistMachines()
+  reconnectMachine(id)
+}
+
+async function redeemCode(addresses: string[], code: string) {
+  let failure: unknown
+  for (const address of addresses) {
+    const response = await fetch(`${address}/api/pair`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${code}` },
+    }).catch((error: unknown) => {
+      failure ??= error
+      return null
+    })
+    if (response === null) continue
+    if (!response.ok) throw new Error(await response.text())
+    const body: { token: string } = await response.json()
+    return body.token
+  }
+  throw new Error(`Could not reach the machine to pair: ${String(failure)}`)
 }
 
 export function editMachine(
   id: string,
-  patch: Partial<Pick<Machine, 'addresses' | 'label' | 'icon' | 'token'>>
+  patch: Partial<Pick<Machine, 'addresses' | 'label' | 'icon'>>
 ) {
   const known = machineOf(getState(), id)
   const next = { ...known, ...patch }
   setMachine(id, {
     ...patch,
     name: next.label ?? next.hostname,
-    ...(next.token !== known.token && {
-      pairedAt: next.token === null ? null : Date.now(),
-    }),
   })
   persistMachines()
-  if (
-    next.addresses.join(' ') !== known.addresses.join(' ') ||
-    next.token !== known.token
-  )
+  if (next.addresses.join(' ') !== known.addresses.join(' '))
     reconnectMachine(id)
 }
 
@@ -211,12 +224,15 @@ export function reconnectMachine(id: string) {
   disconnectMachine(id)
   setMachine(id, { status: 'connecting', via: null })
   const machine = machineOf(getState(), id)
-  connectMachine(id, machine.addresses, machine.token)
+  connectMachine(id, machine.addresses)
 }
 
 export function removeMachine(id: string) {
   forgetMachine(id)
   persistMachines()
+  removeToken(id).catch((error: unknown) =>
+    console.error('could not remove the device token', error)
+  )
 }
 
 function forgetMachine(id: string) {
@@ -244,7 +260,6 @@ export function persistMachines() {
     name: machine.hostname,
     label: machine.label,
     icon: machine.icon,
-    token: machine.token,
     pairedAt: machine.pairedAt,
     projects: state.projects
       .filter((project) => project.machine === machine.id)

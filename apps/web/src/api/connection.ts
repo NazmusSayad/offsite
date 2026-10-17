@@ -8,10 +8,12 @@ import {
   type ServerMessage,
   type TerminalEvent,
 } from '@offsite/core/protocol'
+import { readToken } from '@/lib/tokens'
 
 type Listener = {
   open?: (machine: string, url: string) => void
   close?: (machine: string) => void
+  unpaired?: (machine: string) => void
   event?: (machine: string, event: ServerEvent) => void
   terminal?: (machine: string, event: TerminalEvent) => void
   frame?: (machine: string, frame: ReturnType<typeof decodeFrame>) => void
@@ -20,7 +22,6 @@ type Listener = {
 type Connection = {
   urls: string[]
   url: string
-  token: string | null
   socket: WebSocket | null
   connected: boolean
   ping: Promise<boolean> | null
@@ -74,20 +75,15 @@ function wake() {
     window.clearTimeout(connection.timer)
     connection.timer = undefined
     connection.failures = 0
-    openSocket(machine, connection, 0)
+    void openSocket(machine, connection, 0)
   }
 }
 
-export function connectMachine(
-  machine: string,
-  urls: string[],
-  token: string | null
-) {
+export function connectMachine(machine: string, urls: string[]) {
   if (connections.has(machine)) return
   const connection: Connection = {
     urls,
     url: urls[0],
-    token,
     socket: null,
     connected: false,
     ping: null,
@@ -96,7 +92,7 @@ export function connectMachine(
     pending: new Map(),
   }
   connections.set(machine, connection)
-  openSocket(machine, connection, 0)
+  void openSocket(machine, connection, 0)
 }
 
 export function disconnectMachine(machine: string) {
@@ -188,13 +184,24 @@ export async function checkConnection(machine: string) {
   return await connection.ping
 }
 
-function openSocket(machine: string, connection: Connection, attempt: number) {
+async function openSocket(
+  machine: string,
+  connection: Connection,
+  attempt: number
+) {
   const url = connection.urls[attempt % connection.urls.length]
   connection.url = url
-  const query =
-    connection.token === null
-      ? ''
-      : `?${new URLSearchParams({ token: connection.token })}`
+  const ticket = await requestTicket(machine, url).catch(() => undefined)
+  if (connections.get(machine) !== connection) return
+  if (ticket === 'unpaired') {
+    for (const listener of listeners) listener.unpaired?.(machine)
+    return
+  }
+  if (ticket === undefined) {
+    failAttempt(machine, connection, attempt)
+    return
+  }
+  const query = ticket === null ? '' : `?${new URLSearchParams({ ticket })}`
   const next = new WebSocket(`${url.replace(/^http/, 'ws')}/ws${query}`)
   next.binaryType = 'arraybuffer'
   const timer = window.setTimeout(() => next.close(), CONNECT_TIMEOUT)
@@ -212,14 +219,31 @@ function openSocket(machine: string, connection: Connection, attempt: number) {
       retry(machine, connection, 0)
       return
     }
-    if ((attempt + 1) % connection.urls.length !== 0) {
-      openSocket(machine, connection, attempt + 1)
-      return
-    }
-    for (const listener of listeners) listener.close?.(machine)
-    retry(machine, connection, attempt + 1)
+    failAttempt(machine, connection, attempt)
   }
   connection.socket = next
+}
+
+async function requestTicket(machine: string, url: string) {
+  const token = await readToken(machine)
+  const response = await fetch(`${url}/api/ticket`, {
+    method: 'POST',
+    headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(CONNECT_TIMEOUT),
+  })
+  if (response.status === 401) return 'unpaired'
+  if (!response.ok) throw new Error(await response.text())
+  const body: { ticket: string | null } = await response.json()
+  return body.ticket
+}
+
+function failAttempt(machine: string, connection: Connection, attempt: number) {
+  if ((attempt + 1) % connection.urls.length !== 0) {
+    void openSocket(machine, connection, attempt + 1)
+    return
+  }
+  for (const listener of listeners) listener.close?.(machine)
+  retry(machine, connection, attempt + 1)
 }
 
 function retry(machine: string, connection: Connection, attempt: number) {
@@ -229,7 +253,7 @@ function retry(machine: string, connection: Connection, attempt: number) {
   connection.failures += 1
   connection.timer = window.setTimeout(() => {
     connection.timer = undefined
-    openSocket(machine, connection, attempt)
+    void openSocket(machine, connection, attempt)
   }, delay)
 }
 

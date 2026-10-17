@@ -11,6 +11,7 @@ import { Reorder, useDragControls } from 'motion/react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import {
   editMachine,
+  pairMachine,
   readMachineLink,
   reconnectMachine,
   removeMachine,
@@ -39,6 +40,7 @@ const statuses = {
   connecting: 'Connecting…',
   online: 'Online',
   offline: 'Offline',
+  unpaired: 'Needs pairing',
 }
 
 export function MachinesPage() {
@@ -155,16 +157,16 @@ function EditMachinePage(props: { machine: Machine }) {
     }
   }
 
-  function savePairing(text: string) {
+  async function savePairing(text: string) {
     setError(null)
     const trimmed = text.trim()
     if (trimmed === '') return true
     try {
-      const token = trimmed.includes('#')
-        ? readMachineLink(trimmed).token
+      const code = trimmed.includes('#')
+        ? readMachineLink(trimmed).code
         : trimmed
-      if (token === null) throw new Error('That link has no pairing token')
-      editMachine(machine.id, { token })
+      if (code === null) throw new Error('That link has no pairing code')
+      await pairMachine(machine.id, code)
       return true
     } catch (failure) {
       setError(errorMessage(failure))
@@ -209,24 +211,24 @@ function EditMachinePage(props: { machine: Machine }) {
       </Section>
       <Section title="Pairing">
         <div className="flex min-h-13 items-center justify-between gap-4 px-4 py-2.5">
-          {machine.token !== null && (
+          {machine.pairedAt !== null && machine.status !== 'unpaired' && (
             <span className="text-sm">
               {machine.pairedAt === null
                 ? 'Paired'
                 : `Paired ${fullTime(machine.pairedAt)}`}
             </span>
           )}
-          {machine.token === null && (
+          {(machine.pairedAt === null || machine.status === 'unpaired') && (
             <form
               className="flex flex-1 items-center gap-3"
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault()
-                if (savePairing(pairing)) setPairing('')
+                if (await savePairing(pairing)) setPairing('')
               }}
             >
               <Input
                 className="flex-1 font-mono"
-                placeholder="Pairing link or token"
+                placeholder="Pairing link or code"
                 spellCheck={false}
                 autoComplete="off"
                 value={pairing}

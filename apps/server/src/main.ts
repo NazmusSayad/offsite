@@ -1,5 +1,10 @@
+import { randomBytes } from 'node:crypto'
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
-import { createServer, type ServerResponse } from 'node:http'
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from 'node:http'
 import path from 'node:path'
 import { consola } from 'consola'
 import { type WebSocket, WebSocketServer } from 'ws'
@@ -9,18 +14,21 @@ import { findClaude } from './lib/claude/index.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
 import { refreshAll, watchSessions } from './services/sessions.ts'
+import {
+  addCode,
+  findDevice,
+  hasDevices,
+  isPaired,
+  readDevices,
+  recordUse,
+  redeemCode,
+  removeDevices,
+} from './storage/auth.ts'
 import { readConfig } from './storage/config.ts'
 import { lockHome } from './storage/storage.ts'
-import {
-  addToken,
-  hasTokens,
-  matchesToken,
-  readTokens,
-  recordUse,
-  removeTokens,
-} from './storage/token.ts'
 
 const UNPAIR_CHECK = 5000
+const TICKET_LIFETIME = 60_000
 
 const contentTypes: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -43,8 +51,8 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 const address = `http://${args.host}:${port}`
 
 if (args.command === 'pair') {
-  const links = pairingLinks(addToken(args.name))
-  console.log('Open this link in the browser to pair:')
+  const links = pairingLinks(addCode(args.name))
+  console.log('Open this link in a browser within 5 minutes to pair it:')
   console.log(`  ${links.local}`)
   process.exit(0)
 }
@@ -66,10 +74,15 @@ if (findClaude() === null) {
 }
 
 const publicDir = path.join(import.meta.dirname, '..', '..', 'web', 'dist')
-const token = args.auth && args.pair && !hasTokens() ? addToken(null) : null
+const code = args.auth && args.pair && !hasDevices() ? addCode(null) : null
+const tickets = new Map<string, { device: string; expiresAt: number }>()
 
 const server = createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
+  if (url.pathname.startsWith('/api/')) {
+    answerApi(url.pathname, request, response)
+    return
+  }
   if (args.command === 'serve') {
     response.statusCode = 404
     response.end('offsite serve has no web app')
@@ -83,30 +96,31 @@ const paired = new Map<WebSocket, string>()
 
 server.on('upgrade', (request, socket, head) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
-  const given = url.searchParams.get('token')
-  if (url.pathname !== '/ws' || !authorized(url)) {
+  const device = args.auth ? redeemTicket(url.searchParams.get('ticket')) : null
+  if (url.pathname !== '/ws' || (args.auth && device === null)) {
     socket.destroy()
     return
   }
   sockets.handleUpgrade(request, socket, head, (client) => {
     connectClient(client)
-    if (!args.auth || given === null) return
-    paired.set(client, given)
+    if (device === null) return
+    paired.set(client, device)
     client.on('close', () => paired.delete(client))
-    recordUse(given)
+    recordUse(device)
   })
 })
 
 if (args.auth)
   setInterval(() => {
-    for (const [client, given] of paired)
-      if (!matchesToken(given)) client.close()
+    for (const [client, device] of paired) if (!isPaired(device)) client.close()
+    for (const [ticket, item] of tickets)
+      if (item.expiresAt <= Date.now()) tickets.delete(ticket)
   }, UNPAIR_CHECK)
 
 server.listen(port, args.host, () => {
   startPush(`${args.host}:${port}`)
-  if (args.pair && (token !== null || !args.auth)) {
-    const links = pairingLinks(token)
+  if (args.pair && (code !== null || !args.auth)) {
+    const links = pairingLinks(code)
     if (args.command === 'web')
       console.log(`offsite is running at ${links.local}`)
   } else {
@@ -127,13 +141,72 @@ function stop() {
   process.exit(0)
 }
 
-function authorized(url: URL) {
-  return !args.auth || matchesToken(url.searchParams.get('token'))
+function answerApi(
+  pathname: string,
+  request: IncomingMessage,
+  response: ServerResponse
+) {
+  response.setHeader('access-control-allow-origin', '*')
+  if (request.method === 'OPTIONS') {
+    response.setHeader('access-control-allow-methods', 'POST')
+    response.setHeader('access-control-allow-headers', 'authorization')
+    response.statusCode = 204
+    response.end()
+    return
+  }
+  if (request.method !== 'POST') {
+    response.statusCode = 405
+    response.end('use POST')
+    return
+  }
+  const given =
+    request.headers.authorization?.match(/^Bearer (.+)$/)?.[1] ?? null
+  if (pathname === '/api/pair') {
+    const token = given === null ? null : redeemCode(given)
+    if (token === null) {
+      response.statusCode = 401
+      response.end('That pairing code expired or was already used')
+      return
+    }
+    answerJson(response, { token })
+    return
+  }
+  if (pathname === '/api/ticket') {
+    if (!args.auth) {
+      answerJson(response, { ticket: null })
+      return
+    }
+    const device = given === null ? null : findDevice(given)
+    if (device === null) {
+      response.statusCode = 401
+      response.end('This browser needs pairing')
+      return
+    }
+    const ticket = randomBytes(32).toString('base64url')
+    tickets.set(ticket, { device, expiresAt: Date.now() + TICKET_LIFETIME })
+    answerJson(response, { ticket })
+    return
+  }
+  response.statusCode = 404
+  response.end('not found')
+}
+
+function answerJson(response: ServerResponse, body: unknown) {
+  response.setHeader('content-type', 'application/json')
+  response.end(JSON.stringify(body))
+}
+
+function redeemTicket(ticket: string | null) {
+  if (ticket === null) return null
+  const found = tickets.get(ticket)
+  tickets.delete(ticket)
+  if (found === undefined || found.expiresAt <= Date.now()) return null
+  return found.device
 }
 
 async function unpair() {
-  const tokens = readTokens()
-  if (tokens.length === 0) {
+  const devices = readDevices()
+  if (devices.length === 0) {
     console.log('No browsers are paired')
     return
   }
@@ -145,11 +218,12 @@ async function unpair() {
     type: 'multiselect',
     required: false,
     cancel: 'null',
-    options: tokens.map((item) => ({
+    options: devices.map((item) => ({
       value: item.hash,
       label: [
         item.name ?? 'Unnamed',
         `paired ${new Date(item.createdAt).toLocaleString()}`,
+        `${item.expiresAt <= Date.now() ? 'expired' : 'expires'} ${new Date(item.expiresAt).toLocaleString()}`,
         item.lastUsedAt === null
           ? 'never used'
           : `last used ${new Date(item.lastUsedAt).toLocaleString()}`,
@@ -160,17 +234,17 @@ async function unpair() {
     console.log('Nothing unpaired')
     return
   }
-  removeTokens(picked)
+  removeDevices(picked)
   console.log(
     `Unpaired ${picked.length} ${picked.length === 1 ? 'browser' : 'browsers'}; a running offsite disconnects them within seconds`
   )
 }
 
-function pairingLinks(token: string | null) {
+function pairingLinks(code: string | null) {
   return {
     local: `${address}/pair#${new URLSearchParams({
       machine: address,
-      ...(token !== null && { token }),
+      ...(code !== null && { code }),
     })}`,
   }
 }

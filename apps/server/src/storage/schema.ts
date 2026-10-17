@@ -13,10 +13,17 @@ export const sessions = snakeCase.table('sessions', {
   status: text({ enum: ['active', 'pinned', 'minimized'] }).notNull(),
 })
 
-export const tokens = snakeCase.table('tokens', {
+export const pairingCodes = snakeCase.table('pairing_codes', {
+  hash: text().primaryKey(),
+  name: text(),
+  expiresAt: integer().notNull(),
+})
+
+export const devices = snakeCase.table('devices', {
   hash: text().primaryKey(),
   name: text(),
   createdAt: integer().notNull(),
+  expiresAt: integer().notNull(),
   lastUsedAt: integer(),
 })
 

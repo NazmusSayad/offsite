@@ -14,8 +14,8 @@ const program = new Command('offsite')
     'Folder for settings and accounts',
     path.join(os.homedir(), '.offsite')
   )
-  .option('--no-auth', 'Accept connections without the pairing token')
-  .option('--no-pair', "Don't create a pairing token or print pairing links")
+  .option('--no-auth', 'Accept connections without pairing')
+  .option('--no-pair', "Don't create a pairing code or print pairing links")
   .option('--pwa', 'Serve the web app as an installable app that works offline')
 
 program
@@ -31,9 +31,7 @@ program
 
 program
   .command('pair')
-  .description(
-    'Creates a pairing token for another browser and prints its links'
-  )
+  .description('Creates a pairing code for another browser and prints its link')
   .option('--name <name>', 'Name to recognize this browser by')
   .action((options) => {
     command = 'pair'

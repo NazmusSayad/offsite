@@ -11,24 +11,24 @@ export function MachineForm(props: {
   const [manual, setManual] = useState(false)
   const [link, setLink] = useState('')
   const [address, setAddress] = useState('')
-  const [token, setToken] = useState('')
+  const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   return (
     <form
       className="grid"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault()
         setError(null)
         try {
           if (manual)
-            addMachine(
+            await addMachine(
               readMachineLink(address).address,
-              token.trim() === '' ? null : token.trim()
+              code.trim() === '' ? null : code.trim()
             )
           else {
             const read = readMachineLink(link)
-            addMachine(read.address, read.token)
+            await addMachine(read.address, read.code)
           }
           props.onAdded?.()
         } catch (failure) {
@@ -48,12 +48,12 @@ export function MachineForm(props: {
               onChange={(event) => setAddress(event.target.value)}
             />
             <Input
-              aria-label="Pairing token"
-              placeholder="Pairing token, empty if auth is off"
+              aria-label="Pairing code"
+              placeholder="Pairing code, empty if auth is off"
               spellCheck={false}
               autoComplete="off"
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
             />
           </>
         ) : (
@@ -79,7 +79,7 @@ export function MachineForm(props: {
         >
           {manual
             ? 'Paste a pairing link instead'
-            : 'Enter the server URL and token separately'}
+            : 'Enter the server URL and code separately'}
         </button>
       </div>
       {props.actions(manual ? address.trim() !== '' : link.trim() !== '')}

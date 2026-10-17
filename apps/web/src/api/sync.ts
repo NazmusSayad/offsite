@@ -82,6 +82,8 @@ export function start() {
       if (known !== undefined && known.status !== 'offline')
         setMachine(machine, { status: 'offline', via: null, notifier: false })
     },
+    unpaired: (machine) =>
+      setMachine(machine, { status: 'unpaired', via: null, notifier: false }),
     event: receive,
   })
   addEventListener('keydown', claimNotifications, { capture: true })
@@ -89,16 +91,15 @@ export function start() {
   addEventListener('storage', (event) => {
     if (event.key === 'machines') receiveMachines()
   })
-  for (const machine of stored)
-    connectMachine(machine.id, machine.addresses, machine.token)
+  for (const machine of stored) connectMachine(machine.id, machine.addresses)
   shareMachines(stored)
-  attach()
+  void attach()
 }
 
-function attach() {
+async function attach() {
   try {
     const pairing = pairingFromUrl()
-    if (pairing !== null) addMachine(pairing.address, pairing.token)
+    if (pairing !== null) await addMachine(pairing.address, pairing.code)
   } catch (error) {
     showError(error)
   }

@@ -48,12 +48,11 @@ export type Machine = {
   id: string
   addresses: string[]
   via: string | null
-  status: 'connecting' | 'online' | 'offline'
+  status: 'connecting' | 'online' | 'offline' | 'unpaired'
   name: string
   hostname: string
   label: string | null
   icon: MachineIcon
-  token: string | null
   pairedAt: number | null
   config: Config | null
   configError: string | null

@@ -5,6 +5,7 @@ import {
   precacheAndRoute,
 } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
+import { readToken } from './lib/tokens'
 
 self.skipWaiting()
 clientsClaim()
@@ -82,7 +83,7 @@ async function call(machine, method, params) {
   let failure
   for (const address of machine.addresses) {
     try {
-      return await callAddress(address, machine.query, method, params)
+      return await callAddress(address, machine.id, method, params)
     } catch (error) {
       failure ??= error
     }
@@ -90,11 +91,20 @@ async function call(machine, method, params) {
   throw failure
 }
 
-function callAddress(address, query, method, params) {
-  return new Promise((resolve, reject) => {
-    const socket = new WebSocket(
-      `${address.replace(/^http/, 'ws')}/ws?${query}`
-    )
+async function callAddress(address, id, method, params) {
+  const token = await readToken(id)
+  const response = await fetch(`${address}/api/ticket`, {
+    method: 'POST',
+    headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
+  })
+  if (!response.ok) throw new Error(await response.text())
+  const body = await response.json()
+  const query =
+    body.ticket === null
+      ? ''
+      : `?${new URLSearchParams({ ticket: body.ticket })}`
+  return await new Promise((resolve, reject) => {
+    const socket = new WebSocket(`${address.replace(/^http/, 'ws')}/ws${query}`)
     socket.onopen = () => socket.send(JSON.stringify({ id: 1, method, params }))
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data)
