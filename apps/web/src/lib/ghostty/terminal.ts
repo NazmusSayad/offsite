@@ -518,8 +518,9 @@ export class Terminal {
           text,
           this.core.currentColors().palette,
           event.terminator
-        ))
-          {this.handlers.onReply(reply)}
+        )) {
+          this.handlers.onReply(reply)
+        }
       }
       return false
     }

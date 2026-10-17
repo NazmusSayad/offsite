@@ -121,7 +121,9 @@ export async function startTerminal() {
   window.addEventListener('blur', () => setState({}))
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data.type !== 'select') {return}
+      if (event.data.type !== 'select') {
+        return
+      }
       showTab(event.data.machine, event.data.project, event.data.tabId)
     })
   }
@@ -239,7 +241,9 @@ export function currentProject() {
 
 export function findProject(id: number) {
   for (const [projectId, project] of Object.entries(state.layout)) {
-    if (project.tabs.some((tab) => tab.id === id)) {return { projectId, project }}
+    if (project.tabs.some((tab) => tab.id === id)) {
+      return { projectId, project }
+    }
   }
   return null
 }
@@ -355,7 +359,9 @@ function handle(message: TerminalEvent) {
     return
   }
   for (const id of awaitingReplay) {
-    if (!sessions.has(id)) {awaitingReplay.delete(id)}
+    if (!sessions.has(id)) {
+      awaitingReplay.delete(id)
+    }
   }
   const projectId = appState().selection?.projectId
   const closedLastTab =

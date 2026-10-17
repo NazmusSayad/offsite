@@ -68,8 +68,9 @@ export function toUserInput(
   priority: 'next' | undefined
 ): SDKUserMessage {
   for (const image of prompt.images) {
-    if (!imageTypes.includes(image.mediaType))
-      {throw new Error(`${image.mediaType} images are not supported`)}
+    if (!imageTypes.includes(image.mediaType)) {
+      throw new Error(`${image.mediaType} images are not supported`)
+    }
   }
   return {
     type: 'user',

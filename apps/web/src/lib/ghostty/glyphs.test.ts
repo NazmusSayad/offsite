@@ -17,8 +17,9 @@ function paint(
       }
       for (let row = y; row < y + h; row += 1) {
         for (let column = x; column < x + w; column += 1) {
-          if (grid[row]?.[column] === undefined)
-            {throw new Error(`rect is outside the grid: ${[x, y, w, h]}`)}
+          if (grid[row]?.[column] === undefined) {
+            throw new Error(`rect is outside the grid: ${[x, y, w, h]}`)
+          }
           grid[row][column] = '#'
         }
       }

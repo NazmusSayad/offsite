@@ -199,7 +199,9 @@ export async function claudeAccount(account: StoredAccount): Promise<Account> {
 
 export function forgetClaude(accountId: string) {
   for (const key of probes.keys()) {
-    if (key.startsWith(`${accountId}\n`)) {probes.delete(key)}
+    if (key.startsWith(`${accountId}\n`)) {
+      probes.delete(key)
+    }
   }
   limits.delete(accountId)
 }
@@ -208,15 +210,15 @@ export function recordLimit(accountId: string, info: SDKRateLimitInfo) {
   const current = limits.get(accountId) ?? new Map<string, RateLimit>()
   const windows = (info as { unifiedWindows?: unknown }).unifiedWindows
   if (isRecord(windows)) {
-    for (const [name, value] of Object.entries(windows))
-      {if (isRecord(value))
-        current.set(name, {
+    for (const [name, value] of Object.entries(windows)) {
+      if (isRecord(value))
+        {current.set(name, {
           window: name,
           utilization:
             typeof value.utilization === 'number' ? value.utilization : null,
           resetsAt: typeof value.resetsAt === 'number' ? value.resetsAt : null,
           rejected: current.get(name)?.rejected ?? false,
-        })}
+        })}}
   }
   if (info.rateLimitType !== undefined) {
     const existing = current.get(info.rateLimitType)
@@ -248,8 +250,8 @@ async function recordUsage(accountId: string, probe: Query) {
       seven_day_sonnet: usage.rate_limits.seven_day_sonnet,
     }
     for (const [name, window] of Object.entries(windows)) {
-      if (window !== undefined && window !== null)
-        {current.set(name, {
+      if (window !== undefined && window !== null) {
+        current.set(name, {
           window: name,
           utilization:
             window.utilization === null ? null : window.utilization / 100,
@@ -258,7 +260,8 @@ async function recordUsage(accountId: string, probe: Query) {
               ? null
               : Date.parse(window.resets_at) / 1000,
           rejected: window.utilization !== null && window.utilization >= 100,
-        })}
+        })
+      }
     }
     limits.set(accountId, current)
   } catch (error) {

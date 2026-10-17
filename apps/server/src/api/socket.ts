@@ -93,8 +93,9 @@ const handlers: Handlers = {
       if (
         before.enabledProviders[provider] &&
         !saved.enabledProviders[provider]
-      )
-        {await stopProvider(provider)}
+      ) {
+        await stopProvider(provider)
+      }
     }
     if (
       JSON.stringify(saved.claudeBaseDir) ===

@@ -128,8 +128,9 @@ export class OutputScanner {
       if (byte === 0x5c) {
         this.state = 'ground'
         if (this.collecting) {
-          if (onEvent({ type: 'sixel', data: this.take() }, index + 1))
-            {return index + 1}
+          if (onEvent({ type: 'sixel', data: this.take() }, index + 1)) {
+            return index + 1
+          }
         }
         continue
       }

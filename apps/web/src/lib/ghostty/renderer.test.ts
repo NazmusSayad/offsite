@@ -122,7 +122,9 @@ describe('render backgrounds', () => {
       )
       .map((call) => call.args.map((value) => value * 1.25))
     for (const rect of rects) {
-      for (const value of rect) {expect(value).toBeCloseTo(Math.round(value), 9)}
+      for (const value of rect) {
+        expect(value).toBeCloseTo(Math.round(value), 9)
+      }
     }
     for (const [index, rect] of rects.entries()) {
       const next = rects[index + 1]

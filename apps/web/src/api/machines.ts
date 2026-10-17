@@ -119,8 +119,9 @@ export function receiveMachines() {
   const stored = loadMachines()
   const known = getState().machines
   for (const machine of known) {
-    if (!stored.some((item) => item.id === machine.id))
-      {forgetMachine(machine.id)}
+    if (!stored.some((item) => item.id === machine.id)) {
+      forgetMachine(machine.id)
+    }
   }
   for (const machine of stored) {
     const current = known.find((item) => item.id === machine.id)

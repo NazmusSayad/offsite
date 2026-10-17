@@ -165,7 +165,9 @@ export class Prompt {
       }
       const last = y === to.y ? to.x : row.cells.length
       for (let x = y === from.y ? from.x : 0; x < last; x += 1) {
-        if (row.cells[x].text !== '') {count += 1}
+        if (row.cells[x].text !== '') {
+          count += 1
+        }
       }
       if (y < to.y && !row.wrapsToNext) {
         if (left) {

@@ -91,8 +91,9 @@ export async function stopProvider(provider: Provider) {
     disconnectOpenCode()
   }
   if (provider === 'claude') {
-    for (const account of storedAccounts())
-      {if (account.provider === 'claude') forgetClaude(account.id)}
+    for (const account of storedAccounts()) {
+      if (account.provider === 'claude') forgetClaude(account.id)
+    }
   }
 }
 

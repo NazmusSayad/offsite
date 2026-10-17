@@ -201,7 +201,9 @@ export function SessionItem(props: {
           )}
           onClick={props.onSelect}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') {props.onSelect()}
+            if (event.key === 'Enter') {
+              props.onSelect()
+            }
           }}
         >
           <span className="flex shrink-0 items-center opacity-40 grayscale transition-opacity group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0">
