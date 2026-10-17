@@ -31,7 +31,7 @@ export default defineConfig({
       env: { node: true },
     },
     {
-      files: ['apps/web/public/sw.js'],
+      files: ['apps/web/src/sw.js'],
       env: { serviceworker: true },
     },
     {

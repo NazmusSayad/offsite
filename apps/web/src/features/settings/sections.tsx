@@ -1,5 +1,6 @@
 import type { TerminalIdentity } from '@offsite/core/protocol'
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -72,6 +73,68 @@ export function BehaviorSection(props: {
             props.onChange({ confirmCloseBusyTab })
           }
         />
+      </Row>
+    </Section>
+  )
+}
+
+export function UpdateSection() {
+  const [status, setStatus] = useState<
+    'idle' | 'checking' | 'updating' | 'current'
+  >('idle')
+  const [failure, setFailure] = useState<string | null>(null)
+
+  async function check() {
+    setStatus('checking')
+    setFailure(null)
+    try {
+      const registration =
+        'serviceWorker' in navigator
+          ? await navigator.serviceWorker.getRegistration()
+          : undefined
+      if (registration === undefined) {
+        location.reload()
+        return
+      }
+      await registration.update()
+      setStatus(
+        registration.installing === null && registration.waiting === null
+          ? 'current'
+          : 'updating'
+      )
+    } catch (error) {
+      console.error('could not check for updates', error)
+      setFailure(errorMessage(error))
+      setStatus('idle')
+    }
+  }
+
+  return (
+    <Section title="App">
+      <Row label="Load the newest version of offsite in this browser">
+        <div className="flex items-center gap-3">
+          {failure !== null && (
+            <span className="text-muted-foreground text-xs">
+              Could not check: {failure}
+            </span>
+          )}
+          {status === 'current' && (
+            <span className="text-muted-foreground text-xs">Up to date</span>
+          )}
+          {status === 'updating' && (
+            <span className="text-muted-foreground text-xs">
+              Updating, the page reloads when it&apos;s ready
+            </span>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={status === 'checking' || status === 'updating'}
+            onClick={() => void check()}
+          >
+            Check for updates
+          </Button>
+        </div>
       </Row>
     </Section>
   )

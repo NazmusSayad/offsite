@@ -1,4 +1,4 @@
-import { HOSTED_APP, type Project } from '@offsite/core/protocol'
+import { HOSTED_APP, PROTOCOL, type Project } from '@offsite/core/protocol'
 
 type StoredMachine = {
   origin: string
@@ -34,6 +34,16 @@ export function loadMachines(): StoredMachine[] {
 
 export function saveMachines(machines: StoredMachine[]) {
   localStorage.setItem(storageKey, JSON.stringify(machines))
+}
+
+export async function shareWithWorker(token: string | null) {
+  if (!('caches' in window)) return
+  const params = new URLSearchParams({
+    protocol: String(PROTOCOL),
+    ...(token !== null && { token }),
+  })
+  const cache = await caches.open('offsite-worker')
+  await cache.put('/connection', new Response(String(params)))
 }
 
 export function pairFromUrl() {

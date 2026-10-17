@@ -41,7 +41,7 @@ import { cn, isMac, mod } from '@/lib/utils'
 import { AccountsPage } from './accounts'
 import { Row, Section } from './controls'
 import { MachinesPage } from './machines'
-import { BellSection, NotificationSection } from './sections'
+import { BellSection, NotificationSection, UpdateSection } from './sections'
 import { TerminalLookPage, TerminalMachinePage } from './terminal'
 
 const terminalMod = isMac ? '⌘' : 'Ctrl+Shift'
@@ -194,6 +194,7 @@ export function SettingsDialog() {
                 </Row>
               </Section>
             )}
+            {page === 'General' && <UpdateSection />}
             {page === 'Terminal' &&
               machine !== null &&
               config !== null &&

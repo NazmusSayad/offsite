@@ -22,7 +22,13 @@ import { applyTheme } from '@/lib/theme'
 import { selectionFromUrl, syncUrl } from '@/lib/url'
 import { call, connectMachine, disconnectMachine, listen } from './connection'
 import { receiveConfig } from './machine-config'
-import { home, loadMachines, machineKey, saveMachines } from './machines'
+import {
+  home,
+  loadMachines,
+  machineKey,
+  saveMachines,
+  shareWithWorker,
+} from './machines'
 
 export function start() {
   const stored = loadMachines()
@@ -342,6 +348,10 @@ export function setMachineToken(origin: string, token: string | null) {
   setMachine(origin, { status: 'connecting', token })
   persistMachines()
   connectMachine(origin, token)
+  if (origin === home)
+    shareWithWorker(token).catch((error: unknown) =>
+      console.error('could not share the token with the service worker', error)
+    )
 }
 
 export function removeMachine(origin: string) {

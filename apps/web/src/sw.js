@@ -1,3 +1,20 @@
+import { clientsClaim } from 'workbox-core'
+import {
+  cleanupOutdatedCaches,
+  createHandlerBoundToURL,
+  precacheAndRoute,
+} from 'workbox-precaching'
+import { NavigationRoute, registerRoute } from 'workbox-routing'
+
+self.skipWaiting()
+clientsClaim()
+
+if (import.meta.env.PROD) {
+  precacheAndRoute(self.__WB_MANIFEST)
+  cleanupOutdatedCaches()
+  registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html')))
+}
+
 self.addEventListener('push', (event) => {
   const message = readMessage(event.data)
   event.waitUntil(
@@ -40,10 +57,15 @@ async function subscribeWithServerKey() {
   })
 }
 
-function call(method, params) {
+async function call(method, params) {
+  const cache = await caches.open('offsite-worker')
+  const connection = await cache.match('/connection')
+  if (!connection)
+    throw new Error('the page has not shared its connection details')
+  const query = await connection.text()
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(
-      `${self.location.protocol === 'https:' ? 'wss' : 'ws'}://${self.location.host}/ws${self.location.search}`
+      `${self.location.protocol === 'https:' ? 'wss' : 'ws'}://${self.location.host}/ws?${query}`
     )
     socket.onopen = () => socket.send(JSON.stringify({ id: 1, method, params }))
     socket.onmessage = (event) => {
