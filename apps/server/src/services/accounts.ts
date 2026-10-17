@@ -42,7 +42,8 @@ export type StoredAccount = {
   id: string
   provider: Exclude<Provider, 'opencode'>
   name: string
-  configDir: string
+  configDir: string | null
+  home: string
   enabled: boolean
   hiddenModels: Record<string, boolean>
 }
@@ -59,10 +60,12 @@ export function providerName(provider: Provider) {
 
 export function storedAccounts(): StoredAccount[] {
   const config = readConfig()
-  return [...config.claudeAccounts, ...config.codexAccounts].flatMap((item) => {
+  return [...config.claudeAccounts, ...config.codexAccounts].map((item) => {
     const configDir = item.configDir[platform()]
-    if (configDir === null) return []
-    return [{ ...item, configDir }]
+    if (configDir !== null) return { ...item, configDir, home: configDir }
+    if (item.provider === 'claude')
+      return { ...item, configDir, home: claudeBaseDir() }
+    return { ...item, configDir, home: codexBaseDir }
   })
 }
 
@@ -91,7 +94,7 @@ async function stopAccount(account: StoredAccount) {
   )
   for (const run of stopping) run.stop()
   await Promise.all(stopping.map((run) => run.closed))
-  if (account.provider === 'codex') stopAppServer(account.configDir)
+  if (account.provider === 'codex') stopAppServer(account.home)
   if (account.provider === 'claude') forgetClaude(account.id)
 }
 
@@ -212,7 +215,7 @@ export function addAccount(
   name: string,
   configDir: string
 ) {
-  const account = validAccount(provider, name, configDir)
+  const account = validAccount(name, configDir)
   const config = readConfig()
   const key = `${provider}Accounts` as const
   saveConfig({
@@ -231,14 +234,12 @@ export function addAccount(
   })
 }
 
-export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
+export async function updateAccount(
+  update: Omit<StoredAccount, 'provider' | 'home'>
+) {
   const before = storedAccounts().find((item) => item.id === update.id)
   if (before === undefined) throw new Error('That account was removed')
-  const account = validAccount(
-    before.provider,
-    update.name,
-    update.configDir
-  )
+  const account = validAccount(update.name, update.configDir)
   const config = readConfig()
   const key = `${before.provider}Accounts` as const
   saveConfig({
@@ -269,17 +270,11 @@ export function removeAccount(id: string) {
   forgetClaude(id)
 }
 
-function validAccount(
-  provider: Exclude<Provider, 'opencode'>,
-  name: string,
-  configDir: string
-) {
+function validAccount(name: string, configDir: string | null) {
   if (name.trim() === '') throw new Error('Give the account a name')
+  if (configDir === null) return { name: name.trim(), configDir: null }
   const dir = configDir.trim()
-  if (dir === '' && provider === 'claude')
-    return { name: name.trim(), configDir: claudeBaseDir() }
-  if (dir === '' && provider === 'codex')
-    return { name: name.trim(), configDir: codexBaseDir }
+  if (dir === '') return { name: name.trim(), configDir: null }
   if (dir === '~' || dir.startsWith('~/'))
     return {
       name: name.trim(),

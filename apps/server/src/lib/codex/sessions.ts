@@ -92,7 +92,7 @@ export async function codexCommitMessage(
   model: string,
   prompt: string
 ) {
-  const server = appServer(storedAccount('codex', accountId).configDir)
+  const server = appServer(storedAccount('codex', accountId).home)
   const started = await server.request<ThreadStarted>('thread/start', {
     cwd,
     model,

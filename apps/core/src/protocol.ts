@@ -61,7 +61,7 @@ export type Account = {
   id: string
   provider: Exclude<Provider, 'opencode'>
   name: string
-  configDir: string
+  configDir: string | null
   enabled: boolean
   hiddenModels: Record<string, boolean>
   email: string | null
@@ -458,7 +458,7 @@ export type Methods = {
     params: {
       id: string
       name: string
-      configDir: string
+      configDir: string | null
       enabled: boolean
       hiddenModels: Record<string, boolean>
     }

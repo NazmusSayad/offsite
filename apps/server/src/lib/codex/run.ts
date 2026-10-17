@@ -65,7 +65,7 @@ type Pending = {
 }
 
 function codexServer(settings: Settings) {
-  return appServer(storedAccount('codex', settings.accountId).configDir)
+  return appServer(storedAccount('codex', settings.accountId).home)
 }
 
 export class CodexRun implements ThreadListener {

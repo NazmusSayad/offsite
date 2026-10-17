@@ -96,9 +96,14 @@ export function AccountPage(props: {
         </Row>
         <Row label="Config directory">
           <TextInput
-            key={account.configDir}
+            key={account.configDir ?? ''}
             className="w-72 font-mono"
-            value={account.configDir}
+            value={account.configDir ?? ''}
+            placeholder={
+              account.provider === 'claude'
+                ? '~/.claude or empty for default'
+                : '~/.codex or empty for default'
+            }
             onCommit={(configDir) => void save({ configDir })}
           />
         </Row>
