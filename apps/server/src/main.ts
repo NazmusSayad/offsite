@@ -1,9 +1,8 @@
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer, type ServerResponse } from 'node:http'
 import path from 'node:path'
-import { HOSTED_APP, PROTOCOL } from '@offsite/core/protocol'
+import { PROTOCOL } from '@offsite/core/protocol'
 import { consola } from 'consola'
-import { renderUnicodeCompact } from 'uqr'
 import { type WebSocket, WebSocketServer } from 'ws'
 import { connectClient } from './api/socket.ts'
 import { args } from './args.ts'
@@ -50,12 +49,7 @@ const fallback =
 
 if (args.command === 'pair') {
   const links = pairingLinks(addToken(args.name))
-  console.log(`Scan this to pair a phone with ${HOSTED_APP}:`)
-  console.log('')
-  console.log(renderUnicodeCompact(links.hosted, { border: 2 }))
-  console.log('')
-  console.log('Or open one of these links in the browser to pair:')
-  console.log(`  ${links.hosted}`)
+  console.log('Open this link in the browser to pair:')
   console.log(`  ${links.local}`)
   if (fallback !== null) console.log(`Fallback: ${fallback}`)
   process.exit(0)
@@ -100,7 +94,7 @@ const server = createServer((request, response) => {
   }
   if (args.command === 'serve') {
     response.statusCode = 404
-    response.end(`offsite serve has no web app; open ${HOSTED_APP}`)
+    response.end('offsite serve has no web app')
     return
   }
   serveFile(url.pathname, response)
@@ -141,11 +135,9 @@ server.listen(port, args.host, () => {
     const links = pairingLinks(token)
     if (args.command === 'web')
       console.log(`offsite is running at ${links.local}`)
-    console.log(`Open it on ${HOSTED_APP}: ${links.hosted}`)
   } else {
     console.log(`offsite is running at ${address}`)
     if (args.pair) console.log('Run offsite pair to pair another browser')
-    else console.log(`Open it on ${HOSTED_APP}`)
   }
   if (!args.auth)
     console.warn(
@@ -216,17 +208,11 @@ function readFallback(link: string) {
 }
 
 function pairingLinks(token: string | null) {
-  const hosted = new URLSearchParams({
-    machine: address,
-    ...(fallback !== null && { fallback }),
-    ...(token !== null && { token }),
-  })
   return {
     local:
       token === null
         ? address
         : `${address}/pair#${new URLSearchParams({ token })}`,
-    hosted: `${HOSTED_APP}/pair#${hosted}`,
   }
 }
 

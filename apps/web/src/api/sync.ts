@@ -106,7 +106,6 @@ async function attach() {
   } catch (error) {
     showError(error)
   }
-  if (home === null) return
   try {
     const server = await probeMachine(home)
     if (!server.serving)

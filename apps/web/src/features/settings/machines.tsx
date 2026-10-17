@@ -133,22 +133,21 @@ export function MachinesPage() {
         ))}
       </Section>
       <div className="flex gap-2">
-        {homeAddress !== null &&
-          !machines.some((machine) =>
-            machine.addresses.includes(homeAddress)
-          ) && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                addMachine(homeAddress, null, null).catch((error: unknown) =>
-                  showError(error)
-                )
-              }
-            >
-              Add built-in server
-            </Button>
-          )}
+        {!machines.some((machine) =>
+          machine.addresses.includes(homeAddress)
+        ) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              addMachine(homeAddress, null, null).catch((error: unknown) =>
+                showError(error)
+              )
+            }
+          >
+            Add built-in server
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
           Add machine…
         </Button>

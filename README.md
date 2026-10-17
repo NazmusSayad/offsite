@@ -12,13 +12,13 @@ npx offsite
 
 Then open the pairing link it prints. It pairs this browser with the server, so only browsers that opened the link can use it.
 
-| Command          | What it does                                                                                     |
-| ---------------- | ------------------------------------------------------------------------------------------------ |
-| `offsite`        | Starts the server and the web app                                                                |
-| `offsite web`    | Same as `offsite`                                                                                |
-| `offsite serve`  | Starts only the server, use it from [offsite.sayad.dev](https://offsite.sayad.dev)               |
-| `offsite pair`   | Makes a pairing token for another browser and prints its links and a QR code. `--name` labels it |
-| `offsite unpair` | Lists paired browsers so you can pick which to unpair                                            |
+| Command          | What it does                                                                      |
+| ---------------- | --------------------------------------------------------------------------------- |
+| `offsite`        | Starts the server and the web app                                                 |
+| `offsite web`    | Same as `offsite`                                                                 |
+| `offsite serve`  | Starts only the server                                                            |
+| `offsite pair`   | Makes a pairing token for another browser and prints its link. `--name` labels it |
+| `offsite unpair` | Lists paired browsers so you can pick which to unpair                             |
 
 | Flag         | Default      | What it sets                                                                             |
 | ------------ | ------------ | ---------------------------------------------------------------------------------------- |

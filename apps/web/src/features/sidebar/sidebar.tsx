@@ -1,6 +1,5 @@
 import {
   Add01Icon,
-  Alert02Icon,
   ChevronDownIcon,
   ComputerIcon,
   InboxIcon,
@@ -12,7 +11,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { home, machineKey } from '@/api/machines'
+import { machineKey } from '@/api/machines'
 import { machineIcons, ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
@@ -23,7 +22,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Tooltip } from '@/components/ui/tooltip'
 import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
 import {
   EditProjectDialog,
@@ -442,13 +440,6 @@ export function Sidebar(props: {
             <HugeiconsIcon icon={Settings01Icon} />
             Settings
           </button>
-          {home === null && (
-            <Tooltip label="This is the hosted version of offsite. It may not be compatible with the offsite version on your machine. Use the web app your offsite serves instead.">
-              <span className="text-warning-foreground flex size-8 shrink-0 items-center justify-center">
-                <HugeiconsIcon icon={Alert02Icon} className="size-4" />
-              </span>
-            </Tooltip>
-          )}
         </div>
         <div
           role="separator"

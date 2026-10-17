@@ -1,7 +1,5 @@
 export const PROTOCOL = 3
 
-export const HOSTED_APP = 'https://offsite.sayad.dev'
-
 export type Provider = 'claude' | 'codex' | 'opencode'
 
 export type RateLimit = {

@@ -1,6 +1,6 @@
 import type { PushSubscriptionInfo } from '@offsite/core/protocol'
 import { call } from '@/api/connection'
-import { home, machineKey } from '@/api/machines'
+import { machineKey } from '@/api/machines'
 import { providerNames } from './format'
 import { openSession } from './sessions'
 import { getState, homeMachine } from './store'
@@ -96,7 +96,6 @@ export async function showNotification(
 }
 
 export function pushSupport() {
-  if (home === null) return 'hosted'
   if (!window.isSecureContext) return 'insecure'
   if (
     !('Notification' in window) ||
@@ -167,7 +166,6 @@ export async function refreshPushSubscription() {
 }
 
 function pushMachine() {
-  if (home === null) throw new Error('push needs a page served by offsite')
   const machine = homeMachine(getState())
   if (machine === undefined)
     throw new Error('the machine serving this page is not added yet')

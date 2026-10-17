@@ -1,4 +1,4 @@
-import { HOSTED_APP, PROTOCOL, type Project } from '@offsite/core/protocol'
+import { PROTOCOL, type Project } from '@offsite/core/protocol'
 import type { MachineIcon } from '@/components/icons'
 import {
   getState,
@@ -25,7 +25,7 @@ export type StoredMachine = {
 const storageKey = 'machines'
 const PROBE_TIMEOUT = 5000
 
-export const home = location.origin === HOSTED_APP ? null : location.origin
+export const home = location.origin
 
 export function loadMachines(): StoredMachine[] {
   const raw = localStorage.getItem(storageKey)
@@ -72,7 +72,6 @@ export function pairingFromUrl() {
   history.replaceState(null, '', '/')
   const machine = params.get('machine')
   const address = machine === null ? home : readMachineLink(machine).address
-  if (address === null) throw new Error('the pairing link has no machine')
   const fallback = params.get('fallback')
   return {
     address,

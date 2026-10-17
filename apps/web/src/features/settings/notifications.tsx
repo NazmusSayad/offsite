@@ -17,7 +17,6 @@ import { Row, Section } from './controls'
 
 const notices = new Map([
   ['denied', "Blocked in the browser's site settings"],
-  ['hosted', 'Only on a page served by offsite'],
   ['insecure', 'Needs https or localhost'],
   ['install', 'Add offsite to the Home Screen first'],
   ['unsupported', 'Not supported in this browser'],
