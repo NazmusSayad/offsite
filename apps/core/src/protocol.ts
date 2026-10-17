@@ -545,7 +545,9 @@ export function encodeFrame(kind: number, id: number, data: Uint8Array) {
 }
 
 export function decodeFrame(frame: Uint8Array) {
-  if (frame.length < 5) {throw new Error('terminal frame is too short')}
+  if (frame.length < 5) {
+    throw new Error('terminal frame is too short')
+  }
   return {
     kind: frame[0],
     id: new DataView(

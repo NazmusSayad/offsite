@@ -27,12 +27,16 @@ export function startShell(cwd: string) {
   } else {
     for (const name of ['HOME', 'USER', 'LOGNAME', 'TMPDIR', 'SSH_AUTH_SOCK']) {
       const value = process.env[name]
-      if (value !== undefined) {env[name] = value}
+      if (value !== undefined) {
+        env[name] = value
+      }
     }
     const shell = defaultShell()
     env.SHELL = shell
     env.LANG = 'en_US.UTF-8'
-    if (process.env.PATH !== undefined) {env.PATH = process.env.PATH}
+    if (process.env.PATH !== undefined) {
+      env.PATH = process.env.PATH
+    }
     const program =
       (options.shellIntegration
         ? prepare(env, options.command, shell)
@@ -56,7 +60,9 @@ export function startShell(cwd: string) {
 }
 
 export async function currentDirectory(pid: number) {
-  if (process.platform === 'linux') {return readlink(`/proc/${pid}/cwd`)}
+  if (process.platform === 'linux') {
+    return readlink(`/proc/${pid}/cwd`)
+  }
   if (process.platform === 'darwin') {
     const { stdout } = await run('lsof', [
       '-a',
@@ -67,7 +73,9 @@ export async function currentDirectory(pid: number) {
       '-Fn',
     ])
     const line = stdout.split('\n').find((item) => item.startsWith('n'))
-    if (line === undefined) {throw new Error(`lsof found no folder for ${pid}`)}
+    if (line === undefined) {
+      throw new Error(`lsof found no folder for ${pid}`)
+    }
     return line.slice(1)
   }
   throw new Error(
@@ -93,8 +101,12 @@ export async function busyProgram(pid: number) {
     return names.length === 0 ? null : names.join(', ')
   }
   const group = await foregroundGroup(pid)
-  if (group <= 0) {throw new Error('its foreground process group is unknown')}
-  if (group === pid) {return null}
+  if (group <= 0) {
+    throw new Error('its foreground process group is unknown')
+  }
+  if (group === pid) {
+    return null
+  }
   try {
     return await programName(group)
   } catch (error) {
@@ -113,8 +125,9 @@ async function foregroundGroup(pid: number) {
 }
 
 async function programName(pid: number) {
-  if (process.platform === 'linux')
-    {return (await readFile(`/proc/${pid}/comm`, 'utf8')).trimEnd()}
+  if (process.platform === 'linux') {
+    return (await readFile(`/proc/${pid}/comm`, 'utf8')).trimEnd()
+  }
   const { stdout } = await run('ps', ['-o', 'comm=', '-p', String(pid)])
   return path.basename(stdout.trim())
 }
@@ -159,15 +172,21 @@ export function listShells() {
   const shells: { name: string; path: string }[] = []
   for (const name of shellNames) {
     for (const candidate of candidates) {
-      if (path.basename(candidate) !== executable(name)) {continue}
-      if (!statSync(candidate, { throwIfNoEntry: false })?.isFile()) {continue}
+      if (path.basename(candidate) !== executable(name)) {
+        continue
+      }
+      if (!statSync(candidate, { throwIfNoEntry: false })?.isFile()) {
+        continue
+      }
       let target
       try {
         target = realpathSync(candidate)
       } catch {
         continue
       }
-      if (seen.has(target)) {continue}
+      if (seen.has(target)) {
+        continue
+      }
       seen.add(target)
       shells.push({ name, path: candidate })
     }

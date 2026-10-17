@@ -23,7 +23,9 @@ function decodeBase64(payload: string) {
 }
 
 export function xtermSelection(value: string) {
-  if (value === '') {return 's0'}
+  if (value === '') {
+    return 's0'
+  }
   return [...value].filter((letter) => 'cpqs01234567'.includes(letter)).join('')
 }
 
@@ -69,9 +71,13 @@ export function paletteReplies(
   const parts = text.split(';')
   const replies: string[] = []
   for (let index = 1; index + 1 < parts.length; index += 2) {
-    if (parts[index + 1] !== '?' || !/^\d+$/.test(parts[index])) {continue}
+    if (parts[index + 1] !== '?' || !/^\d+$/.test(parts[index])) {
+      continue
+    }
     const color = palette[Number(parts[index])]
-    if (color === undefined) {continue}
+    if (color === undefined) {
+      continue
+    }
     replies.push(`\x1b]4;${parts[index]};${colorSpec(color)}${terminator}`)
   }
   return replies
@@ -79,27 +85,40 @@ export function paletteReplies(
 
 export function nextProgress(text: string, current: Progress) {
   const parts = text.split(';')
-  if (parts.length > 4) {return null}
+  if (parts.length > 4) {
+    return null
+  }
   const state = parts[2] === undefined || parts[2] === '' ? 0 : Number(parts[2])
   const value =
     parts[3] === undefined || parts[3] === '' ? -1 : Number(parts[3])
-  if (!Number.isInteger(state) || !Number.isInteger(value)) {return null}
-  if (state === 0) {return { state, value: 0 }}
+  if (!Number.isInteger(state) || !Number.isInteger(value)) {
+    return null
+  }
+  if (state === 0) {
+    return { state, value: 0 }
+  }
   if (state === 1) {
-    if (value < 0) {return null}
+    if (value < 0) {
+      return null
+    }
     return { state, value: percent(value) }
   }
   if (state === 2 || state === 4) {
-    if (value < 0) {return { state, value: current.value }}
+    if (value < 0) {
+      return { state, value: current.value }
+    }
     return { state, value: percent(value || current.value) }
   }
-  if (state === 3) {return { state, value: current.value }}
+  if (state === 3) {
+    return { state, value: current.value }
+  }
   return null
 }
 
 export function textNotification(text: string, data: Uint8Array) {
-  if (text.startsWith('9;') && !/^9;\d+(;|$)/.test(text))
-    {return { title: '', body: decoder.decode(data.subarray(2)) }}
+  if (text.startsWith('9;') && !/^9;\d+(;|$)/.test(text)) {
+    return { title: '', body: decoder.decode(data.subarray(2)) }
+  }
   if (text.startsWith('777;notify;')) {
     const parts = decoder.decode(data).split(';')
     return { title: parts[2] ?? '', body: parts.slice(3).join(';') }
@@ -112,15 +131,20 @@ export class KittyNotifications {
 
   add(text: string) {
     const separator = text.indexOf(';', 3)
-    if (separator === -1) {return null}
+    if (separator === -1) {
+      return null
+    }
     const fields = new Map<string, string>()
     for (const field of text.slice(3, separator).split(':')) {
       const equals = field.indexOf('=')
-      if (equals !== -1)
-        {fields.set(field.slice(0, equals), field.slice(equals + 1))}
+      if (equals !== -1) {
+        fields.set(field.slice(0, equals), field.slice(equals + 1))
+      }
     }
     const kind = fields.get('p') ?? 'title'
-    if (kind === '?' || kind === 'close' || kind === 'alive') {return null}
+    if (kind === '?' || kind === 'close' || kind === 'alive') {
+      return null
+    }
     let payload = text.slice(separator + 1)
     if (fields.get('e') === '1') {
       try {
@@ -131,13 +155,23 @@ export class KittyNotifications {
       }
     }
     const id = fields.get('i') ?? ''
-    if (id !== this.pending.id) {this.pending = { id, title: '', body: '' }}
-    if (kind === 'title') {this.pending.title += payload}
-    if (kind === 'body') {this.pending.body += payload}
-    if (fields.get('d') === '0') {return null}
+    if (id !== this.pending.id) {
+      this.pending = { id, title: '', body: '' }
+    }
+    if (kind === 'title') {
+      this.pending.title += payload
+    }
+    if (kind === 'body') {
+      this.pending.body += payload
+    }
+    if (fields.get('d') === '0') {
+      return null
+    }
     const notification = this.pending
     this.pending = { id: '', title: '', body: '' }
-    if (notification.title === '' && notification.body === '') {return null}
+    if (notification.title === '' && notification.body === '') {
+      return null
+    }
     return { title: notification.title, body: notification.body }
   }
 }

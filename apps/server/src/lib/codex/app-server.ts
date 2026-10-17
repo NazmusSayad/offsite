@@ -34,14 +34,18 @@ const servers = new Map<string, AppServer>()
 
 export function appServer(home: string) {
   const existing = servers.get(home)
-  if (existing !== undefined) {return existing}
+  if (existing !== undefined) {
+    return existing
+  }
   const server = new AppServer(home)
   servers.set(home, server)
   return server
 }
 
 export function stopAppServers() {
-  for (const server of servers.values()) {server.stop()}
+  for (const server of servers.values()) {
+    server.stop()
+  }
 }
 
 export function stopAppServer(home: string) {
@@ -52,8 +56,9 @@ export function findCodex() {
   const name = process.platform === 'win32' ? 'codex.exe' : 'codex'
   for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {
     const candidate = path.join(dir, name)
-    if (statSync(candidate, { throwIfNoEntry: false })?.isFile())
-      {return candidate}
+    if (statSync(candidate, { throwIfNoEntry: false })?.isFile()) {
+      return candidate
+    }
   }
   return null
 }
@@ -73,8 +78,9 @@ export class AppServer {
 
   constructor(home: string) {
     const executable = findCodex()
-    if (executable === null)
-      {throw new Error('Codex is not installed or not on the PATH')}
+    if (executable === null) {
+      throw new Error('Codex is not installed or not on the PATH')
+    }
     this.home = home
     this.child = spawn(executable, ['app-server'], {
       env: { ...process.env, CODEX_HOME: home },
@@ -120,12 +126,16 @@ export class AppServer {
 
   stop() {
     clearTimeout(this.idleTimer)
-    if (servers.get(this.home) === this) {servers.delete(this.home)}
+    if (servers.get(this.home) === this) {
+      servers.delete(this.home)
+    }
     this.child.stdin.end()
   }
 
   private call(method: string, params: Params, timeout: number) {
-    if (this.exited !== null) {return Promise.reject(this.exited)}
+    if (this.exited !== null) {
+      return Promise.reject(this.exited)
+    }
     this.next += 1
     const id = this.next
     const result = new Promise<unknown>((resolve, reject) => {
@@ -153,7 +163,9 @@ export class AppServer {
   }
 
   private write(message: Params) {
-    if (this.exited !== null) {return}
+    if (this.exited !== null) {
+      return
+    }
     this.child.stdin.write(`${JSON.stringify(message)}\n`)
   }
 
@@ -166,13 +178,19 @@ export class AppServer {
       return
     }
     if (message.method === undefined) {
-      if (typeof message.id !== 'number') {return}
+      if (typeof message.id !== 'number') {
+        return
+      }
       const waiter = this.waiting.get(message.id)
-      if (waiter === undefined) {return}
+      if (waiter === undefined) {
+        return
+      }
       this.waiting.delete(message.id)
-      if (message.error !== undefined)
-        {waiter.reject(new Error(message.error.message))}
-      else {waiter.resolve(message.result)}
+      if (message.error !== undefined) {
+        waiter.reject(new Error(message.error.message))
+      } else {
+        waiter.resolve(message.result)
+      }
       return
     }
     const params = message.params ?? {}
@@ -181,9 +199,11 @@ export class AppServer {
         ? this.threads.get(params.threadId)
         : undefined
     if (message.id !== undefined) {
-      if (listener === undefined)
-        {this.replyError(message.id, `offsite does not handle ${message.method}`)}
-      else {listener.request(message.id, message.method, params)}
+      if (listener === undefined) {
+        this.replyError(message.id, `offsite does not handle ${message.method}`)
+      } else {
+        listener.request(message.id, message.method, params)
+      }
       return
     }
     if (message.method === 'account/rateLimits/updated') {
@@ -196,19 +216,30 @@ export class AppServer {
   private armIdleTimer() {
     clearTimeout(this.idleTimer)
     this.idleTimer = setTimeout(() => {
-      if (this.threads.size > 0) {this.armIdleTimer()}
-      else {this.stop()}
+      if (this.threads.size > 0) {
+        this.armIdleTimer()
+      } else {
+        this.stop()
+      }
     }, IDLE_LIMIT)
   }
 
   private exit(error: Error) {
-    if (this.exited !== null) {return}
+    if (this.exited !== null) {
+      return
+    }
     this.exited = error
     clearTimeout(this.idleTimer)
-    if (servers.get(this.home) === this) {servers.delete(this.home)}
-    for (const waiter of this.waiting.values()) {waiter.reject(error)}
+    if (servers.get(this.home) === this) {
+      servers.delete(this.home)
+    }
+    for (const waiter of this.waiting.values()) {
+      waiter.reject(error)
+    }
     this.waiting.clear()
-    for (const listener of this.threads.values()) {listener.exited()}
+    for (const listener of this.threads.values()) {
+      listener.exited()
+    }
     this.threads.clear()
   }
 }

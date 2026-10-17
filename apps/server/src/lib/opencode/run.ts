@@ -128,7 +128,9 @@ export class OpenCodeRun {
 
   steer(id: string) {
     const item = this.queue.find((queued) => queued.id === id)
-    if (item === undefined) {return}
+    if (item === undefined) {
+      return
+    }
     this.unqueue(id)
     this.submit(item.prompt, 'steer').catch((error: unknown) =>
       this.fail(error)
@@ -158,28 +160,33 @@ export class OpenCodeRun {
     answers: Record<string, string> | null
   ) {
     const pending = this.pending.get(requestId)
-    if (pending === undefined) {return}
+    if (pending === undefined) {
+      return
+    }
     const sessionID = this.sessionId
     const client = await openCode()
-    if (pending.kind === 'permission')
-      {await client.permission.reply({
+    if (pending.kind === 'permission') {
+      await client.permission.reply({
         sessionID,
         requestID: requestId,
         decision: replies[decision],
-      })}
-    else if (decision === 'deny')
-      {await client.session.form.cancel({ sessionID, formID: requestId })}
-    else
-      {await client.session.form.reply({
+      })
+    } else if (decision === 'deny') {
+      await client.session.form.cancel({ sessionID, formID: requestId })
+    } else {
+      await client.session.form.reply({
         sessionID,
         formID: requestId,
         answer: formAnswer(pending.form, answers ?? {}),
-      })}
+      })
+    }
     this.settle(requestId)
   }
 
   stop() {
-    if (runs.get(this.sessionId) === this) {runs.delete(this.sessionId)}
+    if (runs.get(this.sessionId) === this) {
+      runs.delete(this.sessionId)
+    }
     this.end()
   }
 
@@ -206,12 +213,18 @@ export class OpenCodeRun {
       ...permissions.map((permission) => permission.id),
       ...forms.map((form) => form.id),
     ])
-    for (const requestId of [...this.pending.keys()])
-      {if (!open.has(requestId)) this.settle(requestId)}
-    for (const permission of permissions)
-      {if (!this.pending.has(permission.id)) this.ask(permission)}
-    for (const form of forms) {if (!this.pending.has(form.id)) this.askForm(form)}
-    if (this.running && !active) {this.finishTurn()}
+    for (const requestId of [...this.pending.keys()]) {
+      if (!open.has(requestId)) this.settle(requestId)
+    }
+    for (const permission of permissions) {
+      if (!this.pending.has(permission.id)) this.ask(permission)
+    }
+    for (const form of forms) {
+      if (!this.pending.has(form.id)) this.askForm(form)
+    }
+    if (this.running && !active) {
+      this.finishTurn()
+    }
   }
 
   receive(event: V2Event) {
@@ -222,7 +235,9 @@ export class OpenCodeRun {
         return
       case 'session.execution.started':
         clearTimeout(this.idleTimer)
-        if (!this.running) {this.prompted = false}
+        if (!this.running) {
+          this.prompted = false
+        }
         this.running = true
         broadcastActivity()
         return
@@ -285,7 +300,9 @@ export class OpenCodeRun {
         )
     )
     const context = await contextOf(client, this.cwd, messages)
-    if (context === null || context.tokens === this.context?.tokens) {return}
+    if (context === null || context.tokens === this.context?.tokens) {
+      return
+    }
     this.context = context
     publish(this.sessionId, {
       type: 'context',
@@ -356,16 +373,18 @@ export class OpenCodeRun {
     if (
       model !== null &&
       (model !== this.applied.model || settings.effort !== this.applied.effort)
-    )
-      {await client.session.switchModel({
+    ) {
+      await client.session.switchModel({
         sessionID: this.sessionId,
         model: modelRef(model, settings.effort),
-      })}
-    if (settings.mode !== null && settings.mode !== this.applied.mode)
-      {await client.session.switchAgent({
+      })
+    }
+    if (settings.mode !== null && settings.mode !== this.applied.mode) {
+      await client.session.switchAgent({
         sessionID: this.sessionId,
         agent: settings.mode,
-      })}
+      })
+    }
     this.applied = {
       ...settings,
       model,
@@ -440,7 +459,9 @@ export class OpenCodeRun {
   }
 
   private settle(requestId: string) {
-    if (!this.pending.delete(requestId)) {return}
+    if (!this.pending.delete(requestId)) {
+      return
+    }
     publish(this.sessionId, {
       type: 'requestDone',
       sessionId: this.sessionId,
@@ -450,9 +471,15 @@ export class OpenCodeRun {
   }
 
   private put(items: Item[]) {
-    if (items.length === 0) {return}
-    for (const item of items) {this.items.set(item.id, item)}
-    if (items.some((item) => item.kind === 'assistant')) {this.partial = ''}
+    if (items.length === 0) {
+      return
+    }
+    for (const item of items) {
+      this.items.set(item.id, item)
+    }
+    if (items.some((item) => item.kind === 'assistant')) {
+      this.partial = ''
+    }
     publish(this.sessionId, {
       type: 'items',
       sessionId: this.sessionId,
@@ -471,16 +498,22 @@ export class OpenCodeRun {
 
   private armIdleTimer() {
     clearTimeout(this.idleTimer)
-    if (this.running) {return}
+    if (this.running) {
+      return
+    }
     this.idleTimer = setTimeout(() => {
-      if (!this.running && this.pending.size === 0) {this.stop()}
+      if (!this.running && this.pending.size === 0) {
+        this.stop()
+      }
     }, IDLE_LIMIT)
   }
 
   private end() {
     clearTimeout(this.idleTimer)
     clearTimeout(this.refreshTimer)
-    for (const requestId of [...this.pending.keys()]) {this.settle(requestId)}
+    for (const requestId of [...this.pending.keys()]) {
+      this.settle(requestId)
+    }
     this.running = false
     broadcastActivity()
     this.close()

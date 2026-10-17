@@ -50,8 +50,9 @@ program.parse()
 
 const options = program.opts()
 
-if (!options.auth && !options.pair)
-  {program.error("error: --no-pair can't be used with --no-auth")}
+if (!options.auth && !options.pair) {
+  program.error("error: --no-pair can't be used with --no-auth")
+}
 
 export const args = {
   ...options,

@@ -158,7 +158,9 @@ export class GhosttyCore {
   }
 
   write(data: Uint8Array) {
-    if (data.length === 0) {return}
+    if (data.length === 0) {
+      return
+    }
     this.kitty.note(data)
     const pointer = this.runtime.alloc(data.length)
     this.runtime.bytes(pointer, data.length).set(data)
@@ -252,12 +254,15 @@ export class GhosttyCore {
         12,
         this.scratch
       ) !== SUCCESS
-    )
-      {return ''}
+    ) {
+      return ''
+    }
     const view = this.runtime.view(this.scratch, 8)
     const pointer = view.getUint32(0, true)
     const length = view.getUint32(4, true)
-    if (length === 0) {return ''}
+    if (length === 0) {
+      return ''
+    }
     return decoder.decode(this.runtime.bytes(pointer, length))
   }
 
@@ -274,7 +279,9 @@ export class GhosttyCore {
     const pointer = view.getUint32(0, true)
     const length = view.getUint32(4, true)
     this.runtime.free(output, 8)
-    if (result !== SUCCESS) {return ''}
+    if (result !== SUCCESS) {
+      return ''
+    }
     const text = decoder.decode(this.runtime.bytes(pointer, length))
     this.runtime.call('ghostty_free', 0, pointer, length)
     return text
@@ -310,8 +317,9 @@ export class GhosttyCore {
         9,
         this.scrollbar
       ) !== SUCCESS
-    )
-      {return null}
+    ) {
+      return null
+    }
     return {
       total: this.runtime.readField(
         this.scrollbar,
@@ -493,7 +501,9 @@ export class GhosttyCore {
       2,
       this.scratch
     )
-    if (result !== SUCCESS) {return null}
+    if (result !== SUCCESS) {
+      return null
+    }
     return {
       x: this.runtime.readField(this.scratch, 'GhosttyPointCoordinate', 'x'),
       y: this.runtime.readField(this.scratch, 'GhosttyPointCoordinate', 'y'),
@@ -534,14 +544,18 @@ export class GhosttyCore {
   }
 
   dispose() {
-    if (this.disposed) {return}
+    if (this.disposed) {
+      return
+    }
     this.disposed = true
     const runtime = this.runtime
     runtime.call('ghostty_formatter_free', this.formatter)
     this.encoder.dispose()
     this.kitty.dispose()
     this.renderState.dispose()
-    if (this.hostId !== 0) {runtime.detachHost(this.terminal, this.hostId)}
+    if (this.hostId !== 0) {
+      runtime.detachHost(this.terminal, this.hostId)
+    }
     runtime.call('ghostty_terminal_free', this.terminal)
     runtime.free(
       this.scrollbar,
@@ -652,7 +666,9 @@ export class GhosttyCore {
         selection + this.runtime.field('GhosttySelection', 'end').offset,
         2
       )
-      if (start && end) {range = { start, end }}
+      if (start && end) {
+        range = { start, end }
+      }
     }
     this.runtime.free(selection, selectionLayout.size)
     this.runtime.free(ref, this.runtime.layout('GhosttyGridRef').size)

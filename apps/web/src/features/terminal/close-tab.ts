@@ -25,13 +25,17 @@ export function getClosing() {
 }
 
 export function dismissClosing() {
-  if (closing === null) {return}
+  if (closing === null) {
+    return
+  }
   setClosing({ open: false, closing: closing.closing })
 }
 
 function setClosing(next: { open: boolean; closing: Closing }) {
   closing = next
-  for (const listener of listeners) {listener()}
+  for (const listener of listeners) {
+    listener()
+  }
 }
 
 function dialogOpen() {
@@ -74,7 +78,9 @@ export async function closeTab(id: number) {
     return
   }
   const tab = findTab(id)
-  if (!tab || checking.has(id)) {return}
+  if (!tab || checking.has(id)) {
+    return
+  }
   checking.add(id)
   const busy = await busyProgram(id)
   checking.delete(id)
@@ -83,7 +89,9 @@ export async function closeTab(id: number) {
     return
   }
   const current = findTab(id)
-  if (!current || dialogOpen()) {return}
+  if (!current || dialogOpen()) {
+    return
+  }
   setClosing({
     open: true,
     closing: {

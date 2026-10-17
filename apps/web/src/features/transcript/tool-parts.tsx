@@ -41,14 +41,15 @@ export function ToolPart(props: {
 }) {
   const item = props.item
   const pending = props.live && item.status === 'running'
-  if (item.status === 'failed')
-    {return (
+  if (item.status === 'failed') {
+    return (
       <ErrorCard
         title={toolTitle(item)}
         subtitle={subtitleOf(item, props.cwd)}
         error={item.output}
       />
-    )}
+    )
+  }
   switch (item.kind) {
     case 'command':
       return (
@@ -62,14 +63,15 @@ export function ToolPart(props: {
       return <FileChanges items={[item]} cwd={props.cwd} live={props.live} />
     case 'web_search': {
       const url = item.url
-      if (url === null)
-        {return (
+      if (url === null) {
+        return (
           <WebSearchTool
             query={item.query ?? ''}
             links={item.results}
             pending={pending}
           />
-        )}
+        )
+      }
       return (
         <ToolRow
           title="Webfetch"

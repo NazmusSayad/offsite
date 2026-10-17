@@ -54,7 +54,9 @@ export function providerModes(
   provider: Provider,
   capabilities: Capabilities | null
 ) {
-  if (provider !== 'opencode') {return fixedModes[provider]}
+  if (provider !== 'opencode') {
+    return fixedModes[provider]
+  }
   return (capabilities?.agents ?? []).map((agent) => ({
     value: agent.id,
     label: agent.name,

@@ -79,8 +79,9 @@ export function start() {
     },
     close: (machine) => {
       const known = getState().machines.find((item) => item.id === machine)
-      if (known !== undefined && known.status !== 'offline')
-        {setMachine(machine, { status: 'offline', via: null, notifier: false })}
+      if (known !== undefined && known.status !== 'offline') {
+        setMachine(machine, { status: 'offline', via: null, notifier: false })
+      }
     },
     unpaired: (machine) =>
       setMachine(machine, { status: 'unpaired', via: null, notifier: false }),
@@ -89,9 +90,13 @@ export function start() {
   addEventListener('keydown', claimNotifications, { capture: true })
   addEventListener('pointerdown', claimNotifications, { capture: true })
   addEventListener('storage', (event) => {
-    if (event.key === 'machines') {receiveMachines()}
+    if (event.key === 'machines') {
+      receiveMachines()
+    }
   })
-  for (const machine of stored) {connectMachine(machine.id, machine.addresses)}
+  for (const machine of stored) {
+    connectMachine(machine.id, machine.addresses)
+  }
   shareMachines(stored)
   void attach()
 }
@@ -99,7 +104,9 @@ export function start() {
 async function attach() {
   try {
     const pairing = pairingFromUrl()
-    if (pairing !== null) {await addMachine(pairing.address, pairing.code)}
+    if (pairing !== null) {
+      await addMachine(pairing.address, pairing.code)
+    }
   } catch (error) {
     showError(error)
   }
@@ -109,7 +116,9 @@ async function resync(machine: string) {
   try {
     const snapshot = await call(machine, 'sync', undefined)
     const known = getState().machines.find((item) => item.id === machine)
-    if (known === undefined) {return}
+    if (known === undefined) {
+      return
+    }
     setMachine(machine, {
       status: 'online',
       name: known.label ?? snapshot.hostname,
@@ -129,7 +138,9 @@ async function resync(machine: string) {
     receiveComposer(machine, snapshot.composer)
     reopenThread(machine)
     void refreshAccounts(machine)
-    if (getState().selection?.machine === machine) {void refreshCapabilities()}
+    if (getState().selection?.machine === machine) {
+      void refreshCapabilities()
+    }
   } catch (error) {
     showError(error)
   }
@@ -156,17 +167,20 @@ function setSessions(machine: string, sessions: Session[]) {
 
 function reopenThread(machine: string) {
   const selection = getState().selection
-  if (selection?.machine === machine && selection.sessionId !== null)
-    {call(machine, 'sessions.open', {
+  if (selection?.machine === machine && selection.sessionId !== null) {
+    call(machine, 'sessions.open', {
       projectId: selection.projectId,
       sessionId: selection.sessionId,
-    }).catch(showError)}
+    }).catch(showError)
+  }
 }
 
 function receive(machine: string, event: ServerEvent) {
   const state = getState()
   const known = state.machines.find((item) => item.id === machine)
-  if (known === undefined) {return}
+  if (known === undefined) {
+    return
+  }
   const selected = state.selection?.machine === machine
   const current = selected ? (state.selection?.sessionId ?? null) : null
   switch (event.type) {
@@ -233,8 +247,9 @@ function receive(machine: string, event: ServerEvent) {
         !selected ||
         state.selection.projectId !== event.projectId ||
         state.selection.sessionId !== null
-      )
-        {return}
+      ) {
+        return
+      }
       update({
         selection: {
           machine,
@@ -258,7 +273,9 @@ function receive(machine: string, event: ServerEvent) {
       setMachine(machine, { notifier: event.active })
       return
   }
-  if (current === null || event.sessionId !== current) {return}
+  if (current === null || event.sessionId !== current) {
+    return
+  }
   switch (event.type) {
     case 'history':
       update({
@@ -279,8 +296,9 @@ function receive(machine: string, event: ServerEvent) {
         context: event.context,
         partial: event.partial,
       })
-      if (event.settings !== null)
-        {saveDraftSettings(machineKey(machine, event.sessionId), event.settings)}
+      if (event.settings !== null) {
+        saveDraftSettings(machineKey(machine, event.sessionId), event.settings)
+      }
       return
     case 'context':
       update({ context: event.context })

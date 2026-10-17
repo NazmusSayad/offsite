@@ -21,12 +21,12 @@ export function MachineForm(props: {
         event.preventDefault()
         setError(null)
         try {
-          if (manual)
-            {await addMachine(
+          if (manual) {
+            await addMachine(
               readMachineLink(address).address,
               code.trim() === '' ? null : code.trim()
-            )}
-          else {
+            )
+          } else {
             const read = readMachineLink(link)
             await addMachine(read.address, read.code)
           }

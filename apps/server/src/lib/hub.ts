@@ -12,10 +12,13 @@ export type Client = {
 export const clients = new Set<Client>()
 
 export function publish(sessionId: string, event: ServerEvent) {
-  for (const client of clients)
-    {if (client.sessionId === sessionId) client.send(event)}
+  for (const client of clients) {
+    if (client.sessionId === sessionId) client.send(event)
+  }
 }
 
 export function broadcast(event: ServerEvent) {
-  for (const client of clients) {client.send(event)}
+  for (const client of clients) {
+    client.send(event)
+  }
 }

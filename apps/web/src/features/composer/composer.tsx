@@ -80,13 +80,17 @@ export function Composer() {
 
   useEffect(() => {
     const element = input.current
-    if (element === null) {return}
+    if (element === null) {
+      return
+    }
     element.focus()
     element.setSelectionRange(element.value.length, element.value.length)
   }, [selection])
 
   useEffect(() => {
-    if (draft === null) {return}
+    if (draft === null) {
+      return
+    }
     editDraft(key, (current) => ({ ...current, text: draft }))
     setCaret(draft.length)
     setDraft(null)
@@ -94,7 +98,9 @@ export function Composer() {
   }, [draft, key])
 
   useEffect(() => {
-    if (status !== 'online') {return}
+    if (status !== 'online') {
+      return
+    }
     call(machine, 'files.list', { projectId }).then(setFiles, showError)
   }, [machine, projectId, status])
 
@@ -143,7 +149,9 @@ export function Composer() {
   }
 
   function pick(item: Suggestion) {
-    if (trigger === null) {return}
+    if (trigger === null) {
+      return
+    }
     const start = caret - trigger.length
     const position = start + item.insert.length + 1
     edit(`${text.slice(0, start)}${item.insert} ${text.slice(caret)}`, position)
@@ -153,10 +161,14 @@ export function Composer() {
   }
 
   async function submit(swap: boolean) {
-    if (empty) {return}
+    if (empty) {
+      return
+    }
     setSending(true)
     try {
-      if (delivery === null) {throw new Error('This machine is not connected')}
+      if (delivery === null) {
+        throw new Error('This machine is not connected')
+      }
       await sendPrompt(
         { text: text.trim(), images },
         swap ? (delivery === 'queue' ? 'steer' : 'queue') : delivery
@@ -173,7 +185,9 @@ export function Composer() {
   function cycleMode() {
     const settings = getState().settings
     const list = providerModes(settings.provider, getState().capabilities)
-    if (list.length === 0) {return}
+    if (list.length === 0) {
+      return
+    }
     const index = list.findIndex((mode) => mode.value === settings.mode)
     changeSettings({ mode: list[(index + 1) % list.length].value })
   }
@@ -323,9 +337,15 @@ export function Composer() {
               request?.kind === 'question' && 'hidden'
             )}
             onMouseDown={(event) => {
-              if (!(event.target instanceof Element)) {return}
-              if (!event.currentTarget.contains(event.target)) {return}
-              if (event.target.closest('button, a, input, textarea')) {return}
+              if (!(event.target instanceof Element)) {
+                return
+              }
+              if (!event.currentTarget.contains(event.target)) {
+                return
+              }
+              if (event.target.closest('button, a, input, textarea')) {
+                return
+              }
               event.preventDefault()
               input.current?.focus()
             }}
@@ -391,12 +411,16 @@ export function Composer() {
                     return
                   }
                   const pasted = [...event.clipboardData.files]
-                  if (pasted.length === 0) {return}
+                  if (pasted.length === 0) {
+                    return
+                  }
                   event.preventDefault()
                   void attach(pasted)
                 }}
                 onKeyDown={(event) => {
-                  if (event.nativeEvent.isComposing) {return}
+                  if (event.nativeEvent.isComposing) {
+                    return
+                  }
                   if (suggestions.length > 0) {
                     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                       event.preventDefault()
@@ -433,12 +457,16 @@ export function Composer() {
                   }
                   if (event.key === 'ArrowUp' && text === '') {
                     const last = lastUserText(getState().items)
-                    if (last === null) {return}
+                    if (last === null) {
+                      return
+                    }
                     event.preventDefault()
                     edit(last, last.length)
                     return
                   }
-                  if (event.key === 'Escape' && running) {interrupt()}
+                  if (event.key === 'Escape' && running) {
+                    interrupt()
+                  }
                 }}
                 placeholder={
                   noAccount
@@ -554,8 +582,9 @@ function lastUserText(items: Item[]) {
       item.parent === null &&
       item.format === 'text' &&
       item.text !== ''
-    )
-      {return item.text}
+    ) {
+      return item.text
+    }
   }
   return null
 }

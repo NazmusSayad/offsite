@@ -48,22 +48,29 @@ export function readProjectFile(cwd: string, file: string): FilePreview {
     relative === '..' ||
     relative.startsWith(`..${path.sep}`) ||
     path.isAbsolute(relative)
-  )
-    {throw new Error(`${file} is outside the project`)}
+  ) {
+    throw new Error(`${file} is outside the project`)
+  }
   const stats = statSync(full)
-  if (!stats.isFile()) {throw new Error(`${file} is not a file`)}
-  if (stats.size > READ_LIMIT)
-    {return { kind: 'large', size: stats.size, limit: READ_LIMIT }}
+  if (!stats.isFile()) {
+    throw new Error(`${file} is not a file`)
+  }
+  if (stats.size > READ_LIMIT) {
+    return { kind: 'large', size: stats.size, limit: READ_LIMIT }
+  }
   const data = readFileSync(full)
   const mediaType = images.get(path.extname(full).toLowerCase())
-  if (mediaType !== undefined)
-    {return {
+  if (mediaType !== undefined) {
+    return {
       kind: 'image',
       size: stats.size,
       mediaType,
       data: data.toString('base64'),
-    }}
-  if (data.includes(0)) {return { kind: 'binary', size: stats.size }}
+    }
+  }
+  if (data.includes(0)) {
+    return { kind: 'binary', size: stats.size }
+  }
   return { kind: 'text', size: stats.size, content: data.toString('utf8') }
 }
 
@@ -84,17 +91,21 @@ export async function taskOutput(sessionId: string, file: string) {
     !/^\w+\.output$/.test(path.basename(file)) ||
     path.basename(tasks) !== 'tasks' ||
     path.basename(path.dirname(tasks)) !== sessionId
-  )
-    {throw new Error('Not a background task output file of this thread')}
+  ) {
+    throw new Error('Not a background task output file of this thread')
+  }
   let stats
   try {
     stats = await lstat(file)
   } catch (error) {
-    if (hasCode(error, 'ENOENT')) {return null}
+    if (hasCode(error, 'ENOENT')) {
+      return null
+    }
     throw error
   }
-  if (!stats.isFile())
-    {throw new Error('Background task output is not a regular file')}
+  if (!stats.isFile()) {
+    throw new Error('Background task output is not a regular file')
+  }
   const start = Math.max(0, stats.size - OUTPUT_LIMIT)
   const handle = await open(file, 'r')
   try {
@@ -122,9 +133,12 @@ function walk(root: string) {
     }
     for (const entry of entries) {
       const relative = dir === '' ? entry.name : `${dir}/${entry.name}`
-      if (entry.isDirectory() && !skipped.has(entry.name))
-        {pending.push(relative)}
-      if (entry.isFile()) {files.push(relative)}
+      if (entry.isDirectory() && !skipped.has(entry.name)) {
+        pending.push(relative)
+      }
+      if (entry.isFile()) {
+        files.push(relative)
+      }
     }
   }
   return files

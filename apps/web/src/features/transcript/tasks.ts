@@ -46,7 +46,11 @@ function statusOf(
   activity: Activity | undefined
 ) {
   const live = id === null ? undefined : activity?.tasks[id]
-  if (live !== undefined) {return labels[live]}
-  if (status !== 'running') {return labels[status]}
+  if (live !== undefined) {
+    return labels[live]
+  }
+  if (status !== 'running') {
+    return labels[status]
+  }
   return id === null && activity?.running === true ? 'Running' : 'Stopped'
 }

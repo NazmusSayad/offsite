@@ -38,12 +38,13 @@ export async function codexAccount(account: StoredAccount): Promise<Account> {
       'account/read',
       {}
     )
-    if (result.account === null)
-      {return {
+    if (result.account === null) {
+      return {
         ...base,
         error: `Not logged in. Run CODEX_HOME=${configDir} codex login in a terminal`,
         valid: false,
-      }}
+      }
+    }
     switch (result.account.type) {
       case 'chatgpt':
         return {
@@ -118,8 +119,8 @@ export async function skills(server: AppServer, cwd: string) {
 }
 
 export function publishCodexLimits(home: string, snapshot: RateLimitSnapshot) {
-  for (const account of storedAccounts())
-    {if (
+  for (const account of storedAccounts()) {
+    if (
       account.provider === 'codex' &&
       (account.configDir ?? codexBaseDir) === home
     )
@@ -127,7 +128,8 @@ export function publishCodexLimits(home: string, snapshot: RateLimitSnapshot) {
         type: 'limits',
         accountId: account.id,
         limits: toLimits(snapshot),
-      })}
+      })
+  }
 }
 
 async function rateLimits(server: AppServer) {
@@ -164,7 +166,9 @@ function toLimits(snapshot: RateLimitSnapshot): RateLimit[] {
 
 function isMirror(dir: string) {
   try {
-    if (realpathSync(dir) === realpathSync(codexBaseDir)) {return true}
+    if (realpathSync(dir) === realpathSync(codexBaseDir)) {
+      return true
+    }
     return readdirSync(codexBaseDir)
       .filter(
         (name) =>
@@ -176,7 +180,9 @@ function isMirror(dir: string) {
           realpathSync(path.join(codexBaseDir, name))
       )
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {return false}
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false
+    }
     throw error
   }
 }
