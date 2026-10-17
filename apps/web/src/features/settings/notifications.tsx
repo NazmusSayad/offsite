@@ -15,6 +15,14 @@ import { updatePrefs } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 import { Row, Section } from './controls'
 
+const notices = new Map([
+  ['denied', "Blocked in the browser's site settings"],
+  ['hosted', 'Only on a page served by offsite'],
+  ['insecure', 'Needs https or localhost'],
+  ['install', 'Add offsite to the Home Screen first'],
+  ['unsupported', 'Not supported in this browser'],
+])
+
 export function NotificationsPage(props: { prefs: Prefs }) {
   const terminal = props.prefs.terminal
   const behavior = terminal.behavior
@@ -78,19 +86,9 @@ function NotificationSwitch() {
 
   return (
     <div className="flex items-center gap-3">
-      {permission === 'denied' && (
+      {notices.has(permission) && (
         <span className="text-muted-foreground text-xs">
-          Blocked in the browser&apos;s site settings
-        </span>
-      )}
-      {permission === 'insecure' && (
-        <span className="text-muted-foreground text-xs">
-          Needs https or localhost
-        </span>
-      )}
-      {permission === 'unsupported' && (
-        <span className="text-muted-foreground text-xs">
-          Not supported in this browser
+          {notices.get(permission)}
         </span>
       )}
       <Switch
@@ -150,29 +148,9 @@ function PushSwitch() {
           Could not update: {failure}
         </span>
       )}
-      {support === 'denied' && (
+      {notices.has(support) && (
         <span className="text-muted-foreground text-xs">
-          Blocked in the browser&apos;s site settings
-        </span>
-      )}
-      {support === 'hosted' && (
-        <span className="text-muted-foreground text-xs">
-          Only on a page served by offsite
-        </span>
-      )}
-      {support === 'insecure' && (
-        <span className="text-muted-foreground text-xs">
-          Needs https or localhost
-        </span>
-      )}
-      {support === 'install' && (
-        <span className="text-muted-foreground text-xs">
-          Add offsite to the Home Screen first
-        </span>
-      )}
-      {support === 'unsupported' && (
-        <span className="text-muted-foreground text-xs">
-          Not supported in this browser
+          {notices.get(support)}
         </span>
       )}
       <Switch

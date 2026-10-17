@@ -197,36 +197,14 @@ export class GhosttyRuntime {
     const id = this.nextHostId++
     this.hosts.set(id, host)
     this.call('ghostty_terminal_set', terminal, OPTION.userdata, id)
-    this.call(
-      'ghostty_terminal_set',
-      terminal,
-      OPTION.writePty,
-      this.callbacks.writePty
-    )
-    this.call(
-      'ghostty_terminal_set',
-      terminal,
-      OPTION.deviceAttributes,
-      this.callbacks.deviceAttributes
-    )
-    this.call(
-      'ghostty_terminal_set',
-      terminal,
-      OPTION.size,
-      this.callbacks.size
-    )
-    this.call(
-      'ghostty_terminal_set',
-      terminal,
-      OPTION.bell,
-      this.callbacks.bell
-    )
-    this.call(
-      'ghostty_terminal_set',
-      terminal,
-      OPTION.xtversion,
-      this.callbacks.xtversion
-    )
+    for (const option of [
+      [OPTION.writePty, this.callbacks.writePty],
+      [OPTION.deviceAttributes, this.callbacks.deviceAttributes],
+      [OPTION.size, this.callbacks.size],
+      [OPTION.bell, this.callbacks.bell],
+      [OPTION.xtversion, this.callbacks.xtversion],
+    ] as const)
+      this.call('ghostty_terminal_set', terminal, option[0], option[1])
     return id
   }
 
@@ -421,43 +399,19 @@ export class GhosttyRuntime {
       pointer + this.field('GhosttyDeviceAttributes', 'secondary').offset
     const tertiary =
       pointer + this.field('GhosttyDeviceAttributes', 'tertiary').offset
-    const features =
-      primary + this.field('GhosttyDeviceAttributesPrimary', 'features').offset
+    const primaryName = 'GhosttyDeviceAttributesPrimary'
+    const secondaryName = 'GhosttyDeviceAttributesSecondary'
+    const features = primary + this.field(primaryName, 'features').offset
     const view = this.dataView()
     const supported = [4, 22]
     supported.forEach((feature, index) =>
       view.setUint16(features + index * 2, feature, true)
     )
-    this.setField(
-      primary,
-      'GhosttyDeviceAttributesPrimary',
-      'conformance_level',
-      62
-    )
-    this.setField(
-      primary,
-      'GhosttyDeviceAttributesPrimary',
-      'num_features',
-      supported.length
-    )
-    this.setField(
-      secondary,
-      'GhosttyDeviceAttributesSecondary',
-      'device_type',
-      0
-    )
-    this.setField(
-      secondary,
-      'GhosttyDeviceAttributesSecondary',
-      'firmware_version',
-      276
-    )
-    this.setField(
-      secondary,
-      'GhosttyDeviceAttributesSecondary',
-      'rom_cartridge',
-      0
-    )
+    this.setField(primary, primaryName, 'conformance_level', 62)
+    this.setField(primary, primaryName, 'num_features', supported.length)
+    this.setField(secondary, secondaryName, 'device_type', 0)
+    this.setField(secondary, secondaryName, 'firmware_version', 276)
+    this.setField(secondary, secondaryName, 'rom_cartridge', 0)
     this.setField(tertiary, 'GhosttyDeviceAttributesTertiary', 'unit_id', 0)
   }
 }

@@ -147,19 +147,14 @@ async function sendExisting(
     throw new Error(`This session belongs to ${providerName(provider)}`)
   const existing = runs.get(sessionId)
   if (
-    existing?.provider === 'claude' &&
-    !existing.running &&
-    existing.backgroundTasks === 0 &&
-    (await changedElsewhere(existing, cwd))
-  ) {
-    existing.stop()
-    await existing.closed
-  }
-  if (
-    existing?.provider === 'codex' &&
-    !existing.running &&
-    existing.pending.size === 0 &&
-    (listedUpdatedAt('codex', sessionId) ?? 0) > existing.activeAt
+    (existing?.provider === 'claude' &&
+      !existing.running &&
+      existing.backgroundTasks === 0 &&
+      (await changedElsewhere(existing, cwd))) ||
+    (existing?.provider === 'codex' &&
+      !existing.running &&
+      existing.pending.size === 0 &&
+      (listedUpdatedAt('codex', sessionId) ?? 0) > existing.activeAt)
   ) {
     existing.stop()
     await existing.closed

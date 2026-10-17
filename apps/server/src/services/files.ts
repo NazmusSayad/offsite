@@ -10,7 +10,7 @@ import {
 import { lstat, open } from 'node:fs/promises'
 import path from 'node:path'
 import type { FilePreview } from '@offsite/core/protocol'
-import { home } from '../storage/storage.ts'
+import { hasCode, home } from '../storage/storage.ts'
 import { git } from './git.ts'
 
 const FILE_LIMIT = 20_000
@@ -90,8 +90,7 @@ export async function taskOutput(sessionId: string, file: string) {
   try {
     stats = await lstat(file)
   } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-      return null
+    if (hasCode(error, 'ENOENT')) return null
     throw error
   }
   if (!stats.isFile())

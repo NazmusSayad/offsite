@@ -141,7 +141,7 @@ function isOperator(text: string) {
   return /^[!-/:-@[-`{-~]$/.test(text)
 }
 
-function inRange(range: Range | null, row: number, column: number) {
+export function inRange(range: Range | null, row: number, column: number) {
   if (range === null) return false
   if (row < range.start.y || row > range.end.y) return false
   if (row === range.start.y && column < range.start.x) return false

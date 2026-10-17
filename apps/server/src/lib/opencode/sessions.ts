@@ -69,14 +69,9 @@ export async function openCodeCapabilities(
         description: 'Summarize the conversation to free up context',
         hint: '',
       },
-      ...commands.data.map((command) => ({
+      ...[...commands.data, ...skills.data].map((command) => ({
         name: command.name,
         description: command.description ?? '',
-        hint: '',
-      })),
-      ...skills.data.map((skill) => ({
-        name: skill.name,
-        description: skill.description ?? '',
         hint: '',
       })),
     ],

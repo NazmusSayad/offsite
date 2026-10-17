@@ -19,12 +19,7 @@ import { MachineForm } from './machine-form'
 
 export function AddMachineDialog(props: { onClose: () => void }) {
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) props.onClose()
-      }}
-    >
+    <Dialog open onOpenChange={() => props.onClose()}>
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
         <DialogHeader className="gap-1 px-6 pt-4 pr-12">
           <DialogTitle className="text-base">Add machine</DialogTitle>
@@ -63,12 +58,7 @@ export function EditMachineDialog(props: {
   const serving = home !== null && props.machine.addresses.includes(home)
 
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) props.onClose()
-      }}
-    >
+    <Dialog open onOpenChange={() => props.onClose()}>
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
         <form
           className="grid"

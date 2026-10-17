@@ -396,11 +396,9 @@ function browserOpen() {
 }
 
 function findTab(id: number): TerminalTab | undefined {
-  for (const project of projects.values()) {
-    const tab = project.tabs.find((item) => item.id === id)
-    if (tab !== undefined) return tab
-  }
-  return undefined
+  return [...projects.values()]
+    .flatMap((project) => project.tabs)
+    .find((tab) => tab.id === id)
 }
 
 function nearestVisible(tabs: TerminalTab[], index: number) {

@@ -1,7 +1,7 @@
 import type { GhosttyCore, Point, Scrollbar } from './core'
 import { IMAGE_MARKER } from './images'
 import { rowCharacters, type Snapshot } from './render-state'
-import type { Metrics, Range } from './renderer'
+import { inRange, type Metrics, type Range } from './renderer'
 
 type Link = { uri: string; range: Range }
 
@@ -100,9 +100,7 @@ export class Pointer {
   }
 
   dispose() {
-    if (this.selectionScroll !== null)
-      window.clearInterval(this.selectionScroll)
-    this.selectionScroll = null
+    this.setSelectionScroll(0)
   }
 
   private scrollRows(pixels: number, event: MouseEvent) {
@@ -120,13 +118,7 @@ export class Pointer {
     if (core.isAlternateScreen()) {
       const application = core.isApplicationCursorKeys()
       const sequence =
-        rows < 0
-          ? application
-            ? '\x1bOA'
-            : '\x1b[A'
-          : application
-            ? '\x1bOB'
-            : '\x1b[B'
+        (application ? '\x1bO' : '\x1b[') + (rows < 0 ? 'A' : 'B')
       this.context.onData(sequence.repeat(Math.abs(rows)))
       return
     }
@@ -253,12 +245,7 @@ export class Pointer {
       const endPoint = points[match.index + uri.length - 1]
       if (!startPoint || !endPoint) continue
       const range = { start: startPoint, end: endPoint }
-      const inside =
-        (cell.y > range.start.y ||
-          (cell.y === range.start.y && cell.x >= range.start.x)) &&
-        (cell.y < range.end.y ||
-          (cell.y === range.end.y && cell.x <= range.end.x))
-      if (inside) return { uri, range }
+      if (inRange(range, cell.y, cell.x)) return { uri, range }
     }
     return null
   }

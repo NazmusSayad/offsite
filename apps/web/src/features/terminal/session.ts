@@ -58,6 +58,10 @@ type State = {
   quiet: number[]
 }
 
+function emptyTabState() {
+  return { titles: {}, progress: {}, alerts: [], finding: null, quiet: [] }
+}
+
 const encoder = new TextEncoder()
 const sessions = new Map<number, Terminal>()
 const awaitingReplay = new Set<number>()
@@ -70,11 +74,7 @@ let state: State = {
   instance: null,
   layout: {},
   ctrl: false,
-  titles: {},
-  progress: {},
-  alerts: [],
-  finding: null,
-  quiet: [],
+  ...emptyTabState(),
 }
 let mounted: number | null = null
 let machine: string | null = null
@@ -145,11 +145,7 @@ function followSelection() {
       status: 'connecting',
       instance: null,
       layout: {},
-      titles: {},
-      progress: {},
-      alerts: [],
-      finding: null,
-      quiet: [],
+      ...emptyTabState(),
     })
   }
   if (machine === null) return
@@ -306,11 +302,7 @@ function handle(message: TerminalEvent) {
     setState({
       ...(restarted && {
         instance: message.instance,
-        titles: {},
-        progress: {},
-        alerts: [],
-        finding: null,
-        quiet: [],
+        ...emptyTabState(),
       }),
       status: awaitingReplay.size === 0 ? 'active' : 'connecting',
       layout: message.layout,

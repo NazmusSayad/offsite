@@ -195,10 +195,8 @@ function invalid(
     if (choices[name].includes(value as string)) return null
     return `${name} must be one of ${choices[name].join(', ')}`
   }
-  if (template === null) {
-    if (typeof value === 'string') return null
-    return `${name} must be text or null`
-  }
+  if (template === null)
+    return typeof value === 'string' ? null : `${name} must be text or null`
   if (typeof value !== typeof template)
     return `${name} must be a ${typeof template}`
   return null

@@ -83,6 +83,34 @@ export function SettingsDialog() {
   )
   const [revision, setRevision] = useState(0)
 
+  function navButton(item: SettingsPage) {
+    const provider = providerOf(item)
+    return (
+      <button
+        key={item}
+        className={cn(
+          'text-muted-foreground hover:bg-accent hover:text-foreground flex h-9 flex-none items-center rounded-md px-2 text-sm transition-colors',
+          item === page && 'bg-accent text-foreground'
+        )}
+        onClick={() => showSettingsPage(item)}
+      >
+        {provider !== null && (
+          <span className="mr-2.5 flex size-4 items-center justify-center">
+            <ProviderIcon
+              provider={provider}
+              className={cn(
+                provider === 'claude' && 'size-4',
+                provider === 'codex' && 'size-[19px] shrink-0',
+                provider === 'opencode' && 'h-3.5'
+              )}
+            />
+          </span>
+        )}
+        {item === 'Machine' ? 'General' : item}
+      </button>
+    )
+  }
+
   return (
     <Dialog open={open} onOpenChange={showSettings}>
       <DialogContent
@@ -94,18 +122,7 @@ export function SettingsDialog() {
           <DialogTitle className="hidden px-2 pt-1 pb-3 text-base font-semibold sm:block">
             Settings
           </DialogTitle>
-          {browserPages.map((item) => (
-            <button
-              key={item}
-              className={cn(
-                'text-muted-foreground hover:bg-accent hover:text-foreground flex h-9 flex-none items-center rounded-md px-2 text-sm transition-colors',
-                item === page && 'bg-accent text-foreground'
-              )}
-              onClick={() => showSettingsPage(item)}
-            >
-              {item}
-            </button>
-          ))}
+          {browserPages.map(navButton)}
           <div className="flex flex-none items-center gap-1 sm:mt-6 sm:flex-col sm:items-stretch">
             {machine !== null && machines.length > 1 && (
               <Select
@@ -133,33 +150,7 @@ export function SettingsDialog() {
                 <span className="truncate">{machine.name}</span>
               </p>
             )}
-            {machinePages.map((item) => {
-              const provider = providerOf(item)
-              return (
-                <button
-                  key={item}
-                  className={cn(
-                    'text-muted-foreground hover:bg-accent hover:text-foreground flex h-9 flex-none items-center rounded-md px-2 text-sm transition-colors',
-                    item === page && 'bg-accent text-foreground'
-                  )}
-                  onClick={() => showSettingsPage(item)}
-                >
-                  {provider !== null && (
-                    <span className="mr-2.5 flex size-4 items-center justify-center">
-                      <ProviderIcon
-                        provider={provider}
-                        className={cn(
-                          provider === 'claude' && 'size-4',
-                          provider === 'codex' && 'size-[19px] shrink-0',
-                          provider === 'opencode' && 'h-3.5'
-                        )}
-                      />
-                    </span>
-                  )}
-                  {item === 'Machine' ? 'General' : item}
-                </button>
-              )
-            })}
+            {machinePages.map(navButton)}
           </div>
         </nav>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-7">

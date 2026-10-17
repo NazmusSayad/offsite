@@ -36,7 +36,7 @@ export function saveMachines(machines: StoredMachine[]) {
   localStorage.setItem(storageKey, JSON.stringify(machines))
 }
 
-export async function shareWithWorker(token: string | null) {
+async function shareWithWorker(token: string | null) {
   if (!('caches' in window)) return
   const params = new URLSearchParams({
     protocol: String(PROTOCOL),
@@ -188,23 +188,15 @@ export async function addMachine(
   update({
     machines: [
       ...getState().machines,
-      {
+      restoreMachine({
         id,
         addresses,
-        via: null,
-        status: 'connecting',
         name: new URL(address).hostname,
-        hostname: new URL(address).hostname,
         label: null,
         icon: 'computer',
         token,
-        config: null,
-        configError: null,
-        system: null,
-        accounts: [],
-        activity: {},
-        providers: [],
-      },
+        projects: [],
+      }),
     ],
   })
   persistMachines()
@@ -246,7 +238,7 @@ export function editMachine(
     shareToken(next.token)
 }
 
-function shareToken(token: string | null) {
+export function shareToken(token: string | null) {
   shareWithWorker(token).catch((error: unknown) =>
     console.error('could not share the token with the service worker', error)
   )

@@ -60,7 +60,7 @@ function isRunning(pid: number) {
   }
 }
 
-function hasCode(error: unknown, code: string) {
+export function hasCode(error: unknown, code: string) {
   return error instanceof Error && 'code' in error && error.code === code
 }
 

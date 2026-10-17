@@ -14,13 +14,7 @@ import { serverDir } from '../../args.ts'
 import { platform } from '../../storage/config.ts'
 import { home } from '../../storage/storage.ts'
 
-const scripts = path.join(
-  serverDir,
-  'src',
-  'services',
-  'terminal',
-  'shell-integration'
-)
+const scripts = path.join(serverDir, 'src/services/terminal/shell-integration')
 const folder = path.join(home, 'shell-integration')
 
 export function prepare(

@@ -130,7 +130,7 @@ export function TerminalPanel(props: { projectId: string }) {
               >
                 <span className="truncate">{tabTitle(tab)}</span>
                 <AttentionDot
-                  ids={[tab.id]}
+                  id={tab.id}
                   className="ml-1.5 size-1.5 flex-none rounded-full"
                 />
                 <TabProgress progress={state.progress[tab.id]} />
@@ -312,7 +312,7 @@ function MinimizedTabs(props: {
           >
             <span className="max-w-80 truncate">{tabTitle(tab)}</span>
             <AttentionDot
-              ids={[tab.id]}
+              id={tab.id}
               className="size-1.5 flex-none rounded-full"
             />
           </DropdownMenuItem>
@@ -322,9 +322,8 @@ function MinimizedTabs(props: {
   )
 }
 
-function AttentionDot(props: { ids: number[]; className: string }) {
-  const alerts = getState().alerts
-  if (!props.ids.some((id) => alerts.includes(id))) return null
+function AttentionDot(props: { id: number; className: string }) {
+  if (!getState().alerts.includes(props.id)) return null
   return <span className={cn('bg-primary', props.className)} />
 }
 

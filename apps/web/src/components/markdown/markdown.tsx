@@ -219,13 +219,7 @@ const components: Components = {
     return (
       <CodeBlock
         code={text.replace(/\n$/, '')}
-        language={
-          language === undefined
-            ? 'text'
-            : language === 'gitignore'
-              ? 'ini'
-              : language
-        }
+        language={language === 'gitignore' ? 'ini' : (language ?? 'text')}
       />
     )
   },

@@ -158,15 +158,9 @@ export function Sidebar(props: {
   }
 
   function startThread() {
-    if (scope !== null) {
-      select(scope.machine, scope.projectId, null)
-      return
-    }
-    if (selection !== null) {
-      select(selection.machine, selection.projectId, null)
-      return
-    }
-    setAdding(true)
+    const target = scope ?? selection
+    if (target === null) setAdding(true)
+    else select(target.machine, target.projectId, null)
   }
 
   useHotkeys(['mod+n', 'mod+t'], startThread, {

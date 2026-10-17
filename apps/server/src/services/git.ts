@@ -14,6 +14,7 @@ const DIFF_LIMIT = 80_000
 const UNTRACKED_LIMIT = 100
 const NEW_FILE_LIMIT = 256 * 1024
 const REPO_DEPTH = 3
+const run = promisify(execFile)
 
 export async function gitStatus(cwd: string): Promise<GitStatus | null> {
   let output
@@ -60,12 +61,10 @@ export async function push(cwd: string) {
 }
 
 export async function createPullRequest(cwd: string) {
-  const { stdout } = await promisify(execFile)(
-    'gh',
-    ['pr', 'create', '--fill'],
-    { cwd }
-  )
-  const url = stdout.trim().split('\n').at(-1)
+  const url = (await run('gh', ['pr', 'create', '--fill'], { cwd })).stdout
+    .trim()
+    .split('\n')
+    .at(-1)
   if (url === undefined) throw new Error('gh did not return a pull request URL')
   return { url }
 }
@@ -78,7 +77,8 @@ export async function suggestCommitMessage(cwd: string) {
     throw new Error('Choose a commit message model in Settings → Git')
   const provider = accountProvider(accountId)
   assertEnabled(provider, accountId)
-  const diff = (await workingDiff(cwd)).slice(0, DIFF_LIMIT)
+  if (!(await isRepo(cwd))) throw new Error(`${cwd} is not a git repository`)
+  const diff = (await repoDiff(cwd, '')).slice(0, DIFF_LIMIT)
   if (diff === '') throw new Error('There is nothing to commit')
   const prompt = `Write a git commit message for this diff. Reply with only the message: a short summary line, optionally followed by a blank line and a brief body.\n\n${diff}`
   if (provider === 'codex')
@@ -105,11 +105,6 @@ export async function suggestCommitMessage(cwd: string) {
   throw new Error('Claude did not reply')
 }
 
-async function workingDiff(cwd: string) {
-  if (!(await isRepo(cwd))) throw new Error(`${cwd} is not a git repository`)
-  return repoDiff(cwd, '')
-}
-
 export async function projectDiff(cwd: string) {
   if (await isRepo(cwd)) return repoDiff(cwd, '')
   const repos = childRepos(cwd, '', REPO_DEPTH)
@@ -122,10 +117,7 @@ export async function projectDiff(cwd: string) {
 }
 
 export function git(cwd: string, args: string[]) {
-  return promisify(execFile)('git', args, {
-    cwd,
-    maxBuffer: 64 * 1024 * 1024,
-  })
+  return run('git', args, { cwd, maxBuffer: 64 * 1024 * 1024 })
 }
 
 async function isRepo(cwd: string) {
