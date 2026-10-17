@@ -63,8 +63,9 @@ export function start() {
     requests: [],
     queue: [],
     settings:
-      (selection === null ? null : getDraftSettings(draftKey(selection))) ??
-      emptySettings,
+      (selection === null || selection.sessionId === null
+        ? null
+        : getDraftSettings(draftKey(selection))) ?? emptySettings,
     draft: null,
     context: null,
     capabilities: null,
@@ -229,11 +230,6 @@ function receive(machine: string, event: ServerEvent) {
       setMachine(machine, { providers: event.providers })
       return
     case 'started':
-      saveDraftSettings(
-        machineKey(machine, event.sessionId),
-        getDraftSettings(machineKey(machine, event.projectId))
-      )
-      saveDraftSettings(machineKey(machine, event.projectId), null)
       if (
         state.selection === null ||
         !selected ||

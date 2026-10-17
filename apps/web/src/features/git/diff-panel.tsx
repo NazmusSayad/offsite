@@ -13,6 +13,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs'
 import { FileDiff } from '@pierre/diffs/react'
+import { sumBy } from 'es-toolkit'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
@@ -80,15 +81,11 @@ export function DiffPanel(props: {
   }, [props.machine, props.projectId, props.running, version])
 
   const list = files ?? []
-  const added = list.reduce(
-    (total, file) =>
-      total + file.hunks.reduce((sum, hunk) => sum + hunk.additionLines, 0),
-    0
+  const added = sumBy(list, (file) =>
+    sumBy(file.hunks, (hunk) => hunk.additionLines)
   )
-  const removed = list.reduce(
-    (total, file) =>
-      total + file.hunks.reduce((sum, hunk) => sum + hunk.deletionLines, 0),
-    0
+  const removed = sumBy(list, (file) =>
+    sumBy(file.hunks, (hunk) => hunk.deletionLines)
   )
   const allCollapsed =
     list.length > 0 && list.every((file) => collapsed.includes(file.name))

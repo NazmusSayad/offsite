@@ -5,6 +5,7 @@ import {
   type EffortLevel,
   type Options,
   type PermissionMode,
+  type Query,
   query,
   type SDKControlInitializeResponse,
   type SDKRateLimitInfo,
@@ -191,6 +192,38 @@ export function recordLimit(accountId: string, info: SDKRateLimitInfo) {
   return accountLimits(accountId)
 }
 
+async function recordUsage(accountId: string, probe: Query) {
+  try {
+    const usage =
+      await probe.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET({
+        skipBehaviors: true,
+      })
+    if (usage.rate_limits === null) return
+    const current = limits.get(accountId) ?? new Map<string, RateLimit>()
+    const windows = {
+      five_hour: usage.rate_limits.five_hour,
+      seven_day: usage.rate_limits.seven_day,
+      seven_day_opus: usage.rate_limits.seven_day_opus,
+      seven_day_sonnet: usage.rate_limits.seven_day_sonnet,
+    }
+    for (const [name, window] of Object.entries(windows))
+      if (window !== undefined && window !== null)
+        current.set(name, {
+          window: name,
+          utilization:
+            window.utilization === null ? null : window.utilization / 100,
+          resetsAt:
+            window.resets_at === null
+              ? null
+              : Date.parse(window.resets_at) / 1000,
+          rejected: window.utilization !== null && window.utilization >= 100,
+        })
+    limits.set(accountId, current)
+  } catch (error) {
+    console.warn(`could not read Claude usage limits: ${error}`)
+  }
+}
+
 function isLinked(configDir: string) {
   const base = readConfig().claudeBaseDir
   try {
@@ -226,7 +259,9 @@ async function runProbe(accountId: string, cwd: string) {
     options: claudeOptions(accountId, cwd),
   })
   try {
-    return await probe.initializationResult()
+    const result = await probe.initializationResult()
+    await recordUsage(accountId, probe)
+    return result
   } finally {
     closed.resolve()
     probe.close()

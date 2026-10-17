@@ -38,7 +38,8 @@ export function changeSettings(patch: Partial<Settings>) {
   update({ settings })
   const selection = getState().selection
   if (selection === null) return
-  saveDraftSettings(draftKey(selection), settings)
+  if (selection.sessionId !== null)
+    saveDraftSettings(draftKey(selection), settings)
   const config = machineOf(getState(), selection.machine).config
   if (config !== null)
     updateConfig(selection.machine, {

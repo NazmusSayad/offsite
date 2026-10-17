@@ -12,6 +12,7 @@ import type {
   SessionInfo,
   SessionMessageInfo,
 } from '@opencode/client'
+import { sumBy } from 'es-toolkit'
 import { runs } from '../live.ts'
 import { findOpenCode, openCode } from './client.ts'
 import { messageItems } from './items.ts'
@@ -29,7 +30,6 @@ export function openCodeAccount(): Account {
     configDir: '',
     enabled: true,
     hiddenModels: {},
-    defaultModel: null,
     email: null,
     plan: null,
     error: null,
@@ -171,8 +171,8 @@ export async function rewindOpenCode(request: Rewind): Promise<RewindResult> {
   const result = request.code
     ? {
         files: files.map((file) => file.file),
-        insertions: files.reduce((sum, file) => sum + file.additions, 0),
-        deletions: files.reduce((sum, file) => sum + file.deletions, 0),
+        insertions: sumBy(files, (file) => file.additions),
+        deletions: sumBy(files, (file) => file.deletions),
       }
     : null
   if (request.dryRun) await client.session.revert.clear({ sessionID })

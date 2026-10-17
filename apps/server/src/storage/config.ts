@@ -37,7 +37,6 @@ export const defaults: Config = {
   },
   commitMessage: { accountId: null, model: null },
   models: { claude: {}, codex: {}, opencode: {} },
-  defaultModels: { claude: null, codex: null, opencode: null },
   delivery: 'steer',
   autoResolve: { questions: 3, permissions: 1, permissionDecision: 'allow' },
   terminal: {
@@ -77,9 +76,6 @@ const nullable = [
   'composer.opencode.mode',
   'commitMessage.accountId',
   'commitMessage.model',
-  'defaultModels.claude',
-  'defaultModels.codex',
-  'defaultModels.opencode',
   'autoResolve.questions',
   'autoResolve.permissions',
   'terminal.shell.macos',
@@ -123,6 +119,7 @@ export function readConfig() {
     return structuredClone(defaults)
   }
   delete user.commitModels
+  delete user.defaultModels
   let config: unknown = structuredClone(defaults)
   for (const [key, value] of Object.entries(user))
     config = merge(config, [key], value)

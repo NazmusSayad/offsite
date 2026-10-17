@@ -1,8 +1,4 @@
-import {
-  Add01Icon,
-  Delete02Icon,
-  PencilEdit02Icon,
-} from '@hugeicons/core-free-icons'
+import { Add01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type {
   Account,
@@ -10,6 +6,7 @@ import type {
   Config,
   ModelSetting,
   Provider,
+  RateLimit,
 } from '@offsite/core/protocol'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
@@ -23,6 +20,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Tooltip } from '@/components/ui/tooltip'
+import { windowName } from '@/features/composer/limits'
+import { fullTime } from '@/lib/format'
 import { update } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 import { AccountPage, NewAccountPage } from './account'
@@ -81,11 +81,6 @@ export function ProviderPage(props: {
           </Row>
         </div>
       )}
-      {props.provider === 'opencode' && (
-        <p className="text-muted-foreground px-1 text-xs">
-          Sign in with <code className="font-mono">opencode auth login</code>
-        </p>
-      )}
       <div
         className={cn('space-y-5 transition-opacity', !enabled && 'opacity-50')}
       >
@@ -117,9 +112,9 @@ function ProviderModels(props: {
   const [error, setError] = useState<string | null>(null)
   const settings = props.config.models[props.provider]
   const models = capabilities === null ? null : capabilities.models
+  const composer = props.config.composer[props.provider]
   const defaultModel =
-    props.config.defaultModels[props.provider] ??
-    (capabilities === null ? null : capabilities.providerDefaultModel)
+    composer.model ?? (capabilities === null ? null : capabilities.defaultModel)
 
   useEffect(() => {
     let current = true
@@ -157,15 +152,20 @@ function ProviderModels(props: {
         <Row label="Default model">
           <Select
             value={defaultModel ?? undefined}
-            onValueChange={(value) =>
+            onValueChange={(value) => {
+              const effort = settings[value]?.effort ?? null
               void updateConfig(props.machine, {
                 ...props.config,
-                defaultModels: {
-                  ...props.config.defaultModels,
-                  [props.provider]: value,
+                composer: {
+                  ...props.config.composer,
+                  [props.provider]: {
+                    ...composer,
+                    model: value,
+                    ...(effort === null ? {} : { effort }),
+                  },
                 },
               })
-            }
+            }}
           >
             <SelectTrigger className="w-56">
               <SelectValue placeholder="Choose a model" />
@@ -269,42 +269,53 @@ function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
     <>
       {props.accounts.map((account) => (
         <div key={account.id} className="flex items-center gap-3 px-4 py-3">
-          <span
-            className={cn(
-              'size-2 shrink-0 rounded-full',
-              !account.enabled && 'bg-muted-foreground/40',
-              account.enabled && account.error !== null && 'bg-destructive',
-              account.enabled &&
-                account.error === null &&
-                !account.linked &&
-                'bg-warning',
-              account.enabled &&
-                account.error === null &&
-                account.linked &&
-                'bg-success'
-            )}
-          />
           <div
             className={cn('min-w-0 flex-1', !account.enabled && 'opacity-50')}
           >
-            <div className="text-sm font-medium">{account.name}</div>
-            <div
-              className={cn(
-                'truncate text-xs',
-                account.error !== null && 'text-destructive',
-                account.error === null && !account.linked && 'text-warning',
-                account.error === null &&
-                  account.linked &&
-                  'text-muted-foreground'
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                className={cn(
+                  'size-2 shrink-0 rounded-full',
+                  !account.enabled && 'bg-muted-foreground/40',
+                  account.enabled && account.error !== null && 'bg-destructive',
+                  account.enabled &&
+                    account.error === null &&
+                    !account.linked &&
+                    'bg-warning',
+                  account.enabled &&
+                    account.error === null &&
+                    account.linked &&
+                    'bg-success'
+                )}
+              />
+              <span className="truncate text-sm font-medium">
+                {account.name}
+              </span>
+              {account.plan !== null && (
+                <span className="text-muted-foreground shrink-0 text-xs">
+                  {account.plan}
+                </span>
               )}
-            >
-              {account.error ??
-                (account.linked
-                  ? [account.email, account.plan, account.configDir]
-                      .filter((part) => part !== null)
-                      .join(' · ')
-                  : 'Not linked to shared threads · hidden in the composer')}
             </div>
+            {account.error !== null && (
+              <p className="text-destructive mt-1 truncate pl-4 text-xs">
+                {account.error}
+              </p>
+            )}
+            {account.error === null && !account.linked && (
+              <p className="text-warning mt-1 truncate pl-4 text-xs">
+                Not linked to shared threads · hidden in the composer
+              </p>
+            )}
+            {account.error === null &&
+              account.linked &&
+              account.limits.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1.5 pl-4">
+                  {account.limits.map((limit) => (
+                    <UsageMeter key={limit.window} limit={limit} />
+                  ))}
+                </div>
+              )}
           </div>
           <Switch
             size="sm"
@@ -318,7 +329,6 @@ function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
                   configDir: account.configDir,
                   enabled,
                   hiddenModels: account.hiddenModels,
-                  defaultModel: account.defaultModel,
                 })
               )
             }
@@ -327,23 +337,10 @@ function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
           <Button
             size="icon-sm"
             variant="ghost-muted"
-            title="Edit account"
+            title="Open account"
             onClick={() => update({ settingsAccount: account.id })}
           >
-            <HugeiconsIcon icon={PencilEdit02Icon} />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="ghost-muted"
-            title="Remove account"
-            disabled={busy}
-            onClick={() =>
-              void run(() =>
-                call(props.machine, 'accounts.remove', { id: account.id })
-              )
-            }
-          >
-            <HugeiconsIcon icon={Delete02Icon} />
+            <HugeiconsIcon icon={ArrowRight01Icon} />
           </Button>
         </div>
       ))}
@@ -359,5 +356,48 @@ function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
         <p className="text-destructive px-4 py-3 text-xs">{error}</p>
       )}
     </>
+  )
+}
+
+function UsageMeter(props: { limit: RateLimit }) {
+  const limit = props.limit
+  const percent = limit.rejected
+    ? 100
+    : limit.utilization === null
+      ? null
+      : Math.min(100, Math.round(limit.utilization * 100))
+  if (percent === null) return null
+  return (
+    <Tooltip
+      label={
+        limit.resetsAt === null
+          ? 'Reset time unknown'
+          : `Resets ${fullTime(limit.resetsAt * 1000)}`
+      }
+    >
+      <div className="flex items-center gap-1.5 text-xs">
+        <span className="text-muted-foreground">{windowName(limit)}</span>
+        <div className="bg-foreground/10 h-1 w-16 overflow-hidden rounded-full">
+          <div
+            className={cn(
+              'h-full rounded-full',
+              limit.rejected && 'bg-destructive',
+              !limit.rejected && percent >= 80 && 'bg-warning',
+              !limit.rejected && percent < 80 && 'bg-foreground/50'
+            )}
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+        <span
+          className={cn(
+            'tabular-nums',
+            limit.rejected && 'text-destructive',
+            !limit.rejected && 'text-muted-foreground'
+          )}
+        >
+          {percent}%
+        </span>
+      </div>
+    </Tooltip>
   )
 }
