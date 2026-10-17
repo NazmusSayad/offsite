@@ -1,5 +1,12 @@
 import { execFile } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  statSync,
+} from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { query } from '@anthropic-ai/claude-agent-sdk'
@@ -432,6 +439,9 @@ function newFilePatch(cwd: string, file: string, prefix: string) {
   const name = `${prefix}${file}`
   const header = `diff --git a/${name} b/${name}\nnew file\n--- /dev/null\n+++ b/${name}\n`
   const full = path.join(cwd, file)
+  if (lstatSync(full).isSymbolicLink()) {
+    return `${header}@@ -0,0 +1 @@\n+${readlinkSync(full)}\n`
+  }
   if (statSync(full).size > NEW_FILE_LIMIT) {
     return `${header}Binary or large file\n`
   }
