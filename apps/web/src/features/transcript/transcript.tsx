@@ -180,7 +180,9 @@ export function Transcript(props: {
                       ? undefined
                       : isTool(row) && isTool(previous)
                         ? 'pt-2'
-                        : 'pt-4',
+                        : isTool(row) || isTool(previous)
+                          ? 'pt-3'
+                          : 'pt-4',
                 row.kind === 'assistant' && 'group/assistant'
               )}
             >
