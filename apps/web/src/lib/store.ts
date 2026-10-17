@@ -15,7 +15,6 @@ import type {
   Settings,
 } from '@offsite/core/protocol'
 import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
-import type { Refusal } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import type { MachineIcon } from '@/components/icons'
 import { errorMessage } from '@/lib/utils'
@@ -49,7 +48,7 @@ export type Machine = {
   id: string
   addresses: string[]
   via: string | null
-  status: 'connecting' | 'online' | 'offline' | Refusal
+  status: 'connecting' | 'online' | 'offline' | 'mismatch'
   name: string
   hostname: string
   label: string | null

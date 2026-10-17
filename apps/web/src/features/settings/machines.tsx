@@ -39,9 +39,6 @@ const statuses = {
   connecting: 'Connecting…',
   online: 'Online',
   offline: 'Offline',
-  outdated: 'Runs an older offsite version, update it',
-  newer: 'Runs a newer offsite version, reload this page',
-  unauthorized: 'Needs its pairing token',
   mismatch: 'Its address reaches a different machine',
 }
 
@@ -91,15 +88,13 @@ export function MachinesPage() {
                   </p>
                 ))}
             </div>
-            {machine.status !== 'unauthorized' && (
-              <span className="text-muted-foreground shrink-0 text-xs">
-                {statuses[machine.status]}
-                {machine.status === 'online' &&
-                  machine.via !== null &&
-                  machine.via !== machine.addresses[0] &&
-                  ` · via ${new URL(machine.via).host}`}
-              </span>
-            )}
+            <span className="text-muted-foreground shrink-0 text-xs">
+              {statuses[machine.status]}
+              {machine.status === 'online' &&
+                machine.via !== null &&
+                machine.via !== machine.addresses[0] &&
+                ` · via ${new URL(machine.via).host}`}
+            </span>
             <div className="flex shrink-0 items-center gap-1">
               <Button
                 size="icon-sm"
@@ -215,14 +210,14 @@ function EditMachinePage(props: { machine: Machine }) {
       </Section>
       <Section title="Pairing">
         <div className="flex min-h-13 items-center justify-between gap-4 px-4 py-2.5">
-          {machine.token !== null && machine.status !== 'unauthorized' && (
+          {machine.token !== null && (
             <span className="text-sm">
               {machine.pairedAt === null
                 ? 'Paired'
                 : `Paired ${fullTime(machine.pairedAt)}`}
             </span>
           )}
-          {(machine.token === null || machine.status === 'unauthorized') && (
+          {machine.token === null && (
             <form
               className="flex flex-1 items-center gap-3"
               onSubmit={(event) => {

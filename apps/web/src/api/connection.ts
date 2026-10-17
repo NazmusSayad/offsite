@@ -3,7 +3,6 @@ import {
   encodeFrame,
   type Method,
   type Methods,
-  PROTOCOL,
   type Reply,
   type ServerEvent,
   type ServerMessage,
@@ -13,13 +12,10 @@ import {
 type Listener = {
   open?: (machine: string, url: string) => void
   close?: (machine: string) => void
-  refuse?: (machine: string, reason: Refusal) => void
   event?: (machine: string, event: ServerEvent) => void
   terminal?: (machine: string, event: TerminalEvent) => void
   frame?: (machine: string, frame: ReturnType<typeof decodeFrame>) => void
 }
-
-export type Refusal = 'outdated' | 'newer' | 'unauthorized' | 'mismatch'
 
 type Connection = {
   urls: string[]
@@ -40,7 +36,7 @@ const RECONNECT_DELAY = 1000
 const RECONNECT_LIMIT = 30_000
 const PING_INTERVAL = 10_000
 const PING_TIMEOUT = 10_000
-const CHECK_TIMEOUT = 3000
+const CONNECT_TIMEOUT = 3000
 const CALL_TIMEOUT = 30_000
 const LONG_CALL_TIMEOUT = 5 * 60_000
 const longCalls: Method[] = [
@@ -78,7 +74,7 @@ function wake() {
     window.clearTimeout(connection.timer)
     connection.timer = undefined
     connection.failures = 0
-    void openSocket(machine, connection, 0)
+    openSocket(machine, connection, 0)
   }
 }
 
@@ -100,7 +96,7 @@ export function connectMachine(
     pending: new Map(),
   }
   connections.set(machine, connection)
-  void openSocket(machine, connection, 0)
+  openSocket(machine, connection, 0)
 }
 
 export function disconnectMachine(machine: string) {
@@ -192,42 +188,36 @@ export async function checkConnection(machine: string) {
   return await connection.ping
 }
 
-async function openSocket(
-  machine: string,
-  connection: Connection,
-  attempt: number
-) {
+function openSocket(machine: string, connection: Connection, attempt: number) {
   const url = connection.urls[attempt % connection.urls.length]
   connection.url = url
-  const params = new URLSearchParams({
-    protocol: String(PROTOCOL),
-    ...(connection.token !== null && { token: connection.token }),
-  })
-  const refusal = await checkServer(machine, url, params)
-  if (connections.get(machine) !== connection) return
-  if (refusal !== null) {
-    const lastUrl = (attempt + 1) % connection.urls.length === 0
-    if (!lastUrl) {
-      void openSocket(machine, connection, attempt + 1)
-      return
-    }
-    if (refusal === 'offline')
-      for (const listener of listeners) listener.close?.(machine)
-    else for (const listener of listeners) listener.refuse?.(machine, refusal)
-    if (refusal !== 'unauthorized') retry(machine, connection, attempt + 1)
-    return
-  }
-  const next = new WebSocket(`${url.replace(/^http/, 'ws')}/ws?${params}`)
+  const query =
+    connection.token === null
+      ? ''
+      : `?${new URLSearchParams({ token: connection.token })}`
+  const next = new WebSocket(`${url.replace(/^http/, 'ws')}/ws${query}`)
   next.binaryType = 'arraybuffer'
+  const timer = window.setTimeout(() => next.close(), CONNECT_TIMEOUT)
   next.onopen = () => {
+    window.clearTimeout(timer)
     connection.connected = true
     connection.failures = 0
     for (const listener of listeners) listener.open?.(machine, url)
   }
   next.onmessage = (event) => receive(machine, connection, event.data)
   next.onclose = () => {
-    disconnect(machine, connection)
-    retry(machine, connection, 0)
+    window.clearTimeout(timer)
+    if (connection.connected) {
+      disconnect(machine, connection)
+      retry(machine, connection, 0)
+      return
+    }
+    if ((attempt + 1) % connection.urls.length !== 0) {
+      openSocket(machine, connection, attempt + 1)
+      return
+    }
+    for (const listener of listeners) listener.close?.(machine)
+    retry(machine, connection, attempt + 1)
   }
   connection.socket = next
 }
@@ -239,33 +229,8 @@ function retry(machine: string, connection: Connection, attempt: number) {
   connection.failures += 1
   connection.timer = window.setTimeout(() => {
     connection.timer = undefined
-    void openSocket(machine, connection, attempt)
+    openSocket(machine, connection, attempt)
   }, delay)
-}
-
-async function checkServer(
-  machine: string,
-  url: string,
-  params: URLSearchParams
-) {
-  const signal = AbortSignal.timeout(CHECK_TIMEOUT)
-  let response: Response
-  try {
-    response = await fetch(`${url}/version?${params}`, { signal })
-  } catch {
-    return 'offline'
-  }
-  if (!response.ok) return 'offline'
-  const server: {
-    protocol: number
-    machineId: string
-    authorized: boolean
-  } | null = await response.json().catch(() => null)
-  if (server === null || server.protocol < PROTOCOL) return 'outdated'
-  if (server.protocol > PROTOCOL) return 'newer'
-  if (server.machineId !== machine) return 'mismatch'
-  if (!server.authorized) return 'unauthorized'
-  return null
 }
 
 function disconnect(machine: string, connection: Connection) {

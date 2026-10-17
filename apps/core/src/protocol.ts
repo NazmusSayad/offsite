@@ -1,5 +1,3 @@
-export const PROTOCOL = 4
-
 export type Provider = 'claude' | 'codex' | 'opencode'
 
 export type RateLimit = {
@@ -41,7 +39,6 @@ export type Directories = {
 }
 
 export type Snapshot = ConfigInfo & {
-  protocol: number
   machineId: string
   hostname: string
   projects: Project[]

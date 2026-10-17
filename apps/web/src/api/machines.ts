@@ -1,4 +1,4 @@
-import { PROTOCOL, type Project } from '@offsite/core/protocol'
+import type { Project, ServerMessage, Snapshot } from '@offsite/core/protocol'
 import type { MachineIcon } from '@/components/icons'
 import {
   getState,
@@ -39,33 +39,37 @@ async function shareWithWorker(machines: StoredMachine[]) {
   const shared = machines.map((machine) => ({
     addresses: machine.addresses,
     query: String(
-      new URLSearchParams({
-        protocol: String(PROTOCOL),
-        ...(machine.token !== null && { token: machine.token }),
-      })
+      new URLSearchParams(
+        machine.token === null ? {} : { token: machine.token }
+      )
     ),
   }))
   const cache = await caches.open('offsite-worker')
   await cache.put('/machines', new Response(JSON.stringify(shared)))
 }
 
-export async function probeMachine(address: string) {
-  let response: Response
-  try {
-    response = await fetch(`${address}/version`, {
-      signal: AbortSignal.timeout(PROBE_TIMEOUT),
-    })
-  } catch {
-    throw new Error(`Could not reach ${new URL(address).host}`)
-  }
-  if (!response.ok)
-    throw new Error(`${new URL(address).host} answered ${response.status}`)
-  const server: { machineId?: unknown } = await response.json()
-  if (typeof server.machineId !== 'string')
-    throw new Error(
-      `${new URL(address).host} runs a version of offsite that this page cannot talk to`
-    )
-  return { id: server.machineId }
+function readMachineId(address: string, token: string | null) {
+  return new Promise<string>((resolve, reject) => {
+    const query = token === null ? '' : `?${new URLSearchParams({ token })}`
+    const socket = new WebSocket(`${address.replace(/^http/, 'ws')}/ws${query}`)
+    const timer = window.setTimeout(() => socket.close(), PROBE_TIMEOUT)
+    socket.onopen = () =>
+      socket.send(JSON.stringify({ id: 1, method: 'sync', params: undefined }))
+    socket.onmessage = (event) => {
+      if (typeof event.data !== 'string') return
+      const message = JSON.parse(event.data) as ServerMessage
+      if (message.type !== 'reply' || message.id !== 1) return
+      window.clearTimeout(timer)
+      socket.onclose = null
+      socket.close()
+      if ('error' in message) reject(new Error(message.error))
+      else resolve((message.result as Snapshot).machineId)
+    }
+    socket.onclose = () => {
+      window.clearTimeout(timer)
+      reject(new Error(`Could not connect to ${new URL(address).host}`))
+    }
+  })
 }
 
 export function pairingFromUrl() {
@@ -177,7 +181,7 @@ export async function addMachine(
   token: string | null
 ) {
   const addresses = fallback === null ? [address] : [address, fallback]
-  const id = await identify(addresses)
+  const id = await identify(addresses, token)
   const existing = getState().machines.find(
     (item) => item.addresses.includes(address) || item.id === id
   )
@@ -209,11 +213,11 @@ export async function addMachine(
   return id
 }
 
-async function identify(addresses: string[]) {
+async function identify(addresses: string[], token: string | null) {
   let failure: unknown
   for (const address of addresses) {
     try {
-      return (await probeMachine(address)).id
+      return await readMachineId(address, token)
     } catch (error) {
       failure ??= error
     }

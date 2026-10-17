@@ -128,10 +128,6 @@ export function Sidebar(props: {
     const machine = machines.find((item) => item.id === id)
     if (machine === undefined) return ''
     if (machine.status === 'online') return machine.name
-    if (machine.status === 'outdated') return `${machine.name} · needs update`
-    if (machine.status === 'newer') return `${machine.name} · reload page`
-    if (machine.status === 'unauthorized')
-      return `${machine.name} · needs pairing`
     if (machine.status === 'mismatch')
       return `${machine.name} · different machine`
     return `${machine.name} · offline`

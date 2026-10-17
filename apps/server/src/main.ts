@@ -1,7 +1,6 @@
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer, type ServerResponse } from 'node:http'
 import path from 'node:path'
-import { PROTOCOL } from '@offsite/core/protocol'
 import { consola } from 'consola'
 import { type WebSocket, WebSocketServer } from 'ws'
 import { connectClient } from './api/socket.ts'
@@ -10,8 +9,7 @@ import { findClaude } from './lib/claude/index.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
 import { refreshAll, watchSessions } from './services/sessions.ts'
-import { readConfig, version } from './storage/config.ts'
-import { machineInfo } from './storage/db.ts'
+import { readConfig } from './storage/config.ts'
 import { lockHome } from './storage/storage.ts'
 import {
   addToken,
@@ -76,19 +74,6 @@ const token = args.auth && args.pair && !hasTokens() ? addToken(null) : null
 
 const server = createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
-  if (url.pathname === '/version') {
-    response.setHeader('access-control-allow-origin', '*')
-    response.setHeader('content-type', 'application/json')
-    response.end(
-      JSON.stringify({
-        version,
-        protocol: PROTOCOL,
-        machineId: machineInfo().id,
-        authorized: authorized(url),
-      })
-    )
-    return
-  }
   if (args.command === 'serve') {
     response.statusCode = 404
     response.end('offsite serve has no web app')
@@ -103,11 +88,7 @@ const paired = new Map<WebSocket, string>()
 server.on('upgrade', (request, socket, head) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
   const given = url.searchParams.get('token')
-  if (
-    url.pathname !== '/ws' ||
-    url.searchParams.get('protocol') !== String(PROTOCOL) ||
-    !authorized(url)
-  ) {
+  if (url.pathname !== '/ws' || !authorized(url)) {
     socket.destroy()
     return
   }

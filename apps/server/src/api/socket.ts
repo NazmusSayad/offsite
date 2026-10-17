@@ -1,10 +1,5 @@
 import os from 'node:os'
-import {
-  type Call,
-  type Method,
-  type Methods,
-  PROTOCOL,
-} from '@offsite/core/protocol'
+import { type Call, type Method, type Methods } from '@offsite/core/protocol'
 import type { WebSocket } from 'ws'
 import { agentMessages, earlier, image } from '../lib/claude/index.ts'
 import { codexAgent } from '../lib/codex/index.ts'
@@ -80,7 +75,6 @@ const handlers: Handlers = {
     refreshAll()
     return {
       ...configInfo(),
-      protocol: PROTOCOL,
       machineId: machineInfo().id,
       hostname: os.hostname(),
       projects: projects(),

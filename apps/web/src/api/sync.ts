@@ -1,5 +1,4 @@
 import {
-  PROTOCOL,
   type Project,
   type ServerEvent,
   type Session,
@@ -83,7 +82,6 @@ export function start() {
       if (known !== undefined && known.status !== 'offline')
         setMachine(machine, { status: 'offline', via: null })
     },
-    refuse: (machine, reason) => setMachine(machine, { status: reason }),
     event: receive,
   })
   addEventListener('storage', (event) => {
@@ -110,8 +108,8 @@ async function resync(machine: string) {
     const snapshot = await call(machine, 'sync', undefined)
     const known = getState().machines.find((item) => item.id === machine)
     if (known === undefined) return
-    if (snapshot.protocol !== PROTOCOL) {
-      setMachine(machine, { status: 'outdated' })
+    if (snapshot.machineId !== machine) {
+      setMachine(machine, { status: 'mismatch' })
       return
     }
     setMachine(machine, {
@@ -169,7 +167,7 @@ function reopenThread(machine: string) {
 function receive(machine: string, event: ServerEvent) {
   const state = getState()
   const known = state.machines.find((item) => item.id === machine)
-  if (known === undefined || known.status === 'outdated') return
+  if (known === undefined || known.status === 'mismatch') return
   const selected = state.selection?.machine === machine
   const current = selected ? (state.selection?.sessionId ?? null) : null
   switch (event.type) {

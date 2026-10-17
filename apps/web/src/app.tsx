@@ -46,18 +46,6 @@ import { cn, drag, mod } from '@/lib/utils'
 
 const desktop = window.matchMedia('(min-width: 768px)')
 const refusals = {
-  outdated: {
-    title: (name: string) => `${name} needs an update`,
-    body: 'It runs a version of offsite that this page cannot talk to. Update offsite on that machine and restart it.',
-  },
-  newer: {
-    title: () => 'This page is out of date',
-    body: 'That machine runs a newer version of offsite. Reload this page to talk to it.',
-  },
-  unauthorized: {
-    title: (name: string) => `${name} needs pairing`,
-    body: 'Run offsite pair on that machine and open the link it prints, or enter a token in Settings → Machines.',
-  },
   mismatch: {
     title: (name: string) => `${name} is a different machine now`,
     body: 'Its address now reaches another offsite machine. Fix the address in Settings → Machines, or add it as a new machine.',
@@ -81,11 +69,7 @@ export function App() {
     return origin === null ? null : machineOf(state, origin)
   })
   const refusal =
-    machine !== null &&
-    (machine.status === 'outdated' ||
-      machine.status === 'newer' ||
-      machine.status === 'unauthorized' ||
-      machine.status === 'mismatch')
+    machine !== null && machine.status === 'mismatch'
       ? refusals[machine.status]
       : null
   const error = useStore((state) => state.error)
