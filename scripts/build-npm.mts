@@ -23,7 +23,7 @@ const manifest = {
 
 for (const folder of [
   ['apps', 'server', 'dist'],
-  ['apps', 'server', 'src', 'terminal', 'shell-integration'],
+  ['apps', 'server', 'src', 'services', 'terminal', 'shell-integration'],
   ['apps', 'web', 'dist'],
 ])
   cpSync(path.join(root, ...folder), path.join(output, ...folder), {
@@ -32,7 +32,7 @@ for (const folder of [
 mkdirSync(path.join(output, 'bin'), { recursive: true })
 writeFileSync(
   path.join(output, 'bin', 'offsite.js'),
-  "#!/usr/bin/env node\nimport '../apps/server/dist/main.js'\n"
+  "#!/usr/bin/env node\nimport '../apps/server/dist/main.mjs'\n"
 )
 cpSync(path.join(root, 'LICENSE'), path.join(output, 'LICENSE'))
 cpSync(path.join(root, 'README.md'), path.join(output, 'README.md'))

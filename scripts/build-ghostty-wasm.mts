@@ -12,6 +12,7 @@ const folder = path.join(
   'apps',
   'web',
   'src',
+  'lib',
   'ghostty'
 )
 const work = mkdtempSync(path.join(tmpdir(), 'ghostty-'))
