@@ -117,7 +117,6 @@ export function DiffPanel(props: {
             variant="ghost"
             title="Refresh diff"
             aria-label="Refresh diff"
-            disabled={props.running}
             onClick={() => setVersion(version + 1)}
           >
             <HugeiconsIcon icon={RefreshCwIcon} className="size-3.5" />
