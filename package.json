@@ -6,7 +6,7 @@
     "start": "node apps/server/dist/main.mjs",
     "typecheck": "tsc -p tsconfig.json && pnpm -r typecheck",
     "lint": "pnpm typecheck && oxlint .",
-    "lint:fix": "oxlint . --fix",
+    "lint:fix": "oxlint . --fix && oxfmt",
     "test": "pnpm --filter web test"
   },
   "devDependencies": {
