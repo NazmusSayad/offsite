@@ -28,11 +28,11 @@ import {
   FolderDialog,
 } from '@/features/sidebar/project-dialogs'
 import { DraftRow, SessionItem } from '@/features/sidebar/session-item'
+import { openSession } from '@/lib/sessions'
 import {
   activityOf,
   type MachineProject,
   type MachineSession,
-  openSession,
   showPalette,
   showSettings,
   useStore,

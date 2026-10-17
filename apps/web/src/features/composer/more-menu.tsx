@@ -23,8 +23,10 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { changeSettings } from '@/lib/accounts'
 import { compact } from '@/lib/format'
-import { changeSettings, sendPrompt, showError, useStore } from '@/lib/store'
+import { sendPrompt } from '@/lib/sessions'
+import { showError, useStore } from '@/lib/store'
 
 const fixedModes: Record<
   Exclude<Provider, 'opencode'>,

@@ -25,9 +25,8 @@ import {
   UserMessage,
 } from '@/features/transcript/user-message'
 import { clock, fullTime } from '@/lib/format'
+import { forkFrom, loadEarlier } from '@/lib/sessions'
 import {
-  forkFrom,
-  loadEarlier,
   projectOf,
   selectedActivity,
   selectedRunning,

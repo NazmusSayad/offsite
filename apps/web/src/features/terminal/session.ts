@@ -14,10 +14,10 @@ import {
   type Progress,
   Terminal,
 } from '@/lib/ghostty/terminal'
+import { openSession } from '@/lib/sessions'
 import {
   getState as appState,
   machineOf,
-  openSession,
   subscribe as subscribeApp,
 } from '@/lib/store'
 import { errorMessage, isMac } from '@/lib/utils'

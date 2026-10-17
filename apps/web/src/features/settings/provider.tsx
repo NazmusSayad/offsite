@@ -25,7 +25,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { update } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
-import { AccountPage, NewAccountPage } from './account-page'
+import { AccountPage, NewAccountPage } from './account'
 import { Row, Section, TextInput } from './controls'
 
 export function ProviderPage(props: {

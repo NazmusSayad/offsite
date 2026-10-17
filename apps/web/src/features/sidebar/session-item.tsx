@@ -25,7 +25,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { providerNames, timeAgo } from '@/lib/format'
-import { editSession, type MachineSession, removeSession } from '@/lib/store'
+import { editSession, removeSession } from '@/lib/sessions'
+import { type MachineSession } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 const surface =

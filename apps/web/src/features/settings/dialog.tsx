@@ -1,6 +1,5 @@
 import { ArrowRight01Icon, Cancel01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { schemes } from '@offsite/core/schemes'
 import { useState } from 'react'
 import { updateConfig } from '@/api/machine-config'
 import { machineIcons, ProviderIcon } from '@/components/icons'
@@ -39,16 +38,14 @@ import {
   updatePrefs,
   useStore,
 } from '@/lib/store'
-import { cn, isMac, mod } from '@/lib/utils'
-import { ProviderPage } from './accounts'
-import { AgentsSection } from './agents'
-import { Row, Section } from './controls'
-import { GitPage } from './git'
+import { cn } from '@/lib/utils'
+import { GeneralPage } from './general'
+import { MachinePage } from './machine'
 import { MachinesPage } from './machines'
-import { BellSection, NotificationSection, UpdateSection } from './sections'
-import { TerminalLookPage, TerminalMachinePage } from './terminal'
-
-const terminalMod = isMac ? '⌘' : 'Ctrl+Shift'
+import { NotificationsPage } from './notifications'
+import { ProviderPage } from './provider'
+import { ShortcutsPage } from './shortcuts'
+import { TerminalPage } from './terminal'
 
 const browserPages: SettingsPage[] = [
   'General',
@@ -58,26 +55,6 @@ const browserPages: SettingsPage[] = [
   'Machines',
 ]
 const machinePages: SettingsPage[] = ['Machine', 'Claude', 'Codex', 'OpenCode']
-
-const shortcuts = [
-  ['Enter', 'Send, or queue or steer while the agent works'],
-  [`${mod}+Enter`, 'Send the other way while the agent works'],
-  ['Shift+Enter', 'New line'],
-  ['↑', 'Recall your last message'],
-  ['Shift+Tab', 'Cycle permission mode'],
-  ['Esc', 'Stop the agent'],
-  ['/', 'Slash commands'],
-  ['@', 'Mention a file'],
-  [`${mod}+K`, 'Search sessions and actions'],
-  [`${mod}+N or ${mod}+T`, 'New thread'],
-  [isMac ? '⌘+`, Ctrl+` or ⌘+J' : 'Ctrl+` or Ctrl+J', 'Toggle the terminal'],
-  [`${mod}+B`, 'Toggle the sidebar'],
-  [`${terminalMod}+T`, 'New terminal tab, in the terminal'],
-  [`${terminalMod}+W`, 'Close the terminal tab'],
-  [`${terminalMod}+F`, 'Find in the terminal'],
-  ['Ctrl+Tab', 'Next terminal tab'],
-  ['Ctrl+Shift+Tab', 'Previous terminal tab'],
-]
 
 export function SettingsDialog() {
   const open = useStore((state) => state.settingsOpen)
@@ -246,61 +223,23 @@ export function SettingsDialog() {
           )}
           <div key={revision} className="w-full space-y-5">
             {page === 'General' && (
-              <Section title="Appearance">
-                <Row label="Theme">
-                  <Select
-                    value={prefs.theme}
-                    onValueChange={(theme) => updatePrefs({ ...prefs, theme })}
-                  >
-                    <SelectTrigger className="w-56">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {schemes.map((scheme) => (
-                        <SelectItem key={scheme.id} value={scheme.id}>
-                          {scheme.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Row>
-              </Section>
-            )}
-            {page === 'General' && <UpdateSection />}
-            {page === 'General' && (
-              <Button
-                variant="outline"
-                onClick={() => setConfirming('browser')}
-              >
-                Restore browser defaults
-              </Button>
+              <GeneralPage
+                prefs={prefs}
+                onRestore={() => setConfirming('browser')}
+              />
             )}
             {page === 'Machine' &&
               machine !== null &&
               config !== null &&
               system !== null && (
-                <>
-                  <TerminalMachinePage
-                    key={machine.id}
-                    machine={machine.id}
-                    config={config}
-                    platform={system.platform}
-                    defaultShell={system.defaultShell}
-                  />
-                  <AgentsSection machine={machine.id} config={config} />
-                  <GitPage
-                    key={`git-${machine.id}`}
-                    machine={machine.id}
-                    config={config}
-                    accounts={machine.accounts}
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => setConfirming('machine')}
-                  >
-                    Restore machine defaults
-                  </Button>
-                </>
+                <MachinePage
+                  machine={machine.id}
+                  config={config}
+                  platform={system.platform}
+                  defaultShell={system.defaultShell}
+                  accounts={machine.accounts}
+                  onRestore={() => setConfirming('machine')}
+                />
               )}
             {machinePage && machine === null && (
               <p className="text-muted-foreground text-sm">
@@ -315,63 +254,20 @@ export function SettingsDialog() {
                   is.
                 </p>
               )}
-            {page === 'Terminal' && <TerminalLookPage prefs={prefs} />}
-            {page === 'Notifications' && (
-              <>
-                <NotificationSection />
-                <BellSection
-                  behavior={prefs.terminal.behavior}
-                  onChange={(value) =>
-                    updatePrefs({
-                      ...prefs,
-                      terminal: {
-                        ...prefs.terminal,
-                        behavior: { ...prefs.terminal.behavior, ...value },
-                      },
-                    })
-                  }
-                />
-              </>
-            )}
-            {page === 'Claude' && machine !== null && config !== null && (
+            {page === 'Terminal' && <TerminalPage prefs={prefs} />}
+            {page === 'Notifications' && <NotificationsPage prefs={prefs} />}
+            {pageProvider !== null && machine !== null && config !== null && (
               <ProviderPage
+                key={pageProvider}
                 machine={machine.id}
                 config={config}
-                provider="claude"
-                accounts={machine.accounts}
-                selected={settingsAccount}
-              />
-            )}
-            {page === 'Codex' && machine !== null && config !== null && (
-              <ProviderPage
-                machine={machine.id}
-                config={config}
-                provider="codex"
-                accounts={machine.accounts}
-                selected={settingsAccount}
-              />
-            )}
-            {page === 'OpenCode' && machine !== null && config !== null && (
-              <ProviderPage
-                machine={machine.id}
-                config={config}
-                provider="opencode"
+                provider={pageProvider}
                 accounts={machine.accounts}
                 selected={settingsAccount}
               />
             )}
             {page === 'Machines' && <MachinesPage />}
-            {page === 'Shortcuts' && (
-              <Section title="Keyboard shortcuts">
-                {shortcuts.map(([keys, action]) => (
-                  <Row key={keys} label={action}>
-                    <kbd className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-sans text-xs">
-                      {keys}
-                    </kbd>
-                  </Row>
-                ))}
-              </Section>
-            )}
+            {page === 'Shortcuts' && <ShortcutsPage />}
           </div>
         </div>
         <AlertDialog

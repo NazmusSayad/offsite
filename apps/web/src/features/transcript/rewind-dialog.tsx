@@ -9,13 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  getState,
-  openSession,
-  projectOf,
-  setDraft,
-  useStore,
-} from '@/lib/store'
+import { openSession } from '@/lib/sessions'
+import { getState, projectOf, setDraft, useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 
 export type RewindTarget = { messageId: string; text: string; first: boolean }

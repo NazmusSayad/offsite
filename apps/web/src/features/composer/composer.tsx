@@ -6,13 +6,12 @@ import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { readBase64, uploadFile } from '@/api/upload'
 import { Button } from '@/components/ui/button'
+import { changeSettings } from '@/lib/accounts'
+import { interrupt, sendPrompt } from '@/lib/sessions'
 import {
-  changeSettings,
   getState,
-  interrupt,
   machineOf,
   projectOf,
-  sendPrompt,
   setDraft,
   showError,
   selectedRunning,

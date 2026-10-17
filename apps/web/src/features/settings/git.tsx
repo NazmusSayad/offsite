@@ -14,7 +14,7 @@ import { providerNames } from '@/lib/format'
 import { errorMessage } from '@/lib/utils'
 import { Row, Section } from './controls'
 
-export function GitPage(props: {
+export function GitSection(props: {
   machine: string
   config: Config
   accounts: Account[]

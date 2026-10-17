@@ -23,12 +23,11 @@ import {
 } from '@/components/ui/popover'
 import { Tooltip } from '@/components/ui/tooltip'
 import { limitLabel } from '@/features/composer/limits'
+import { changeSettings, providerSettings } from '@/lib/accounts'
 import {
-  changeSettings,
   getState,
   machineOf,
   providerPages,
-  providerSettings,
   showError,
   showSettingsPage,
   useStore,

@@ -23,11 +23,17 @@ import {
   claudeOptions,
   recordLimit,
 } from './claude.ts'
-import { contextTokens, type Message, toMessage } from './content.ts'
+import {
+  contextTokens,
+  type Message,
+  notice,
+  promptMessage,
+  toMessage,
+  toUserInput,
+} from './content.ts'
 import { toItems, toRequest } from './items.ts'
 
 const IDLE_LIMIT = 10 * 60 * 1000
-const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 
 type Pending = {
   request: PermissionRequest
@@ -35,8 +41,6 @@ type Pending = {
   suggestions: PermissionUpdate[]
   resolve: (result: PermissionResult) => void
 }
-
-type ImageType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
 
 export class Run {
   readonly provider = 'claude'
@@ -197,45 +201,10 @@ export class Run {
 
   private push(prompt: Prompt, priority: 'next' | undefined) {
     clearTimeout(this.idleTimer)
-    for (const image of prompt.images)
-      if (!imageTypes.includes(image.mediaType))
-        throw new Error(`${image.mediaType} images are not supported`)
     const uuid = randomUUID()
-    this.inbox.push({
-      type: 'user',
-      message: {
-        role: 'user',
-        content: [
-          ...prompt.images.map((image) => ({
-            type: 'image' as const,
-            source: {
-              type: 'base64' as const,
-              media_type: image.mediaType as ImageType,
-              data: image.data,
-            },
-          })),
-          ...(prompt.text === ''
-            ? []
-            : [{ type: 'text' as const, text: prompt.text }]),
-        ],
-      },
-      parent_tool_use_id: null,
-      uuid,
-      ...(priority === undefined ? {} : { priority }),
-    })
+    this.inbox.push(toUserInput(prompt, uuid, priority))
     this.wake?.()
-    this.add({
-      type: 'user',
-      uuid,
-      time: Date.now(),
-      content: [
-        ...prompt.images.map((image) => ({ type: 'image' as const, ...image })),
-        ...(prompt.text === ''
-          ? []
-          : [{ type: 'text' as const, text: prompt.text }]),
-      ],
-      parent: null,
-    })
+    this.add(promptMessage(prompt, uuid))
     this.running = true
     this.prompted = true
     broadcastActivity()
@@ -519,15 +488,5 @@ export class Run {
       sessionId: this.sessionId,
       queue: this.queue,
     })
-  }
-}
-
-function notice(text: string): Message {
-  return {
-    type: 'notice',
-    uuid: randomUUID(),
-    time: Date.now(),
-    text,
-    isError: true,
   }
 }

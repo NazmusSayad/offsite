@@ -1,5 +1,16 @@
 import { HOSTED_APP, PROTOCOL, type Project } from '@offsite/core/protocol'
 import type { MachineIcon } from '@/components/icons'
+import {
+  getState,
+  homeMachine,
+  type Machine,
+  type MachineProject,
+  machineOf,
+  setMachine,
+  update,
+} from '@/lib/store'
+import { syncUrl } from '@/lib/url'
+import { connectMachine, disconnectMachine } from './connection'
 
 export type StoredMachine = {
   id: string
@@ -92,4 +103,204 @@ export function readMachineLink(link: string): {
 
 export function machineKey(machine: string, id: string) {
   return `${machine} ${id}`
+}
+
+export function restoreMachine(machine: StoredMachine): Machine {
+  return {
+    id: machine.id,
+    addresses: machine.addresses,
+    via: null,
+    status: 'connecting',
+    name: machine.label ?? machine.name,
+    hostname: machine.name,
+    label: machine.label,
+    icon: machine.icon,
+    token: machine.token,
+    config: null,
+    configError: null,
+    system: null,
+    accounts: [],
+    activity: {},
+    providers: [],
+  }
+}
+
+export function restoreProjects(machine: StoredMachine): MachineProject[] {
+  return machine.projects.map((project) => ({
+    ...project,
+    machine: machine.id,
+  }))
+}
+
+export function receiveMachines() {
+  const stored = loadMachines()
+  const known = getState().machines
+  for (const machine of known)
+    if (!stored.some((item) => item.id === machine.id))
+      forgetMachine(machine.id)
+  for (const machine of stored) {
+    const current = known.find((item) => item.id === machine.id)
+    if (current === undefined) {
+      const state = getState()
+      update({
+        machines: [...state.machines, restoreMachine(machine)],
+        projects: [...state.projects, ...restoreProjects(machine)],
+      })
+      connectMachine(machine.id, machine.addresses, machine.token)
+      continue
+    }
+    setMachine(machine.id, {
+      label: machine.label,
+      icon: machine.icon,
+      name: machine.label ?? current.hostname,
+    })
+    if (
+      machine.addresses.join(' ') !== current.addresses.join(' ') ||
+      machine.token !== current.token
+    ) {
+      setMachine(machine.id, {
+        addresses: machine.addresses,
+        token: machine.token,
+      })
+      reconnectMachine(machine.id)
+    }
+  }
+}
+
+export async function addMachine(
+  address: string,
+  fallback: string | null,
+  token: string | null
+) {
+  const addresses = fallback === null ? [address] : [address, fallback]
+  const id = await identify(addresses)
+  const existing = getState().machines.find((item) => item.id === id)
+  if (existing !== undefined) {
+    const added = addresses.filter((item) => !existing.addresses.includes(item))
+    if (added.length === 0 && (token === null || token === existing.token))
+      throw new Error(`${new URL(address).host} is already in the list`)
+    editMachine(id, {
+      addresses: [...existing.addresses, ...added],
+      ...(token !== null && { token }),
+    })
+    return id
+  }
+  update({
+    machines: [
+      ...getState().machines,
+      {
+        id,
+        addresses,
+        via: null,
+        status: 'connecting',
+        name: new URL(address).hostname,
+        hostname: new URL(address).hostname,
+        label: null,
+        icon: 'computer',
+        token,
+        config: null,
+        configError: null,
+        system: null,
+        accounts: [],
+        activity: {},
+        providers: [],
+      },
+    ],
+  })
+  persistMachines()
+  connectMachine(id, addresses, token)
+  if (home !== null && addresses.includes(home)) shareToken(token)
+  return id
+}
+
+async function identify(addresses: string[]) {
+  let failure: unknown
+  for (const address of addresses) {
+    try {
+      return await probeMachine(address)
+    } catch (error) {
+      failure ??= error
+    }
+  }
+  throw failure
+}
+
+export function editMachine(
+  id: string,
+  patch: Partial<Pick<Machine, 'addresses' | 'label' | 'icon' | 'token'>>
+) {
+  const known = machineOf(getState(), id)
+  const next = { ...known, ...patch }
+  setMachine(id, { ...patch, name: next.label ?? next.hostname })
+  persistMachines()
+  if (
+    next.addresses.join(' ') !== known.addresses.join(' ') ||
+    next.token !== known.token
+  )
+    reconnectMachine(id)
+  if (
+    home !== null &&
+    next.addresses.includes(home) &&
+    next.token !== known.token
+  )
+    shareToken(next.token)
+}
+
+function shareToken(token: string | null) {
+  shareWithWorker(token).catch((error: unknown) =>
+    console.error('could not share the token with the service worker', error)
+  )
+}
+
+export function reconnectMachine(id: string) {
+  disconnectMachine(id)
+  setMachine(id, { status: 'connecting', via: null })
+  const machine = machineOf(getState(), id)
+  connectMachine(id, machine.addresses, machine.token)
+}
+
+export function removeMachine(id: string) {
+  if (homeMachine(getState())?.id === id)
+    throw new Error('the machine serving this page stays')
+  forgetMachine(id)
+  persistMachines()
+}
+
+function forgetMachine(id: string) {
+  disconnectMachine(id)
+  const state = getState()
+  const machines = state.machines.filter((item) => item.id !== id)
+  update({
+    machines,
+    projects: state.projects.filter((item) => item.machine !== id),
+    sessions: state.sessions.filter((item) => item.machine !== id),
+    unseen: state.unseen.filter((key) => !key.startsWith(`${id} `)),
+    ...(state.settingsMachine === id && {
+      settingsMachine: machines.at(0)?.id ?? null,
+    }),
+    ...(state.selection?.machine === id && { selection: null }),
+  })
+  syncUrl()
+}
+
+export function persistMachines() {
+  const state = getState()
+  saveMachines(
+    state.machines.map((machine) => ({
+      id: machine.id,
+      addresses: machine.addresses,
+      name: machine.hostname,
+      label: machine.label,
+      icon: machine.icon,
+      token: machine.token,
+      projects: state.projects
+        .filter((project) => project.machine === machine.id)
+        .map((project) => ({
+          id: project.id,
+          path: project.path,
+          name: project.name,
+          logo: project.logo,
+        })),
+    }))
+  )
 }

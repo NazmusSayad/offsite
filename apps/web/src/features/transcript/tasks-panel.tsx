@@ -18,7 +18,8 @@ import { taskTitle, threadTasks } from '@/features/transcript/tasks'
 import { isTool, turnRows } from '@/features/transcript/timeline'
 import { ToolRow } from '@/features/transcript/tool-row'
 import { RowView } from '@/features/transcript/transcript'
-import { activityOf, loadAgent, stopTask, useStore } from '@/lib/store'
+import { loadAgent, stopTask } from '@/lib/sessions'
+import { activityOf, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
 type Found = ReturnType<typeof threadTasks>

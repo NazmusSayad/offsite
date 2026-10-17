@@ -1,11 +1,10 @@
 import type { Config } from '@offsite/core/protocol'
 import { getDraftSettings } from '@/features/composer/drafts'
+import { providerSettings, refreshCapabilities } from '@/lib/accounts'
 import {
   activityOf,
   draftKey,
   getState,
-  providerSettings,
-  refreshCapabilities,
   setMachine,
   showError,
   update,

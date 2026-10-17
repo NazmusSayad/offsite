@@ -1,7 +1,8 @@
 import { ArrowUp02Icon, ListPlusIcon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Button } from '@/components/ui/button'
-import { steer, unqueue, useStore } from '@/lib/store'
+import { steer, unqueue } from '@/lib/sessions'
+import { useStore } from '@/lib/store'
 
 export function QueuedMessages() {
   const queue = useStore((state) => state.queue)

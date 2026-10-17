@@ -3,9 +3,9 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { machineKey } from '@/api/machines'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { openSession } from '@/lib/sessions'
 import {
   getState,
-  openSession,
   providerPages,
   showPalette,
   showSettings,

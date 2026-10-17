@@ -5,8 +5,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
-import { home } from '@/api/machines'
-import { reconnectMachine, removeMachine } from '@/api/sync'
+import { home, reconnectMachine, removeMachine } from '@/api/machines'
 import { machineIcons } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
