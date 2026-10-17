@@ -175,13 +175,15 @@ export async function history(
     (item) => item.type === 'assistant' && item.parent_tool_use_id === null
   )
   const tokens = last === undefined ? null : contextTokens(last.message)
+  const live = run?.messages ?? []
+  const compacted = live.findLastIndex((item) => item.type === 'compaction')
   return {
     type: 'history',
     sessionId,
     provider: 'claude',
     items: toItems([
       ...messages,
-      ...(run?.messages.filter((item) => !seen.has(item.uuid)) ?? []),
+      ...live.slice(compacted + 1).filter((item) => !seen.has(item.uuid)),
     ]),
     requests: [...(run?.pending.values() ?? [])].map((item) => item.request),
     queue: run?.queue ?? [],
