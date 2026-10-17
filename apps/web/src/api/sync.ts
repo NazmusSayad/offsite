@@ -26,7 +26,7 @@ import {
   home,
   loadMachines,
   machineKey,
-  machineOrigin,
+  readMachineLink,
   saveMachines,
 } from './machines'
 
@@ -316,10 +316,13 @@ function receive(machine: string, event: ServerEvent) {
   }
 }
 
-export function addMachine(address: string, token: string | null) {
-  const origin = machineOrigin(address)
-  if (getState().machines.some((item) => item.origin === origin))
-    throw new Error(`${origin} is already in the list`)
+export function addMachine(link: string) {
+  const { origin, token } = readMachineLink(link)
+  if (getState().machines.some((item) => item.origin === origin)) {
+    if (token === null) throw new Error(`${origin} is already in the list`)
+    setMachineToken(origin, token)
+    return origin
+  }
   update({
     machines: [
       ...getState().machines,

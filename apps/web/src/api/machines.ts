@@ -40,7 +40,7 @@ export function pairFromUrl() {
   if (location.pathname !== '/pair') return
   const params = new URLSearchParams(location.hash.slice(1))
   const address = params.get('machine')
-  const origin = address === null ? home : machineOrigin(address)
+  const origin = address === null ? home : readMachineLink(address).origin
   if (origin === null) throw new Error('the pairing link has no machine')
   const token = params.get('token')
   const machines = loadMachines()
@@ -57,14 +57,22 @@ export function pairFromUrl() {
   history.replaceState(null, '', '/')
 }
 
-export function machineOrigin(address: string) {
-  const trimmed = address.trim()
+export function readMachineLink(link: string): {
+  origin: string
+  token: string | null
+} {
+  const trimmed = link.trim()
   const url = new URL(
     /^[a-z]+:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`
   )
   if (url.protocol !== 'http:' && url.protocol !== 'https:')
     throw new Error('Use an http:// or https:// address')
-  return url.origin
+  const params = new URLSearchParams(url.hash.slice(1))
+  const machine = params.get('machine')
+  return {
+    origin: machine === null ? url.origin : readMachineLink(machine).origin,
+    token: params.get('token'),
+  }
 }
 
 export function machineKey(machine: string, id: string) {

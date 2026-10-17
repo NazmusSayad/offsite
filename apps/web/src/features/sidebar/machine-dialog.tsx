@@ -16,8 +16,7 @@ export function AddMachineDialog(props: {
   origin?: string
   onClose: () => void
 }) {
-  const [address, setAddress] = useState('')
-  const [token, setToken] = useState('')
+  const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   return (
@@ -32,10 +31,13 @@ export function AddMachineDialog(props: {
           className="grid"
           onSubmit={(event) => {
             event.preventDefault()
-            const value = token.trim() === '' ? null : token.trim()
             try {
-              if (props.origin === undefined) addMachine(address, value)
-              else setMachineToken(props.origin, value)
+              if (props.origin === undefined) addMachine(value)
+              else
+                setMachineToken(
+                  props.origin,
+                  value.trim() === '' ? null : value.trim()
+                )
               props.onClose()
             } catch (failure) {
               setError(errorMessage(failure))
@@ -48,25 +50,21 @@ export function AddMachineDialog(props: {
             </DialogTitle>
             <DialogDescription>
               {props.origin === undefined
-                ? 'The address of another machine running offsite, as this browser reaches it, and the pairing token it printed when it started.'
+                ? 'Paste the pairing link that offsite printed, or the address of a machine started with --no-auth.'
                 : `The pairing token that offsite printed when it started on ${props.origin}.`}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2 p-6">
-            {props.origin === undefined && (
-              <Input
-                placeholder="http://my-laptop:47841"
-                spellCheck={false}
-                value={address}
-                onChange={(event) => setAddress(event.target.value)}
-              />
-            )}
             <Input
-              placeholder="Pairing token, empty if auth is off"
+              placeholder={
+                props.origin === undefined
+                  ? 'Pairing link or address'
+                  : 'Pairing token, empty if auth is off'
+              }
               spellCheck={false}
               autoComplete="off"
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
             />
             {error !== null && (
               <p className="text-destructive text-sm break-all">{error}</p>
@@ -78,7 +76,7 @@ export function AddMachineDialog(props: {
             </Button>
             <Button
               type="submit"
-              disabled={props.origin === undefined && address.trim() === ''}
+              disabled={props.origin === undefined && value.trim() === ''}
             >
               {props.origin === undefined ? 'Add machine' : 'Save token'}
             </Button>

@@ -12,12 +12,13 @@ npx offsite
 
 Then open the pairing link it prints. It pairs this browser with the server, so only browsers that opened the link can use it.
 
-| Command         | What it starts                                                                 |
-| --------------- | ------------------------------------------------------------------------------ |
-| `offsite`       | The server and the web app                                                     |
-| `offsite web`   | Same as `offsite`                                                              |
-| `offsite serve` | Only the server, use it from [offsite.sayad.dev](https://offsite.sayad.dev)    |
-| `offsite pair`  | Nothing, it makes a new pairing token for another browser and prints its links |
+| Command          | What it does                                                                       |
+| ---------------- | ---------------------------------------------------------------------------------- |
+| `offsite`        | Starts the server and the web app                                                  |
+| `offsite web`    | Same as `offsite`                                                                  |
+| `offsite serve`  | Starts only the server, use it from [offsite.sayad.dev](https://offsite.sayad.dev) |
+| `offsite pair`   | Makes a pairing token for another browser and prints its links. `--name` labels it |
+| `offsite unpair` | Lists paired browsers so you can pick which to unpair                              |
 
 | Flag        | Default      | What it sets                                 |
 | ----------- | ------------ | -------------------------------------------- |
@@ -26,7 +27,7 @@ Then open the pairing link it prints. It pairs this browser with the server, so 
 | `--dir`     | `~/.offsite` | Folder for settings and accounts             |
 | `--no-auth` | auth on      | Accept connections without the pairing token |
 
-Pairing tokens stay in `tokens.json` inside `--dir`. To unpair a browser, remove its token from that file. Delete the file and restart to unpair every browser.
+Pairing tokens stay in `tokens.json` inside `--dir`. A running offsite disconnects an unpaired browser within seconds.
 
 > [!WARNING]
 > With `--no-auth`, anyone who can reach its port, including any website open in your browser, can run Claude Code and open a terminal on your machine.

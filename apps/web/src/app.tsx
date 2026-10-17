@@ -19,6 +19,7 @@ import { FilesPanel } from '@/features/files/files-panel'
 import { DiffPanel } from '@/features/git/diff-panel'
 import { GitActions, useGitStatus } from '@/features/git/git-menu'
 import { SettingsDialog } from '@/features/settings/dialog'
+import { ConnectMachine } from '@/features/sidebar/connect-machine'
 import { Palette } from '@/features/sidebar/palette'
 import { Sidebar } from '@/features/sidebar/sidebar'
 import { TerminalPanel } from '@/features/terminal/panel'
@@ -244,19 +245,7 @@ export function App() {
                 </div>
               </div>
             )}
-            {machine === null && (
-              <div className="grid flex-1 place-items-center p-6 text-center">
-                <div>
-                  <h1 className="text-foreground text-2xl font-normal tracking-tight sm:text-3xl">
-                    Add a machine
-                  </h1>
-                  <p className="text-muted-foreground mt-2 text-sm">
-                    Run npx offsite on your computer, then open the link it
-                    prints.
-                  </p>
-                </div>
-              </div>
-            )}
+            {machine === null && <ConnectMachine />}
             {selection === null && machine !== null && (
               <div className="grid flex-1 place-items-center p-6 text-center">
                 <div>
