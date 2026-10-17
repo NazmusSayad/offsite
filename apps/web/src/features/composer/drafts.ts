@@ -35,11 +35,12 @@ const useDrafts = create<Drafts>()(
     version: 3,
     storage,
     migrate: (state, version) => {
-      if (version !== 2) return { drafts: {} }
+      const origin = home
+      if (version !== 2 || origin === null) return { drafts: {} }
       return {
         drafts: Object.fromEntries(
           Object.entries((state as Drafts).drafts).map((entry) => [
-            machineKey(home, entry[0]),
+            machineKey(origin, entry[0]),
             { ...entry[1], settings: null },
           ])
         ),

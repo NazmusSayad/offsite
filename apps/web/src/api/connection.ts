@@ -3,6 +3,7 @@ import {
   encodeFrame,
   type Method,
   type Methods,
+  PROTOCOL,
   type Reply,
   type ServerEvent,
   type ServerMessage,
@@ -12,12 +13,16 @@ import {
 type Listener = {
   open?: (machine: string) => void
   close?: (machine: string) => void
+  refuse?: (machine: string, reason: Refusal) => void
   event?: (machine: string, event: ServerEvent) => void
   terminal?: (machine: string, event: TerminalEvent) => void
   frame?: (machine: string, frame: ReturnType<typeof decodeFrame>) => void
 }
 
+export type Refusal = 'outdated' | 'newer' | 'unauthorized'
+
 type Connection = {
+  token: string | null
   socket: WebSocket | null
   connected: boolean
   ping: Promise<boolean> | null
@@ -46,9 +51,10 @@ export function startConnections() {
   })
 }
 
-export function connectMachine(machine: string) {
+export function connectMachine(machine: string, token: string | null) {
   if (connections.has(machine)) return
   const connection: Connection = {
+    token,
     socket: null,
     connected: false,
     ping: null,
@@ -56,7 +62,7 @@ export function connectMachine(machine: string) {
     pending: new Map(),
   }
   connections.set(machine, connection)
-  openSocket(machine, connection)
+  void openSocket(machine, connection)
 }
 
 export function disconnectMachine(machine: string) {
@@ -133,8 +139,25 @@ function machineHost(machine: string) {
   return new URL(machine).host
 }
 
-function openSocket(machine: string, connection: Connection) {
-  const next = new WebSocket(`${machine.replace(/^http/, 'ws')}/ws`)
+async function openSocket(machine: string, connection: Connection) {
+  const params = new URLSearchParams({
+    protocol: String(PROTOCOL),
+    ...(connection.token !== null && { token: connection.token }),
+  })
+  const refusal = await checkServer(machine, params)
+  if (connections.get(machine) !== connection) return
+  if (refusal !== null) {
+    if (refusal === 'offline')
+      for (const listener of listeners) listener.close?.(machine)
+    else for (const listener of listeners) listener.refuse?.(machine, refusal)
+    if (refusal !== 'unauthorized')
+      connection.timer = window.setTimeout(
+        () => void openSocket(machine, connection),
+        RECONNECT_DELAY
+      )
+    return
+  }
+  const next = new WebSocket(`${machine.replace(/^http/, 'ws')}/ws?${params}`)
   next.binaryType = 'arraybuffer'
   next.onopen = () => {
     connection.connected = true
@@ -144,11 +167,27 @@ function openSocket(machine: string, connection: Connection) {
   next.onclose = () => {
     disconnect(machine, connection)
     connection.timer = window.setTimeout(
-      () => openSocket(machine, connection),
+      () => void openSocket(machine, connection),
       RECONNECT_DELAY
     )
   }
   connection.socket = next
+}
+
+async function checkServer(machine: string, params: URLSearchParams) {
+  let response: Response
+  try {
+    response = await fetch(`${machine}/version?${params}`)
+  } catch {
+    return 'offline'
+  }
+  if (!response.ok) return 'offline'
+  const server: { protocol: number; authorized: boolean } | null =
+    await response.json().catch(() => null)
+  if (server === null || server.protocol < PROTOCOL) return 'outdated'
+  if (server.protocol > PROTOCOL) return 'newer'
+  if (!server.authorized) return 'unauthorized'
+  return null
 }
 
 function disconnect(machine: string, connection: Connection) {
@@ -175,7 +214,8 @@ async function pingServer(machine: string, connection: Connection) {
   current.onclose = null
   current.close()
   disconnect(machine, connection)
-  if (connections.get(machine) === connection) openSocket(machine, connection)
+  if (connections.get(machine) === connection)
+    void openSocket(machine, connection)
   return false
 }
 

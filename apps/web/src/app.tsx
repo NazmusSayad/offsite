@@ -10,7 +10,6 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Fragment, useState, useSyncExternalStore } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { home } from '@/api/machines'
 import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { Toast } from '@/components/toast'
@@ -32,6 +31,7 @@ import { threadTasks } from '@/features/transcript/tasks'
 import { TasksPanel } from '@/features/transcript/tasks-panel'
 import { Transcript } from '@/features/transcript/transcript'
 import {
+  defaultMachine,
   dismissError,
   getState,
   machineOf,
@@ -43,15 +43,38 @@ import {
 import { cn, drag, mod } from '@/lib/utils'
 
 const desktop = window.matchMedia('(min-width: 768px)')
+const refusals = {
+  outdated: {
+    title: (name: string) => `${name} needs an update`,
+    body: 'It runs a version of offsite that this page cannot talk to. Update offsite on that machine and restart it.',
+  },
+  newer: {
+    title: () => 'This page is out of date',
+    body: 'That machine runs a newer version of offsite. Reload this page to talk to it.',
+  },
+  unauthorized: {
+    title: (name: string) => `${name} needs pairing`,
+    body: 'Open the pairing link that offsite printed when it started, or enter its token in Settings → Machines.',
+  },
+}
+
 const toggle =
   'text-foreground hover:bg-accent data-[pressed=true]:bg-accent grid h-7 min-w-7 cursor-pointer place-items-center rounded-lg border border-transparent [&_svg]:size-4 [&_svg]:opacity-80'
 
 export function App() {
   const selection = useStore((state) => state.selection)
   const sessions = useStore((state) => state.sessions)
-  const machine = useStore((state) =>
-    machineOf(state, state.selection?.machine ?? home)
-  )
+  const machine = useStore((state) => {
+    const origin = defaultMachine(state)
+    return origin === null ? null : machineOf(state, origin)
+  })
+  const refusal =
+    machine !== null &&
+    (machine.status === 'outdated' ||
+      machine.status === 'newer' ||
+      machine.status === 'unauthorized')
+      ? refusals[machine.status]
+      : null
   const error = useStore((state) => state.error)
   const [sidebar, setSidebar] = useState(desktop.matches)
   const [panel, setPanel] = useState<'diff' | 'tasks' | 'files' | null>(null)
@@ -82,8 +105,8 @@ export function App() {
     ).length
   })
   const git = useGitStatus(
-    machine.origin,
-    machine.status === 'online' ? (selection?.cwd ?? null) : null,
+    selection?.machine ?? '',
+    machine?.status === 'online' ? (selection?.cwd ?? null) : null,
     running
   )
   const session = sessions.find(
@@ -91,7 +114,10 @@ export function App() {
       item.machine === selection?.machine && item.id === selection.sessionId
   )
 
-  const projectTitle = useProjectName(machine.origin, selection?.cwd ?? '')
+  const projectTitle = useProjectName(
+    selection?.machine ?? '',
+    selection?.cwd ?? ''
+  )
   useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
     enableOnFormTags: true,
     preventDefault: true,
@@ -153,7 +179,7 @@ export function App() {
               panel === null && 'pr-36 sm:pr-36'
             )}
           >
-            {selection !== null && (
+            {selection !== null && machine !== null && (
               <nav className="min-w-0 flex-1">
                 <ol className="flex min-w-0 items-center gap-2 text-sm sm:gap-3">
                   <li
@@ -177,14 +203,15 @@ export function App() {
               </nav>
             )}
             {selection === null && <span className="flex-1" />}
-            {(machine.status === 'connecting' ||
-              machine.status === 'offline') && (
-              <span className="text-warning-foreground shrink-0 text-xs">
-                {machine.status === 'connecting'
-                  ? `Connecting to ${machine.name}…`
-                  : `${machine.name} is offline, reconnecting…`}
-              </span>
-            )}
+            {machine !== null &&
+              (machine.status === 'connecting' ||
+                machine.status === 'offline') && (
+                <span className="text-warning-foreground shrink-0 text-xs">
+                  {machine.status === 'connecting'
+                    ? `Connecting to ${machine.name}…`
+                    : `${machine.name} is offline, reconnecting…`}
+                </span>
+              )}
             {selection !== null && git.status !== null && (
               <GitActions
                 machine={selection.machine}
@@ -217,7 +244,20 @@ export function App() {
                 </div>
               </div>
             )}
-            {selection === null && (
+            {machine === null && (
+              <div className="grid flex-1 place-items-center p-6 text-center">
+                <div>
+                  <h1 className="text-foreground text-2xl font-normal tracking-tight sm:text-3xl">
+                    Add a machine
+                  </h1>
+                  <p className="text-muted-foreground mt-2 text-sm">
+                    Run npx offsite on your computer, then open the link it
+                    prints.
+                  </p>
+                </div>
+              </div>
+            )}
+            {selection === null && machine !== null && (
               <div className="grid flex-1 place-items-center p-6 text-center">
                 <div>
                   <h1 className="text-foreground text-2xl font-normal tracking-tight sm:text-3xl">
@@ -229,20 +269,19 @@ export function App() {
                 </div>
               </div>
             )}
-            {selection !== null && machine.status === 'outdated' && (
+            {selection !== null && machine !== null && refusal !== null && (
               <div className="grid flex-1 place-items-center p-6 text-center">
                 <div>
                   <h1 className="text-foreground text-2xl font-normal tracking-tight sm:text-3xl">
-                    {machine.name} needs an update
+                    {refusal.title(machine.name)}
                   </h1>
                   <p className="text-muted-foreground mt-2 text-sm">
-                    It runs a version of offsite that this page cannot talk to.
-                    Update offsite on that machine and restart it.
+                    {refusal.body}
                   </p>
                 </div>
               </div>
             )}
-            {selection !== null && machine.status !== 'outdated' && (
+            {selection !== null && refusal === null && (
               <Fragment
                 key={`${selection.machine} ${selection.sessionId ?? selection.cwd}`}
               >

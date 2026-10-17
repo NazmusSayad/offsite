@@ -11,7 +11,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { home, machineKey } from '@/api/machines'
+import { machineKey } from '@/api/machines'
 import { ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
@@ -114,6 +114,9 @@ export function Sidebar(props: {
         }
       : null
 
+  const folderMachine =
+    scope?.machine ?? selection?.machine ?? machines.at(0)?.origin
+
   function nameOf(machine: string, cwd: string) {
     return (
       registered.find(
@@ -127,6 +130,9 @@ export function Sidebar(props: {
     if (machine === undefined) return ''
     if (machine.status === 'online') return machine.name
     if (machine.status === 'outdated') return `${machine.name} · needs update`
+    if (machine.status === 'newer') return `${machine.name} · reload page`
+    if (machine.status === 'unauthorized')
+      return `${machine.name} · needs pairing`
     return `${machine.name} · offline`
   }
 
@@ -420,9 +426,12 @@ export function Sidebar(props: {
           <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
         </div>
       </div>
-      {adding && (
+      {adding && folderMachine === undefined && (
+        <AddMachineDialog onClose={() => setAdding(false)} />
+      )}
+      {adding && folderMachine !== undefined && (
         <FolderDialog
-          machine={scope?.machine ?? selection?.machine ?? home}
+          machine={folderMachine}
           onClose={() => setAdding(false)}
           onAdd={(project) => {
             setAdding(false)

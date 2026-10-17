@@ -265,6 +265,11 @@ function PushSwitch() {
           Blocked in the browser&apos;s site settings
         </span>
       )}
+      {support === 'hosted' && (
+        <span className="text-muted-foreground text-xs">
+          Only on a page served by offsite
+        </span>
+      )}
       {support === 'insecure' && (
         <span className="text-muted-foreground text-xs">
           Needs https or localhost

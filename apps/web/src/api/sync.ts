@@ -38,6 +38,7 @@ export function start() {
       origin: machine.origin,
       status: 'connecting',
       name: machine.name,
+      token: machine.token,
       config: null,
       configError: null,
       system: null,
@@ -55,7 +56,7 @@ export function start() {
     paletteOpen: false,
     settingsOpen: false,
     settingsPage: 'General',
-    settingsMachine: stored[0].origin,
+    settingsMachine: stored.at(0)?.origin ?? null,
     unseen: [],
     selection,
     loaded: selection?.sessionId === null,
@@ -82,9 +83,10 @@ export function start() {
       if (known !== undefined && known.status !== 'offline')
         setMachine(machine, { status: 'offline' })
     },
+    refuse: (machine, reason) => setMachine(machine, { status: reason }),
     event: receive,
   })
-  for (const machine of stored) connectMachine(machine.origin)
+  for (const machine of stored) connectMachine(machine.origin, machine.token)
 }
 
 async function resync(machine: string) {
@@ -314,7 +316,7 @@ function receive(machine: string, event: ServerEvent) {
   }
 }
 
-export function addMachine(address: string) {
+export function addMachine(address: string, token: string | null) {
   const origin = machineOrigin(address)
   if (getState().machines.some((item) => item.origin === origin))
     throw new Error(`${origin} is already in the list`)
@@ -325,6 +327,7 @@ export function addMachine(address: string) {
         origin,
         status: 'connecting',
         name: new URL(origin).hostname,
+        token,
         config: null,
         configError: null,
         system: null,
@@ -334,20 +337,30 @@ export function addMachine(address: string) {
     ],
   })
   persistMachines()
-  connectMachine(origin)
+  connectMachine(origin, token)
   return origin
+}
+
+export function setMachineToken(origin: string, token: string | null) {
+  disconnectMachine(origin)
+  setMachine(origin, { status: 'connecting', token })
+  persistMachines()
+  connectMachine(origin, token)
 }
 
 export function removeMachine(origin: string) {
   if (origin === home) throw new Error('the machine serving this page stays')
   disconnectMachine(origin)
   const state = getState()
+  const machines = state.machines.filter((item) => item.origin !== origin)
   update({
-    machines: state.machines.filter((item) => item.origin !== origin),
+    machines,
     projects: state.projects.filter((item) => item.machine !== origin),
     sessions: state.sessions.filter((item) => item.machine !== origin),
     unseen: state.unseen.filter((key) => !key.startsWith(`${origin} `)),
-    ...(state.settingsMachine === origin && { settingsMachine: home }),
+    ...(state.settingsMachine === origin && {
+      settingsMachine: machines.at(0)?.origin ?? null,
+    }),
     ...(state.selection?.machine === origin && { selection: null }),
   })
   syncUrl()
@@ -360,6 +373,7 @@ function persistMachines() {
     state.machines.map((machine) => ({
       origin: machine.origin,
       name: machine.name,
+      token: machine.token,
       projects: state.projects
         .filter((project) => project.machine === machine.origin)
         .map((project) => ({

@@ -18,9 +18,9 @@ import type {
   Settings,
 } from '@offsite/core/protocol'
 import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
-import { call } from '@/api/connection'
+import { call, type Refusal } from '@/api/connection'
 import { updateConfig } from '@/api/machine-config'
-import { home, machineKey } from '@/api/machines'
+import { machineKey } from '@/api/machines'
 import {
   deleteDraft,
   getDraftSettings,
@@ -47,8 +47,9 @@ export type SettingsPage =
 
 export type Machine = {
   origin: string
-  status: 'connecting' | 'online' | 'offline' | 'outdated'
+  status: 'connecting' | 'online' | 'offline' | Refusal
   name: string
+  token: string | null
   config: Config | null
   configError: string | null
   system: Omit<ConfigInfo, 'config'> | null
@@ -68,7 +69,7 @@ export type State = {
   paletteOpen: boolean
   settingsOpen: boolean
   settingsPage: SettingsPage
-  settingsMachine: string
+  settingsMachine: string | null
   unseen: string[]
   selection: Selection | null
   loaded: boolean
@@ -129,6 +130,10 @@ export function machineOf(state: State, origin: string) {
   const machine = state.machines.find((item) => item.origin === origin)
   if (machine === undefined) throw new Error(`unknown machine ${origin}`)
   return machine
+}
+
+export function defaultMachine(state: State) {
+  return state.selection?.machine ?? state.machines.at(0)?.origin ?? null
 }
 
 export function setMachine(origin: string, patch: Partial<Machine>) {
@@ -393,9 +398,7 @@ export function showSettings(settingsOpen: boolean) {
   update({
     settingsOpen,
     paletteOpen: false,
-    ...(settingsOpen && {
-      settingsMachine: getState().selection?.machine ?? home,
-    }),
+    ...(settingsOpen && { settingsMachine: defaultMachine(getState()) }),
   })
 }
 
@@ -405,7 +408,7 @@ export function showSettingsPage(settingsPage: SettingsPage) {
     settingsPage,
     paletteOpen: false,
     ...(!getState().settingsOpen && {
-      settingsMachine: getState().selection?.machine ?? home,
+      settingsMachine: defaultMachine(getState()),
     }),
   })
 }

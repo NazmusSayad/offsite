@@ -115,7 +115,9 @@ export async function startTerminal() {
   if ('serviceWorker' in navigator)
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data.type !== 'select') return
-      showTab(event.data.machine ?? home, event.data.cwd, event.data.tabId)
+      const target = event.data.machine ?? home
+      if (target === null) return
+      showTab(target, event.data.cwd, event.data.tabId)
     })
   let previous = appState().prefs
   let previousIdentity = identity()
@@ -511,7 +513,7 @@ function selectLinkedTab() {
   const target = params.get('machine') ?? home
   const cwd = params.get('cwd')
   const tabId = params.get('terminal')
-  if (cwd === null || tabId === null) return
+  if (target === null || cwd === null || tabId === null) return
   params.delete('terminal')
   history.replaceState(null, '', `/?${params}`)
   const unsubscribe = subscribe(() => {

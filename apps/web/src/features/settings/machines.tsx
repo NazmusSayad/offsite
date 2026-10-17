@@ -1,4 +1,4 @@
-import { Delete02Icon } from '@hugeicons/core-free-icons'
+import { Delete02Icon, Key01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
 import { home } from '@/api/machines'
@@ -12,12 +12,15 @@ const statuses = {
   connecting: 'Connecting…',
   online: 'Online',
   offline: 'Offline',
-  outdated: 'Runs another offsite version, update it',
+  outdated: 'Runs an older offsite version, update it',
+  newer: 'Runs a newer offsite version, reload this page',
+  unauthorized: 'Needs its pairing token',
 }
 
 export function MachinesPage() {
   const machines = useStore((state) => state.machines)
   const [adding, setAdding] = useState(false)
+  const [pairing, setPairing] = useState<string | null>(null)
 
   return (
     <>
@@ -41,6 +44,14 @@ export function MachinesPage() {
                 ? `${statuses[machine.status]} · serves this page`
                 : statuses[machine.status]}
             </span>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              title="Pairing token"
+              onClick={() => setPairing(machine.origin)}
+            >
+              <HugeiconsIcon icon={Key01Icon} />
+            </Button>
             {machine.origin !== home && (
               <Button
                 size="icon-sm"
@@ -58,6 +69,9 @@ export function MachinesPage() {
         Add machine…
       </Button>
       {adding && <AddMachineDialog onClose={() => setAdding(false)} />}
+      {pairing !== null && (
+        <AddMachineDialog origin={pairing} onClose={() => setPairing(null)} />
+      )}
     </>
   )
 }

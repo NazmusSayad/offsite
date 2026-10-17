@@ -43,7 +43,7 @@ async function subscribeWithServerKey() {
 function call(method, params) {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(
-      `${self.location.protocol === 'https:' ? 'wss' : 'ws'}://${self.location.host}/ws`
+      `${self.location.protocol === 'https:' ? 'wss' : 'ws'}://${self.location.host}/ws${self.location.search}`
     )
     socket.onopen = () => socket.send(JSON.stringify({ id: 1, method, params }))
     socket.onmessage = (event) => {

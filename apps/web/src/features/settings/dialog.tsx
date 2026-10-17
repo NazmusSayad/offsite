@@ -79,9 +79,13 @@ export function SettingsDialog() {
   const open = useStore((state) => state.settingsOpen)
   const prefs = useStore((state) => state.prefs)
   const machines = useStore((state) => state.machines)
-  const machine = useStore((state) => machineOf(state, state.settingsMachine))
-  const config = machine.config
-  const system = machine.system
+  const machine = useStore((state) =>
+    state.settingsMachine === null
+      ? null
+      : machineOf(state, state.settingsMachine)
+  )
+  const config = machine === null ? null : machine.config
+  const system = machine === null ? null : machine.system
   const page = useStore((state) => state.settingsPage)
   const machinePage = page === 'Terminal' || page === 'Accounts'
   const [confirming, setConfirming] = useState(false)
@@ -138,7 +142,7 @@ export function SettingsDialog() {
               </Button>
             </DialogClose>
           </div>
-          {machinePage && machines.length > 1 && (
+          {machinePage && machine !== null && machines.length > 1 && (
             <div className="mb-5">
               <Section title="Machine">
                 <Row label="Settings of">
@@ -163,7 +167,7 @@ export function SettingsDialog() {
               </Section>
             </div>
           )}
-          {machinePage && machine.configError !== null && (
+          {machinePage && machine !== null && machine.configError !== null && (
             <p className="text-destructive mb-5 text-sm whitespace-pre-wrap">
               Not saved: {machine.configError}
             </p>
@@ -190,21 +194,31 @@ export function SettingsDialog() {
                 </Row>
               </Section>
             )}
-            {page === 'Terminal' && config !== null && system !== null && (
-              <TerminalMachinePage
-                key={machine.origin}
-                machine={machine.origin}
-                config={config}
-                platform={system.platform}
-                defaultShell={system.defaultShell}
-              />
-            )}
-            {machinePage && (config === null || system === null) && (
+            {page === 'Terminal' &&
+              machine !== null &&
+              config !== null &&
+              system !== null && (
+                <TerminalMachinePage
+                  key={machine.origin}
+                  machine={machine.origin}
+                  config={config}
+                  platform={system.platform}
+                  defaultShell={system.defaultShell}
+                />
+              )}
+            {machinePage && machine === null && (
               <p className="text-muted-foreground text-sm">
-                {machine.name} is not connected. Its settings show up once it
-                is.
+                Add a machine to see its settings.
               </p>
             )}
+            {machinePage &&
+              machine !== null &&
+              (config === null || system === null) && (
+                <p className="text-muted-foreground text-sm">
+                  {machine.name} is not connected. Its settings show up once it
+                  is.
+                </p>
+              )}
             {page === 'Terminal' && <TerminalLookPage prefs={prefs} />}
             {page === 'Notifications' && (
               <>
@@ -223,7 +237,7 @@ export function SettingsDialog() {
                 />
               </>
             )}
-            {page === 'Accounts' && config !== null && (
+            {page === 'Accounts' && machine !== null && config !== null && (
               <AccountsPage
                 machine={machine.origin}
                 config={config}
@@ -250,9 +264,10 @@ export function SettingsDialog() {
               <AlertDialogTitle>Restore defaults?</AlertDialogTitle>
               <AlertDialogDescription>
                 The theme and terminal look of this browser go back to their
-                defaults, and so do the settings of {machine.name}, including
-                the defaults for new threads and the terminal shell for all
-                platforms.
+                defaults
+                {machine === null
+                  ? '.'
+                  : `, and so do the settings of ${machine.name}, including the defaults for new threads and the terminal shell for all platforms.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -262,7 +277,7 @@ export function SettingsDialog() {
                 onClick={() => {
                   setRevision(revision + 1)
                   updatePrefs(defaultPrefs)
-                  if (system !== null)
+                  if (machine !== null && system !== null)
                     updateConfig(machine.origin, system.defaults)
                 }}
               >

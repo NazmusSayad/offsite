@@ -14,8 +14,11 @@ export const home = args.dir
 const lockFile = path.join(home, 'server.pid')
 
 mkdirSync(home, { recursive: true })
-lock()
-process.on('exit', () => unlinkSync(lockFile))
+
+export function lockHome() {
+  lock()
+  process.on('exit', () => unlinkSync(lockFile))
+}
 
 function lock() {
   try {

@@ -5,7 +5,8 @@ export function selectionFromUrl(machines: string[]): Selection | null {
   const params = new URLSearchParams(location.search)
   const cwd = params.get('cwd')
   const machine = params.get('machine') ?? home
-  if (cwd === null || !machines.includes(machine)) return null
+  if (cwd === null || machine === null || !machines.includes(machine))
+    return null
   return { machine, cwd, sessionId: params.get('session') }
 }
 

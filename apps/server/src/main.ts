@@ -1,14 +1,28 @@
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer, type ServerResponse } from 'node:http'
 import path from 'node:path'
-import { WebSocketServer } from 'ws'
+import { HOSTED_APP, PROTOCOL } from '@offsite/core/protocol'
+import { consola } from 'consola'
+import { type WebSocket, WebSocketServer } from 'ws'
 import { connectClient } from './api/socket.ts'
 import { args } from './args.ts'
 import { findClaude } from './lib/claude/index.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
 import { watchSessions } from './services/sessions.ts'
-import { readConfig } from './storage/config.ts'
+import { readConfig, version } from './storage/config.ts'
+import { lockHome } from './storage/storage.ts'
+import {
+  addToken,
+  firstToken,
+  matchesToken,
+  readTokens,
+  readUsage,
+  recordUse,
+  removeTokens,
+} from './storage/token.ts'
+
+const UNPAIR_CHECK = 5000
 
 const contentTypes: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -28,6 +42,23 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   process.exit(1)
 }
 
+const address = `http://${args.host}:${port}`
+
+if (args.command === 'pair') {
+  const links = pairingLinks(addToken(args.name))
+  console.log('Open one of these links in the browser to pair:')
+  console.log(`  ${links.local}`)
+  console.log(`  ${links.hosted}`)
+  process.exit(0)
+}
+
+if (args.command === 'unpair') {
+  await unpair()
+  process.exit(0)
+}
+
+lockHome()
+
 process.env.CLAUDE_CONFIG_DIR = readConfig().claudeBaseDir
 watchSessions()
 
@@ -37,24 +68,69 @@ if (findClaude() === null) {
 }
 
 const publicDir = path.join(import.meta.dirname, '..', '..', 'web', 'dist')
+const token = args.auth ? firstToken() : null
 
 const server = createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
+  if (url.pathname === '/version') {
+    response.setHeader('access-control-allow-origin', '*')
+    response.setHeader('content-type', 'application/json')
+    response.end(
+      JSON.stringify({
+        version,
+        protocol: PROTOCOL,
+        authorized: authorized(url),
+      })
+    )
+    return
+  }
+  if (args.command === 'serve') {
+    response.statusCode = 404
+    response.end(`offsite serve has no web app; open ${HOSTED_APP}`)
+    return
+  }
   serveFile(url.pathname, response)
 })
 
 const sockets = new WebSocketServer({ noServer: true })
+const paired = new Map<WebSocket, string>()
 
 server.on('upgrade', (request, socket, head) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
-  if (url.pathname === '/ws')
-    sockets.handleUpgrade(request, socket, head, connectClient)
-  else socket.destroy()
+  const given = url.searchParams.get('token')
+  if (
+    url.pathname !== '/ws' ||
+    url.searchParams.get('protocol') !== String(PROTOCOL) ||
+    !authorized(url)
+  ) {
+    socket.destroy()
+    return
+  }
+  sockets.handleUpgrade(request, socket, head, (client) => {
+    connectClient(client)
+    if (!args.auth || given === null) return
+    paired.set(client, given)
+    client.on('close', () => paired.delete(client))
+    recordUse(given)
+  })
 })
+
+if (args.auth)
+  setInterval(() => {
+    for (const [client, given] of paired)
+      if (!matchesToken(given)) client.close()
+  }, UNPAIR_CHECK)
 
 server.listen(port, args.host, () => {
   startPush(`${args.host}:${port}`)
-  console.log(`offsite is running at http://${args.host}:${port}`)
+  const links = pairingLinks(token)
+  if (args.command === 'web')
+    console.log(`offsite is running at ${links.local}`)
+  console.log(`Open it on ${HOSTED_APP}: ${links.hosted}`)
+  if (token === null)
+    console.warn(
+      'auth is off; anyone who can reach this port can control this machine'
+    )
 })
 
 process.on('SIGINT', stop)
@@ -63,6 +139,64 @@ process.on('SIGTERM', stop)
 function stop() {
   stopAll()
   process.exit(0)
+}
+
+function authorized(url: URL) {
+  return !args.auth || matchesToken(url.searchParams.get('token'))
+}
+
+async function unpair() {
+  const tokens = readTokens()
+  if (tokens.length === 0) {
+    console.log('No browsers are paired')
+    return
+  }
+  if (!process.stdin.isTTY) {
+    console.error('offsite unpair needs an interactive terminal')
+    process.exit(1)
+  }
+  const usage = readUsage()
+  const picked = (await consola.prompt('Which browsers should be unpaired?', {
+    type: 'multiselect',
+    required: false,
+    cancel: 'null',
+    options: tokens.map((item) => {
+      const used = usage[item.token]
+      return {
+        value: item.token,
+        label: [
+          item.name ?? 'Unnamed',
+          `${item.token.slice(0, 6)}…`,
+          `paired ${new Date(item.createdAt).toLocaleString()}`,
+          used === undefined
+            ? 'never used'
+            : `last used ${new Date(used).toLocaleString()}`,
+        ].join(' · '),
+      }
+    }),
+  })) as unknown as string[] | null
+  if (picked === null || picked.length === 0) {
+    console.log('Nothing unpaired')
+    return
+  }
+  removeTokens(picked)
+  console.log(
+    `Unpaired ${picked.length} ${picked.length === 1 ? 'browser' : 'browsers'}; a running offsite disconnects them within seconds`
+  )
+}
+
+function pairingLinks(token: string | null) {
+  const hosted = new URLSearchParams({
+    machine: address,
+    ...(token !== null && { token }),
+  })
+  return {
+    local:
+      token === null
+        ? address
+        : `${address}/pair#${new URLSearchParams({ token })}`,
+    hosted: `${HOSTED_APP}/pair#${hosted}`,
+  }
 }
 
 function serveFile(pathname: string, response: ServerResponse) {

@@ -1,22 +1,31 @@
-import type { Project } from '@offsite/core/protocol'
+import { HOSTED_APP, type Project } from '@offsite/core/protocol'
 
 type StoredMachine = {
   origin: string
   name: string
+  token: string | null
   projects: Project[]
 }
 
 const storageKey = 'machines'
 
-export const home = location.origin
+export const home = location.origin === HOSTED_APP ? null : location.origin
 
 export function loadMachines(): StoredMachine[] {
   const raw = localStorage.getItem(storageKey)
-  const stored: StoredMachine[] = raw === null ? [] : JSON.parse(raw)
+  const stored: StoredMachine[] =
+    raw === null
+      ? []
+      : JSON.parse(raw).map((machine: StoredMachine) => ({
+          ...machine,
+          token: machine.token ?? null,
+        }))
+  if (home === null) return stored
   return [
     stored.find((machine) => machine.origin === home) ?? {
       origin: home,
       name: location.hostname,
+      token: null,
       projects: [],
     },
     ...stored.filter((machine) => machine.origin !== home),
@@ -25,6 +34,27 @@ export function loadMachines(): StoredMachine[] {
 
 export function saveMachines(machines: StoredMachine[]) {
   localStorage.setItem(storageKey, JSON.stringify(machines))
+}
+
+export function pairFromUrl() {
+  if (location.pathname !== '/pair') return
+  const params = new URLSearchParams(location.hash.slice(1))
+  const address = params.get('machine')
+  const origin = address === null ? home : machineOrigin(address)
+  if (origin === null) throw new Error('the pairing link has no machine')
+  const token = params.get('token')
+  const machines = loadMachines()
+  saveMachines(
+    machines.some((machine) => machine.origin === origin)
+      ? machines.map((machine) =>
+          machine.origin === origin ? { ...machine, token } : machine
+        )
+      : [
+          ...machines,
+          { origin, name: new URL(origin).hostname, token, projects: [] },
+        ]
+  )
+  history.replaceState(null, '', '/')
 }
 
 export function machineOrigin(address: string) {

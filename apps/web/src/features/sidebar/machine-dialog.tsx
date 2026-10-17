@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { addMachine } from '@/api/sync'
+import { addMachine, setMachineToken } from '@/api/sync'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,8 +12,12 @@ import {
 import { Input } from '@/components/ui/input'
 import { errorMessage } from '@/lib/utils'
 
-export function AddMachineDialog(props: { onClose: () => void }) {
+export function AddMachineDialog(props: {
+  origin?: string
+  onClose: () => void
+}) {
   const [address, setAddress] = useState('')
+  const [token, setToken] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   return (
@@ -28,8 +32,10 @@ export function AddMachineDialog(props: { onClose: () => void }) {
           className="grid"
           onSubmit={(event) => {
             event.preventDefault()
+            const value = token.trim() === '' ? null : token.trim()
             try {
-              addMachine(address)
+              if (props.origin === undefined) addMachine(address, value)
+              else setMachineToken(props.origin, value)
               props.onClose()
             } catch (failure) {
               setError(errorMessage(failure))
@@ -37,18 +43,30 @@ export function AddMachineDialog(props: { onClose: () => void }) {
           }}
         >
           <DialogHeader className="gap-1 px-6 pt-4 pr-12">
-            <DialogTitle className="text-base">Add machine</DialogTitle>
+            <DialogTitle className="text-base">
+              {props.origin === undefined ? 'Add machine' : 'Pairing token'}
+            </DialogTitle>
             <DialogDescription>
-              The address of another machine running offsite, as this browser
-              reaches it.
+              {props.origin === undefined
+                ? 'The address of another machine running offsite, as this browser reaches it, and the pairing token it printed when it started.'
+                : `The pairing token that offsite printed when it started on ${props.origin}.`}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2 p-6">
+            {props.origin === undefined && (
+              <Input
+                placeholder="http://my-laptop:47841"
+                spellCheck={false}
+                value={address}
+                onChange={(event) => setAddress(event.target.value)}
+              />
+            )}
             <Input
-              placeholder="http://my-laptop:47841"
+              placeholder="Pairing token, empty if auth is off"
               spellCheck={false}
-              value={address}
-              onChange={(event) => setAddress(event.target.value)}
+              autoComplete="off"
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
             />
             {error !== null && (
               <p className="text-destructive text-sm break-all">{error}</p>
@@ -58,8 +76,11 @@ export function AddMachineDialog(props: { onClose: () => void }) {
             <Button type="button" variant="outline" onClick={props.onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={address.trim() === ''}>
-              Add machine
+            <Button
+              type="submit"
+              disabled={props.origin === undefined && address.trim() === ''}
+            >
+              {props.origin === undefined ? 'Add machine' : 'Save token'}
             </Button>
           </DialogFooter>
         </form>

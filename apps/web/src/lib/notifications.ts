@@ -95,6 +95,7 @@ export async function showNotification(
 }
 
 export function pushSupport() {
+  if (home === null) return 'hosted'
   if (!window.isSecureContext) return 'insecure'
   if (
     !('Notification' in window) ||
@@ -127,7 +128,7 @@ export async function subscribePush() {
 }
 
 async function pushKey() {
-  const key = await call(home, 'push.key', undefined)
+  const key = await call(pushMachine(), 'push.key', undefined)
   return key.publicKey
 }
 
@@ -146,7 +147,9 @@ export async function unsubscribePush() {
   const registration = await navigator.serviceWorker.ready
   const subscription = await registration.pushManager.getSubscription()
   if (!subscription) return
-  await call(home, 'push.unsubscribe', { endpoint: subscription.endpoint })
+  await call(pushMachine(), 'push.unsubscribe', {
+    endpoint: subscription.endpoint,
+  })
   await subscription.unsubscribe()
 }
 
@@ -162,6 +165,11 @@ export async function refreshPushSubscription() {
   else await resubscribePush(key)
 }
 
+function pushMachine() {
+  if (home === null) throw new Error('push needs a page served by offsite')
+  return home
+}
+
 function base64Url(buffer: ArrayBuffer) {
   return btoa(String.fromCharCode(...new Uint8Array(buffer)))
     .replaceAll('+', '-')
@@ -171,7 +179,7 @@ function base64Url(buffer: ArrayBuffer) {
 
 async function savePushSubscription(subscription: PushSubscription) {
   await call(
-    home,
+    pushMachine(),
     'push.subscribe',
     subscription.toJSON() as PushSubscriptionInfo
   )

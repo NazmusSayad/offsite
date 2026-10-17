@@ -8,7 +8,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import type { Delivery, Item } from '@offsite/core/protocol'
 import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
-import { home, machineKey } from '@/api/machines'
+import { machineKey } from '@/api/machines'
 import { useProjectName } from '@/api/projects'
 import { readBase64, uploadFile } from '@/api/upload'
 import { Button } from '@/components/ui/button'
@@ -53,7 +53,7 @@ export function Composer() {
   const [files, setFiles] = useState<string[]>([])
   const input = useRef<HTMLTextAreaElement>(null)
   const picker = useRef<HTMLInputElement>(null)
-  const machine = selection?.machine ?? home
+  const machine = selection?.machine ?? ''
   const cwd = selection?.cwd ?? ''
   const status = useStore((state) => machineOf(state, machine).status)
   const key = machineKey(machine, selection?.sessionId ?? cwd)
