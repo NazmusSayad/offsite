@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, statSync } from 'node:fs'
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
 import { createServer, type ServerResponse } from 'node:http'
 import path from 'node:path'
 import { consola } from 'consola'
@@ -176,6 +176,11 @@ function pairingLinks(token: string | null) {
 }
 
 function serveFile(pathname: string, response: ServerResponse) {
+  if (!args.pwa && pathname === '/manifest.webmanifest') {
+    response.statusCode = 404
+    response.end('offsite runs without --pwa')
+    return
+  }
   const requested = path.join(publicDir, path.normalize(pathname))
   const file =
     requested.startsWith(publicDir + path.sep) &&
@@ -191,5 +196,11 @@ function serveFile(pathname: string, response: ServerResponse) {
     'content-type',
     contentTypes[path.extname(file)] ?? 'application/octet-stream'
   )
+  if (!args.pwa && path.basename(file) === 'index.html') {
+    response.end(
+      readFileSync(file, 'utf8').replace(/<link rel="manifest"[^>]*>/, '')
+    )
+    return
+  }
   createReadStream(file).pipe(response)
 }

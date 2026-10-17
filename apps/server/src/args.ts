@@ -16,6 +16,7 @@ const program = new Command('offsite')
   )
   .option('--no-auth', 'Accept connections without the pairing token')
   .option('--no-pair', "Don't create a pairing token or print pairing links")
+  .option('--pwa', 'Serve the web app as an installable app that works offline')
 
 program
   .command('web', { isDefault: true })
