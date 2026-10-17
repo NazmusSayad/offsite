@@ -168,7 +168,10 @@ export function SettingsDialog() {
                 <button
                   className="text-muted-foreground hover:text-foreground text-xl font-semibold tracking-tight transition-colors"
                   onClick={() =>
-                    update({ settingsAccount: null, settingsEditedMachine: null })
+                    update({
+                      settingsAccount: null,
+                      settingsEditedMachine: null,
+                    })
                   }
                 >
                   {page}
@@ -178,7 +181,9 @@ export function SettingsDialog() {
                   className="text-muted-foreground mx-1.5 size-5"
                 />
                 <h2 className="truncate text-xl font-semibold tracking-tight">
-                  {settingsAccount !== null ? accountTitle : editedMachine?.name}
+                  {settingsAccount !== null
+                    ? accountTitle
+                    : editedMachine?.name}
                 </h2>
               </>
             )}
