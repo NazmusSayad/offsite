@@ -10,7 +10,7 @@ import type {
 } from '@offsite/core/protocol'
 import { storedAccount } from '../../services/accounts.ts'
 import { publish } from '../hub.ts'
-import { broadcastActivity, runs } from '../live.ts'
+import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import { skills } from './accounts.ts'
 import {
   type AppServer,
@@ -333,6 +333,7 @@ export class CodexRun implements ThreadListener {
       request,
     })
     broadcastActivity()
+    scheduleAutoResolve(this.sessionId, request)
   }
 
   private async startTurn(prompt: Prompt) {

@@ -38,6 +38,8 @@ export const defaults: Config = {
   commitMessage: { accountId: null, model: null },
   models: { claude: {}, codex: {}, opencode: {} },
   defaultModels: { claude: null, codex: null, opencode: null },
+  delivery: 'steer',
+  autoResolve: { questions: 3, permissions: 1, permissionDecision: 'allow' },
   terminal: {
     shell: { macos: null, linux: null, windows: null },
     behavior: { terminalIdentity: 'offsite', shellIntegration: true },
@@ -56,6 +58,8 @@ const choices: Record<string, string[]> = {
     'auto',
   ],
   'composer.codex.mode': ['read-only', 'auto', 'full-access'],
+  delivery: ['queue', 'steer'],
+  'autoResolve.permissionDecision': ['allow', 'deny'],
   'terminal.behavior.terminalIdentity': ['offsite', 'ghostty', 'iterm2'],
 }
 const nullable = [
@@ -76,6 +80,8 @@ const nullable = [
   'defaultModels.claude',
   'defaultModels.codex',
   'defaultModels.opencode',
+  'autoResolve.questions',
+  'autoResolve.permissions',
   'terminal.shell.macos',
   'terminal.shell.linux',
   'terminal.shell.windows',
@@ -177,6 +183,10 @@ function invalid(
     return null
   }
   if (nullable.includes(name) && value === null) return null
+  if (name === 'autoResolve.questions' || name === 'autoResolve.permissions')
+    return typeof value === 'number' && value > 0
+      ? null
+      : `${name} must be a positive number of minutes or null`
   if (name === 'claudeBaseDir')
     return typeof value === 'string' && path.isAbsolute(value)
       ? null

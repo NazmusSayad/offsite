@@ -16,7 +16,7 @@ import type {
   TaskStatus,
 } from '@offsite/core/protocol'
 import { broadcast, publish } from '../hub.ts'
-import { broadcastActivity, runs } from '../live.ts'
+import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import {
   claudeEffort,
   claudeMode,
@@ -467,6 +467,7 @@ export class Run {
         request,
       })
       broadcastActivity()
+      scheduleAutoResolve(this.sessionId, request)
       options.signal.addEventListener('abort', () =>
         this.settle(request.id, { behavior: 'deny', message: 'Cancelled' })
       )

@@ -20,7 +20,7 @@ import type {
 } from '@opencode/client'
 import { errorItem } from '../codex/index.ts'
 import { publish } from '../hub.ts'
-import { broadcastActivity, runs } from '../live.ts'
+import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import { openCode } from './client.ts'
 import { formAnswer, formQuestions, messageItems } from './items.ts'
 import { contextOf, modelRef } from './sessions.ts'
@@ -422,6 +422,7 @@ export class OpenCodeRun {
       request: pending.request,
     })
     broadcastActivity()
+    scheduleAutoResolve(this.sessionId, pending.request)
   }
 
   private finishTurn() {

@@ -165,6 +165,12 @@ export type Config = {
   commitMessage: { accountId: string | null; model: string | null }
   models: Record<Provider, Record<string, ModelSetting>>
   defaultModels: Record<Provider, string | null>
+  delivery: Delivery
+  autoResolve: {
+    questions: number | null
+    permissions: number | null
+    permissionDecision: 'allow' | 'deny'
+  }
   terminal: TerminalConfig
 }
 

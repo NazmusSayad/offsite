@@ -41,6 +41,7 @@ import {
 } from '@/lib/store'
 import { cn, isMac, mod } from '@/lib/utils'
 import { ProviderPage } from './accounts'
+import { AgentsSection } from './agents'
 import { Row, Section } from './controls'
 import { GitPage } from './git'
 import { MachinesPage } from './machines'
@@ -59,8 +60,8 @@ const browserPages: SettingsPage[] = [
 const machinePages: SettingsPage[] = ['Machine', 'Claude', 'Codex', 'OpenCode']
 
 const shortcuts = [
-  ['Enter', 'Send, or queue while the agent works'],
-  [`${mod}+Enter`, 'Send now, steering the current turn'],
+  ['Enter', 'Send, or queue or steer while the agent works'],
+  [`${mod}+Enter`, 'Send the other way while the agent works'],
   ['Shift+Enter', 'New line'],
   ['↑', 'Recall your last message'],
   ['Shift+Tab', 'Cycle permission mode'],
@@ -254,6 +255,7 @@ export function SettingsDialog() {
                     platform={system.platform}
                     defaultShell={system.defaultShell}
                   />
+                  <AgentsSection machine={machine.id} config={config} />
                   <GitPage
                     key={`git-${machine.id}`}
                     machine={machine.id}

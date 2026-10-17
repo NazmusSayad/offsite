@@ -1,11 +1,6 @@
-import {
-  ArrowUp02Icon,
-  ListPlusIcon,
-  PaperclipIcon,
-  XIcon,
-} from '@hugeicons/core-free-icons'
+import { PaperclipIcon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Delivery, Item } from '@offsite/core/protocol'
+import type { Item } from '@offsite/core/protocol'
 import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
@@ -20,8 +15,6 @@ import {
   sendPrompt,
   setDraft,
   showError,
-  steer,
-  unqueue,
   selectedRunning,
   useStore,
 } from '@/lib/store'
@@ -31,6 +24,7 @@ import { editDraft, useDraft } from './drafts'
 import { MoreMenu, providerModes } from './more-menu'
 import { PermissionPrompt } from './permission-prompt'
 import { Pickers } from './pickers'
+import { QueuedMessages } from './queue'
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 const maxImageSize = 5 * 1024 * 1024
@@ -57,6 +51,10 @@ export function Composer() {
   const projectId = selection?.projectId ?? ''
   const project = useStore((state) => projectOf(state, machine, projectId))
   const status = useStore((state) => machineOf(state, machine).status)
+  const delivery = useStore((state) => {
+    const config = machineOf(state, machine).config
+    return config === null ? null : config.delivery
+  })
   const key = machineKey(machine, selection?.sessionId ?? projectId)
   const stored = useDraft(key)
   const text = stored.text
@@ -140,11 +138,15 @@ export function Composer() {
     )
   }
 
-  async function submit(delivery: Delivery) {
+  async function submit(swap: boolean) {
     if (empty) return
     setSending(true)
     try {
-      await sendPrompt({ text: text.trim(), images }, delivery)
+      if (delivery === null) throw new Error('This machine is not connected')
+      await sendPrompt(
+        { text: text.trim(), images },
+        swap ? (delivery === 'queue' ? 'steer' : 'queue') : delivery
+      )
       editDraft(key, (current) => ({ ...current, text: '', images: [] }))
       setCaret(0)
     } catch (error) {
@@ -215,42 +217,7 @@ export function Composer() {
               </h1>
             </div>
           )}
-          {queue.length > 0 && suggestions.length === 0 && (
-            <div className="composer-glass relative mx-auto -mb-[calc(1rem+1px)] w-[calc(100%-2.75rem)] rounded-t-2xl border border-b-0 border-(--composer-outline) px-1 pt-1 pb-[calc(1rem+1px+0.25rem)] text-xs/4">
-              {queue.map((item) => (
-                <div
-                  key={item.id}
-                  className="grid min-h-6 grid-cols-[1.5rem_minmax(0,1fr)_auto_auto] items-center gap-x-1"
-                >
-                  <HugeiconsIcon
-                    icon={ListPlusIcon}
-                    className="text-muted-foreground mx-auto size-3"
-                  />
-                  <span className="text-secondary-label truncate">
-                    {item.prompt.text === ''
-                      ? `${item.prompt.images.length} image(s)`
-                      : item.prompt.text}
-                  </span>
-                  <Button
-                    variant="ghost-muted"
-                    size="icon-xs"
-                    title="Send now"
-                    onClick={() => steer(item.id)}
-                  >
-                    <HugeiconsIcon icon={ArrowUp02Icon} />
-                  </Button>
-                  <Button
-                    variant="ghost-muted"
-                    size="icon-xs"
-                    title="Remove from queue"
-                    onClick={() => unqueue(item.id)}
-                  >
-                    <HugeiconsIcon icon={XIcon} />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+          {queue.length > 0 && suggestions.length === 0 && <QueuedMessages />}
           {request !== undefined && suggestions.length === 0 && (
             <PermissionPrompt
               key={request.id}
@@ -375,9 +342,7 @@ export function Composer() {
                   }
                   if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault()
-                    void submit(
-                      event.metaKey || event.ctrlKey ? 'steer' : 'queue'
-                    )
+                    void submit(event.metaKey || event.ctrlKey)
                     return
                   }
                   if (event.key === 'Tab' && event.shiftKey) {
@@ -396,10 +361,12 @@ export function Composer() {
                 }}
                 placeholder={
                   noAccount
-                    ? 'Add an account in Settings → Accounts to start'
-                    : running
-                      ? `Queue a follow-up… (${mod}+Enter to send now)`
-                      : 'Ask anything, @tag files/folders, or / for commands'
+                    ? 'Add an account in Settings to start'
+                    : running && delivery === 'steer'
+                      ? `Steer the agent… (${mod}+Enter to queue)`
+                      : running
+                        ? `Queue a follow-up… (${mod}+Enter to send now)`
+                        : 'Ask anything, @tag files/folders, or / for commands'
                 }
                 className="placeholder:text-placeholder/75 block [field-sizing:content] max-h-52 min-h-19.5 w-full resize-none bg-transparent text-sm leading-relaxed outline-none"
               />
@@ -460,16 +427,16 @@ export function Composer() {
                   <button
                     className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover relative flex size-9 items-center justify-center overflow-hidden rounded-full shadow-xs transition-all duration-150 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:opacity-64 disabled:shadow-none"
                     title={
-                      running
-                        ? `Queue (Enter) · Send now (${mod}+Enter)`
-                        : 'Send (Enter)'
+                      running && delivery === 'steer'
+                        ? `Send now (Enter) · Queue (${mod}+Enter)`
+                        : running
+                          ? `Queue (Enter) · Send now (${mod}+Enter)`
+                          : 'Send (Enter)'
                     }
                     aria-label="Send message"
                     disabled={empty}
                     onClick={(event) =>
-                      void submit(
-                        event.metaKey || event.ctrlKey ? 'steer' : 'queue'
-                      )
+                      void submit(event.metaKey || event.ctrlKey)
                     }
                   >
                     <svg
