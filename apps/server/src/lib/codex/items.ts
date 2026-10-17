@@ -1,4 +1,5 @@
 import type { Item, ItemImage, ItemStatus } from '@offsite/core/protocol'
+import { isRecord } from '../claude/content.ts'
 import type { Status, ThreadItem, Turn, UserInput } from './types.ts'
 
 const statuses: Record<Status | 'interrupted', ItemStatus> = {
@@ -52,11 +53,8 @@ export function toItems(
         {
           ...base,
           kind: 'user',
-          text: item.content
-            .flatMap((input) => userText(input))
-            .join('\n')
-            .trim(),
-          images: item.content.flatMap((input) => userImages(input)),
+          text: item.content.flatMap(userText).join('\n').trim(),
+          images: item.content.flatMap(userImages),
           format: 'text',
         },
       ]
@@ -239,10 +237,7 @@ export function hunks(diff: string) {
 function contentText(content: unknown[]) {
   return content
     .map((block) =>
-      typeof block === 'object' &&
-      block !== null &&
-      'text' in block &&
-      typeof block.text === 'string'
+      isRecord(block) && typeof block.text === 'string'
         ? block.text
         : JSON.stringify(block)
     )
@@ -250,7 +245,5 @@ function contentText(content: unknown[]) {
 }
 
 function record(value: unknown): Record<string, unknown> {
-  if (typeof value === 'object' && value !== null && !Array.isArray(value))
-    return value as Record<string, unknown>
-  return { value }
+  return isRecord(value) ? value : { value }
 }

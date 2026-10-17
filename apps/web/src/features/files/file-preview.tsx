@@ -26,12 +26,7 @@ export function FilePreview(props: {
   const inserted = useRef(false)
 
   return (
-    <Dialog
-      open={props.path !== null}
-      onOpenChange={(open) => {
-        if (!open) props.onClose()
-      }}
-    >
+    <Dialog open={props.path !== null} onOpenChange={() => props.onClose()}>
       <DialogContent
         aria-describedby={undefined}
         className="flex h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"

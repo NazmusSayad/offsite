@@ -12,6 +12,7 @@ import type {
   SessionMessageInfo,
   ToolContent,
 } from '@opencode/client'
+import { isRecord } from '../claude/content.ts'
 import { errorItem, hunks } from '../codex/index.ts'
 
 type Base = { id: string; parent: string | null; time: number | null }
@@ -356,7 +357,5 @@ function list(value: unknown): unknown[] {
 }
 
 function record(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {}
+  return isRecord(value) ? value : {}
 }

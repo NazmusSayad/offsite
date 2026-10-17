@@ -391,25 +391,13 @@ export class KittyGraphics {
       rows: number
     }[] = []
     while (runtime.call('ghostty_kitty_graphics_placement_next', iterator)) {
-      const imageId = this.placementData(
-        iterator,
-        KITTY_PLACEMENT.imageId
-      ).getUint32(0, true)
+      const imageId = this.placementU32(iterator, KITTY_PLACEMENT.imageId)
       if (this.placementData(iterator, KITTY_PLACEMENT.isVirtual).getUint8(0)) {
         virtual.push({
           imageId,
-          placementId: this.placementData(
-            iterator,
-            KITTY_PLACEMENT.placementId
-          ).getUint32(0, true),
-          columns: this.placementData(
-            iterator,
-            KITTY_PLACEMENT.columns
-          ).getUint32(0, true),
-          rows: this.placementData(iterator, KITTY_PLACEMENT.rows).getUint32(
-            0,
-            true
-          ),
+          placementId: this.placementU32(iterator, KITTY_PLACEMENT.placementId),
+          columns: this.placementU32(iterator, KITTY_PLACEMENT.columns),
+          rows: this.placementU32(iterator, KITTY_PLACEMENT.rows),
         })
         continue
       }
@@ -439,14 +427,8 @@ export class KittyGraphics {
         z: this.placementData(iterator, KITTY_PLACEMENT.z).getInt32(0, true),
         column: info.getInt32(KITTY_RENDER_INFO.column, true),
         row: info.getInt32(KITTY_RENDER_INFO.row, true),
-        xOffset: this.placementData(
-          iterator,
-          KITTY_PLACEMENT.xOffset
-        ).getUint32(0, true),
-        yOffset: this.placementData(
-          iterator,
-          KITTY_PLACEMENT.yOffset
-        ).getUint32(0, true),
+        xOffset: this.placementU32(iterator, KITTY_PLACEMENT.xOffset),
+        yOffset: this.placementU32(iterator, KITTY_PLACEMENT.yOffset),
         width: info.getUint32(KITTY_RENDER_INFO.pixelWidth, true),
         height: info.getUint32(KITTY_RENDER_INFO.pixelHeight, true),
         source: {
@@ -513,6 +495,10 @@ export class KittyGraphics {
     return this.runtime.view(this.scratch, 4)
   }
 
+  private placementU32(iterator: number, key: number) {
+    return this.placementData(iterator, key).getUint32(0, true)
+  }
+
   private imageData(image: number, key: number) {
     this.runtime.bytes(this.scratch, 4).fill(0)
     this.runtime.check(
@@ -560,12 +546,7 @@ function kittyLayer(z: number): ImageLayer {
   return 'aboveText'
 }
 
-function kittyBitmap(image: {
-  width: number
-  height: number
-  format: number
-  pixels: Uint8Array
-}) {
+function kittyBitmap(image: KittyPlacement['image']) {
   const channels = KITTY_CHANNELS.get(image.format)
   if (channels === undefined)
     throw new Error(`unsupported kitty image format ${image.format}`)

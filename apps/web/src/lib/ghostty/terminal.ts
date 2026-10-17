@@ -179,13 +179,7 @@ export class Terminal {
     if (!context) throw new Error('canvas 2d is unavailable')
     this.context = context
     this.appearance = this.appearanceFor(options)
-    this.metrics = measureCell(
-      context,
-      options.fontSize,
-      this.appearance.fontFamily,
-      options.lineHeight,
-      window.devicePixelRatio || 1
-    )
+    this.metrics = this.measure()
     this.core = new GhosttyCore(
       Math.max(1, Math.floor(window.innerWidth / this.metrics.width)),
       this.rows,
@@ -225,13 +219,7 @@ export class Terminal {
   setOptions(options: TerminalOptions) {
     this.options = options
     this.appearance = this.appearanceFor(options)
-    this.metrics = measureCell(
-      this.context,
-      options.fontSize,
-      this.appearance.fontFamily,
-      options.lineHeight,
-      window.devicePixelRatio || 1
-    )
+    this.metrics = this.measure()
     if (!options.clickToMoveCursor) this.prompt.release()
     this.applyTerminalOptions()
     this.resizeCore()
@@ -301,13 +289,7 @@ export class Terminal {
       this.canvas.style.width = `${width}px`
       this.canvas.style.height = `${height}px`
       this.context.setTransform(ratio, 0, 0, ratio, 0, 0)
-      this.metrics = measureCell(
-        this.context,
-        this.options.fontSize,
-        this.appearance.fontFamily,
-        this.options.lineHeight,
-        ratio
-      )
+      this.metrics = this.measure()
       this.resizeCore()
       this.forceFull = true
     }
@@ -398,6 +380,16 @@ export class Terminal {
       matchBackground: colors.palette[8],
       activeMatchBorder: colors.palette[3],
     }
+  }
+
+  private measure() {
+    return measureCell(
+      this.context,
+      this.options.fontSize,
+      this.appearance.fontFamily,
+      this.options.lineHeight,
+      window.devicePixelRatio || 1
+    )
   }
 
   private applyTerminalOptions() {
@@ -610,10 +602,8 @@ export class Terminal {
 
   private renderFrame() {
     if (this.disposed || !this.sized || !this.element.isConnected) return
-    if (this.frame !== 0) {
-      window.cancelAnimationFrame(this.frame)
-      this.frame = 0
-    }
+    if (this.frame !== 0) window.cancelAnimationFrame(this.frame)
+    this.frame = 0
     try {
       this.draw()
       this.renderFailed = false
@@ -761,11 +751,7 @@ export class Terminal {
       ? event.metaKey && key === 'v'
       : (event.ctrlKey && event.shiftKey && key === 'v') ||
         (event.shiftKey && !event.ctrlKey && key === 'insert')
-    if (paste) {
-      this.suppressedKeys.add(event.code)
-      return
-    }
-    if (isMac && event.metaKey && key === 'q') {
+    if (paste || (isMac && event.metaKey && key === 'q')) {
       this.suppressedKeys.add(event.code)
       return
     }

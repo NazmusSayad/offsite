@@ -54,15 +54,16 @@ export function toItems(messages: Message[]): Item[] {
     }
     if (message.type === 'assistant') {
       message.content.forEach((block, index) => {
-        const id = `${message.uuid}:${index}`
-        const parent = message.parent
+        const shared = {
+          id: `${message.uuid}:${index}`,
+          parent: message.parent,
+          time: message.time,
+        }
         switch (block.type) {
           case 'text':
             if (block.text.trim() !== '')
               items.push({
-                id,
-                parent,
-                time: message.time,
+                ...shared,
                 kind: 'assistant',
                 text: block.text,
                 message: message.uuid,
@@ -70,13 +71,7 @@ export function toItems(messages: Message[]): Item[] {
             break
           case 'thinking':
             if (block.thinking.trim() !== '')
-              items.push({
-                id,
-                parent,
-                time: message.time,
-                kind: 'reasoning',
-                text: block.thinking,
-              })
+              items.push({ ...shared, kind: 'reasoning', text: block.thinking })
             break
           case 'tool_use': {
             if (block.name === 'SendMessage') {
@@ -87,16 +82,13 @@ export function toItems(messages: Message[]): Item[] {
               stops.set(block.id, text(block.input.task_id))
             tools.set(block.id, items.length)
             items.push(
-              toolItem(block, parent, message.time, (to) => {
+              toolItem(block, message.parent, message.time, (to) => {
                 const owner = owners.get(to)
                 return owner === undefined ? null : items[owner].id
               })
             )
             break
           }
-          case 'image':
-          case 'tool_result':
-            break
         }
       })
       continue

@@ -79,9 +79,7 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
             async (input) => {
               if (
                 input.hook_event_name !== 'PostToolUse' ||
-                typeof input.tool_input !== 'object' ||
-                input.tool_input === null ||
-                !('message' in input.tool_input) ||
+                !isRecord(input.tool_input) ||
                 typeof input.tool_input.message !== 'string'
               )
                 throw new Error('Unexpected PushNotification hook input')

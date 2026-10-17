@@ -38,25 +38,15 @@ export function useTerminalShortcuts() {
         void closeTab(project.activeTab)
         return
       }
+      let offset: number
+      if (hotkey.hotkey === nextTabKey) offset = 1
+      else if (hotkey.hotkey === previousTabKey) offset = -1
+      else throw new Error(`unknown terminal shortcut ${hotkey.hotkey}`)
       const tabs = project.tabs.filter((tab) => !tab.minimized)
       const index = tabs.findIndex((tab) => tab.id === project.activeTab)
-      if (hotkey.hotkey === nextTabKey) {
-        const next = tabs[(index + 1) % tabs.length]
-        if (next)
-          send({ type: 'select', projectId: current.projectId, tabId: next.id })
-        return
-      }
-      if (hotkey.hotkey === previousTabKey) {
-        const previous = tabs[(index - 1 + tabs.length) % tabs.length]
-        if (previous)
-          send({
-            type: 'select',
-            projectId: current.projectId,
-            tabId: previous.id,
-          })
-        return
-      }
-      throw new Error(`unknown terminal shortcut ${hotkey.hotkey}`)
+      const target = tabs[(index + offset + tabs.length) % tabs.length]
+      if (target)
+        send({ type: 'select', projectId: current.projectId, tabId: target.id })
     },
     {
       enabled: () => terminalConfig().behavior.captureShortcuts,

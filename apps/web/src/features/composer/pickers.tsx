@@ -42,8 +42,9 @@ const controlSm =
 export function Pickers() {
   const settings = useStore((state) => state.settings)
   const capabilities = useStore((state) => state.capabilities)
-  const models = capabilities?.models ?? []
-  const model = models.find((item) => item.value === settings.model)
+  const model = capabilities?.models.find(
+    (item) => item.value === settings.model
+  )
 
   return (
     <>
@@ -261,13 +262,9 @@ function ModelPicker() {
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1.5">
-            {viewedModels === null ? (
+            {matches.length === 0 ? (
               <p className="text-muted-foreground p-2 text-center text-sm">
-                Loading models…
-              </p>
-            ) : matches.length === 0 ? (
-              <p className="text-muted-foreground p-2 text-center text-sm">
-                No models found
+                {viewedModels === null ? 'Loading models…' : 'No models found'}
               </p>
             ) : (
               matches.map((option) => (

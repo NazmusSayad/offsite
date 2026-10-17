@@ -1,4 +1,9 @@
-import { PROTOCOL, type ServerEvent } from '@offsite/core/protocol'
+import {
+  PROTOCOL,
+  type Project,
+  type ServerEvent,
+  type Session,
+} from '@offsite/core/protocol'
 import { getDraftSettings, saveDraftSettings } from '@/features/composer/drafts'
 import {
   emptySettings,
@@ -14,8 +19,6 @@ import {
   draftKey,
   getState,
   homeMachine,
-  type MachineProject,
-  type MachineSession,
   machineOf,
   setMachine,
   showError,
@@ -128,14 +131,8 @@ async function resync(machine: string) {
       activity: snapshot.activity,
       providers: snapshot.providers,
     })
-    setProjects(
-      machine,
-      snapshot.projects.map((project) => ({ ...project, machine }))
-    )
-    setSessions(
-      machine,
-      snapshot.sessions.map((session) => ({ ...session, machine }))
-    )
+    setProjects(machine, snapshot.projects)
+    setSessions(machine, snapshot.sessions)
     receiveConfig(machine, snapshot.config)
     reopenThread(machine)
     void refreshAccounts(machine)
@@ -145,32 +142,28 @@ async function resync(machine: string) {
   }
 }
 
-function setProjects(machine: string, projects: MachineProject[]) {
+function setProjects(machine: string, projects: Project[]) {
   update({
     projects: [
       ...getState().projects.filter((item) => item.machine !== machine),
-      ...projects,
+      ...projects.map((project) => ({ ...project, machine })),
     ],
   })
   persistMachines()
 }
 
-function setSessions(machine: string, sessions: MachineSession[]) {
+function setSessions(machine: string, sessions: Session[]) {
   update({
     sessions: [
       ...getState().sessions.filter((item) => item.machine !== machine),
-      ...sessions,
+      ...sessions.map((session) => ({ ...session, machine })),
     ],
   })
 }
 
 function reopenThread(machine: string) {
   const selection = getState().selection
-  if (
-    selection !== null &&
-    selection.machine === machine &&
-    selection.sessionId !== null
-  )
+  if (selection?.machine === machine && selection.sessionId !== null)
     call(machine, 'sessions.open', {
       projectId: selection.projectId,
       sessionId: selection.sessionId,
@@ -224,16 +217,10 @@ function receive(machine: string, event: ServerEvent) {
       receiveConfig(machine, event.config)
       return
     case 'projects':
-      setProjects(
-        machine,
-        event.projects.map((project) => ({ ...project, machine }))
-      )
+      setProjects(machine, event.projects)
       return
     case 'sessions':
-      setSessions(
-        machine,
-        event.sessions.map((session) => ({ ...session, machine }))
-      )
+      setSessions(machine, event.sessions)
       return
     case 'accounts':
       setAccounts(machine, event.accounts)

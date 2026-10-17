@@ -230,12 +230,10 @@ export function loadGhosttyKeyboardLayoutMap(): Promise<
         }
       })
     | undefined
-  const keyboard = browserNavigator?.keyboard
-  const promise =
-    keyboard?.getLayoutMap().catch(() => undefined) ??
+  keyboardLayoutMapPromise =
+    browserNavigator?.keyboard?.getLayoutMap().catch(() => undefined) ??
     Promise.resolve(undefined)
-  keyboardLayoutMapPromise = promise
-  return promise
+  return keyboardLayoutMapPromise
 }
 
 export function refreshGhosttyKeyboardLayoutMap() {

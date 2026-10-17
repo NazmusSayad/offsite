@@ -139,12 +139,10 @@ server.listen(port, args.host, () => {
     if (args.command === 'web')
       console.log(`offsite is running at ${links.local}`)
     console.log(`Open it on ${HOSTED_APP}: ${links.hosted}`)
-  } else if (args.pair) {
-    console.log(`offsite is running at ${address}`)
-    console.log('Run offsite pair to pair another browser')
   } else {
     console.log(`offsite is running at ${address}`)
-    console.log(`Open it on ${HOSTED_APP}`)
+    if (args.pair) console.log('Run offsite pair to pair another browser')
+    else console.log(`Open it on ${HOSTED_APP}`)
   }
   if (!args.auth)
     console.warn(

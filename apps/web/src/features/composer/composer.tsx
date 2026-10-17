@@ -50,10 +50,9 @@ export function Composer() {
   const projectId = selection?.projectId ?? ''
   const project = useStore((state) => projectOf(state, machine, projectId))
   const status = useStore((state) => machineOf(state, machine).status)
-  const delivery = useStore((state) => {
-    const config = machineOf(state, machine).config
-    return config === null ? null : config.delivery
-  })
+  const delivery = useStore(
+    (state) => machineOf(state, machine).config?.delivery ?? null
+  )
   const key = machineKey(machine, selection?.sessionId ?? projectId)
   const stored = useDraft(key)
   const text = stored.text
@@ -178,10 +177,7 @@ export function Composer() {
         const path = await uploadFile(machine, file)
         editDraft(key, (current) => ({
           ...current,
-          text:
-            current.text === '' || /\s$/.test(current.text)
-              ? `${current.text}@${path} `
-              : `${current.text} @${path} `,
+          text: `${current.text}${/(^|\s)$/.test(current.text) ? '' : ' '}@${path} `,
         }))
       } catch (error) {
         showError(error)

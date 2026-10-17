@@ -176,8 +176,7 @@ export function SessionItem(props: {
 
   const rowState = cn(
     props.selected && 'bg-sidebar-row-active text-sidebar-foreground',
-    !props.selected &&
-      recede &&
+    recede &&
       'text-sidebar-muted-foreground/75 hover:bg-sidebar-row-hover hover:text-sidebar-foreground',
     !props.selected &&
       !recede &&

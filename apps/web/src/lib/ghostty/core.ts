@@ -119,22 +119,13 @@ export class GhosttyCore {
     this.encoder = new InputEncoder(this.terminal)
     this.kitty = new KittyGraphics(this.terminal)
 
-    const formatterLayout = runtime.layout('GhosttyFormatterTerminalOptions')
+    const name = 'GhosttyFormatterTerminalOptions'
+    const formatterLayout = runtime.layout(name)
     const formatterOptions = runtime.alloc(formatterLayout.size)
-    const extra = runtime.field('GhosttyFormatterTerminalOptions', 'extra')
+    const extra = runtime.field(name, 'extra')
     const screen = runtime.field('GhosttyFormatterTerminalExtra', 'screen')
-    runtime.setField(
-      formatterOptions,
-      'GhosttyFormatterTerminalOptions',
-      'size',
-      formatterLayout.size
-    )
-    runtime.setField(
-      formatterOptions,
-      'GhosttyFormatterTerminalOptions',
-      'trim',
-      1
-    )
+    runtime.setField(formatterOptions, name, 'size', formatterLayout.size)
+    runtime.setField(formatterOptions, name, 'trim', 1)
     runtime.setField(
       formatterOptions + extra.offset,
       'GhosttyFormatterTerminalExtra',
@@ -465,7 +456,10 @@ export class GhosttyCore {
   }
 
   toScreen(point: Point) {
-    return this.convertPoint(point, 1, 2)
+    const ref = this.gridRef(point.x, point.y, 1)
+    const converted = this.pointFromGridRef(ref, 2)
+    this.runtime.free(ref, this.runtime.layout('GhosttyGridRef').size)
+    return converted
   }
 
   trackCursor() {
@@ -594,12 +588,6 @@ export class GhosttyCore {
     return this.point
   }
 
-  private pointer(x: number, y: number, tag: 0 | 1 | 2) {
-    const point = this.runtime.alloc(this.runtime.layout('GhosttyPoint').size)
-    this.fillPoint(point, x, y, tag)
-    return point
-  }
-
   private fillPoint(point: number, x: number, y: number, tag: 0 | 1 | 2) {
     this.runtime.setField(point, 'GhosttyPoint', 'tag', tag)
     const value = this.runtime.field('GhosttyPoint', 'value')
@@ -609,7 +597,8 @@ export class GhosttyCore {
   }
 
   private gridRef(x: number, y: number, tag: 1 | 2) {
-    const point = this.pointer(x, y, tag)
+    const point = this.runtime.alloc(this.runtime.layout('GhosttyPoint').size)
+    this.fillPoint(point, x, y, tag)
     const size = this.runtime.layout('GhosttyGridRef').size
     const gridRef = this.runtime.alloc(size)
     this.runtime.setField(gridRef, 'GhosttyGridRef', 'size', size)
@@ -669,13 +658,6 @@ export class GhosttyCore {
     this.runtime.free(ref, this.runtime.layout('GhosttyGridRef').size)
     this.runtime.free(options, optionsLayout.size)
     return range
-  }
-
-  private convertPoint(point: Point, from: 1 | 2, to: 1 | 2) {
-    const ref = this.gridRef(point.x, point.y, from)
-    const converted = this.pointFromGridRef(ref, to)
-    this.runtime.free(ref, this.runtime.layout('GhosttyGridRef').size)
-    return converted
   }
 
   private pointFromGridRef(ref: number, tag: 1 | 2) {

@@ -52,6 +52,9 @@ export const CELL_WIDE = { narrow: 0, wide: 1, spacerTail: 2 } as const
 
 export type Color = { r: number; g: number; b: number }
 
+const DEFAULT_FOREGROUND: Color = { r: 229, g: 231, b: 235 }
+const DEFAULT_BACKGROUND: Color = { r: 0, g: 0, b: 0 }
+
 export type Cell = {
   text: string
   wide: number
@@ -236,16 +239,8 @@ export class RenderState {
     const cols = this.getRender(RENDER_DATA.cols, 2)
     const rowCount = this.getRender(RENDER_DATA.rows, 2)
     const dirty = this.getRender(RENDER_DATA.dirty, 4)
-    const foreground = this.getColor(RENDER_DATA.foreground, {
-      r: 229,
-      g: 231,
-      b: 235,
-    })
-    const background = this.getColor(RENDER_DATA.background, {
-      r: 0,
-      g: 0,
-      b: 0,
-    })
+    const foreground = this.getColor(RENDER_DATA.foreground, DEFAULT_FOREGROUND)
+    const background = this.getColor(RENDER_DATA.background, DEFAULT_BACKGROUND)
     const cursor =
       this.getRender(RENDER_DATA.cursorHasValue, 1) !== 0
         ? this.getColor(RENDER_DATA.cursor, foreground)

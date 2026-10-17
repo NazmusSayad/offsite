@@ -39,8 +39,8 @@ export async function decodeSixel(data: Uint8Array) {
   )
 }
 
-function dimension(value: string, total: number, cell: number) {
-  if (value === 'auto') return 0
+function dimension(value: string | undefined, total: number, cell: number) {
+  if (value === undefined || value === 'auto') return 0
   if (value.endsWith('%')) return (parseInt(value.slice(0, -1)) * total) / 100
   if (value.endsWith('px')) return parseInt(value.slice(0, -2))
   return parseInt(value) * cell
@@ -63,16 +63,8 @@ export async function decodeInlineImage(text: string, area: Area) {
     character.charCodeAt(0)
   )
   const image = await createImageBitmap(new Blob([bytes]))
-  const width = dimension(
-    fields.get('width') ?? 'auto',
-    area.width,
-    area.cellWidth
-  )
-  const height = dimension(
-    fields.get('height') ?? 'auto',
-    area.height,
-    area.cellHeight
-  )
+  const width = dimension(fields.get('width'), area.width, area.cellWidth)
+  const height = dimension(fields.get('height'), area.height, area.cellHeight)
   let size = [image.width, image.height]
   if (!width && !height) {
     const factor = Math.min(

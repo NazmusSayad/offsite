@@ -4,6 +4,7 @@ import { setTimeout as wait } from 'node:timers/promises'
 import { OpenCode, type OpenCodeClient, type V2Event } from '@opencode/client'
 import { ensure, headers } from '@opencode/client/service'
 import { refreshSessions } from '../../services/sessions.ts'
+import { isRecord } from '../claude/content.ts'
 import { runs } from '../live.ts'
 
 const listChanges = new Set([
@@ -142,12 +143,7 @@ function route(event: V2Event) {
 function sessionOf(event: V2Event) {
   if (event.type === 'form.created') return event.data.form.sessionID
   const data: unknown = 'data' in event ? event.data : null
-  if (
-    typeof data === 'object' &&
-    data !== null &&
-    'sessionID' in data &&
-    typeof data.sessionID === 'string'
-  )
+  if (isRecord(data) && typeof data.sessionID === 'string')
     return data.sessionID
   return null
 }

@@ -177,10 +177,8 @@ const languageExtensions: Record<string, string> = {
   elixir: 'ex',
   haskell: 'hs',
   javascript: 'js',
-  jsx: 'jsx',
   kotlin: 'kt',
   markdown: 'md',
-  mdx: 'mdx',
   plaintext: 'txt',
   powershell: 'ps1',
   python: 'py',
@@ -188,9 +186,7 @@ const languageExtensions: Record<string, string> = {
   rust: 'rs',
   shell: 'sh',
   shellscript: 'sh',
-  swift: 'swift',
   typescript: 'ts',
-  tsx: 'tsx',
   yaml: 'yml',
 }
 

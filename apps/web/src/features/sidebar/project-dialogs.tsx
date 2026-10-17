@@ -87,12 +87,7 @@ export function FolderDialog(props: {
   }, [machine, path])
 
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) props.onClose()
-      }}
-    >
+    <Dialog open onOpenChange={() => props.onClose()}>
       <DialogContent
         className="gap-0 overflow-hidden p-0 sm:max-w-lg"
         showCloseButton={false}
@@ -236,12 +231,7 @@ export function EditProjectDialog(props: {
   const picker = useRef<HTMLInputElement>(null)
 
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) props.onClose()
-      }}
-    >
+    <Dialog open onOpenChange={() => props.onClose()}>
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
         <form
           className="grid"
@@ -424,12 +414,7 @@ function IconPickerDialog(props: {
   }, [props.machine, props.projectId])
 
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) props.onClose()
-      }}
-    >
+    <Dialog open onOpenChange={() => props.onClose()}>
       <DialogContent
         className="gap-0 overflow-hidden p-0 sm:max-w-lg"
         showCloseButton={false}

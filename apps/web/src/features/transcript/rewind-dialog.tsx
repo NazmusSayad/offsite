@@ -12,6 +12,7 @@ import {
 import { openSession } from '@/lib/sessions'
 import { getState, projectOf, setDraft, useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
+import { relative } from './tool-details'
 
 export type RewindTarget = { messageId: string; text: string; first: boolean }
 
@@ -129,9 +130,7 @@ export function RewindDialog(props: {
                 <ul className="mt-1 max-h-32 overflow-y-auto font-mono">
                   {preview.files.map((file) => (
                     <li key={file} className="truncate">
-                      {file.startsWith(`${cwd}/`)
-                        ? file.slice(cwd.length + 1)
-                        : file}
+                      {relative(file, cwd)}
                     </li>
                   ))}
                 </ul>

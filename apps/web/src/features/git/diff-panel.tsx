@@ -37,25 +37,23 @@ export function DiffPanel(props: {
   const [version, setVersion] = useState(0)
   const diff = useStore((state) => state.prefs.diff)
   const codeTheme = useCodeTheme()
+  const storageKey = `diffCollapsed:${props.machine}:${props.projectId}`
   const [collapsed, setCollapsed] = useState<string[]>(() => {
-    const stored = localStorage.getItem(
-      `diffCollapsed:${props.machine}:${props.projectId}`
-    )
+    const stored = localStorage.getItem(storageKey)
     if (stored === null) return []
     const names: unknown = JSON.parse(stored)
     if (Array.isArray(names) && names.every((name) => typeof name === 'string'))
       return names
-    throw new Error(
-      `invalid diffCollapsed:${props.machine}:${props.projectId} in localStorage`
-    )
+    throw new Error(`invalid ${storageKey} in localStorage`)
   })
 
   function collapse(names: string[]) {
     setCollapsed(names)
-    localStorage.setItem(
-      `diffCollapsed:${props.machine}:${props.projectId}`,
-      JSON.stringify(names)
-    )
+    localStorage.setItem(storageKey, JSON.stringify(names))
+  }
+
+  function changeDiff(change: Partial<typeof diff>) {
+    updatePrefs({ ...getState().prefs, diff: { ...diff, ...change } })
   }
 
   useEffect(() => {
@@ -148,12 +146,7 @@ export function DiffPanel(props: {
               className={segment}
               aria-pressed={!diff.split}
               aria-label="Stacked diff view"
-              onClick={() =>
-                updatePrefs({
-                  ...getState().prefs,
-                  diff: { ...diff, split: false },
-                })
-              }
+              onClick={() => changeDiff({ split: false })}
             >
               <HugeiconsIcon icon={Rows3Icon} className="size-3.5" />
             </button>
@@ -161,12 +154,7 @@ export function DiffPanel(props: {
               className={segment}
               aria-pressed={diff.split}
               aria-label="Split diff view"
-              onClick={() =>
-                updatePrefs({
-                  ...getState().prefs,
-                  diff: { ...diff, split: true },
-                })
-              }
+              onClick={() => changeDiff({ split: true })}
             >
               <HugeiconsIcon icon={LayoutTwoColumnIcon} className="size-3.5" />
             </button>
@@ -175,12 +163,7 @@ export function DiffPanel(props: {
             className={toggle}
             aria-pressed={diff.wrap}
             title={diff.wrap ? 'Disable line wrapping' : 'Enable line wrapping'}
-            onClick={() =>
-              updatePrefs({
-                ...getState().prefs,
-                diff: { ...diff, wrap: !diff.wrap },
-              })
-            }
+            onClick={() => changeDiff({ wrap: !diff.wrap })}
           >
             <HugeiconsIcon icon={TextWrapIcon} className="size-3.5" />
           </button>

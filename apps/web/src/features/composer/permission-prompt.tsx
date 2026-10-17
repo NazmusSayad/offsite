@@ -190,10 +190,7 @@ function QuestionPrompt(props: {
           const text = current[question.question] ?? ''
           return {
             ...current,
-            [question.question]:
-              text === '' || /\s$/.test(text)
-                ? `${text}${path}`
-                : `${text} ${path}`,
+            [question.question]: `${text}${/(^|\s)$/.test(text) ? '' : ' '}${path}`,
           }
         })
         if (!question.multiSelect)

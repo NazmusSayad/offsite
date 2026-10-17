@@ -2,7 +2,7 @@ import '@/styles/index.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { listen, startConnections } from '@/api/connection'
-import { home, loadMachines, shareWithWorker } from '@/api/machines'
+import { home, loadMachines, shareToken } from '@/api/machines'
 import { start } from '@/api/sync'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { startTerminal } from '@/features/terminal/session'
@@ -13,12 +13,10 @@ import { App } from './app'
 const root = document.getElementById('root')
 if (!root) throw new Error('root element missing')
 
-shareWithWorker(
+shareToken(
   loadMachines().find(
     (machine) => home !== null && machine.addresses.includes(home)
   )?.token ?? null
-).catch((error: unknown) =>
-  console.error('could not share the token with the service worker', error)
 )
 
 if ('serviceWorker' in navigator) {
