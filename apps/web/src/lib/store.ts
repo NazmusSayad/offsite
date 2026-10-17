@@ -12,6 +12,7 @@ import type {
   Prompt,
   PermissionRequest,
   Provider,
+  ProviderStatus,
   Queued,
   Session,
   SessionPatch,
@@ -20,7 +21,7 @@ import type {
 import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
 import { call, type Refusal } from '@/api/connection'
 import { updateConfig } from '@/api/machine-config'
-import { machineKey } from '@/api/machines'
+import { home, machineKey } from '@/api/machines'
 import type { MachineIcon } from '@/components/icons'
 import {
   deleteDraft,
@@ -34,7 +35,7 @@ import { syncUrl } from './url'
 
 export type Selection = {
   machine: string
-  cwd: string
+  projectId: string
   sessionId: string | null
 }
 
@@ -47,9 +48,8 @@ export type SettingsPage =
   | 'Shortcuts'
 
 export type Machine = {
-  origin: string
-  url: string
-  fallback: string | null
+  id: string
+  addresses: string[]
   via: string | null
   status: 'connecting' | 'online' | 'offline' | Refusal
   name: string
@@ -62,6 +62,7 @@ export type Machine = {
   system: Omit<ConfigInfo, 'config'> | null
   accounts: Account[]
   activity: Record<string, Activity>
+  providers: ProviderStatus[]
 }
 
 export type MachineProject = Project & { machine: string }
@@ -133,20 +134,32 @@ export function update(patch: Partial<State>) {
   store.setState(patch)
 }
 
-export function machineOf(state: State, origin: string) {
-  const machine = state.machines.find((item) => item.origin === origin)
-  if (machine === undefined) throw new Error(`unknown machine ${origin}`)
+export function machineOf(state: State, id: string) {
+  const machine = state.machines.find((item) => item.id === id)
+  if (machine === undefined) throw new Error(`unknown machine ${id}`)
   return machine
 }
 
-export function defaultMachine(state: State) {
-  return state.selection?.machine ?? state.machines.at(0)?.origin ?? null
+export function homeMachine(state: State) {
+  return state.machines.find(
+    (item) => home !== null && item.addresses.includes(home)
+  )
 }
 
-export function setMachine(origin: string, patch: Partial<Machine>) {
+export function projectOf(state: State, machine: string, projectId: string) {
+  return state.projects.find(
+    (item) => item.machine === machine && item.id === projectId
+  )
+}
+
+export function defaultMachine(state: State) {
+  return state.selection?.machine ?? state.machines.at(0)?.id ?? null
+}
+
+export function setMachine(id: string, patch: Partial<Machine>) {
   update({
     machines: getState().machines.map((item) =>
-      item.origin === origin ? { ...item, ...patch } : item
+      item.id === id ? { ...item, ...patch } : item
     ),
   })
 }
@@ -157,7 +170,7 @@ export function activityOf(
   sessionId: string | null
 ) {
   if (sessionId === null) return undefined
-  return machines.find((item) => item.origin === machine)?.activity[sessionId]
+  return machines.find((item) => item.id === machine)?.activity[sessionId]
 }
 
 export function selectedActivity(state: State) {
@@ -171,7 +184,10 @@ export function selectedRunning(state: State) {
 }
 
 export function draftKey(selection: Selection) {
-  return machineKey(selection.machine, selection.sessionId ?? selection.cwd)
+  return machineKey(
+    selection.machine,
+    selection.sessionId ?? selection.projectId
+  )
 }
 
 export function openSession(selection: Selection) {
@@ -211,7 +227,7 @@ export function openSession(selection: Selection) {
   void refreshCapabilities()
   if (selection.sessionId !== null && machine.status === 'online')
     call(selection.machine, 'sessions.open', {
-      cwd: selection.cwd,
+      projectId: selection.projectId,
       sessionId: selection.sessionId,
     }).catch(showError)
 }
@@ -224,7 +240,7 @@ export async function sendPrompt(prompt: Prompt, delivery: Delivery) {
   update({ sentAt: Date.now() })
   await call(selection.machine, 'sessions.send', {
     sessionId: selection.sessionId,
-    cwd: selection.cwd,
+    projectId: selection.projectId,
     prompt,
     settings: getState().settings,
     delivery,
@@ -338,7 +354,7 @@ export async function forkFrom(messageId: string) {
   try {
     const result = await call(selection.machine, 'sessions.fork', {
       sessionId: selection.sessionId,
-      cwd: selection.cwd,
+      projectId: selection.projectId,
       messageId,
     })
     openSession({ ...selection, sessionId: result.sessionId })
@@ -374,7 +390,7 @@ export async function loadAgent(parent: string, agentId: string) {
   try {
     const loaded = await call(selection.machine, 'sessions.agent', {
       sessionId: selection.sessionId,
-      cwd: selection.cwd,
+      projectId: selection.projectId,
       agentId,
       parent,
     })
@@ -487,11 +503,11 @@ export async function refreshCapabilities() {
   try {
     const capabilities = await call(selection.machine, 'capabilities', {
       accountId,
-      cwd: selection.cwd,
+      projectId: selection.projectId,
     })
     if (
       getState().selection?.machine === selection.machine &&
-      getState().selection?.cwd === selection.cwd &&
+      getState().selection?.projectId === selection.projectId &&
       getState().settings.accountId === accountId
     )
       update({ capabilities })

@@ -10,15 +10,15 @@ import { args } from './args.ts'
 import { findClaude } from './lib/claude/index.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
-import { watchSessions } from './services/sessions.ts'
+import { refreshAll, watchSessions } from './services/sessions.ts'
 import { readConfig, version } from './storage/config.ts'
+import { machineInfo } from './storage/db.ts'
 import { lockHome } from './storage/storage.ts'
 import {
   addToken,
-  firstToken,
+  hasTokens,
   matchesToken,
   readTokens,
-  readUsage,
   recordUse,
   removeTokens,
 } from './storage/token.ts'
@@ -70,6 +70,7 @@ lockHome()
 
 process.env.CLAUDE_CONFIG_DIR = readConfig().claudeBaseDir
 watchSessions()
+refreshAll()
 
 if (findClaude() === null) {
   console.error('could not find claude on PATH; install Claude Code first')
@@ -77,7 +78,7 @@ if (findClaude() === null) {
 }
 
 const publicDir = path.join(import.meta.dirname, '..', '..', 'web', 'dist')
-const token = args.auth && args.pair ? firstToken() : null
+const token = args.auth && args.pair && !hasTokens() ? addToken(null) : null
 
 const server = createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
@@ -88,6 +89,7 @@ const server = createServer((request, response) => {
       JSON.stringify({
         version,
         protocol: PROTOCOL,
+        machineId: machineInfo().id,
         authorized: authorized(url),
       })
     )
@@ -132,11 +134,14 @@ if (args.auth)
 
 server.listen(port, args.host, () => {
   startPush(`${args.host}:${port}`)
-  if (args.pair) {
+  if (args.pair && (token !== null || !args.auth)) {
     const links = pairingLinks(token)
     if (args.command === 'web')
       console.log(`offsite is running at ${links.local}`)
     console.log(`Open it on ${HOSTED_APP}: ${links.hosted}`)
+  } else if (args.pair) {
+    console.log(`offsite is running at ${address}`)
+    console.log('Run offsite pair to pair another browser')
   } else {
     console.log(`offsite is running at ${address}`)
     console.log(`Open it on ${HOSTED_APP}`)
@@ -169,25 +174,20 @@ async function unpair() {
     console.error('offsite unpair needs an interactive terminal')
     process.exit(1)
   }
-  const usage = readUsage()
   const picked = (await consola.prompt('Which browsers should be unpaired?', {
     type: 'multiselect',
     required: false,
     cancel: 'null',
-    options: tokens.map((item) => {
-      const used = usage[item.token]
-      return {
-        value: item.token,
-        label: [
-          item.name ?? 'Unnamed',
-          `${item.token.slice(0, 6)}…`,
-          `paired ${new Date(item.createdAt).toLocaleString()}`,
-          used === undefined
-            ? 'never used'
-            : `last used ${new Date(used).toLocaleString()}`,
-        ].join(' · '),
-      }
-    }),
+    options: tokens.map((item) => ({
+      value: item.hash,
+      label: [
+        item.name ?? 'Unnamed',
+        `paired ${new Date(item.createdAt).toLocaleString()}`,
+        item.lastUsedAt === null
+          ? 'never used'
+          : `last used ${new Date(item.lastUsedAt).toLocaleString()}`,
+      ].join(' · '),
+    })),
   })) as unknown as string[] | null
   if (picked === null || picked.length === 0) {
     console.log('Nothing unpaired')

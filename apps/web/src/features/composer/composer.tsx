@@ -9,7 +9,6 @@ import type { Delivery, Item } from '@offsite/core/protocol'
 import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
-import { useProjectName } from '@/api/projects'
 import { readBase64, uploadFile } from '@/api/upload'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,6 +16,7 @@ import {
   getState,
   interrupt,
   machineOf,
+  projectOf,
   sendPrompt,
   setDraft,
   showError,
@@ -54,14 +54,14 @@ export function Composer() {
   const input = useRef<HTMLTextAreaElement>(null)
   const picker = useRef<HTMLInputElement>(null)
   const machine = selection?.machine ?? ''
-  const cwd = selection?.cwd ?? ''
+  const projectId = selection?.projectId ?? ''
+  const project = useStore((state) => projectOf(state, machine, projectId))
   const status = useStore((state) => machineOf(state, machine).status)
-  const key = machineKey(machine, selection?.sessionId ?? cwd)
+  const key = machineKey(machine, selection?.sessionId ?? projectId)
   const stored = useDraft(key)
   const text = stored.text
   const images = stored.images
   const [caret, setCaret] = useState(text.length)
-  const projectTitle = useProjectName(machine, cwd)
   const running = useStore(selectedRunning)
   const hero = loaded && blank && !running
   const request = requests.at(0)
@@ -83,8 +83,8 @@ export function Composer() {
 
   useEffect(() => {
     if (status !== 'online') return
-    call(machine, 'files.list', { cwd }).then(setFiles, showError)
-  }, [machine, cwd, status])
+    call(machine, 'files.list', { projectId }).then(setFiles, showError)
+  }, [machine, projectId, status])
 
   const before = text.slice(0, caret)
   const trigger =
@@ -207,9 +207,9 @@ export function Composer() {
                 What should we build in{' '}
                 <span
                   className="border-muted-foreground/35 inline-block max-w-64 truncate border-b border-dotted align-bottom"
-                  title={cwd}
+                  title={project?.path}
                 >
-                  {projectTitle}
+                  {project?.name}
                 </span>
                 ?
               </h1>
@@ -256,7 +256,7 @@ export function Composer() {
               key={request.id}
               request={request}
               machine={machine}
-              cwd={cwd}
+              cwd={project?.path ?? ''}
               count={requests.length}
             />
           )}

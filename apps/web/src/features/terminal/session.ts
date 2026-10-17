@@ -8,7 +8,6 @@ import {
   type TerminalTab,
 } from '@offsite/core/protocol'
 import { call, isConnected, listen, sendFrame } from '@/api/connection'
-import { home } from '@/api/machines'
 import { loadGhostty } from '@/lib/ghostty/runtime'
 import {
   type FindResults,
@@ -115,9 +114,7 @@ export async function startTerminal() {
   if ('serviceWorker' in navigator)
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data.type !== 'select') return
-      const target = event.data.machine ?? home
-      if (target === null) return
-      showTab(target, event.data.cwd, event.data.tabId)
+      showTab(event.data.machine, event.data.project, event.data.tabId)
     })
   let previous = appState().prefs
   let previousIdentity = identity()
@@ -212,14 +209,14 @@ export function terminalConfig() {
 }
 
 export function currentProject() {
-  const cwd = appState().selection?.cwd
-  if (cwd === undefined) return null
-  return { cwd, project: state.layout[cwd] ?? null }
+  const projectId = appState().selection?.projectId
+  if (projectId === undefined) return null
+  return { projectId, project: state.layout[projectId] ?? null }
 }
 
 export function findProject(id: number) {
-  for (const [cwd, project] of Object.entries(state.layout))
-    if (project.tabs.some((tab) => tab.id === id)) return { cwd, project }
+  for (const [projectId, project] of Object.entries(state.layout))
+    if (project.tabs.some((tab) => tab.id === id)) return { projectId, project }
   return null
 }
 
@@ -231,12 +228,12 @@ export function setOpen(open: boolean) {
   setState({ open })
 }
 
-function showTab(target: string, cwd: string, tabId: number) {
+function showTab(target: string, projectId: string, tabId: number) {
   const selection = appState().selection
-  if (selection?.machine !== target || selection.cwd !== cwd)
-    openSession({ machine: target, cwd, sessionId: null })
+  if (selection?.machine !== target || selection.projectId !== projectId)
+    openSession({ machine: target, projectId, sessionId: null })
   setState({ open: true })
-  send({ type: 'select', cwd, tabId })
+  send({ type: 'select', projectId, tabId })
 }
 
 export function send(request: TerminalRequest) {
@@ -322,11 +319,11 @@ function handle(message: TerminalEvent) {
   }
   for (const id of awaitingReplay)
     if (!sessions.has(id)) awaitingReplay.delete(id)
-  const cwd = appState().selection?.cwd
+  const projectId = appState().selection?.projectId
   const closedLastTab =
-    cwd !== undefined &&
-    (state.layout[cwd]?.tabs.length ?? 0) > 0 &&
-    message.layout[cwd]?.tabs.length === 0
+    projectId !== undefined &&
+    (state.layout[projectId]?.tabs.length ?? 0) > 0 &&
+    message.layout[projectId]?.tabs.length === 0
   setState({
     status: awaitingReplay.size === 0 ? 'active' : 'connecting',
     layout: message.layout,
@@ -510,15 +507,15 @@ async function applyConfig() {
 
 function selectLinkedTab() {
   const params = new URLSearchParams(location.search)
-  const target = params.get('machine') ?? home
-  const cwd = params.get('cwd')
+  const target = params.get('machine')
+  const projectId = params.get('project')
   const tabId = params.get('terminal')
-  if (target === null || cwd === null || tabId === null) return
+  if (target === null || projectId === null || tabId === null) return
   params.delete('terminal')
   history.replaceState(null, '', `/?${params}`)
   const unsubscribe = subscribe(() => {
     if (state.status !== 'active' || machine !== target) return
     unsubscribe()
-    showTab(target, cwd, Number(tabId))
+    showTab(target, projectId, Number(tabId))
   })
 }

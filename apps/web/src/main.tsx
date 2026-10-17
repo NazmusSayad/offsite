@@ -2,25 +2,21 @@ import '@/styles/index.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { listen, startConnections } from '@/api/connection'
-import {
-  home,
-  loadMachines,
-  pairFromUrl,
-  shareWithWorker,
-} from '@/api/machines'
+import { home, loadMachines, shareWithWorker } from '@/api/machines'
 import { start } from '@/api/sync'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { startTerminal } from '@/features/terminal/session'
 import { refreshPushSubscription } from '@/lib/notifications'
+import { getState, homeMachine } from '@/lib/store'
 import { App } from './app'
 
 const root = document.getElementById('root')
 if (!root) throw new Error('root element missing')
 
-pairFromUrl()
-
 shareWithWorker(
-  loadMachines().find((machine) => machine.origin === home)?.token ?? null
+  loadMachines().find(
+    (machine) => home !== null && machine.addresses.includes(home)
+  )?.token ?? null
 ).catch((error: unknown) =>
   console.error('could not share the token with the service worker', error)
 )
@@ -42,7 +38,7 @@ if ('serviceWorker' in navigator) {
 startConnections()
 listen({
   open: (machine) => {
-    if (machine !== home) return
+    if (homeMachine(getState())?.id !== machine) return
     refreshPushSubscription().catch((error: unknown) =>
       console.error('could not refresh the push subscription', error)
     )

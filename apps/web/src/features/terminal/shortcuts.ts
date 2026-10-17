@@ -29,7 +29,7 @@ export function useTerminalShortcuts() {
       const current = currentProject()
       if (current === null) return
       if (hotkey.hotkey === newTabKey) {
-        send({ type: 'createTab', cwd: current.cwd })
+        send({ type: 'createTab', projectId: current.projectId })
         return
       }
       const project = current.project
@@ -42,13 +42,18 @@ export function useTerminalShortcuts() {
       const index = tabs.findIndex((tab) => tab.id === project.activeTab)
       if (hotkey.hotkey === nextTabKey) {
         const next = tabs[(index + 1) % tabs.length]
-        if (next) send({ type: 'select', cwd: current.cwd, tabId: next.id })
+        if (next)
+          send({ type: 'select', projectId: current.projectId, tabId: next.id })
         return
       }
       if (hotkey.hotkey === previousTabKey) {
         const previous = tabs[(index - 1 + tabs.length) % tabs.length]
         if (previous)
-          send({ type: 'select', cwd: current.cwd, tabId: previous.id })
+          send({
+            type: 'select',
+            projectId: current.projectId,
+            tabId: previous.id,
+          })
         return
       }
       throw new Error(`unknown terminal shortcut ${hotkey.hotkey}`)

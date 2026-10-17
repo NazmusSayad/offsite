@@ -41,7 +41,7 @@ export function SessionItem(props: {
   onSelect: () => void
 }) {
   const session = props.session
-  const projectTitle = useProjectName(session.machine, session.cwd)
+  const projectTitle = useProjectName(session.machine, session.projectId)
   const [title, setTitle] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const field = useRef<HTMLInputElement>(null)
@@ -200,7 +200,10 @@ export function SessionItem(props: {
           }}
         >
           <span className="flex shrink-0 items-center opacity-40 grayscale transition-opacity group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0">
-            <ProjectIcon machine={session.machine} cwd={session.cwd} />
+            <ProjectIcon
+              machine={session.machine}
+              projectId={session.projectId}
+            />
           </span>
           {titleText}
           <span className="relative ml-auto flex h-6 min-w-8 shrink-0 items-center justify-end">
@@ -236,7 +239,7 @@ export function SessionItem(props: {
           <div className="flex h-6 min-w-0 items-center gap-2">
             <ProjectIcon
               machine={session.machine}
-              cwd={session.cwd}
+              projectId={session.projectId}
               className="size-5"
             />
             {titleText}
@@ -336,10 +339,10 @@ export function SessionItem(props: {
 
 export function DraftRow(props: {
   machine: string
-  cwd: string
+  projectId: string
   onSelect: () => void
 }) {
-  const projectTitle = useProjectName(props.machine, props.cwd)
+  const projectTitle = useProjectName(props.machine, props.projectId)
   return (
     <li className="list-none py-0.5">
       <div
@@ -352,7 +355,7 @@ export function DraftRow(props: {
           <div className="flex h-6 min-w-0 items-center gap-2">
             <ProjectIcon
               machine={props.machine}
-              cwd={props.cwd}
+              projectId={props.projectId}
               className="size-5"
             />
             <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">

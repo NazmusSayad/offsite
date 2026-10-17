@@ -13,6 +13,7 @@ import {
   AddMachineDialog,
   EditMachineDialog,
 } from '@/features/sidebar/machine-dialog'
+import { providerNames } from '@/lib/format'
 import { type Machine, useStore } from '@/lib/store'
 import { Section } from './controls'
 
@@ -23,6 +24,7 @@ const statuses = {
   outdated: 'Runs an older offsite version, update it',
   newer: 'Runs a newer offsite version, reload this page',
   unauthorized: 'Needs its pairing token',
+  mismatch: 'Its address reaches a different machine',
 }
 
 export function MachinesPage() {
@@ -38,7 +40,7 @@ export function MachinesPage() {
       >
         {machines.map((machine) => (
           <div
-            key={machine.origin}
+            key={machine.id}
             className="flex min-h-13 items-center gap-4 px-4 py-2.5"
           >
             <HugeiconsIcon
@@ -47,28 +49,41 @@ export function MachinesPage() {
             />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{machine.name}</p>
-              <p className="text-muted-foreground truncate font-mono text-xs">
-                {machine.url}
-              </p>
-              {machine.fallback !== null && (
-                <p className="text-muted-foreground truncate font-mono text-xs">
-                  {machine.fallback}
+              {machine.addresses.map((address) => (
+                <p
+                  key={address}
+                  className="text-muted-foreground truncate font-mono text-xs"
+                >
+                  {address}
                 </p>
-              )}
+              ))}
+              {machine.providers
+                .filter((item) => item.state === 'error')
+                .map((item) => (
+                  <p
+                    key={item.provider}
+                    className="text-destructive truncate text-xs"
+                    title={item.error ?? undefined}
+                  >
+                    {providerNames[item.provider]} threads: {item.error}
+                  </p>
+                ))}
             </div>
             <span className="text-muted-foreground shrink-0 text-xs">
               {statuses[machine.status]}
               {machine.status === 'online' &&
-                machine.fallback !== null &&
-                machine.via === machine.fallback &&
-                ' · via fallback'}
-              {machine.origin === home && ' · serves this page'}
+                machine.via !== null &&
+                machine.via !== machine.addresses[0] &&
+                ` · via ${new URL(machine.via).host}`}
+              {home !== null &&
+                machine.addresses.includes(home) &&
+                ' · serves this page'}
             </span>
             <Button
               size="icon-sm"
               variant="ghost"
-              title="Reconnect, trying the URL first"
-              onClick={() => reconnectMachine(machine.origin)}
+              title="Reconnect, trying the first address first"
+              onClick={() => reconnectMachine(machine.id)}
             >
               <HugeiconsIcon icon={Refresh01Icon} />
             </Button>
@@ -80,12 +95,12 @@ export function MachinesPage() {
             >
               <HugeiconsIcon icon={PencilEdit01Icon} />
             </Button>
-            {machine.origin !== home && (
+            {(home === null || !machine.addresses.includes(home)) && (
               <Button
                 size="icon-sm"
                 variant="ghost"
                 title="Remove machine"
-                onClick={() => removeMachine(machine.origin)}
+                onClick={() => removeMachine(machine.id)}
               >
                 <HugeiconsIcon icon={Delete02Icon} />
               </Button>

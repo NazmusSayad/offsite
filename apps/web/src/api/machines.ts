@@ -1,10 +1,9 @@
 import { HOSTED_APP, PROTOCOL, type Project } from '@offsite/core/protocol'
 import type { MachineIcon } from '@/components/icons'
 
-type StoredMachine = {
-  origin: string
-  url: string
-  fallback: string | null
+export type StoredMachine = {
+  id: string
+  addresses: string[]
   name: string
   label: string | null
   icon: MachineIcon
@@ -13,36 +12,13 @@ type StoredMachine = {
 }
 
 const storageKey = 'machines'
+const PROBE_TIMEOUT = 5000
 
 export const home = location.origin === HOSTED_APP ? null : location.origin
 
 export function loadMachines(): StoredMachine[] {
   const raw = localStorage.getItem(storageKey)
-  const stored: StoredMachine[] =
-    raw === null
-      ? []
-      : JSON.parse(raw).map((machine: StoredMachine) => ({
-          ...machine,
-          url: machine.url ?? machine.origin,
-          fallback: machine.fallback ?? null,
-          label: machine.label ?? null,
-          icon: machine.icon ?? 'computer',
-          token: machine.token ?? null,
-        }))
-  if (home === null) return stored
-  return [
-    stored.find((machine) => machine.origin === home) ?? {
-      origin: home,
-      url: home,
-      fallback: null,
-      name: location.hostname,
-      label: null,
-      icon: 'computer',
-      token: null,
-      projects: [],
-    },
-    ...stored.filter((machine) => machine.origin !== home),
-  ]
+  return raw === null ? [] : JSON.parse(raw)
 }
 
 export function saveMachines(machines: StoredMachine[]) {
@@ -59,48 +35,42 @@ export async function shareWithWorker(token: string | null) {
   await cache.put('/connection', new Response(String(params)))
 }
 
-export function pairFromUrl() {
-  if (location.pathname !== '/pair') return
-  const params = new URLSearchParams(location.hash.slice(1))
-  const address = params.get('machine')
-  const origin = address === null ? home : readMachineLink(address).origin
-  if (origin === null) throw new Error('the pairing link has no machine')
-  const token = params.get('token')
-  const link = params.get('fallback')
-  const fallback = link === null ? null : readMachineLink(link).origin
-  const machines = loadMachines()
-  saveMachines(
-    machines.some(
-      (machine) => machine.origin === origin || machine.url === origin
+export async function probeMachine(address: string) {
+  let response: Response
+  try {
+    response = await fetch(`${address}/version`, {
+      signal: AbortSignal.timeout(PROBE_TIMEOUT),
+    })
+  } catch {
+    throw new Error(`Could not reach ${new URL(address).host}`)
+  }
+  if (!response.ok)
+    throw new Error(`${new URL(address).host} answered ${response.status}`)
+  const server: { machineId?: unknown } = await response.json()
+  if (typeof server.machineId !== 'string')
+    throw new Error(
+      `${new URL(address).host} runs a version of offsite that this page cannot talk to`
     )
-      ? machines.map((machine) =>
-          machine.origin === origin || machine.url === origin
-            ? {
-                ...machine,
-                token,
-                ...(fallback !== null && { fallback }),
-              }
-            : machine
-        )
-      : [
-          ...machines,
-          {
-            origin,
-            url: origin,
-            fallback,
-            name: new URL(origin).hostname,
-            label: null,
-            icon: 'computer',
-            token,
-            projects: [],
-          },
-        ]
-  )
+  return server.machineId
+}
+
+export function pairingFromUrl() {
+  if (location.pathname !== '/pair') return null
+  const params = new URLSearchParams(location.hash.slice(1))
   history.replaceState(null, '', '/')
+  const machine = params.get('machine')
+  const address = machine === null ? home : readMachineLink(machine).address
+  if (address === null) throw new Error('the pairing link has no machine')
+  const fallback = params.get('fallback')
+  return {
+    address,
+    fallback: fallback === null ? null : readMachineLink(fallback).address,
+    token: params.get('token'),
+  }
 }
 
 export function readMachineLink(link: string): {
-  origin: string
+  address: string
   fallback: string | null
   token: string | null
 } {
@@ -114,8 +84,8 @@ export function readMachineLink(link: string): {
   const machine = params.get('machine')
   const fallback = params.get('fallback')
   return {
-    origin: machine === null ? url.origin : readMachineLink(machine).origin,
-    fallback: fallback === null ? null : readMachineLink(fallback).origin,
+    address: machine === null ? url.origin : readMachineLink(machine).address,
+    fallback: fallback === null ? null : readMachineLink(fallback).address,
     token: params.get('token'),
   }
 }

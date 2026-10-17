@@ -7,9 +7,16 @@ import {
   listSessions,
   renameSession,
 } from '@anthropic-ai/claude-agent-sdk'
-import type { Provider, Session, SessionPatch } from '@offsite/core/protocol'
+import type {
+  Provider,
+  ProviderStatus,
+  Session,
+  SessionPatch,
+} from '@offsite/core/protocol'
+import { eq, sql } from 'drizzle-orm'
 import {
   codexBaseDir,
+  codexInstalled,
   codexThreads,
   deleteThread,
   forkThread,
@@ -19,84 +26,76 @@ import { broadcast } from '../lib/hub.ts'
 import { runs } from '../lib/live.ts'
 import {
   forkOpenCode,
+  openCodeInstalled,
   openCodeSessions,
   removeOpenCode,
   renameOpenCode,
 } from '../lib/opencode/index.ts'
 import { readConfig } from '../storage/config.ts'
 import { db } from '../storage/db.ts'
-import { projects } from './projects.ts'
+import { sessions as sessionsTable } from '../storage/schema.ts'
+import { providerName } from './accounts.ts'
+import { projectPath, projects } from './projects.ts'
 
 const day = 24 * 60 * 60 * 1000
+const LIST_TIMEOUT = 10_000
+const REFRESH_DELAY = 1000
 
+type Found = Omit<Session, 'status'>
+
+const allProviders: Provider[] = ['claude', 'codex', 'opencode']
+
+const listed: Record<Provider, Found[]> = {
+  claude: [],
+  codex: [],
+  opencode: [],
+}
+const statuses: Record<Provider, ProviderStatus> = {
+  claude: { provider: 'claude', state: 'loading', error: null },
+  codex: { provider: 'codex', state: 'loading', error: null },
+  opencode: { provider: 'opencode', state: 'loading', error: null },
+}
+const refreshing = new Map<Provider, { again: boolean }>()
+const timers = new Map<Provider, NodeJS.Timeout>()
 const providers = new Map<string, Provider>()
 let watchers: FSWatcher[] = []
-let timer: NodeJS.Timeout | undefined
 
-export async function sessions(): Promise<Session[]> {
-  const records = readRecords()
-  const paths = projects().map((project) => project.path)
-  const [claude, codex, opencode] = await Promise.all([
-    Promise.all(
-      paths.map(async (cwd) =>
-        (
-          await listSessions({
-            dir: cwd,
-            includeWorktrees: false,
-            includeProgrammatic: false,
-          })
-        ).map((item) => ({
-          id: item.sessionId,
-          provider: 'claude' as const,
-          title: item.summary,
-          cwd,
-          branch: item.gitBranch ?? null,
-          updatedAt: item.lastModified,
-        }))
-      )
-    ),
-    codexThreads(paths).catch((error: unknown) => {
-      console.warn(`could not list Codex threads: ${error}`)
-      return []
-    }),
-    openCodeSessions(paths).catch((error: unknown) => {
-      console.warn(`could not list OpenCode sessions: ${error}`)
-      return []
-    }),
-  ])
-  const found = [
-    ...claude.flat(),
-    ...codex.map((thread) => ({
-      id: thread.id,
-      provider: 'codex' as const,
-      title: thread.name ?? thread.preview,
-      cwd: thread.cwd,
-      branch: thread.gitInfo?.branch ?? null,
-      updatedAt: thread.updatedAt * 1000,
-    })),
-    ...opencode.map((session) => ({
-      id: session.id,
-      provider: 'opencode' as const,
-      title: session.title ?? 'New session',
-      cwd: session.location.directory,
-      branch: null,
-      updatedAt: session.time.updated,
-    })),
-  ]
-  return found.map((item): Session => {
-    providers.set(item.id, item.provider)
-    const record = records.get(item.id)
-    const updatedAt = record?.interactedAt ?? item.updatedAt
-    return {
-      ...item,
-      updatedAt,
-      status:
-        record === undefined ||
-        (record.status === 'active' && Date.now() - updatedAt > day)
-          ? 'inactive'
-          : record.status,
-    }
-  })
+export function sessions(): Session[] {
+  const records = new Map(
+    db
+      .select()
+      .from(sessionsTable)
+      .all()
+      .map((record) => [record.sessionId, record])
+  )
+  const known = new Set(projects().map((project) => project.id))
+  return allProviders.flatMap((provider) =>
+    listed[provider]
+      .filter((item) => known.has(item.projectId))
+      .map((item): Session => {
+        const record = records.get(item.id)
+        const updatedAt = record?.interactedAt ?? item.updatedAt
+        return {
+          ...item,
+          updatedAt,
+          status:
+            record === undefined ||
+            (record.status === 'active' && Date.now() - updatedAt > day)
+              ? 'inactive'
+              : record.status,
+        }
+      })
+  )
+}
+
+export function providerStatuses() {
+  return allProviders.map((provider) => statuses[provider])
+}
+
+export function listedUpdatedAt(provider: Provider, sessionId: string) {
+  return (
+    listed[provider].find((item) => item.id === sessionId)?.updatedAt ?? null
+  )
 }
 
 export function providerOf(sessionId: string) {
@@ -107,27 +106,166 @@ export function providerOf(sessionId: string) {
 }
 
 export function recordInteraction(id: string) {
-  db.prepare(
-    "INSERT INTO sessions (session_id, interacted_at, status) VALUES (?, ?, 'active') ON CONFLICT (session_id) DO UPDATE SET interacted_at = excluded.interacted_at, status = CASE status WHEN 'pinned' THEN 'pinned' WHEN 'minimized' THEN 'minimized' ELSE 'active' END"
-  ).run(id, Date.now())
+  db.insert(sessionsTable)
+    .values({ sessionId: id, interactedAt: Date.now(), status: 'active' })
+    .onConflictDoUpdate({
+      target: sessionsTable.sessionId,
+      set: {
+        interactedAt: Date.now(),
+        status: sql`CASE ${sessionsTable.status} WHEN 'pinned' THEN 'pinned' WHEN 'minimized' THEN 'minimized' ELSE 'active' END`,
+      },
+    })
+    .run()
 }
 
-export async function publishSessions() {
+export function publishSessions() {
+  broadcast({ type: 'sessions', sessions: sessions() })
+}
+
+export function refreshAll() {
+  for (const provider of allProviders) void refresh(provider)
+}
+
+export function refreshSessions(provider: Provider) {
+  if (timers.has(provider)) return
+  timers.set(
+    provider,
+    setTimeout(() => {
+      timers.delete(provider)
+      void refresh(provider)
+    }, REFRESH_DELAY)
+  )
+}
+
+async function refresh(provider: Provider) {
+  const current = refreshing.get(provider)
+  if (current !== undefined) {
+    current.again = true
+    return
+  }
+  const entry = { again: true }
+  refreshing.set(provider, entry)
+  while (entry.again) {
+    entry.again = false
+    await list(provider)
+  }
+  refreshing.delete(provider)
+}
+
+async function list(provider: Provider) {
+  const paths = new Map(projects().map((project) => [project.path, project.id]))
+  const before = statuses[provider]
+  let timer: NodeJS.Timeout | undefined
   try {
-    broadcast({ type: 'sessions', sessions: await sessions() })
+    const found = await Promise.race([
+      find(provider, paths),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                `${providerName(provider)} did not list its sessions within ${LIST_TIMEOUT / 1000} seconds`
+              )
+            ),
+          LIST_TIMEOUT
+        )
+      }),
+    ])
+    if (found === null) {
+      listed[provider] = []
+      statuses[provider] = { provider, state: 'missing', error: null }
+    } else {
+      listed[provider] = found
+      statuses[provider] = { provider, state: 'ready', error: null }
+      for (const item of found) providers.set(item.id, provider)
+    }
   } catch (error) {
-    console.warn(`could not list threads: ${error}`)
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn(
+      `could not list ${providerName(provider)} sessions: ${message}`
+    )
+    statuses[provider] = { provider, state: 'error', error: message }
+  } finally {
+    clearTimeout(timer)
+  }
+  publishSessions()
+  if (JSON.stringify(statuses[provider]) !== JSON.stringify(before))
+    broadcast({ type: 'providers', providers: providerStatuses() })
+}
+
+async function find(
+  provider: Provider,
+  paths: Map<string, string>
+): Promise<Found[] | null> {
+  switch (provider) {
+    case 'claude':
+      return (
+        await Promise.all(
+          [...paths].map(async ([cwd, projectId]) =>
+            (
+              await listSessions({
+                dir: cwd,
+                includeWorktrees: false,
+                includeProgrammatic: false,
+              })
+            ).map((item) => ({
+              id: item.sessionId,
+              provider: 'claude' as const,
+              title: item.summary,
+              projectId,
+              branch: item.gitBranch ?? null,
+              updatedAt: item.lastModified,
+            }))
+          )
+        )
+      ).flat()
+    case 'codex':
+      if (!codexInstalled()) return null
+      return (await codexThreads([...paths.keys()])).flatMap((thread) => {
+        const projectId = paths.get(thread.cwd)
+        if (projectId === undefined) return []
+        return [
+          {
+            id: thread.id,
+            provider: 'codex' as const,
+            title: thread.name ?? thread.preview,
+            projectId,
+            branch: thread.gitInfo?.branch ?? null,
+            updatedAt: thread.updatedAt * 1000,
+          },
+        ]
+      })
+    case 'opencode':
+      if (!openCodeInstalled()) return null
+      return (await openCodeSessions([...paths.keys()])).flatMap((session) => {
+        const projectId = paths.get(session.location.directory)
+        if (projectId === undefined) return []
+        return [
+          {
+            id: session.id,
+            provider: 'opencode' as const,
+            title: session.title ?? 'New session',
+            projectId,
+            branch: null,
+            updatedAt: session.time.updated,
+          },
+        ]
+      })
   }
 }
 
 export function watchSessions() {
   for (const watcher of watchers) watcher.close()
-  watchers = [
-    path.join(readConfig().claudeBaseDir, 'projects'),
-    path.join(codexBaseDir, 'sessions'),
-  ].flatMap((dir) => {
+  watchers = (
+    [
+      ['claude', path.join(readConfig().claudeBaseDir, 'projects')],
+      ['codex', path.join(codexBaseDir, 'sessions')],
+    ] as const
+  ).flatMap(([provider, dir]) => {
     try {
-      const watcher = watch(dir, { recursive: true }, refreshSessions)
+      const watcher = watch(dir, { recursive: true }, () =>
+        refreshSessions(provider)
+      )
       watcher.on('error', (error) =>
         console.warn(`stopped watching ${dir}: ${error}`)
       )
@@ -137,13 +275,6 @@ export function watchSessions() {
       return []
     }
   })
-}
-
-export function refreshSessions() {
-  timer ??= setTimeout(() => {
-    timer = undefined
-    void publishSessions()
-  }, 1000)
 }
 
 export async function updateSession(id: string, patch: SessionPatch) {
@@ -159,11 +290,16 @@ export async function updateSession(id: string, patch: SessionPatch) {
         await renameOpenCode(id, patch.title)
     }
   if (patch.status === 'inactive')
-    db.prepare('DELETE FROM sessions WHERE session_id = ?').run(id)
+    db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
   else if (patch.status !== undefined)
-    db.prepare(
-      'INSERT INTO sessions (session_id, status) VALUES (?, ?) ON CONFLICT (session_id) DO UPDATE SET status = excluded.status'
-    ).run(id, patch.status)
+    db.insert(sessionsTable)
+      .values({ sessionId: id, status: patch.status })
+      .onConflictDoUpdate({
+        target: sessionsTable.sessionId,
+        set: { status: patch.status },
+      })
+      .run()
+  if (patch.title !== undefined) refreshSessions(providerOf(id))
 }
 
 export async function removeSession(id: string) {
@@ -183,14 +319,25 @@ export async function removeSession(id: string) {
     case 'opencode':
       await removeOpenCode(id)
   }
-  db.prepare('DELETE FROM sessions WHERE session_id = ?').run(id)
+  db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
+  listed[provider] = listed[provider].filter((item) => item.id !== id)
 }
 
-export async function fork(sessionId: string, cwd: string, messageId: string) {
+export async function fork(
+  sessionId: string,
+  projectId: string,
+  messageId: string
+) {
   const provider = providerOf(sessionId)
-  const result = await forkWith(provider, sessionId, cwd, messageId)
+  const result = await forkWith(
+    provider,
+    sessionId,
+    projectPath(projectId),
+    messageId
+  )
   providers.set(result.sessionId, provider)
   recordInteraction(result.sessionId)
+  refreshSessions(provider)
   return result
 }
 
@@ -210,28 +357,4 @@ async function forkWith(
     upToMessageId: messageId,
   })
   return { sessionId: result.sessionId }
-}
-
-function readRecords() {
-  const records = new Map<
-    string,
-    { interactedAt: number | null; status: 'active' | 'pinned' | 'minimized' }
-  >()
-  for (const row of db
-    .prepare('SELECT session_id, interacted_at, status FROM sessions')
-    .all()) {
-    if (
-      typeof row.session_id !== 'string' ||
-      (typeof row.interacted_at !== 'number' && row.interacted_at !== null) ||
-      (row.status !== 'active' &&
-        row.status !== 'pinned' &&
-        row.status !== 'minimized')
-    )
-      throw new Error('The sessions table has an unexpected row')
-    records.set(row.session_id, {
-      interactedAt: row.interacted_at,
-      status: row.status,
-    })
-  }
-  return records
 }

@@ -187,8 +187,8 @@ export function FolderDialog(props: {
               <SelectContent>
                 {machines.map((item) => (
                   <SelectItem
-                    key={item.origin}
-                    value={item.origin}
+                    key={item.id}
+                    value={item.id}
                     disabled={item.status !== 'online'}
                   >
                     {item.name}
@@ -249,7 +249,10 @@ export function EditProjectDialog(props: {
             event.preventDefault()
             setSaving(true)
             try {
-              await updateProject(props.project.machine, path, { name, logo })
+              await updateProject(props.project.machine, props.project.id, {
+                name,
+                logo,
+              })
               props.onClose()
             } catch (failure) {
               setError(errorMessage(failure))
@@ -355,7 +358,7 @@ export function EditProjectDialog(props: {
                   return
                 }
                 try {
-                  await removeProject(props.project.machine, path)
+                  await removeProject(props.project.machine, props.project.id)
                   props.onRemoved()
                 } catch (failure) {
                   setError(errorMessage(failure))
@@ -376,7 +379,7 @@ export function EditProjectDialog(props: {
         {picking && (
           <IconPickerDialog
             machine={props.project.machine}
-            cwd={path}
+            projectId={props.project.id}
             onClose={() => setPicking(false)}
             onPick={(next) => {
               setLogo(next)
@@ -391,7 +394,7 @@ export function EditProjectDialog(props: {
 
 function IconPickerDialog(props: {
   machine: string
-  cwd: string
+  projectId: string
   onClose: () => void
   onPick: (logo: string) => void
 }) {
@@ -408,7 +411,7 @@ function IconPickerDialog(props: {
     void (async () => {
       try {
         const next = await call(props.machine, 'files.list', {
-          cwd: props.cwd,
+          projectId: props.projectId,
         })
         if (!cancelled) setFiles(next)
       } catch (failure) {
@@ -418,7 +421,7 @@ function IconPickerDialog(props: {
     return () => {
       cancelled = true
     }
-  }, [props.machine, props.cwd])
+  }, [props.machine, props.projectId])
 
   return (
     <Dialog
@@ -460,7 +463,7 @@ function IconPickerDialog(props: {
               onClick={async () => {
                 try {
                   const preview = await call(props.machine, 'files.read', {
-                    cwd: props.cwd,
+                    projectId: props.projectId,
                     path: file,
                   })
                   if (preview.kind === 'image')

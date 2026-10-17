@@ -148,7 +148,7 @@ export function SettingsDialog() {
               <Section title="Machine">
                 <Row label="Settings of">
                   <Select
-                    value={machine.origin}
+                    value={machine.id}
                     onValueChange={(settingsMachine) =>
                       update({ settingsMachine })
                     }
@@ -158,7 +158,7 @@ export function SettingsDialog() {
                     </SelectTrigger>
                     <SelectContent>
                       {machines.map((item) => (
-                        <SelectItem key={item.origin} value={item.origin}>
+                        <SelectItem key={item.id} value={item.id}>
                           <HugeiconsIcon icon={machineIcons[item.icon]} />
                           {item.name}
                         </SelectItem>
@@ -202,8 +202,8 @@ export function SettingsDialog() {
               config !== null &&
               system !== null && (
                 <TerminalMachinePage
-                  key={machine.origin}
-                  machine={machine.origin}
+                  key={machine.id}
+                  machine={machine.id}
                   config={config}
                   platform={system.platform}
                   defaultShell={system.defaultShell}
@@ -242,7 +242,7 @@ export function SettingsDialog() {
             )}
             {page === 'Accounts' && machine !== null && config !== null && (
               <AccountsPage
-                machine={machine.origin}
+                machine={machine.id}
                 config={config}
                 accounts={machine.accounts}
               />
@@ -281,7 +281,7 @@ export function SettingsDialog() {
                   setRevision(revision + 1)
                   updatePrefs(defaultPrefs)
                   if (machine !== null && system !== null)
-                    updateConfig(machine.origin, system.defaults)
+                    updateConfig(machine.id, system.defaults)
                 }}
               >
                 Restore defaults

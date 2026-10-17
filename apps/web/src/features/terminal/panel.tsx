@@ -56,22 +56,23 @@ const keys = [
   { label: '→', sequence: '\x1b[C' },
 ]
 
-export function TerminalPanel(props: { cwd: string }) {
+export function TerminalPanel(props: { projectId: string }) {
   const state = useSyncExternalStore(subscribe, getState)
   const [renaming, setRenaming] = useState<{
     id: number
     name: string
   } | null>(null)
   const active = state.status === 'active'
-  const project = state.layout[props.cwd]
+  const project = state.layout[props.projectId]
   const tabId = project?.activeTab ?? null
   const visibleTabs = project?.tabs.filter((tab) => !tab.minimized) ?? []
   const minimizedTabs = project?.tabs.filter((tab) => tab.minimized) ?? []
   const shortcuts = useTerminalShortcuts()
 
   useEffect(() => {
-    if (active) send({ type: 'select', cwd: props.cwd, tabId: null })
-  }, [props.cwd, active])
+    if (active)
+      send({ type: 'select', projectId: props.projectId, tabId: null })
+  }, [props.projectId, active])
 
   if (!state.loaded)
     return (
@@ -92,7 +93,7 @@ export function TerminalPanel(props: { cwd: string }) {
       >
         {minimizedTabs.length > 0 && (
           <MinimizedTabs
-            cwd={props.cwd}
+            projectId={props.projectId}
             tabs={minimizedTabs}
             alerts={state.alerts}
             bordered={visibleTabs.length > 1}
@@ -120,7 +121,11 @@ export function TerminalPanel(props: { cwd: string }) {
                 )}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() =>
-                  send({ type: 'select', cwd: props.cwd, tabId: tab.id })
+                  send({
+                    type: 'select',
+                    projectId: props.projectId,
+                    tabId: tab.id,
+                  })
                 }
               >
                 <span className="truncate">{tabTitle(tab)}</span>
@@ -153,7 +158,9 @@ export function TerminalPanel(props: { cwd: string }) {
           )}
           aria-label="New tab"
           title="New tab"
-          onClick={() => send({ type: 'createTab', cwd: props.cwd })}
+          onClick={() =>
+            send({ type: 'createTab', projectId: props.projectId })
+          }
         >
           <HugeiconsIcon icon={Add01Icon} className="size-4" />
         </button>
@@ -268,7 +275,7 @@ function TabMenu(props: {
 }
 
 function MinimizedTabs(props: {
-  cwd: string
+  projectId: string
   tabs: TerminalTab[]
   alerts: number[]
   bordered: boolean
@@ -296,7 +303,11 @@ function MinimizedTabs(props: {
           <DropdownMenuItem
             key={tab.id}
             onSelect={() =>
-              send({ type: 'select', cwd: props.cwd, tabId: tab.id })
+              send({
+                type: 'select',
+                projectId: props.projectId,
+                tabId: tab.id,
+              })
             }
           >
             <span className="max-w-80 truncate">{tabTitle(tab)}</span>

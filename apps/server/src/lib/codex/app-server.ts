@@ -9,6 +9,8 @@ import { publishCodexLimits } from './accounts.ts'
 import type { RateLimitSnapshot } from './types.ts'
 
 const IDLE_LIMIT = 30 * 60 * 1000
+const START_TIMEOUT = 15_000
+const REQUEST_TIMEOUT = 30_000
 
 export type Params = Record<string, unknown>
 
@@ -82,17 +84,27 @@ export class AppServer {
     this.child.on('exit', (code) =>
       this.exit(new Error(`Codex stopped (exit code ${code})`))
     )
-    this.ready = this.call('initialize', {
-      clientInfo: { name: 'offsite', title: 'Offsite', version },
-      capabilities: { experimentalApi: true, requestAttestation: false },
-    }).then(() => this.write({ method: 'initialized' }))
+    this.ready = this.call(
+      'initialize',
+      {
+        clientInfo: { name: 'offsite', title: 'Offsite', version },
+        capabilities: { experimentalApi: true, requestAttestation: false },
+      },
+      START_TIMEOUT
+    ).then(
+      () => this.write({ method: 'initialized' }),
+      (error: unknown) => {
+        this.child.kill()
+        throw error
+      }
+    )
     this.armIdleTimer()
   }
 
   async request<T>(method: string, params: Params): Promise<T> {
     await this.ready
     this.armIdleTimer()
-    return (await this.call(method, params)) as T
+    return (await this.call(method, params, REQUEST_TIMEOUT)) as T
   }
 
   reply(id: number | string, result: unknown) {
@@ -109,13 +121,30 @@ export class AppServer {
     this.child.stdin.end()
   }
 
-  private call(method: string, params: Params) {
+  private call(method: string, params: Params, timeout: number) {
     if (this.exited !== null) return Promise.reject(this.exited)
     this.next += 1
     const id = this.next
-    const result = new Promise<unknown>((resolve, reject) =>
-      this.waiting.set(id, { resolve, reject })
-    )
+    const result = new Promise<unknown>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.waiting.delete(id)
+        reject(
+          new Error(
+            `Codex did not answer ${method} within ${timeout / 1000} seconds`
+          )
+        )
+      }, timeout)
+      this.waiting.set(id, {
+        resolve: (value) => {
+          clearTimeout(timer)
+          resolve(value)
+        },
+        reject: (error) => {
+          clearTimeout(timer)
+          reject(error)
+        },
+      })
+    })
     this.write({ id, method, params })
     return result
   }

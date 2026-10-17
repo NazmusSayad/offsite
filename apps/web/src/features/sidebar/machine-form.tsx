@@ -14,26 +14,31 @@ export function MachineForm(props: {
   const [address, setAddress] = useState('')
   const [token, setToken] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
 
   return (
     <form
       className="grid"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault()
+        setAdding(true)
+        setError(null)
         try {
           if (manual)
-            addMachine(
-              readMachineLink(address).origin,
+            await addMachine(
+              readMachineLink(address).address,
               null,
               token.trim() === '' ? null : token.trim()
             )
           else {
             const read = readMachineLink(link)
-            addMachine(read.origin, read.fallback, read.token)
+            await addMachine(read.address, read.fallback, read.token)
           }
           props.onAdded?.()
         } catch (failure) {
           setError(errorMessage(failure))
+        } finally {
+          setAdding(false)
         }
       }}
     >
@@ -83,7 +88,9 @@ export function MachineForm(props: {
             : 'Enter the server URL and token separately'}
         </button>
       </div>
-      {props.actions(manual ? address.trim() !== '' : link.trim() !== '')}
+      {props.actions(
+        !adding && (manual ? address.trim() !== '' : link.trim() !== '')
+      )}
     </form>
   )
 }

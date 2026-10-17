@@ -41,28 +41,6 @@ export const defaults: Config = {
   },
 }
 
-const retired = [
-  'theme',
-  'diff',
-  'terminal.font',
-  'terminal.cursor',
-  'terminal.padding',
-  'terminal.scrollback',
-  'terminal.boldIsBright',
-  'terminal.behavior.modernizeShiftEnter',
-  'terminal.behavior.pasteBrowserImages',
-  'terminal.behavior.captureShortcuts',
-  'terminal.behavior.bellFlash',
-  'terminal.behavior.bellSound',
-  'terminal.behavior.clickToMoveCursor',
-  'terminal.behavior.optionAsMeta',
-  'terminal.behavior.confirmCloseBusyTab',
-  'composer.accountId',
-  'composer.model',
-  'composer.effort',
-  'composer.permissionMode',
-]
-
 const choices: Record<string, string[]> = {
   'composer.provider': ['claude', 'codex', 'opencode'],
   'composer.claude.effort': ['low', 'medium', 'high', 'xhigh', 'max'],
@@ -149,7 +127,6 @@ export function saveConfig(value: unknown) {
 }
 
 function merge(config: unknown, keys: string[], user: unknown): unknown {
-  if (retired.includes(keys.join('.'))) return config
   const template = keys.reduce<unknown>(
     (value, key) => (isObject(value) ? value[key] : undefined),
     config

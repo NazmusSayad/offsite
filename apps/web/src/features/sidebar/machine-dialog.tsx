@@ -58,10 +58,10 @@ export function EditMachineDialog(props: {
 }) {
   const [label, setLabel] = useState(props.machine.label ?? '')
   const [icon, setIcon] = useState(props.machine.icon)
-  const [url, setUrl] = useState(props.machine.url)
-  const [fallback, setFallback] = useState(props.machine.fallback ?? '')
+  const [addresses, setAddresses] = useState(props.machine.addresses.join('\n'))
   const [token, setToken] = useState(props.machine.token ?? '')
   const [error, setError] = useState<string | null>(null)
+  const serving = home !== null && props.machine.addresses.includes(home)
 
   return (
     <Dialog
@@ -76,16 +76,19 @@ export function EditMachineDialog(props: {
           onSubmit={(event) => {
             event.preventDefault()
             try {
-              editMachine(props.machine.origin, {
+              editMachine(props.machine.id, {
                 label: label.trim() === '' ? null : label.trim(),
                 icon,
                 token: token.trim() === '' ? null : token.trim(),
-                ...(props.machine.origin !== home && {
-                  url: readMachineLink(url).origin,
-                  fallback:
-                    fallback.trim() === ''
-                      ? null
-                      : readMachineLink(fallback).origin,
+                ...(!serving && {
+                  addresses: [
+                    ...new Set(
+                      addresses
+                        .split('\n')
+                        .filter((line) => line.trim() !== '')
+                        .map((line) => readMachineLink(line).address)
+                    ),
+                  ],
                 }),
               })
               props.onClose()
@@ -97,9 +100,9 @@ export function EditMachineDialog(props: {
           <DialogHeader className="gap-1 px-6 pt-4 pr-12">
             <DialogTitle className="text-base">Edit machine</DialogTitle>
             <DialogDescription>
-              {props.machine.origin === home
-                ? 'This machine serves this page, so its address stays.'
-                : 'Offsite tries the URL first, then the fallback, whenever it reconnects.'}
+              {serving
+                ? 'This machine serves this page, so its addresses stay.'
+                : 'Offsite tries the addresses in order whenever it reconnects.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 p-6">
@@ -130,31 +133,22 @@ export function EditMachineDialog(props: {
                 onChange={(event) => setLabel(event.target.value)}
               />
             </div>
-            {props.machine.origin !== home && (
-              <>
-                <div className="grid gap-2">
-                  <Label htmlFor="machine-url">URL</Label>
-                  <Input
-                    id="machine-url"
-                    placeholder="e.g. http://192.168.1.10:47841"
-                    spellCheck={false}
-                    autoComplete="off"
-                    value={url}
-                    onChange={(event) => setUrl(event.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="machine-fallback">Fallback URL</Label>
-                  <Input
-                    id="machine-fallback"
-                    placeholder="Optional, e.g. a Cloudflare tunnel"
-                    spellCheck={false}
-                    autoComplete="off"
-                    value={fallback}
-                    onChange={(event) => setFallback(event.target.value)}
-                  />
-                </div>
-              </>
+            {!serving && (
+              <div className="grid gap-2">
+                <Label htmlFor="machine-addresses">Addresses</Label>
+                <textarea
+                  id="machine-addresses"
+                  placeholder={
+                    'One per line, e.g.\nhttp://192.168.1.10:47841\nhttps://my-tunnel.example.com'
+                  }
+                  spellCheck={false}
+                  autoComplete="off"
+                  rows={3}
+                  className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 w-full resize-none rounded-lg border bg-transparent px-2.5 py-1.5 font-mono text-xs outline-none focus-visible:ring-3"
+                  value={addresses}
+                  onChange={(event) => setAddresses(event.target.value)}
+                />
+              </div>
             )}
             <div className="grid gap-2">
               <Label htmlFor="machine-token">Pairing token</Label>
@@ -177,7 +171,7 @@ export function EditMachineDialog(props: {
             </Button>
             <Button
               type="submit"
-              disabled={props.machine.origin !== home && url.trim() === ''}
+              disabled={!serving && addresses.trim() === ''}
             >
               Save
             </Button>

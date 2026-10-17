@@ -53,7 +53,6 @@ export class OpenCodeRun {
   prompted = false
   backgroundTasks = 0
   tasks: Record<string, TaskStatus> = {}
-  private readonly client: OpenCodeClient
   private readonly close: () => void
   private applied: Settings
   private loading = Promise.resolve()
@@ -69,14 +68,13 @@ export class OpenCodeRun {
         ? {}
         : { model: modelRef(settings.model, settings.effort) }),
     })
-    return new OpenCodeRun(client, session.id, cwd, settings, settings)
+    return new OpenCodeRun(session.id, cwd, settings, settings)
   }
 
   static async resume(sessionId: string, cwd: string, settings: Settings) {
     const client = await openCode()
     const session = await client.session.get({ sessionID: sessionId })
     return new OpenCodeRun(
-      client,
       sessionId,
       cwd,
       settings,
@@ -85,13 +83,11 @@ export class OpenCodeRun {
   }
 
   private constructor(
-    client: OpenCodeClient,
     sessionId: string,
     cwd: string,
     settings: Settings,
     applied: Settings
   ) {
-    this.client = client
     this.sessionId = sessionId
     this.cwd = cwd
     this.settings = settings
@@ -110,7 +106,9 @@ export class OpenCodeRun {
     }
     switch (delivery) {
       case 'steer':
-        await this.client.session.prompt({
+        await (
+          await openCode()
+        ).session.prompt({
           sessionID: this.sessionId,
           text: prompt.text,
           files: files(prompt),
@@ -147,7 +145,7 @@ export class OpenCodeRun {
   }
 
   async interrupt() {
-    await this.client.session.interrupt({ sessionID: this.sessionId })
+    await (await openCode()).session.interrupt({ sessionID: this.sessionId })
   }
 
   stopTask(): Promise<void> {
@@ -162,16 +160,17 @@ export class OpenCodeRun {
     const pending = this.pending.get(requestId)
     if (pending === undefined) return
     const sessionID = this.sessionId
+    const client = await openCode()
     if (pending.kind === 'permission')
-      await this.client.permission.reply({
+      await client.permission.reply({
         sessionID,
         requestID: requestId,
         decision: replies[decision],
       })
     else if (decision === 'deny')
-      await this.client.session.form.cancel({ sessionID, formID: requestId })
+      await client.session.form.cancel({ sessionID, formID: requestId })
     else
-      await this.client.session.form.reply({
+      await client.session.form.reply({
         sessionID,
         formID: requestId,
         answer: formAnswer(pending.form, answers ?? {}),
@@ -185,12 +184,33 @@ export class OpenCodeRun {
   }
 
   exited() {
-    this.put([errorItem(randomUUID(), 'Lost the connection to OpenCode')])
+    this.put([
+      errorItem(
+        randomUUID(),
+        this.pending.size === 0
+          ? 'Lost the connection to OpenCode'
+          : 'Lost the connection to OpenCode, its open requests expired'
+      ),
+    ])
     this.stop()
   }
 
-  resync(active: boolean) {
-    this.refresh()
+  reconcile(
+    client: OpenCodeClient,
+    active: boolean,
+    permissions: OpenCodePermission[],
+    forms: FormInfo[]
+  ) {
+    this.refresh(client)
+    const open = new Set([
+      ...permissions.map((permission) => permission.id),
+      ...forms.map((form) => form.id),
+    ])
+    for (const requestId of [...this.pending.keys()])
+      if (!open.has(requestId)) this.settle(requestId)
+    for (const permission of permissions)
+      if (!this.pending.has(permission.id)) this.ask(permission)
+    for (const form of forms) if (!this.pending.has(form.id)) this.askForm(form)
     if (this.running && !active) this.finishTurn()
   }
 
@@ -228,15 +248,7 @@ export class OpenCodeRun {
         this.settle(event.data.requestID)
         return
       case 'form.created':
-        this.addPending({
-          kind: 'form',
-          request: {
-            id: event.data.form.id,
-            kind: 'question',
-            questions: formQuestions(event.data.form),
-          },
-          form: event.data.form,
-        })
+        this.askForm(event.data.form)
         return
       case 'form.replied':
       case 'form.cancelled':
@@ -248,17 +260,17 @@ export class OpenCodeRun {
     }
   }
 
-  private refresh() {
+  private refresh(client?: OpenCodeClient) {
     clearTimeout(this.refreshTimer)
     this.loading = this.loading
-      .then(() => this.load())
+      .then(async () => this.load(client ?? (await openCode())))
       .catch((error: unknown) =>
         console.warn(`could not load OpenCode messages: ${error}`)
       )
   }
 
-  private async load() {
-    const page = await this.client.message.list({
+  private async load(client: OpenCodeClient) {
+    const page = await client.message.list({
       sessionID: this.sessionId,
       limit: RECENT,
       order: 'desc',
@@ -272,7 +284,7 @@ export class OpenCodeRun {
             JSON.stringify(this.items.get(item.id)) !== JSON.stringify(item)
         )
     )
-    const context = await contextOf(this.client, this.cwd, messages)
+    const context = await contextOf(client, this.cwd, messages)
     if (context === null || context.tokens === this.context?.tokens) return
     this.context = context
     publish(this.sessionId, {
@@ -299,17 +311,18 @@ export class OpenCodeRun {
   }
 
   private async send(prompt: Prompt) {
+    const client = await openCode()
     const sessionID = this.sessionId
     const location = { directory: this.cwd }
     const match = /^\/(\S+)\s*([\s\S]*)$/.exec(prompt.text)
     if (match !== null) {
       if (match[1] === 'compact' && prompt.images.length === 0) {
-        await this.client.session.compact({ sessionID })
+        await client.session.compact({ sessionID })
         return
       }
-      const commands = await this.client.command.list({ location })
+      const commands = await client.command.list({ location })
       if (commands.data.some((command) => command.name === match[1])) {
-        await this.client.session.command({
+        await client.session.command({
           sessionID,
           name: match[1],
           text: match[2],
@@ -317,10 +330,10 @@ export class OpenCodeRun {
         })
         return
       }
-      const skills = await this.client.skill.list({ location })
+      const skills = await client.skill.list({ location })
       const skill = skills.data.find((item) => item.name === match[1])
       if (skill !== undefined) {
-        await this.client.session.prompt({
+        await client.session.prompt({
           sessionID,
           text: match[2],
           files: files(prompt),
@@ -329,7 +342,7 @@ export class OpenCodeRun {
         return
       }
     }
-    await this.client.session.prompt({
+    await client.session.prompt({
       sessionID,
       text: prompt.text,
       files: files(prompt),
@@ -337,18 +350,19 @@ export class OpenCodeRun {
   }
 
   private async apply() {
+    const client = await openCode()
     const settings = this.settings
     const model = settings.model ?? this.applied.model
     if (
       model !== null &&
       (model !== this.applied.model || settings.effort !== this.applied.effort)
     )
-      await this.client.session.switchModel({
+      await client.session.switchModel({
         sessionID: this.sessionId,
         model: modelRef(model, settings.effort),
       })
     if (settings.mode !== null && settings.mode !== this.applied.mode)
-      await this.client.session.switchAgent({
+      await client.session.switchAgent({
         sessionID: this.sessionId,
         agent: settings.mode,
       })
@@ -385,6 +399,18 @@ export class OpenCodeRun {
           status: 'running',
         },
       },
+    })
+  }
+
+  private askForm(form: FormInfo) {
+    this.addPending({
+      kind: 'form',
+      request: {
+        id: form.id,
+        kind: 'question',
+        questions: formQuestions(form),
+      },
+      form,
     })
   }
 

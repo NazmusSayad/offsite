@@ -62,7 +62,7 @@ function notify(id: number, title: string, body: string) {
   if (!found || !tab) return
   showNotification(title || tabTitle(tab), body, {
     machine: terminalMachine(),
-    cwd: found.cwd,
+    project: found.projectId,
     tabId: id,
   }).catch((error: unknown) =>
     console.error('could not show a notification', error)

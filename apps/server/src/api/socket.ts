@@ -36,6 +36,7 @@ import {
 import {
   addProject,
   directories,
+  projectPath,
   projects,
   removeProject,
   updateProject,
@@ -45,8 +46,10 @@ import { open, rewind, send } from '../services/runs.ts'
 import {
   fork,
   providerOf,
+  providerStatuses,
   publishSessions,
   recordInteraction,
+  refreshAll,
   removeSession,
   sessions,
   updateSession,
@@ -61,6 +64,7 @@ import {
   terminalRequest,
 } from '../services/terminal/terminal.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
+import { machineInfo } from '../storage/db.ts'
 
 type Handlers = {
   [M in Method]: (
@@ -71,33 +75,38 @@ type Handlers = {
 
 const handlers: Handlers = {
   ping: () => null,
-  sync: async () => ({
-    ...configInfo(),
-    protocol: PROTOCOL,
-    hostname: os.hostname(),
-    projects: projects(),
-    sessions: await sessions(),
-    activity: activity(),
-  }),
+  sync: () => {
+    refreshAll()
+    return {
+      ...configInfo(),
+      protocol: PROTOCOL,
+      machineId: machineInfo().id,
+      hostname: os.hostname(),
+      projects: projects(),
+      sessions: sessions(),
+      providers: providerStatuses(),
+      activity: activity(),
+    }
+  },
   'config.get': () => configInfo(),
   'config.save': (params) => {
     const before = readConfig().claudeBaseDir
     const saved = saveConfig(params)
     if (saved.claudeBaseDir === before) return saved
     watchSessions()
-    void publishSessions()
+    refreshAll()
     void publishAccounts()
     return saved
   },
   'projects.add': async (params) => {
     const project = await addProject(params.path)
-    void publishSessions()
+    refreshAll()
     return project
   },
-  'projects.update': (params) => updateProject(params.path, params.patch),
+  'projects.update': (params) => updateProject(params.id, params.patch),
   'projects.remove': (params) => {
-    removeProject(params.path)
-    void publishSessions()
+    removeProject(params.id)
+    refreshAll()
     return null
   },
   'directories.list': (params) => directories(params.path),
@@ -105,7 +114,7 @@ const handlers: Handlers = {
     try {
       await updateSession(params.id, params.patch)
     } finally {
-      void publishSessions()
+      publishSessions()
     }
     return null
   },
@@ -113,12 +122,12 @@ const handlers: Handlers = {
     try {
       await removeSession(params.id)
     } finally {
-      void publishSessions()
+      publishSessions()
     }
     return null
   },
   'sessions.open': async (params, client) => {
-    await open(client, params.sessionId, params.cwd)
+    await open(client, params.sessionId, params.projectId)
     return null
   },
   'sessions.earlier': (params) => earlier(params.sessionId, params.before),
@@ -129,7 +138,7 @@ const handlers: Handlers = {
       case 'claude':
         return agentMessages(
           params.sessionId,
-          params.cwd,
+          projectPath(params.projectId),
           params.agentId,
           params.parent
         )
@@ -172,8 +181,12 @@ const handlers: Handlers = {
   },
   'sessions.rewind': (params) => rewind(params),
   'sessions.fork': async (params) => {
-    const result = await fork(params.sessionId, params.cwd, params.messageId)
-    void publishSessions()
+    const result = await fork(
+      params.sessionId,
+      params.projectId,
+      params.messageId
+    )
+    publishSessions()
     return result
   },
   'accounts.list': () => accounts(),
@@ -192,19 +205,27 @@ const handlers: Handlers = {
     void publishAccounts()
     return null
   },
-  capabilities: (params) => capabilities(params.accountId, params.cwd),
-  'files.list': (params) => listFiles(params.cwd),
-  'files.read': (params) => readProjectFile(params.cwd, params.path),
+  capabilities: (params) =>
+    capabilities(params.accountId, projectPath(params.projectId)),
+  'files.list': (params) => listFiles(projectPath(params.projectId)),
+  'files.read': (params) =>
+    readProjectFile(projectPath(params.projectId), params.path),
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
   'tasks.output': (params) => taskOutput(params.sessionId, params.path),
-  'git.status': (params) => gitStatus(params.cwd),
-  'git.diff': (params) => projectDiff(params.cwd),
-  'git.commit': (params) => commit(params.cwd, params.message),
-  'git.push': (params) => push(params.cwd),
-  'git.pullRequest': (params) => createPullRequest(params.cwd),
+  'git.status': (params) => gitStatus(projectPath(params.projectId)),
+  'git.diff': (params) => projectDiff(projectPath(params.projectId)),
+  'git.commit': (params) =>
+    commit(projectPath(params.projectId), params.message),
+  'git.push': (params) => push(projectPath(params.projectId)),
+  'git.pullRequest': (params) =>
+    createPullRequest(projectPath(params.projectId)),
   'git.message': (params) =>
-    suggestCommitMessage(params.provider, params.accountId, params.cwd),
+    suggestCommitMessage(
+      params.provider,
+      params.accountId,
+      projectPath(params.projectId)
+    ),
   'push.key': () => pushKey(),
   'push.subscribe': (params) => {
     subscribe(params)

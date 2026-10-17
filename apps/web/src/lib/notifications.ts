@@ -2,7 +2,7 @@ import type { PushSubscriptionInfo } from '@offsite/core/protocol'
 import { call } from '@/api/connection'
 import { home, machineKey } from '@/api/machines'
 import { providerNames } from './format'
-import { getState, openSession } from './store'
+import { getState, homeMachine, openSession } from './store'
 
 const storageKey = 'notifications'
 
@@ -77,14 +77,14 @@ function show(
     window.focus()
     const session = findSession(machine, sessionId)
     if (session !== undefined)
-      openSession({ machine, cwd: session.cwd, sessionId })
+      openSession({ machine, projectId: session.projectId, sessionId })
   }
 }
 
 export async function showNotification(
   title: string,
   body: string,
-  tab: { machine: string; cwd: string; tabId: number }
+  tab: { machine: string; project: string; tabId: number }
 ) {
   if (notificationPermission() !== 'granted' || !notificationsWanted()) return
   const registration = await navigator.serviceWorker.ready
@@ -167,7 +167,10 @@ export async function refreshPushSubscription() {
 
 function pushMachine() {
   if (home === null) throw new Error('push needs a page served by offsite')
-  return home
+  const machine = homeMachine(getState())
+  if (machine === undefined)
+    throw new Error('the machine serving this page is not added yet')
+  return machine.id
 }
 
 function base64Url(buffer: ArrayBuffer) {
