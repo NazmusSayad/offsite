@@ -7,7 +7,7 @@ const windowNames: Record<string, string> = {
   seven_day_sonnet: 'Week (Sonnet)',
 }
 
-function windowName(limit: RateLimit) {
+export function windowName(limit: RateLimit) {
   return windowNames[limit.window] ?? limit.window
 }
 

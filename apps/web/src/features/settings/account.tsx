@@ -5,6 +5,17 @@ import type {
 } from '@offsite/core/protocol'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -56,6 +67,16 @@ export function AccountPage(props: {
         hiddenModels: account.hiddenModels,
         ...patch,
       })
+    } catch (caught) {
+      setError(errorMessage(caught))
+    }
+  }
+
+  async function remove() {
+    setError(null)
+    try {
+      await call(props.machine, 'accounts.remove', { id: account.id })
+      update({ settingsAccount: null })
     } catch (caught) {
       setError(errorMessage(caught))
     }
@@ -129,6 +150,31 @@ export function AccountPage(props: {
           )
         })}
       </Section>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="outline" className="text-destructive">
+            Remove account
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {account.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              offsite stops using this account. Its config directory and
+              sessions stay untouched.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => void remove()}
+            >
+              Remove account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
