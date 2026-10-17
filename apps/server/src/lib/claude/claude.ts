@@ -55,13 +55,16 @@ export function claudeMode(value: string) {
 
 export function claudeOptions(accountId: string | null, cwd: string): Options {
   const account = storedAccount('claude', accountId)
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    CLAUDE_CODE_ENTRYPOINT: 'offsite',
+    CLAUDE_CONFIG_DIR: account.configDir,
+  }
+  if (path.resolve(account.configDir) === path.join(os.homedir(), '.claude'))
+    delete env.CLAUDE_CONFIG_DIR
   return {
     cwd,
-    env: {
-      ...process.env,
-      CLAUDE_CODE_ENTRYPOINT: 'offsite',
-      CLAUDE_CONFIG_DIR: account.configDir,
-    },
+    env,
     pathToClaudeCodeExecutable: executable,
     systemPrompt: { type: 'preset', preset: 'claude_code' },
     hooks: {

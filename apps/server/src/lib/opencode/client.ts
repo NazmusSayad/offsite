@@ -22,6 +22,7 @@ const RECONNECT_ATTEMPTS = 5
 const RECONNECT_DELAY = 2000
 
 let connection: Promise<OpenCodeClient> | undefined
+let listener: AbortController | undefined
 
 export function findOpenCode() {
   const name = process.platform === 'win32' ? 'opencode.exe' : 'opencode'
@@ -36,6 +37,13 @@ export function findOpenCode() {
 export function openCode() {
   connection ??= start()
   return connection
+}
+
+export function disconnectOpenCode() {
+  const controller = listener
+  listener = undefined
+  connection = undefined
+  controller?.abort()
 }
 
 async function start() {
@@ -56,6 +64,7 @@ async function connect() {
 
 async function listen(client: OpenCodeClient) {
   const controller = new AbortController()
+  listener = controller
   const silence = setTimeout(() => controller.abort(), SILENCE_LIMIT)
   try {
     for await (const event of client.event.subscribe({
@@ -65,6 +74,7 @@ async function listen(client: OpenCodeClient) {
       route(event)
     console.warn('the OpenCode event stream ended')
   } catch (error) {
+    if (listener !== controller) return
     console.warn(
       controller.signal.aborted
         ? `the OpenCode event stream was silent for ${SILENCE_LIMIT / 1000} seconds`
@@ -73,6 +83,7 @@ async function listen(client: OpenCodeClient) {
   } finally {
     clearTimeout(silence)
   }
+  if (listener !== controller) return
   connection = reconnect()
   connection.catch(() => undefined)
 }

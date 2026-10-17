@@ -8,7 +8,7 @@ import { claudeOptions } from '../lib/claude/index.ts'
 import { codexCommitMessage } from '../lib/codex/index.ts'
 import { openCodeCommitMessage } from '../lib/opencode/index.ts'
 import { readConfig } from '../storage/config.ts'
-import { providerName } from './accounts.ts'
+import { assertEnabled, providerName } from './accounts.ts'
 
 const DIFF_LIMIT = 80_000
 const UNTRACKED_LIMIT = 100
@@ -75,6 +75,7 @@ export async function suggestCommitMessage(
   accountId: string | null,
   cwd: string
 ) {
+  assertEnabled(provider, accountId)
   const diff = (await workingDiff(cwd)).slice(0, DIFF_LIMIT)
   if (diff === '') throw new Error('There is nothing to commit')
   const model = readConfig().commitModels[provider]

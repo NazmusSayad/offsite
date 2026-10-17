@@ -30,7 +30,7 @@ export type Project = {
 
 export type ProviderStatus = {
   provider: Provider
-  state: 'loading' | 'ready' | 'missing' | 'error'
+  state: 'loading' | 'ready' | 'missing' | 'error' | 'disabled'
   error: string | null
 }
 
@@ -67,6 +67,7 @@ export type Account = {
   provider: Provider
   name: string
   configDir: string
+  enabled: boolean
   email: string | null
   plan: string | null
   error: string | null
@@ -143,6 +144,7 @@ export type TerminalConfig = {
 
 export type Config = {
   claudeBaseDir: string
+  enabledProviders: Record<Provider, boolean>
   composer: { provider: Provider } & Record<Provider, ProviderSettings>
   commitModels: Record<Provider, string | null>
   terminal: TerminalConfig
@@ -404,7 +406,7 @@ export type Methods = {
     result: null
   }
   'accounts.update': {
-    params: { id: string; name: string; configDir: string }
+    params: { id: string; name: string; configDir: string; enabled: boolean }
     result: null
   }
   'accounts.remove': { params: { id: string }; result: null }

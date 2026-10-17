@@ -27,6 +27,7 @@ export function openCodeAccount(): Account {
     provider: 'opencode',
     name: 'OpenCode',
     configDir: '',
+    enabled: true,
     email: null,
     plan: null,
     error: null,

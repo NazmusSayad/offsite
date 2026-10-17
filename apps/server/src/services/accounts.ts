@@ -7,13 +7,21 @@ import {
   claudeCapabilities,
   forgetClaude,
 } from '../lib/claude/index.ts'
-import { codexAccount, codexCapabilities } from '../lib/codex/index.ts'
+import {
+  codexAccount,
+  codexCapabilities,
+  stopAppServer,
+  stopAppServers,
+} from '../lib/codex/index.ts'
 import { broadcast } from '../lib/hub.ts'
+import { runs } from '../lib/live.ts'
+import { disconnectOpenCode } from '../lib/opencode/client.ts'
 import {
   openCodeAccount,
   openCodeCapabilities,
   openCodeInstalled,
 } from '../lib/opencode/index.ts'
+import { readConfig } from '../storage/config.ts'
 import { readJson, writeJson } from '../storage/storage.ts'
 
 export type StoredAccount = {
@@ -21,6 +29,7 @@ export type StoredAccount = {
   provider: Provider
   name: string
   configDir: string
+  enabled: boolean
 }
 
 const providerNames: Record<Provider, string> = {
@@ -34,7 +43,40 @@ export function providerName(provider: Provider) {
 }
 
 export function storedAccounts(): StoredAccount[] {
-  return (readJson('accounts.json') as StoredAccount[] | null) ?? []
+  const items =
+    (readJson('accounts.json') as
+      | (Omit<StoredAccount, 'enabled'> & { enabled?: boolean })[]
+      | null) ?? []
+  return items.map((item) => ({ ...item, enabled: item.enabled ?? true }))
+}
+
+export function assertEnabled(provider: Provider, accountId: string | null) {
+  if (!readConfig().enabledProviders[provider])
+    throw new Error(`${providerName(provider)} is disabled in Settings`)
+  if (provider === 'opencode') return
+  if (!storedAccount(provider, accountId).enabled)
+    throw new Error('That account is disabled in Settings')
+}
+
+export async function stopProvider(provider: Provider) {
+  const stopping = [...runs.values()].filter((run) => run.provider === provider)
+  for (const run of stopping) run.stop()
+  await Promise.all(stopping.map((run) => run.closed))
+  if (provider === 'codex') stopAppServers()
+  if (provider === 'opencode') disconnectOpenCode()
+  if (provider === 'claude')
+    for (const account of storedAccounts())
+      if (account.provider === 'claude') forgetClaude(account.id)
+}
+
+async function stopAccount(account: StoredAccount) {
+  const stopping = [...runs.values()].filter(
+    (run) => run.settings.accountId === account.id
+  )
+  for (const run of stopping) run.stop()
+  await Promise.all(stopping.map((run) => run.closed))
+  if (account.provider === 'codex') stopAppServer(account.configDir)
+  if (account.provider === 'claude') forgetClaude(account.id)
 }
 
 export function storedAccount(provider: Provider, accountId: string | null) {
@@ -52,6 +94,8 @@ export function storedAccount(provider: Provider, accountId: string | null) {
 export async function accounts(): Promise<Account[]> {
   const stored = await Promise.all(
     storedAccounts().map((account) => {
+      if (!account.enabled || !readConfig().enabledProviders[account.provider])
+        return disabledAccount(account)
       switch (account.provider) {
         case 'claude':
           return claudeAccount(account)
@@ -62,7 +106,21 @@ export async function accounts(): Promise<Account[]> {
       }
     })
   )
-  return openCodeInstalled() ? [...stored, openCodeAccount()] : stored
+  return openCodeInstalled() && readConfig().enabledProviders.opencode
+    ? [...stored, openCodeAccount()]
+    : stored
+}
+
+function disabledAccount(account: StoredAccount): Account {
+  return {
+    ...account,
+    email: null,
+    plan: null,
+    error: null,
+    limits: [],
+    linked: true,
+    valid: false,
+  }
 }
 
 export async function publishAccounts() {
@@ -77,9 +135,13 @@ export function capabilities(
   accountId: string,
   cwd: string
 ): Promise<Capabilities> {
-  if (accountId === openCodeAccount().id) return openCodeCapabilities(cwd)
+  if (accountId === openCodeAccount().id) {
+    assertEnabled('opencode', accountId)
+    return openCodeCapabilities(cwd)
+  }
   const account = storedAccounts().find((item) => item.id === accountId)
   if (account === undefined) throw new Error('That account was removed')
+  assertEnabled(account.provider, accountId)
   switch (account.provider) {
     case 'claude':
       return claudeCapabilities(account, cwd)
@@ -99,18 +161,31 @@ export function addAccount(
     throw new Error('OpenCode has no accounts. Connect providers in OpenCode')
   saveAccounts([
     ...storedAccounts(),
-    { id: randomUUID(), provider, ...validAccount(name, configDir) },
+    {
+      id: randomUUID(),
+      provider,
+      ...validAccount(name, configDir),
+      enabled: true,
+    },
   ])
 }
 
-export function updateAccount(id: string, name: string, configDir: string) {
+export async function updateAccount(
+  id: string,
+  name: string,
+  configDir: string,
+  enabled: boolean
+) {
+  const before = storedAccounts().find((item) => item.id === id)
+  if (before === undefined) throw new Error('That account was removed')
   const account = validAccount(name, configDir)
   saveAccounts(
     storedAccounts().map((item) =>
-      item.id === id ? { ...item, ...account } : item
+      item.id === id ? { ...item, ...account, enabled } : item
     )
   )
   forgetClaude(id)
+  if (before.enabled && !enabled) await stopAccount(before)
 }
 
 export function removeAccount(id: string) {

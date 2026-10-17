@@ -17,6 +17,7 @@ import {
   capabilities,
   publishAccounts,
   removeAccount,
+  stopProvider,
   updateAccount,
 } from '../services/accounts.ts'
 import {
@@ -89,10 +90,21 @@ const handlers: Handlers = {
     }
   },
   'config.get': () => configInfo(),
-  'config.save': (params) => {
-    const before = readConfig().claudeBaseDir
+  'config.save': async (params) => {
+    const before = readConfig()
     const saved = saveConfig(params)
-    if (saved.claudeBaseDir === before) return saved
+    for (const provider of ['claude', 'codex', 'opencode'] as const)
+      if (
+        before.enabledProviders[provider] &&
+        !saved.enabledProviders[provider]
+      )
+        await stopProvider(provider)
+    if (
+      saved.claudeBaseDir === before.claudeBaseDir &&
+      JSON.stringify(saved.enabledProviders) ===
+        JSON.stringify(before.enabledProviders)
+    )
+      return saved
     watchSessions()
     refreshAll()
     void publishAccounts()
@@ -195,8 +207,13 @@ const handlers: Handlers = {
     void publishAccounts()
     return null
   },
-  'accounts.update': (params) => {
-    updateAccount(params.id, params.name, params.configDir)
+  'accounts.update': async (params) => {
+    await updateAccount(
+      params.id,
+      params.name,
+      params.configDir,
+      params.enabled
+    )
     void publishAccounts()
     return null
   },

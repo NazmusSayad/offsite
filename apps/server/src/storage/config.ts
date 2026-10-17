@@ -10,6 +10,7 @@ const configFile = path.join(home, 'config.json')
 
 export const defaults: Config = {
   claudeBaseDir: path.join(os.homedir(), '.claude'),
+  enabledProviders: { claude: true, codex: true, opencode: true },
   composer: {
     provider: 'claude',
     claude: {
