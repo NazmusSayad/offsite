@@ -13,13 +13,17 @@ if (!root) throw new Error('root element missing')
 
 if ('serviceWorker' in navigator) {
   const updating = navigator.serviceWorker.controller !== null
+  const pwa = document.querySelector('link[rel="manifest"]') !== null
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (updating) location.reload()
   })
   navigator.serviceWorker
-    .register(import.meta.env.DEV ? '/dev-sw.js?dev-sw' : '/sw.js', {
-      type: import.meta.env.DEV ? 'module' : 'classic',
-    })
+    .register(
+      import.meta.env.DEV ? '/dev-sw.js?dev-sw' : pwa ? '/sw.js?pwa' : '/sw.js',
+      {
+        type: import.meta.env.DEV ? 'module' : 'classic',
+      }
+    )
     .catch((error: unknown) =>
       console.error('could not register the service worker', error)
     )

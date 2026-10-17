@@ -4,8 +4,6 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const pwa = process.env.VITE_PWA_ENABLED === '1'
-
 export default defineConfig({
   plugins: [
     react(),
@@ -19,9 +17,8 @@ export default defineConfig({
       includeManifestIcons: false,
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,wasm,woff2}'],
-        injectionPoint: pwa ? 'self.__WB_MANIFEST' : undefined,
       },
-      manifest: pwa && {
+      manifest: {
         name: 'offsite',
         short_name: 'offsite',
         description: 'Claude Code in your browser',
