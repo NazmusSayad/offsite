@@ -23,11 +23,11 @@ import {
 } from '@/components/ui/popover'
 import { Tooltip } from '@/components/ui/tooltip'
 import { limitLabel } from '@/features/composer/limits'
+import { changeSettings, providerSettings } from '@/lib/accounts'
 import {
-  changeSettings,
   getState,
   machineOf,
-  providerSettings,
+  providerPages,
   showError,
   showSettingsPage,
   useStore,
@@ -43,8 +43,7 @@ export function Pickers() {
   const settings = useStore((state) => state.settings)
   const capabilities = useStore((state) => state.capabilities)
   const models = capabilities?.models ?? []
-  const modelValue = settings.model ?? 'default'
-  const model = models.find((item) => item.value === modelValue)
+  const model = models.find((item) => item.value === settings.model)
 
   return (
     <>
@@ -97,8 +96,10 @@ function ModelPicker() {
   const [query, setQuery] = useState('')
   const [fetched, setFetched] = useState<Record<string, Model[]>>({})
   const searchInput = useRef<HTMLInputElement>(null)
-  const modelValue = settings.model ?? 'default'
-  const model = capabilities?.models.find((item) => item.value === modelValue)
+  const model = capabilities?.models.find(
+    (item) => item.value === settings.model
+  )
+  const label = model?.name ?? settings.model ?? 'Choose a model'
   const account = accounts.find((item) => item.id === settings.accountId)
   const viewedModels =
     viewed === null
@@ -107,8 +108,10 @@ function ModelPicker() {
         ? (capabilities?.models ?? null)
         : (fetched[viewed] ?? null)
   const search = query.trim().toLowerCase()
-  const matches = (viewedModels ?? []).filter((option) =>
-    `${option.name} ${option.description}`.toLowerCase().includes(search)
+  const matches = (viewedModels ?? []).filter(
+    (option) =>
+      !option.hidden &&
+      `${option.name} ${option.description}`.toLowerCase().includes(search)
   )
 
   function changeOpen(next: boolean) {
@@ -130,19 +133,22 @@ function ModelPicker() {
     }
   }
 
-  function pick(accountId: string, value: string) {
-    const model = value === 'default' ? null : value
+  function pick(accountId: string, option: Model) {
     const provider = accounts.find((item) => item.id === accountId)?.provider
     if (provider === undefined || selection === null) return
-    if (provider === settings.provider) changeSettings({ accountId, model })
+    const choice = {
+      accountId,
+      model: option.value,
+      ...(option.effort === null ? {} : { effort: option.effort }),
+    }
+    if (provider === settings.provider) changeSettings(choice)
     else
       changeSettings({
         ...providerSettings(
           machineOf(getState(), selection.machine).config,
           provider
         ),
-        accountId,
-        model,
+        ...choice,
       })
     setOpen(false)
   }
@@ -152,14 +158,10 @@ function ModelPicker() {
       <PopoverTrigger asChild>
         <button
           className={cn(control, controlSm)}
-          title={
-            account === undefined
-              ? 'Model'
-              : `${account.name} · ${model?.name ?? modelValue}`
-          }
+          title={account === undefined ? 'Model' : `${account.name} · ${label}`}
         >
           <ProviderIcon provider={settings.provider} className="size-4" />
-          <span className="max-w-40 truncate">{model?.name ?? modelValue}</span>
+          <span className="max-w-40 truncate">{label}</span>
           {accounts.length > 1 && account !== undefined && (
             <span className="text-muted-foreground max-w-28 truncate font-normal">
               {account.name}
@@ -253,7 +255,7 @@ function ModelPicker() {
                   const first = matches.at(0)
                   if (first === undefined) return
                   event.preventDefault()
-                  pick(viewed, first.value)
+                  pick(viewed, first)
                 }}
               />
             </div>
@@ -274,12 +276,12 @@ function ModelPicker() {
                   className={cn(
                     'hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-7 w-full cursor-pointer flex-col rounded-sm px-2 py-1 text-left',
                     viewed === settings.accountId &&
-                      option.value === modelValue &&
+                      option.value === settings.model &&
                       'text-foreground bg-foreground/[0.08]'
                   )}
                   onClick={() => {
                     if (viewed === null) return
-                    pick(viewed, option.value)
+                    pick(viewed, option)
                   }}
                 >
                   <span className="truncate text-xs leading-snug font-medium">
@@ -299,7 +301,7 @@ function ModelPicker() {
               className="text-foreground cursor-pointer font-medium underline-offset-2 hover:underline"
               onClick={() => {
                 setOpen(false)
-                showSettingsPage('Accounts')
+                showSettingsPage(providerPages[settings.provider])
               }}
             >
               Manage accounts…

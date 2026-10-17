@@ -1,7 +1,4 @@
-import type { Config, Platform, TerminalConfig } from '@offsite/core/protocol'
-import { shellIntegrationIssue } from '@offsite/core/shell-check'
 import { useState } from 'react'
-import { updateConfig } from '@/api/machine-config'
 import {
   Select,
   SelectContent,
@@ -10,14 +7,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { builtinFonts, platforms } from '@/features/terminal/config'
+import { imagePasteKeys } from '@/features/terminal/clipboard'
+import { builtinFonts } from '@/features/terminal/config'
 import type { Prefs, TerminalPrefs } from '@/lib/prefs'
 import { updatePrefs } from '@/lib/store'
+import { isMac } from '@/lib/utils'
 import { NumberInput, Row, Section, TextInput } from './controls'
-import { BehaviorSection, IdentityRow, MacKeysSection } from './sections'
-import { ShellInput } from './shell-input'
 
-export function TerminalLookPage(props: { prefs: Prefs }) {
+type Behavior = TerminalPrefs['behavior']
+
+export function TerminalPage(props: { prefs: Prefs }) {
   const terminal = props.prefs.terminal
   const [customFont, setCustomFont] = useState(
     !builtinFonts.some((font) => font.family === terminal.font.family)
@@ -35,7 +34,7 @@ export function TerminalLookPage(props: { prefs: Prefs }) {
 
   return (
     <>
-      <Section title="Font" note="This browser">
+      <Section title="Font">
         <Row label="Family">
           <Select
             value={customFont ? 'custom' : terminal.font.family}
@@ -95,7 +94,7 @@ export function TerminalLookPage(props: { prefs: Prefs }) {
           />
         </Row>
       </Section>
-      <Section title="Cursor" note="This browser">
+      <Section title="Cursor">
         <Row label="Style">
           <Select
             value={terminal.cursor.style}
@@ -128,7 +127,7 @@ export function TerminalLookPage(props: { prefs: Prefs }) {
         behavior={terminal.behavior}
         onChange={(value) => update('behavior', value)}
       />
-      <Section title="Layout" note="This browser">
+      <Section title="Layout">
         {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
           <Row key={side} label={`Padding ${side}`}>
             <NumberInput
@@ -149,89 +148,86 @@ export function TerminalLookPage(props: { prefs: Prefs }) {
   )
 }
 
-export function TerminalMachinePage(props: {
-  machine: string
-  config: Config
-  platform: Platform
-  defaultShell: string
+function BehaviorSection(props: {
+  behavior: Behavior
+  onChange: (value: Partial<Behavior>) => void
 }) {
-  const terminal = props.config.terminal
-  const [platform, setPlatform] = useState(props.platform)
-  const shellIssue = shellIntegrationIssue(
-    terminal.shell[props.platform],
-    props.platform,
-    props.defaultShell
-  )
-
-  function commit(next: TerminalConfig) {
-    updateConfig(props.machine, { ...props.config, terminal: next })
-  }
-
   return (
-    <Section title="Shell" note="Applies to new terminals">
-      <Row label="Platform">
+    <Section title="Behavior">
+      <Row label="Modernize Shift+Enter">
+        <Switch
+          checked={props.behavior.modernizeShiftEnter}
+          onCheckedChange={(modernizeShiftEnter) =>
+            props.onChange({ modernizeShiftEnter })
+          }
+        />
+      </Row>
+      <Row
+        label={`${imagePasteKeys.linux.label} (${imagePasteKeys.windows.label} on Windows machines) pastes images from the browser clipboard`}
+      >
+        <Switch
+          checked={props.behavior.pasteBrowserImages}
+          onCheckedChange={(pasteBrowserImages) =>
+            props.onChange({ pasteBrowserImages })
+          }
+        />
+      </Row>
+      <Row label="Capture browser shortcuts">
+        <Switch
+          checked={props.behavior.captureShortcuts}
+          onCheckedChange={(captureShortcuts) =>
+            props.onChange({ captureShortcuts })
+          }
+        />
+      </Row>
+      <Row label="Click moves the cursor in the command line">
+        <Switch
+          checked={props.behavior.clickToMoveCursor}
+          onCheckedChange={(clickToMoveCursor) =>
+            props.onChange({ clickToMoveCursor })
+          }
+        />
+      </Row>
+      <Row label="Ask before closing a tab that is running a program">
+        <Switch
+          checked={props.behavior.confirmCloseBusyTab}
+          onCheckedChange={(confirmCloseBusyTab) =>
+            props.onChange({ confirmCloseBusyTab })
+          }
+        />
+      </Row>
+    </Section>
+  )
+}
+
+function MacKeysSection(props: {
+  behavior: Behavior
+  onChange: (value: Partial<Behavior>) => void
+}) {
+  if (!isMac) return null
+  return (
+    <Section
+      title="Mac keys"
+      note="Meta keeps that Option key from typing @, | and other symbols. Safari and Firefox use US key positions"
+    >
+      <Row label="Use Option as Meta">
         <Select
-          value={platform}
-          onValueChange={(value: Platform) => setPlatform(value)}
+          value={props.behavior.optionAsMeta}
+          onValueChange={(optionAsMeta: Behavior['optionAsMeta']) =>
+            props.onChange({ optionAsMeta })
+          }
         >
           <SelectTrigger className="w-56">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {platforms.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-                {item.value === props.platform && (
-                  <span className="text-muted-foreground">(this machine)</span>
-                )}
-              </SelectItem>
-            ))}
+            <SelectItem value="off">Off</SelectItem>
+            <SelectItem value="left">Left Option</SelectItem>
+            <SelectItem value="right">Right Option</SelectItem>
+            <SelectItem value="both">Both Options</SelectItem>
           </SelectContent>
         </Select>
       </Row>
-      <Row label="Command">
-        <ShellInput
-          key={`${props.machine}-${platform}-command`}
-          machine={props.machine}
-          platform={platform}
-          device={props.platform}
-          value={terminal.shell[platform]}
-          onCommit={(command) =>
-            commit({
-              ...terminal,
-              shell: { ...terminal.shell, [platform]: command },
-            })
-          }
-        />
-      </Row>
-      <Row label="Mark prompts and commands (shell integration)">
-        <div className="flex items-center gap-3">
-          {shellIssue !== null && (
-            <span className="text-muted-foreground max-w-32 text-right text-xs sm:max-w-none">
-              {shellIssue}
-            </span>
-          )}
-          <Switch
-            checked={shellIssue === null && terminal.behavior.shellIntegration}
-            disabled={shellIssue !== null}
-            onCheckedChange={(shellIntegration) =>
-              commit({
-                ...terminal,
-                behavior: { ...terminal.behavior, shellIntegration },
-              })
-            }
-          />
-        </div>
-      </Row>
-      <IdentityRow
-        identity={terminal.behavior.terminalIdentity}
-        onChange={(terminalIdentity) =>
-          commit({
-            ...terminal,
-            behavior: { ...terminal.behavior, terminalIdentity },
-          })
-        }
-      />
     </Section>
   )
 }

@@ -10,7 +10,11 @@ import {
   type SDKRateLimitInfo,
   type SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk'
-import type { Account, Capabilities, RateLimit } from '@offsite/core/protocol'
+import type {
+  Account,
+  ProviderCapabilities,
+  RateLimit,
+} from '@offsite/core/protocol'
 import { type StoredAccount, storedAccount } from '../../services/accounts.ts'
 import { readConfig } from '../../storage/config.ts'
 import { broadcast } from '../hub.ts'
@@ -55,13 +59,16 @@ export function claudeMode(value: string) {
 
 export function claudeOptions(accountId: string | null, cwd: string): Options {
   const account = storedAccount('claude', accountId)
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    CLAUDE_CODE_ENTRYPOINT: 'offsite',
+    CLAUDE_CONFIG_DIR: account.configDir,
+  }
+  if (path.resolve(account.configDir) === path.join(os.homedir(), '.claude'))
+    delete env.CLAUDE_CONFIG_DIR
   return {
     cwd,
-    env: {
-      ...process.env,
-      CLAUDE_CODE_ENTRYPOINT: 'offsite',
-      CLAUDE_CONFIG_DIR: account.configDir,
-    },
+    env,
     pathToClaudeCodeExecutable: executable,
     systemPrompt: { type: 'preset', preset: 'claude_code' },
     hooks: {
@@ -104,15 +111,21 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
 export async function claudeCapabilities(
   account: StoredAccount,
   cwd: string
-): Promise<Capabilities> {
+): Promise<ProviderCapabilities> {
   const result = await initialization(account.id, cwd)
   return {
-    models: result.models.map((model) => ({
-      value: model.value,
-      name: model.displayName,
-      description: model.description,
-      efforts: model.supportedEffortLevels ?? [],
-    })),
+    models: result.models
+      .filter((model) => model.value !== 'default')
+      .map((model) => {
+        if (model.resolvedModel === undefined)
+          throw new Error(`Claude did not resolve the ${model.value} model`)
+        return {
+          value: model.resolvedModel,
+          name: model.displayName,
+          description: model.description,
+          efforts: model.supportedEffortLevels ?? [],
+        }
+      }),
     commands: result.commands.map((command) => ({
       name: command.name,
       description: command.description,

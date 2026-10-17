@@ -87,7 +87,7 @@ export function TerminalPanel(props: { projectId: string }) {
     <div ref={shortcuts} className="flex h-full flex-col text-sm">
       <header
         className={cn(
-          'flex h-8 flex-none select-none',
+          'flex h-9 flex-none select-none',
           visibleTabs.length === 1 ? 'bg-background' : 'bg-sidebar'
         )}
       >

@@ -45,6 +45,10 @@ export function stopAppServers() {
   for (const server of servers.values()) server.stop()
 }
 
+export function stopAppServer(home: string) {
+  servers.get(home)?.stop()
+}
+
 export function findCodex() {
   const name = process.platform === 'win32' ? 'codex.exe' : 'codex'
   for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {

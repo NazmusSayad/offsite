@@ -21,7 +21,7 @@ import {
   openCodeHistory,
   rewindOpenCode,
 } from '../lib/opencode/index.ts'
-import { providerName } from './accounts.ts'
+import { assertEnabled, providerName } from './accounts.ts'
 import { projectPath } from './projects.ts'
 import { listedUpdatedAt, providerOf, recordInteraction } from './sessions.ts'
 
@@ -118,6 +118,7 @@ export async function send(
   client: Client,
   request: Methods['sessions.send']['params']
 ) {
+  assertEnabled(request.settings.provider, request.settings.accountId)
   const cwd = projectPath(request.projectId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory())
     throw new Error(`${cwd} is not a folder`)

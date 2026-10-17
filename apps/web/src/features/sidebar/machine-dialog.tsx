@@ -1,7 +1,6 @@
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
-import { home, readMachineLink } from '@/api/machines'
-import { editMachine } from '@/api/sync'
+import { editMachine, home, readMachineLink } from '@/api/machines'
 import { type MachineIcon, machineIcons } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {

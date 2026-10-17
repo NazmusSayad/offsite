@@ -30,7 +30,7 @@ export type Project = {
 
 export type ProviderStatus = {
   provider: Provider
-  state: 'loading' | 'ready' | 'missing' | 'error'
+  state: 'loading' | 'ready' | 'missing' | 'error' | 'disabled'
   error: string | null
 }
 
@@ -67,6 +67,9 @@ export type Account = {
   provider: Provider
   name: string
   configDir: string
+  enabled: boolean
+  hiddenModels: Record<string, boolean>
+  defaultModel: string | null
   email: string | null
   plan: string | null
   error: string | null
@@ -80,7 +83,12 @@ export type Model = {
   name: string
   description: string
   efforts: string[]
+  deprecated: boolean
+  hidden: boolean
+  effort: string | null
 }
+
+export type ModelSetting = { hidden: boolean; effort: string | null }
 
 export type Command = { name: string; description: string; hint: string }
 
@@ -88,8 +96,17 @@ export type Agent = { id: string; name: string; description: string }
 
 export type Capabilities = {
   models: Model[]
+  defaultModel: string | null
+  providerDefaultModel: string | null
   commands: Command[]
   agents: Agent[]
+}
+
+export type ProviderCapabilities = Omit<
+  Capabilities,
+  'models' | 'defaultModel' | 'providerDefaultModel'
+> & {
+  models: Omit<Model, 'deprecated' | 'hidden' | 'effort'>[]
 }
 
 export type ProviderSettings = {
@@ -143,8 +160,17 @@ export type TerminalConfig = {
 
 export type Config = {
   claudeBaseDir: string
+  enabledProviders: Record<Provider, boolean>
   composer: { provider: Provider } & Record<Provider, ProviderSettings>
-  commitModels: Record<Provider, string | null>
+  commitMessage: { accountId: string | null; model: string | null }
+  models: Record<Provider, Record<string, ModelSetting>>
+  defaultModels: Record<Provider, string | null>
+  delivery: Delivery
+  autoResolve: {
+    questions: number | null
+    permissions: number | null
+    permissionDecision: 'allow' | 'deny'
+  }
   terminal: TerminalConfig
 }
 
@@ -404,12 +430,19 @@ export type Methods = {
     result: null
   }
   'accounts.update': {
-    params: { id: string; name: string; configDir: string }
+    params: {
+      id: string
+      name: string
+      configDir: string
+      enabled: boolean
+      hiddenModels: Record<string, boolean>
+      defaultModel: string | null
+    }
     result: null
   }
   'accounts.remove': { params: { id: string }; result: null }
   capabilities: {
-    params: { accountId: string; projectId: string }
+    params: { accountId: string; projectId: string | null }
     result: Capabilities
   }
   'files.list': { params: { projectId: string }; result: string[] }
@@ -434,7 +467,7 @@ export type Methods = {
     result: { url: string }
   }
   'git.message': {
-    params: { provider: Provider; accountId: string | null; projectId: string }
+    params: { projectId: string }
     result: { message: string }
   }
   'push.key': { params: void; result: { publicKey: string } }

@@ -1,6 +1,5 @@
 import { type ReactNode, useState } from 'react'
-import { readMachineLink } from '@/api/machines'
-import { addMachine } from '@/api/sync'
+import { addMachine, readMachineLink } from '@/api/machines'
 import { Input } from '@/components/ui/input'
 import { cn, errorMessage } from '@/lib/utils'
 

@@ -17,6 +17,7 @@ import {
   capabilities,
   publishAccounts,
   removeAccount,
+  stopProvider,
   updateAccount,
 } from '../services/accounts.ts'
 import {
@@ -89,10 +90,21 @@ const handlers: Handlers = {
     }
   },
   'config.get': () => configInfo(),
-  'config.save': (params) => {
-    const before = readConfig().claudeBaseDir
+  'config.save': async (params) => {
+    const before = readConfig()
     const saved = saveConfig(params)
-    if (saved.claudeBaseDir === before) return saved
+    for (const provider of ['claude', 'codex', 'opencode'] as const)
+      if (
+        before.enabledProviders[provider] &&
+        !saved.enabledProviders[provider]
+      )
+        await stopProvider(provider)
+    if (
+      saved.claudeBaseDir === before.claudeBaseDir &&
+      JSON.stringify(saved.enabledProviders) ===
+        JSON.stringify(before.enabledProviders)
+    )
+      return saved
     watchSessions()
     refreshAll()
     void publishAccounts()
@@ -195,8 +207,8 @@ const handlers: Handlers = {
     void publishAccounts()
     return null
   },
-  'accounts.update': (params) => {
-    updateAccount(params.id, params.name, params.configDir)
+  'accounts.update': async (params) => {
+    await updateAccount(params)
     void publishAccounts()
     return null
   },
@@ -206,7 +218,10 @@ const handlers: Handlers = {
     return null
   },
   capabilities: (params) =>
-    capabilities(params.accountId, projectPath(params.projectId)),
+    capabilities(
+      params.accountId,
+      params.projectId === null ? os.homedir() : projectPath(params.projectId)
+    ),
   'files.list': (params) => listFiles(projectPath(params.projectId)),
   'files.read': (params) =>
     readProjectFile(projectPath(params.projectId), params.path),
@@ -221,11 +236,7 @@ const handlers: Handlers = {
   'git.pullRequest': (params) =>
     createPullRequest(projectPath(params.projectId)),
   'git.message': (params) =>
-    suggestCommitMessage(
-      params.provider,
-      params.accountId,
-      projectPath(params.projectId)
-    ),
+    suggestCommitMessage(projectPath(params.projectId)),
   'push.key': () => pushKey(),
   'push.subscribe': (params) => {
     subscribe(params)

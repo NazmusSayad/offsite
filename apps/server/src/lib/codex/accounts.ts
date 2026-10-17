@@ -1,6 +1,10 @@
 import { readdirSync, realpathSync } from 'node:fs'
 import path from 'node:path'
-import type { Account, Capabilities, RateLimit } from '@offsite/core/protocol'
+import type {
+  Account,
+  ProviderCapabilities,
+  RateLimit,
+} from '@offsite/core/protocol'
 import { type StoredAccount, storedAccounts } from '../../services/accounts.ts'
 import { broadcast } from '../hub.ts'
 import { type AppServer, appServer, codexBaseDir } from './app-server.ts'
@@ -66,7 +70,7 @@ export async function codexAccount(account: StoredAccount): Promise<Account> {
 export async function codexCapabilities(
   account: StoredAccount,
   cwd: string
-): Promise<Capabilities> {
+): Promise<ProviderCapabilities> {
   const server = appServer(account.configDir)
   const models: CodexModel[] = []
   let cursor: string | null = null

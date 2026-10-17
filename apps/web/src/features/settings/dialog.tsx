@@ -1,9 +1,8 @@
-import { Cancel01Icon } from '@hugeicons/core-free-icons'
+import { ArrowRight01Icon, Cancel01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { schemes } from '@offsite/core/schemes'
 import { useState } from 'react'
 import { updateConfig } from '@/api/machine-config'
-import { machineIcons } from '@/components/icons'
+import { machineIcons, ProviderIcon } from '@/components/icons'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { defaultPrefs } from '@/lib/prefs'
 import {
   machineOf,
@@ -38,43 +38,23 @@ import {
   updatePrefs,
   useStore,
 } from '@/lib/store'
-import { cn, isMac, mod } from '@/lib/utils'
-import { AccountsPage } from './accounts'
-import { Row, Section } from './controls'
+import { cn } from '@/lib/utils'
+import { GeneralPage } from './general'
+import { MachinePage } from './machine'
 import { MachinesPage } from './machines'
-import { BellSection, NotificationSection, UpdateSection } from './sections'
-import { TerminalLookPage, TerminalMachinePage } from './terminal'
+import { NotificationsPage } from './notifications'
+import { ProviderPage } from './provider'
+import { ShortcutsPage } from './shortcuts'
+import { TerminalPage } from './terminal'
 
-const terminalMod = isMac ? '⌘' : 'Ctrl+Shift'
-
-const pages: SettingsPage[] = [
+const browserPages: SettingsPage[] = [
   'General',
   'Terminal',
   'Notifications',
-  'Accounts',
-  'Machines',
   'Shortcuts',
+  'Machines',
 ]
-
-const shortcuts = [
-  ['Enter', 'Send, or queue while the agent works'],
-  [`${mod}+Enter`, 'Send now, steering the current turn'],
-  ['Shift+Enter', 'New line'],
-  ['↑', 'Recall your last message'],
-  ['Shift+Tab', 'Cycle permission mode'],
-  ['Esc', 'Stop the agent'],
-  ['/', 'Slash commands'],
-  ['@', 'Mention a file'],
-  [`${mod}+K`, 'Search sessions and actions'],
-  [`${mod}+N or ${mod}+T`, 'New thread'],
-  [isMac ? '⌘+`, Ctrl+` or ⌘+J' : 'Ctrl+` or Ctrl+J', 'Toggle the terminal'],
-  [`${mod}+B`, 'Toggle the sidebar'],
-  [`${terminalMod}+T`, 'New terminal tab, in the terminal'],
-  [`${terminalMod}+W`, 'Close the terminal tab'],
-  [`${terminalMod}+F`, 'Find in the terminal'],
-  ['Ctrl+Tab', 'Next terminal tab'],
-  ['Ctrl+Shift+Tab', 'Previous terminal tab'],
-]
+const machinePages: SettingsPage[] = ['Machine', 'Claude', 'Codex', 'OpenCode']
 
 export function SettingsDialog() {
   const open = useStore((state) => state.settingsOpen)
@@ -88,8 +68,19 @@ export function SettingsDialog() {
   const config = machine === null ? null : machine.config
   const system = machine === null ? null : machine.system
   const page = useStore((state) => state.settingsPage)
-  const machinePage = page === 'Terminal' || page === 'Accounts'
-  const [confirming, setConfirming] = useState(false)
+  const machinePage = machinePages.includes(page)
+  const pageProvider = providerOf(page)
+  const settingsAccount = useStore((state) =>
+    pageProvider === null ? null : state.settingsAccount
+  )
+  const accountTitle =
+    settingsAccount === 'new'
+      ? 'New account'
+      : machine?.accounts.find((account) => account.id === settingsAccount)
+          ?.name
+  const [confirming, setConfirming] = useState<'browser' | 'machine' | null>(
+    null
+  )
   const [revision, setRevision] = useState(0)
 
   return (
@@ -103,11 +94,11 @@ export function SettingsDialog() {
           <DialogTitle className="hidden px-2 pt-1 pb-3 text-base font-semibold sm:block">
             Settings
           </DialogTitle>
-          {pages.map((item) => (
+          {browserPages.map((item) => (
             <button
               key={item}
               className={cn(
-                'text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center rounded-md px-2 text-sm transition-colors',
+                'text-muted-foreground hover:bg-accent hover:text-foreground flex h-9 flex-none items-center rounded-md px-2 text-sm transition-colors',
                 item === page && 'bg-accent text-foreground'
               )}
               onClick={() => showSettingsPage(item)}
@@ -115,23 +106,105 @@ export function SettingsDialog() {
               {item}
             </button>
           ))}
-          <div className="flex flex-none items-center gap-1 sm:mt-auto sm:flex-col sm:items-stretch">
-            <p className="text-muted-foreground hidden px-2 text-xs sm:block">
-              ~/.offsite/config.json
-            </p>
-            <Button
-              variant="ghost-muted"
-              size="sm"
-              className="justify-start"
-              onClick={() => setConfirming(true)}
-            >
-              Restore defaults
-            </Button>
+          <div className="flex flex-none items-center gap-1 sm:mt-6 sm:flex-col sm:items-stretch">
+            {machine !== null && machines.length > 1 && (
+              <Select
+                value={machine.id}
+                onValueChange={(settingsMachine) =>
+                  update({ settingsMachine, settingsAccount: null })
+                }
+              >
+                <SelectTrigger className="mb-1 w-40 sm:w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {machines.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      <HugeiconsIcon icon={machineIcons[item.icon]} />
+                      {item.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {machine !== null && machines.length === 1 && (
+              <p className="text-muted-foreground flex h-9 items-center gap-1.5 px-2 text-xs font-medium [&_svg]:size-4">
+                <HugeiconsIcon icon={machineIcons[machine.icon]} />
+                <span className="truncate">{machine.name}</span>
+              </p>
+            )}
+            {machinePages.map((item) => {
+              const provider = providerOf(item)
+              return (
+                <button
+                  key={item}
+                  className={cn(
+                    'text-muted-foreground hover:bg-accent hover:text-foreground flex h-9 flex-none items-center rounded-md px-2 text-sm transition-colors',
+                    item === page && 'bg-accent text-foreground'
+                  )}
+                  onClick={() => showSettingsPage(item)}
+                >
+                  {provider !== null && (
+                    <span className="mr-2.5 flex size-4 items-center justify-center">
+                      <ProviderIcon
+                        provider={provider}
+                        className={cn(
+                          provider === 'claude' && 'size-4',
+                          provider === 'codex' && 'size-[19px] shrink-0',
+                          provider === 'opencode' && 'h-3.5'
+                        )}
+                      />
+                    </span>
+                  )}
+                  {item === 'Machine' ? 'General' : item}
+                </button>
+              )
+            })}
           </div>
         </nav>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-7">
           <div className="mb-5 flex h-9 items-center">
-            <h2 className="text-xl font-semibold tracking-tight">{page}</h2>
+            {settingsAccount !== null && (
+              <>
+                <button
+                  className="text-muted-foreground hover:text-foreground text-xl font-semibold tracking-tight transition-colors"
+                  onClick={() => update({ settingsAccount: null })}
+                >
+                  {page}
+                </button>
+                <HugeiconsIcon
+                  icon={ArrowRight01Icon}
+                  className="text-muted-foreground mx-1.5 size-5"
+                />
+                <h2 className="truncate text-xl font-semibold tracking-tight">
+                  {accountTitle}
+                </h2>
+              </>
+            )}
+            {settingsAccount === null && (
+              <h2 className="text-xl font-semibold tracking-tight">
+                {page === 'Machine' ? 'General' : page}
+              </h2>
+            )}
+            {pageProvider !== null &&
+              settingsAccount === null &&
+              machine !== null &&
+              config !== null && (
+                <Switch
+                  className="ml-3"
+                  checked={config.enabledProviders[pageProvider]}
+                  onCheckedChange={(checked) =>
+                    void updateConfig(machine.id, {
+                      ...config,
+                      enabledProviders: {
+                        ...config.enabledProviders,
+                        [pageProvider]: checked,
+                      },
+                    })
+                  }
+                  aria-label={`Enable ${page}`}
+                />
+              )}
             <DialogClose asChild>
               <Button
                 variant="ghost"
@@ -143,32 +216,6 @@ export function SettingsDialog() {
               </Button>
             </DialogClose>
           </div>
-          {machinePage && machine !== null && machines.length > 1 && (
-            <div className="mb-5">
-              <Section title="Machine">
-                <Row label="Settings of">
-                  <Select
-                    value={machine.id}
-                    onValueChange={(settingsMachine) =>
-                      update({ settingsMachine })
-                    }
-                  >
-                    <SelectTrigger className="w-56">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {machines.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          <HugeiconsIcon icon={machineIcons[item.icon]} />
-                          {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Row>
-              </Section>
-            </div>
-          )}
           {machinePage && machine !== null && machine.configError !== null && (
             <p className="text-destructive mb-5 text-sm whitespace-pre-wrap">
               Not saved: {machine.configError}
@@ -176,37 +223,22 @@ export function SettingsDialog() {
           )}
           <div key={revision} className="w-full space-y-5">
             {page === 'General' && (
-              <Section title="Appearance">
-                <Row label="Theme">
-                  <Select
-                    value={prefs.theme}
-                    onValueChange={(theme) => updatePrefs({ ...prefs, theme })}
-                  >
-                    <SelectTrigger className="w-56">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {schemes.map((scheme) => (
-                        <SelectItem key={scheme.id} value={scheme.id}>
-                          {scheme.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Row>
-              </Section>
+              <GeneralPage
+                prefs={prefs}
+                onRestore={() => setConfirming('browser')}
+              />
             )}
-            {page === 'General' && <UpdateSection />}
-            {page === 'Terminal' &&
+            {page === 'Machine' &&
               machine !== null &&
               config !== null &&
               system !== null && (
-                <TerminalMachinePage
-                  key={machine.id}
+                <MachinePage
                   machine={machine.id}
                   config={config}
                   platform={system.platform}
                   defaultShell={system.defaultShell}
+                  accounts={machine.accounts}
+                  onRestore={() => setConfirming('machine')}
                 />
               )}
             {machinePage && machine === null && (
@@ -222,55 +254,39 @@ export function SettingsDialog() {
                   is.
                 </p>
               )}
-            {page === 'Terminal' && <TerminalLookPage prefs={prefs} />}
-            {page === 'Notifications' && (
-              <>
-                <NotificationSection />
-                <BellSection
-                  behavior={prefs.terminal.behavior}
-                  onChange={(value) =>
-                    updatePrefs({
-                      ...prefs,
-                      terminal: {
-                        ...prefs.terminal,
-                        behavior: { ...prefs.terminal.behavior, ...value },
-                      },
-                    })
-                  }
-                />
-              </>
-            )}
-            {page === 'Accounts' && machine !== null && config !== null && (
-              <AccountsPage
+            {page === 'Terminal' && <TerminalPage prefs={prefs} />}
+            {page === 'Notifications' && <NotificationsPage prefs={prefs} />}
+            {pageProvider !== null && machine !== null && config !== null && (
+              <ProviderPage
+                key={pageProvider}
                 machine={machine.id}
                 config={config}
+                provider={pageProvider}
                 accounts={machine.accounts}
+                selected={settingsAccount}
               />
             )}
             {page === 'Machines' && <MachinesPage />}
-            {page === 'Shortcuts' && (
-              <Section title="Keyboard shortcuts">
-                {shortcuts.map(([keys, action]) => (
-                  <Row key={keys} label={action}>
-                    <kbd className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-sans text-xs">
-                      {keys}
-                    </kbd>
-                  </Row>
-                ))}
-              </Section>
-            )}
+            {page === 'Shortcuts' && <ShortcutsPage />}
           </div>
         </div>
-        <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialog
+          open={confirming !== null}
+          onOpenChange={(open) => {
+            if (!open) setConfirming(null)
+          }}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Restore defaults?</AlertDialogTitle>
+              <AlertDialogTitle>
+                {confirming === 'browser'
+                  ? 'Restore browser defaults?'
+                  : 'Restore machine defaults?'}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                The theme and terminal look of this browser go back to their
-                defaults
-                {machine === null
-                  ? '.'
-                  : `, and so do the settings of ${machine.name}, including the defaults for new threads and the terminal shell for all platforms.`}
+                {confirming === 'browser'
+                  ? 'All settings of this browser go back to their defaults.'
+                  : `All settings of ${machine?.name} go back to their defaults.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -279,9 +295,15 @@ export function SettingsDialog() {
                 variant="destructive"
                 onClick={() => {
                   setRevision(revision + 1)
-                  updatePrefs(defaultPrefs)
-                  if (machine !== null && system !== null)
-                    updateConfig(machine.id, system.defaults)
+                  if (confirming === 'browser') {
+                    updatePrefs(defaultPrefs)
+                    return
+                  }
+                  if (machine === null || system === null)
+                    throw new Error(
+                      'Restoring machine defaults needs a connected machine'
+                    )
+                  updateConfig(machine.id, system.defaults)
                 }}
               >
                 Restore defaults
@@ -292,4 +314,11 @@ export function SettingsDialog() {
       </DialogContent>
     </Dialog>
   )
+}
+
+function providerOf(page: SettingsPage) {
+  if (page === 'Claude') return 'claude'
+  if (page === 'Codex') return 'codex'
+  if (page === 'OpenCode') return 'opencode'
+  return null
 }

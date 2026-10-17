@@ -157,6 +157,11 @@ async function list(provider: Provider) {
   const before = statuses[provider]
   let timer: NodeJS.Timeout | undefined
   try {
+    if (!readConfig().enabledProviders[provider]) {
+      listed[provider] = []
+      statuses[provider] = { provider, state: 'disabled', error: null }
+      return
+    }
     const found = await Promise.race([
       find(provider, paths),
       new Promise<never>((_, reject) => {
@@ -187,10 +192,10 @@ async function list(provider: Provider) {
     statuses[provider] = { provider, state: 'error', error: message }
   } finally {
     clearTimeout(timer)
+    publishSessions()
+    if (JSON.stringify(statuses[provider]) !== JSON.stringify(before))
+      broadcast({ type: 'providers', providers: providerStatuses() })
   }
-  publishSessions()
-  if (JSON.stringify(statuses[provider]) !== JSON.stringify(before))
-    broadcast({ type: 'providers', providers: providerStatuses() })
 }
 
 async function find(
@@ -262,6 +267,7 @@ export function watchSessions() {
       ['codex', path.join(codexBaseDir, 'sessions')],
     ] as const
   ).flatMap(([provider, dir]) => {
+    if (!readConfig().enabledProviders[provider]) return []
     try {
       const watcher = watch(dir, { recursive: true }, () =>
         refreshSessions(provider)

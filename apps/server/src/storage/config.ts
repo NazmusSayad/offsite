@@ -10,12 +10,13 @@ const configFile = path.join(home, 'config.json')
 
 export const defaults: Config = {
   claudeBaseDir: path.join(os.homedir(), '.claude'),
+  enabledProviders: { claude: true, codex: true, opencode: true },
   composer: {
     provider: 'claude',
     claude: {
       accountId: null,
-      model: 'haiku',
-      effort: 'low',
+      model: null,
+      effort: null,
       mode: 'bypassPermissions',
       plan: false,
     },
@@ -34,7 +35,11 @@ export const defaults: Config = {
       plan: false,
     },
   },
-  commitModels: { claude: 'haiku', codex: 'gpt-6-luna', opencode: null },
+  commitMessage: { accountId: null, model: null },
+  models: { claude: {}, codex: {}, opencode: {} },
+  defaultModels: { claude: null, codex: null, opencode: null },
+  delivery: 'steer',
+  autoResolve: { questions: 3, permissions: 1, permissionDecision: 'allow' },
   terminal: {
     shell: { macos: null, linux: null, windows: null },
     behavior: { terminalIdentity: 'offsite', shellIntegration: true },
@@ -53,6 +58,8 @@ const choices: Record<string, string[]> = {
     'auto',
   ],
   'composer.codex.mode': ['read-only', 'auto', 'full-access'],
+  delivery: ['queue', 'steer'],
+  'autoResolve.permissionDecision': ['allow', 'deny'],
   'terminal.behavior.terminalIdentity': ['offsite', 'ghostty', 'iterm2'],
 }
 const nullable = [
@@ -68,9 +75,13 @@ const nullable = [
   'composer.opencode.model',
   'composer.opencode.effort',
   'composer.opencode.mode',
-  'commitModels.claude',
-  'commitModels.codex',
-  'commitModels.opencode',
+  'commitMessage.accountId',
+  'commitMessage.model',
+  'defaultModels.claude',
+  'defaultModels.codex',
+  'defaultModels.opencode',
+  'autoResolve.questions',
+  'autoResolve.permissions',
   'terminal.shell.macos',
   'terminal.shell.linux',
   'terminal.shell.windows',
@@ -111,6 +122,7 @@ export function readConfig() {
     console.warn(`${configFile} is not an object, using the default config`)
     return structuredClone(defaults)
   }
+  delete user.commitModels
   let config: unknown = structuredClone(defaults)
   for (const [key, value] of Object.entries(user))
     config = merge(config, [key], value)
@@ -156,6 +168,8 @@ function invalid(
   keys: string[]
 ): string | null {
   const name = keys.join('.')
+  if (keys.length === 2 && keys[0] === 'models')
+    return invalidModels(name, value)
   if (isObject(template)) {
     if (!isObject(value)) return `${name || 'config'} must be an object`
     for (const key of Object.keys(value))
@@ -169,6 +183,10 @@ function invalid(
     return null
   }
   if (nullable.includes(name) && value === null) return null
+  if (name === 'autoResolve.questions' || name === 'autoResolve.permissions')
+    return typeof value === 'number' && value > 0
+      ? null
+      : `${name} must be a positive number of minutes or null`
   if (name === 'claudeBaseDir')
     return typeof value === 'string' && path.isAbsolute(value)
       ? null
@@ -183,6 +201,20 @@ function invalid(
   }
   if (typeof value !== typeof template)
     return `${name} must be a ${typeof template}`
+  return null
+}
+
+function invalidModels(name: string, value: unknown) {
+  if (!isObject(value)) return `${name} must be an object`
+  for (const [model, setting] of Object.entries(value)) {
+    if (
+      !isObject(setting) ||
+      Object.keys(setting).length !== 2 ||
+      typeof setting.hidden !== 'boolean' ||
+      (setting.effort !== null && typeof setting.effort !== 'string')
+    )
+      return `${name}.${model} must be { hidden: boolean, effort: text or null }`
+  }
   return null
 }
 

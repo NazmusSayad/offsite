@@ -305,7 +305,7 @@ function FileChange(props: {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="group/tool flex h-8 w-full cursor-pointer items-center gap-2 ps-3 pe-1 text-left text-[13px] leading-4 tracking-[-0.04px] select-none"
+        className="group/tool flex h-9 w-full cursor-pointer items-center gap-2 ps-3 pe-1 text-left text-[13px] leading-4 tracking-[-0.04px] select-none"
       >
         <FileTypeIcon path={props.file} className="size-4 shrink-0" />
         <span className="flex min-w-0 flex-1 items-baseline">

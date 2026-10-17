@@ -150,7 +150,7 @@ export function FolderDialog(props: {
           {directories?.map((directory) => (
             <button
               key={directory.path}
-              className="hover:bg-muted flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors"
+              className="hover:bg-muted flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors"
               onClick={() => open(directory.path)}
             >
               <HugeiconsIcon
@@ -459,7 +459,7 @@ function IconPickerDialog(props: {
           {images?.map((file) => (
             <button
               key={file}
-              className="hover:bg-muted flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors"
+              className="hover:bg-muted flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors"
               onClick={async () => {
                 try {
                   const preview = await call(props.machine, 'files.read', {

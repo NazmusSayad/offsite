@@ -3,12 +3,12 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { query } from '@anthropic-ai/claude-agent-sdk'
-import type { GitStatus, Provider } from '@offsite/core/protocol'
+import type { GitStatus } from '@offsite/core/protocol'
 import { claudeOptions } from '../lib/claude/index.ts'
 import { codexCommitMessage } from '../lib/codex/index.ts'
 import { openCodeCommitMessage } from '../lib/opencode/index.ts'
 import { readConfig } from '../storage/config.ts'
-import { providerName } from './accounts.ts'
+import { accountProvider, assertEnabled } from './accounts.ts'
 
 const DIFF_LIMIT = 80_000
 const UNTRACKED_LIMIT = 100
@@ -70,18 +70,16 @@ export async function createPullRequest(cwd: string) {
   return { url }
 }
 
-export async function suggestCommitMessage(
-  provider: Provider,
-  accountId: string | null,
-  cwd: string
-) {
+export async function suggestCommitMessage(cwd: string) {
+  const settings = readConfig().commitMessage
+  const accountId = settings.accountId
+  const model = settings.model
+  if (accountId === null || model === null)
+    throw new Error('Choose a commit message model in Settings → Git')
+  const provider = accountProvider(accountId)
+  assertEnabled(provider, accountId)
   const diff = (await workingDiff(cwd)).slice(0, DIFF_LIMIT)
   if (diff === '') throw new Error('There is nothing to commit')
-  const model = readConfig().commitModels[provider]
-  if (model === null)
-    throw new Error(
-      `Choose a ${providerName(provider)} commit model in Settings → Accounts`
-    )
   const prompt = `Write a git commit message for this diff. Reply with only the message: a short summary line, optionally followed by a blank line and a brief body.\n\n${diff}`
   if (provider === 'codex')
     return codexCommitMessage(accountId, cwd, model, prompt)

@@ -3,8 +3,10 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { machineKey } from '@/api/machines'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { openSession } from '@/lib/sessions'
 import {
-  openSession,
+  getState,
+  providerPages,
   showPalette,
   showSettings,
   showSettingsPage,
@@ -45,7 +47,7 @@ export function Palette() {
       key: 'accounts',
       label: 'Manage accounts',
       detail: '',
-      run: () => showSettingsPage('Accounts'),
+      run: () => showSettingsPage(providerPages[getState().settings.provider]),
     },
     {
       key: 'settings',

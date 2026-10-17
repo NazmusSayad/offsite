@@ -110,7 +110,7 @@ export function ToolRow(props: {
         <div
           className={cn(
             'flex w-full items-center select-none',
-            props.grouped ? 'min-h-7' : 'min-h-8'
+            props.grouped ? 'min-h-7' : 'min-h-9'
           )}
         >
           {trigger}
@@ -122,7 +122,7 @@ export function ToolRow(props: {
           onClick={toggle}
           className={cn(
             'group/tool focus-visible:ring-ring/70 flex w-full cursor-pointer items-center rounded-md text-left select-none focus-visible:ring-2 focus-visible:outline-none',
-            props.grouped ? 'h-7' : 'h-8'
+            props.grouped ? 'h-7' : 'h-9'
           )}
         >
           {trigger}

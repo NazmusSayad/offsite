@@ -2,7 +2,8 @@ import type { PushSubscriptionInfo } from '@offsite/core/protocol'
 import { call } from '@/api/connection'
 import { home, machineKey } from '@/api/machines'
 import { providerNames } from './format'
-import { getState, homeMachine, openSession } from './store'
+import { openSession } from './sessions'
+import { getState, homeMachine } from './store'
 
 const storageKey = 'notifications'
 
