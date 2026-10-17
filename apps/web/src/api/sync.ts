@@ -98,8 +98,7 @@ export function start() {
 function attach() {
   try {
     const pairing = pairingFromUrl()
-    if (pairing !== null)
-      addMachine(pairing.address, pairing.fallback, pairing.token)
+    if (pairing !== null) addMachine(pairing.address, pairing.token)
   } catch (error) {
     showError(error)
   }

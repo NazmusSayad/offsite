@@ -42,14 +42,10 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 
 const address = `http://${args.host}:${port}`
 
-const fallback =
-  args.fallback === undefined ? null : readFallback(args.fallback)
-
 if (args.command === 'pair') {
   const links = pairingLinks(addToken(args.name))
   console.log('Open this link in the browser to pair:')
   console.log(`  ${links.local}`)
-  if (fallback !== null) console.log(`Fallback: ${fallback}`)
   process.exit(0)
 }
 
@@ -168,21 +164,6 @@ async function unpair() {
   console.log(
     `Unpaired ${picked.length} ${picked.length === 1 ? 'browser' : 'browsers'}; a running offsite disconnects them within seconds`
   )
-}
-
-function readFallback(link: string) {
-  let url: URL
-  try {
-    url = new URL(link)
-  } catch {
-    console.error(`invalid fallback URL ${link}`)
-    process.exit(1)
-  }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    console.error(`the fallback URL ${link} needs http:// or https://`)
-    process.exit(1)
-  }
-  return url.origin
 }
 
 function pairingLinks(token: string | null) {

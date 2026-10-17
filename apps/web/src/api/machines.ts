@@ -54,17 +54,14 @@ export function pairingFromUrl() {
   history.replaceState(null, '', '/')
   const machine = params.get('machine')
   if (machine === null) throw new Error('the pairing link has no machine')
-  const fallback = params.get('fallback')
   return {
     address: readMachineLink(machine).address,
-    fallback: fallback === null ? null : readMachineLink(fallback).address,
     token: params.get('token'),
   }
 }
 
 export function readMachineLink(link: string): {
   address: string
-  fallback: string | null
   token: string | null
 } {
   const trimmed = link.trim()
@@ -75,10 +72,8 @@ export function readMachineLink(link: string): {
     throw new Error('Use an http:// or https:// address')
   const params = new URLSearchParams(url.hash.slice(1))
   const machine = params.get('machine')
-  const fallback = params.get('fallback')
   return {
     address: machine === null ? url.origin : readMachineLink(machine).address,
-    fallback: fallback === null ? null : readMachineLink(fallback).address,
     token: params.get('token'),
   }
 }
@@ -154,14 +149,9 @@ export function receiveMachines() {
   }
 }
 
-export function addMachine(
-  address: string,
-  fallback: string | null,
-  token: string | null
-) {
-  const addresses = fallback === null ? [address] : [address, fallback]
+export function addMachine(address: string, token: string | null) {
   const existing = getState().machines.find((item) =>
-    addresses.some((known) => item.addresses.includes(known))
+    item.addresses.includes(address)
   )
   if (existing !== undefined) {
     if (token !== null) editMachine(existing.id, { token })
@@ -175,7 +165,7 @@ export function addMachine(
       ...getState().machines,
       restoreMachine({
         id,
-        addresses,
+        addresses: [address],
         name: new URL(address).hostname,
         label: null,
         icon: 'computer',
@@ -186,7 +176,7 @@ export function addMachine(
     ],
   })
   persistMachines()
-  connectMachine(id, addresses, token)
+  connectMachine(id, [address], token)
   return id
 }
 
