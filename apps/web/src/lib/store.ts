@@ -21,6 +21,7 @@ import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
 import { call, type Refusal } from '@/api/connection'
 import { updateConfig } from '@/api/machine-config'
 import { machineKey } from '@/api/machines'
+import type { MachineIcon } from '@/components/icons'
 import {
   deleteDraft,
   getDraftSettings,
@@ -47,8 +48,14 @@ export type SettingsPage =
 
 export type Machine = {
   origin: string
+  url: string
+  fallback: string | null
+  via: string | null
   status: 'connecting' | 'online' | 'offline' | Refusal
   name: string
+  hostname: string
+  label: string | null
+  icon: MachineIcon
   token: string | null
   config: Config | null
   configError: string | null

@@ -16,6 +16,10 @@ const program = new Command('offsite')
   )
   .option('--no-auth', 'Accept connections without the pairing token')
   .option('--no-pair', "Don't create a pairing token or print pairing links")
+  .option(
+    '--fallback <url>',
+    'Address to try when this one is unreachable, e.g. a Cloudflare tunnel'
+  )
 
 program
   .command('web', { isDefault: true })

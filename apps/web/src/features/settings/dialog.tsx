@@ -3,6 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { schemes } from '@offsite/core/schemes'
 import { useState } from 'react'
 import { updateConfig } from '@/api/machine-config'
+import { machineIcons } from '@/components/icons'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -158,6 +159,7 @@ export function SettingsDialog() {
                     <SelectContent>
                       {machines.map((item) => (
                         <SelectItem key={item.origin} value={item.origin}>
+                          <HugeiconsIcon icon={machineIcons[item.icon]} />
                           {item.name}
                         </SelectItem>
                       ))}

@@ -3,6 +3,7 @@ import { createServer, type ServerResponse } from 'node:http'
 import path from 'node:path'
 import { HOSTED_APP, PROTOCOL } from '@offsite/core/protocol'
 import { consola } from 'consola'
+import { renderUnicodeCompact } from 'uqr'
 import { type WebSocket, WebSocketServer } from 'ws'
 import { connectClient } from './api/socket.ts'
 import { args } from './args.ts'
@@ -44,11 +45,19 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 
 const address = `http://${args.host}:${port}`
 
+const fallback =
+  args.fallback === undefined ? null : readFallback(args.fallback)
+
 if (args.command === 'pair') {
   const links = pairingLinks(addToken(args.name))
-  console.log('Open one of these links in the browser to pair:')
-  console.log(`  ${links.local}`)
+  console.log(`Scan this to pair a phone with ${HOSTED_APP}:`)
+  console.log('')
+  console.log(renderUnicodeCompact(links.hosted, { border: 2 }))
+  console.log('')
+  console.log('Or open one of these links in the browser to pair:')
   console.log(`  ${links.hosted}`)
+  console.log(`  ${links.local}`)
+  if (fallback !== null) console.log(`Fallback: ${fallback}`)
   process.exit(0)
 }
 
@@ -190,9 +199,25 @@ async function unpair() {
   )
 }
 
+function readFallback(link: string) {
+  let url: URL
+  try {
+    url = new URL(link)
+  } catch {
+    console.error(`invalid fallback URL ${link}`)
+    process.exit(1)
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    console.error(`the fallback URL ${link} needs http:// or https://`)
+    process.exit(1)
+  }
+  return url.origin
+}
+
 function pairingLinks(token: string | null) {
   const hosted = new URLSearchParams({
     machine: address,
+    ...(fallback !== null && { fallback }),
     ...(token !== null && { token }),
   })
   return {

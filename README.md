@@ -12,21 +12,22 @@ npx offsite
 
 Then open the pairing link it prints. It pairs this browser with the server, so only browsers that opened the link can use it.
 
-| Command          | What it does                                                                       |
-| ---------------- | ---------------------------------------------------------------------------------- |
-| `offsite`        | Starts the server and the web app                                                  |
-| `offsite web`    | Same as `offsite`                                                                  |
-| `offsite serve`  | Starts only the server, use it from [offsite.sayad.dev](https://offsite.sayad.dev) |
-| `offsite pair`   | Makes a pairing token for another browser and prints its links. `--name` labels it |
-| `offsite unpair` | Lists paired browsers so you can pick which to unpair                              |
+| Command          | What it does                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------------ |
+| `offsite`        | Starts the server and the web app                                                                |
+| `offsite web`    | Same as `offsite`                                                                                |
+| `offsite serve`  | Starts only the server, use it from [offsite.sayad.dev](https://offsite.sayad.dev)               |
+| `offsite pair`   | Makes a pairing token for another browser and prints its links and a QR code. `--name` labels it |
+| `offsite unpair` | Lists paired browsers so you can pick which to unpair                                            |
 
-| Flag        | Default      | What it sets                                                 |
-| ----------- | ------------ | ------------------------------------------------------------ |
-| `--host`    | `127.0.0.1`  | Address to listen on                                         |
-| `--port`    | `47841`      | Port to listen on                                            |
-| `--dir`     | `~/.offsite` | Folder for settings and accounts                             |
-| `--no-auth` | auth on      | Accept connections without the pairing token                 |
-| `--no-pair` | pair on      | Don't create a pairing token or print pairing links on start |
+| Flag         | Default      | What it sets                                                                             |
+| ------------ | ------------ | ---------------------------------------------------------------------------------------- |
+| `--host`     | `127.0.0.1`  | Address to listen on                                                                     |
+| `--port`     | `47841`      | Port to listen on                                                                        |
+| `--dir`      | `~/.offsite` | Folder for settings and accounts                                                         |
+| `--no-auth`  | auth on      | Accept connections without the pairing token                                             |
+| `--no-pair`  | pair on      | Don't create a pairing token or print pairing links on start                             |
+| `--fallback` | none         | Address the pairing links add for when this one is unreachable, e.g. a Cloudflare tunnel |
 
 Pairing tokens stay in `tokens.json` inside `--dir`. A running offsite disconnects an unpaired browser within seconds.
 

@@ -12,7 +12,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { machineKey } from '@/api/machines'
-import { ProjectIcon } from '@/components/icons'
+import { machineIcons, ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,6 +134,17 @@ export function Sidebar(props: {
     if (machine.status === 'unauthorized')
       return `${machine.name} · needs pairing`
     return `${machine.name} · offline`
+  }
+
+  function machineIcon(origin: string) {
+    const machine = machines.find((item) => item.origin === origin)
+    if (machine === undefined) return null
+    return (
+      <HugeiconsIcon
+        icon={machineIcons[machine.icon]}
+        className="mr-1 inline size-3 align-[-2px]"
+      />
+    )
   }
 
   function select(machine: string, cwd: string, sessionId: string | null) {
@@ -315,6 +326,7 @@ export function Sidebar(props: {
                         {project.name}
                         {machines.length > 1 && (
                           <span className="text-muted-foreground ml-1.5 text-xs">
+                            {machineIcon(project.machine)}
                             {machineLabel(project.machine)}
                           </span>
                         )}

@@ -11,7 +11,7 @@ import {
 } from '@offsite/core/protocol'
 
 type Listener = {
-  open?: (machine: string) => void
+  open?: (machine: string, url: string) => void
   close?: (machine: string) => void
   refuse?: (machine: string, reason: Refusal) => void
   event?: (machine: string, event: ServerEvent) => void
@@ -22,6 +22,8 @@ type Listener = {
 export type Refusal = 'outdated' | 'newer' | 'unauthorized'
 
 type Connection = {
+  urls: string[]
+  url: string
   token: string | null
   socket: WebSocket | null
   connected: boolean
@@ -36,6 +38,7 @@ type Connection = {
 const RECONNECT_DELAY = 1000
 const PING_INTERVAL = 30_000
 const PING_TIMEOUT = 3000
+const CHECK_TIMEOUT = 3000
 
 const listeners = new Set<Listener>()
 const connections = new Map<string, Connection>()
@@ -51,9 +54,15 @@ export function startConnections() {
   })
 }
 
-export function connectMachine(machine: string, token: string | null) {
+export function connectMachine(
+  machine: string,
+  urls: string[],
+  token: string | null
+) {
   if (connections.has(machine)) return
   const connection: Connection = {
+    urls,
+    url: urls[0],
     token,
     socket: null,
     connected: false,
@@ -62,7 +71,7 @@ export function connectMachine(machine: string, token: string | null) {
     pending: new Map(),
   }
   connections.set(machine, connection)
-  void openSocket(machine, connection)
+  void openSocket(machine, connection, 0)
 }
 
 export function disconnectMachine(machine: string) {
@@ -97,7 +106,9 @@ export function call<M extends Method>(
     !connection.connected
   )
     return Promise.reject(
-      new Error(`Not connected to ${machineHost(machine)}; reconnecting`)
+      new Error(
+        `Not connected to ${new URL(connection?.url ?? machine).host}; reconnecting`
+      )
     )
   nextId += 1
   const id = nextId
@@ -135,49 +146,57 @@ export async function checkConnection(machine: string) {
   return await connection.ping
 }
 
-function machineHost(machine: string) {
-  return new URL(machine).host
-}
-
-async function openSocket(machine: string, connection: Connection) {
+async function openSocket(
+  machine: string,
+  connection: Connection,
+  attempt: number
+) {
+  const url = connection.urls[attempt % connection.urls.length]
+  connection.url = url
   const params = new URLSearchParams({
     protocol: String(PROTOCOL),
     ...(connection.token !== null && { token: connection.token }),
   })
-  const refusal = await checkServer(machine, params)
+  const refusal = await checkServer(url, params)
   if (connections.get(machine) !== connection) return
   if (refusal !== null) {
+    const lastUrl = (attempt + 1) % connection.urls.length === 0
+    if (!lastUrl) {
+      void openSocket(machine, connection, attempt + 1)
+      return
+    }
     if (refusal === 'offline')
       for (const listener of listeners) listener.close?.(machine)
     else for (const listener of listeners) listener.refuse?.(machine, refusal)
     if (refusal !== 'unauthorized')
       connection.timer = window.setTimeout(
-        () => void openSocket(machine, connection),
+        () => void openSocket(machine, connection, attempt + 1),
         RECONNECT_DELAY
       )
     return
   }
-  const next = new WebSocket(`${machine.replace(/^http/, 'ws')}/ws?${params}`)
+  const next = new WebSocket(`${url.replace(/^http/, 'ws')}/ws?${params}`)
   next.binaryType = 'arraybuffer'
   next.onopen = () => {
     connection.connected = true
-    for (const listener of listeners) listener.open?.(machine)
+    for (const listener of listeners) listener.open?.(machine, url)
   }
   next.onmessage = (event) => receive(machine, connection, event.data)
   next.onclose = () => {
     disconnect(machine, connection)
     connection.timer = window.setTimeout(
-      () => void openSocket(machine, connection),
+      () => void openSocket(machine, connection, 0),
       RECONNECT_DELAY
     )
   }
   connection.socket = next
 }
 
-async function checkServer(machine: string, params: URLSearchParams) {
+async function checkServer(url: string, params: URLSearchParams) {
+  const signal = AbortSignal.timeout(CHECK_TIMEOUT)
   let response: Response
   try {
-    response = await fetch(`${machine}/version?${params}`)
+    response = await fetch(`${url}/version?${params}`, { signal })
   } catch {
     return 'offline'
   }
@@ -192,7 +211,9 @@ async function checkServer(machine: string, params: URLSearchParams) {
 
 function disconnect(machine: string, connection: Connection) {
   for (const waiter of connection.pending.values())
-    waiter.reject(new Error(`Disconnected from ${machineHost(machine)}`))
+    waiter.reject(
+      new Error(`Disconnected from ${new URL(connection.url).host}`)
+    )
   connection.pending.clear()
   connection.connected = false
   for (const listener of listeners) listener.close?.(machine)
@@ -215,7 +236,7 @@ async function pingServer(machine: string, connection: Connection) {
   current.close()
   disconnect(machine, connection)
   if (connections.get(machine) === connection)
-    void openSocket(machine, connection)
+    void openSocket(machine, connection, 0)
   return false
 }
 
