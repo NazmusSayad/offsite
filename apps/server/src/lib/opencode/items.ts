@@ -315,9 +315,7 @@ function toolItems(base: Base, tool: SessionMessageAssistantTool): Item[] {
       ]
     }
     case 'skill':
-      return [
-        { ...base, kind: 'skill', skill: text(input.id), output, status },
-      ]
+      return [{ ...base, kind: 'skill', skill: text(input.id), output, status }]
   }
   return [{ ...base, kind: 'tool', name: tool.name, input, output, status }]
 }
