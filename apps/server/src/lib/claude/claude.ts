@@ -10,7 +10,11 @@ import {
   type SDKRateLimitInfo,
   type SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk'
-import type { Account, Capabilities, RateLimit } from '@offsite/core/protocol'
+import type {
+  Account,
+  ProviderCapabilities,
+  RateLimit,
+} from '@offsite/core/protocol'
 import { type StoredAccount, storedAccount } from '../../services/accounts.ts'
 import { readConfig } from '../../storage/config.ts'
 import { broadcast } from '../hub.ts'
@@ -107,7 +111,7 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
 export async function claudeCapabilities(
   account: StoredAccount,
   cwd: string
-): Promise<Capabilities> {
+): Promise<ProviderCapabilities> {
   const result = await initialization(account.id, cwd)
   return {
     models: result.models.map((model) => ({

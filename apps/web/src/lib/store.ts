@@ -508,11 +508,19 @@ export async function refreshCapabilities() {
       projectId: selection.projectId,
     })
     if (
-      getState().selection?.machine === selection.machine &&
-      getState().selection?.projectId === selection.projectId &&
-      getState().settings.accountId === accountId
+      getState().selection?.machine !== selection.machine ||
+      getState().selection?.projectId !== selection.projectId ||
+      getState().settings.accountId !== accountId
     )
-      update({ capabilities })
+      return
+    update({ capabilities })
+    if (getState().settings.model !== null) return
+    const first = capabilities.models.find((item) => !item.hidden)
+    if (first === undefined) return
+    changeSettings({
+      model: first.value,
+      ...(first.effort === null ? {} : { effort: first.effort }),
+    })
   } catch (error) {
     showError(error)
   }

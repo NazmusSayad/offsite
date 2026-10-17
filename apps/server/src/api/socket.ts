@@ -212,7 +212,8 @@ const handlers: Handlers = {
       params.id,
       params.name,
       params.configDir,
-      params.enabled
+      params.enabled,
+      params.hiddenModels
     )
     void publishAccounts()
     return null

@@ -1,6 +1,6 @@
 import type {
   Account,
-  Capabilities,
+  ProviderCapabilities,
   Context,
   Item,
   Rewind,
@@ -28,6 +28,7 @@ export function openCodeAccount(): Account {
     name: 'OpenCode',
     configDir: '',
     enabled: true,
+    hiddenModels: {},
     email: null,
     plan: null,
     error: null,
@@ -41,7 +42,9 @@ export function openCodeInstalled() {
   return findOpenCode() !== null
 }
 
-export async function openCodeCapabilities(cwd: string): Promise<Capabilities> {
+export async function openCodeCapabilities(
+  cwd: string
+): Promise<ProviderCapabilities> {
   const client = await openCode()
   const location = { directory: cwd }
   const [models, commands, skills, agents] = await Promise.all([

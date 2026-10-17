@@ -36,6 +36,7 @@ export const defaults: Config = {
     },
   },
   commitMessage: { accountId: null, model: null },
+  models: { claude: {}, codex: {}, opencode: {} },
   terminal: {
     shell: { macos: null, linux: null, windows: null },
     behavior: { terminalIdentity: 'offsite', shellIntegration: true },
@@ -157,6 +158,8 @@ function invalid(
   keys: string[]
 ): string | null {
   const name = keys.join('.')
+  if (keys.length === 2 && keys[0] === 'models')
+    return invalidModels(name, value)
   if (isObject(template)) {
     if (!isObject(value)) return `${name || 'config'} must be an object`
     for (const key of Object.keys(value))
@@ -184,6 +187,20 @@ function invalid(
   }
   if (typeof value !== typeof template)
     return `${name} must be a ${typeof template}`
+  return null
+}
+
+function invalidModels(name: string, value: unknown) {
+  if (!isObject(value)) return `${name} must be an object`
+  for (const [model, setting] of Object.entries(value)) {
+    if (
+      !isObject(setting) ||
+      Object.keys(setting).length !== 2 ||
+      typeof setting.hidden !== 'boolean' ||
+      (setting.effort !== null && typeof setting.effort !== 'string')
+    )
+      return `${name}.${model} must be { hidden: boolean, effort: text or null }`
+  }
   return null
 }
 

@@ -4,16 +4,29 @@ import {
   PencilEdit02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Account, Config, Provider } from '@offsite/core/protocol'
-import { type ReactNode, useState } from 'react'
+import type {
+  Account,
+  Config,
+  Model,
+  ModelSetting,
+  Provider,
+} from '@offsite/core/protocol'
+import { type ReactNode, useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { updateConfig } from '@/api/machine-config'
 import { ProviderIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { providerNames } from '@/lib/format'
 import { cn, errorMessage } from '@/lib/utils'
+import { AccountDialog } from './account-dialog'
 import { Row, TextInput } from './controls'
 
 export function AccountsPage(props: {
@@ -23,19 +36,13 @@ export function AccountsPage(props: {
 }) {
   const config = props.config
 
-  function setEnabled(provider: Provider, enabled: boolean) {
-    void updateConfig(props.machine, {
-      ...config,
-      enabledProviders: { ...config.enabledProviders, [provider]: enabled },
-    })
-  }
-
   return (
     <>
       <ProviderSection
+        machine={props.machine}
+        config={config}
         provider="claude"
-        enabled={config.enabledProviders.claude}
-        onEnabledChange={(enabled) => setEnabled('claude', enabled)}
+        accounts={props.accounts}
       >
         <Row label="Base directory">
           <TextInput
@@ -51,28 +58,32 @@ export function AccountsPage(props: {
         <ProviderAccounts
           machine={props.machine}
           provider="claude"
+          settings={config.models.claude}
           accounts={props.accounts.filter(
             (account) => account.provider === 'claude'
           )}
         />
       </ProviderSection>
       <ProviderSection
+        machine={props.machine}
+        config={config}
         provider="codex"
-        enabled={config.enabledProviders.codex}
-        onEnabledChange={(enabled) => setEnabled('codex', enabled)}
+        accounts={props.accounts}
       >
         <ProviderAccounts
           machine={props.machine}
           provider="codex"
+          settings={config.models.codex}
           accounts={props.accounts.filter(
             (account) => account.provider === 'codex'
           )}
         />
       </ProviderSection>
       <ProviderSection
+        machine={props.machine}
+        config={config}
         provider="opencode"
-        enabled={config.enabledProviders.opencode}
-        onEnabledChange={(enabled) => setEnabled('opencode', enabled)}
+        accounts={props.accounts}
       >
         <p className="text-muted-foreground px-4 py-3 text-xs">
           Sign in with <code className="font-mono">opencode auth login</code>
@@ -83,11 +94,17 @@ export function AccountsPage(props: {
 }
 
 function ProviderSection(props: {
+  machine: string
+  config: Config
   provider: Provider
-  enabled: boolean
-  onEnabledChange: (enabled: boolean) => void
+  accounts: Account[]
   children: ReactNode
 }) {
+  const enabled = props.config.enabledProviders[props.provider]
+  const account = props.accounts.find(
+    (item) => item.provider === props.provider && item.valid
+  )
+
   return (
     <section>
       <h2 className="mb-2.5 flex items-center gap-2.5 px-1 text-sm font-semibold">
@@ -104,34 +121,155 @@ function ProviderSection(props: {
         {providerNames[props.provider]}
         <Switch
           className="ml-auto"
-          checked={props.enabled}
-          onCheckedChange={props.onEnabledChange}
+          checked={enabled}
+          onCheckedChange={(checked) =>
+            void updateConfig(props.machine, {
+              ...props.config,
+              enabledProviders: {
+                ...props.config.enabledProviders,
+                [props.provider]: checked,
+              },
+            })
+          }
           aria-label={`Enable ${providerNames[props.provider]}`}
         />
       </h2>
       <div
-        className={cn(
-          'divide-y overflow-hidden rounded-xl border transition-opacity',
-          !props.enabled && 'opacity-50'
-        )}
+        className={cn('space-y-3 transition-opacity', !enabled && 'opacity-50')}
       >
-        {props.children}
+        <div className="divide-y overflow-hidden rounded-xl border">
+          {props.children}
+        </div>
+        {enabled && account !== undefined && (
+          <ProviderModels
+            machine={props.machine}
+            config={props.config}
+            provider={props.provider}
+            accountId={account.id}
+          />
+        )}
       </div>
     </section>
+  )
+}
+
+function ProviderModels(props: {
+  machine: string
+  config: Config
+  provider: Provider
+  accountId: string
+}) {
+  const [models, setModels] = useState<Model[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const settings = props.config.models[props.provider]
+
+  useEffect(() => {
+    let current = true
+    setModels(null)
+    setError(null)
+    call(props.machine, 'capabilities', {
+      accountId: props.accountId,
+      projectId: null,
+    }).then(
+      (capabilities) => {
+        if (current) setModels(capabilities.models)
+      },
+      (caught: unknown) => {
+        if (current) setError(errorMessage(caught))
+      }
+    )
+    return () => {
+      current = false
+    }
+  }, [props.machine, props.accountId])
+
+  function save(value: string, setting: ModelSetting) {
+    void updateConfig(props.machine, {
+      ...props.config,
+      models: {
+        ...props.config.models,
+        [props.provider]: { ...settings, [value]: setting },
+      },
+    })
+  }
+
+  return (
+    <div className="divide-y overflow-hidden rounded-xl border">
+      <div className="text-muted-foreground px-4 py-2 text-xs font-medium">
+        Models
+      </div>
+      {error !== null && (
+        <p className="text-destructive px-4 py-3 text-xs">{error}</p>
+      )}
+      {error === null && models === null && (
+        <p className="text-muted-foreground px-4 py-3 text-xs">Loading…</p>
+      )}
+      {(models ?? []).map((model) => {
+        const setting = settings[model.value] ?? {
+          hidden: model.deprecated,
+          effort: model.effort,
+        }
+        return (
+          <div
+            key={model.value}
+            className="flex min-h-11 items-center gap-3 px-4 py-1.5"
+          >
+            <div
+              className={cn(
+                'min-w-0 flex-1 truncate text-sm',
+                setting.hidden && 'text-muted-foreground'
+              )}
+            >
+              {model.name}
+              {props.provider === 'opencode' && (
+                <span className="text-muted-foreground ml-2 text-xs">
+                  {model.description}
+                </span>
+              )}
+            </div>
+            {model.efforts.length > 0 && (
+              <Select
+                value={setting.effort ?? undefined}
+                onValueChange={(effort) =>
+                  save(model.value, { ...setting, effort })
+                }
+              >
+                <SelectTrigger size="sm" className="w-28">
+                  <SelectValue placeholder="Effort" />
+                </SelectTrigger>
+                <SelectContent>
+                  {model.efforts.map((effort) => (
+                    <SelectItem key={effort} value={effort}>
+                      {effort.charAt(0).toUpperCase() + effort.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Switch
+              size="sm"
+              checked={!setting.hidden}
+              onCheckedChange={(shown) =>
+                save(model.value, { ...setting, hidden: !shown })
+              }
+              aria-label={`Show ${model.name}`}
+            />
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
 function ProviderAccounts(props: {
   machine: string
   provider: 'claude' | 'codex'
+  settings: Record<string, ModelSetting>
   accounts: Account[]
 }) {
-  const [form, setForm] = useState<{
-    id: string | null
-    name: string
-    configDir: string
-    enabled: boolean
-  } | null>(null)
+  const [editing, setEditing] = useState<{ account: Account | null } | null>(
+    null
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -140,174 +278,113 @@ function ProviderAccounts(props: {
     setError(null)
     try {
       await action()
-      return true
     } catch (caught) {
       setError(errorMessage(caught))
-      return false
     } finally {
       setBusy(false)
     }
   }
 
-  const formElement = form !== null && (
-    <form
-      className="flex items-center gap-2 px-4 py-3"
-      onSubmit={async (event) => {
-        event.preventDefault()
-        const saved = await run(() =>
-          form.id === null
-            ? call(props.machine, 'accounts.add', {
-                provider: props.provider,
-                name: form.name,
-                configDir: form.configDir,
-              })
-            : call(props.machine, 'accounts.update', {
-                id: form.id,
-                name: form.name,
-                configDir: form.configDir,
-                enabled: form.enabled,
-              })
-        )
-        if (saved) setForm(null)
-      }}
-    >
-      <Input
-        className="w-40"
-        value={form.name}
-        onChange={(event) => setForm({ ...form, name: event.target.value })}
-        placeholder="Name"
-      />
-      <Input
-        className="min-w-0 flex-1 font-mono"
-        value={form.configDir}
-        onChange={(event) =>
-          setForm({ ...form, configDir: event.target.value })
-        }
-        placeholder={
-          props.provider === 'claude' ? '~/.claude-work' : '~/.codex-work'
-        }
-      />
-      <Button type="button" variant="ghost" onClick={() => setForm(null)}>
-        Cancel
-      </Button>
-      <Button
-        type="submit"
-        disabled={
-          busy || form.name.trim() === '' || form.configDir.trim() === ''
-        }
-      >
-        {form.id === null ? 'Add' : 'Save'}
-      </Button>
-    </form>
-  )
-
   return (
     <>
-      {props.accounts.map((account) =>
-        form?.id === account.id ? (
-          <div key={account.id}>{formElement}</div>
-        ) : (
-          <div key={account.id} className="flex items-center gap-3 px-4 py-3">
-            <span
-              className={cn(
-                'size-2 shrink-0 rounded-full',
-                !account.enabled && 'bg-muted-foreground/40',
-                account.enabled && account.error !== null && 'bg-destructive',
-                account.enabled &&
-                  account.error === null &&
-                  !account.linked &&
-                  'bg-warning',
-                account.enabled &&
-                  account.error === null &&
-                  account.linked &&
-                  'bg-success'
-              )}
-            />
+      {props.accounts.map((account) => (
+        <div key={account.id} className="flex items-center gap-3 px-4 py-3">
+          <span
+            className={cn(
+              'size-2 shrink-0 rounded-full',
+              !account.enabled && 'bg-muted-foreground/40',
+              account.enabled && account.error !== null && 'bg-destructive',
+              account.enabled &&
+                account.error === null &&
+                !account.linked &&
+                'bg-warning',
+              account.enabled &&
+                account.error === null &&
+                account.linked &&
+                'bg-success'
+            )}
+          />
+          <div
+            className={cn('min-w-0 flex-1', !account.enabled && 'opacity-50')}
+          >
+            <div className="text-sm font-medium">{account.name}</div>
             <div
-              className={cn('min-w-0 flex-1', !account.enabled && 'opacity-50')}
+              className={cn(
+                'truncate text-xs',
+                account.error !== null && 'text-destructive',
+                account.error === null && !account.linked && 'text-warning',
+                account.error === null &&
+                  account.linked &&
+                  'text-muted-foreground'
+              )}
             >
-              <div className="text-sm font-medium">{account.name}</div>
-              <div
-                className={cn(
-                  'truncate text-xs',
-                  account.error !== null && 'text-destructive',
-                  account.error === null && !account.linked && 'text-warning',
-                  account.error === null &&
-                    account.linked &&
-                    'text-muted-foreground'
-                )}
-              >
-                {account.error ??
-                  (account.linked
-                    ? [account.email, account.plan, account.configDir]
-                        .filter((part) => part !== null)
-                        .join(' · ')
-                    : 'Not linked to shared threads · hidden in the composer')}
-              </div>
+              {account.error ??
+                (account.linked
+                  ? [account.email, account.plan, account.configDir]
+                      .filter((part) => part !== null)
+                      .join(' · ')
+                  : 'Not linked to shared threads · hidden in the composer')}
             </div>
-            <Switch
-              size="sm"
-              checked={account.enabled}
-              disabled={busy}
-              onCheckedChange={(enabled) =>
-                void run(() =>
-                  call(props.machine, 'accounts.update', {
-                    id: account.id,
-                    name: account.name,
-                    configDir: account.configDir,
-                    enabled,
-                  })
-                )
-              }
-              aria-label={`Enable ${account.name}`}
-            />
-            <Button
-              size="icon-sm"
-              variant="ghost-muted"
-              title="Edit account"
-              onClick={() =>
-                setForm({
+          </div>
+          <Switch
+            size="sm"
+            checked={account.enabled}
+            disabled={busy}
+            onCheckedChange={(enabled) =>
+              void run(() =>
+                call(props.machine, 'accounts.update', {
                   id: account.id,
                   name: account.name,
                   configDir: account.configDir,
-                  enabled: account.enabled,
+                  enabled,
+                  hiddenModels: account.hiddenModels,
                 })
-              }
-            >
-              <HugeiconsIcon icon={PencilEdit02Icon} />
-            </Button>
-            <Button
-              size="icon-sm"
-              variant="ghost-muted"
-              title="Remove account"
-              disabled={busy}
-              onClick={() =>
-                void run(() =>
-                  call(props.machine, 'accounts.remove', { id: account.id })
-                )
-              }
-            >
-              <HugeiconsIcon icon={Delete02Icon} />
-            </Button>
-          </div>
-        )
-      )}
-      {form?.id === null ? (
-        formElement
-      ) : (
-        <button
-          type="button"
-          className="text-muted-foreground hover:bg-muted/50 hover:text-foreground flex w-full items-center gap-2 px-4 py-3 text-sm transition-colors"
-          onClick={() =>
-            setForm({ id: null, name: '', configDir: '', enabled: true })
-          }
-        >
-          <HugeiconsIcon icon={Add01Icon} className="size-4" />
-          Add account
-        </button>
-      )}
+              )
+            }
+            aria-label={`Enable ${account.name}`}
+          />
+          <Button
+            size="icon-sm"
+            variant="ghost-muted"
+            title="Edit account"
+            onClick={() => setEditing({ account })}
+          >
+            <HugeiconsIcon icon={PencilEdit02Icon} />
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost-muted"
+            title="Remove account"
+            disabled={busy}
+            onClick={() =>
+              void run(() =>
+                call(props.machine, 'accounts.remove', { id: account.id })
+              )
+            }
+          >
+            <HugeiconsIcon icon={Delete02Icon} />
+          </Button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="text-muted-foreground hover:bg-muted/50 hover:text-foreground flex w-full items-center gap-2 px-4 py-3 text-sm transition-colors"
+        onClick={() => setEditing({ account: null })}
+      >
+        <HugeiconsIcon icon={Add01Icon} className="size-4" />
+        Add account
+      </button>
       {error !== null && (
         <p className="text-destructive px-4 py-3 text-xs">{error}</p>
+      )}
+      {editing !== null && (
+        <AccountDialog
+          machine={props.machine}
+          provider={props.provider}
+          settings={props.settings}
+          account={editing.account}
+          onClose={() => setEditing(null)}
+        />
       )}
     </>
   )

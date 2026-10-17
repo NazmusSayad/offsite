@@ -68,6 +68,7 @@ export type Account = {
   name: string
   configDir: string
   enabled: boolean
+  hiddenModels: Record<string, boolean>
   email: string | null
   plan: string | null
   error: string | null
@@ -81,7 +82,12 @@ export type Model = {
   name: string
   description: string
   efforts: string[]
+  deprecated: boolean
+  hidden: boolean
+  effort: string | null
 }
+
+export type ModelSetting = { hidden: boolean; effort: string | null }
 
 export type Command = { name: string; description: string; hint: string }
 
@@ -91,6 +97,10 @@ export type Capabilities = {
   models: Model[]
   commands: Command[]
   agents: Agent[]
+}
+
+export type ProviderCapabilities = Omit<Capabilities, 'models'> & {
+  models: Omit<Model, 'deprecated' | 'hidden' | 'effort'>[]
 }
 
 export type ProviderSettings = {
@@ -147,6 +157,7 @@ export type Config = {
   enabledProviders: Record<Provider, boolean>
   composer: { provider: Provider } & Record<Provider, ProviderSettings>
   commitMessage: { accountId: string | null; model: string | null }
+  models: Record<Provider, Record<string, ModelSetting>>
   terminal: TerminalConfig
 }
 
@@ -406,7 +417,13 @@ export type Methods = {
     result: null
   }
   'accounts.update': {
-    params: { id: string; name: string; configDir: string; enabled: boolean }
+    params: {
+      id: string
+      name: string
+      configDir: string
+      enabled: boolean
+      hiddenModels: Record<string, boolean>
+    }
     result: null
   }
   'accounts.remove': { params: { id: string }; result: null }

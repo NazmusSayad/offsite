@@ -30,6 +30,19 @@ export type StoredAccount = {
   name: string
   configDir: string
   enabled: boolean
+  hiddenModels: Record<string, boolean>
+}
+
+const deprecatedModels: Record<Provider, string[]> = {
+  claude: [
+    'claude-haiku-4-5-20251001',
+    'claude-opus-4-8',
+    'claude-opus-4-7',
+    'claude-opus-4-6',
+    'claude-sonnet-4-6',
+  ],
+  codex: [],
+  opencode: [],
 }
 
 const providerNames: Record<Provider, string> = {
@@ -45,9 +58,16 @@ export function providerName(provider: Provider) {
 export function storedAccounts(): StoredAccount[] {
   const items =
     (readJson('accounts.json') as
-      | (Omit<StoredAccount, 'enabled'> & { enabled?: boolean })[]
+      | (Omit<StoredAccount, 'enabled' | 'hiddenModels'> & {
+          enabled?: boolean
+          hiddenModels?: Record<string, boolean>
+        })[]
       | null) ?? []
-  return items.map((item) => ({ ...item, enabled: item.enabled ?? true }))
+  return items.map((item) => ({
+    ...item,
+    enabled: item.enabled ?? true,
+    hiddenModels: item.hiddenModels ?? {},
+  }))
 }
 
 export function accountProvider(accountId: string): Provider {
@@ -138,17 +158,42 @@ export async function publishAccounts() {
   }
 }
 
-export function capabilities(
+export async function capabilities(
   accountId: string,
   cwd: string
 ): Promise<Capabilities> {
-  if (accountId === openCodeAccount().id) {
-    assertEnabled('opencode', accountId)
-    return openCodeCapabilities(cwd)
+  const provider = accountProvider(accountId)
+  assertEnabled(provider, accountId)
+  const result = await providerCapabilities(accountId, cwd)
+  const settings = readConfig().models[provider]
+  const overrides =
+    provider === 'opencode'
+      ? {}
+      : storedAccount(provider, accountId).hiddenModels
+  return {
+    ...result,
+    models: result.models
+      .filter((model) => !(provider === 'claude' && model.value === 'default'))
+      .map((model) => {
+        const deprecated = deprecatedModels[provider].includes(model.value)
+        const setting = settings[model.value] ?? {
+          hidden: deprecated,
+          effort: null,
+        }
+        return {
+          ...model,
+          deprecated,
+          hidden: overrides[model.value] ?? setting.hidden,
+          effort: setting.effort,
+        }
+      }),
   }
+}
+
+function providerCapabilities(accountId: string, cwd: string) {
+  if (accountId === openCodeAccount().id) return openCodeCapabilities(cwd)
   const account = storedAccounts().find((item) => item.id === accountId)
   if (account === undefined) throw new Error('That account was removed')
-  assertEnabled(account.provider, accountId)
   switch (account.provider) {
     case 'claude':
       return claudeCapabilities(account, cwd)
@@ -173,6 +218,7 @@ export function addAccount(
       provider,
       ...validAccount(name, configDir),
       enabled: true,
+      hiddenModels: {},
     },
   ])
 }
@@ -181,14 +227,15 @@ export async function updateAccount(
   id: string,
   name: string,
   configDir: string,
-  enabled: boolean
+  enabled: boolean,
+  hiddenModels: Record<string, boolean>
 ) {
   const before = storedAccounts().find((item) => item.id === id)
   if (before === undefined) throw new Error('That account was removed')
   const account = validAccount(name, configDir)
   saveAccounts(
     storedAccounts().map((item) =>
-      item.id === id ? { ...item, ...account, enabled } : item
+      item.id === id ? { ...item, ...account, enabled, hiddenModels } : item
     )
   )
   forgetClaude(id)
