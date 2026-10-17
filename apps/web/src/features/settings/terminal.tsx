@@ -222,9 +222,6 @@ export function TerminalMachinePage(props: {
                       finished
                     </li>
                   </ul>
-                  <div className="text-muted-foreground mt-1">
-                    Applies to new terminals
-                  </div>
                 </div>
               }
             >

@@ -23,8 +23,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { update } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
-import { AccountDialog } from './account-dialog'
+import { AccountPage, NewAccountPage } from './account-page'
 import { Row, Section, TextInput } from './controls'
 
 export function ProviderPage(props: {
@@ -32,6 +33,7 @@ export function ProviderPage(props: {
   config: Config
   provider: Provider
   accounts: Account[]
+  selected: string | null
 }) {
   const config = props.config
   const enabled = config.enabledProviders[props.provider]
@@ -39,6 +41,28 @@ export function ProviderPage(props: {
     (account) => account.provider === props.provider
   )
   const account = accounts.find((item) => item.valid)
+
+  if (props.selected === 'new') {
+    if (props.provider === 'opencode')
+      throw new Error('OpenCode accounts cannot be added')
+    return <NewAccountPage machine={props.machine} provider={props.provider} />
+  }
+  if (props.selected !== null) {
+    const selected = accounts.find((item) => item.id === props.selected)
+    if (selected === undefined)
+      return (
+        <p className="text-muted-foreground text-sm">
+          This account no longer exists.
+        </p>
+      )
+    return (
+      <AccountPage
+        machine={props.machine}
+        settings={config.models[props.provider]}
+        account={selected}
+      />
+    )
+  }
 
   return (
     <>
@@ -67,12 +91,7 @@ export function ProviderPage(props: {
       >
         {props.provider !== 'opencode' && (
           <Section title="Accounts">
-            <ProviderAccounts
-              machine={props.machine}
-              provider={props.provider}
-              settings={config.models[props.provider]}
-              accounts={accounts}
-            />
+            <ProviderAccounts machine={props.machine} accounts={accounts} />
           </Section>
         )}
         {enabled && account !== undefined && (
@@ -230,15 +249,7 @@ function ProviderModels(props: {
   )
 }
 
-function ProviderAccounts(props: {
-  machine: string
-  provider: 'claude' | 'codex'
-  settings: Record<string, ModelSetting>
-  accounts: Account[]
-}) {
-  const [editing, setEditing] = useState<{ account: Account | null } | null>(
-    null
-  )
+function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -317,7 +328,7 @@ function ProviderAccounts(props: {
             size="icon-sm"
             variant="ghost-muted"
             title="Edit account"
-            onClick={() => setEditing({ account })}
+            onClick={() => update({ settingsAccount: account.id })}
           >
             <HugeiconsIcon icon={PencilEdit02Icon} />
           </Button>
@@ -339,22 +350,13 @@ function ProviderAccounts(props: {
       <button
         type="button"
         className="text-muted-foreground hover:bg-muted/50 hover:text-foreground flex w-full items-center gap-2 px-4 py-3 text-sm transition-colors"
-        onClick={() => setEditing({ account: null })}
+        onClick={() => update({ settingsAccount: 'new' })}
       >
         <HugeiconsIcon icon={Add01Icon} className="size-4" />
         Add account
       </button>
       {error !== null && (
         <p className="text-destructive px-4 py-3 text-xs">{error}</p>
-      )}
-      {editing !== null && (
-        <AccountDialog
-          machine={props.machine}
-          provider={props.provider}
-          settings={props.settings}
-          account={editing.account}
-          onClose={() => setEditing(null)}
-        />
       )}
     </>
   )

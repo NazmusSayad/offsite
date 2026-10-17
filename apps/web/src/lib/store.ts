@@ -86,6 +86,7 @@ export type State = {
   paletteOpen: boolean
   settingsOpen: boolean
   settingsPage: SettingsPage
+  settingsAccount: string | null
   settingsMachine: string | null
   unseen: string[]
   selection: Selection | null
@@ -430,7 +431,10 @@ export function showSettings(settingsOpen: boolean) {
   update({
     settingsOpen,
     paletteOpen: false,
-    ...(settingsOpen && { settingsMachine: defaultMachine(getState()) }),
+    ...(settingsOpen && {
+      settingsMachine: defaultMachine(getState()),
+      settingsAccount: null,
+    }),
   })
 }
 
@@ -438,6 +442,7 @@ export function showSettingsPage(settingsPage: SettingsPage) {
   update({
     settingsOpen: true,
     settingsPage,
+    settingsAccount: null,
     paletteOpen: false,
     ...(!getState().settingsOpen && {
       settingsMachine: defaultMachine(getState()),

@@ -46,6 +46,7 @@ export function start() {
     paletteOpen: false,
     settingsOpen: false,
     settingsPage: 'General',
+    settingsAccount: null,
     settingsMachine: stored.at(0)?.id ?? null,
     unseen: [],
     selection,

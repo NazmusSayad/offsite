@@ -1,4 +1,4 @@
-import { Cancel01Icon } from '@hugeicons/core-free-icons'
+import { ArrowRight01Icon, Cancel01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { schemes } from '@offsite/core/schemes'
 import { useState } from 'react'
@@ -93,6 +93,14 @@ export function SettingsDialog() {
   const page = useStore((state) => state.settingsPage)
   const machinePage = machinePages.includes(page)
   const pageProvider = providerOf(page)
+  const settingsAccount = useStore((state) =>
+    pageProvider === null ? null : state.settingsAccount
+  )
+  const accountTitle =
+    settingsAccount === 'new'
+      ? 'New account'
+      : machine?.accounts.find((account) => account.id === settingsAccount)
+          ?.name
   const [confirming, setConfirming] = useState<'browser' | 'machine' | null>(
     null
   )
@@ -125,7 +133,9 @@ export function SettingsDialog() {
             {machine !== null && machines.length > 1 && (
               <Select
                 value={machine.id}
-                onValueChange={(settingsMachine) => update({ settingsMachine })}
+                onValueChange={(settingsMachine) =>
+                  update({ settingsMachine, settingsAccount: null })
+                }
               >
                 <SelectTrigger className="mb-1 w-40 sm:w-full">
                   <SelectValue />
@@ -177,25 +187,47 @@ export function SettingsDialog() {
         </nav>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-7">
           <div className="mb-5 flex h-9 items-center">
-            <h2 className="text-xl font-semibold tracking-tight">
-              {page === 'Machine' ? 'General' : page}
-            </h2>
-            {pageProvider !== null && machine !== null && config !== null && (
-              <Switch
-                className="ml-3"
-                checked={config.enabledProviders[pageProvider]}
-                onCheckedChange={(checked) =>
-                  void updateConfig(machine.id, {
-                    ...config,
-                    enabledProviders: {
-                      ...config.enabledProviders,
-                      [pageProvider]: checked,
-                    },
-                  })
-                }
-                aria-label={`Enable ${page}`}
-              />
+            {settingsAccount !== null && (
+              <>
+                <button
+                  className="text-muted-foreground hover:text-foreground text-xl font-semibold tracking-tight transition-colors"
+                  onClick={() => update({ settingsAccount: null })}
+                >
+                  {page}
+                </button>
+                <HugeiconsIcon
+                  icon={ArrowRight01Icon}
+                  className="text-muted-foreground mx-1.5 size-5"
+                />
+                <h2 className="truncate text-xl font-semibold tracking-tight">
+                  {accountTitle}
+                </h2>
+              </>
             )}
+            {settingsAccount === null && (
+              <h2 className="text-xl font-semibold tracking-tight">
+                {page === 'Machine' ? 'General' : page}
+              </h2>
+            )}
+            {pageProvider !== null &&
+              settingsAccount === null &&
+              machine !== null &&
+              config !== null && (
+                <Switch
+                  className="ml-3"
+                  checked={config.enabledProviders[pageProvider]}
+                  onCheckedChange={(checked) =>
+                    void updateConfig(machine.id, {
+                      ...config,
+                      enabledProviders: {
+                        ...config.enabledProviders,
+                        [pageProvider]: checked,
+                      },
+                    })
+                  }
+                  aria-label={`Enable ${page}`}
+                />
+              )}
             <DialogClose asChild>
               <Button
                 variant="ghost"
@@ -307,6 +339,7 @@ export function SettingsDialog() {
                 config={config}
                 provider="claude"
                 accounts={machine.accounts}
+                selected={settingsAccount}
               />
             )}
             {page === 'Codex' && machine !== null && config !== null && (
@@ -315,6 +348,7 @@ export function SettingsDialog() {
                 config={config}
                 provider="codex"
                 accounts={machine.accounts}
+                selected={settingsAccount}
               />
             )}
             {page === 'OpenCode' && machine !== null && config !== null && (
@@ -323,6 +357,7 @@ export function SettingsDialog() {
                 config={config}
                 provider="opencode"
                 accounts={machine.accounts}
+                selected={settingsAccount}
               />
             )}
             {page === 'Machines' && <MachinesPage />}
