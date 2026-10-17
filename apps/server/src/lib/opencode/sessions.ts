@@ -5,6 +5,7 @@ import type {
   Rewind,
   RewindResult,
   ServerEvent,
+  Settings,
 } from '@offsite/core/protocol'
 import type {
   OpenCodeClient,
@@ -68,7 +69,9 @@ export async function openCodeCapabilities(
 }
 
 export async function openCodeSessions(paths: string[]) {
-  if (paths.length === 0 || !openCodeInstalled()) {return []}
+  if (paths.length === 0 || !openCodeInstalled()) {
+    return []
+  }
   const client = await openCode()
   const lists = await Promise.all(
     paths.map(async (directory) => {
@@ -130,7 +133,9 @@ export async function forkOpenCode(sessionId: string, messageId: string) {
   const client = await openCode()
   const messages = await allMessages(client, sessionId)
   const index = messages.findIndex((message) => message.id === messageId)
-  if (index < 0) {throw new Error('Cannot fork the session at that point')}
+  if (index < 0) {
+    throw new Error('Cannot fork the session at that point')
+  }
   const next = messages.at(index + 1)
   const result = await client.session.fork({
     sessionID: sessionId,
@@ -140,8 +145,9 @@ export async function forkOpenCode(sessionId: string, messageId: string) {
 }
 
 export async function rewindOpenCode(request: Rewind): Promise<RewindResult> {
-  if (request.code && !request.conversation && !request.dryRun)
-    {throw new Error('OpenCode restores files only with the conversation')}
+  if (request.code && !request.conversation && !request.dryRun) {
+    throw new Error('OpenCode restores files only with the conversation')
+  }
   const client = await openCode()
   const sessionID = request.sessionId
   const staged = await client.session.revert.stage({
@@ -157,8 +163,11 @@ export async function rewindOpenCode(request: Rewind): Promise<RewindResult> {
         deletions: sumBy(files, (file) => file.deletions),
       }
     : null
-  if (request.dryRun) {await client.session.revert.clear({ sessionID })}
-  else {await client.session.revert.commit({ sessionID })}
+  if (request.dryRun) {
+    await client.session.revert.clear({ sessionID })
+  } else {
+    await client.session.revert.commit({ sessionID })
+  }
   return result
 }
 
@@ -182,14 +191,19 @@ export async function openCodeCommitMessage(
     )
     const messages = await allMessages(client, session.id)
     for (const message of messages.toReversed()) {
-      if (message.type === 'idle' && message.outcome === 'failed')
-        {throw new Error(message.error?.message ?? 'OpenCode failed')}
-      if (message.type !== 'assistant') {continue}
+      if (message.type === 'idle' && message.outcome === 'failed') {
+        throw new Error(message.error?.message ?? 'OpenCode failed')
+      }
+      if (message.type !== 'assistant') {
+        continue
+      }
       const text = message.content
         .flatMap((part) => (part.type === 'text' ? [part.text] : []))
         .join('')
         .trim()
-      if (text !== '') {return { message: text }}
+      if (text !== '') {
+        return { message: text }
+      }
     }
     throw new Error('OpenCode did not reply')
   } finally {
@@ -206,7 +220,9 @@ export async function contextOf(
   const last = messages.findLast(
     (message) => message.type === 'assistant' && message.tokens !== undefined
   )
-  if (last?.type !== 'assistant' || last.tokens === undefined) {return null}
+  if (last?.type !== 'assistant' || last.tokens === undefined) {
+    return null
+  }
   const tokens = last.tokens
   const models = await client.model.list({ location: { directory: cwd } })
   const model = models.data.find(
@@ -226,7 +242,9 @@ export async function contextOf(
 
 export function modelRef(value: string, effort: string | null) {
   const index = value.indexOf('/')
-  if (index < 0) {throw new Error(`${value} is not an OpenCode model`)}
+  if (index < 0) {
+    throw new Error(`${value} is not an OpenCode model`)
+  }
   return {
     providerID: value.slice(0, index),
     id: value.slice(index + 1),
@@ -252,4 +270,20 @@ async function allMessages(client: OpenCodeClient, sessionId: string) {
 function openCodeRun(sessionId: string) {
   const run = runs.get(sessionId)
   return run?.provider === 'opencode' ? run : undefined
+}
+
+export function sessionSettings(
+  session: SessionInfo,
+  settings: Settings
+): Settings {
+  const variant = session.model?.variant
+  return {
+    ...settings,
+    model:
+      session.model === undefined
+        ? null
+        : `${session.model.providerID}/${session.model.id}`,
+    effort: variant === undefined || variant === 'default' ? null : variant,
+    mode: session.agent ?? null,
+  }
 }

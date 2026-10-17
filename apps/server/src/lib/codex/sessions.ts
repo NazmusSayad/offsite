@@ -11,7 +11,9 @@ export function codexInstalled() {
 }
 
 export async function codexThreads(paths: string[]) {
-  if (paths.length === 0 || !codexInstalled()) {return []}
+  if (paths.length === 0 || !codexInstalled()) {
+    return []
+  }
   const server = appServer(codexBaseDir)
   const threads: Thread[] = []
   let cursor: string | null = null
@@ -110,12 +112,19 @@ export async function codexCommitMessage(
     notify: (method, params) => {
       if (method === 'item/completed') {
         const item = params.item as ThreadItem
-        if (item.type === 'agentMessage') {text = item.text}
+        if (item.type === 'agentMessage') {
+          text = item.text
+        }
       }
-      if (method !== 'turn/completed') {return}
+      if (method !== 'turn/completed') {
+        return
+      }
       const turn = params.turn as Turn
-      if (turn.status === 'completed') {reply.resolve(text.trim())}
-      else {reply.reject(new Error(turn.error?.message ?? 'Codex did not reply'))}
+      if (turn.status === 'completed') {
+        reply.resolve(text.trim())
+      } else {
+        reply.reject(new Error(turn.error?.message ?? 'Codex did not reply'))
+      }
     },
     request: (id, method) =>
       server.replyError(id, `offsite does not handle ${method}`),

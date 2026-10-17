@@ -28,20 +28,24 @@ export function notifierClient() {
 }
 
 export function notifierConnected() {
-  if (notifier === null || !clients.has(notifier.client)) {return false}
+  if (notifier === null || !clients.has(notifier.client)) {
+    return false
+  }
   return Date.now() - notifier.client.heardAt < SILENCE_LIMIT
 }
 
 export function claimNotifier(client: Client, endpoint: string | null) {
   notifier = { client, endpoint }
-  for (const item of clients)
-    {item.send({ type: 'notifier', active: item === client })}
+  for (const item of clients) {
+    item.send({ type: 'notifier', active: item === client })
+  }
 }
 
 export function subscribe(registration: PushRegistration, client: Client) {
   const endpoint = new URL(registration.subscription.endpoint)
-  if (endpoint.protocol !== 'https:')
-    {throw new Error('the endpoint must be an https URL')}
+  if (endpoint.protocol !== 'https:') {
+    throw new Error('the endpoint must be an https URL')
+  }
   const values = {
     endpoint: registration.subscription.endpoint,
     p256dh: registration.subscription.keys.p256dh,
@@ -55,8 +59,9 @@ export function subscribe(registration: PushRegistration, client: Client) {
     .values(values)
     .onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: values })
     .run()
-  if (notifier !== null && notifier.client === client)
-    {notifier.endpoint = registration.subscription.endpoint}
+  if (notifier !== null && notifier.client === client) {
+    notifier.endpoint = registration.subscription.endpoint
+  }
   console.log('a browser subscribed to push notifications')
 }
 
@@ -64,14 +69,17 @@ export function unsubscribe(endpoint: string) {
   db.delete(pushSubscriptions)
     .where(eq(pushSubscriptions.endpoint, endpoint))
     .run()
-  if (notifier !== null && notifier.endpoint === endpoint)
-    {notifier.endpoint = null}
+  if (notifier !== null && notifier.endpoint === endpoint) {
+    notifier.endpoint = null
+  }
   console.log('a browser unsubscribed from push notifications')
 }
 
 export async function sendPush(message: PushMessage) {
   const subscriptions = targets()
-  if (subscriptions.length === 0) {return false}
+  if (subscriptions.length === 0) {
+    return false
+  }
   const trimmed = {
     ...message,
     title: [...message.title].slice(0, TITLE_LIMIT).join(''),
@@ -115,7 +123,9 @@ export async function sendPush(message: PushMessage) {
       }
     })
   )
-  if (gone.length === 0) {return sent}
+  if (gone.length === 0) {
+    return sent
+  }
   db.delete(pushSubscriptions)
     .where(
       and(
@@ -128,7 +138,9 @@ export async function sendPush(message: PushMessage) {
 }
 
 function targets() {
-  if (notifier === null || notifier.endpoint === null) {return []}
+  if (notifier === null || notifier.endpoint === null) {
+    return []
+  }
   return db
     .select()
     .from(pushSubscriptions)

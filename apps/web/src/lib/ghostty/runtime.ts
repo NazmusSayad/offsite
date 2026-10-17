@@ -74,26 +74,32 @@ export class GhosttyRuntime {
   private constructor(instance: WebAssembly.Instance) {
     this.exports = instance.exports
     const memory = instance.exports.memory
-    if (!(memory instanceof WebAssembly.Memory))
-      {throw new Error('libghostty-vt did not export its memory')}
+    if (!(memory instanceof WebAssembly.Memory)) {
+      throw new Error('libghostty-vt did not export its memory')
+    }
     this.memory = memory
     this.memoryView = new DataView(memory.buffer)
     const pointer = this.call('ghostty_type_json')
     const bytes = new Uint8Array(memory.buffer)
     let end = pointer
-    while (end < bytes.length && bytes[end] !== 0) {end += 1}
+    while (end < bytes.length && bytes[end] !== 0) {
+      end += 1
+    }
     this.layouts = JSON.parse(decoder.decode(bytes.subarray(pointer, end)))
   }
 
   static async load() {
     const response = await fetch(ghosttyWasmUrl)
-    if (!response.ok)
-      {throw new Error(`could not load libghostty-vt (${response.status})`)}
+    if (!response.ok) {
+      throw new Error(`could not load libghostty-vt (${response.status})`)
+    }
     let memory: WebAssembly.Memory | null = null
     const result = await WebAssembly.instantiate(await response.arrayBuffer(), {
       env: {
         log: (pointer: number, length: number) => {
-          if (!memory) {return}
+          if (!memory) {
+            return
+          }
           console.debug(
             '[libghostty-vt]',
             decoder.decode(new Uint8Array(memory.buffer, pointer, length))
@@ -109,48 +115,58 @@ export class GhosttyRuntime {
 
   call(name: string, ...args: Array<number | bigint>) {
     const fn = this.exports[name]
-    if (typeof fn !== 'function')
-      {throw new Error(`libghostty-vt export is missing: ${name}`)}
+    if (typeof fn !== 'function') {
+      throw new Error(`libghostty-vt export is missing: ${name}`)
+    }
     return (fn as WasmFunction)(...args)
   }
 
   layout(name: string) {
     const layout = this.layouts[name]
-    if (!layout) {throw new Error(`libghostty-vt layout is missing: ${name}`)}
+    if (!layout) {
+      throw new Error(`libghostty-vt layout is missing: ${name}`)
+    }
     return layout
   }
 
   field(structName: string, fieldName: string) {
     const field = this.layout(structName).fields[fieldName]
-    if (!field)
-      {throw new Error(
+    if (!field) {
+      throw new Error(
         `libghostty-vt field is missing: ${structName}.${fieldName}`
-      )}
+      )
+    }
     return field
   }
 
   alloc(size: number) {
     const pointer = this.call('ghostty_wasm_alloc_u8_array', size)
-    if (pointer === 0)
-      {throw new Error(`libghostty-vt could not allocate ${size} bytes`)}
+    if (pointer === 0) {
+      throw new Error(`libghostty-vt could not allocate ${size} bytes`)
+    }
     new Uint8Array(this.memory.buffer, pointer, size).fill(0)
     return pointer
   }
 
   free(pointer: number, size: number) {
-    if (pointer !== 0) {this.call('ghostty_wasm_free_u8_array', pointer, size)}
+    if (pointer !== 0) {
+      this.call('ghostty_wasm_free_u8_array', pointer, size)
+    }
   }
 
   allocOpaque() {
     const pointer = this.call('ghostty_wasm_alloc_opaque')
-    if (pointer === 0)
-      {throw new Error('libghostty-vt could not allocate a pointer')}
+    if (pointer === 0) {
+      throw new Error('libghostty-vt could not allocate a pointer')
+    }
     new DataView(this.memory.buffer).setUint32(pointer, 0, true)
     return pointer
   }
 
   freeOpaque(pointer: number) {
-    if (pointer !== 0) {this.call('ghostty_wasm_free_opaque', pointer)}
+    if (pointer !== 0) {
+      this.call('ghostty_wasm_free_opaque', pointer)
+    }
   }
 
   readPointer(slot: number) {
@@ -158,8 +174,9 @@ export class GhosttyRuntime {
   }
 
   check(operation: string, result: number) {
-    if (result !== SUCCESS)
-      {throw new Error(`${operation} failed with result ${result}`)}
+    if (result !== SUCCESS) {
+      throw new Error(`${operation} failed with result ${result}`)
+    }
   }
 
   flag(
@@ -185,8 +202,9 @@ export class GhosttyRuntime {
       const output = this.alloc(size)
       const result = encode(output, size, written)
       const length = this.view(written, 4).getUint32(0, true)
-      if (result === SUCCESS)
-        {encoded = decoder.decode(this.bytes(output, length))}
+      if (result === SUCCESS) {
+        encoded = decoder.decode(this.bytes(output, length))
+      }
       this.free(output, size)
     }
     this.call('ghostty_wasm_free_usize', written)
@@ -203,8 +221,9 @@ export class GhosttyRuntime {
       [OPTION.size, this.callbacks.size],
       [OPTION.bell, this.callbacks.bell],
       [OPTION.xtversion, this.callbacks.xtversion],
-    ] as const)
-      {this.call('ghostty_terminal_set', terminal, option[0], option[1])}
+    ] as const) {
+      this.call('ghostty_terminal_set', terminal, option[0], option[1])
+    }
     return id
   }
 
@@ -227,8 +246,9 @@ export class GhosttyRuntime {
   }
 
   dataView() {
-    if (this.memoryView.buffer !== this.memory.buffer)
-      {this.memoryView = new DataView(this.memory.buffer)}
+    if (this.memoryView.buffer !== this.memory.buffer) {
+      this.memoryView = new DataView(this.memory.buffer)
+    }
     return this.memoryView
   }
 
@@ -268,13 +288,21 @@ export class GhosttyRuntime {
     const field = this.field(structName, fieldName)
     const view = this.dataView()
     const offset = pointer + field.offset
-    if (field.type === 'bool' || field.type === 'u8')
-      {return view.getUint8(offset)}
-    if (field.type === 'u16') {return view.getUint16(offset, true)}
-    if (field.type === 'i32') {return view.getInt32(offset, true)}
-    if (field.type === 'u32' || field.type === 'enum')
-      {return view.getUint32(offset, true)}
-    if (field.type === 'u64') {return Number(view.getBigUint64(offset, true))}
+    if (field.type === 'bool' || field.type === 'u8') {
+      return view.getUint8(offset)
+    }
+    if (field.type === 'u16') {
+      return view.getUint16(offset, true)
+    }
+    if (field.type === 'i32') {
+      return view.getInt32(offset, true)
+    }
+    if (field.type === 'u32' || field.type === 'enum') {
+      return view.getUint32(offset, true)
+    }
+    if (field.type === 'u64') {
+      return Number(view.getBigUint64(offset, true))
+    }
     throw new Error(`unsupported libghostty-vt field type ${field.type}`)
   }
 
@@ -290,7 +318,9 @@ export class GhosttyRuntime {
             length: number
           ) => {
             const host = this.hosts.get(userdata)
-            if (!host || length === 0) {return}
+            if (!host || length === 0) {
+              return
+            }
             host.write(
               decoder.decode(
                 new Uint8Array(this.memory.buffer, pointer, length)
@@ -298,13 +328,17 @@ export class GhosttyRuntime {
             )
           },
           d: (_terminal: number, userdata: number, pointer: number) => {
-            if (!this.hosts.has(userdata)) {return 0}
+            if (!this.hosts.has(userdata)) {
+              return 0
+            }
             this.writeDeviceAttributes(pointer)
             return 1
           },
           s: (_terminal: number, userdata: number, pointer: number) => {
             const host = this.hosts.get(userdata)
-            if (!host) {return 0}
+            if (!host) {
+              return 0
+            }
             const size = host.size()
             const name = 'GhosttySizeReportSize'
             this.setField(pointer, name, 'rows', size.rows)
@@ -318,7 +352,9 @@ export class GhosttyRuntime {
           },
           v: (result: number, _terminal: number, userdata: number) => {
             const host = this.hosts.get(userdata)
-            if (!host) {return}
+            if (!host) {
+              return
+            }
             this.writeVersion(result, host.version())
           },
           p: (
@@ -332,12 +368,14 @@ export class GhosttyRuntime {
       }
     )
     const table = this.exports.__indirect_function_table
-    if (!(table instanceof WebAssembly.Table))
-      {throw new Error('libghostty-vt did not expose its callback table')}
+    if (!(table instanceof WebAssembly.Table)) {
+      throw new Error('libghostty-vt did not expose its callback table')
+    }
     const indexes = ['w', 'd', 's', 'b', 'v', 'p'].map((name) => {
       const callback = instance.exports[name]
-      if (typeof callback !== 'function')
-        {throw new Error(`libghostty-vt callback is missing: ${name}`)}
+      if (typeof callback !== 'function') {
+        throw new Error(`libghostty-vt callback is missing: ${name}`)
+      }
       const index = table.length
       table.grow(1)
       table.set(index, callback)
@@ -350,8 +388,9 @@ export class GhosttyRuntime {
       bell: indexes[3],
       xtversion: indexes[4],
     }
-    if (this.call('ghostty_sys_set', SYS_DECODE_PNG, indexes[5]) !== 0)
-      {throw new Error('libghostty-vt did not accept the PNG decoder')}
+    if (this.call('ghostty_sys_set', SYS_DECODE_PNG, indexes[5]) !== 0) {
+      throw new Error('libghostty-vt did not accept the PNG decoder')
+    }
   }
 
   private decodePng(
@@ -368,7 +407,9 @@ export class GhosttyRuntime {
       return 0
     }
     const data = this.call('ghostty_alloc', allocator, image.data.length)
-    if (data === 0) {return 0}
+    if (data === 0) {
+      return 0
+    }
     this.bytes(data, image.data.length).set(image.data)
     const view = this.dataView()
     view.setUint32(output + SYS_IMAGE.width, image.width, true)
@@ -423,6 +464,8 @@ export async function loadGhostty() {
 }
 
 export function ghostty() {
-  if (!runtime) {throw new Error('libghostty-vt is not loaded')}
+  if (!runtime) {
+    throw new Error('libghostty-vt is not loaded')
+  }
   return runtime
 }

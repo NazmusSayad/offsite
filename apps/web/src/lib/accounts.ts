@@ -29,7 +29,9 @@ export function providerSettings(
   composer: Composer | null,
   provider: Provider
 ): Settings {
-  if (composer === null) {return { ...emptySettings, provider }}
+  if (composer === null) {
+    return { ...emptySettings, provider }
+  }
   return { provider, ...composer[provider] }
 }
 
@@ -37,12 +39,15 @@ export function changeSettings(patch: Partial<Settings>) {
   const settings = { ...getState().settings, ...patch }
   update({ settings })
   const selection = getState().selection
-  if (selection === null) {return}
-  if (selection.sessionId !== null)
-    {saveDraftSettings(draftKey(selection), settings)}
+  if (selection === null) {
+    return
+  }
+  if (selection.sessionId !== null) {
+    saveDraftSettings(draftKey(selection), settings)
+  }
   const composer = machineOf(getState(), selection.machine).composer
-  if (composer !== null)
-    {updateComposer(selection.machine, {
+  if (composer !== null) {
+    updateComposer(selection.machine, {
       ...composer,
       provider: settings.provider,
       [settings.provider]: {
@@ -52,18 +57,22 @@ export function changeSettings(patch: Partial<Settings>) {
         mode: settings.mode,
         plan: settings.plan,
       },
-    })}
-  if (patch.accountId !== undefined) {void refreshCapabilities()}
+    })
+  }
+  if (patch.accountId !== undefined) {
+    void refreshCapabilities()
+  }
   if (
     selection.sessionId !== null &&
     activityOf(getState().machines, selection.machine, selection.sessionId) !==
       undefined &&
     patch.accountId === undefined
-  )
-    {call(selection.machine, 'sessions.configure', {
+  ) {
+    call(selection.machine, 'sessions.configure', {
       sessionId: selection.sessionId,
       settings,
-    }).catch(showError)}
+    }).catch(showError)
+  }
 }
 
 export function setAccounts(machine: string, received: Accounts) {
@@ -72,7 +81,9 @@ export function setAccounts(machine: string, received: Accounts) {
     codexAccounts: received.codexAccounts,
     openCode: received.openCode,
   })
-  if (getState().selection?.machine !== machine) {return}
+  if (getState().selection?.machine !== machine) {
+    return
+  }
   const settings = getState().settings
   const choices = [
     ...[...received.claudeAccounts, ...received.codexAccounts]
@@ -91,21 +102,25 @@ export function setAccounts(machine: string, received: Accounts) {
         item.provider === settings.provider &&
         item.accountId === settings.accountId
     )
-  )
-    {return}
+  ) {
+    return
+  }
   const same = choices.find((item) => item.provider === settings.provider)
   const other =
     getState().selection?.sessionId === null ? choices.at(0) : undefined
-  if (same !== undefined) {changeSettings({ accountId: same.accountId })}
-  else if (other !== undefined)
-    {changeSettings({
+  if (same !== undefined) {
+    changeSettings({ accountId: same.accountId })
+  } else if (other !== undefined) {
+    changeSettings({
       ...providerSettings(
         machineOf(getState(), machine).composer,
         other.provider
       ),
       accountId: other.accountId,
-    })}
-  else if (settings.accountId !== null) {changeSettings({ accountId: null })}
+    })
+  } else if (settings.accountId !== null) {
+    changeSettings({ accountId: null })
+  }
 }
 
 export async function refreshAccounts(machine: string) {
@@ -118,7 +133,9 @@ export async function refreshAccounts(machine: string) {
 
 export async function refreshCapabilities() {
   const selection = getState().selection
-  if (selection === null) {return}
+  if (selection === null) {
+    return
+  }
   const { provider, accountId } = getState().settings
   if (provider !== 'opencode' && accountId === null) {
     update({ capabilities: null })
@@ -135,8 +152,9 @@ export async function refreshCapabilities() {
       getState().selection?.projectId !== selection.projectId ||
       getState().settings.provider !== provider ||
       getState().settings.accountId !== accountId
-    )
-      {return}
+    ) {
+      return
+    }
     update({ capabilities })
     const settings = getState().settings
     if (settings.model !== null) {
@@ -148,15 +166,18 @@ export async function refreshCapabilities() {
         settings.effort === null &&
         effort !== undefined &&
         effort !== null
-      )
-        {changeSettings({ effort })}
+      ) {
+        changeSettings({ effort })
+      }
       return
     }
     const first =
       capabilities.models.find(
         (item) => !item.hidden && item.value === capabilities.defaultModel
       ) ?? capabilities.models.find((item) => !item.hidden)
-    if (first === undefined) {return}
+    if (first === undefined) {
+      return
+    }
     changeSettings({
       model: first.value,
       ...(first.effort === null ? {} : { effort: first.effort }),

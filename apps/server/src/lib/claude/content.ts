@@ -67,9 +67,11 @@ export function toUserInput(
   uuid: UUID,
   priority: 'next' | undefined
 ): SDKUserMessage {
-  for (const image of prompt.images)
-    {if (!imageTypes.includes(image.mediaType))
-      throw new Error(`${image.mediaType} images are not supported`)}
+  for (const image of prompt.images) {
+    if (!imageTypes.includes(image.mediaType)) {
+      throw new Error(`${image.mediaType} images are not supported`)
+    }
+  }
   return {
     type: 'user',
     message: {
@@ -120,7 +122,9 @@ export function notice(text: string): Message {
 }
 
 export function contextTokens(message: unknown) {
-  if (!isRecord(message) || !isRecord(message.usage)) {return null}
+  if (!isRecord(message) || !isRecord(message.usage)) {
+    return null
+  }
   const usage = message.usage
   return [
     usage.input_tokens,
@@ -134,10 +138,14 @@ export function contextTokens(message: unknown) {
 }
 
 function answersOf(output: unknown) {
-  if (!isRecord(output) || !isRecord(output.answers)) {return null}
+  if (!isRecord(output) || !isRecord(output.answers)) {
+    return null
+  }
   const answers: Record<string, string> = {}
   for (const [question, answer] of Object.entries(output.answers)) {
-    if (typeof answer !== 'string') {return null}
+    if (typeof answer !== 'string') {
+      return null
+    }
     answers[question] = answer
   }
   return answers
@@ -147,10 +155,16 @@ function toBlocks(
   content: unknown,
   answers: Record<string, string> | null
 ): Block[] {
-  if (typeof content === 'string') {return [{ type: 'text', text: content }]}
-  if (!Array.isArray(content)) {return []}
+  if (typeof content === 'string') {
+    return [{ type: 'text', text: content }]
+  }
+  if (!Array.isArray(content)) {
+    return []
+  }
   return content.flatMap((block): Block[] => {
-    if (!isRecord(block)) {return []}
+    if (!isRecord(block)) {
+      return []
+    }
     switch (block.type) {
       case 'text':
         return typeof block.text === 'string' &&

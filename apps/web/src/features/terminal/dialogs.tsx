@@ -33,7 +33,9 @@ export function RenameDialog(props: {
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open) {props.onDone()}
+        if (!open) {
+          props.onDone()
+        }
       }}
     >
       <DialogContent onCloseAutoFocus={restoreFocus}>
@@ -69,14 +71,18 @@ export function RenameDialog(props: {
 export function CloseDialog() {
   const dialog = useSyncExternalStore(subscribeClosing, getClosing)
   const closeButton = useRef<HTMLButtonElement>(null)
-  if (dialog === null) {return null}
+  if (dialog === null) {
+    return null
+  }
   const closing = dialog.closing
 
   return (
     <AlertDialog
       open={dialog.open}
       onOpenChange={(open) => {
-        if (!open) {dismissClosing()}
+        if (!open) {
+          dismissClosing()
+        }
       }}
     >
       <AlertDialogContent
@@ -114,6 +120,9 @@ function restoreFocus(event: Event) {
   const dialog = document.querySelector<HTMLElement>(
     '[role="dialog"], [role="alertdialog"]'
   )
-  if (dialog === null) {focusTerminal()}
-  else {dialog.focus()}
+  if (dialog === null) {
+    focusTerminal()
+  } else {
+    dialog.focus()
+  }
 }

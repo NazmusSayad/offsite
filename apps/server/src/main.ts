@@ -103,34 +103,48 @@ server.on('upgrade', (request, socket, head) => {
   }
   sockets.handleUpgrade(request, socket, head, (client) => {
     connectClient(client)
-    if (device === null) {return}
+    if (device === null) {
+      return
+    }
     paired.set(client, device)
     client.on('close', () => paired.delete(client))
     recordUse(device)
   })
 })
 
-if (args.auth)
-  {setInterval(() => {
-    for (const [client, device] of paired) if (!isPaired(device)) client.close()
-    for (const [ticket, item] of tickets)
-      if (item.expiresAt <= Date.now()) tickets.delete(ticket)
-  }, UNPAIR_CHECK)}
+if (args.auth) {
+  setInterval(() => {
+    for (const [client, device] of paired) {
+      if (!isPaired(device)) {
+        client.close()
+      }
+    }
+    for (const [ticket, item] of tickets) {
+      if (item.expiresAt <= Date.now()) {
+        tickets.delete(ticket)
+      }
+    }
+  }, UNPAIR_CHECK)
+}
 
 server.listen(port, args.host, () => {
   startPush(`${args.host}:${port}`)
   if (args.pair && (code !== null || !args.auth)) {
     const links = pairingLinks(code)
-    if (args.command === 'web')
-      {console.log(`offsite is running at ${links.local}`)}
+    if (args.command === 'web') {
+      console.log(`offsite is running at ${links.local}`)
+    }
   } else {
     console.log(`offsite is running at ${address}`)
-    if (args.pair) {console.log('Run offsite pair to pair another browser')}
+    if (args.pair) {
+      console.log('Run offsite pair to pair another browser')
+    }
   }
-  if (!args.auth)
-    {console.warn(
+  if (!args.auth) {
+    console.warn(
       'auth is off; anyone who can reach this port can control this machine'
-    )}
+    )
+  }
 })
 
 process.on('SIGINT', stop)
@@ -197,10 +211,14 @@ function answerJson(response: ServerResponse, body: unknown) {
 }
 
 function redeemTicket(ticket: string | null) {
-  if (ticket === null) {return null}
+  if (ticket === null) {
+    return null
+  }
   const found = tickets.get(ticket)
   tickets.delete(ticket)
-  if (found === undefined || found.expiresAt <= Date.now()) {return null}
+  if (found === undefined || found.expiresAt <= Date.now()) {
+    return null
+  }
   return found.device
 }
 

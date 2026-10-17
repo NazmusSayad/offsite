@@ -17,7 +17,9 @@ const save = debounce(write, 300)
 const storage: PersistStorage<Drafts> = {
   getItem: (name) => {
     const raw = localStorage.getItem(name)
-    if (raw === null) {return null}
+    if (raw === null) {
+      return null
+    }
     return JSON.parse(raw)
   },
   setItem: (_name, value) => save(value),
@@ -37,8 +39,11 @@ function write(value: StorageValue<Drafts>) {
   try {
     localStorage.setItem(storageKey, JSON.stringify(value))
   } catch (error) {
-    if (!(error instanceof DOMException && error.name === 'QuotaExceededError'))
-      {throw error}
+    if (
+      !(error instanceof DOMException && error.name === 'QuotaExceededError')
+    ) {
+      throw error
+    }
     const drafts = Object.fromEntries(
       Object.entries(value.state.drafts)
         .filter((entry) => entry[1].text !== '' || entry[1].settings !== null)
@@ -63,8 +68,9 @@ export function editDraft(key: string, change: (draft: Draft) => Draft) {
       draft.text === '' &&
       draft.images.length === 0 &&
       draft.settings === null
-    )
-      {delete drafts[key]}
+    ) {
+      delete drafts[key]
+    }
     return { drafts }
   })
 }

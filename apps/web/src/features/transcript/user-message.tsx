@@ -177,7 +177,9 @@ function PromptImage(props: {
   const [loaded, setLoaded] = useState<string | null>(null)
 
   useEffect(() => {
-    if (props.data !== null || machine === null || sessionId === null) {return}
+    if (props.data !== null || machine === null || sessionId === null) {
+      return
+    }
     let current = true
     call(machine, 'sessions.image', {
       sessionId,
@@ -185,7 +187,9 @@ function PromptImage(props: {
       index: props.index,
     })
       .then((result) => {
-        if (current) {setLoaded(result.data)}
+        if (current) {
+          setLoaded(result.data)
+        }
       })
       .catch(showError)
     return () => {
@@ -194,7 +198,9 @@ function PromptImage(props: {
   }, [props.data, props.itemId, props.index, machine, sessionId])
 
   const data = props.data ?? loaded
-  if (data === null) {return null}
+  if (data === null) {
+    return null
+  }
   return (
     <img
       src={`data:${props.mediaType};base64,${data}`}

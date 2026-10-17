@@ -34,7 +34,9 @@ export function saveMachines(machines: StoredMachine[]) {
 }
 
 async function shareWithWorker(machines: StoredMachine[]) {
-  if (!('caches' in window)) {return}
+  if (!('caches' in window)) {
+    return
+  }
   const shared = machines.map((machine) => ({
     id: machine.id,
     addresses: machine.addresses,
@@ -44,11 +46,15 @@ async function shareWithWorker(machines: StoredMachine[]) {
 }
 
 export function pairingFromUrl() {
-  if (location.pathname !== '/pair') {return null}
+  if (location.pathname !== '/pair') {
+    return null
+  }
   const params = new URLSearchParams(location.hash.slice(1))
   history.replaceState(null, '', '/')
   const machine = params.get('machine')
-  if (machine === null) {throw new Error('the pairing link has no machine')}
+  if (machine === null) {
+    throw new Error('the pairing link has no machine')
+  }
   return {
     address: readMachineLink(machine).address,
     code: params.get('code'),
@@ -63,8 +69,9 @@ export function readMachineLink(link: string): {
   const url = new URL(
     /^[a-z]+:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`
   )
-  if (url.protocol !== 'http:' && url.protocol !== 'https:')
-    {throw new Error('Use an http:// or https:// address')}
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('Use an http:// or https:// address')
+  }
   const params = new URLSearchParams(url.hash.slice(1))
   const machine = params.get('machine')
   return {
@@ -111,9 +118,11 @@ export function restoreProjects(machine: StoredMachine): MachineProject[] {
 export function receiveMachines() {
   const stored = loadMachines()
   const known = getState().machines
-  for (const machine of known)
-    {if (!stored.some((item) => item.id === machine.id))
-      forgetMachine(machine.id)}
+  for (const machine of known) {
+    if (!stored.some((item) => item.id === machine.id)) {
+      forgetMachine(machine.id)
+    }
+  }
   for (const machine of stored) {
     const current = known.find((item) => item.id === machine.id)
     if (current === undefined) {
@@ -148,13 +157,17 @@ export async function addMachine(address: string, code: string | null) {
     item.addresses.includes(address)
   )
   if (existing !== undefined) {
-    if (code !== null) {await pairMachine(existing.id, code)}
+    if (code !== null) {
+      await pairMachine(existing.id, code)
+    }
     return existing.id
   }
   const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
     byte.toString(16).padStart(2, '0')
   ).join('')
-  if (code !== null) {await saveToken(id, await redeemCode([address], code))}
+  if (code !== null) {
+    await saveToken(id, await redeemCode([address], code))
+  }
   update({
     machines: [
       ...getState().machines,
@@ -192,8 +205,12 @@ async function redeemCode(addresses: string[], code: string) {
       failure ??= error
       return null
     })
-    if (response === null) {continue}
-    if (!response.ok) {throw new Error(await response.text())}
+    if (response === null) {
+      continue
+    }
+    if (!response.ok) {
+      throw new Error(await response.text())
+    }
     const body: { token: string } = await response.json()
     return body.token
   }
@@ -211,8 +228,9 @@ export function editMachine(
     name: next.label ?? next.hostname,
   })
   persistMachines()
-  if (next.addresses.join(' ') !== known.addresses.join(' '))
-    {reconnectMachine(id)}
+  if (next.addresses.join(' ') !== known.addresses.join(' ')) {
+    reconnectMachine(id)
+  }
 }
 
 export function shareMachines(machines: StoredMachine[]) {

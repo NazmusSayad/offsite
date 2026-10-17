@@ -62,8 +62,14 @@ export function terminalOptions(
 }
 
 function terminalVersion(identity: TerminalIdentity) {
-  if (identity === 'offsite') {return 'offsite 0.0.0'}
-  if (identity === 'ghostty') {return `ghostty ${ghosttyVersion}`}
-  if (identity === 'iterm2') {return `iTerm2 ${iterm2Version}`}
+  if (identity === 'offsite') {
+    return 'offsite 0.0.0'
+  }
+  if (identity === 'ghostty') {
+    return `ghostty ${ghosttyVersion}`
+  }
+  if (identity === 'iterm2') {
+    return `iTerm2 ${iterm2Version}`
+  }
   throw new Error(`unknown terminal identity ${identity}`)
 }

@@ -17,7 +17,9 @@ export class ErrorBoundary extends Component<
 
   render() {
     const error = this.state.error
-    if (error === null) {return this.props.children}
+    if (error === null) {
+      return this.props.children
+    }
     return (
       <div className="flex h-dvh flex-col items-center justify-center gap-3 p-4 text-center">
         <p className="font-medium">Something went wrong</p>

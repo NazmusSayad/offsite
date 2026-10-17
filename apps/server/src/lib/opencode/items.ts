@@ -121,9 +121,13 @@ export function formAnswer(form: FormInfo, answers: Record<string, string>) {
   return Object.fromEntries(
     form.fields.flatMap(
       (field): [string, string | number | boolean | string[]][] => {
-        if (field.type === 'external') {return []}
+        if (field.type === 'external') {
+          return []
+        }
         const answer = answers[questionText(field)]
-        if (answer === undefined || answer === '') {return []}
+        if (answer === undefined || answer === '') {
+          return []
+        }
         switch (field.type) {
           case 'string':
             return [[field.key, optionValue(field.options ?? [], answer)]]
@@ -137,8 +141,12 @@ export function formAnswer(form: FormInfo, answers: Record<string, string>) {
               ],
             ]
           case 'boolean':
-            if (answer === 'Yes') {return [[field.key, true]]}
-            if (answer === 'No') {return [[field.key, false]]}
+            if (answer === 'Yes') {
+              return [[field.key, true]]
+            }
+            if (answer === 'No') {
+              return [[field.key, false]]
+            }
             throw new Error(`${field.key} needs Yes or No`)
           case 'number':
           case 'integer':
@@ -229,7 +237,9 @@ function toolItems(base: Base, tool: SessionMessageAssistantTool): Item[] {
       ]
     case 'patch':
     case 'apply_patch':
-      if (!Array.isArray(metadata.files)) {break}
+      if (!Array.isArray(metadata.files)) {
+        break
+      }
       return metadata.files.map((file: unknown, index) => ({
         ...base,
         id: `${base.id}:${index}`,

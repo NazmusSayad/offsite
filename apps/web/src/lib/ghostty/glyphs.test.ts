@@ -12,14 +12,17 @@ function paint(
     restore: vi.fn(),
     setTransform: vi.fn(),
     fillRect(x: number, y: number, w: number, h: number) {
-      if (![x, y, w, h].every(Number.isInteger))
-        {throw new Error(`rect is not on whole pixels: ${[x, y, w, h]}`)}
-      for (let row = y; row < y + h; row += 1)
-        {for (let column = x; column < x + w; column += 1) {
-          if (grid[row]?.[column] === undefined)
+      if (![x, y, w, h].every(Number.isInteger)) {
+        throw new Error(`rect is not on whole pixels: ${[x, y, w, h]}`)
+      }
+      for (let row = y; row < y + h; row += 1) {
+        for (let column = x; column < x + w; column += 1) {
+          if (grid[row]?.[column] === undefined) {
             throw new Error(`rect is outside the grid: ${[x, y, w, h]}`)
+          }
           grid[row][column] = '#'
-        }}
+        }
+      }
     },
   }
   draw(context as unknown as CanvasRenderingContext2D)
@@ -107,13 +110,14 @@ describe('drawGlyph', () => {
 
   it('draws lines without gaps between cells at 125% zoom', () => {
     const grid = paint(33, 23, (context) => {
-      for (let column = 0; column < 3; column += 1)
-        {drawGlyph(
+      for (let column = 0; column < 3; column += 1) {
+        drawGlyph(
           context,
           '─',
           { left: column * 8.6, top: 0, width: 8.6, height: 18 },
           1.25
-        )}
+        )
+      }
     })
     expect(grid.filter((row) => row.includes('#'))).toEqual([
       '################################.',

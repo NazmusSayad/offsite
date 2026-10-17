@@ -39,7 +39,9 @@ function draw(
   }
   const context = new Proxy(state, {
     get(target, key) {
-      if (key in target) {return target[key]}
+      if (key in target) {
+        return target[key]
+      }
       return (...args: number[]) => {
         calls.push({
           name: String(key),
@@ -119,11 +121,16 @@ describe('render backgrounds', () => {
           call.name === 'fillRect' && colors.map(css).includes(call.fillStyle)
       )
       .map((call) => call.args.map((value) => value * 1.25))
-    for (const rect of rects)
-      {for (const value of rect) expect(value).toBeCloseTo(Math.round(value), 9)}
+    for (const rect of rects) {
+      for (const value of rect) {
+        expect(value).toBeCloseTo(Math.round(value), 9)
+      }
+    }
     for (const [index, rect] of rects.entries()) {
       const next = rects[index + 1]
-      if (next === undefined || index === 2) {continue}
+      if (next === undefined || index === 2) {
+        continue
+      }
       expect(next[0]).toBeCloseTo(rect[0] + rect[2], 9)
     }
     expect(rects[3][1]).toBeCloseTo(rects[0][1] + rects[0][3], 9)

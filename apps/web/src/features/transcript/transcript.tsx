@@ -65,15 +65,18 @@ export function Transcript(props: {
 
   useLayoutEffect(() => {
     const element = scroller.current
-    if (element === null || sentAt === 0) {return}
+    if (element === null || sentAt === 0) {
+      return
+    }
     pinned.current = true
     element.scrollTop = element.scrollHeight
   }, [sentAt])
 
   useLayoutEffect(() => {
     const element = scroller.current
-    if (element !== null && pinned.current)
-      {element.scrollTop = element.scrollHeight}
+    if (element !== null && pinned.current) {
+      element.scrollTop = element.scrollHeight
+    }
   }, [items, partial, requests, running])
 
   const found = threadTasks([...earlier, ...items], activity)
@@ -87,20 +90,29 @@ export function Transcript(props: {
 
   useLayoutEffect(() => {
     const element = scroller.current
-    if (element !== null && fromBottom.current !== null)
-      {element.scrollTop = element.scrollHeight - fromBottom.current}
+    if (element !== null && fromBottom.current !== null) {
+      element.scrollTop = element.scrollHeight - fromBottom.current
+    }
     fromBottom.current = null
   }, [earlier, start])
 
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const element = scroller.current
-    if (element === null || rows.length === 0) {return}
-    if (topIndex === -1) {setTop({ key: rows[start].key, above: 0 })}
-    else {showMore(element)}
+    if (element === null || rows.length === 0) {
+      return
+    }
+    if (topIndex === -1) {
+      setTop({ key: rows[start].key, above: 0 })
+    } else {
+      showMore(element)
+    }
   })
 
   function showMore(element: HTMLDivElement) {
-    if (start === 0 || element.scrollTop >= element.clientHeight) {return}
+    if (start === 0 || element.scrollTop >= element.clientHeight) {
+      return
+    }
     fromBottom.current = element.scrollHeight - element.scrollTop
     setTop({ key: rows[start].key, above: PAGE })
   }
@@ -139,8 +151,9 @@ export function Transcript(props: {
               disabled={loadingEarlier}
               onClick={async () => {
                 const element = scroller.current
-                if (element !== null)
-                  {fromBottom.current = element.scrollHeight - element.scrollTop}
+                if (element !== null) {
+                  fromBottom.current = element.scrollHeight - element.scrollTop
+                }
                 setTop({ key: rows[0].key, above: PAGE })
                 setLoadingEarlier(true)
                 await loadEarlier()

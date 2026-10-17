@@ -67,7 +67,9 @@ export function App() {
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [panelWidth, setPanelWidth] = useState(() => {
     const stored = Number(localStorage.getItem('panelWidth') ?? 540)
-    if (Number.isFinite(stored) && stored >= 360) {return stored}
+    if (Number.isFinite(stored) && stored >= 360) {
+      return stored
+    }
     return 540
   })
   const [terminalHeight, setTerminalHeight] = useState(280)
@@ -81,7 +83,9 @@ export function App() {
   )
   const running = useStore(selectedRunning)
   const runningTasks = useStore((state) => {
-    if (state.selection?.sessionId === null) {return 0}
+    if (state.selection?.sessionId === null) {
+      return 0
+    }
     const found = threadTasks(
       [...state.earlier, ...state.items],
       selectedActivity(state)
@@ -139,7 +143,9 @@ export function App() {
           sidebar ? 'translate-x-0' : '-translate-x-full md:hidden'
         )}
         onNavigate={() => {
-          if (!desktop.matches) {setSidebar(false)}
+          if (!desktop.matches) {
+            setSidebar(false)
+          }
         }}
         onHide={() => setSidebar(false)}
       />

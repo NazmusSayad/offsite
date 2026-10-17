@@ -6,8 +6,9 @@ export function useCopy() {
 
   async function copy(text: string) {
     try {
-      if (!window.isSecureContext)
-        {throw new Error('Copying needs https or localhost')}
+      if (!window.isSecureContext) {
+        throw new Error('Copying needs https or localhost')
+      }
       await navigator.clipboard.writeText(text)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)

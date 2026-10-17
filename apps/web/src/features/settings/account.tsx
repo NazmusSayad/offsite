@@ -44,10 +44,14 @@ export function AccountPage(props: {
       projectId: null,
     }).then(
       (result) => {
-        if (current) {setCapabilities(result)}
+        if (current) {
+          setCapabilities(result)
+        }
       },
       (caught: unknown) => {
-        if (current) {setModelsError(errorMessage(caught))}
+        if (current) {
+          setModelsError(errorMessage(caught))
+        }
       }
     )
     return () => {
@@ -144,9 +148,11 @@ export function AccountPage(props: {
                 checked={!hidden}
                 onCheckedChange={(shown) => {
                   const hiddenModels = { ...account.hiddenModels }
-                  if (!shown === providerHidden)
-                    {delete hiddenModels[model.value]}
-                  else {hiddenModels[model.value] = !shown}
+                  if (!shown === providerHidden) {
+                    delete hiddenModels[model.value]
+                  } else {
+                    hiddenModels[model.value] = !shown
+                  }
                   void save({ hiddenModels })
                 }}
                 aria-label={`Show ${model.name}`}

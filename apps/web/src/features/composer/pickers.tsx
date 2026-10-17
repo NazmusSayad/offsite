@@ -140,12 +140,18 @@ function ModelPicker() {
 
   function changeOpen(next: boolean) {
     setOpen(next)
-    if (!next) {return}
+    if (!next) {
+      return
+    }
     setViewed(current)
     setQuery('')
-    if (selection === null) {return}
+    if (selection === null) {
+      return
+    }
     for (const item of choices) {
-      if (item.key === current || item.error !== null) {continue}
+      if (item.key === current || item.error !== null) {
+        continue
+      }
       call(selection.machine, 'capabilities', {
         provider: item.provider,
         accountId: item.accountId,
@@ -160,22 +166,26 @@ function ModelPicker() {
 
   function pick(key: string, option: Model) {
     const picked = choices.find((item) => item.key === key)
-    if (picked === undefined || selection === null) {return}
+    if (picked === undefined || selection === null) {
+      return
+    }
     const provider = picked.provider
     const choice = {
       accountId: picked.accountId,
       model: option.value,
       ...(option.effort === null ? {} : { effort: option.effort }),
     }
-    if (provider === settings.provider) {changeSettings(choice)}
-    else
-      {changeSettings({
+    if (provider === settings.provider) {
+      changeSettings(choice)
+    } else {
+      changeSettings({
         ...providerSettings(
           machineOf(getState(), selection.machine).composer,
           provider
         ),
         ...choice,
-      })}
+      })
+    }
     setOpen(false)
   }
 
@@ -239,7 +249,9 @@ function ModelPicker() {
                     aria-pressed={item.key === viewed}
                     aria-disabled={item.error !== null}
                     onClick={() => {
-                      if (item.error !== null) {return}
+                      if (item.error !== null) {
+                        return
+                      }
                       setViewed(item.key)
                     }}
                   >
@@ -285,9 +297,13 @@ function ModelPicker() {
                   className="placeholder:text-muted-foreground/70 h-6.5 w-full bg-transparent ps-5 text-sm outline-none"
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key !== 'Enter' || viewed === null) {return}
+                    if (event.key !== 'Enter' || viewed === null) {
+                      return
+                    }
                     const first = matches.at(0)
-                    if (first === undefined) {return}
+                    if (first === undefined) {
+                      return
+                    }
                     event.preventDefault()
                     pick(viewed, first)
                   }}
@@ -311,7 +327,9 @@ function ModelPicker() {
                       'text-foreground bg-foreground/[0.08]'
                   )}
                   onClick={() => {
-                    if (viewed === null) {return}
+                    if (viewed === null) {
+                      return
+                    }
                     pick(viewed, option)
                   }}
                 >

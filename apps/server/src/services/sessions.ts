@@ -100,8 +100,9 @@ export function listedUpdatedAt(provider: Provider, sessionId: string) {
 
 export function providerOf(sessionId: string) {
   const provider = runs.get(sessionId)?.provider ?? providers.get(sessionId)
-  if (provider === undefined)
-    {throw new Error('offsite does not know this session yet, reload the page')}
+  if (provider === undefined) {
+    throw new Error('offsite does not know this session yet, reload the page')
+  }
   return provider
 }
 
@@ -123,11 +124,15 @@ export function publishSessions() {
 }
 
 export function refreshAll() {
-  for (const provider of allProviders) {void refresh(provider)}
+  for (const provider of allProviders) {
+    void refresh(provider)
+  }
 }
 
 export function refreshSessions(provider: Provider) {
-  if (timers.has(provider)) {return}
+  if (timers.has(provider)) {
+    return
+  }
   timers.set(
     provider,
     setTimeout(() => {
@@ -182,7 +187,9 @@ async function list(provider: Provider) {
     } else {
       listed[provider] = found
       statuses[provider] = { provider, state: 'ready', error: null }
-      for (const item of found) {providers.set(item.id, provider)}
+      for (const item of found) {
+        providers.set(item.id, provider)
+      }
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -193,8 +200,9 @@ async function list(provider: Provider) {
   } finally {
     clearTimeout(timer)
     publishSessions()
-    if (JSON.stringify(statuses[provider]) !== JSON.stringify(before))
-      {broadcast({ type: 'providers', providers: providerStatuses() })}
+    if (JSON.stringify(statuses[provider]) !== JSON.stringify(before)) {
+      broadcast({ type: 'providers', providers: providerStatuses() })
+    }
   }
 }
 
@@ -225,10 +233,14 @@ async function find(
         )
       ).flat()
     case 'codex':
-      if (!codexInstalled()) {return null}
+      if (!codexInstalled()) {
+        return null
+      }
       return (await codexThreads([...paths.keys()])).flatMap((thread) => {
         const projectId = paths.get(thread.cwd)
-        if (projectId === undefined) {return []}
+        if (projectId === undefined) {
+          return []
+        }
         return [
           {
             id: thread.id,
@@ -241,10 +253,14 @@ async function find(
         ]
       })
     case 'opencode':
-      if (!openCodeInstalled()) {return null}
+      if (!openCodeInstalled()) {
+        return null
+      }
       return (await openCodeSessions([...paths.keys()])).flatMap((session) => {
         const projectId = paths.get(session.location.directory)
-        if (projectId === undefined) {return []}
+        if (projectId === undefined) {
+          return []
+        }
         return [
           {
             id: session.id,
@@ -260,14 +276,18 @@ async function find(
 }
 
 export function watchSessions() {
-  for (const watcher of watchers) {watcher.close()}
+  for (const watcher of watchers) {
+    watcher.close()
+  }
   watchers = (
     [
       ['claude', path.join(claudeBaseDir(), 'projects')],
       ['codex', path.join(codexBaseDir, 'sessions')],
     ] as const
   ).flatMap(([provider, dir]) => {
-    if (!readConfig().enabledProviders[provider]) {return []}
+    if (!readConfig().enabledProviders[provider]) {
+      return []
+    }
     try {
       const watcher = watch(dir, { recursive: true }, () =>
         refreshSessions(provider)
@@ -277,15 +297,17 @@ export function watchSessions() {
       )
       return [watcher]
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {throw error}
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error
+      }
       return []
     }
   })
 }
 
 export async function updateSession(id: string, patch: SessionPatch) {
-  if (patch.title !== undefined)
-    {switch (providerOf(id)) {
+  if (patch.title !== undefined) {
+    switch (providerOf(id)) {
       case 'claude':
         await renameSession(id, patch.title)
         break
@@ -294,18 +316,22 @@ export async function updateSession(id: string, patch: SessionPatch) {
         break
       case 'opencode':
         await renameOpenCode(id, patch.title)
-    }}
-  if (patch.status === 'inactive')
-    {db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()}
-  else if (patch.status !== undefined)
-    {db.insert(sessionsTable)
+    }
+  }
+  if (patch.status === 'inactive') {
+    db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
+  } else if (patch.status !== undefined) {
+    db.insert(sessionsTable)
       .values({ sessionId: id, status: patch.status })
       .onConflictDoUpdate({
         target: sessionsTable.sessionId,
         set: { status: patch.status },
       })
-      .run()}
-  if (patch.title !== undefined) {refreshSessions(providerOf(id))}
+      .run()
+  }
+  if (patch.title !== undefined) {
+    refreshSessions(providerOf(id))
+  }
 }
 
 export async function removeSession(id: string) {
@@ -353,11 +379,17 @@ async function forkWith(
   cwd: string,
   messageId: string
 ) {
-  if (provider === 'codex') {return forkThread(sessionId, messageId)}
-  if (provider === 'opencode') {return forkOpenCode(sessionId, messageId)}
+  if (provider === 'codex') {
+    return forkThread(sessionId, messageId)
+  }
+  if (provider === 'opencode') {
+    return forkOpenCode(sessionId, messageId)
+  }
   const disk = await getSessionMessages(sessionId, { dir: cwd })
   const index = disk.findIndex((item) => item.uuid === messageId)
-  if (index < 0) {throw new Error('Cannot fork the session at that point')}
+  if (index < 0) {
+    throw new Error('Cannot fork the session at that point')
+  }
   const result = await forkSession(sessionId, {
     dir: cwd,
     upToMessageId: messageId,

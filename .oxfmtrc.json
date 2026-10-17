@@ -12,5 +12,6 @@
     "newlinesBetween": false,
     "partitionByNewline": true
   },
-  "sortTailwindcss": {}
+  "sortTailwindcss": {},
+  "ignorePatterns": [".vscode", "apps/server/drizzle"]
 }
