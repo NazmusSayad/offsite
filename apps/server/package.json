@@ -2,9 +2,9 @@
   "name": "server",
   "type": "module",
   "scripts": {
-    "dev": "node --watch-path=src src/main.ts --port 47842 --dir $HOME/.offsite-dev",
-    "build": "tsdown --config ./tsdown.config.ts",
     "typecheck": "tsc",
+    "dev": "node --watch-path=src src/main.ts --port 47842 --dir $HOME/.offsite-dev --no-auth",
+    "build": "tsdown --config ./tsdown.config.ts",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
