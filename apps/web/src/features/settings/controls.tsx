@@ -20,7 +20,7 @@ export function Section(props: {
   )
 }
 
-export function Row(props: { label: string; children: ReactNode }) {
+export function Row(props: { label: ReactNode; children: ReactNode }) {
   return (
     <label className="flex min-h-13 items-center justify-between gap-4 px-4 py-2.5">
       <span className="text-sm font-medium">{props.label}</span>

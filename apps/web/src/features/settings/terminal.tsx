@@ -1,3 +1,5 @@
+import { InformationCircleIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import type { Config, Platform, TerminalConfig } from '@offsite/core/protocol'
 import { shellIntegrationIssue } from '@offsite/core/shell-check'
 import { useState } from 'react'
@@ -10,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Tooltip } from '@/components/ui/tooltip'
 import { builtinFonts, platforms } from '@/features/terminal/config'
 import type { Prefs, TerminalPrefs } from '@/lib/prefs'
 import { updatePrefs } from '@/lib/store'
@@ -204,7 +207,38 @@ export function TerminalMachinePage(props: {
           }
         />
       </Row>
-      <Row label="Mark prompts and commands (shell integration)">
+      <Row
+        label={
+          <span className="flex items-center gap-1.5">
+            Shell integration
+            <Tooltip
+              label={
+                <div>
+                  Tells the terminal where prompts and commands start and end.
+                  <ul className="mt-1 list-disc pl-4">
+                    <li>Click in the command line to move the cursor</li>
+                    <li>
+                      Ignore clipboard reads once the command that asked has
+                      finished
+                    </li>
+                  </ul>
+                  <div className="text-muted-foreground mt-1">
+                    Applies to new terminals
+                  </div>
+                </div>
+              }
+            >
+              <span onClick={(event) => event.preventDefault()}>
+                <HugeiconsIcon
+                  icon={InformationCircleIcon}
+                  aria-label="About shell integration"
+                  className="text-muted-foreground size-3.5"
+                />
+              </span>
+            </Tooltip>
+          </span>
+        }
+      >
         <div className="flex items-center gap-3">
           {shellIssue !== null && (
             <span className="text-muted-foreground max-w-32 text-right text-xs sm:max-w-none">
