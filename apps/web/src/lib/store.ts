@@ -44,10 +44,17 @@ export type SettingsPage =
   | 'Terminal'
   | 'Notifications'
   | 'Machine'
-  | 'Accounts'
-  | 'Git'
+  | 'Claude'
+  | 'Codex'
+  | 'OpenCode'
   | 'Machines'
   | 'Shortcuts'
+
+export const providerPages: Record<Provider, SettingsPage> = {
+  claude: 'Claude',
+  codex: 'Codex',
+  opencode: 'OpenCode',
+}
 
 export type Machine = {
   id: string

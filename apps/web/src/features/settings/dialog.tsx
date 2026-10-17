@@ -3,7 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { schemes } from '@offsite/core/schemes'
 import { useState } from 'react'
 import { updateConfig } from '@/api/machine-config'
-import { machineIcons } from '@/components/icons'
+import { machineIcons, ProviderIcon } from '@/components/icons'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { defaultPrefs } from '@/lib/prefs'
 import {
   machineOf,
@@ -39,7 +40,7 @@ import {
   useStore,
 } from '@/lib/store'
 import { cn, isMac, mod } from '@/lib/utils'
-import { AccountsPage } from './accounts'
+import { ProviderPage } from './accounts'
 import { Row, Section } from './controls'
 import { GitPage } from './git'
 import { MachinesPage } from './machines'
@@ -55,7 +56,7 @@ const browserPages: SettingsPage[] = [
   'Shortcuts',
   'Machines',
 ]
-const machinePages: SettingsPage[] = ['Machine', 'Accounts', 'Git']
+const machinePages: SettingsPage[] = ['Machine', 'Claude', 'Codex', 'OpenCode']
 
 const shortcuts = [
   ['Enter', 'Send, or queue while the agent works'],
@@ -90,6 +91,7 @@ export function SettingsDialog() {
   const system = machine === null ? null : machine.system
   const page = useStore((state) => state.settingsPage)
   const machinePage = machinePages.includes(page)
+  const pageProvider = providerOf(page)
   const [confirming, setConfirming] = useState<'browser' | 'machine' | null>(
     null
   )
@@ -143,18 +145,33 @@ export function SettingsDialog() {
                 <span className="truncate">{machine.name}</span>
               </p>
             )}
-            {machinePages.map((item) => (
-              <button
-                key={item}
-                className={cn(
-                  'text-muted-foreground hover:bg-accent hover:text-foreground flex h-9 flex-none items-center rounded-md px-2 text-sm transition-colors',
-                  item === page && 'bg-accent text-foreground'
-                )}
-                onClick={() => showSettingsPage(item)}
-              >
-                {item === 'Machine' ? 'General' : item}
-              </button>
-            ))}
+            {machinePages.map((item) => {
+              const provider = providerOf(item)
+              return (
+                <button
+                  key={item}
+                  className={cn(
+                    'text-muted-foreground hover:bg-accent hover:text-foreground flex h-9 flex-none items-center rounded-md px-2 text-sm transition-colors',
+                    item === page && 'bg-accent text-foreground'
+                  )}
+                  onClick={() => showSettingsPage(item)}
+                >
+                  {provider !== null && (
+                    <span className="mr-2.5 flex size-4 items-center justify-center">
+                      <ProviderIcon
+                        provider={provider}
+                        className={cn(
+                          provider === 'claude' && 'size-4',
+                          provider === 'codex' && 'size-[19px] shrink-0',
+                          provider === 'opencode' && 'h-3.5'
+                        )}
+                      />
+                    </span>
+                  )}
+                  {item === 'Machine' ? 'General' : item}
+                </button>
+              )
+            })}
           </div>
         </nav>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-7">
@@ -162,6 +179,22 @@ export function SettingsDialog() {
             <h2 className="text-xl font-semibold tracking-tight">
               {page === 'Machine' ? 'General' : page}
             </h2>
+            {pageProvider !== null && machine !== null && config !== null && (
+              <Switch
+                className="ml-3"
+                checked={config.enabledProviders[pageProvider]}
+                onCheckedChange={(checked) =>
+                  void updateConfig(machine.id, {
+                    ...config,
+                    enabledProviders: {
+                      ...config.enabledProviders,
+                      [pageProvider]: checked,
+                    },
+                  })
+                }
+                aria-label={`Enable ${page}`}
+              />
+            )}
             <DialogClose asChild>
               <Button
                 variant="ghost"
@@ -221,6 +254,12 @@ export function SettingsDialog() {
                     platform={system.platform}
                     defaultShell={system.defaultShell}
                   />
+                  <GitPage
+                    key={`git-${machine.id}`}
+                    machine={machine.id}
+                    config={config}
+                    accounts={machine.accounts}
+                  />
                   <Button
                     variant="outline"
                     onClick={() => setConfirming('machine')}
@@ -260,18 +299,27 @@ export function SettingsDialog() {
                 />
               </>
             )}
-            {page === 'Accounts' && machine !== null && config !== null && (
-              <AccountsPage
+            {page === 'Claude' && machine !== null && config !== null && (
+              <ProviderPage
                 machine={machine.id}
                 config={config}
+                provider="claude"
                 accounts={machine.accounts}
               />
             )}
-            {page === 'Git' && machine !== null && config !== null && (
-              <GitPage
-                key={machine.id}
+            {page === 'Codex' && machine !== null && config !== null && (
+              <ProviderPage
                 machine={machine.id}
                 config={config}
+                provider="codex"
+                accounts={machine.accounts}
+              />
+            )}
+            {page === 'OpenCode' && machine !== null && config !== null && (
+              <ProviderPage
+                machine={machine.id}
+                config={config}
+                provider="opencode"
                 accounts={machine.accounts}
               />
             )}
@@ -333,4 +381,11 @@ export function SettingsDialog() {
       </DialogContent>
     </Dialog>
   )
+}
+
+function providerOf(page: SettingsPage) {
+  if (page === 'Claude') return 'claude'
+  if (page === 'Codex') return 'codex'
+  if (page === 'OpenCode') return 'opencode'
+  return null
 }

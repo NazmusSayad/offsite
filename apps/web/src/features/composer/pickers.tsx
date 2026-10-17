@@ -27,6 +27,7 @@ import {
   changeSettings,
   getState,
   machineOf,
+  providerPages,
   providerSettings,
   showError,
   showSettingsPage,
@@ -301,7 +302,7 @@ function ModelPicker() {
               className="text-foreground cursor-pointer font-medium underline-offset-2 hover:underline"
               onClick={() => {
                 setOpen(false)
-                showSettingsPage('Accounts')
+                showSettingsPage(providerPages[settings.provider])
               }}
             >
               Manage accounts…

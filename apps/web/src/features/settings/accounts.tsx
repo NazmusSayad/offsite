@@ -11,10 +11,9 @@ import type {
   ModelSetting,
   Provider,
 } from '@offsite/core/protocol'
-import { type ReactNode, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { updateConfig } from '@/api/machine-config'
-import { ProviderIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -24,132 +23,68 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { providerNames } from '@/lib/format'
 import { cn, errorMessage } from '@/lib/utils'
 import { AccountDialog } from './account-dialog'
-import { Row, TextInput } from './controls'
+import { Row, Section, TextInput } from './controls'
 
-export function AccountsPage(props: {
-  machine: string
-  config: Config
-  accounts: Account[]
-}) {
-  const config = props.config
-
-  return (
-    <>
-      <ProviderSection
-        machine={props.machine}
-        config={config}
-        provider="claude"
-        accounts={props.accounts}
-      >
-        <Row label="Base directory">
-          <TextInput
-            key={config.claudeBaseDir}
-            className="w-72 font-mono"
-            value={config.claudeBaseDir}
-            valid={(text) => text.trim() !== ''}
-            onCommit={(claudeBaseDir) =>
-              updateConfig(props.machine, { ...config, claudeBaseDir })
-            }
-          />
-        </Row>
-        <ProviderAccounts
-          machine={props.machine}
-          provider="claude"
-          settings={config.models.claude}
-          accounts={props.accounts.filter(
-            (account) => account.provider === 'claude'
-          )}
-        />
-      </ProviderSection>
-      <ProviderSection
-        machine={props.machine}
-        config={config}
-        provider="codex"
-        accounts={props.accounts}
-      >
-        <ProviderAccounts
-          machine={props.machine}
-          provider="codex"
-          settings={config.models.codex}
-          accounts={props.accounts.filter(
-            (account) => account.provider === 'codex'
-          )}
-        />
-      </ProviderSection>
-      <ProviderSection
-        machine={props.machine}
-        config={config}
-        provider="opencode"
-        accounts={props.accounts}
-      >
-        <p className="text-muted-foreground px-4 py-3 text-xs">
-          Sign in with <code className="font-mono">opencode auth login</code>
-        </p>
-      </ProviderSection>
-    </>
-  )
-}
-
-function ProviderSection(props: {
+export function ProviderPage(props: {
   machine: string
   config: Config
   provider: Provider
   accounts: Account[]
-  children: ReactNode
 }) {
-  const enabled = props.config.enabledProviders[props.provider]
-  const account = props.accounts.find(
-    (item) => item.provider === props.provider && item.valid
+  const config = props.config
+  const enabled = config.enabledProviders[props.provider]
+  const accounts = props.accounts.filter(
+    (account) => account.provider === props.provider
   )
+  const account = accounts.find((item) => item.valid)
 
   return (
-    <section>
-      <h2 className="mb-2.5 flex items-center gap-2.5 px-1 text-sm font-semibold">
-        <span className="flex size-4 items-center justify-center">
-          <ProviderIcon
-            provider={props.provider}
-            className={cn(
-              props.provider === 'claude' && 'size-4',
-              props.provider === 'codex' && 'size-[19px] shrink-0',
-              props.provider === 'opencode' && 'h-3.5'
-            )}
-          />
-        </span>
-        {providerNames[props.provider]}
-        <Switch
-          className="ml-auto"
-          checked={enabled}
-          onCheckedChange={(checked) =>
-            void updateConfig(props.machine, {
-              ...props.config,
-              enabledProviders: {
-                ...props.config.enabledProviders,
-                [props.provider]: checked,
-              },
-            })
-          }
-          aria-label={`Enable ${providerNames[props.provider]}`}
-        />
-      </h2>
-      <div
-        className={cn('space-y-3 transition-opacity', !enabled && 'opacity-50')}
-      >
+    <>
+      {props.provider === 'claude' && (
         <div className="divide-y overflow-hidden rounded-xl border">
-          {props.children}
+          <Row label="Base directory">
+            <TextInput
+              key={config.claudeBaseDir}
+              className="w-72 font-mono"
+              value={config.claudeBaseDir}
+              valid={(text) => text.trim() !== ''}
+              onCommit={(claudeBaseDir) =>
+                updateConfig(props.machine, { ...config, claudeBaseDir })
+              }
+            />
+          </Row>
         </div>
+      )}
+      {props.provider === 'opencode' && (
+        <p className="text-muted-foreground px-1 text-xs">
+          Sign in with <code className="font-mono">opencode auth login</code>
+        </p>
+      )}
+      <div
+        className={cn('space-y-5 transition-opacity', !enabled && 'opacity-50')}
+      >
+        {props.provider !== 'opencode' && (
+          <Section title="Accounts">
+            <ProviderAccounts
+              machine={props.machine}
+              provider={props.provider}
+              settings={config.models[props.provider]}
+              accounts={accounts}
+            />
+          </Section>
+        )}
         {enabled && account !== undefined && (
           <ProviderModels
             machine={props.machine}
-            config={props.config}
+            config={config}
             provider={props.provider}
             accountId={account.id}
           />
         )}
       </div>
-    </section>
+    </>
   )
 }
 
@@ -198,7 +133,7 @@ function ProviderModels(props: {
   }
 
   return (
-    <div className="divide-y overflow-hidden rounded-xl border">
+    <Section title="Models">
       {models !== null && (
         <Row label="Default model">
           <Select
@@ -232,9 +167,6 @@ function ProviderModels(props: {
           </Select>
         </Row>
       )}
-      <div className="text-muted-foreground px-4 py-2 text-xs font-medium">
-        Models
-      </div>
       {error !== null && (
         <p className="text-destructive px-4 py-3 text-xs">{error}</p>
       )}
@@ -294,7 +226,7 @@ function ProviderModels(props: {
           </div>
         )
       })}
-    </div>
+    </Section>
   )
 }
 
