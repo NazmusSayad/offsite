@@ -52,7 +52,7 @@ function Mark(props: {
   )
 }
 
-function Countdown(props: { at: number }) {
+function Countdown(props: { label: string; at: number }) {
   const [now, setNow] = useState(Date.now)
 
   useEffect(() => {
@@ -62,8 +62,9 @@ function Countdown(props: { at: number }) {
 
   const seconds = Math.max(0, Math.ceil((props.at - now) / 1000))
   return (
-    <span className="tabular-nums">
-      {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
+    <span className="text-muted-foreground text-2xs mr-1 tabular-nums">
+      {props.label} in{' '}
+      {seconds < 60 ? `${seconds}s` : `${Math.ceil(seconds / 60)}m`}
     </span>
   )
 }
@@ -112,15 +113,20 @@ export function PermissionPrompt(props: {
           )}
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
+          {request.autoResolve !== undefined && (
+            <Countdown
+              label={
+                request.autoResolve.decision === 'allow' ? 'Approve' : 'Decline'
+              }
+              at={request.autoResolve.at}
+            />
+          )}
           <Button
             size="xs"
             variant="outline"
             onClick={() => respond(request.id, 'deny', null)}
           >
             {plan ? 'Keep planning' : 'Decline'}
-            {request.autoResolve?.decision === 'deny' && (
-              <Countdown at={request.autoResolve.at} />
-            )}
           </Button>
           {request.kind === 'approval' && request.canAlwaysAllow && (
             <Button
@@ -133,9 +139,6 @@ export function PermissionPrompt(props: {
           )}
           <Button size="xs" onClick={() => respond(request.id, 'allow', null)}>
             {plan ? 'Approve plan' : 'Approve'}
-            {request.autoResolve?.decision === 'allow' && (
-              <Countdown at={request.autoResolve.at} />
-            )}
           </Button>
         </span>
         {plan && (
@@ -399,15 +402,15 @@ function QuestionPrompt(props: {
             </div>
           )}
           <div className="ml-auto flex shrink-0 items-center gap-1.5 pr-1">
+            {props.request.autoResolve !== undefined && (
+              <Countdown label="Skip" at={props.request.autoResolve.at} />
+            )}
             <Button
               size="xs"
               variant="outline"
               onClick={() => respond(props.request.id, 'allow', {})}
             >
               Skip
-              {props.request.autoResolve !== undefined && (
-                <Countdown at={props.request.autoResolve.at} />
-              )}
             </Button>
             <Button
               size="xs"

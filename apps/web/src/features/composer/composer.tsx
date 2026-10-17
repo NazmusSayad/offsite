@@ -269,9 +269,9 @@ export function Composer() {
               void attach([...event.dataTransfer.files])
             }}
           >
-            <div className="px-3 pt-3.5 pb-2 sm:px-4 sm:pt-4">
+            <div className={cn('pb-2', images.length > 0 && 'pt-3.5 sm:pt-4')}>
               {images.length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-2">
+                <div className="mb-3 flex flex-wrap gap-2 px-3 sm:px-4">
                   {images.map((image, index) => (
                     <div
                       key={index}
@@ -391,7 +391,12 @@ export function Composer() {
                         ? `Queue a follow-up… (${mod}+Enter to send now)`
                         : 'Ask anything, @tag files/folders, or / for commands'
                 }
-                className="placeholder:text-placeholder/75 block [field-sizing:content] max-h-52 min-h-19.5 w-full resize-none bg-transparent text-sm leading-relaxed outline-none"
+                className={cn(
+                  'placeholder:text-placeholder/75 block [field-sizing:content] w-full resize-none bg-transparent px-3 text-sm leading-relaxed outline-none sm:px-4',
+                  images.length > 0
+                    ? 'max-h-52 min-h-19.5'
+                    : 'max-h-55.5 min-h-23 pt-3.5 sm:max-h-56 sm:min-h-23.5 sm:pt-4'
+                )}
               />
             </div>
             <div
