@@ -211,14 +211,16 @@ export function recordLimit(accountId: string, info: SDKRateLimitInfo) {
   const windows = (info as { unifiedWindows?: unknown }).unifiedWindows
   if (isRecord(windows)) {
     for (const [name, value] of Object.entries(windows)) {
-      if (isRecord(value))
-        {current.set(name, {
+      if (isRecord(value)) {
+        current.set(name, {
           window: name,
           utilization:
             typeof value.utilization === 'number' ? value.utilization : null,
           resetsAt: typeof value.resetsAt === 'number' ? value.resetsAt : null,
           rejected: current.get(name)?.rejected ?? false,
-        })}}
+        })
+      }
+    }
   }
   if (info.rateLimitType !== undefined) {
     const existing = current.get(info.rateLimitType)
