@@ -2,9 +2,11 @@ import {
   mkdirSync,
   readFileSync,
   renameSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { consola } from 'consola'
 import { args } from '../args.ts'
@@ -28,16 +30,18 @@ function lock() {
     if (!hasCode(error, 'EEXIST')) throw error
   }
   let content
+  let modified
   try {
     content = readFileSync(lockFile, 'utf8')
+    modified = statSync(lockFile).mtimeMs
   } catch (error) {
     if (hasCode(error, 'ENOENT')) return lock()
     throw error
   }
   const pid = Number(content)
-  if (!Number.isInteger(pid) || pid < 1)
-    throw new Error(`invalid pid ${JSON.stringify(content)} in ${lockFile}`)
-  if (pid !== process.pid && isRunning(pid)) {
+  const validPid = Number.isInteger(pid) && pid > 0
+  const writtenThisBoot = modified > Date.now() - os.uptime() * 1000
+  if (validPid && writtenThisBoot && pid !== process.pid && isRunning(pid)) {
     consola.error(`offsite is already running for ${home} (pid ${pid})`)
     process.exit(1)
   }
