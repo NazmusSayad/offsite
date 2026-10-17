@@ -1,3 +1,4 @@
+import type { PullRequestBranches } from '@offsite/core/git'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,38 +12,61 @@ import {
 export type Draft = {
   base: string
   head: string
-  branches: string[]
   title: string
   body: string
+}
+
+export type Target =
+  | ({ kind: 'ready' } & PullRequestBranches)
+  | { kind: 'failed'; text: string }
+
+export function BaseSelect(props: {
+  head: string
+  target: Target | undefined
+  onBase: (base: string) => void
+}) {
+  if (props.target?.kind === 'failed') {
+    return (
+      <span className="text-destructive truncate text-xs">
+        {props.target.text}
+      </span>
+    )
+  }
+  return (
+    <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+      <span className="truncate">{props.head} →</span>
+      <Select
+        value={props.target?.base ?? ''}
+        disabled={props.target === undefined}
+        onValueChange={props.onBase}
+      >
+        <SelectTrigger size="sm" className="max-w-48">
+          <SelectValue placeholder="Loading branches…" />
+        </SelectTrigger>
+        <SelectContent>
+          {(props.target?.branches ?? []).map((branch) => (
+            <SelectItem key={branch} value={branch}>
+              {branch}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </span>
+  )
 }
 
 export function PullRequestForm(props: {
   draft: Draft
   onChange: (draft: Draft) => void
-  onBase: (base: string) => void
   onSkip: (() => void) | null
   onRegenerate: () => void
   onCreate: () => void
 }) {
   return (
     <div className="flex flex-col gap-2 ps-6">
-      <div className="flex items-center gap-2 text-xs">
-        <Select value={props.draft.base} onValueChange={props.onBase}>
-          <SelectTrigger size="sm" className="max-w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {props.draft.branches.map((branch) => (
-              <SelectItem key={branch} value={branch}>
-                {branch}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <span className="text-muted-foreground truncate">
-          ← {props.draft.head}
-        </span>
-      </div>
+      <span className="text-muted-foreground truncate text-xs">
+        {props.draft.head} → {props.draft.base}
+      </span>
       <Input
         value={props.draft.title}
         onChange={(event) =>

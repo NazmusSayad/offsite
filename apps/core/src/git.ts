@@ -7,13 +7,18 @@ export type GitRepo = {
   changed: number
 }
 
+export type PullRequestBranches = {
+  head: string
+  base: string
+  branches: string[]
+}
+
 export type PullRequestDraft =
   | { kind: 'open'; url: string }
   | {
       kind: 'draft'
       base: string
       head: string
-      branches: string[]
       title: string
       body: string
     }

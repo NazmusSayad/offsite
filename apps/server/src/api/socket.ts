@@ -28,6 +28,7 @@ import {
   gitRepos,
   preparePullRequest,
   projectDiff,
+  pullRequestBranches,
   push,
 } from '../services/git.ts'
 import {
@@ -244,6 +245,8 @@ const handlers: Handlers = {
     await push(path.join(projectPath(params.projectId), params.repo))
     return null
   },
+  'git.branches': (params) =>
+    pullRequestBranches(path.join(projectPath(params.projectId), params.repo)),
   'git.pullRequest': (params) =>
     preparePullRequest(
       path.join(projectPath(params.projectId), params.repo),

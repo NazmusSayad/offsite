@@ -1,4 +1,4 @@
-import type { GitRepo, PullRequestDraft } from './git.ts'
+import type { GitRepo, PullRequestBranches, PullRequestDraft } from './git.ts'
 import type {
   BusyResult,
   Shell,
@@ -471,13 +471,12 @@ export type Methods = {
     result: { message: string }
   }
   'git.push': { params: { projectId: string; repo: string }; result: null }
+  'git.branches': {
+    params: { projectId: string; repo: string }
+    result: PullRequestBranches
+  }
   'git.pullRequest': {
-    params: {
-      projectId: string
-      repo: string
-      base: string | null
-      commit: boolean
-    }
+    params: { projectId: string; repo: string; base: string; commit: boolean }
     result: PullRequestDraft
   }
   'git.createPullRequest': {

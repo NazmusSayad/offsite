@@ -98,33 +98,44 @@ export async function push(cwd: string) {
   }
 }
 
+export async function pullRequestBranches(cwd: string) {
+  const head = (await gitStatus(cwd)).branch
+  if (head === null) {
+    throw new Error('Not on a branch')
+  }
+  const base = (
+    await run(
+      'gh',
+      [
+        'repo',
+        'view',
+        '--json',
+        'defaultBranchRef',
+        '--jq',
+        '.defaultBranchRef.name',
+      ],
+      { cwd }
+    )
+  ).stdout.trim()
+  if (base === head) {
+    throw new Error(`${head} is the default branch. Create a branch first.`)
+  }
+  const branches = (await git(cwd, ['ls-remote', '--heads', 'origin'])).stdout
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => line.split('refs/heads/')[1])
+    .filter((branch) => branch !== head)
+  return { head, base, branches }
+}
+
 export async function preparePullRequest(
   cwd: string,
-  chosenBase: string | null,
+  base: string,
   commitChanges: boolean
 ): Promise<PullRequestDraft> {
   const head = (await gitStatus(cwd)).branch
   if (head === null) {
     throw new Error('Not on a branch')
-  }
-  const base =
-    chosenBase ??
-    (
-      await run(
-        'gh',
-        [
-          'repo',
-          'view',
-          '--json',
-          'defaultBranchRef',
-          '--jq',
-          '.defaultBranchRef.name',
-        ],
-        { cwd }
-      )
-    ).stdout.trim()
-  if (base === head) {
-    throw new Error(`${head} is the default branch. Create a branch first.`)
   }
   if (commitChanges) {
     await commit(cwd, '', true)
@@ -187,16 +198,10 @@ export async function preparePullRequest(
   if (title === '') {
     throw new Error('The model returned an empty title')
   }
-  const branches = (await git(cwd, ['ls-remote', '--heads', 'origin'])).stdout
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => line.split('refs/heads/')[1])
-    .filter((branch) => branch !== head)
   return {
     kind: 'draft',
     base,
     head,
-    branches,
     title,
     body: lines.slice(1).join('\n').trim(),
   }

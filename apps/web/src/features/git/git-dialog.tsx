@@ -7,7 +7,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,7 +19,12 @@ import {
 } from '@/components/ui/dialog'
 import { projectOf, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
-import { type Draft, PullRequestForm } from './pull-request-form'
+import {
+  BaseSelect,
+  type Draft,
+  PullRequestForm,
+  type Target,
+} from './pull-request-form'
 
 export type Action = 'commit' | 'push' | 'pullRequest'
 
@@ -54,16 +59,39 @@ export function GitDialog(props: {
   const [repos] = useState(() => eligible(props.repos, props.action))
   const [selected, setSelected] = useState(() => repos.map((repo) => repo.path))
   const [message, setMessage] = useState('')
-  const [asking, setAsking] = useState(
-    () =>
-      props.action === 'pullRequest' &&
-      repos.length === 1 &&
-      repos[0].changed > 0
-  )
+  const [targets, setTargets] = useState<Record<string, Target>>({})
   const [entries, setEntries] = useState<Entry[] | null>(null)
-  const started = useRef(false)
-  const chosen = repos.filter((repo) => selected.includes(repo.path))
+  const chosen = repos.filter(
+    (repo) =>
+      selected.includes(repo.path) && targets[repo.path]?.kind !== 'failed'
+  )
+  const loading =
+    props.action === 'pullRequest' &&
+    chosen.some((repo) => targets[repo.path] === undefined)
   const dirty = chosen.filter((repo) => repo.changed > 0)
+
+  useEffect(() => {
+    if (props.action !== 'pullRequest') {
+      return
+    }
+    for (const repo of repos) {
+      call(props.machine, 'git.branches', {
+        projectId: props.projectId,
+        repo: repo.path,
+      }).then(
+        (result) =>
+          setTargets((previous) => ({
+            ...previous,
+            [repo.path]: { kind: 'ready', ...result },
+          })),
+        (error: unknown) =>
+          setTargets((previous) => ({
+            ...previous,
+            [repo.path]: { kind: 'failed', text: errorMessage(error) },
+          }))
+      )
+    }
+  }, [props.machine, props.projectId, props.action, repos])
 
   function patch(repo: string, change: Partial<Entry>) {
     setEntries(
@@ -84,8 +112,17 @@ export function GitDialog(props: {
     }
   }
 
+  function chooseBase(repo: string, base: string) {
+    setTargets((previous) => {
+      const target = previous[repo]
+      if (target?.kind !== 'ready') {
+        return previous
+      }
+      return { ...previous, [repo]: { ...target, base } }
+    })
+  }
+
   function start(text: string, task: (repo: string) => Promise<void>) {
-    setAsking(false)
     setEntries(
       chosen.map((repo) => ({
         path: repo.path,
@@ -131,7 +168,7 @@ export function GitDialog(props: {
   async function draftPullRequest(
     repo: string,
     commitFirst: boolean,
-    base: string | null
+    base: string
   ) {
     patch(repo, {
       state: 'working',
@@ -160,7 +197,6 @@ export function GitDialog(props: {
       draft: {
         base: result.base,
         head: result.head,
-        branches: result.branches,
         title: result.title,
         body: result.body,
       },
@@ -168,13 +204,17 @@ export function GitDialog(props: {
   }
 
   function pullRequest(commitFirst: boolean) {
-    start('Starting…', (repo) =>
-      draftPullRequest(
+    start('Starting…', async (repo) => {
+      const target = targets[repo]
+      if (target?.kind !== 'ready') {
+        throw new Error('The branches are not loaded')
+      }
+      await draftPullRequest(
         repo,
         commitFirst && dirty.some((item) => item.path === repo),
-        null
+        target.base
       )
-    )
+    })
   }
 
   function createPullRequest(repo: string, draft: Draft) {
@@ -200,22 +240,9 @@ export function GitDialog(props: {
     })
   }
 
-  useEffect(() => {
-    if (
-      started.current ||
-      props.action !== 'pullRequest' ||
-      repos.length !== 1 ||
-      repos[0].changed > 0
-    ) {
-      return
-    }
-    started.current = true
-    pullRequest(false)
-  })
-
   return (
     <Dialog open onOpenChange={() => props.onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="top-[12vh] translate-y-0 sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {props.action === 'commit' && 'Commit changes'}
@@ -234,13 +261,24 @@ export function GitDialog(props: {
           </DialogDescription>
         </DialogHeader>
 
-        {entries === null && !asking && (
+        {entries === null && (
           <>
             {repos.length === 1 && (
-              <p className="text-muted-foreground text-xs">
-                {repos[0].branch ?? 'detached'} · {repos[0].changed}{' '}
-                {repos[0].changed === 1 ? 'change' : 'changes'}
-              </p>
+              <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                {props.action === 'pullRequest' ? (
+                  <BaseSelect
+                    head={repos[0].branch ?? 'detached'}
+                    target={targets[repos[0].path]}
+                    onBase={(base) => chooseBase(repos[0].path, base)}
+                  />
+                ) : (
+                  (repos[0].branch ?? 'detached')
+                )}
+                <span className="shrink-0">
+                  · {repos[0].changed}{' '}
+                  {repos[0].changed === 1 ? 'change' : 'changes'}
+                </span>
+              </div>
             )}
             {repos.length > 1 && (
               <div className="flex max-h-60 flex-col gap-0.5 overflow-y-auto">
@@ -251,7 +289,11 @@ export function GitDialog(props: {
                   >
                     <input
                       type="checkbox"
-                      checked={selected.includes(repo.path)}
+                      disabled={targets[repo.path]?.kind === 'failed'}
+                      checked={
+                        selected.includes(repo.path) &&
+                        targets[repo.path]?.kind !== 'failed'
+                      }
                       onChange={(event) =>
                         setSelected(
                           event.target.checked
@@ -263,9 +305,17 @@ export function GitDialog(props: {
                     <span className="truncate font-medium">
                       {repoName(repo.path, projectName)}
                     </span>
-                    <span className="text-muted-foreground truncate text-xs">
-                      {repo.branch ?? 'detached'}
-                    </span>
+                    {props.action === 'pullRequest' ? (
+                      <BaseSelect
+                        head={repo.branch ?? 'detached'}
+                        target={targets[repo.path]}
+                        onBase={(base) => chooseBase(repo.path, base)}
+                      />
+                    ) : (
+                      <span className="text-muted-foreground truncate text-xs">
+                        {repo.branch ?? 'detached'}
+                      </span>
+                    )}
                     <span className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums">
                       {props.action === 'push'
                         ? repo.upstream === null
@@ -286,6 +336,15 @@ export function GitDialog(props: {
                 rows={5}
                 className="bg-background focus:border-ring/60 w-full resize-none rounded-lg border px-3 py-2 font-mono text-xs outline-none"
               />
+            )}
+            {props.action === 'pullRequest' && dirty.length > 0 && (
+              <p>
+                You have local changes
+                {repos.length > 1 &&
+                  ` in ${dirty.map((repo) => repoName(repo.path, projectName)).join(', ')}`}
+                . Do you want to commit and push them before creating the pull
+                request?
+              </p>
             )}
             <div className="flex flex-wrap justify-end gap-2">
               {props.action === 'commit' && (
@@ -312,49 +371,34 @@ export function GitDialog(props: {
                   Push
                 </Button>
               )}
-              {props.action === 'pullRequest' && (
+              {props.action === 'pullRequest' && dirty.length > 0 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={loading}
+                    onClick={() => pullRequest(false)}
+                  >
+                    Continue without them
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={loading}
+                    onClick={() => pullRequest(true)}
+                  >
+                    Commit and continue
+                  </Button>
+                </>
+              )}
+              {props.action === 'pullRequest' && dirty.length === 0 && (
                 <Button
                   size="sm"
-                  disabled={chosen.length === 0}
-                  onClick={() =>
-                    dirty.length > 0 ? setAsking(true) : pullRequest(false)
-                  }
+                  disabled={loading || chosen.length === 0}
+                  onClick={() => pullRequest(false)}
                 >
                   Create pull request
                 </Button>
               )}
-            </div>
-          </>
-        )}
-
-        {asking && (
-          <>
-            <p>
-              You have local changes in{' '}
-              {dirty.map((repo) => repoName(repo.path, projectName)).join(', ')}
-              . Do you want to commit and push them before creating the pull
-              request?
-            </p>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  repos.length === 1 ? props.onClose() : setAsking(false)
-                }
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => pullRequest(false)}
-              >
-                Continue without them
-              </Button>
-              <Button size="sm" onClick={() => pullRequest(true)}>
-                Commit and continue
-              </Button>
             </div>
           </>
         )}
@@ -408,11 +452,6 @@ export function GitDialog(props: {
                     <PullRequestForm
                       draft={draft}
                       onChange={(next) => patch(entry.path, { draft: next })}
-                      onBase={(base) =>
-                        void step(entry.path, () =>
-                          draftPullRequest(entry.path, false, base)
-                        )
-                      }
                       onSkip={
                         repos.length === 1
                           ? null

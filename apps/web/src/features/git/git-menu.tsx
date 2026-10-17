@@ -1,5 +1,6 @@
 import {
   ChevronDownIcon,
+  CircleDashedIcon,
   CloudUploadIcon,
   GitBranchIcon,
   GitCommitHorizontalIcon,
@@ -19,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { showError } from '@/lib/store'
+import { cn } from '@/lib/utils'
 import { type Action, eligible, GitDialog } from './git-dialog'
 
 export function useGitStatus(
@@ -70,6 +72,8 @@ export function GitActions(props: {
   onRefresh: () => void
 }) {
   const [action, setAction] = useState<Action | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [pushing, setPushing] = useState(false)
   const unpushed = props.repos.reduce((total, repo) => total + repo.ahead, 0)
   const branches = [
     ...new Set(props.repos.map((repo) => repo.branch ?? 'detached')),
@@ -77,14 +81,17 @@ export function GitActions(props: {
   const pushable = eligible(props.repos, 'push')
 
   async function push(repo: string) {
+    setPushing(true)
     try {
       await call(props.machine, 'git.push', {
         projectId: props.projectId,
         repo,
       })
+      setMenuOpen(false)
     } catch (error) {
       showError(error)
     } finally {
+      setPushing(false)
       props.onRefresh()
     }
   }
@@ -118,7 +125,7 @@ export function GitActions(props: {
           <span className="hidden sm:inline">Commit</span>
         </Button>
         <div className="bg-input dark:bg-input/32 w-px" />
-        <DropdownMenu>
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
@@ -126,7 +133,10 @@ export function GitActions(props: {
               className="rounded-s-none border-s-0"
               aria-label="Git actions"
             >
-              <HugeiconsIcon icon={ChevronDownIcon} className="size-4" />
+              <HugeiconsIcon
+                icon={pushing ? CircleDashedIcon : ChevronDownIcon}
+                className={cn('size-4', pushing && 'animate-spin')}
+              />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -138,15 +148,21 @@ export function GitActions(props: {
               Commit…
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={pushable.length === 0}
-              onSelect={() =>
-                pushable.length === 1
-                  ? void push(pushable[0].path)
-                  : setAction('push')
-              }
+              disabled={pushable.length === 0 || pushing}
+              onSelect={(event) => {
+                if (pushable.length === 1) {
+                  event.preventDefault()
+                  void push(pushable[0].path)
+                  return
+                }
+                setAction('push')
+              }}
             >
-              <HugeiconsIcon icon={CloudUploadIcon} />
-              {pushable.length > 1 ? 'Push…' : 'Push'}
+              <HugeiconsIcon
+                icon={pushing ? CircleDashedIcon : CloudUploadIcon}
+                className={cn(pushing && 'animate-spin')}
+              />
+              {pushing ? 'Pushing…' : pushable.length > 1 ? 'Push…' : 'Push'}
               {unpushed > 0 && (
                 <span className="text-muted-foreground ml-auto text-xs tabular-nums">
                   ↑{unpushed}
