@@ -44,14 +44,16 @@ export function ContextGroup(props: {
         aria-label={`Used ${count} ${title}`}
         onClick={props.onToggle}
         className={cn(
-          'group/tool focus-visible:ring-ring/70 flex h-7 w-full cursor-pointer items-center rounded-md text-left text-[13px] leading-4 tracking-[-0.04px] select-none focus-visible:ring-2 focus-visible:outline-none',
+          'group/tool focus-visible:ring-ring/70 flex h-7 w-full cursor-pointer items-center rounded-md text-left text-xs select-none focus-visible:ring-2 focus-visible:outline-none',
           props.open && 'bg-background sticky top-0 z-20 box-content pb-2'
         )}
       >
         <span className="flex max-w-[calc(100%-24px)] min-w-0 items-center gap-1">
           <span className="text-muted-foreground shrink-0">Used</span>
-          <span className="text-foreground shrink-0 tabular-nums">{count}</span>
-          <span className="text-foreground min-w-0 truncate font-medium">
+          <span className="text-muted-foreground shrink-0 tabular-nums">
+            {count}
+          </span>
+          <span className="text-muted-foreground min-w-0 truncate">
             {title}
           </span>
         </span>
