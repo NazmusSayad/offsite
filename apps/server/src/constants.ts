@@ -13,7 +13,7 @@ export const deprecatedModels: Record<Provider, string[]> = {
 }
 
 export const defaultModels: Record<Provider, string | null> = {
-  claude: 'opus',
+  claude: 'claude-opus-5-5',
   codex: null,
   opencode: null,
 }

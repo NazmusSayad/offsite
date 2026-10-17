@@ -114,12 +114,18 @@ export async function claudeCapabilities(
 ): Promise<ProviderCapabilities> {
   const result = await initialization(account.id, cwd)
   return {
-    models: result.models.map((model) => ({
-      value: model.value,
-      name: model.displayName,
-      description: model.description,
-      efforts: model.supportedEffortLevels ?? [],
-    })),
+    models: result.models
+      .filter((model) => model.value !== 'default')
+      .map((model) => {
+        if (model.resolvedModel === undefined)
+          throw new Error(`Claude did not resolve the ${model.value} model`)
+        return {
+          value: model.resolvedModel,
+          name: model.displayName,
+          description: model.description,
+          efforts: model.supportedEffortLevels ?? [],
+        }
+      }),
     commands: result.commands.map((command) => ({
       name: command.name,
       description: command.description,

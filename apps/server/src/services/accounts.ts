@@ -171,21 +171,19 @@ export async function capabilities(
       account === null || account.defaultModel === null
         ? providerDefaultModel
         : account.defaultModel,
-    models: result.models
-      .filter((model) => !(provider === 'claude' && model.value === 'default'))
-      .map((model) => {
-        const deprecated = deprecatedModels[provider].includes(model.value)
-        const setting = settings[model.value] ?? {
-          hidden: deprecated,
-          effort: null,
-        }
-        return {
-          ...model,
-          deprecated,
-          hidden: overrides[model.value] ?? setting.hidden,
-          effort: setting.effort,
-        }
-      }),
+    models: result.models.map((model) => {
+      const deprecated = deprecatedModels[provider].includes(model.value)
+      const setting = settings[model.value] ?? {
+        hidden: deprecated,
+        effort: null,
+      }
+      return {
+        ...model,
+        deprecated,
+        hidden: overrides[model.value] ?? setting.hidden,
+        effort: setting.effort,
+      }
+    }),
   }
 }
 
