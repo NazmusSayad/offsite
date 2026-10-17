@@ -5,9 +5,17 @@ import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { readBase64, uploadFile } from '@/api/upload'
+import { ProjectIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { changeSettings } from '@/lib/accounts'
-import { interrupt, sendPrompt } from '@/lib/sessions'
+import { interrupt, openSession, sendPrompt } from '@/lib/sessions'
 import {
   getState,
   machineOf,
@@ -49,6 +57,8 @@ export function Composer() {
   const machine = selection?.machine ?? ''
   const projectId = selection?.projectId ?? ''
   const project = useStore((state) => projectOf(state, machine, projectId))
+  const projects = useStore((state) => state.projects)
+  const machines = useStore((state) => state.machines)
   const status = useStore((state) => machineOf(state, machine).status)
   const delivery = useStore(
     (state) => machineOf(state, machine).config?.delivery ?? null
@@ -202,13 +212,83 @@ export function Composer() {
             <div className="absolute inset-x-0 bottom-full pb-4">
               <h1 className="text-foreground w-full text-center text-2xl font-normal tracking-tight sm:text-3xl">
                 What should we build in{' '}
-                <span
-                  className="border-muted-foreground/35 inline-block max-w-64 truncate border-b border-dotted align-bottom"
-                  title={project?.path}
-                >
-                  {project?.name}
-                </span>
-                ?
+                {selection?.sessionId === null ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="border-muted-foreground/35 hover:border-foreground/60 inline-flex max-w-64 cursor-pointer border-b border-dotted align-bottom outline-none"
+                        title={project?.path}
+                      >
+                        <span className="min-w-0 truncate">
+                          {project?.name}
+                        </span>
+                        ?
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      className="max-h-80 w-64"
+                      onCloseAutoFocus={(event) => {
+                        event.preventDefault()
+                        input.current?.focus()
+                      }}
+                    >
+                      <DropdownMenuRadioGroup
+                        value={machineKey(machine, projectId)}
+                      >
+                        {[...projects]
+                          .sort(
+                            (a, b) =>
+                              machines.findIndex(
+                                (item) => item.id === a.machine
+                              ) -
+                                machines.findIndex(
+                                  (item) => item.id === b.machine
+                                ) || a.name.localeCompare(b.name)
+                          )
+                          .map((item) => (
+                            <DropdownMenuRadioItem
+                              key={machineKey(item.machine, item.id)}
+                              value={machineKey(item.machine, item.id)}
+                              title={item.path}
+                              onSelect={() =>
+                                openSession({
+                                  machine: item.machine,
+                                  projectId: item.id,
+                                  sessionId: null,
+                                })
+                              }
+                            >
+                              <ProjectIcon
+                                machine={item.machine}
+                                projectId={item.id}
+                                className="size-4 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
+                              />
+                              <span className="min-w-0 flex-1 truncate">
+                                {item.name}
+                                {machines.length > 1 && (
+                                  <span className="text-muted-foreground ml-1.5 text-xs">
+                                    {
+                                      machines.find(
+                                        (other) => other.id === item.machine
+                                      )?.name
+                                    }
+                                  </span>
+                                )}
+                              </span>
+                            </DropdownMenuRadioItem>
+                          ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <span
+                    className="border-muted-foreground/35 inline-block max-w-64 truncate border-b border-dotted align-bottom"
+                    title={project?.path}
+                  >
+                    {project?.name}
+                  </span>
+                )}
+                {selection?.sessionId !== null && '?'}
               </h1>
             </div>
           )}
