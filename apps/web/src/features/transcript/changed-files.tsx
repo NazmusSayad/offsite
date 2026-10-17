@@ -7,6 +7,7 @@ import {
   UnfoldMoreIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { sumBy } from 'es-toolkit'
 import { type ReactNode, useState } from 'react'
 import { FileTypeIcon } from '@/components/file-icon'
 import { Button } from '@/components/ui/button'
@@ -118,8 +119,8 @@ export function ChangedFilesCard(props: {
 }) {
   const [allExpanded, setAllExpanded] = useState(false)
   const files = [...props.files]
-  const added = files.reduce((sum, [, stat]) => sum + stat.added, 0)
-  const removed = files.reduce((sum, [, stat]) => sum + stat.removed, 0)
+  const added = sumBy(files, (file) => file[1].added)
+  const removed = sumBy(files, (file) => file[1].removed)
   const hasDirectories = files.some(([file]) => /[/\\]/.test(file))
   const toggleLabel = allExpanded
     ? 'Collapse all folders'

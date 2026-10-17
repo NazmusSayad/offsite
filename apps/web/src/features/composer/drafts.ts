@@ -1,4 +1,5 @@
 import type { Image, Settings } from '@offsite/core/protocol'
+import { debounce } from 'es-toolkit'
 import { create } from 'zustand'
 import {
   persist,
@@ -11,8 +12,7 @@ type Drafts = { drafts: Record<string, Draft> }
 
 const storageKey = 'composerDrafts'
 const empty: Draft = { text: '', images: [], settings: null }
-let pending: StorageValue<Drafts> | null = null
-let timer: number | undefined
+const save = debounce(write, 300)
 
 const storage: PersistStorage<Drafts> = {
   getItem: (name) => {
@@ -20,11 +20,7 @@ const storage: PersistStorage<Drafts> = {
     if (raw === null) return null
     return JSON.parse(raw)
   },
-  setItem: (_name, value) => {
-    pending = value
-    window.clearTimeout(timer)
-    timer = window.setTimeout(flush, 300)
-  },
+  setItem: (_name, value) => save(value),
   removeItem: (name) => localStorage.removeItem(name),
 }
 
@@ -37,13 +33,9 @@ const useDrafts = create<Drafts>()(
   })
 )
 
-window.addEventListener('pagehide', flush)
+window.addEventListener('pagehide', save.flush)
 
-function flush() {
-  window.clearTimeout(timer)
-  if (pending === null) return
-  const value = pending
-  pending = null
+function write(value: StorageValue<Drafts>) {
   try {
     localStorage.setItem(storageKey, JSON.stringify(value))
   } catch (error) {
