@@ -247,6 +247,7 @@ const handlers: Handlers = {
   'git.pullRequest': (params) =>
     preparePullRequest(
       path.join(projectPath(params.projectId), params.repo),
+      params.base,
       params.commit
     ),
   'git.createPullRequest': (params) =>

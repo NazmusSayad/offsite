@@ -6,8 +6,8 @@ import {
   MinusSignCircleIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { GitRepo } from '@offsite/core/protocol'
-import { useState } from 'react'
+import type { GitRepo } from '@offsite/core/git'
+import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,18 +17,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { projectOf, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
+import { type Draft, PullRequestForm } from './pull-request-form'
 
 export type Action = 'commit' | 'push' | 'pullRequest'
+
+const stateIcons = {
+  working: CircleDashedIcon,
+  review: CircleIcon,
+  done: CircleCheckIcon,
+  failed: AlertCircleIcon,
+  skipped: MinusSignCircleIcon,
+}
 
 type Entry = {
   path: string
   state: 'working' | 'review' | 'done' | 'failed' | 'skipped'
   text: string
   url: string | null
-  draft: { base: string; head: string; title: string; body: string } | null
+  draft: Draft | null
 }
 
 export function GitDialog(props: {
@@ -46,8 +54,14 @@ export function GitDialog(props: {
   const [repos] = useState(() => eligible(props.repos, props.action))
   const [selected, setSelected] = useState(() => repos.map((repo) => repo.path))
   const [message, setMessage] = useState('')
-  const [asking, setAsking] = useState(false)
+  const [asking, setAsking] = useState(
+    () =>
+      props.action === 'pullRequest' &&
+      repos.length === 1 &&
+      repos[0].changed > 0
+  )
   const [entries, setEntries] = useState<Entry[] | null>(null)
+  const started = useRef(false)
   const chosen = repos.filter((repo) => selected.includes(repo.path))
   const dirty = chosen.filter((repo) => repo.changed > 0)
 
@@ -114,7 +128,11 @@ export function GitDialog(props: {
     })
   }
 
-  async function draftPullRequest(repo: string, commitFirst: boolean) {
+  async function draftPullRequest(
+    repo: string,
+    commitFirst: boolean,
+    base: string | null
+  ) {
     patch(repo, {
       state: 'working',
       text: commitFirst
@@ -125,6 +143,7 @@ export function GitDialog(props: {
     const result = await call(props.machine, 'git.pullRequest', {
       projectId: props.projectId,
       repo,
+      base,
       commit: commitFirst,
     })
     if (result.kind === 'open') {
@@ -137,10 +156,11 @@ export function GitDialog(props: {
     }
     patch(repo, {
       state: 'review',
-      text: `${result.base} ← ${result.head}`,
+      text: 'Review and create',
       draft: {
         base: result.base,
         head: result.head,
+        branches: result.branches,
         title: result.title,
         body: result.body,
       },
@@ -151,12 +171,13 @@ export function GitDialog(props: {
     start('Starting…', (repo) =>
       draftPullRequest(
         repo,
-        commitFirst && dirty.some((item) => item.path === repo)
+        commitFirst && dirty.some((item) => item.path === repo),
+        null
       )
     )
   }
 
-  function createPullRequest(repo: string, draft: NonNullable<Entry['draft']>) {
+  function createPullRequest(repo: string, draft: Draft) {
     void step(repo, async () => {
       patch(repo, {
         state: 'working',
@@ -166,7 +187,10 @@ export function GitDialog(props: {
       const created = await call(props.machine, 'git.createPullRequest', {
         projectId: props.projectId,
         repo,
-        ...draft,
+        base: draft.base,
+        head: draft.head,
+        title: draft.title,
+        body: draft.body,
       })
       patch(repo, {
         state: 'done',
@@ -175,6 +199,19 @@ export function GitDialog(props: {
       })
     })
   }
+
+  useEffect(() => {
+    if (
+      started.current ||
+      props.action !== 'pullRequest' ||
+      repos.length !== 1 ||
+      repos[0].changed > 0
+    ) {
+      return
+    }
+    started.current = true
+    pullRequest(false)
+  })
 
   return (
     <Dialog open onOpenChange={() => props.onClose()}>
@@ -187,7 +224,9 @@ export function GitDialog(props: {
           </DialogTitle>
           <DialogDescription>
             {props.action === 'commit' &&
-              'Stages every change in the selected repositories and commits it.'}
+              (repos.length === 1
+                ? 'Stages every change and commits it.'
+                : 'Stages every change in the selected repositories and commits it.')}
             {props.action === 'push' &&
               'Pushes the selected repositories to their remote.'}
             {props.action === 'pullRequest' &&
@@ -197,40 +236,48 @@ export function GitDialog(props: {
 
         {entries === null && !asking && (
           <>
-            <div className="flex max-h-60 flex-col gap-0.5 overflow-y-auto">
-              {repos.map((repo) => (
-                <label
-                  key={repo.path}
-                  className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(repo.path)}
-                    onChange={(event) =>
-                      setSelected(
-                        event.target.checked
-                          ? [...selected, repo.path]
-                          : selected.filter((item) => item !== repo.path)
-                      )
-                    }
-                  />
-                  <span className="truncate font-medium">
-                    {repoName(repo.path, projectName)}
-                  </span>
-                  <span className="text-muted-foreground truncate text-xs">
-                    {repo.branch ?? 'detached'}
-                  </span>
-                  <span className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums">
-                    {props.action === 'push'
-                      ? repo.upstream === null
-                        ? 'not pushed yet'
-                        : `↑${repo.ahead}`
-                      : repo.changed > 0 &&
-                        `${repo.changed} ${repo.changed === 1 ? 'change' : 'changes'}`}
-                  </span>
-                </label>
-              ))}
-            </div>
+            {repos.length === 1 && (
+              <p className="text-muted-foreground text-xs">
+                {repos[0].branch ?? 'detached'} · {repos[0].changed}{' '}
+                {repos[0].changed === 1 ? 'change' : 'changes'}
+              </p>
+            )}
+            {repos.length > 1 && (
+              <div className="flex max-h-60 flex-col gap-0.5 overflow-y-auto">
+                {repos.map((repo) => (
+                  <label
+                    key={repo.path}
+                    className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(repo.path)}
+                      onChange={(event) =>
+                        setSelected(
+                          event.target.checked
+                            ? [...selected, repo.path]
+                            : selected.filter((item) => item !== repo.path)
+                        )
+                      }
+                    />
+                    <span className="truncate font-medium">
+                      {repoName(repo.path, projectName)}
+                    </span>
+                    <span className="text-muted-foreground truncate text-xs">
+                      {repo.branch ?? 'detached'}
+                    </span>
+                    <span className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums">
+                      {props.action === 'push'
+                        ? repo.upstream === null
+                          ? 'not pushed yet'
+                          : `↑${repo.ahead}`
+                        : repo.changed > 0 &&
+                          `${repo.changed} ${repo.changed === 1 ? 'change' : 'changes'}`}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
             {props.action === 'commit' && (
               <textarea
                 value={message}
@@ -292,7 +339,9 @@ export function GitDialog(props: {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setAsking(false)}
+                onClick={() =>
+                  repos.length === 1 ? props.onClose() : setAsking(false)
+                }
               >
                 Cancel
               </Button>
@@ -318,17 +367,7 @@ export function GitDialog(props: {
                 <div key={entry.path} className="flex flex-col gap-2">
                   <div className="flex items-start gap-2">
                     <HugeiconsIcon
-                      icon={
-                        entry.state === 'working'
-                          ? CircleDashedIcon
-                          : entry.state === 'review'
-                            ? CircleIcon
-                            : entry.state === 'done'
-                              ? CircleCheckIcon
-                              : entry.state === 'failed'
-                                ? AlertCircleIcon
-                                : MinusSignCircleIcon
-                      }
+                      icon={stateIcons[entry.state]}
                       className={cn(
                         'mt-0.5 size-4 shrink-0',
                         entry.state === 'working' && 'animate-spin',
@@ -366,59 +405,31 @@ export function GitDialog(props: {
                     </span>
                   </div>
                   {entry.state === 'review' && draft !== null && (
-                    <div className="flex flex-col gap-2 ps-6">
-                      <Input
-                        value={draft.title}
-                        onChange={(event) =>
-                          patch(entry.path, {
-                            draft: { ...draft, title: event.target.value },
-                          })
-                        }
-                      />
-                      <textarea
-                        value={draft.body}
-                        onChange={(event) =>
-                          patch(entry.path, {
-                            draft: { ...draft, body: event.target.value },
-                          })
-                        }
-                        rows={8}
-                        className="bg-background focus:border-ring/60 w-full resize-y rounded-lg border px-3 py-2 font-mono text-xs outline-none"
-                      />
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            patch(entry.path, {
-                              state: 'skipped',
-                              text: 'Skipped',
-                              draft: null,
-                            })
-                          }
-                        >
-                          Skip
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            void step(entry.path, () =>
-                              draftPullRequest(entry.path, false)
-                            )
-                          }
-                        >
-                          Regenerate
-                        </Button>
-                        <Button
-                          size="sm"
-                          disabled={draft.title.trim() === ''}
-                          onClick={() => createPullRequest(entry.path, draft)}
-                        >
-                          Create PR
-                        </Button>
-                      </div>
-                    </div>
+                    <PullRequestForm
+                      draft={draft}
+                      onChange={(next) => patch(entry.path, { draft: next })}
+                      onBase={(base) =>
+                        void step(entry.path, () =>
+                          draftPullRequest(entry.path, false, base)
+                        )
+                      }
+                      onSkip={
+                        repos.length === 1
+                          ? null
+                          : () =>
+                              patch(entry.path, {
+                                state: 'skipped',
+                                text: 'Skipped',
+                                draft: null,
+                              })
+                      }
+                      onRegenerate={() =>
+                        void step(entry.path, () =>
+                          draftPullRequest(entry.path, false, draft.base)
+                        )
+                      }
+                      onCreate={() => createPullRequest(entry.path, draft)}
+                    />
                   )}
                 </div>
               )

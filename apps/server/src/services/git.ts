@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { query } from '@anthropic-ai/claude-agent-sdk'
-import type { GitRepo, PullRequestDraft } from '@offsite/core/protocol'
+import type { GitRepo, PullRequestDraft } from '@offsite/core/git'
 import { claudeOptions } from '../lib/claude/index.ts'
 import { codexText } from '../lib/codex/index.ts'
 import { openCodeText } from '../lib/opencode/index.ts'
@@ -100,26 +100,29 @@ export async function push(cwd: string) {
 
 export async function preparePullRequest(
   cwd: string,
+  chosenBase: string | null,
   commitChanges: boolean
 ): Promise<PullRequestDraft> {
   const head = (await gitStatus(cwd)).branch
   if (head === null) {
     throw new Error('Not on a branch')
   }
-  const base = (
-    await run(
-      'gh',
-      [
-        'repo',
-        'view',
-        '--json',
-        'defaultBranchRef',
-        '--jq',
-        '.defaultBranchRef.name',
-      ],
-      { cwd }
-    )
-  ).stdout.trim()
+  const base =
+    chosenBase ??
+    (
+      await run(
+        'gh',
+        [
+          'repo',
+          'view',
+          '--json',
+          'defaultBranchRef',
+          '--jq',
+          '.defaultBranchRef.name',
+        ],
+        { cwd }
+      )
+    ).stdout.trim()
   if (base === head) {
     throw new Error(`${head} is the default branch. Create a branch first.`)
   }
@@ -184,10 +187,16 @@ export async function preparePullRequest(
   if (title === '') {
     throw new Error('The model returned an empty title')
   }
+  const branches = (await git(cwd, ['ls-remote', '--heads', 'origin'])).stdout
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => line.split('refs/heads/')[1])
+    .filter((branch) => branch !== head)
   return {
     kind: 'draft',
     base,
     head,
+    branches,
     title,
     body: lines.slice(1).join('\n').trim(),
   }

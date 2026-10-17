@@ -6,7 +6,7 @@ import {
   GitPullRequestIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { GitRepo } from '@offsite/core/protocol'
+import type { GitRepo } from '@offsite/core/git'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
@@ -74,6 +74,20 @@ export function GitActions(props: {
   const branches = [
     ...new Set(props.repos.map((repo) => repo.branch ?? 'detached')),
   ]
+  const pushable = eligible(props.repos, 'push')
+
+  async function push(repo: string) {
+    try {
+      await call(props.machine, 'git.push', {
+        projectId: props.projectId,
+        repo,
+      })
+    } catch (error) {
+      showError(error)
+    } finally {
+      props.onRefresh()
+    }
+  }
 
   return (
     <div className="flex w-fit items-center gap-2">
@@ -124,11 +138,15 @@ export function GitActions(props: {
               Commit…
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={eligible(props.repos, 'push').length === 0}
-              onSelect={() => setAction('push')}
+              disabled={pushable.length === 0}
+              onSelect={() =>
+                pushable.length === 1
+                  ? void push(pushable[0].path)
+                  : setAction('push')
+              }
             >
               <HugeiconsIcon icon={CloudUploadIcon} />
-              Push…
+              {pushable.length > 1 ? 'Push…' : 'Push'}
               {unpushed > 0 && (
                 <span className="text-muted-foreground ml-auto text-xs tabular-nums">
                   ↑{unpushed}

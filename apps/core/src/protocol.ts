@@ -1,3 +1,4 @@
+import type { GitRepo, PullRequestDraft } from './git.ts'
 import type {
   BusyResult,
   Shell,
@@ -140,19 +141,6 @@ export type RewindResult = {
   insertions: number
   deletions: number
 } | null
-
-export type GitRepo = {
-  path: string
-  branch: string | null
-  upstream: string | null
-  ahead: number
-  behind: number
-  changed: number
-}
-
-export type PullRequestDraft =
-  | { kind: 'open'; url: string }
-  | { kind: 'draft'; base: string; head: string; title: string; body: string }
 
 export type FilePreview =
   | { kind: 'text'; size: number; content: string }
@@ -484,7 +472,12 @@ export type Methods = {
   }
   'git.push': { params: { projectId: string; repo: string }; result: null }
   'git.pullRequest': {
-    params: { projectId: string; repo: string; commit: boolean }
+    params: {
+      projectId: string
+      repo: string
+      base: string | null
+      commit: boolean
+    }
     result: PullRequestDraft
   }
   'git.createPullRequest': {
