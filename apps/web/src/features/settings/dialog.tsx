@@ -78,6 +78,14 @@ export function SettingsDialog() {
       ? 'New account'
       : machine?.accounts.find((account) => account.id === settingsAccount)
           ?.name
+  const editedMachine = useStore((state) =>
+    page === 'Machines'
+      ? (state.machines.find(
+          (item) => item.id === state.settingsEditedMachine
+        ) ?? null)
+      : null
+  )
+  const subpage = settingsAccount !== null || editedMachine !== null
   const [confirming, setConfirming] = useState<'browser' | 'machine' | null>(
     null
   )
@@ -155,11 +163,13 @@ export function SettingsDialog() {
         </nav>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-7">
           <div className="mb-5 flex h-9 items-center">
-            {settingsAccount !== null && (
+            {subpage && (
               <>
                 <button
                   className="text-muted-foreground hover:text-foreground text-xl font-semibold tracking-tight transition-colors"
-                  onClick={() => update({ settingsAccount: null })}
+                  onClick={() =>
+                    update({ settingsAccount: null, settingsEditedMachine: null })
+                  }
                 >
                   {page}
                 </button>
@@ -168,11 +178,11 @@ export function SettingsDialog() {
                   className="text-muted-foreground mx-1.5 size-5"
                 />
                 <h2 className="truncate text-xl font-semibold tracking-tight">
-                  {accountTitle}
+                  {settingsAccount !== null ? accountTitle : editedMachine?.name}
                 </h2>
               </>
             )}
-            {settingsAccount === null && (
+            {!subpage && (
               <h2 className="text-xl font-semibold tracking-tight">
                 {page === 'Machine' ? 'General' : page}
               </h2>
