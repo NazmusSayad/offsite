@@ -1,6 +1,7 @@
 import {
   mkdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   statSync,
   unlinkSync,
@@ -74,8 +75,15 @@ export function readJson(name: string): unknown {
 }
 
 export function writeJson(name: string, value: unknown) {
-  const file = path.join(home, name)
+  let file = path.join(home, name)
   mkdirSync(home, { recursive: true })
+
+  try {
+    file = realpathSync(file)
+  } catch (error) {
+    if (!hasCode(error, 'ENOENT')) throw error
+  }
+
   writeFileSync(`${file}.tmp`, `${JSON.stringify(value, null, 2)}\n`, {
     mode: 0o600,
   })
