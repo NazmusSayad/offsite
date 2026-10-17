@@ -20,12 +20,13 @@ Then open the pairing link it prints. It pairs this browser with the server, so 
 | `offsite pair`   | Makes a pairing token for another browser and prints its links. `--name` labels it |
 | `offsite unpair` | Lists paired browsers so you can pick which to unpair                              |
 
-| Flag        | Default      | What it sets                                 |
-| ----------- | ------------ | -------------------------------------------- |
-| `--host`    | `127.0.0.1`  | Address to listen on                         |
-| `--port`    | `47841`      | Port to listen on                            |
-| `--dir`     | `~/.offsite` | Folder for settings and accounts             |
-| `--no-auth` | auth on      | Accept connections without the pairing token |
+| Flag        | Default      | What it sets                                                 |
+| ----------- | ------------ | ------------------------------------------------------------ |
+| `--host`    | `127.0.0.1`  | Address to listen on                                         |
+| `--port`    | `47841`      | Port to listen on                                            |
+| `--dir`     | `~/.offsite` | Folder for settings and accounts                             |
+| `--no-auth` | auth on      | Accept connections without the pairing token                 |
+| `--no-pair` | pair on      | Don't create a pairing token or print pairing links on start |
 
 Pairing tokens stay in `tokens.json` inside `--dir`. A running offsite disconnects an unpaired browser within seconds.
 

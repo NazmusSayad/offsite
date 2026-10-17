@@ -68,7 +68,7 @@ if (findClaude() === null) {
 }
 
 const publicDir = path.join(import.meta.dirname, '..', '..', 'web', 'dist')
-const token = args.auth ? firstToken() : null
+const token = args.auth && args.pair ? firstToken() : null
 
 const server = createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
@@ -123,11 +123,16 @@ if (args.auth)
 
 server.listen(port, args.host, () => {
   startPush(`${args.host}:${port}`)
-  const links = pairingLinks(token)
-  if (args.command === 'web')
-    console.log(`offsite is running at ${links.local}`)
-  console.log(`Open it on ${HOSTED_APP}: ${links.hosted}`)
-  if (token === null)
+  if (args.pair) {
+    const links = pairingLinks(token)
+    if (args.command === 'web')
+      console.log(`offsite is running at ${links.local}`)
+    console.log(`Open it on ${HOSTED_APP}: ${links.hosted}`)
+  } else {
+    console.log(`offsite is running at ${address}`)
+    console.log(`Open it on ${HOSTED_APP}`)
+  }
+  if (!args.auth)
     console.warn(
       'auth is off; anyone who can reach this port can control this machine'
     )
