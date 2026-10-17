@@ -3,6 +3,7 @@ import {
   ArrowRight01Icon,
   Delete02Icon,
   DragDropVerticalIcon,
+  Link01Icon,
   Refresh01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -160,20 +161,15 @@ export function MachinesPage() {
 function EditMachinePage(props: { machine: Machine }) {
   const machine = props.machine
   const [adding, setAdding] = useState(false)
-  const [pairing, setPairing] = useState(false)
+  const [pairing, setPairing] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [order, setOrder] = useState<string[] | null>(null)
   const addresses = order ?? machine.addresses
   const newAddress = useRef<HTMLInputElement>(null)
-  const pairingInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (adding) newAddress.current?.focus()
   }, [adding])
-
-  useEffect(() => {
-    if (pairing) pairingInput.current?.focus()
-  }, [pairing])
 
   function saveAddresses(addresses: string[]) {
     setError(null)
@@ -254,37 +250,33 @@ function EditMachinePage(props: { machine: Machine }) {
             </span>
           )}
           {(machine.token === null || machine.status === 'unauthorized') && (
-            <>
-              <span className="text-sm">Not paired</span>
-              {!pairing && (
-                <Button
-                  variant="outline"
-                  className="text-destructive px-4"
-                  onClick={() => setPairing(true)}
-                >
-                  Pair
-                </Button>
-              )}
-            </>
+            <form
+              className="flex flex-1 items-center gap-3"
+              onSubmit={(event) => {
+                event.preventDefault()
+                if (savePairing(pairing)) setPairing('')
+              }}
+            >
+              <Input
+                className="flex-1 font-mono"
+                placeholder="Pairing link or token"
+                spellCheck={false}
+                autoComplete="off"
+                value={pairing}
+                onChange={(event) => setPairing(event.target.value)}
+              />
+              <Button
+                type="submit"
+                variant="outline"
+                className="px-4"
+                disabled={pairing.trim() === ''}
+              >
+                <HugeiconsIcon icon={Link01Icon} />
+                Pair
+              </Button>
+            </form>
           )}
         </div>
-        {pairing && (
-          <div className="px-4 py-2.5">
-            <Input
-              ref={pairingInput}
-              className="font-mono"
-              placeholder="Pairing link or token"
-              spellCheck={false}
-              autoComplete="off"
-              onBlur={(event) => {
-                if (savePairing(event.target.value)) setPairing(false)
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') event.currentTarget.blur()
-              }}
-            />
-          </div>
-        )}
       </Section>
       <Section
         title="Addresses"
