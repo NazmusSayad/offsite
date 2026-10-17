@@ -48,7 +48,7 @@ export type Machine = {
   id: string
   addresses: string[]
   via: string | null
-  status: 'connecting' | 'online' | 'offline' | 'mismatch'
+  status: 'connecting' | 'online' | 'offline'
   name: string
   hostname: string
   label: string | null

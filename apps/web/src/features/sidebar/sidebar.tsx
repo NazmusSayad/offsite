@@ -128,8 +128,6 @@ export function Sidebar(props: {
     const machine = machines.find((item) => item.id === id)
     if (machine === undefined) return ''
     if (machine.status === 'online') return machine.name
-    if (machine.status === 'mismatch')
-      return `${machine.name} · different machine`
     return `${machine.name} · offline`
   }
 

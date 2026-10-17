@@ -1,11 +1,9 @@
-import { randomUUID } from 'node:crypto'
 import { chmodSync, closeSync, openSync } from 'node:fs'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { drizzle } from 'drizzle-orm/node-sqlite'
 import { migrate } from 'drizzle-orm/node-sqlite/migrator'
 import { serverDir } from '../args.ts'
-import { machine } from './schema.ts'
 import { home } from './storage.ts'
 
 const file = path.join(home, 'offsite.db')
@@ -23,17 +21,3 @@ client.exec(`
 export const db = drizzle({ client })
 
 migrate(db, { migrationsFolder: path.join(serverDir, 'drizzle') })
-
-db.transaction(
-  (tx) => {
-    if (tx.select().from(machine).get() !== undefined) return
-    tx.insert(machine).values({ id: randomUUID() }).run()
-  },
-  { behavior: 'immediate' }
-)
-
-export function machineInfo() {
-  const row = db.select().from(machine).get()
-  if (row === undefined) throw new Error('the machine row is missing')
-  return row
-}

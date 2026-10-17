@@ -17,7 +17,6 @@ import {
   type TerminalTab,
 } from '@offsite/core/protocol'
 import type { Client } from '../../lib/hub.ts'
-import { machineInfo } from '../../storage/db.ts'
 import { home } from '../../storage/storage.ts'
 import { projectPath } from '../projects.ts'
 import { pushActive, sendPush } from '../push.ts'
@@ -383,7 +382,6 @@ function push(id: number, alert: Alert, windowTitle: string) {
   void sendPush({
     title,
     body,
-    machineId: machineInfo().id,
     projectId: entry[0],
     tabId: id,
   })

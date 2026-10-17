@@ -1,4 +1,4 @@
-import type { Project, ServerMessage, Snapshot } from '@offsite/core/protocol'
+import type { Project } from '@offsite/core/protocol'
 import type { MachineIcon } from '@/components/icons'
 import {
   getState,
@@ -23,7 +23,6 @@ export type StoredMachine = {
 }
 
 const storageKey = 'machines'
-const PROBE_TIMEOUT = 5000
 
 export function loadMachines(): StoredMachine[] {
   const raw = localStorage.getItem(storageKey)
@@ -37,6 +36,7 @@ export function saveMachines(machines: StoredMachine[]) {
 async function shareWithWorker(machines: StoredMachine[]) {
   if (!('caches' in window)) return
   const shared = machines.map((machine) => ({
+    id: machine.id,
     addresses: machine.addresses,
     query: String(
       new URLSearchParams(
@@ -46,30 +46,6 @@ async function shareWithWorker(machines: StoredMachine[]) {
   }))
   const cache = await caches.open('offsite-worker')
   await cache.put('/machines', new Response(JSON.stringify(shared)))
-}
-
-function readMachineId(address: string, token: string | null) {
-  return new Promise<string>((resolve, reject) => {
-    const query = token === null ? '' : `?${new URLSearchParams({ token })}`
-    const socket = new WebSocket(`${address.replace(/^http/, 'ws')}/ws${query}`)
-    const timer = window.setTimeout(() => socket.close(), PROBE_TIMEOUT)
-    socket.onopen = () =>
-      socket.send(JSON.stringify({ id: 1, method: 'sync', params: undefined }))
-    socket.onmessage = (event) => {
-      if (typeof event.data !== 'string') return
-      const message = JSON.parse(event.data) as ServerMessage
-      if (message.type !== 'reply' || message.id !== 1) return
-      window.clearTimeout(timer)
-      socket.onclose = null
-      socket.close()
-      if ('error' in message) reject(new Error(message.error))
-      else resolve((message.result as Snapshot).machineId)
-    }
-    socket.onclose = () => {
-      window.clearTimeout(timer)
-      reject(new Error(`Could not connect to ${new URL(address).host}`))
-    }
-  })
 }
 
 export function pairingFromUrl() {
@@ -175,24 +151,22 @@ export function receiveMachines() {
   }
 }
 
-export async function addMachine(
+export function addMachine(
   address: string,
   fallback: string | null,
   token: string | null
 ) {
   const addresses = fallback === null ? [address] : [address, fallback]
-  const id = await identify(addresses, token)
-  const existing = getState().machines.find(
-    (item) => item.addresses.includes(address) || item.id === id
+  const existing = getState().machines.find((item) =>
+    addresses.some((known) => item.addresses.includes(known))
   )
   if (existing !== undefined) {
-    const added = addresses.filter((item) => !existing.addresses.includes(item))
-    editMachine(existing.id, {
-      addresses: [...existing.addresses, ...added],
-      ...(token !== null && { token }),
-    })
+    if (token !== null) editMachine(existing.id, { token })
     return existing.id
   }
+  const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+    byte.toString(16).padStart(2, '0')
+  ).join('')
   update({
     machines: [
       ...getState().machines,
@@ -211,18 +185,6 @@ export async function addMachine(
   persistMachines()
   connectMachine(id, addresses, token)
   return id
-}
-
-async function identify(addresses: string[], token: string | null) {
-  let failure: unknown
-  for (const address of addresses) {
-    try {
-      return await readMachineId(address, token)
-    } catch (error) {
-      failure ??= error
-    }
-  }
-  throw failure
 }
 
 export function editMachine(

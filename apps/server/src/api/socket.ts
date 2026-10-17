@@ -60,7 +60,6 @@ import {
   terminalRequest,
 } from '../services/terminal/terminal.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
-import { machineInfo } from '../storage/db.ts'
 
 type Handlers = {
   [M in Method]: (
@@ -75,7 +74,6 @@ const handlers: Handlers = {
     refreshAll()
     return {
       ...configInfo(),
-      machineId: machineInfo().id,
       hostname: os.hostname(),
       projects: projects(),
       sessions: sessions(),

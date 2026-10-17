@@ -45,13 +45,6 @@ import {
 import { cn, drag, mod } from '@/lib/utils'
 
 const desktop = window.matchMedia('(min-width: 768px)')
-const refusals = {
-  mismatch: {
-    title: (name: string) => `${name} is a different machine now`,
-    body: 'Its address now reaches another offsite machine. Fix the address in Settings → Machines, or add it as a new machine.',
-  },
-}
-
 const toggle =
   'text-foreground hover:bg-accent data-[pressed=true]:bg-accent grid h-7 min-w-7 cursor-pointer place-items-center rounded-lg border border-transparent [&_svg]:size-4 [&_svg]:opacity-80'
 
@@ -68,10 +61,6 @@ export function App() {
     const origin = defaultMachine(state)
     return origin === null ? null : machineOf(state, origin)
   })
-  const refusal =
-    machine !== null && machine.status === 'mismatch'
-      ? refusals[machine.status]
-      : null
   const error = useStore((state) => state.error)
   const [sidebar, setSidebar] = useState(desktop.matches)
   const [panel, setPanel] = useState<'diff' | 'tasks' | 'files' | null>(null)
@@ -254,19 +243,7 @@ export function App() {
                 </div>
               </div>
             )}
-            {selection !== null && machine !== null && refusal !== null && (
-              <div className="grid flex-1 place-items-center p-6 text-center">
-                <div>
-                  <h1 className="text-foreground text-2xl font-normal tracking-tight sm:text-3xl">
-                    {refusal.title(machine.name)}
-                  </h1>
-                  <p className="text-muted-foreground mt-2 text-sm">
-                    {refusal.body}
-                  </p>
-                </div>
-              </div>
-            )}
-            {selection !== null && refusal === null && (
+            {selection !== null && (
               <Fragment
                 key={`${selection.machine} ${selection.sessionId ?? selection.projectId}`}
               >

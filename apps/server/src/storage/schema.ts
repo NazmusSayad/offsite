@@ -1,9 +1,5 @@
 import { integer, snakeCase, text } from 'drizzle-orm/sqlite-core'
 
-export const machine = snakeCase.table('machine', {
-  id: text().primaryKey(),
-})
-
 export const projects = snakeCase.table('projects', {
   id: text().primaryKey(),
   path: text().notNull().unique(),
@@ -30,5 +26,6 @@ export const pushSubscriptions = snakeCase.table('push_subscriptions', {
   auth: text().notNull(),
   publicKey: text().notNull(),
   privateKey: text().notNull(),
+  machine: text().notNull(),
   server: text().notNull(),
 })

@@ -30,6 +30,7 @@ export function subscribe(registration: PushRegistration) {
     auth: registration.subscription.keys.auth,
     publicKey: registration.publicKey,
     privateKey: registration.privateKey,
+    machine: registration.machine,
     server,
   }
   db.insert(pushSubscriptions)
@@ -49,11 +50,11 @@ export function unsubscribe(endpoint: string) {
 export async function sendPush(message: TerminalPush) {
   const subscriptions = ours()
   if (subscriptions.length === 0) return
-  const payload = JSON.stringify({
+  const trimmed = {
     ...message,
     title: [...message.title].slice(0, TITLE_LIMIT).join(''),
     body: [...message.body].slice(0, BODY_LIMIT).join(''),
-  })
+  }
   const gone: string[] = []
   await Promise.all(
     subscriptions.map(async (subscription) => {
@@ -63,7 +64,7 @@ export async function sendPush(message: TerminalPush) {
             endpoint: subscription.endpoint,
             keys: { p256dh: subscription.p256dh, auth: subscription.auth },
           },
-          payload,
+          JSON.stringify({ ...trimmed, machineId: subscription.machine }),
           {
             vapidDetails: {
               subject: SUBJECT,

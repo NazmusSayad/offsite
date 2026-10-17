@@ -223,5 +223,6 @@ async function savePushSubscription(
   await call(machine, 'push.subscribe', {
     subscription: subscription.toJSON() as PushSubscriptionInfo,
     ...keys,
+    machine,
   })
 }

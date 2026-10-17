@@ -63,6 +63,7 @@ async function renewSubscription(event) {
       await call(machine, 'push.subscribe', {
         subscription: subscription.toJSON(),
         ...keys,
+        machine: machine.id,
       })
     })
   )

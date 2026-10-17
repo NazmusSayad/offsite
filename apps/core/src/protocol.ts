@@ -39,7 +39,6 @@ export type Directories = {
 }
 
 export type Snapshot = ConfigInfo & {
-  machineId: string
   hostname: string
   projects: Project[]
   sessions: Session[]
@@ -205,7 +204,6 @@ export type BusyResult = { program: string | null } | { error: string }
 export type TerminalPush = {
   title: string
   body: string
-  machineId: string
   projectId: string
   tabId: number
 }
@@ -341,6 +339,7 @@ export type PushRegistration = {
   subscription: PushSubscriptionInfo
   publicKey: string
   privateKey: string
+  machine: string
 }
 
 export type Methods = {

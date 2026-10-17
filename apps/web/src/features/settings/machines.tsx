@@ -39,7 +39,6 @@ const statuses = {
   connecting: 'Connecting…',
   online: 'Online',
   offline: 'Offline',
-  mismatch: 'Its address reaches a different machine',
 }
 
 export function MachinesPage() {

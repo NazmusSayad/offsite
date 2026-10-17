@@ -90,14 +90,14 @@ export function start() {
   for (const machine of stored)
     connectMachine(machine.id, machine.addresses, machine.token)
   shareMachines(stored)
-  void attach()
+  attach()
 }
 
-async function attach() {
+function attach() {
   try {
     const pairing = pairingFromUrl()
     if (pairing !== null)
-      await addMachine(pairing.address, pairing.fallback, pairing.token)
+      addMachine(pairing.address, pairing.fallback, pairing.token)
   } catch (error) {
     showError(error)
   }
@@ -108,10 +108,6 @@ async function resync(machine: string) {
     const snapshot = await call(machine, 'sync', undefined)
     const known = getState().machines.find((item) => item.id === machine)
     if (known === undefined) return
-    if (snapshot.machineId !== machine) {
-      setMachine(machine, { status: 'mismatch' })
-      return
-    }
     setMachine(machine, {
       status: 'online',
       name: known.label ?? snapshot.hostname,
@@ -167,7 +163,7 @@ function reopenThread(machine: string) {
 function receive(machine: string, event: ServerEvent) {
   const state = getState()
   const known = state.machines.find((item) => item.id === machine)
-  if (known === undefined || known.status === 'mismatch') return
+  if (known === undefined) return
   const selected = state.selection?.machine === machine
   const current = selected ? (state.selection?.sessionId ?? null) : null
   switch (event.type) {
