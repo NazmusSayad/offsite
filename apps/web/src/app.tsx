@@ -374,7 +374,7 @@ export function App() {
           >
             <HugeiconsIcon icon={TaskDaily01Icon} />
             {runningTasks > 0 && (
-              <span className="bg-primary text-primary-foreground absolute -top-0.5 -right-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full px-0.5 text-[9px] leading-none font-medium tabular-nums">
+              <span className="text-foreground absolute -top-0.5 -right-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-0.5 text-[9px] leading-none font-medium tabular-nums">
                 {runningTasks}
               </span>
             )}

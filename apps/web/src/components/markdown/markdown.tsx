@@ -11,12 +11,13 @@ import {
   TriangleAlertIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { memo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
+import { call } from '@/api/connection'
 import {
   FileTypeIcon,
   hasLanguageIcon,
@@ -30,7 +31,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useCopy } from '@/lib/clipboard'
-import { cn } from '@/lib/utils'
+import { useStore } from '@/lib/store'
+import { cn, errorMessage } from '@/lib/utils'
 
 type MarkdownNode = {
   type?: string
@@ -81,6 +83,9 @@ const schema = {
 }
 
 const failedHosts = new Set<string>()
+
+const imageClass =
+  'border-border/40 h-auto max-h-[30rem] w-auto max-w-[min(100%,30rem)] rounded-lg border object-contain'
 
 function remarkGithubAlerts() {
   return (tree: MarkdownNode) => {
@@ -209,11 +214,17 @@ const components: Components = {
     return <MarkdownDetails open={open === true}>{children}</MarkdownDetails>
   },
   img({ src, alt }) {
+    if (
+      typeof src === 'string' &&
+      ((src.startsWith('/') && !src.startsWith('//')) || src.startsWith('./'))
+    ) {
+      return <LocalImage path={decodeURI(src)} alt={alt ?? ''} />
+    }
     return (
       <img
         src={typeof src === 'string' ? src : undefined}
         alt={alt ?? ''}
-        className="border-border/40 h-auto max-h-[30rem] w-auto max-w-[min(100%,30rem)] rounded-lg border object-contain"
+        className={imageClass}
       />
     )
   },
@@ -340,6 +351,62 @@ function LinkFavicon(props: { host: string }) {
       )}
     </span>
   )
+}
+
+function LocalImage(props: { path: string; alt: string }) {
+  const selection = useStore((state) => state.selection)
+  const [image, setImage] = useState<
+    { path: string; src: string } | { path: string; error: string } | null
+  >(null)
+
+  useEffect(() => {
+    if (selection === null) {
+      return
+    }
+    let current = true
+    call(selection.machine, 'files.read', {
+      projectId: selection.projectId,
+      path: props.path,
+    }).then(
+      (result) => {
+        if (!current) {
+          return
+        }
+        if (result.kind === 'image') {
+          setImage({
+            path: props.path,
+            src: `data:${result.mediaType};base64,${result.data}`,
+          })
+          return
+        }
+        if (result.kind === 'large') {
+          setImage({ path: props.path, error: 'the file is too large' })
+          return
+        }
+        setImage({ path: props.path, error: 'the file is not an image' })
+      },
+      (caught: unknown) => {
+        if (current) {
+          setImage({ path: props.path, error: errorMessage(caught) })
+        }
+      }
+    )
+    return () => {
+      current = false
+    }
+  }, [selection, props.path])
+
+  if (image === null || image.path !== props.path) {
+    return null
+  }
+  if ('error' in image) {
+    return (
+      <span className="text-muted-foreground text-xs">
+        Could not show {props.path}: {image.error}
+      </span>
+    )
+  }
+  return <img src={image.src} alt={props.alt} className={imageClass} />
 }
 
 function CodeBlock(props: { code: string; language: string }) {
