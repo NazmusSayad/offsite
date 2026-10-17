@@ -4,7 +4,10 @@ import { useState } from 'react'
 import { home } from '@/api/machines'
 import { removeMachine } from '@/api/sync'
 import { Button } from '@/components/ui/button'
-import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
+import {
+  AddMachineDialog,
+  MachineTokenDialog,
+} from '@/features/sidebar/machine-dialog'
 import { useStore } from '@/lib/store'
 import { Section } from './controls'
 
@@ -70,7 +73,7 @@ export function MachinesPage() {
       </Button>
       {adding && <AddMachineDialog onClose={() => setAdding(false)} />}
       {pairing !== null && (
-        <AddMachineDialog origin={pairing} onClose={() => setPairing(null)} />
+        <MachineTokenDialog origin={pairing} onClose={() => setPairing(null)} />
       )}
     </>
   )

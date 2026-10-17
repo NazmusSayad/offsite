@@ -22,13 +22,7 @@ import { applyTheme } from '@/lib/theme'
 import { selectionFromUrl, syncUrl } from '@/lib/url'
 import { call, connectMachine, disconnectMachine, listen } from './connection'
 import { receiveConfig } from './machine-config'
-import {
-  home,
-  loadMachines,
-  machineKey,
-  readMachineLink,
-  saveMachines,
-} from './machines'
+import { home, loadMachines, machineKey, saveMachines } from './machines'
 
 export function start() {
   const stored = loadMachines()
@@ -316,8 +310,7 @@ function receive(machine: string, event: ServerEvent) {
   }
 }
 
-export function addMachine(link: string) {
-  const { origin, token } = readMachineLink(link)
+export function addMachine(origin: string, token: string | null) {
   if (getState().machines.some((item) => item.origin === origin)) {
     if (token === null) throw new Error(`${origin} is already in the list`)
     setMachineToken(origin, token)

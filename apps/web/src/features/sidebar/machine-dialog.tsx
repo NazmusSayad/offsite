@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { addMachine, setMachineToken } from '@/api/sync'
+import { setMachineToken } from '@/api/sync'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -10,14 +10,47 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { errorMessage } from '@/lib/utils'
+import { MachineForm } from './machine-form'
 
-export function AddMachineDialog(props: {
-  origin?: string
+export function AddMachineDialog(props: { onClose: () => void }) {
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) props.onClose()
+      }}
+    >
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogHeader className="gap-1 px-6 pt-4 pr-12">
+          <DialogTitle className="text-base">Add machine</DialogTitle>
+          <DialogDescription>
+            Paste the pairing link that offsite printed when it started.
+          </DialogDescription>
+        </DialogHeader>
+        <MachineForm
+          fieldsClassName="p-6"
+          onAdded={props.onClose}
+          actions={(ready) => (
+            <DialogFooter className="bg-muted/40 border-t px-6 py-4">
+              <Button type="button" variant="outline" onClick={props.onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!ready}>
+                Add machine
+              </Button>
+            </DialogFooter>
+          )}
+        />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function MachineTokenDialog(props: {
+  origin: string
   onClose: () => void
 }) {
-  const [value, setValue] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [token, setToken] = useState('')
 
   return (
     <Dialog
@@ -31,55 +64,35 @@ export function AddMachineDialog(props: {
           className="grid"
           onSubmit={(event) => {
             event.preventDefault()
-            try {
-              if (props.origin === undefined) addMachine(value)
-              else
-                setMachineToken(
-                  props.origin,
-                  value.trim() === '' ? null : value.trim()
-                )
-              props.onClose()
-            } catch (failure) {
-              setError(errorMessage(failure))
-            }
+            setMachineToken(
+              props.origin,
+              token.trim() === '' ? null : token.trim()
+            )
+            props.onClose()
           }}
         >
           <DialogHeader className="gap-1 px-6 pt-4 pr-12">
-            <DialogTitle className="text-base">
-              {props.origin === undefined ? 'Add machine' : 'Pairing token'}
-            </DialogTitle>
+            <DialogTitle className="text-base">Pairing token</DialogTitle>
             <DialogDescription>
-              {props.origin === undefined
-                ? 'Paste the pairing link that offsite printed, or the address of a machine started with --no-auth.'
-                : `The pairing token that offsite printed when it started on ${props.origin}.`}
+              The pairing token that offsite printed when it started on{' '}
+              {props.origin}.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2 p-6">
             <Input
-              placeholder={
-                props.origin === undefined
-                  ? 'Pairing link or address'
-                  : 'Pairing token, empty if auth is off'
-              }
+              aria-label="Pairing token"
+              placeholder="Pairing token, empty if auth is off"
               spellCheck={false}
               autoComplete="off"
-              value={value}
-              onChange={(event) => setValue(event.target.value)}
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
             />
-            {error !== null && (
-              <p className="text-destructive text-sm break-all">{error}</p>
-            )}
           </div>
           <DialogFooter className="bg-muted/40 border-t px-6 py-4">
             <Button type="button" variant="outline" onClick={props.onClose}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={props.origin === undefined && value.trim() === ''}
-            >
-              {props.origin === undefined ? 'Add machine' : 'Save token'}
-            </Button>
+            <Button type="submit">Save token</Button>
           </DialogFooter>
         </form>
       </DialogContent>
