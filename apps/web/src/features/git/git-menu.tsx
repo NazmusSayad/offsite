@@ -1,33 +1,25 @@
 import {
   ChevronDownIcon,
   CloudUploadIcon,
+  GitBranchIcon,
   GitCommitHorizontalIcon,
   GitPullRequestIcon,
-  SparklesIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { GitStatus } from '@offsite/core/protocol'
+import type { GitRepo } from '@offsite/core/protocol'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { projectOf, showError, useStore } from '@/lib/store'
-import { errorMessage } from '@/lib/utils'
+import { showError } from '@/lib/store'
+import { type Action, eligible, GitDialog } from './git-dialog'
 
 export function useGitStatus(
   machine: string,
@@ -36,15 +28,15 @@ export function useGitStatus(
 ) {
   const [result, setResult] = useState<{
     key: string
-    status: GitStatus | null
+    repos: GitRepo[]
   } | null>(null)
   const [version, setVersion] = useState(0)
 
   useEffect(() => {
     if (projectId === null || running) return
     let current = true
-    call(machine, 'git.status', { projectId }).then((status) => {
-      if (current) setResult({ key: machineKey(machine, projectId), status })
+    call(machine, 'git.status', { projectId }).then((repos) => {
+      if (current) setResult({ key: machineKey(machine, projectId), repos })
     }, showError)
     function refresh() {
       setVersion((value) => value + 1)
@@ -57,18 +49,12 @@ export function useGitStatus(
   }, [machine, projectId, running, version])
 
   return {
-    status:
+    repos:
       result !== null &&
       projectId !== null &&
       result.key === machineKey(machine, projectId)
-        ? result.status
-        : null,
-    setStatus: (status: GitStatus | null) =>
-      setResult(
-        projectId === null
-          ? null
-          : { key: machineKey(machine, projectId), status }
-      ),
+        ? result.repos
+        : [],
     refresh: () => setVersion((value) => value + 1),
   }
 }
@@ -76,75 +62,42 @@ export function useGitStatus(
 export function GitActions(props: {
   machine: string
   projectId: string
-  status: GitStatus
-  onStatus: (status: GitStatus | null) => void
+  repos: GitRepo[]
   onRefresh: () => void
 }) {
-  const status = props.status
-  const [committing, setCommitting] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const canPush = status.upstream === null || status.ahead > 0
-
-  async function run(action: () => Promise<void>) {
-    setBusy(true)
-    try {
-      await action()
-    } catch (error) {
-      showError(error)
-    } finally {
-      setBusy(false)
-      props.onRefresh()
-    }
-  }
-
-  function push() {
-    void run(async () => {
-      props.onStatus(
-        await call(props.machine, 'git.push', { projectId: props.projectId })
-      )
-    })
-  }
-
-  function pullRequest() {
-    void run(async () => {
-      const result = await call(props.machine, 'git.pullRequest', {
-        projectId: props.projectId,
-      })
-      window.open(result.url, '_blank', 'noopener')
-    })
-  }
-
-  const primary =
-    status.changed > 0
-      ? {
-          label: 'Commit',
-          icon: <HugeiconsIcon icon={GitCommitHorizontalIcon} />,
-          run: () => setCommitting(true),
-        }
-      : canPush
-        ? {
-            label: 'Push',
-            icon: <HugeiconsIcon icon={CloudUploadIcon} />,
-            run: push,
-          }
-        : {
-            label: 'Create PR',
-            icon: <HugeiconsIcon icon={GitPullRequestIcon} />,
-            run: pullRequest,
-          }
+  const [action, setAction] = useState<Action | null>(null)
+  const unpushed = props.repos.reduce((total, repo) => total + repo.ahead, 0)
+  const branches = [
+    ...new Set(props.repos.map((repo) => repo.branch ?? 'detached')),
+  ]
 
   return (
-    <>
+    <div className="flex w-fit items-center gap-2">
+      <span
+        className="text-muted-foreground hidden max-w-48 items-center gap-1 text-xs sm:flex"
+        title={props.repos
+          .map((repo) =>
+            repo.path === ''
+              ? (repo.branch ?? 'detached')
+              : `${repo.path}: ${repo.branch ?? 'detached'}`
+          )
+          .join('\n')}
+      >
+        <HugeiconsIcon icon={GitBranchIcon} className="size-3.5 shrink-0" />
+        <span className="truncate">
+          {branches.length === 1 ? branches[0] : `${branches.length} branches`}
+        </span>
+      </span>
       <div className="flex w-fit">
         <Button
           variant="outline"
           size="xs"
           className="rounded-e-none border-e-0"
-          disabled={busy}
-          onClick={primary.run}
+          disabled={eligible(props.repos, 'commit').length === 0}
+          onClick={() => setAction('commit')}
         >
-          {primary.icon}
-          <span className="hidden sm:inline">{primary.label}</span>
+          <HugeiconsIcon icon={GitCommitHorizontalIcon} />
+          <span className="hidden sm:inline">Commit</span>
         </Button>
         <div className="bg-input dark:bg-input/32 w-px" />
         <DropdownMenu>
@@ -153,148 +106,52 @@ export function GitActions(props: {
               variant="outline"
               size="icon-xs"
               className="rounded-s-none border-s-0"
-              disabled={busy}
               aria-label="Git actions"
             >
               <HugeiconsIcon icon={ChevronDownIcon} className="size-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              {status.upstream ?? 'No upstream branch'}
-            </DropdownMenuLabel>
             <DropdownMenuItem
-              disabled={status.changed === 0}
-              onSelect={() => setCommitting(true)}
+              disabled={eligible(props.repos, 'commit').length === 0}
+              onSelect={() => setAction('commit')}
             >
               <HugeiconsIcon icon={GitCommitHorizontalIcon} />
-              Commit {status.changed}{' '}
-              {status.changed === 1 ? 'change' : 'changes'}…
+              Commit…
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={!canPush} onSelect={push}>
+            <DropdownMenuItem
+              disabled={eligible(props.repos, 'push').length === 0}
+              onSelect={() => setAction('push')}
+            >
               <HugeiconsIcon icon={CloudUploadIcon} />
-              Push
-              {status.ahead > 0 && (
+              Push…
+              {unpushed > 0 && (
                 <span className="text-muted-foreground ml-auto text-xs tabular-nums">
-                  ↑{status.ahead}
+                  ↑{unpushed}
                 </span>
               )}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={pullRequest}>
+            <DropdownMenuItem
+              disabled={eligible(props.repos, 'pullRequest').length === 0}
+              onSelect={() => setAction('pullRequest')}
+            >
               <HugeiconsIcon icon={GitPullRequestIcon} />
-              Create pull request
+              Create pull request…
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <CommitDialog
-        machine={props.machine}
-        projectId={props.projectId}
-        open={committing}
-        onClose={() => setCommitting(false)}
-        onDone={(next) => {
-          props.onStatus(next)
-          setCommitting(false)
-        }}
-      />
-    </>
-  )
-}
-
-function CommitDialog(props: {
-  machine: string
-  projectId: string
-  open: boolean
-  onClose: () => void
-  onDone: (status: GitStatus | null) => void
-}) {
-  const cwd = useStore(
-    (state) => projectOf(state, props.machine, props.projectId)?.path
-  )
-  const [message, setMessage] = useState('')
-  const [busy, setBusy] = useState<'generate' | 'commit' | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  async function act(kind: 'generate' | 'commit', andPush: boolean) {
-    setBusy(kind)
-    setError(null)
-    try {
-      if (kind === 'generate') {
-        const result = await call(props.machine, 'git.message', {
-          projectId: props.projectId,
-        })
-        setMessage(result.message)
-        return
-      }
-      const committed = await call(props.machine, 'git.commit', {
-        projectId: props.projectId,
-        message,
-      })
-      setMessage('')
-      props.onDone(
-        andPush
-          ? await call(props.machine, 'git.push', {
-              projectId: props.projectId,
-            })
-          : committed
-      )
-    } catch (caught) {
-      setError(errorMessage(caught))
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  return (
-    <Dialog open={props.open} onOpenChange={() => props.onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Commit changes</DialogTitle>
-          <DialogDescription>
-            Stages every change in {cwd} and commits it.
-          </DialogDescription>
-        </DialogHeader>
-        <textarea
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-          placeholder="Commit message"
-          rows={5}
-          className="bg-background focus:border-ring/60 w-full resize-none rounded-lg border px-3 py-2 font-mono text-xs outline-none"
+      {action !== null && (
+        <GitDialog
+          machine={props.machine}
+          projectId={props.projectId}
+          action={action}
+          repos={props.repos}
+          onClose={() => setAction(null)}
+          onRefresh={props.onRefresh}
         />
-        {error !== null && (
-          <p className="text-destructive text-xs whitespace-pre-wrap">
-            {error}
-          </p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy !== null}
-            onClick={() => void act('generate', false)}
-          >
-            <HugeiconsIcon icon={SparklesIcon} />
-            {busy === 'generate' ? 'Writing…' : 'Write message'}
-          </Button>
-          <span className="flex-1" />
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy !== null || message.trim() === ''}
-            onClick={() => void act('commit', true)}
-          >
-            Commit and push
-          </Button>
-          <Button
-            size="sm"
-            disabled={busy !== null || message.trim() === ''}
-            onClick={() => void act('commit', false)}
-          >
-            Commit
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      )}
+    </div>
   )
 }

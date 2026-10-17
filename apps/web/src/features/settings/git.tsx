@@ -68,7 +68,7 @@ export function GitSection(props: {
   }
 
   return (
-    <Section title="Commit messages">
+    <Section title="Commit messages and pull requests">
       <Row label="Account">
         <Select
           value={

@@ -47,7 +47,7 @@ const longCalls: Method[] = [
   'git.commit',
   'git.push',
   'git.pullRequest',
-  'git.message',
+  'git.createPullRequest',
 ]
 
 const listeners = new Set<Listener>()
