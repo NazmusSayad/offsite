@@ -319,6 +319,14 @@ export async function updateSession(id: string, patch: SessionPatch) {
     }
   }
   if (patch.status === 'inactive') {
+    const run = runs.get(id)
+    if (run !== undefined) {
+      if (run.running) {
+        await run.interrupt()
+      }
+      run.stop()
+      await run.closed
+    }
     db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
   } else if (patch.status !== undefined) {
     const set =
