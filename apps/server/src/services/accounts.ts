@@ -19,6 +19,7 @@ import {
 } from '../lib/claude/index.ts'
 import {
   codexAccount,
+  codexBaseDir,
   codexCapabilities,
   stopAppServer,
   stopAppServers,
@@ -30,7 +31,12 @@ import {
   openCodeCapabilities,
   openCodeInstalled,
 } from '../lib/opencode/index.ts'
-import { platform, readConfig, saveConfig } from '../storage/config.ts'
+import {
+  claudeBaseDir,
+  platform,
+  readConfig,
+  saveConfig,
+} from '../storage/config.ts'
 
 export type StoredAccount = {
   id: string
@@ -206,7 +212,7 @@ export function addAccount(
   name: string,
   configDir: string
 ) {
-  const account = validAccount(name, configDir)
+  const account = validAccount(provider, name, configDir)
   const config = readConfig()
   const key = `${provider}Accounts` as const
   saveConfig({
@@ -228,7 +234,11 @@ export function addAccount(
 export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
   const before = storedAccounts().find((item) => item.id === update.id)
   if (before === undefined) throw new Error('That account was removed')
-  const account = validAccount(update.name, update.configDir)
+  const account = validAccount(
+    before.provider,
+    update.name,
+    update.configDir
+  )
   const config = readConfig()
   const key = `${before.provider}Accounts` as const
   saveConfig({
@@ -259,9 +269,17 @@ export function removeAccount(id: string) {
   forgetClaude(id)
 }
 
-function validAccount(name: string, configDir: string) {
+function validAccount(
+  provider: Exclude<Provider, 'opencode'>,
+  name: string,
+  configDir: string
+) {
   if (name.trim() === '') throw new Error('Give the account a name')
   const dir = configDir.trim()
+  if (dir === '' && provider === 'claude')
+    return { name: name.trim(), configDir: claudeBaseDir() }
+  if (dir === '' && provider === 'codex')
+    return { name: name.trim(), configDir: codexBaseDir }
   if (dir === '~' || dir.startsWith('~/'))
     return {
       name: name.trim(),

@@ -2,7 +2,6 @@ import type { PushSubscriptionInfo } from '@offsite/core/protocol'
 import { call, isConnected } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { providerNames } from './format'
-import { openSession } from './sessions'
 import { getState, machineOf } from './store'
 
 type PushKeys = { publicKey: string; privateKey: string }
@@ -50,6 +49,8 @@ export function notify(machine: string, ids: string[], what: string) {
       `${session === undefined ? 'Agent' : providerNames[session.provider]} ${what}`,
       session?.title ?? 'Session',
       machineKey(machine, id)
+    ).catch((error: unknown) =>
+      console.error('could not show a notification', error)
     )
   }
 }
@@ -61,6 +62,8 @@ export function push(machine: string, sessionId: string, message: string) {
     findSession(machine, sessionId)?.title ?? 'Session',
     message,
     `push:${machineKey(machine, sessionId)}`
+  ).catch((error: unknown) =>
+    console.error('could not show a notification', error)
   )
 }
 
@@ -70,7 +73,7 @@ function findSession(machine: string, id: string) {
   )
 }
 
-function show(
+async function show(
   machine: string,
   sessionId: string,
   title: string,
@@ -83,13 +86,21 @@ function show(
     !machineOf(getState(), machine).notifier
   )
     return
-  const notification = new Notification(title, { body, tag })
-  notification.onclick = () => {
-    window.focus()
-    const session = findSession(machine, sessionId)
-    if (session !== undefined)
-      openSession({ machine, projectId: session.projectId, sessionId })
-  }
+  const session = findSession(machine, sessionId)
+  const registration = await navigator.serviceWorker.ready
+  await registration.showNotification(title, {
+    body,
+    tag,
+    data:
+      session === undefined
+        ? null
+        : {
+            kind: 'session',
+            machine,
+            project: session.projectId,
+            sessionId,
+          },
+  })
 }
 
 export async function showNotification(
@@ -106,7 +117,7 @@ export async function showNotification(
   const registration = await navigator.serviceWorker.ready
   await registration.showNotification(title, {
     body,
-    data: tab,
+    data: { kind: 'terminal', ...tab },
   })
 }
 

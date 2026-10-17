@@ -1,4 +1,4 @@
-import type { PushRegistration, TerminalPush } from '@offsite/core/protocol'
+import type { PushMessage, PushRegistration } from '@offsite/core/protocol'
 import { and, eq, inArray } from 'drizzle-orm'
 import webPush from 'web-push'
 import { type Client, clients } from '../lib/hub.ts'
@@ -9,6 +9,7 @@ const TITLE_LIMIT = 100
 const BODY_LIMIT = 500
 const TIME_TO_LIVE = 15 * 60
 const SEND_TIMEOUT = 10_000
+const SILENCE_LIMIT = 90_000
 const SUBJECT = 'https://github.com/NazmusSayad/offsite'
 
 let server = ''
@@ -24,6 +25,11 @@ export function pushActive() {
 
 export function notifierClient() {
   return notifier === null ? null : notifier.client
+}
+
+export function notifierConnected() {
+  if (notifier === null || !clients.has(notifier.client)) return false
+  return Date.now() - notifier.client.heardAt < SILENCE_LIMIT
 }
 
 export function claimNotifier(client: Client, endpoint: string | null) {
@@ -63,15 +69,16 @@ export function unsubscribe(endpoint: string) {
   console.log('a browser unsubscribed from push notifications')
 }
 
-export async function sendPush(message: TerminalPush) {
+export async function sendPush(message: PushMessage) {
   const subscriptions = targets()
-  if (subscriptions.length === 0) return
+  if (subscriptions.length === 0) return false
   const trimmed = {
     ...message,
     title: [...message.title].slice(0, TITLE_LIMIT).join(''),
     body: [...message.body].slice(0, BODY_LIMIT).join(''),
   }
   const gone: string[] = []
+  let sent = false
   await Promise.all(
     subscriptions.map(async (subscription) => {
       try {
@@ -92,6 +99,7 @@ export async function sendPush(message: TerminalPush) {
             timeout: SEND_TIMEOUT,
           }
         )
+        sent = true
       } catch (error) {
         const status = (error as { statusCode?: number }).statusCode
         if (status !== undefined && [401, 403, 404, 410].includes(status)) {
@@ -107,7 +115,7 @@ export async function sendPush(message: TerminalPush) {
       }
     })
   )
-  if (gone.length === 0) return
+  if (gone.length === 0) return sent
   db.delete(pushSubscriptions)
     .where(
       and(
@@ -116,6 +124,7 @@ export async function sendPush(message: TerminalPush) {
       )
     )
     .run()
+  return sent
 }
 
 function targets() {
