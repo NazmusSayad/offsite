@@ -32,7 +32,7 @@ export function itemId(turnId: string, id: string) {
 
 export function turnOf(itemId: string) {
   const index = itemId.indexOf(':')
-  if (index < 0) throw new Error(`${itemId} is not a Codex item`)
+  if (index < 0) {throw new Error(`${itemId} is not a Codex item`)}
   return itemId.slice(0, index)
 }
 
@@ -121,7 +121,7 @@ export function toItems(
       ]
     case 'collabAgentToolCall':
       if (item.tool === 'spawnAgent')
-        return [
+        {return [
           {
             ...base,
             kind: 'subagent',
@@ -130,7 +130,7 @@ export function toItems(
             agentId: item.receiverThreadIds[0] ?? null,
             status: statuses[item.status],
           },
-        ]
+        ]}
       return [
         {
           ...base,
@@ -199,9 +199,9 @@ function userText(input: UserInput) {
 }
 
 function userImages(input: UserInput): ItemImage[] {
-  if (input.type !== 'image') return []
+  if (input.type !== 'image') {return []}
   const match = /^data:([^;,]+);base64,(.*)$/.exec(input.url)
-  if (match === null) return []
+  if (match === null) {return []}
   return [{ mediaType: match[1], data: match[2] }]
 }
 
@@ -212,7 +212,7 @@ export function hunks(diff: string) {
   let inside = false
   function flush() {
     if (inside)
-      result.push({ before: before.join('\n'), after: after.join('\n') })
+      {result.push({ before: before.join('\n'), after: after.join('\n') })}
     before = []
     after = []
   }
@@ -222,9 +222,9 @@ export function hunks(diff: string) {
       inside = true
       continue
     }
-    if (!inside || line === '' || line.startsWith('\\')) continue
-    if (line.startsWith('-')) before.push(line.slice(1))
-    else if (line.startsWith('+')) after.push(line.slice(1))
+    if (!inside || line === '' || line.startsWith('\\')) {continue}
+    if (line.startsWith('-')) {before.push(line.slice(1))}
+    else if (line.startsWith('+')) {after.push(line.slice(1))}
     else {
       before.push(line.slice(1))
       after.push(line.slice(1))

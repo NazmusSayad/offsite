@@ -67,7 +67,7 @@ export function readComposer() {
     console.warn(`invalid ${stateFile}, using the default state: ${error}`)
     return structuredClone(defaults.composer)
   }
-  if (user === null) return structuredClone(defaults.composer)
+  if (user === null) {return structuredClone(defaults.composer)}
   const result = stateSchema.safeParse(user)
   if (!result.success) {
     console.warn(
@@ -80,7 +80,7 @@ export function readComposer() {
 
 export function saveComposer(value: unknown) {
   const result = stateSchema.safeParse({ composer: value })
-  if (!result.success) throw new Error(z.prettifyError(result.error))
+  if (!result.success) {throw new Error(z.prettifyError(result.error))}
   writeJson('state.json', result.data)
   broadcast({ type: 'composer', composer: result.data.composer })
   return result.data.composer

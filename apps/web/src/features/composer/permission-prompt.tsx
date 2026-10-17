@@ -63,7 +63,7 @@ export function PermissionPrompt(props: {
 }) {
   const request = props.request
   if (request.kind === 'question')
-    return <QuestionPrompt machine={props.machine} request={request} />
+    {return <QuestionPrompt machine={props.machine} request={request} />}
   const plan = request.kind === 'plan'
   const detail = plan ? '' : summary(request.item, props.cwd)
   return (
@@ -172,13 +172,13 @@ function QuestionPrompt(props: {
     }
     setPicked({ ...picked, [question.question]: [label] })
     setOther({ ...other, [question.question]: '' })
-    if (active < questions.length - 1) setActive(active + 1)
+    if (active < questions.length - 1) {setActive(active + 1)}
   }
 
   function write(question: Question, value: string) {
     setOther({ ...other, [question.question]: value })
     if (!question.multiSelect && value.trim() !== '')
-      setPicked({ ...picked, [question.question]: [] })
+      {setPicked({ ...picked, [question.question]: [] })}
   }
 
   async function attach(question: Question, files: File[]) {
@@ -194,7 +194,7 @@ function QuestionPrompt(props: {
           }
         })
         if (!question.multiSelect)
-          setPicked((current) => ({ ...current, [question.question]: [] }))
+          {setPicked((current) => ({ ...current, [question.question]: [] }))}
       } catch (error) {
         showError(error)
       } finally {
@@ -308,7 +308,7 @@ function QuestionPrompt(props: {
                     return
                   }
                   const files = [...event.clipboardData.files]
-                  if (files.length === 0) return
+                  if (files.length === 0) {return}
                   event.preventDefault()
                   void attach(question, files)
                 }}

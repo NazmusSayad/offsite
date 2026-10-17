@@ -208,7 +208,7 @@ export function FileTypeIcon(props: { path: string; className?: string }) {
 
 export function languageFileName(language: string) {
   const normalized = language.toLowerCase()
-  if (normalized === 'dockerfile') return 'Dockerfile'
+  if (normalized === 'dockerfile') {return 'Dockerfile'}
   return `file.${languageExtensions[normalized] ?? normalized}`
 }
 
@@ -220,7 +220,7 @@ export function hasLanguageIcon(language: string) {
 }
 
 function insertSprite() {
-  if (document.getElementById('file-icon-sprite') !== null) return
+  if (document.getElementById('file-icon-sprite') !== null) {return}
   const container = document.createElement('div')
   container.id = 'file-icon-sprite'
   container.setAttribute('aria-hidden', 'true')

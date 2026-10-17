@@ -132,21 +132,21 @@ export class Run {
 
   steer(id: string) {
     const item = this.queue.find((queued) => queued.id === id)
-    if (item === undefined) return
+    if (item === undefined) {return}
     this.unqueue(id)
     this.submit(item.prompt, 'steer')
   }
 
   async configure(settings: Settings) {
     if (settings.model !== this.settings.model)
-      await this.query.setModel(settings.model ?? undefined)
+      {await this.query.setModel(settings.model ?? undefined)}
     if (settings.effort !== this.settings.effort)
-      await this.query.applyFlagSettings({
+      {await this.query.applyFlagSettings({
         effortLevel:
           settings.effort === null ? null : claudeEffort(settings.effort),
-      })
+      })}
     if (settings.mode !== null && settings.mode !== this.settings.mode)
-      await this.query.setPermissionMode(claudeMode(settings.mode))
+      {await this.query.setPermissionMode(claudeMode(settings.mode))}
     this.updateSettings({
       ...settings,
       accountId: this.settings.accountId,
@@ -168,7 +168,7 @@ export class Run {
     answers: Record<string, string> | null
   ) {
     const pending = this.pending.get(requestId)
-    if (pending === undefined) return
+    if (pending === undefined) {return}
     const input = pending.input
     switch (decision) {
       case 'allow':
@@ -233,15 +233,15 @@ export class Run {
 
   private async read() {
     try {
-      for await (const message of this.query) this.receive(message)
+      for await (const message of this.query) {this.receive(message)}
     } catch (error) {
       if (!this.stopping)
-        this.add(notice(error instanceof Error ? error.message : String(error)))
+        {this.add(notice(error instanceof Error ? error.message : String(error)))}
     }
     clearTimeout(this.idleTimer)
     for (const id of this.pending.keys())
-      this.settle(id, { behavior: 'deny', message: 'Session ended' })
-    if (runs.get(this.sessionId) === this) runs.delete(this.sessionId)
+      {this.settle(id, { behavior: 'deny', message: 'Session ended' })}
+    if (runs.get(this.sessionId) === this) {runs.delete(this.sessionId)}
     this.running = false
     broadcastActivity()
   }
@@ -249,7 +249,7 @@ export class Run {
   private receive(message: SDKMessage) {
     switch (message.type) {
       case 'assistant': {
-        if (message.parent_tool_use_id === null) this.partial = ''
+        if (message.parent_tool_use_id === null) {this.partial = ''}
         this.add(toMessage('assistant', message, Date.now()))
         const tokens = contextTokens(message.message)
         if (message.parent_tool_use_id === null && tokens !== null) {
@@ -257,15 +257,15 @@ export class Run {
           this.context = { tokens, window: this.context?.window ?? null }
         }
         if (message.error === 'rate_limit')
-          this.add(
+          {this.add(
             notice(
               'This account hit its usage limit. Pick another account below and send again.'
             )
-          )
+          )}
         return
       }
       case 'user':
-        if (message.isSynthetic) return
+        if (message.isSynthetic) {return}
         this.add(
           toMessage(
             'user',
@@ -291,7 +291,7 @@ export class Run {
       case 'rate_limit_event': {
         const accountId = this.settings.accountId
         if (accountId === null)
-          throw new Error('Rate limit event for a run without an account')
+          {throw new Error('Rate limit event for a run without an account')}
         broadcast({
           type: 'limits',
           accountId,
@@ -305,18 +305,18 @@ export class Run {
           message.terminal_reason !== 'aborted_streaming' &&
           message.terminal_reason !== 'aborted_tools'
         )
-          this.add(
+          {this.add(
             notice(
               message.errors
                 .filter((error) => !error.startsWith('[ede_diagnostic]'))
                 .join('\n') || message.subtype
             )
-          )
+          )}
         this.finishTurn()
         const usage =
           this.model === null ? undefined : message.modelUsage[this.model]
         if (this.context !== null && usage !== undefined)
-          this.context = { ...this.context, window: usage.contextWindow }
+          {this.context = { ...this.context, window: usage.contextWindow }}
         this.publishContext()
         return
       }
@@ -324,7 +324,7 @@ export class Run {
         switch (message.subtype) {
           case 'init':
             clearTimeout(this.idleTimer)
-            if (!this.running) this.prompted = false
+            if (!this.running) {this.prompted = false}
             this.running = true
             broadcastActivity()
             this.updateSettings({
@@ -350,16 +350,16 @@ export class Run {
             return
           }
           case 'task_notification':
-            if (message.ambient === true) return
+            if (message.ambient === true) {return}
             this.tasks = { ...this.tasks, [message.task_id]: message.status }
             broadcastActivity()
             return
           case 'status':
             if (message.permissionMode !== undefined)
-              this.updateSettings({
+              {this.updateSettings({
                 ...this.settings,
                 mode: message.permissionMode,
-              })
+              })}
             return
           case 'compact_boundary': {
             const tokens = message.compact_metadata.post_tokens
@@ -403,9 +403,9 @@ export class Run {
 
   private armIdleTimer() {
     clearTimeout(this.idleTimer)
-    if (this.running || this.backgroundTasks > 0) return
+    if (this.running || this.backgroundTasks > 0) {return}
     this.idleTimer = setTimeout(() => {
-      if (!this.running && this.pending.size === 0) this.stop()
+      if (!this.running && this.pending.size === 0) {this.stop()}
     }, IDLE_LIMIT)
   }
 
@@ -445,7 +445,7 @@ export class Run {
 
   private settle(requestId: string, result: PermissionResult) {
     const pending = this.pending.get(requestId)
-    if (pending === undefined) return
+    if (pending === undefined) {return}
     this.pending.delete(requestId)
     pending.resolve(result)
     publish(this.sessionId, {
@@ -457,15 +457,15 @@ export class Run {
   }
 
   private add(message: Message) {
-    if (this.messages.some((item) => item.uuid === message.uuid)) return
+    if (this.messages.some((item) => item.uuid === message.uuid)) {return}
     this.messages.push(message)
     const items = toItems(this.messages).filter((item) => {
       const json = JSON.stringify(item)
-      if (this.published.get(item.id) === json) return false
+      if (this.published.get(item.id) === json) {return false}
       this.published.set(item.id, json)
       return true
     })
-    if (items.length === 0) return
+    if (items.length === 0) {return}
     publish(this.sessionId, {
       type: 'items',
       sessionId: this.sessionId,

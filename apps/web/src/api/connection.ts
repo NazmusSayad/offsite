@@ -56,10 +56,10 @@ let nextId = 0
 
 export function startConnections() {
   window.setInterval(() => {
-    for (const machine of connections.keys()) void checkConnection(machine)
+    for (const machine of connections.keys()) {void checkConnection(machine)}
   }, PING_INTERVAL)
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) return
+    if (document.hidden) {return}
     wake()
   })
   window.addEventListener('online', wake)
@@ -71,7 +71,7 @@ function wake() {
       void checkConnection(machine)
       continue
     }
-    if (connection.timer === undefined) continue
+    if (connection.timer === undefined) {continue}
     window.clearTimeout(connection.timer)
     connection.timer = undefined
     connection.failures = 0
@@ -80,7 +80,7 @@ function wake() {
 }
 
 export function connectMachine(machine: string, urls: string[]) {
-  if (connections.has(machine)) return
+  if (connections.has(machine)) {return}
   const connection: Connection = {
     urls,
     url: urls[0],
@@ -97,7 +97,7 @@ export function connectMachine(machine: string, urls: string[]) {
 
 export function disconnectMachine(machine: string) {
   const connection = connections.get(machine)
-  if (connection === undefined) return
+  if (connection === undefined) {return}
   connections.delete(machine)
   window.clearTimeout(connection.timer)
   if (connection.socket !== null) {
@@ -126,13 +126,13 @@ export function call<M extends Method>(
     connection.socket === null ||
     !connection.connected
   )
-    return Promise.reject(
+    {return Promise.reject(
       new Error(
         connection === undefined
           ? 'That machine was removed'
           : `Not connected to ${new URL(connection.url).host}; reconnecting`
       )
-    )
+    )}
   nextId += 1
   const id = nextId
   connection.socket.send(JSON.stringify({ id, method, params }))
@@ -171,13 +171,13 @@ export function sendFrame(
     connection.socket === null ||
     !connection.connected
   )
-    return
+    {return}
   connection.socket.send(encodeFrame(kind, id, data))
 }
 
 export async function checkConnection(machine: string) {
   const connection = connections.get(machine)
-  if (connection === undefined) return false
+  if (connection === undefined) {return false}
   connection.ping ??= pingServer(machine, connection).finally(() => {
     connection.ping = null
   })
@@ -192,9 +192,9 @@ async function openSocket(
   const url = connection.urls[attempt % connection.urls.length]
   connection.url = url
   const ticket = await requestTicket(machine, url).catch(() => undefined)
-  if (connections.get(machine) !== connection) return
+  if (connections.get(machine) !== connection) {return}
   if (ticket === 'unpaired') {
-    for (const listener of listeners) listener.unpaired?.(machine)
+    for (const listener of listeners) {listener.unpaired?.(machine)}
     return
   }
   if (ticket === undefined) {
@@ -209,7 +209,7 @@ async function openSocket(
     window.clearTimeout(timer)
     connection.connected = true
     connection.failures = 0
-    for (const listener of listeners) listener.open?.(machine, url)
+    for (const listener of listeners) {listener.open?.(machine, url)}
   }
   next.onmessage = (event) => receive(machine, connection, event.data)
   next.onclose = () => {
@@ -231,8 +231,8 @@ async function requestTicket(machine: string, url: string) {
     headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(CONNECT_TIMEOUT),
   })
-  if (response.status === 401) return 'unpaired'
-  if (!response.ok) throw new Error(await response.text())
+  if (response.status === 401) {return 'unpaired'}
+  if (!response.ok) {throw new Error(await response.text())}
   const body: { ticket: string | null } = await response.json()
   return body.ticket
 }
@@ -242,7 +242,7 @@ function failAttempt(machine: string, connection: Connection, attempt: number) {
     void openSocket(machine, connection, attempt + 1)
     return
   }
-  for (const listener of listeners) listener.close?.(machine)
+  for (const listener of listeners) {listener.close?.(machine)}
   retry(machine, connection, attempt + 1)
 }
 
@@ -259,17 +259,17 @@ function retry(machine: string, connection: Connection, attempt: number) {
 
 function disconnect(machine: string, connection: Connection) {
   for (const waiter of connection.pending.values())
-    waiter.reject(
+    {waiter.reject(
       new Error(`Disconnected from ${new URL(connection.url).host}`)
-    )
+    )}
   connection.pending.clear()
   connection.connected = false
-  for (const listener of listeners) listener.close?.(machine)
+  for (const listener of listeners) {listener.close?.(machine)}
 }
 
 async function pingServer(machine: string, connection: Connection) {
   const current = connection.socket
-  if (current === null || !connection.connected) return false
+  if (current === null || !connection.connected) {return false}
   const alive = await Promise.race([
     call(machine, 'ping', undefined).then(
       () => true,
@@ -279,18 +279,18 @@ async function pingServer(machine: string, connection: Connection) {
       window.setTimeout(() => resolve(false), PING_TIMEOUT)
     ),
   ])
-  if (alive || connection.socket !== current) return alive
+  if (alive || connection.socket !== current) {return alive}
   current.onclose = null
   current.close()
   disconnect(machine, connection)
-  if (connections.get(machine) === connection) retry(machine, connection, 0)
+  if (connections.get(machine) === connection) {retry(machine, connection, 0)}
   return false
 }
 
 function receive(machine: string, connection: Connection, data: unknown) {
   if (data instanceof ArrayBuffer) {
     const frame = decodeFrame(new Uint8Array(data))
-    for (const listener of listeners) listener.frame?.(machine, frame)
+    for (const listener of listeners) {listener.frame?.(machine, frame)}
     return
   }
   const message = JSON.parse(String(data)) as ServerMessage
@@ -300,16 +300,16 @@ function receive(machine: string, connection: Connection, data: unknown) {
   }
   if (message.type === 'terminal') {
     for (const listener of listeners)
-      listener.terminal?.(machine, message.event)
+      {listener.terminal?.(machine, message.event)}
     return
   }
-  for (const listener of listeners) listener.event?.(machine, message)
+  for (const listener of listeners) {listener.event?.(machine, message)}
 }
 
 function settle(connection: Connection, reply: Reply) {
   const waiter = connection.pending.get(reply.id)
-  if (waiter === undefined) return
+  if (waiter === undefined) {return}
   connection.pending.delete(reply.id)
-  if ('error' in reply) waiter.reject(new Error(reply.error))
-  else waiter.resolve(reply.result)
+  if ('error' in reply) {waiter.reject(new Error(reply.error))}
+  else {waiter.resolve(reply.result)}
 }

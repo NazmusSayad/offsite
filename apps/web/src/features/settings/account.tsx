@@ -44,10 +44,10 @@ export function AccountPage(props: {
       projectId: null,
     }).then(
       (result) => {
-        if (current) setCapabilities(result)
+        if (current) {setCapabilities(result)}
       },
       (caught: unknown) => {
-        if (current) setModelsError(errorMessage(caught))
+        if (current) {setModelsError(errorMessage(caught))}
       }
     )
     return () => {
@@ -145,8 +145,8 @@ export function AccountPage(props: {
                 onCheckedChange={(shown) => {
                   const hiddenModels = { ...account.hiddenModels }
                   if (!shown === providerHidden)
-                    delete hiddenModels[model.value]
-                  else hiddenModels[model.value] = !shown
+                    {delete hiddenModels[model.value]}
+                  else {hiddenModels[model.value] = !shown}
                   void save({ hiddenModels })
                 }}
                 aria-label={`Show ${model.name}`}
@@ -250,10 +250,7 @@ export function NewAccountPage(props: {
         >
           Cancel
         </Button>
-        <Button
-          type="submit"
-          disabled={busy || name.trim() === ''}
-        >
+        <Button type="submit" disabled={busy || name.trim() === ''}>
           Add account
         </Button>
       </div>

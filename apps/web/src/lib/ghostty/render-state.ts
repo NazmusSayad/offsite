@@ -110,7 +110,7 @@ function cellText(view: DataView, length: number) {
     const count = Math.min(4096, length - start)
     const codes = new Array<number>(count)
     for (let index = 0; index < count; index += 1)
-      codes[index] = view.getUint32((start + index) * 4, true)
+      {codes[index] = view.getUint32((start + index) * 4, true)}
     text += String.fromCodePoint(...codes)
   }
   return text
@@ -160,7 +160,7 @@ export function rowCharacters(row: Row, y: number) {
   const text: string[] = []
   const points: { x: number; y: number }[] = []
   row.cells.forEach((cell, x) => {
-    if (cell.wide === 2) return
+    if (cell.wide === 2) {return}
     for (const unit of (cell.text || ' ').split('')) {
       text.push(unit)
       points.push({ x, y })
@@ -327,10 +327,10 @@ export class RenderState {
   dispose() {
     const runtime = this.runtime
     const cells = runtime.readPointer(this.rowCellsSlot)
-    if (cells) runtime.call('ghostty_render_state_row_cells_free', cells)
+    if (cells) {runtime.call('ghostty_render_state_row_cells_free', cells)}
     const iterator = runtime.readPointer(this.rowIteratorSlot)
     if (iterator)
-      runtime.call('ghostty_render_state_row_iterator_free', iterator)
+      {runtime.call('ghostty_render_state_row_iterator_free', iterator)}
     runtime.call('ghostty_render_state_free', this.state)
     runtime.free(this.style, runtime.layout('GhosttyStyle').size)
     runtime.free(this.cellQuery, CELL_QUERY.size)
@@ -400,7 +400,7 @@ export class RenderState {
         true
       )
       if (written < 3)
-        runtime.check('ghostty_render_state_row_cells_get_multi', result)
+        {runtime.check('ghostty_render_state_row_cells_get_multi', result)}
       const graphemeLength = queryView.getUint32(
         this.cellQuery + CELL_QUERY.graphemesLength,
         true
@@ -435,10 +435,10 @@ export class RenderState {
             this.graphemes
           ) === SUCCESS
         )
-          text = cellText(
+          {text = cellText(
             runtime.view(this.graphemes, bufferSize),
             graphemeLength
-          )
+          )}
       }
       let wide = 0
       if (text.length === 0 && cells.at(-1)?.text.length) {
@@ -464,14 +464,14 @@ export class RenderState {
           STYLE_COLOR_PALETTE
       ) {
         const index = styleView.getUint8(this.style + STYLE_FOREGROUND_INDEX)
-        if (index < 8) foreground = this.palette[index + 8] ?? foreground
+        if (index < 8) {foreground = this.palette[index + 8] ?? foreground}
       }
       if (flag('inverse')) {
         const swapped = foreground
         foreground = background
         background = swapped
       }
-      if (flag('faint')) foreground = blend(foreground, background)
+      if (flag('faint')) {foreground = blend(foreground, background)}
       const underlineColor = this.style + styleFields.underline_color.offset
       const underlineTag = styleView.getUint32(underlineColor, true)
       const underlineValue = underlineColor + STYLE_COLOR_VALUE
@@ -509,7 +509,7 @@ export class RenderState {
       })
     }
     while (cells.length < cols)
-      cells.push(emptyCell(defaultForeground, defaultBackground))
+      {cells.push(emptyCell(defaultForeground, defaultBackground))}
     return { cells, isWrapContinuation, wrapsToNext }
   }
 
@@ -525,8 +525,8 @@ export class RenderState {
       )
     )
     const view = this.runtime.view(this.scratch, 4)
-    if (size === 1) return view.getUint8(0)
-    if (size === 2) return view.getUint16(0, true)
+    if (size === 1) {return view.getUint8(0)}
+    if (size === 2) {return view.getUint16(0, true)}
     return view.getUint32(0, true)
   }
 
@@ -567,9 +567,9 @@ export class RenderState {
   private colorId(pointer: number) {
     const view = this.runtime.dataView()
     const tag = view.getUint32(pointer, true)
-    if (tag === STYLE_COLOR_NONE) return 0
+    if (tag === STYLE_COLOR_NONE) {return 0}
     if (tag === STYLE_COLOR_PALETTE)
-      return view.getUint8(pointer + STYLE_COLOR_VALUE)
+      {return view.getUint8(pointer + STYLE_COLOR_VALUE)}
     if (tag === STYLE_COLOR_RGB) {
       const color = readColor(this.runtime, pointer + STYLE_COLOR_VALUE)
       return (color.r << 16) | (color.g << 8) | color.b

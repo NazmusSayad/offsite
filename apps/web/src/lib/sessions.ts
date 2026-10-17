@@ -56,24 +56,24 @@ export function openSession(selection: Selection) {
     machine.codexAccounts.length > 0 ||
     machine.openCode.available
   )
-    setAccounts(selection.machine, {
+    {setAccounts(selection.machine, {
       claudeAccounts: machine.claudeAccounts,
       codexAccounts: machine.codexAccounts,
       openCode: machine.openCode,
-    })
+    })}
   void refreshCapabilities()
   if (selection.sessionId !== null && machine.status === 'online')
-    call(selection.machine, 'sessions.open', {
+    {call(selection.machine, 'sessions.open', {
       projectId: selection.projectId,
       sessionId: selection.sessionId,
-    }).catch(showError)
+    }).catch(showError)}
 }
 
 export async function sendPrompt(prompt: Prompt, delivery: Delivery) {
   const selection = getState().selection
-  if (selection === null) throw new Error('no session selected')
+  if (selection === null) {throw new Error('no session selected')}
   if ('Notification' in window && Notification.permission === 'default')
-    void Notification.requestPermission()
+    {void Notification.requestPermission()}
   update({ sentAt: Date.now() })
   await call(selection.machine, 'sessions.send', {
     sessionId: selection.sessionId,
@@ -86,7 +86,7 @@ export async function sendPrompt(prompt: Prompt, delivery: Delivery) {
 
 export function unqueue(id: string) {
   const selection = getState().selection
-  if (selection === null || selection.sessionId === null) return
+  if (selection === null || selection.sessionId === null) {return}
   call(selection.machine, 'sessions.unqueue', {
     sessionId: selection.sessionId,
     id,
@@ -95,7 +95,7 @@ export function unqueue(id: string) {
 
 export function steer(id: string) {
   const selection = getState().selection
-  if (selection === null || selection.sessionId === null) return
+  if (selection === null || selection.sessionId === null) {return}
   call(selection.machine, 'sessions.steer', {
     sessionId: selection.sessionId,
     id,
@@ -104,7 +104,7 @@ export function steer(id: string) {
 
 export function interrupt() {
   const selection = getState().selection
-  if (selection === null || selection.sessionId === null) return
+  if (selection === null || selection.sessionId === null) {return}
   call(selection.machine, 'sessions.interrupt', {
     sessionId: selection.sessionId,
   }).catch(showError)
@@ -120,7 +120,7 @@ export function respond(
   answers: Record<string, string> | null
 ) {
   const selection = getState().selection
-  if (selection === null || selection.sessionId === null) return
+  if (selection === null || selection.sessionId === null) {return}
   call(selection.machine, 'sessions.respond', {
     sessionId: selection.sessionId,
     requestId,
@@ -131,7 +131,7 @@ export function respond(
 
 export async function forkFrom(messageId: string) {
   const selection = getState().selection
-  if (selection === null || selection.sessionId === null) return
+  if (selection === null || selection.sessionId === null) {return}
   try {
     const result = await call(selection.machine, 'sessions.fork', {
       sessionId: selection.sessionId,
@@ -148,14 +148,14 @@ export async function loadEarlier() {
   const selection = getState().selection
   const before = getState().before
   if (selection === null || selection.sessionId === null || before === null)
-    return
+    {return}
   try {
     const result = await call(selection.machine, 'sessions.earlier', {
       sessionId: selection.sessionId,
       before,
     })
     if (getState().selection !== selection || getState().before !== before)
-      return
+      {return}
     update({
       earlier: [...result.items, ...getState().earlier],
       before: result.before,
@@ -167,7 +167,7 @@ export async function loadEarlier() {
 
 export async function loadAgent(parent: string, agentId: string) {
   const selection = getState().selection
-  if (selection === null || selection.sessionId === null) return
+  if (selection === null || selection.sessionId === null) {return}
   try {
     const loaded = await call(selection.machine, 'sessions.agent', {
       sessionId: selection.sessionId,
@@ -175,7 +175,7 @@ export async function loadAgent(parent: string, agentId: string) {
       agentId,
       parent,
     })
-    if (getState().selection !== selection) return
+    if (getState().selection !== selection) {return}
     const ids = new Set(loaded.map((item) => item.id))
     const items = getState().items
     update({
@@ -216,7 +216,7 @@ export async function removeSession(machine: string, id: string) {
   deleteDraft(machineKey(machine, id))
   const selection = getState().selection
   if (selection?.machine === machine && selection.sessionId === id)
-    openSession({ ...selection, sessionId: null })
+    {openSession({ ...selection, sessionId: null })}
   try {
     await call(machine, 'sessions.remove', { id })
   } catch (error) {

@@ -40,7 +40,7 @@ export function TerminalPage(props: { prefs: Prefs }) {
             value={customFont ? 'custom' : terminal.font.family}
             onValueChange={(family) => {
               setCustomFont(family === 'custom')
-              if (family !== 'custom') update('font', { family })
+              if (family !== 'custom') {update('font', { family })}
             }}
           >
             <SelectTrigger className="w-56">
@@ -204,7 +204,7 @@ function MacKeysSection(props: {
   behavior: Behavior
   onChange: (value: Partial<Behavior>) => void
 }) {
-  if (!isMac) return null
+  if (!isMac) {return null}
   return (
     <Section
       title="Mac keys"

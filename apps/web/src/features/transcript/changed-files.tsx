@@ -48,7 +48,7 @@ function buildTree(files: Map<string, Stat>) {
       .split('/')
       .filter((segment) => segment !== '')
     const name = segments.at(-1)
-    if (name === undefined) continue
+    if (name === undefined) {continue}
     const ancestors = [root]
     let current = root
     for (const segment of segments.slice(0, -1)) {

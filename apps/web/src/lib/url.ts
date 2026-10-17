@@ -5,7 +5,7 @@ export function selectionFromUrl(machines: string[]): Selection | null {
   const machine = params.get('machine')
   const projectId = params.get('project')
   if (machine === null || projectId === null || !machines.includes(machine))
-    return null
+    {return null}
   return { machine, projectId, sessionId: params.get('session') }
 }
 
@@ -15,7 +15,7 @@ export function syncUrl() {
   if (selection !== null) {
     params.set('machine', selection.machine)
     params.set('project', selection.projectId)
-    if (selection.sessionId !== null) params.set('session', selection.sessionId)
+    if (selection.sessionId !== null) {params.set('session', selection.sessionId)}
   }
   const search = params.toString()
   history.replaceState(null, '', search === '' ? '/' : `/?${search}`)

@@ -34,12 +34,12 @@ export function FilesPanel(props: {
     let current = true
     call(props.machine, 'files.list', { projectId: props.projectId }).then(
       (list) => {
-        if (!current) return
+        if (!current) {return}
         setFiles(list)
         setError(null)
       },
       (caught: unknown) => {
-        if (current) setError(errorMessage(caught))
+        if (current) {setError(errorMessage(caught))}
       }
     )
     return () => {

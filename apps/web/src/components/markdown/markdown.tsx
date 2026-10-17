@@ -93,7 +93,7 @@ function remarkGithubAlerts() {
 }
 
 function readAlert(node: MarkdownNode) {
-  if (node.type !== 'blockquote') return
+  if (node.type !== 'blockquote') {return}
   const paragraph = node.children?.[0]
   const text = paragraph?.children?.[0]
   if (
@@ -101,17 +101,17 @@ function readAlert(node: MarkdownNode) {
     text?.type !== 'text' ||
     typeof text.value !== 'string'
   )
-    return
+    {return}
   const match = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\r?\n|$)/i.exec(
     text.value
   )
-  if (match === null) return
+  if (match === null) {return}
   const remainder = text.value.slice(match[0].length)
-  if (remainder.length > 0) text.value = remainder
+  if (remainder.length > 0) {text.value = remainder}
   else if (match[0].endsWith('\n') || paragraph.children?.length === 1) {
     paragraph.children?.shift()
-    if (paragraph.children?.length === 0) node.children?.shift()
-  } else return
+    if (paragraph.children?.length === 0) {node.children?.shift()}
+  } else {return}
   node.data = {
     ...node.data,
     hProperties: {
@@ -132,7 +132,7 @@ const components: Components = {
       kind === 'caution'
         ? alerts[kind]
         : null
-    if (alert === null) return <blockquote>{children}</blockquote>
+    if (alert === null) {return <blockquote>{children}</blockquote>}
     return (
       <div role="note" className={cn('my-1 border-l-2 pl-3', alert.border)}>
         <p className={cn('flex items-center gap-1.5 font-medium', alert.title)}>
@@ -162,7 +162,7 @@ const components: Components = {
         start={start}
         ref={(element) => {
           if (element !== null && width > 1)
-            element.style.setProperty('--list-gutter', `${width + 2}ch`)
+            {element.style.setProperty('--list-gutter', `${width + 2}ch`)}
         }}
       >
         {children}
@@ -171,7 +171,7 @@ const components: Components = {
   },
   a({ node, href, children }) {
     const host = externalHost(href)
-    if (host === null) return <a href={href}>{children}</a>
+    if (host === null) {return <a href={href}>{children}</a>}
     const plain = node?.children.every((child) => child.type === 'text')
       ? node.children
           .map((child) => (child.type === 'text' ? child.value : ''))
@@ -205,7 +205,7 @@ const components: Components = {
   pre({ node, children }) {
     const code = node?.children[0]
     if (code?.type !== 'element' || code.tagName !== 'code')
-      return <pre>{children}</pre>
+      {return <pre>{children}</pre>}
     const text = code.children
       .map((child) => (child.type === 'text' ? child.value : ''))
       .join('')
@@ -260,7 +260,7 @@ function MarkdownView(props: {
 }
 
 function externalHost(href: string | undefined) {
-  if (href === undefined || !/^https?:\/\//i.test(href)) return null
+  if (href === undefined || !/^https?:\/\//i.test(href)) {return null}
   try {
     return new URL(href).host
   } catch {

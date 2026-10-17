@@ -34,15 +34,15 @@ export class Scanner {
           bytes[offset] !== ESC &&
           bytes[offset] !== BEL
         )
-          offset++
-        if (offset === bytes.length) break
+          {offset++}
+        if (offset === bytes.length) {break}
         index = offset
       }
       const found = this.step(bytes[index])
       index++
-      if (found === null) continue
-      if (found.type === 'bell') alert ??= found
-      else alert = found
+      if (found === null) {continue}
+      if (found.type === 'bell') {alert ??= found}
+      else {alert = found}
     }
     return alert
   }
@@ -54,24 +54,24 @@ export class Scanner {
     }
     switch (this.state) {
       case 'ground':
-        if (byte === ESC) this.state = 'escape'
-        if (byte === BEL) return { type: 'bell' }
+        if (byte === ESC) {this.state = 'escape'}
+        if (byte === BEL) {return { type: 'bell' }}
         return null
       case 'escape':
         if (byte === 0x5d) {
           this.payload = []
           this.state = 'osc'
-        } else if ([0x50, 0x58, 0x5e, 0x5f].includes(byte)) this.state = 'text'
-        else if (byte !== ESC) this.state = 'ground'
-        if (byte === BEL) return { type: 'bell' }
+        } else if ([0x50, 0x58, 0x5e, 0x5f].includes(byte)) {this.state = 'text'}
+        else if (byte !== ESC) {this.state = 'ground'}
+        if (byte === BEL) {return { type: 'bell' }}
         return null
       case 'osc':
         if (byte === BEL) {
           this.state = 'ground'
           return this.finish()
         }
-        if (byte === ESC) this.state = 'oscEscape'
-        else if (this.payload.length < PAYLOAD_LIMIT) this.payload.push(byte)
+        if (byte === ESC) {this.state = 'oscEscape'}
+        else if (this.payload.length < PAYLOAD_LIMIT) {this.payload.push(byte)}
         return null
       case 'oscEscape':
         if (byte === 0x5c) {
@@ -81,7 +81,7 @@ export class Scanner {
         this.state = 'escape'
         return this.step(byte)
       case 'text':
-        if (byte === ESC) this.state = 'textEscape'
+        if (byte === ESC) {this.state = 'textEscape'}
         return null
       case 'textEscape':
         if (byte === 0x5c) {
@@ -103,7 +103,7 @@ export class Scanner {
       const body = text.slice(2)
       const digits = /^\d*/.exec(body)?.[0].length ?? 0
       if (digits > 0 && (body.length === digits || body[digits] === ';'))
-        return null
+        {return null}
       return { type: 'notification', title: '', body }
     }
     if (text.startsWith('777;notify;')) {
@@ -126,13 +126,13 @@ export class Alerts {
   private bellPending = false
 
   startBell() {
-    if (this.bellPending || this.pushedRecently(BELL_GAP)) return false
+    if (this.bellPending || this.pushedRecently(BELL_GAP)) {return false}
     this.bellPending = true
     return true
   }
 
   finishBell() {
-    if (!this.bellPending) return false
+    if (!this.bellPending) {return false}
     this.bellPending = false
     this.pushedAt = Date.now()
     return true
@@ -140,7 +140,7 @@ export class Alerts {
 
   startNotification() {
     this.bellPending = false
-    if (this.pushedRecently(NOTIFICATION_GAP)) return false
+    if (this.pushedRecently(NOTIFICATION_GAP)) {return false}
     this.pushedAt = Date.now()
     return true
   }

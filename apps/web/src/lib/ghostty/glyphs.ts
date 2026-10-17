@@ -180,14 +180,14 @@ const ROUNDED: Record<number, [number, number]> = {
 type Box = { left: number; top: number; width: number; height: number }
 
 function arms(code: number) {
-  if (code >= 0x2500 && code <= 0x254b) return LINES[code - 0x2500]
-  if (code >= 0x2550 && code <= 0x256c) return DOUBLE_LINES[code - 0x2550]
-  if (code >= 0x2574 && code <= 0x257f) return HALF_LINES[code - 0x2574]
+  if (code >= 0x2500 && code <= 0x254b) {return LINES[code - 0x2500]}
+  if (code >= 0x2550 && code <= 0x256c) {return DOUBLE_LINES[code - 0x2550]}
+  if (code >= 0x2574 && code <= 0x257f) {return HALF_LINES[code - 0x2574]}
   return ''
 }
 
 export function isGlyph(text: string) {
-  if (text.length !== 1) return false
+  if (text.length !== 1) {return false}
   const code = text.charCodeAt(0)
   return (
     arms(code) !== '' ||
@@ -265,14 +265,14 @@ function drawLines(
           ? vLightLeft
           : vLightRight
 
-  if (up === '1') fill(vLightLeft, 0, vLightRight, upBottom)
-  if (up === '2') fill(vHeavyLeft, 0, vHeavyRight, upBottom)
+  if (up === '1') {fill(vLightLeft, 0, vLightRight, upBottom)}
+  if (up === '2') {fill(vHeavyLeft, 0, vHeavyRight, upBottom)}
   if (up === '3') {
     fill(vDoubleLeft, 0, vLightLeft, left === '3' ? hLightTop : upBottom)
     fill(vLightRight, 0, vDoubleRight, right === '3' ? hLightTop : upBottom)
   }
-  if (right === '1') fill(rightLeft, hLightTop, box.width, hLightBottom)
-  if (right === '2') fill(rightLeft, hHeavyTop, box.width, hHeavyBottom)
+  if (right === '1') {fill(rightLeft, hLightTop, box.width, hLightBottom)}
+  if (right === '2') {fill(rightLeft, hHeavyTop, box.width, hHeavyBottom)}
   if (right === '3') {
     fill(up === '3' ? vLightRight : rightLeft, hDoubleTop, box.width, hLightTop)
     fill(
@@ -282,8 +282,8 @@ function drawLines(
       hDoubleBottom
     )
   }
-  if (down === '1') fill(vLightLeft, downTop, vLightRight, box.height)
-  if (down === '2') fill(vHeavyLeft, downTop, vHeavyRight, box.height)
+  if (down === '1') {fill(vLightLeft, downTop, vLightRight, box.height)}
+  if (down === '2') {fill(vHeavyLeft, downTop, vHeavyRight, box.height)}
   if (down === '3') {
     fill(
       vDoubleLeft,
@@ -298,8 +298,8 @@ function drawLines(
       box.height
     )
   }
-  if (left === '1') fill(0, hLightTop, leftRight, hLightBottom)
-  if (left === '2') fill(0, hHeavyTop, leftRight, hHeavyBottom)
+  if (left === '1') {fill(0, hLightTop, leftRight, hLightBottom)}
+  if (left === '2') {fill(0, hHeavyTop, leftRight, hHeavyBottom)}
   if (left === '3') {
     fill(0, hDoubleTop, up === '3' ? vLightLeft : leftRight, hLightTop)
     fill(0, hLightBottom, down === '3' ? vLightLeft : leftRight, hDoubleBottom)

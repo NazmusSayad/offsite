@@ -292,7 +292,7 @@ export function SettingsDialog() {
         <AlertDialog
           open={confirming !== null}
           onOpenChange={(open) => {
-            if (!open) setConfirming(null)
+            if (!open) {setConfirming(null)}
           }}
         >
           <AlertDialogContent>
@@ -319,9 +319,9 @@ export function SettingsDialog() {
                     return
                   }
                   if (machine === null || config === null || system === null)
-                    throw new Error(
+                    {throw new Error(
                       'Restoring machine defaults needs a connected machine'
-                    )
+                    )}
                   updateConfig(machine.id, {
                     ...system.defaults,
                     claudeAccounts: config.claudeAccounts,
@@ -340,8 +340,8 @@ export function SettingsDialog() {
 }
 
 function providerOf(page: SettingsPage) {
-  if (page === 'Claude') return 'claude'
-  if (page === 'Codex') return 'codex'
-  if (page === 'OpenCode') return 'opencode'
+  if (page === 'Claude') {return 'claude'}
+  if (page === 'Codex') {return 'codex'}
+  if (page === 'OpenCode') {return 'opencode'}
   return null
 }

@@ -78,7 +78,7 @@ function drawUnderline(
     context.beginPath()
     context.moveTo(left, wave(left))
     for (let x = Math.floor(left) + 1; x < right; x += 1)
-      context.lineTo(x, wave(x))
+      {context.lineTo(x, wave(x))}
     context.lineTo(right, wave(right))
     context.stroke()
     context.restore()
@@ -86,14 +86,14 @@ function drawUnderline(
   }
   if (style === 4) {
     for (let x = Math.ceil(left / 2) * 2; x < right; x += 2)
-      context.fillRect(x, y, 1, 1)
+      {context.fillRect(x, y, 1, 1)}
     return
   }
   if (style === 5) {
     for (let x = Math.floor(left / 5) * 5; x < right; x += 5) {
       const from = Math.max(x, left)
       const to = Math.min(x + 3, right)
-      if (to > from) context.fillRect(from, y, to - from, 1)
+      if (to > from) {context.fillRect(from, y, to - from, 1)}
     }
     return
   }
@@ -142,10 +142,10 @@ function isOperator(text: string) {
 }
 
 export function inRange(range: Range | null, row: number, column: number) {
-  if (range === null) return false
-  if (row < range.start.y || row > range.end.y) return false
-  if (row === range.start.y && column < range.start.x) return false
-  if (row === range.end.y && column > range.end.x) return false
+  if (range === null) {return false}
+  if (row < range.start.y || row > range.end.y) {return false}
+  if (row === range.start.y && column < range.start.x) {return false}
+  if (row === range.end.y && column > range.end.x) {return false}
   return true
 }
 
@@ -176,13 +176,13 @@ export function render(options: {
     ? Array.from({ length: snapshot.rows }, (_, index) => index)
     : [...snapshot.dirtyRows]
   if (previousCursorY !== null && !rows.includes(previousCursorY))
-    rows.push(previousCursorY)
+    {rows.push(previousCursorY)}
   if (
     snapshot.cursorVisible &&
     snapshot.cursorY >= 0 &&
     !rows.includes(snapshot.cursorY)
   )
-    rows.push(snapshot.cursorY)
+    {rows.push(snapshot.cursorY)}
 
   if (options.forceFull) {
     context.save()
@@ -201,7 +201,7 @@ export function render(options: {
 
   context.textBaseline = 'alphabetic'
   for (const rowIndex of rows) {
-    if (!snapshot.rowData[rowIndex]) continue
+    if (!snapshot.rowData[rowIndex]) {continue}
     const { cellTop, cellHeight } = bounds(rowIndex)
     context.fillStyle = css(snapshot.background)
     context.fillRect(0, cellTop, context.canvas.width, cellHeight)
@@ -210,7 +210,7 @@ export function render(options: {
   options.drawLayer('belowBackground')
   for (const rowIndex of rows) {
     const row = snapshot.rowData[rowIndex]
-    if (!row) continue
+    if (!row) {continue}
     const { cellTop, cellHeight } = bounds(rowIndex)
     let start = 0
     while (start < row.cells.length) {
@@ -221,7 +221,7 @@ export function render(options: {
         row.cells[end].selected === first.selected &&
         same(row.cells[end].background, first.background)
       )
-        end += 1
+        {end += 1}
       const { left, width } = columns(start, end, metrics, pixelRatio)
       if (first.selected) {
         context.fillStyle = appearance.selectionBackground
@@ -234,7 +234,7 @@ export function render(options: {
     }
 
     for (const highlight of options.highlights) {
-      if (highlight.row !== rowIndex) continue
+      if (highlight.row !== rowIndex) {continue}
       const { left, width } = columns(
         highlight.start,
         highlight.end,
@@ -243,7 +243,7 @@ export function render(options: {
       )
       context.fillStyle = appearance.matchBackground
       context.fillRect(left, cellTop, width, cellHeight)
-      if (!highlight.active) continue
+      if (!highlight.active) {continue}
       context.strokeStyle = appearance.activeMatchBorder
       context.strokeRect(left + 0.5, cellTop + 0.5, width - 1, cellHeight - 1)
     }
@@ -252,7 +252,7 @@ export function render(options: {
   options.drawLayer('belowText')
   for (const rowIndex of rows) {
     const row = snapshot.rowData[rowIndex]
-    if (!row) continue
+    if (!row) {continue}
     const { top, cellTop, cellHeight } = bounds(rowIndex)
     context.save()
     context.beginPath()
@@ -260,7 +260,7 @@ export function render(options: {
     context.clip()
     for (let column = 0; column < row.cells.length; column += 1) {
       const cell = row.cells[column]
-      if (cell.invisible || cell.text.trim().length === 0) continue
+      if (cell.invisible || cell.text.trim().length === 0) {continue}
       context.fillStyle = cell.selected
         ? appearance.selectionForeground
         : css(cell.foreground)
@@ -285,14 +285,14 @@ export function render(options: {
           isOperator(row.cells[from - 1].text) &&
           sameText(row.cells[from - 1], cell)
         )
-          from -= 1
+          {from -= 1}
         while (
           to < column + 4 &&
           to < row.cells.length &&
           isOperator(row.cells[to].text) &&
           sameText(row.cells[to], cell)
         )
-          to += 1
+          {to += 1}
       }
       if (to - from === 1) {
         context.fillText(cell.text, x, top + metrics.baseline)
@@ -323,23 +323,23 @@ export function render(options: {
         !cell.overline &&
         !link
       )
-        continue
+        {continue}
       const { left, width } = columns(column, column + 1, metrics, pixelRatio)
       const bottom = cellTop + cellHeight
       context.fillStyle = css(cell.foreground)
       if (cell.strikethrough)
-        context.fillRect(
+        {context.fillRect(
           left,
           top + Math.floor(metrics.height * 0.55),
           width,
           1
-        )
-      if (cell.overline) context.fillRect(left, cellTop + 1, width, 1)
+        )}
+      if (cell.overline) {context.fillRect(left, cellTop + 1, width, 1)}
       if (cell.underline !== 0) {
         if (cell.underlineColor !== null)
-          context.fillStyle = css(cell.underlineColor)
+          {context.fillStyle = css(cell.underlineColor)}
         drawUnderline(context, cell.underline, left, width, bottom)
-      } else if (link) drawUnderline(context, 1, left, width, bottom)
+      } else if (link) {drawUnderline(context, 1, left, width, bottom)}
     }
   }
 
@@ -349,7 +349,7 @@ export function render(options: {
     snapshot.cursorX < 0 ||
     snapshot.cursorY < 0
   )
-    return
+    {return}
   const top = snapshot.cursorY * metrics.height
   const cursorTop = snap(top, pixelRatio)
   const height = snap(top + metrics.height, pixelRatio) - cursorTop
@@ -378,7 +378,7 @@ export function render(options: {
     return
   }
   context.fillRect(left, cursorTop, width, height)
-  if (!cell?.text) return
+  if (!cell?.text) {return}
   context.fillStyle = appearance.cursorText
   if (isGlyph(cell.text)) {
     drawGlyph(

@@ -41,10 +41,10 @@ export function useGitStatus(
   const [version, setVersion] = useState(0)
 
   useEffect(() => {
-    if (projectId === null || running) return
+    if (projectId === null || running) {return}
     let current = true
     call(machine, 'git.status', { projectId }).then((status) => {
-      if (current) setResult({ key: machineKey(machine, projectId), status })
+      if (current) {setResult({ key: machineKey(machine, projectId), status })}
     }, showError)
     function refresh() {
       setVersion((value) => value + 1)

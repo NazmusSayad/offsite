@@ -10,16 +10,16 @@ import { openSession } from '@/lib/sessions'
 import { App } from './app'
 
 const root = document.getElementById('root')
-if (!root) throw new Error('root element missing')
+if (!root) {throw new Error('root element missing')}
 
 if ('serviceWorker' in navigator) {
   const updating = navigator.serviceWorker.controller !== null
   const pwa = document.querySelector('link[rel="manifest"]') !== null
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (updating) location.reload()
+    if (updating) {location.reload()}
   })
   navigator.serviceWorker.addEventListener('message', (event) => {
-    if (event.data.type !== 'openSession') return
+    if (event.data.type !== 'openSession') {return}
     openSession({
       machine: event.data.machine,
       projectId: event.data.project,

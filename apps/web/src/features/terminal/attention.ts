@@ -27,21 +27,21 @@ export function isSeen(id: number) {
 }
 
 function raiseAlert(id: number) {
-  if (isSeen(id)) return false
+  if (isSeen(id)) {return false}
   const state = getState()
-  if (!state.alerts.includes(id)) setState({ alerts: [...state.alerts, id] })
+  if (!state.alerts.includes(id)) {setState({ alerts: [...state.alerts, id] })}
   return true
 }
 
 export function ringBell(id: number) {
-  if (!raiseAlert(id) || pendingBells.has(id)) return
+  if (!raiseAlert(id) || pendingBells.has(id)) {return}
   const last = notifiedAt.get(id)
-  if (last !== undefined && performance.now() - last < 5000) return
+  if (last !== undefined && performance.now() - last < 5000) {return}
   pendingBells.set(
     id,
     window.setTimeout(() => {
       pendingBells.delete(id)
-      if (isSeen(id)) return
+      if (isSeen(id)) {return}
       notifiedAt.set(id, performance.now())
       notify(id, '', 'Bell')
     }, 500)
@@ -49,7 +49,7 @@ export function ringBell(id: number) {
 }
 
 export function notifyFromProgram(id: number, title: string, body: string) {
-  if (!raiseAlert(id)) return
+  if (!raiseAlert(id)) {return}
   window.clearTimeout(pendingBells.get(id))
   pendingBells.delete(id)
   notifiedAt.set(id, performance.now())
@@ -59,7 +59,7 @@ export function notifyFromProgram(id: number, title: string, body: string) {
 function notify(id: number, title: string, body: string) {
   const found = findProject(id)
   const tab = found?.project.tabs.find((item) => item.id === id)
-  if (!found || !tab) return
+  if (!found || !tab) {return}
   showNotification(title || tabTitle(tab), body, {
     machine: terminalMachine(),
     project: found.projectId,
@@ -71,10 +71,10 @@ function notify(id: number, title: string, body: string) {
 
 export function beep() {
   const now = performance.now()
-  if (now - beepedAt < 150) return
+  if (now - beepedAt < 150) {return}
   beepedAt = now
   audio ??= new AudioContext()
-  if (audio.state === 'suspended') void audio.resume()
+  if (audio.state === 'suspended') {void audio.resume()}
   const oscillator = audio.createOscillator()
   const gain = audio.createGain()
   const start = audio.currentTime
@@ -97,7 +97,7 @@ export function unseenAttention(alive: (id: number) => boolean) {
 export function syncQuietTimers() {
   const state = getState()
   const active = state.status === 'active'
-  if (active && !live) for (const id of quietTimers.keys()) startQuietTimer(id)
+  if (active && !live) {for (const id of quietTimers.keys()) startQuietTimer(id)}
   live = active
 }
 
@@ -108,7 +108,7 @@ function startQuietTimer(id: number) {
   quietTimers.set(
     id,
     window.setTimeout(() => {
-      if (getState().status !== 'active') return
+      if (getState().status !== 'active') {return}
       if (Date.now() - armedAt > 15_000) {
         startQuietTimer(id)
         return
@@ -120,18 +120,18 @@ function startQuietTimer(id: number) {
 }
 
 async function confirmQuiet() {
-  if (await checkConnection(terminalMachine())) noteMessage()
+  if (await checkConnection(terminalMachine())) {noteMessage()}
 }
 
 function notifyQuiet(id: number) {
   quietTimers.delete(id)
   quietDue.delete(id)
-  if (raiseAlert(id)) notify(id, '', 'No output for 10 seconds')
+  if (raiseAlert(id)) {notify(id, '', 'No output for 10 seconds')}
 }
 
 export function noteMessage() {
-  if (getState().status !== 'active') return
-  for (const id of quietDue) notifyQuiet(id)
+  if (getState().status !== 'active') {return}
+  for (const id of quietDue) {notifyQuiet(id)}
 }
 
 export function toggleQuiet(id: number) {
@@ -147,7 +147,7 @@ export function toggleQuiet(id: number) {
 }
 
 export function noteOutput(id: number) {
-  if (getState().quiet.includes(id)) startQuietTimer(id)
+  if (getState().quiet.includes(id)) {startQuietTimer(id)}
 }
 
 export function forgetTab(id: number) {

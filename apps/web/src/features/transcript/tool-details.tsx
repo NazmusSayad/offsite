@@ -72,8 +72,8 @@ export function summary(item: Item, cwd: string) {
       return item.skill
     case 'tool': {
       const kind = toolKind(item.name)
-      if (kind === 'read') return relative(readPath(item.input), cwd)
-      if (kind === 'search') return text(item.input.pattern)
+      if (kind === 'read') {return relative(readPath(item.input), cwd)}
+      if (kind === 'search') {return text(item.input.pattern)}
       return ''
     }
     default:
@@ -105,10 +105,10 @@ export function editStats(item: FileChangeItem) {
   let added = 0
   let removed = 0
   for (const diff of item.diffs)
-    for (const part of diffLines(diff.before, diff.after)) {
+    {for (const part of diffLines(diff.before, diff.after)) {
       if (part.added) added += part.count
       if (part.removed) removed += part.count
-    }
+    }}
   return { added, removed }
 }
 

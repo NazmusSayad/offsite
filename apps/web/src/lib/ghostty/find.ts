@@ -70,12 +70,12 @@ export class Find {
   }
 
   outputChanged() {
-    if (this.query === '') return
+    if (this.query === '') {return}
     this.stale = true
-    if (this.timer !== null) return
+    if (this.timer !== null) {return}
     this.timer = window.setTimeout(() => {
       this.timer = null
-      if (!this.stale || this.query === '') return
+      if (!this.stale || this.query === '') {return}
       const active = this.matches[this.activeMatch]
       this.refresh()
       const index = active
@@ -90,7 +90,7 @@ export class Find {
   }
 
   highlights(snapshot: Snapshot, top: number) {
-    if (this.query === '') return []
+    if (this.query === '') {return []}
     const active = this.matches[this.activeMatch]
     const highlights: Highlight[] = []
     snapshot.rowData.forEach((row, y) => {
@@ -98,7 +98,7 @@ export class Find {
       occurrences(characters.text, this.query).forEach((offset, index) => {
         const start = characters.points[offset]
         const end = characters.points[offset + this.query.length - 1]
-        if (!start || !end) return
+        if (!start || !end) {return}
         highlights.push({
           row: y,
           start: start.x,
@@ -111,14 +111,14 @@ export class Find {
   }
 
   dispose() {
-    if (this.timer !== null) window.clearTimeout(this.timer)
+    if (this.timer !== null) {window.clearTimeout(this.timer)}
     this.timer = null
   }
 
   private refresh() {
     this.stale = false
     this.matches = []
-    if (this.query === '') return
+    if (this.query === '') {return}
     this.core
       .screenText()
       .split('\n')
@@ -134,6 +134,6 @@ export class Find {
       resultIndex: this.activeMatch,
       resultCount: this.matches.length,
     }
-    for (const listener of this.listeners) listener(results)
+    for (const listener of this.listeners) {listener(results)}
   }
 }
