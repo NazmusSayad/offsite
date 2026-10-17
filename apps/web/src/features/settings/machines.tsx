@@ -249,7 +249,7 @@ function EditMachinePage(props: { machine: Machine }) {
       </Section>
       <Section
         title="Addresses"
-        note="offsite tries them in order whenever it reconnects"
+        note="OffSite tries them in order whenever it reconnects"
       >
         <Reorder.Group
           as="div"

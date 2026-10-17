@@ -187,7 +187,7 @@ function IdentityRow(props: {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="offsite">offsite</SelectItem>
+          <SelectItem value="offsite">OffSite</SelectItem>
           <SelectItem value="ghostty">Ghostty</SelectItem>
           <SelectItem value="iterm2">iTerm2</SelectItem>
         </SelectContent>

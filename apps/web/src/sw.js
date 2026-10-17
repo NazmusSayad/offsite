@@ -31,7 +31,7 @@ self.addEventListener('push', (event) => {
             tabId: message.tabId,
           },
         })
-      : self.registration.showNotification('offsite', { data: null })
+      : self.registration.showNotification('OffSite', { data: null })
   )
 })
 

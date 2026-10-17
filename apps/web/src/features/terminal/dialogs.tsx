@@ -90,7 +90,7 @@ export function CloseDialog() {
           <AlertDialogTitle>Close “{closing.name}”?</AlertDialogTitle>
           <AlertDialogDescription>
             {closing.program === null
-              ? 'offsite couldn’t check whether a program is still running.'
+              ? 'OffSite couldn’t check whether a program is still running.'
               : `${closing.program} is still running.`}
           </AlertDialogDescription>
         </AlertDialogHeader>

@@ -90,7 +90,7 @@ export class AppServer {
     this.ready = this.call(
       'initialize',
       {
-        clientInfo: { name: 'offsite', title: 'Offsite', version: '0.0.0' },
+        clientInfo: { name: 'offsite', title: 'OffSite', version: '0.0.0' },
         capabilities: { experimentalApi: true, requestAttestation: false },
       },
       START_TIMEOUT

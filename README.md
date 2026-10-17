@@ -1,4 +1,4 @@
-# offsite
+# OffSite
 
 Claude Code in your browser. It uses the same sessions as the CLI, so you can start in one and resume in the other.
 
@@ -28,12 +28,12 @@ Then open the pairing link it prints. It pairs this browser with the server, so 
 | `--no-auth` | auth on      | Accept connections without the pairing token                 |
 | `--no-pair` | pair on      | Don't create a pairing token or print pairing links on start |
 
-Pairing tokens stay in `tokens.json` inside `--dir`. A running offsite disconnects an unpaired browser within seconds.
+Pairing tokens stay in `tokens.json` inside `--dir`. A running OffSite disconnects an unpaired browser within seconds.
 
 > [!WARNING]
 > With `--no-auth`, anyone who can reach its port, including any website open in your browser, can run Claude Code and open a terminal on your machine.
 
-Don't use the same session in offsite and the CLI at the same time. Switching between them is fine.
+Don't use the same session in OffSite and the CLI at the same time. Switching between them is fine.
 
 ## Separate instances
 

@@ -161,7 +161,7 @@ export function AccountPage(props: {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {account.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              offsite stops using this account. Its config directory and
+              OffSite stops using this account. Its config directory and
               sessions stay untouched.
             </AlertDialogDescription>
           </AlertDialogHeader>

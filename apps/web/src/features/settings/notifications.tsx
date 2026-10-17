@@ -18,7 +18,7 @@ import { Row, Section } from './controls'
 const notices = new Map([
   ['denied', "Blocked in the browser's site settings"],
   ['insecure', 'Needs https or localhost'],
-  ['install', 'Add offsite to the Home Screen first'],
+  ['install', 'Add OffSite to the Home Screen first'],
   ['unsupported', 'Not supported in this browser'],
 ])
 
@@ -39,7 +39,7 @@ export function NotificationsPage(props: { prefs: Prefs }) {
         <Row label="Desktop notifications on this device">
           <NotificationSwitch />
         </Row>
-        <Row label="Push terminal alerts when no offsite page is open">
+        <Row label="Push terminal alerts when no OffSite page is open">
           <PushSwitch />
         </Row>
       </Section>

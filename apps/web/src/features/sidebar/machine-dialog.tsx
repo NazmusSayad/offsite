@@ -16,7 +16,7 @@ export function AddMachineDialog(props: { onClose: () => void }) {
         <DialogHeader className="gap-1 px-6 pt-4 pr-12">
           <DialogTitle className="text-base">Add machine</DialogTitle>
           <DialogDescription>
-            Paste the pairing link that offsite printed when it started.
+            Paste the pairing link that OffSite printed when it started.
           </DialogDescription>
         </DialogHeader>
         <MachineForm

@@ -78,7 +78,7 @@ function UpdateSection() {
 
   return (
     <Section title="App">
-      <Row label="Load the newest version of offsite in this browser">
+      <Row label="Load the newest version of OffSite in this browser">
         <div className="flex items-center gap-3">
           {failure !== null && (
             <span className="text-muted-foreground text-xs">

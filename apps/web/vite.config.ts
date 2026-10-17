@@ -19,8 +19,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,wasm,woff2}'],
       },
       manifest: {
-        name: 'offsite',
-        short_name: 'offsite',
+        name: 'OffSite',
+        short_name: 'OffSite',
         description: 'Claude Code in your browser',
         theme_color: '#0a0a0a',
         background_color: '#0a0a0a',
