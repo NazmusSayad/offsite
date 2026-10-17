@@ -159,6 +159,10 @@ function QuestionPrompt(props: {
     ])
   )
   const question = questions[active]
+  const unanswered = questions.flatMap((item, index) =>
+    explicit[item.question].length === 0 ? [index] : []
+  )
+  const next = unanswered.find((index) => index > active) ?? unanswered[0]
 
   function pick(question: Question, label: string) {
     const current = picked[question.question] ?? []
@@ -383,24 +387,35 @@ function QuestionPrompt(props: {
                 variant="outline"
                 onClick={() => setActive(active + 1)}
               >
+                Skip
+              </Button>
+            )}
+            {next !== undefined && (
+              <Button
+                size="xs"
+                disabled={next === active}
+                onClick={() => setActive(next)}
+              >
                 Next
               </Button>
             )}
-            <Button
-              size="xs"
-              disabled={uploads > 0}
-              onClick={() =>
-                respond(
-                  props.request.id,
-                  'allow',
-                  Object.fromEntries(
-                    Object.entries(answers).filter(([, value]) => value !== '')
+            {next === undefined && (
+              <Button
+                size="xs"
+                disabled={uploads > 0}
+                onClick={() =>
+                  respond(
+                    props.request.id,
+                    'allow',
+                    Object.fromEntries(
+                      Object.entries(answers).filter(([, value]) => value !== '')
+                    )
                   )
-                )
-              }
-            >
-              Submit
-            </Button>
+                }
+              >
+                Submit
+              </Button>
+            )}
           </div>
         </div>
       </div>
