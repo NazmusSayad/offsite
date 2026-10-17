@@ -18,6 +18,7 @@ export type StoredMachine = {
   label: string | null
   icon: MachineIcon
   token: string | null
+  pairedAt: number | null
   projects: Project[]
 }
 
@@ -116,6 +117,7 @@ export function restoreMachine(machine: StoredMachine): Machine {
     label: machine.label,
     icon: machine.icon,
     token: machine.token,
+    pairedAt: machine.pairedAt ?? null,
     config: null,
     configError: null,
     system: null,
@@ -161,6 +163,7 @@ export function receiveMachines() {
       setMachine(machine.id, {
         addresses: machine.addresses,
         token: machine.token,
+        pairedAt: machine.pairedAt,
       })
       reconnectMachine(machine.id)
     }
@@ -195,6 +198,7 @@ export async function addMachine(
         label: null,
         icon: 'computer',
         token,
+        pairedAt: token === null ? null : Date.now(),
         projects: [],
       }),
     ],
@@ -223,7 +227,13 @@ export function editMachine(
 ) {
   const known = machineOf(getState(), id)
   const next = { ...known, ...patch }
-  setMachine(id, { ...patch, name: next.label ?? next.hostname })
+  setMachine(id, {
+    ...patch,
+    name: next.label ?? next.hostname,
+    ...(next.token !== known.token && {
+      pairedAt: next.token === null ? null : Date.now(),
+    }),
+  })
   persistMachines()
   if (
     next.addresses.join(' ') !== known.addresses.join(' ') ||
@@ -279,6 +289,7 @@ export function persistMachines() {
       label: machine.label,
       icon: machine.icon,
       token: machine.token,
+      pairedAt: machine.pairedAt,
       projects: state.projects
         .filter((project) => project.machine === machine.id)
         .map((project) => ({

@@ -55,6 +55,7 @@ export type Machine = {
   label: string | null
   icon: MachineIcon
   token: string | null
+  pairedAt: number | null
   config: Config | null
   configError: string | null
   system: Omit<ConfigInfo, 'config'> | null

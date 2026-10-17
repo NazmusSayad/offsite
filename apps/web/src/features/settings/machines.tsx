@@ -31,7 +31,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
-import { providerNames } from '@/lib/format'
+import { fullTime, providerNames } from '@/lib/format'
 import { type Machine, showError, update, useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 import { Row, Section, TextInput } from './controls'
@@ -73,7 +73,14 @@ export function MachinesPage() {
               className="text-muted-foreground size-5 shrink-0"
             />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{machine.name}</p>
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-medium">{machine.name}</p>
+                {machine.id === servingMachine && (
+                  <span className="bg-muted text-muted-foreground shrink-0 rounded px-1 py-px text-[10px] leading-4 font-medium">
+                    Owner
+                  </span>
+                )}
+              </div>
               {machine.addresses.map((address) => (
                 <p
                   key={address}
@@ -94,14 +101,15 @@ export function MachinesPage() {
                   </p>
                 ))}
             </div>
-            <span className="text-muted-foreground shrink-0 text-xs">
-              {statuses[machine.status]}
-              {machine.status === 'online' &&
-                machine.via !== null &&
-                machine.via !== machine.addresses[0] &&
-                ` · via ${new URL(machine.via).host}`}
-              {machine.id === servingMachine && ' · serves this page'}
-            </span>
+            {machine.status !== 'unauthorized' && (
+              <span className="text-muted-foreground shrink-0 text-xs">
+                {statuses[machine.status]}
+                {machine.status === 'online' &&
+                  machine.via !== null &&
+                  machine.via !== machine.addresses[0] &&
+                  ` · via ${new URL(machine.via).host}`}
+              </span>
+            )}
             <div className="flex shrink-0 items-center gap-1">
               <Button
                 size="icon-sm"
@@ -152,14 +160,20 @@ export function MachinesPage() {
 function EditMachinePage(props: { machine: Machine }) {
   const machine = props.machine
   const [adding, setAdding] = useState(false)
+  const [pairing, setPairing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [order, setOrder] = useState<string[] | null>(null)
   const addresses = order ?? machine.addresses
   const newAddress = useRef<HTMLInputElement>(null)
+  const pairingInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (adding) newAddress.current?.focus()
   }, [adding])
+
+  useEffect(() => {
+    if (pairing) pairingInput.current?.focus()
+  }, [pairing])
 
   function saveAddresses(addresses: string[]) {
     setError(null)
@@ -171,6 +185,23 @@ function EditMachinePage(props: { machine: Machine }) {
           ),
         ],
       })
+      return true
+    } catch (failure) {
+      setError(errorMessage(failure))
+      return false
+    }
+  }
+
+  function savePairing(text: string) {
+    setError(null)
+    const trimmed = text.trim()
+    if (trimmed === '') return true
+    try {
+      const token = trimmed.includes('#')
+        ? readMachineLink(trimmed).token
+        : trimmed
+      if (token === null) throw new Error('That link has no pairing token')
+      editMachine(machine.id, { token })
       return true
     } catch (failure) {
       setError(errorMessage(failure))
@@ -212,6 +243,48 @@ function EditMachinePage(props: { machine: Machine }) {
             ))}
           </div>
         </div>
+      </Section>
+      <Section title="Pairing">
+        <div className="flex min-h-13 items-center justify-between gap-4 px-4 py-2.5">
+          {machine.token !== null && machine.status !== 'unauthorized' && (
+            <span className="text-sm">
+              {machine.pairedAt === null
+                ? 'Paired'
+                : `Paired ${fullTime(machine.pairedAt)}`}
+            </span>
+          )}
+          {(machine.token === null || machine.status === 'unauthorized') && (
+            <>
+              <span className="text-sm">Not paired</span>
+              {!pairing && (
+                <Button
+                  variant="outline"
+                  className="text-destructive px-4"
+                  onClick={() => setPairing(true)}
+                >
+                  Pair
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+        {pairing && (
+          <div className="px-4 py-2.5">
+            <Input
+              ref={pairingInput}
+              className="font-mono"
+              placeholder="Pairing link or token"
+              spellCheck={false}
+              autoComplete="off"
+              onBlur={(event) => {
+                if (savePairing(event.target.value)) setPairing(false)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur()
+              }}
+            />
+          </div>
+        )}
       </Section>
       <Section
         title="Addresses"
