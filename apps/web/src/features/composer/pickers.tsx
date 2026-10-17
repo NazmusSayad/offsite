@@ -23,7 +23,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Tooltip } from '@/components/ui/tooltip'
-import { limitLabel } from '@/features/composer/limits'
 import { changeSettings, providerSettings } from '@/lib/accounts'
 import {
   getState,
@@ -200,12 +199,7 @@ function ModelPicker() {
                   side="left"
                   label={
                     item.error === null
-                      ? [
-                          item.name,
-                          item.email,
-                          item.plan,
-                          ...item.limits.map(limitLabel),
-                        ]
+                      ? [item.name, item.plan]
                           .filter((part) => part !== null)
                           .join(' · ')
                       : `${item.name} — ${item.error}`
