@@ -35,7 +35,7 @@ export function TerminalLookPage(props: { prefs: Prefs }) {
 
   return (
     <>
-      <Section title="Font" note="This browser">
+      <Section title="Font">
         <Row label="Family">
           <Select
             value={customFont ? 'custom' : terminal.font.family}
@@ -95,7 +95,7 @@ export function TerminalLookPage(props: { prefs: Prefs }) {
           />
         </Row>
       </Section>
-      <Section title="Cursor" note="This browser">
+      <Section title="Cursor">
         <Row label="Style">
           <Select
             value={terminal.cursor.style}
@@ -128,7 +128,7 @@ export function TerminalLookPage(props: { prefs: Prefs }) {
         behavior={terminal.behavior}
         onChange={(value) => update('behavior', value)}
       />
-      <Section title="Layout" note="This browser">
+      <Section title="Layout">
         {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
           <Row key={side} label={`Padding ${side}`}>
             <NumberInput

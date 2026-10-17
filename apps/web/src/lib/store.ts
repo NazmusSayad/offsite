@@ -43,7 +43,9 @@ export type SettingsPage =
   | 'General'
   | 'Terminal'
   | 'Notifications'
+  | 'Machine'
   | 'Accounts'
+  | 'Git'
   | 'Machines'
   | 'Shortcuts'
 

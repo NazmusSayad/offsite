@@ -50,6 +50,13 @@ export function storedAccounts(): StoredAccount[] {
   return items.map((item) => ({ ...item, enabled: item.enabled ?? true }))
 }
 
+export function accountProvider(accountId: string): Provider {
+  if (accountId === openCodeAccount().id) return 'opencode'
+  const account = storedAccounts().find((item) => item.id === accountId)
+  if (account === undefined) throw new Error('That account was removed')
+  return account.provider
+}
+
 export function assertEnabled(provider: Provider, accountId: string | null) {
   if (!readConfig().enabledProviders[provider])
     throw new Error(`${providerName(provider)} is disabled in Settings`)

@@ -48,11 +48,6 @@ export function AccountsPage(props: {
             }
           />
         </Row>
-        <CommitModel
-          machine={props.machine}
-          config={config}
-          provider="claude"
-        />
         <ProviderAccounts
           machine={props.machine}
           provider="claude"
@@ -66,7 +61,6 @@ export function AccountsPage(props: {
         enabled={config.enabledProviders.codex}
         onEnabledChange={(enabled) => setEnabled('codex', enabled)}
       >
-        <CommitModel machine={props.machine} config={config} provider="codex" />
         <ProviderAccounts
           machine={props.machine}
           provider="codex"
@@ -80,11 +74,6 @@ export function AccountsPage(props: {
         enabled={config.enabledProviders.opencode}
         onEnabledChange={(enabled) => setEnabled('opencode', enabled)}
       >
-        <CommitModel
-          machine={props.machine}
-          config={config}
-          provider="opencode"
-        />
         <p className="text-muted-foreground px-4 py-3 text-xs">
           Sign in with <code className="font-mono">opencode auth login</code>
         </p>
@@ -129,34 +118,6 @@ function ProviderSection(props: {
         {props.children}
       </div>
     </section>
-  )
-}
-
-function CommitModel(props: {
-  machine: string
-  config: Config
-  provider: Provider
-}) {
-  const config = props.config
-
-  return (
-    <Row label="Commit model">
-      <TextInput
-        key={config.commitModels[props.provider]}
-        className="w-56 font-mono"
-        value={config.commitModels[props.provider] ?? ''}
-        placeholder={props.provider === 'opencode' ? 'provider/model' : 'Off'}
-        onCommit={(model) =>
-          updateConfig(props.machine, {
-            ...config,
-            commitModels: {
-              ...config.commitModels,
-              [props.provider]: model.trim() === '' ? null : model.trim(),
-            },
-          })
-        }
-      />
-    </Row>
   )
 }
 

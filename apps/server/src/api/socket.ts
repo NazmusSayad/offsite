@@ -223,7 +223,10 @@ const handlers: Handlers = {
     return null
   },
   capabilities: (params) =>
-    capabilities(params.accountId, projectPath(params.projectId)),
+    capabilities(
+      params.accountId,
+      params.projectId === null ? os.homedir() : projectPath(params.projectId)
+    ),
   'files.list': (params) => listFiles(projectPath(params.projectId)),
   'files.read': (params) =>
     readProjectFile(projectPath(params.projectId), params.path),
@@ -238,11 +241,7 @@ const handlers: Handlers = {
   'git.pullRequest': (params) =>
     createPullRequest(projectPath(params.projectId)),
   'git.message': (params) =>
-    suggestCommitMessage(
-      params.provider,
-      params.accountId,
-      projectPath(params.projectId)
-    ),
+    suggestCommitMessage(projectPath(params.projectId)),
   'push.key': () => pushKey(),
   'push.subscribe': (params) => {
     subscribe(params)

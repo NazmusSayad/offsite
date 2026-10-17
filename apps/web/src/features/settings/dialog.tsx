@@ -41,20 +41,21 @@ import {
 import { cn, isMac, mod } from '@/lib/utils'
 import { AccountsPage } from './accounts'
 import { Row, Section } from './controls'
+import { GitPage } from './git'
 import { MachinesPage } from './machines'
 import { BellSection, NotificationSection, UpdateSection } from './sections'
 import { TerminalLookPage, TerminalMachinePage } from './terminal'
 
 const terminalMod = isMac ? '⌘' : 'Ctrl+Shift'
 
-const pages: SettingsPage[] = [
+const browserPages: SettingsPage[] = [
   'General',
   'Terminal',
   'Notifications',
-  'Accounts',
-  'Machines',
   'Shortcuts',
+  'Machines',
 ]
+const machinePages: SettingsPage[] = ['Machine', 'Accounts', 'Git']
 
 const shortcuts = [
   ['Enter', 'Send, or queue while the agent works'],
@@ -88,8 +89,10 @@ export function SettingsDialog() {
   const config = machine === null ? null : machine.config
   const system = machine === null ? null : machine.system
   const page = useStore((state) => state.settingsPage)
-  const machinePage = page === 'Terminal' || page === 'Accounts'
-  const [confirming, setConfirming] = useState(false)
+  const machinePage = machinePages.includes(page)
+  const [confirming, setConfirming] = useState<'browser' | 'machine' | null>(
+    null
+  )
   const [revision, setRevision] = useState(0)
 
   return (
@@ -103,7 +106,7 @@ export function SettingsDialog() {
           <DialogTitle className="hidden px-2 pt-1 pb-3 text-base font-semibold sm:block">
             Settings
           </DialogTitle>
-          {pages.map((item) => (
+          {browserPages.map((item) => (
             <button
               key={item}
               className={cn(
@@ -115,23 +118,50 @@ export function SettingsDialog() {
               {item}
             </button>
           ))}
-          <div className="flex flex-none items-center gap-1 sm:mt-auto sm:flex-col sm:items-stretch">
-            <p className="text-muted-foreground hidden px-2 text-xs sm:block">
-              ~/.offsite/config.json
-            </p>
-            <Button
-              variant="ghost-muted"
-              size="sm"
-              className="justify-start"
-              onClick={() => setConfirming(true)}
-            >
-              Restore defaults
-            </Button>
+          <div className="flex flex-none items-center gap-1 sm:mt-6 sm:flex-col sm:items-stretch">
+            {machine !== null && machines.length > 1 && (
+              <Select
+                value={machine.id}
+                onValueChange={(settingsMachine) => update({ settingsMachine })}
+              >
+                <SelectTrigger className="mb-1 w-40 sm:w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {machines.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      <HugeiconsIcon icon={machineIcons[item.icon]} />
+                      {item.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {machine !== null && machines.length === 1 && (
+              <p className="text-muted-foreground flex h-8 items-center gap-1.5 px-2 text-xs font-medium [&_svg]:size-4">
+                <HugeiconsIcon icon={machineIcons[machine.icon]} />
+                <span className="truncate">{machine.name}</span>
+              </p>
+            )}
+            {machinePages.map((item) => (
+              <button
+                key={item}
+                className={cn(
+                  'text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center rounded-md px-2 text-sm transition-colors',
+                  item === page && 'bg-accent text-foreground'
+                )}
+                onClick={() => showSettingsPage(item)}
+              >
+                {item === 'Machine' ? 'General' : item}
+              </button>
+            ))}
           </div>
         </nav>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-7">
           <div className="mb-5 flex h-9 items-center">
-            <h2 className="text-xl font-semibold tracking-tight">{page}</h2>
+            <h2 className="text-xl font-semibold tracking-tight">
+              {page === 'Machine' ? 'General' : page}
+            </h2>
             <DialogClose asChild>
               <Button
                 variant="ghost"
@@ -143,32 +173,6 @@ export function SettingsDialog() {
               </Button>
             </DialogClose>
           </div>
-          {machinePage && machine !== null && machines.length > 1 && (
-            <div className="mb-5">
-              <Section title="Machine">
-                <Row label="Settings of">
-                  <Select
-                    value={machine.id}
-                    onValueChange={(settingsMachine) =>
-                      update({ settingsMachine })
-                    }
-                  >
-                    <SelectTrigger className="w-56">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {machines.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          <HugeiconsIcon icon={machineIcons[item.icon]} />
-                          {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Row>
-              </Section>
-            </div>
-          )}
           {machinePage && machine !== null && machine.configError !== null && (
             <p className="text-destructive mb-5 text-sm whitespace-pre-wrap">
               Not saved: {machine.configError}
@@ -197,17 +201,33 @@ export function SettingsDialog() {
               </Section>
             )}
             {page === 'General' && <UpdateSection />}
-            {page === 'Terminal' &&
+            {page === 'General' && (
+              <Button
+                variant="outline"
+                onClick={() => setConfirming('browser')}
+              >
+                Restore browser defaults
+              </Button>
+            )}
+            {page === 'Machine' &&
               machine !== null &&
               config !== null &&
               system !== null && (
-                <TerminalMachinePage
-                  key={machine.id}
-                  machine={machine.id}
-                  config={config}
-                  platform={system.platform}
-                  defaultShell={system.defaultShell}
-                />
+                <>
+                  <TerminalMachinePage
+                    key={machine.id}
+                    machine={machine.id}
+                    config={config}
+                    platform={system.platform}
+                    defaultShell={system.defaultShell}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => setConfirming('machine')}
+                  >
+                    Restore machine defaults
+                  </Button>
+                </>
               )}
             {machinePage && machine === null && (
               <p className="text-muted-foreground text-sm">
@@ -247,6 +267,14 @@ export function SettingsDialog() {
                 accounts={machine.accounts}
               />
             )}
+            {page === 'Git' && machine !== null && config !== null && (
+              <GitPage
+                key={machine.id}
+                machine={machine.id}
+                config={config}
+                accounts={machine.accounts}
+              />
+            )}
             {page === 'Machines' && <MachinesPage />}
             {page === 'Shortcuts' && (
               <Section title="Keyboard shortcuts">
@@ -261,16 +289,23 @@ export function SettingsDialog() {
             )}
           </div>
         </div>
-        <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialog
+          open={confirming !== null}
+          onOpenChange={(open) => {
+            if (!open) setConfirming(null)
+          }}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Restore defaults?</AlertDialogTitle>
+              <AlertDialogTitle>
+                {confirming === 'browser'
+                  ? 'Restore browser defaults?'
+                  : 'Restore machine defaults?'}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                The theme and terminal look of this browser go back to their
-                defaults
-                {machine === null
-                  ? '.'
-                  : `, and so do the settings of ${machine.name}, including the defaults for new threads and the terminal shell for all platforms.`}
+                {confirming === 'browser'
+                  ? 'All settings of this browser go back to their defaults.'
+                  : `All settings of ${machine?.name} go back to their defaults.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -279,9 +314,15 @@ export function SettingsDialog() {
                 variant="destructive"
                 onClick={() => {
                   setRevision(revision + 1)
-                  updatePrefs(defaultPrefs)
-                  if (machine !== null && system !== null)
-                    updateConfig(machine.id, system.defaults)
+                  if (confirming === 'browser') {
+                    updatePrefs(defaultPrefs)
+                    return
+                  }
+                  if (machine === null || system === null)
+                    throw new Error(
+                      'Restoring machine defaults needs a connected machine'
+                    )
+                  updateConfig(machine.id, system.defaults)
                 }}
               >
                 Restore defaults

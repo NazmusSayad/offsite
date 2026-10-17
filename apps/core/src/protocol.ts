@@ -146,7 +146,7 @@ export type Config = {
   claudeBaseDir: string
   enabledProviders: Record<Provider, boolean>
   composer: { provider: Provider } & Record<Provider, ProviderSettings>
-  commitModels: Record<Provider, string | null>
+  commitMessage: { accountId: string | null; model: string | null }
   terminal: TerminalConfig
 }
 
@@ -411,7 +411,7 @@ export type Methods = {
   }
   'accounts.remove': { params: { id: string }; result: null }
   capabilities: {
-    params: { accountId: string; projectId: string }
+    params: { accountId: string; projectId: string | null }
     result: Capabilities
   }
   'files.list': { params: { projectId: string }; result: string[] }
@@ -436,7 +436,7 @@ export type Methods = {
     result: { url: string }
   }
   'git.message': {
-    params: { provider: Provider; accountId: string | null; projectId: string }
+    params: { projectId: string }
     result: { message: string }
   }
   'push.key': { params: void; result: { publicKey: string } }

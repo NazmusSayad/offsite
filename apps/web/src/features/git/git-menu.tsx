@@ -26,8 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { providerNames } from '@/lib/format'
-import { getState, projectOf, showError, useStore } from '@/lib/store'
+import { projectOf, showError, useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 
 export function useGitStatus(
@@ -210,7 +209,6 @@ function CommitDialog(props: {
   onClose: () => void
   onDone: (status: GitStatus | null) => void
 }) {
-  const provider = useStore((state) => state.settings.provider)
   const cwd = useStore(
     (state) => projectOf(state, props.machine, props.projectId)?.path
   )
@@ -224,8 +222,6 @@ function CommitDialog(props: {
     try {
       if (kind === 'generate') {
         const result = await call(props.machine, 'git.message', {
-          provider: getState().settings.provider,
-          accountId: getState().settings.accountId,
           projectId: props.projectId,
         })
         setMessage(result.message)
@@ -279,9 +275,7 @@ function CommitDialog(props: {
             onClick={() => void act('generate', false)}
           >
             <HugeiconsIcon icon={SparklesIcon} />
-            {busy === 'generate'
-              ? 'Writing…'
-              : `Write with ${providerNames[provider]}`}
+            {busy === 'generate' ? 'Writing…' : 'Write message'}
           </Button>
           <span className="flex-1" />
           <Button

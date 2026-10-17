@@ -35,7 +35,7 @@ export const defaults: Config = {
       plan: false,
     },
   },
-  commitModels: { claude: 'haiku', codex: 'gpt-6-luna', opencode: null },
+  commitMessage: { accountId: null, model: null },
   terminal: {
     shell: { macos: null, linux: null, windows: null },
     behavior: { terminalIdentity: 'offsite', shellIntegration: true },
@@ -69,9 +69,8 @@ const nullable = [
   'composer.opencode.model',
   'composer.opencode.effort',
   'composer.opencode.mode',
-  'commitModels.claude',
-  'commitModels.codex',
-  'commitModels.opencode',
+  'commitMessage.accountId',
+  'commitMessage.model',
   'terminal.shell.macos',
   'terminal.shell.linux',
   'terminal.shell.windows',
@@ -112,6 +111,7 @@ export function readConfig() {
     console.warn(`${configFile} is not an object, using the default config`)
     return structuredClone(defaults)
   }
+  delete user.commitModels
   let config: unknown = structuredClone(defaults)
   for (const [key, value] of Object.entries(user))
     config = merge(config, [key], value)
