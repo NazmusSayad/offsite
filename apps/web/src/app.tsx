@@ -8,7 +8,13 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { Fragment, useState, useSyncExternalStore } from 'react'
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useProjectName } from '@/api/projects'
 import { machineIcons, ProjectIcon } from '@/components/icons'
@@ -64,6 +70,7 @@ export function App() {
   const error = useStore((state) => state.error)
   const [sidebar, setSidebar] = useState(desktop.matches)
   const [panel, setPanel] = useState<'diff' | 'tasks' | 'files' | null>(null)
+  const lastPanel = useRef<'diff' | 'tasks' | 'files'>('diff')
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [panelWidth, setPanelWidth] = useState(() => {
     const stored = Number(localStorage.getItem('panelWidth') ?? 540)
@@ -118,7 +125,7 @@ export function App() {
     preventDefault: true,
   })
   useHotkeys(
-    ['mod+j', 'meta+backquote', 'ctrl+backquote'],
+    ['meta+backquote', 'ctrl+backquote'],
     (event) => {
       event.stopPropagation()
       setTerminal(!terminalState().open)
@@ -129,6 +136,23 @@ export function App() {
       eventListenerOptions: { capture: true },
     }
   )
+  useHotkeys(
+    'mod+j',
+    (event) => {
+      event.stopPropagation()
+      setPanel((current) => (current === null ? lastPanel.current : null))
+    },
+    {
+      enableOnFormTags: true,
+      preventDefault: true,
+      eventListenerOptions: { capture: true },
+    }
+  )
+  useEffect(() => {
+    if (panel !== null) {
+      lastPanel.current = panel
+    }
+  }, [panel])
   useHotkeys('mod+b', () => setSidebar((open) => !open), {
     enableOnFormTags: true,
     preventDefault: true,
