@@ -27,9 +27,7 @@ const storage: PersistStorage<Drafts> = {
 const useDrafts = create<Drafts>()(
   persist(() => ({ drafts: {} }), {
     name: storageKey,
-    version: 4,
     storage,
-    migrate: () => ({ drafts: {} }),
   })
 )
 
