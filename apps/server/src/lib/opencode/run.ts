@@ -423,14 +423,14 @@ export class OpenCodeRun {
   }
 
   private addPending(pending: Pending) {
-    this.pending.set(pending.request.id, pending)
+    const request = scheduleAutoResolve(this.sessionId, pending.request)
+    this.pending.set(request.id, { ...pending, request })
     publish(this.sessionId, {
       type: 'request',
       sessionId: this.sessionId,
-      request: pending.request,
+      request,
     })
     broadcastActivity()
-    scheduleAutoResolve(this.sessionId, pending.request)
   }
 
   private finishTurn() {

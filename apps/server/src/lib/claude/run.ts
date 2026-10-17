@@ -424,13 +424,16 @@ export class Run {
     suggestions: PermissionUpdate[]
     signal: AbortSignal
   }) {
-    const request = toRequest({
-      id: randomUUID(),
-      toolName: options.toolName,
-      input: options.input,
-      title: options.title,
-      canAlwaysAllow: options.suggestions.length > 0,
-    })
+    const request = scheduleAutoResolve(
+      this.sessionId,
+      toRequest({
+        id: randomUUID(),
+        toolName: options.toolName,
+        input: options.input,
+        title: options.title,
+        canAlwaysAllow: options.suggestions.length > 0,
+      })
+    )
     return new Promise<PermissionResult>((resolve) => {
       this.pending.set(request.id, {
         request,
@@ -444,7 +447,6 @@ export class Run {
         request,
       })
       broadcastActivity()
-      scheduleAutoResolve(this.sessionId, request)
       options.signal.addEventListener('abort', () =>
         this.settle(request.id, { behavior: 'deny', message: 'Cancelled' })
       )

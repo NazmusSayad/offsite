@@ -313,7 +313,7 @@ export type Item = {
   | { kind: 'error'; text: string }
 )
 
-export type PermissionRequest =
+export type PermissionRequest = (
   | {
       id: string
       kind: 'approval'
@@ -323,6 +323,7 @@ export type PermissionRequest =
     }
   | { id: string; kind: 'plan'; plan: string }
   | { id: string; kind: 'question'; questions: Question[] }
+) & { autoResolve?: { at: number; decision: 'allow' | 'deny' } }
 
 export type TaskStatus = 'running' | 'completed' | 'failed' | 'stopped'
 

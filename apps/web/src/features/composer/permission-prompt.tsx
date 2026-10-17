@@ -9,7 +9,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { PermissionRequest, Question } from '@offsite/core/protocol'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { uploadFile } from '@/api/upload'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
@@ -52,6 +52,23 @@ function Mark(props: {
   )
 }
 
+function Countdown(props: { at: number; label: string }) {
+  const [now, setNow] = useState(Date.now)
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const seconds = Math.max(0, Math.ceil((props.at - now) / 1000))
+  return (
+    <span>
+      {props.label} in {Math.floor(seconds / 60)}:
+      {String(seconds % 60).padStart(2, '0')}
+    </span>
+  )
+}
+
 const attached =
   'composer-glass relative mx-auto -mb-[calc(1rem+1px)] w-[calc(100%-2.75rem)] rounded-t-2xl border border-b-0 px-1 pt-1 pb-[calc(1rem+1px+0.25rem)] text-xs/4'
 
@@ -83,11 +100,19 @@ export function PermissionPrompt(props: {
             <span className="text-warning shrink-0 font-medium">
               {plan ? 'Ready to code?' : request.title}
             </span>
-            {props.count > 1 && (
-              <span className="ml-auto shrink-0 tabular-nums">
-                1/{props.count}
-              </span>
-            )}
+            <span className="ml-auto flex shrink-0 items-center gap-2 tabular-nums">
+              {request.autoResolve !== undefined && (
+                <Countdown
+                  at={request.autoResolve.at}
+                  label={
+                    request.autoResolve.decision === 'allow'
+                      ? 'Auto-approves'
+                      : 'Auto-declines'
+                  }
+                />
+              )}
+              {props.count > 1 && <span>1/{props.count}</span>}
+            </span>
           </span>
           {detail !== '' && (
             <span className="text-foreground block max-h-20 w-full min-w-0 overflow-auto font-mono text-xs whitespace-pre">
@@ -380,7 +405,15 @@ function QuestionPrompt(props: {
               ))}
             </div>
           )}
-          <div className="ml-auto flex shrink-0 gap-1.5 pr-1">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 pr-1">
+            {props.request.autoResolve !== undefined && (
+              <span className="text-muted-foreground mr-1 text-xs tabular-nums">
+                <Countdown
+                  at={props.request.autoResolve.at}
+                  label="Auto-submits"
+                />
+              </span>
+            )}
             {active < questions.length - 1 && (
               <Button
                 size="xs"

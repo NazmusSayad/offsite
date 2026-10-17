@@ -342,11 +342,12 @@ export class CodexRun implements ThreadListener {
       this.server.reply(id, { action: 'decline', content: null, _meta: null })
       return
     }
-    const request = toRequest(String(id), method, params, this.items)
-    if (request === null) {
+    const created = toRequest(String(id), method, params, this.items)
+    if (created === null) {
       this.server.replyError(id, `offsite does not handle ${method}`)
       return
     }
+    const request = scheduleAutoResolve(this.sessionId, created)
     this.pending.set(request.id, { request, id, method, params })
     publish(this.sessionId, {
       type: 'request',
@@ -354,7 +355,6 @@ export class CodexRun implements ThreadListener {
       request,
     })
     broadcastActivity()
-    scheduleAutoResolve(this.sessionId, request)
   }
 
   private async startTurn(prompt: Prompt) {

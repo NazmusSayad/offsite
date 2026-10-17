@@ -27,33 +27,35 @@ export function broadcastActivity() {
 export function scheduleAutoResolve(
   sessionId: string,
   request: PermissionRequest
-) {
+): PermissionRequest {
   if (request.kind === 'plan') {
-    return
+    return request
   }
   const settings = readConfig().autoResolve
   const minutes =
     request.kind === 'question' ? settings.questions : settings.permissions
   if (minutes === null) {
-    return
+    return request
   }
+  const decision =
+    request.kind === 'question' ? 'allow' : settings.permissionDecision
   setTimeout(async () => {
     const run = runs.get(sessionId)
     if (run === undefined) {
       return
     }
     try {
-      if (request.kind === 'question') {
-        await run.respond(request.id, 'allow', {})
-      } else {
-        await run.respond(
-          request.id,
-          readConfig().autoResolve.permissionDecision,
-          null
-        )
-      }
+      await run.respond(
+        request.id,
+        decision,
+        request.kind === 'question' ? {} : null
+      )
     } catch (error) {
       console.warn(`could not auto-resolve ${request.id}: ${error}`)
     }
   }, minutes * 60_000)
+  return {
+    ...request,
+    autoResolve: { at: Date.now() + minutes * 60_000, decision },
+  }
 }
