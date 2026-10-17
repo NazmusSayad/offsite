@@ -15,6 +15,7 @@ import type {
   Account,
   ProviderCapabilities,
   RateLimit,
+  Settings,
 } from '@offsite/core/protocol'
 import { type StoredAccount, storedAccount } from '../../services/accounts.ts'
 import { notifierConnected, sendPush } from '../../services/push.ts'
@@ -140,6 +141,33 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
         },
       ],
     },
+  }
+}
+
+export function runOptions(options: {
+  sessionId: string
+  cwd: string
+  resume: boolean
+  resumeAt: string | null
+  settings: Settings
+}): Options {
+  const settings = options.settings
+  return {
+    ...claudeOptions(settings.accountId, options.cwd),
+    ...(options.resume
+      ? { resume: options.sessionId }
+      : { sessionId: options.sessionId }),
+    ...(options.resumeAt === null ? {} : { resumeSessionAt: options.resumeAt }),
+    enableFileCheckpointing: true,
+    ...(settings.mode === null
+      ? {}
+      : { permissionMode: claudeMode(settings.mode) }),
+    ...(settings.model === null ? {} : { model: settings.model }),
+    ...(settings.effort === null
+      ? {}
+      : { effort: claudeEffort(settings.effort) }),
+    allowDangerouslySkipPermissions: true,
+    includePartialMessages: true,
   }
 }
 

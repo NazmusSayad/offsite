@@ -17,12 +17,7 @@ import type {
 } from '@offsite/core/protocol'
 import { broadcast, publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
-import {
-  claudeEffort,
-  claudeMode,
-  claudeOptions,
-  recordLimit,
-} from './claude.ts'
+import { claudeEffort, claudeMode, recordLimit, runOptions } from './claude.ts'
 import {
   contextTokens,
   type Message,
@@ -75,27 +70,10 @@ export class Run {
     this.sessionId = options.sessionId
     this.resumeAt = options.resumeAt
     this.settings = options.settings
-    const settings = options.settings
     this.query = query({
       prompt: this.input(),
       options: {
-        ...claudeOptions(settings.accountId, options.cwd),
-        ...(options.resume
-          ? { resume: options.sessionId }
-          : { sessionId: options.sessionId }),
-        ...(options.resumeAt === null
-          ? {}
-          : { resumeSessionAt: options.resumeAt }),
-        enableFileCheckpointing: true,
-        ...(settings.mode === null
-          ? {}
-          : { permissionMode: claudeMode(settings.mode) }),
-        ...(settings.model === null ? {} : { model: settings.model }),
-        ...(settings.effort === null
-          ? {}
-          : { effort: claudeEffort(settings.effort) }),
-        allowDangerouslySkipPermissions: true,
-        includePartialMessages: true,
+        ...runOptions(options),
         canUseTool: (toolName, input, context) =>
           this.ask({
             toolName,

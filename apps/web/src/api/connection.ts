@@ -1,13 +1,15 @@
+import type {
+  Method,
+  Methods,
+  Reply,
+  ServerEvent,
+  ServerMessage,
+} from '@offsite/core/protocol'
 import {
   decodeFrame,
   encodeFrame,
-  type Method,
-  type Methods,
-  type Reply,
-  type ServerEvent,
-  type ServerMessage,
   type TerminalEvent,
-} from '@offsite/core/protocol'
+} from '@offsite/core/terminal'
 import { readToken } from '@/lib/tokens'
 
 type Listener = {

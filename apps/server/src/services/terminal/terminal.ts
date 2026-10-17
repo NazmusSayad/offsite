@@ -15,7 +15,7 @@ import {
   type TerminalProject,
   type TerminalRequest,
   type TerminalTab,
-} from '@offsite/core/protocol'
+} from '@offsite/core/terminal'
 import type { Client } from '../../lib/hub.ts'
 import { home } from '../../storage/storage.ts'
 import { projectPath } from '../projects.ts'

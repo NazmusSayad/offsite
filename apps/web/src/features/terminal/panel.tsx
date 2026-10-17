@@ -8,7 +8,7 @@ import {
   PencilEdit02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { TerminalTab } from '@offsite/core/protocol'
+import type { TerminalTab } from '@offsite/core/terminal'
 import {
   type ReactNode,
   useEffect,

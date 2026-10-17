@@ -15,7 +15,6 @@ import type {
   OpenCodeClient,
   PermissionReply,
   PermissionRequest as OpenCodePermission,
-  SessionInfo,
   V2Event,
 } from '@opencode/client'
 import { errorItem } from '../codex/index.ts'
@@ -23,7 +22,8 @@ import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import { openCode } from './client.ts'
 import { formAnswer, formQuestions, messageItems } from './items.ts'
-import { contextOf, modelRef } from './sessions.ts'
+import { permissionRequest } from './requests.ts'
+import { contextOf, modelRef, sessionSettings } from './sessions.ts'
 
 const IDLE_LIMIT = 30 * 60 * 1000
 const RECENT = 30
@@ -406,24 +406,7 @@ export class OpenCodeRun {
         : this.items.get(`${source.messageID}:${source.id}`)
     this.addPending({
       kind: 'permission',
-      request: {
-        id: permission.id,
-        kind: 'approval',
-        title:
-          permission.message ??
-          `Allow ${permission.action} ${permission.resources.join(', ')}?`,
-        canAlwaysAllow: (permission.save ?? []).length > 0,
-        item: item ?? {
-          id: permission.id,
-          parent: null,
-          time: Date.now(),
-          kind: 'tool',
-          name: permission.action,
-          input: { resources: permission.resources },
-          output: '',
-          status: 'running',
-        },
-      },
+      request: permissionRequest(permission, item),
     })
   }
 
@@ -531,19 +514,6 @@ export class OpenCodeRun {
       sessionId: this.sessionId,
       queue: this.queue,
     })
-  }
-}
-
-function sessionSettings(session: SessionInfo, settings: Settings): Settings {
-  const variant = session.model?.variant
-  return {
-    ...settings,
-    model:
-      session.model === undefined
-        ? null
-        : `${session.model.providerID}/${session.model.id}`,
-    effort: variant === undefined || variant === 'default' ? null : variant,
-    mode: session.agent ?? null,
   }
 }
 

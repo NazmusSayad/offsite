@@ -5,6 +5,7 @@ import type {
   Rewind,
   RewindResult,
   ServerEvent,
+  Settings,
 } from '@offsite/core/protocol'
 import type {
   OpenCodeClient,
@@ -269,4 +270,20 @@ async function allMessages(client: OpenCodeClient, sessionId: string) {
 function openCodeRun(sessionId: string) {
   const run = runs.get(sessionId)
   return run?.provider === 'opencode' ? run : undefined
+}
+
+export function sessionSettings(
+  session: SessionInfo,
+  settings: Settings
+): Settings {
+  const variant = session.model?.variant
+  return {
+    ...settings,
+    model:
+      session.model === undefined
+        ? null
+        : `${session.model.providerID}/${session.model.id}`,
+    effort: variant === undefined || variant === 'default' ? null : variant,
+    mode: session.agent ?? null,
+  }
 }
