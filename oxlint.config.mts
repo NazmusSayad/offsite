@@ -23,6 +23,7 @@ export default defineConfig({
     },
   },
   rules: {
+    curly: ['error', 'all'],
     'oxfmt/oxfmt': 'warn',
   },
   overrides: [
