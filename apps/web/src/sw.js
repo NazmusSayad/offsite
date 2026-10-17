@@ -9,7 +9,7 @@ import { NavigationRoute, registerRoute } from 'workbox-routing'
 self.skipWaiting()
 clientsClaim()
 
-if (import.meta.env.PROD) {
+if (import.meta.env.PROD && import.meta.env.VITE_PWA_ENABLED === '1') {
   precacheAndRoute(self.__WB_MANIFEST)
   cleanupOutdatedCaches()
   registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html')))
