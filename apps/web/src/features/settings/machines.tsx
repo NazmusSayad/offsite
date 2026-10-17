@@ -99,22 +99,24 @@ export function MachinesPage() {
                 machine.addresses.includes(home) &&
                 ' · serves this page'}
             </span>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              title="Reconnect, trying the first address first"
-              onClick={() => reconnectMachine(machine.id)}
-            >
-              <HugeiconsIcon icon={Refresh01Icon} />
-            </Button>
-            <Button
-              size="icon-sm"
-              variant="ghost-muted"
-              title="Open machine"
-              onClick={() => update({ settingsEditedMachine: machine.id })}
-            >
-              <HugeiconsIcon icon={ArrowRight01Icon} />
-            </Button>
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                title="Reconnect, trying the first address first"
+                onClick={() => reconnectMachine(machine.id)}
+              >
+                <HugeiconsIcon icon={Refresh01Icon} />
+              </Button>
+              <Button
+                size="icon-sm"
+                variant="ghost-muted"
+                title="Open machine"
+                onClick={() => update({ settingsEditedMachine: machine.id })}
+              >
+                <HugeiconsIcon icon={ArrowRight01Icon} />
+              </Button>
+            </div>
           </div>
         ))}
       </Section>
