@@ -32,7 +32,6 @@ export type StoredAccount = {
   configDir: string
   enabled: boolean
   hiddenModels: Record<string, boolean>
-  defaultModel: string | null
 }
 
 const providerNames: Record<Provider, string> = {
@@ -48,17 +47,18 @@ export function providerName(provider: Provider) {
 export function storedAccounts(): StoredAccount[] {
   const items =
     (readJson('accounts.json') as
-      | (Omit<StoredAccount, 'enabled' | 'hiddenModels' | 'defaultModel'> & {
+      | (Omit<StoredAccount, 'enabled' | 'hiddenModels'> & {
           enabled?: boolean
           hiddenModels?: Record<string, boolean>
-          defaultModel?: string | null
         })[]
       | null) ?? []
   return items.map((item) => ({
-    ...item,
+    id: item.id,
+    provider: item.provider,
+    name: item.name,
+    configDir: item.configDir,
     enabled: item.enabled ?? true,
     hiddenModels: item.hiddenModels ?? {},
-    defaultModel: item.defaultModel ?? null,
   }))
 }
 
@@ -162,15 +162,9 @@ export async function capabilities(
   const account =
     provider === 'opencode' ? null : storedAccount(provider, accountId)
   const overrides = account === null ? {} : account.hiddenModels
-  const providerDefaultModel =
-    config.defaultModels[provider] ?? defaultModels[provider]
   return {
     ...result,
-    providerDefaultModel,
-    defaultModel:
-      account === null || account.defaultModel === null
-        ? providerDefaultModel
-        : account.defaultModel,
+    defaultModel: defaultModels[provider],
     models: result.models.map((model) => {
       const deprecated = deprecatedModels[provider].includes(model.value)
       const setting = settings[model.value] ?? {
@@ -216,7 +210,6 @@ export function addAccount(
       ...validAccount(name, configDir),
       enabled: true,
       hiddenModels: {},
-      defaultModel: null,
     },
   ])
 }
@@ -233,7 +226,6 @@ export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
             ...account,
             enabled: update.enabled,
             hiddenModels: update.hiddenModels,
-            defaultModel: update.defaultModel,
           }
         : item
     )

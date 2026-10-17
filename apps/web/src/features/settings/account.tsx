@@ -7,13 +7,6 @@ import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { update } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
@@ -29,9 +22,6 @@ export function AccountPage(props: {
   const [modelsError, setModelsError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const models = capabilities === null ? null : capabilities.models
-  const providerDefault = (models ?? []).find(
-    (model) => model.value === capabilities?.providerDefaultModel
-  )
 
   useEffect(() => {
     let current = true
@@ -54,9 +44,7 @@ export function AccountPage(props: {
   }, [props.machine, account.id, account.configDir])
 
   async function save(
-    patch: Partial<
-      Pick<Account, 'name' | 'configDir' | 'hiddenModels' | 'defaultModel'>
-    >
+    patch: Partial<Pick<Account, 'name' | 'configDir' | 'hiddenModels'>>
   ) {
     setError(null)
     try {
@@ -66,7 +54,6 @@ export function AccountPage(props: {
         configDir: account.configDir,
         enabled: account.enabled,
         hiddenModels: account.hiddenModels,
-        defaultModel: account.defaultModel,
         ...patch,
       })
     } catch (caught) {
@@ -99,41 +86,6 @@ export function AccountPage(props: {
         <p className="text-destructive px-1 text-xs">{error}</p>
       )}
       <Section title="Models" note="Overrides the provider settings">
-        {models !== null && (
-          <Row label="Default model">
-            <Select
-              value={account.defaultModel ?? 'provider'}
-              onValueChange={(value) =>
-                void save({ defaultModel: value === 'provider' ? null : value })
-              }
-            >
-              <SelectTrigger className="w-56">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="provider">
-                  {providerDefault === undefined
-                    ? 'Provider default'
-                    : `Provider default · ${providerDefault.name}`}
-                </SelectItem>
-                {models
-                  .filter(
-                    (model) =>
-                      !(
-                        account.hiddenModels[model.value] ??
-                        props.settings[model.value]?.hidden ??
-                        model.deprecated
-                      ) || model.value === account.defaultModel
-                  )
-                  .map((model) => (
-                    <SelectItem key={model.value} value={model.value}>
-                      {model.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </Row>
-        )}
         {modelsError !== null && (
           <p className="text-destructive px-4 py-3 text-xs">{modelsError}</p>
         )}

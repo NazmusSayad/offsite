@@ -81,11 +81,6 @@ export function ProviderPage(props: {
           </Row>
         </div>
       )}
-      {props.provider === 'opencode' && (
-        <p className="text-muted-foreground px-1 text-xs">
-          Sign in with <code className="font-mono">opencode auth login</code>
-        </p>
-      )}
       <div
         className={cn('space-y-5 transition-opacity', !enabled && 'opacity-50')}
       >
@@ -117,9 +112,9 @@ function ProviderModels(props: {
   const [error, setError] = useState<string | null>(null)
   const settings = props.config.models[props.provider]
   const models = capabilities === null ? null : capabilities.models
+  const composer = props.config.composer[props.provider]
   const defaultModel =
-    props.config.defaultModels[props.provider] ??
-    (capabilities === null ? null : capabilities.providerDefaultModel)
+    composer.model ?? (capabilities === null ? null : capabilities.defaultModel)
 
   useEffect(() => {
     let current = true
@@ -157,15 +152,20 @@ function ProviderModels(props: {
         <Row label="Default model">
           <Select
             value={defaultModel ?? undefined}
-            onValueChange={(value) =>
+            onValueChange={(value) => {
+              const effort = settings[value]?.effort ?? null
               void updateConfig(props.machine, {
                 ...props.config,
-                defaultModels: {
-                  ...props.config.defaultModels,
-                  [props.provider]: value,
+                composer: {
+                  ...props.config.composer,
+                  [props.provider]: {
+                    ...composer,
+                    model: value,
+                    ...(effort === null ? {} : { effort }),
+                  },
                 },
               })
-            }
+            }}
           >
             <SelectTrigger className="w-56">
               <SelectValue placeholder="Choose a model" />
@@ -318,7 +318,6 @@ function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
                   configDir: account.configDir,
                   enabled,
                   hiddenModels: account.hiddenModels,
-                  defaultModel: account.defaultModel,
                 })
               )
             }

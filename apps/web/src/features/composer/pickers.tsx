@@ -2,6 +2,7 @@ import {
   BrainIcon,
   ChevronDownIcon,
   SearchIcon,
+  UserSettings01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Model } from '@offsite/core/protocol'
@@ -108,11 +109,12 @@ function ModelPicker() {
       : viewed === settings.accountId
         ? (capabilities?.models ?? null)
         : (fetched[viewed] ?? null)
-  const search = query.trim().toLowerCase()
-  const matches = (viewedModels ?? []).filter(
-    (option) =>
-      !option.hidden &&
-      `${option.name} ${option.description}`.toLowerCase().includes(search)
+  const viewedProvider = accounts.find((item) => item.id === viewed)?.provider
+  const visible = (viewedModels ?? []).filter((option) => !option.hidden)
+  const searchable = visible.length >= 5
+  const search = searchable ? query.trim().toLowerCase() : ''
+  const matches = visible.filter((option) =>
+    `${option.name} ${option.description}`.toLowerCase().includes(search)
   )
 
   function changeOpen(next: boolean) {
@@ -187,7 +189,7 @@ function ModelPicker() {
           document.querySelector<HTMLElement>('[data-composer]')?.focus()
         }}
       >
-        {accounts.length > 0 && (
+        {accounts.length > 1 && (
           <div className="bg-muted/30 flex w-11 shrink-0 [scrollbar-width:none] flex-col gap-1 overflow-y-auto p-1">
             {accounts.map((item) => (
               <div key={item.id} className="relative w-full">
@@ -231,36 +233,50 @@ function ModelPicker() {
                 </Tooltip>
               </div>
             ))}
+            <Tooltip side="left" label="Manage accounts">
+              <button
+                className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground focus-visible:bg-foreground/10 mt-auto flex aspect-square w-full shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors focus-visible:outline-none"
+                aria-label="Manage accounts"
+                onClick={() => {
+                  setOpen(false)
+                  showSettingsPage(providerPages[settings.provider])
+                }}
+              >
+                <HugeiconsIcon icon={UserSettings01Icon} className="size-4.5" />
+              </button>
+            </Tooltip>
           </div>
         )}
         <div
           className={cn(
             'bg-muted/40 flex min-h-0 min-w-0 flex-1 flex-col',
-            accounts.length > 0 && 'border-border/70 border-l'
+            accounts.length > 1 && 'border-border/70 border-l'
           )}
         >
-          <div className="shrink-0 px-3 pt-2.5">
-            <div className="border-border/70 focus-within:border-ring relative border-b pb-1.5 transition-colors">
-              <HugeiconsIcon
-                icon={SearchIcon}
-                className="text-muted-foreground/55 pointer-events-none absolute top-1.5 left-0 size-4"
-              />
-              <input
-                ref={searchInput}
-                value={query}
-                placeholder="Search models..."
-                className="placeholder:text-muted-foreground/70 h-6.5 w-full bg-transparent ps-5 text-sm outline-none"
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' || viewed === null) return
-                  const first = matches.at(0)
-                  if (first === undefined) return
-                  event.preventDefault()
-                  pick(viewed, first)
-                }}
-              />
+          {searchable && (
+            <div className="shrink-0 px-3 pt-2.5">
+              <div className="border-border/70 focus-within:border-ring relative border-b pb-1.5 transition-colors">
+                <HugeiconsIcon
+                  icon={SearchIcon}
+                  className="text-muted-foreground/55 pointer-events-none absolute top-1.5 left-0 size-4"
+                />
+                <input
+                  ref={searchInput}
+                  value={query}
+                  placeholder="Search models..."
+                  className="placeholder:text-muted-foreground/70 h-6.5 w-full bg-transparent ps-5 text-sm outline-none"
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' || viewed === null) return
+                    const first = matches.at(0)
+                    if (first === undefined) return
+                    event.preventDefault()
+                    pick(viewed, first)
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          )}
           <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1.5">
             {matches.length === 0 ? (
               <p className="text-muted-foreground p-2 text-center text-sm">
@@ -271,7 +287,7 @@ function ModelPicker() {
                 <button
                   key={option.value}
                   className={cn(
-                    'hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-7 w-full cursor-pointer flex-col rounded-sm px-2 py-1 text-left',
+                    'hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer flex-col justify-center rounded-sm px-2 py-1.5 text-left',
                     viewed === settings.accountId &&
                       option.value === settings.model &&
                       'text-foreground bg-foreground/[0.08]'
@@ -281,28 +297,17 @@ function ModelPicker() {
                     pick(viewed, option)
                   }}
                 >
-                  <span className="truncate text-xs leading-snug font-medium">
+                  <span className="truncate text-sm leading-snug font-medium">
                     {option.name}
+                    {viewedProvider === 'opencode' && (
+                      <span className="text-muted-foreground ml-2 text-xs font-normal">
+                        {option.description}
+                      </span>
+                    )}
                   </span>
-                  {option.description !== '' && (
-                    <span className="text-muted-foreground/70 mt-1 truncate text-xs leading-snug">
-                      {option.description}
-                    </span>
-                  )}
                 </button>
               ))
             )}
-          </div>
-          <div className="border-border/70 shrink-0 border-t px-3 py-2 text-xs">
-            <button
-              className="text-foreground cursor-pointer font-medium underline-offset-2 hover:underline"
-              onClick={() => {
-                setOpen(false)
-                showSettingsPage(providerPages[settings.provider])
-              }}
-            >
-              Manage accounts…
-            </button>
           </div>
         </div>
       </PopoverContent>

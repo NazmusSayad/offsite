@@ -75,7 +75,9 @@ function applyConfig(machine: string, config: Config) {
     activityOf(getState().machines, machine, selection.sessionId) !== undefined
   if (live) return
   const settings =
-    getDraftSettings(draftKey(selection)) ??
+    (selection.sessionId === null
+      ? null
+      : getDraftSettings(draftKey(selection))) ??
     providerSettings(
       config,
       selection.sessionId === null

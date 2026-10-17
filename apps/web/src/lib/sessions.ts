@@ -29,7 +29,9 @@ export function openSession(selection: Selection) {
     requests: [],
     queue: [],
     settings:
-      getDraftSettings(draftKey(selection)) ??
+      (selection.sessionId === null
+        ? null
+        : getDraftSettings(draftKey(selection))) ??
       providerSettings(
         machine.config,
         getState().sessions.find(
