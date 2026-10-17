@@ -57,12 +57,13 @@ export async function probeMachine(address: string) {
   }
   if (!response.ok)
     throw new Error(`${new URL(address).host} answered ${response.status}`)
-  const server: { machineId?: unknown } = await response.json()
+  const server: { machineId?: unknown; serving?: unknown } =
+    await response.json()
   if (typeof server.machineId !== 'string')
     throw new Error(
       `${new URL(address).host} runs a version of offsite that this page cannot talk to`
     )
-  return server.machineId
+  return { id: server.machineId, serving: server.serving === true }
 }
 
 export function pairingFromUrl() {
@@ -174,16 +175,16 @@ export async function addMachine(
 ) {
   const addresses = fallback === null ? [address] : [address, fallback]
   const id = await identify(addresses)
-  const existing = getState().machines.find((item) => item.id === id)
+  const existing = getState().machines.find(
+    (item) => item.addresses.includes(address) || item.id === id
+  )
   if (existing !== undefined) {
     const added = addresses.filter((item) => !existing.addresses.includes(item))
-    if (added.length === 0 && (token === null || token === existing.token))
-      throw new Error(`${new URL(address).host} is already in the list`)
-    editMachine(id, {
+    editMachine(existing.id, {
       addresses: [...existing.addresses, ...added],
       ...(token !== null && { token }),
     })
-    return id
+    return existing.id
   }
   update({
     machines: [
@@ -201,7 +202,7 @@ export async function addMachine(
   })
   persistMachines()
   connectMachine(id, addresses, token)
-  if (home !== null && addresses.includes(home)) shareToken(token)
+  if (id === getState().home) shareToken(token)
   return id
 }
 
@@ -209,7 +210,7 @@ async function identify(addresses: string[]) {
   let failure: unknown
   for (const address of addresses) {
     try {
-      return await probeMachine(address)
+      return (await probeMachine(address)).id
     } catch (error) {
       failure ??= error
     }
@@ -230,11 +231,7 @@ export function editMachine(
     next.token !== known.token
   )
     reconnectMachine(id)
-  if (
-    home !== null &&
-    next.addresses.includes(home) &&
-    next.token !== known.token
-  )
+  if (id === getState().home && next.token !== known.token)
     shareToken(next.token)
 }
 

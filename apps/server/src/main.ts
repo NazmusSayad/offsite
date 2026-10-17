@@ -91,6 +91,9 @@ const server = createServer((request, response) => {
         protocol: PROTOCOL,
         machineId: machineInfo().id,
         authorized: authorized(url),
+        serving:
+          args.command === 'web' &&
+          request.headers['sec-fetch-site'] === 'same-origin',
       })
     )
     return

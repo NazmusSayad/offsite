@@ -16,7 +16,7 @@ import type {
 } from '@offsite/core/protocol'
 import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
 import type { Refusal } from '@/api/connection'
-import { home, machineKey } from '@/api/machines'
+import { machineKey } from '@/api/machines'
 import type { MachineIcon } from '@/components/icons'
 import { errorMessage } from '@/lib/utils'
 import { type Prefs, savePrefs } from './prefs'
@@ -69,6 +69,7 @@ export type MachineSession = Session & { machine: string }
 
 export type State = {
   machines: Machine[]
+  home: string | null
   sessions: MachineSession[]
   projects: MachineProject[]
   prefs: Prefs
@@ -124,9 +125,7 @@ export function machineOf(state: State, id: string) {
 }
 
 export function homeMachine(state: State) {
-  return state.machines.find(
-    (item) => home !== null && item.addresses.includes(home)
-  )
+  return state.machines.find((item) => item.id === state.home)
 }
 
 export function projectOf(state: State, machine: string, projectId: string) {

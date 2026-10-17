@@ -8,7 +8,6 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useRef, useState } from 'react'
 import {
   editMachine,
-  home,
   readMachineLink,
   reconnectMachine,
   removeMachine,
@@ -45,6 +44,7 @@ const statuses = {
 
 export function MachinesPage() {
   const machines = useStore((state) => state.machines)
+  const home = useStore((state) => state.home)
   const edited = useStore((state) =>
     state.machines.find((item) => item.id === state.settingsEditedMachine)
   )
@@ -95,9 +95,7 @@ export function MachinesPage() {
                 machine.via !== null &&
                 machine.via !== machine.addresses[0] &&
                 ` · via ${new URL(machine.via).host}`}
-              {home !== null &&
-                machine.addresses.includes(home) &&
-                ' · serves this page'}
+              {machine.id === home && ' · serves this page'}
             </span>
             <div className="flex shrink-0 items-center gap-1">
               <Button
@@ -130,7 +128,7 @@ export function MachinesPage() {
 
 function EditMachinePage(props: { machine: Machine }) {
   const machine = props.machine
-  const serving = home !== null && machine.addresses.includes(home)
+  const serving = useStore((state) => state.home) === machine.id
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const newAddress = useRef<HTMLInputElement>(null)

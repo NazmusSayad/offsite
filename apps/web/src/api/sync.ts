@@ -12,7 +12,7 @@ import {
   refreshCapabilities,
   setAccounts,
 } from '@/lib/accounts'
-import { notify, push } from '@/lib/notifications'
+import { notify, push, refreshPushSubscription } from '@/lib/notifications'
 import { loadPrefs } from '@/lib/prefs'
 import {
   createAppStore,
@@ -35,9 +35,11 @@ import {
   machineKey,
   pairingFromUrl,
   persistMachines,
+  probeMachine,
   receiveMachines,
   restoreMachine,
   restoreProjects,
+  shareToken,
 } from './machines'
 
 export function start() {
@@ -45,6 +47,7 @@ export function start() {
   const selection = selectionFromUrl(stored.map((machine) => machine.id))
   createAppStore({
     machines: stored.map(restoreMachine),
+    home: null,
     sessions: [],
     projects: stored.flatMap(restoreProjects),
     prefs: loadPrefs(),
@@ -103,9 +106,22 @@ async function attach() {
   } catch (error) {
     showError(error)
   }
-  if (home === null || homeMachine(getState()) !== undefined) return
+  if (home === null) return
   try {
-    await addMachine(home, null, null)
+    const server = await probeMachine(home)
+    if (!server.serving)
+      throw new Error(`${new URL(home).host} does not say it serves this page`)
+    update({ home: server.id })
+    const machine = homeMachine(getState())
+    if (machine === undefined) {
+      await addMachine(home, null, null)
+      return
+    }
+    shareToken(machine.token)
+    if (machine.via !== null)
+      refreshPushSubscription().catch((error: unknown) =>
+        console.error('could not refresh the push subscription', error)
+      )
   } catch (error) {
     showError(error)
   }
