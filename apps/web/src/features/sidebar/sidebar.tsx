@@ -211,10 +211,10 @@ export function Sidebar(props: {
     if (items.length === 0) return null
     return (
       <>
-        <li className={cn('mx-0.5 h-8 pt-2', first && 'mt-auto')}>
+        <li className={cn('mx-0.5 h-9 pt-2', first && 'mt-auto')}>
           <button
             aria-expanded={open}
-            className="text-sidebar-muted-foreground/60 flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs font-medium"
+            className="text-sidebar-muted-foreground/60 flex h-9 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs font-medium"
             onClick={onToggle}
           >
             <span className="shrink-0">

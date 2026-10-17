@@ -441,7 +441,7 @@ export function Composer() {
                 </Button>
                 {running && empty ? (
                   <button
-                    className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors"
+                    className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors"
                     title="Stop (Esc)"
                     aria-label="Stop generation"
                     onClick={interrupt}
@@ -458,7 +458,7 @@ export function Composer() {
                   </button>
                 ) : (
                   <button
-                    className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover relative flex size-8 items-center justify-center overflow-hidden rounded-full shadow-xs transition-all duration-150 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:opacity-64 disabled:shadow-none"
+                    className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover relative flex size-9 items-center justify-center overflow-hidden rounded-full shadow-xs transition-all duration-150 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:opacity-64 disabled:shadow-none"
                     title={
                       running
                         ? `Queue (Enter) · Send now (${mod}+Enter)`

@@ -110,7 +110,7 @@ export function SettingsDialog() {
             <button
               key={item}
               className={cn(
-                'text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center rounded-md px-2 text-sm transition-colors',
+                'text-muted-foreground hover:bg-accent hover:text-foreground flex h-9 flex-none items-center rounded-md px-2 text-sm transition-colors',
                 item === page && 'bg-accent text-foreground'
               )}
               onClick={() => showSettingsPage(item)}
@@ -138,7 +138,7 @@ export function SettingsDialog() {
               </Select>
             )}
             {machine !== null && machines.length === 1 && (
-              <p className="text-muted-foreground flex h-8 items-center gap-1.5 px-2 text-xs font-medium [&_svg]:size-4">
+              <p className="text-muted-foreground flex h-9 items-center gap-1.5 px-2 text-xs font-medium [&_svg]:size-4">
                 <HugeiconsIcon icon={machineIcons[machine.icon]} />
                 <span className="truncate">{machine.name}</span>
               </p>
@@ -147,7 +147,7 @@ export function SettingsDialog() {
               <button
                 key={item}
                 className={cn(
-                  'text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center rounded-md px-2 text-sm transition-colors',
+                  'text-muted-foreground hover:bg-accent hover:text-foreground flex h-9 flex-none items-center rounded-md px-2 text-sm transition-colors',
                   item === page && 'bg-accent text-foreground'
                 )}
                 onClick={() => showSettingsPage(item)}
