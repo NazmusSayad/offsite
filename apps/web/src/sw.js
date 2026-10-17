@@ -25,15 +25,29 @@ self.addEventListener('push', (event) => {
     message
       ? self.registration.showNotification(message.title, {
           body: message.body,
-          data: {
-            machine: message.machineId,
-            project: message.projectId,
-            tabId: message.tabId,
-          },
+          data: notificationData(message),
         })
       : self.registration.showNotification('OffSite', { data: null })
   )
 })
+
+function notificationData(message) {
+  if (message.kind === 'terminal')
+    return {
+      kind: 'terminal',
+      machine: message.machineId,
+      project: message.projectId,
+      tabId: message.tabId,
+    }
+  if (message.kind === 'session')
+    return {
+      kind: 'session',
+      machine: message.machineId,
+      project: message.projectId,
+      sessionId: message.sessionId,
+    }
+  throw new Error(`unknown push kind ${message.kind}`)
+}
 
 function readMessage(data) {
   if (!data) return null
@@ -119,33 +133,41 @@ async function callAddress(address, id, method, params) {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  event.waitUntil(openTab(event.notification.data))
+  event.waitUntil(openTarget(event.notification.data))
 })
 
-async function openTab(tab) {
+async function openTarget(target) {
   const windows = await self.clients.matchAll({
     type: 'window',
     includeUncontrolled: true,
   })
   const page = windows[0]
   if (!page) {
-    await self.clients.openWindow(tab ? `/?${tabParams(tab)}` : '/')
+    await self.clients.openWindow(target ? `/?${targetParams(target)}` : '/')
     return
   }
-  if (tab)
+  if (target?.kind === 'terminal')
     page.postMessage({
       type: 'select',
-      machine: tab.machine,
-      project: tab.project,
-      tabId: tab.tabId,
+      machine: target.machine,
+      project: target.project,
+      tabId: target.tabId,
+    })
+  if (target?.kind === 'session')
+    page.postMessage({
+      type: 'openSession',
+      machine: target.machine,
+      project: target.project,
+      sessionId: target.sessionId,
     })
   await page.focus()
 }
 
-function tabParams(tab) {
+function targetParams(target) {
   const params = new URLSearchParams()
-  params.set('machine', tab.machine)
-  params.set('project', tab.project)
-  params.set('terminal', String(tab.tabId))
+  params.set('machine', target.machine)
+  params.set('project', target.project)
+  if (target.kind === 'terminal') params.set('terminal', String(target.tabId))
+  if (target.kind === 'session') params.set('session', target.sessionId)
   return params
 }

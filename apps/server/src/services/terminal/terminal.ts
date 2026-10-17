@@ -380,6 +380,7 @@ function push(id: number, alert: Alert, windowTitle: string) {
   const tab = findTab(id)
   if (title === '') title = tab?.customName ?? (windowTitle || 'Terminal')
   void sendPush({
+    kind: 'terminal',
     title,
     body,
     projectId: entry[0],

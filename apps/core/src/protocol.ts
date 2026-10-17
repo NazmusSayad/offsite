@@ -227,12 +227,21 @@ export type Shell = { name: string; path: string }
 
 export type BusyResult = { program: string | null } | { error: string }
 
-export type TerminalPush = {
-  title: string
-  body: string
-  projectId: string
-  tabId: number
-}
+export type PushMessage =
+  | {
+      kind: 'terminal'
+      title: string
+      body: string
+      projectId: string
+      tabId: number
+    }
+  | {
+      kind: 'session'
+      title: string
+      body: string
+      projectId: string
+      sessionId: string
+    }
 
 export type Image = { mediaType: string; data: string }
 

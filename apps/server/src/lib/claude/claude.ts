@@ -17,6 +17,8 @@ import type {
   RateLimit,
 } from '@offsite/core/protocol'
 import { type StoredAccount, storedAccount } from '../../services/accounts.ts'
+import { notifierConnected, sendPush } from '../../services/push.ts'
+import { sessions } from '../../services/sessions.ts'
 import { claudeBaseDir } from '../../storage/config.ts'
 import { broadcast } from '../hub.ts'
 import { isRecord } from './content.ts'
@@ -84,18 +86,43 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
                 typeof input.tool_input.message !== 'string'
               )
                 throw new Error('Unexpected PushNotification hook input')
+              const message = input.tool_input.message
               broadcast({
                 type: 'notification',
                 sessionId: input.session_id,
-                message: input.tool_input.message,
+                message,
+              })
+              if (notifierConnected())
+                return {
+                  hookSpecificOutput: {
+                    hookEventName: 'PostToolUse',
+                    updatedToolOutput: {
+                      message,
+                      localSent: true,
+                      disabledReason: 'no_transport',
+                    },
+                  },
+                }
+              const session = sessions().find(
+                (item) => item.id === input.session_id
+              )
+              if (session === undefined)
+                throw new Error(`Session ${input.session_id} is not listed`)
+              const pushSent = await sendPush({
+                kind: 'session',
+                title: session.title,
+                body: message,
+                projectId: session.projectId,
+                sessionId: session.id,
               })
               return {
                 hookSpecificOutput: {
                   hookEventName: 'PostToolUse',
                   updatedToolOutput: {
-                    message: input.tool_input.message,
-                    localSent: true,
-                    disabledReason: 'no_transport',
+                    message,
+                    localSent: false,
+                    pushSent,
+                    ...(pushSent ? {} : { disabledReason: 'no_transport' }),
                   },
                 },
               }
