@@ -43,7 +43,7 @@ export function AgentsSection(props: { machine: string; config: Config }) {
           </SelectContent>
         </Select>
       </Row>
-      <Row label="Auto-submit questions">
+      <Row label="Auto-skip questions">
         <Timeout
           value={autoResolve.questions}
           onChange={(questions) => save({ questions })}

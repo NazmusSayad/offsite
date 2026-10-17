@@ -52,7 +52,7 @@ function Mark(props: {
   )
 }
 
-function Countdown(props: { at: number; label: string }) {
+function Countdown(props: { at: number }) {
   const [now, setNow] = useState(Date.now)
 
   useEffect(() => {
@@ -62,9 +62,8 @@ function Countdown(props: { at: number; label: string }) {
 
   const seconds = Math.max(0, Math.ceil((props.at - now) / 1000))
   return (
-    <span>
-      {props.label} in {Math.floor(seconds / 60)}:
-      {String(seconds % 60).padStart(2, '0')}
+    <span className="tabular-nums">
+      {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
     </span>
   )
 }
@@ -100,19 +99,11 @@ export function PermissionPrompt(props: {
             <span className="text-warning shrink-0 font-medium">
               {plan ? 'Ready to code?' : request.title}
             </span>
-            <span className="ml-auto flex shrink-0 items-center gap-2 tabular-nums">
-              {request.autoResolve !== undefined && (
-                <Countdown
-                  at={request.autoResolve.at}
-                  label={
-                    request.autoResolve.decision === 'allow'
-                      ? 'Auto-approves'
-                      : 'Auto-declines'
-                  }
-                />
-              )}
-              {props.count > 1 && <span>1/{props.count}</span>}
-            </span>
+            {props.count > 1 && (
+              <span className="ml-auto shrink-0 tabular-nums">
+                1/{props.count}
+              </span>
+            )}
           </span>
           {detail !== '' && (
             <span className="text-foreground block max-h-20 w-full min-w-0 overflow-auto font-mono text-xs whitespace-pre">
@@ -127,6 +118,9 @@ export function PermissionPrompt(props: {
             onClick={() => respond(request.id, 'deny', null)}
           >
             {plan ? 'Keep planning' : 'Decline'}
+            {request.autoResolve?.decision === 'deny' && (
+              <Countdown at={request.autoResolve.at} />
+            )}
           </Button>
           {request.kind === 'approval' && request.canAlwaysAllow && (
             <Button
@@ -139,6 +133,9 @@ export function PermissionPrompt(props: {
           )}
           <Button size="xs" onClick={() => respond(request.id, 'allow', null)}>
             {plan ? 'Approve plan' : 'Approve'}
+            {request.autoResolve?.decision === 'allow' && (
+              <Countdown at={request.autoResolve.at} />
+            )}
           </Button>
         </span>
         {plan && (
@@ -164,7 +161,6 @@ function QuestionPrompt(props: {
   const [active, setActive] = useState(0)
   const [picked, setPicked] = useState<Record<string, string[]>>({})
   const [other, setOther] = useState<Record<string, string>>({})
-  const [uploads, setUploads] = useState(0)
   const explicit = Object.fromEntries(
     questions.map((item) => [
       item.question,
@@ -216,7 +212,6 @@ function QuestionPrompt(props: {
 
   async function attach(question: Question, files: File[]) {
     for (const file of files) {
-      setUploads((count) => count + 1)
       try {
         const path = await uploadFile(props.machine, file)
         setOther((current) => {
@@ -231,8 +226,6 @@ function QuestionPrompt(props: {
         }
       } catch (error) {
         showError(error)
-      } finally {
-        setUploads((count) => count - 1)
       }
     }
   }
@@ -406,47 +399,49 @@ function QuestionPrompt(props: {
             </div>
           )}
           <div className="ml-auto flex shrink-0 items-center gap-1.5 pr-1">
-            {props.request.autoResolve !== undefined && (
-              <span className="text-muted-foreground mr-1 text-xs tabular-nums">
-                <Countdown
-                  at={props.request.autoResolve.at}
-                  label="Auto-submits"
-                />
-              </span>
-            )}
-            {active < questions.length - 1 && (
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={() => setActive(active + 1)}
-              >
-                Skip
-              </Button>
-            )}
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => respond(props.request.id, 'allow', {})}
+            >
+              Skip
+              {props.request.autoResolve !== undefined && (
+                <Countdown at={props.request.autoResolve.at} />
+              )}
+            </Button>
+            <Button
+              size="xs"
+              variant={next === undefined ? 'default' : 'outline'}
+              onClick={() =>
+                respond(
+                  props.request.id,
+                  'allow',
+                  Object.fromEntries(
+                    questions.flatMap((item) =>
+                      explicit[item.question].length === 0
+                        ? []
+                        : [[item.question, explicit[item.question].join(', ')]]
+                    )
+                  )
+                )
+              }
+            >
+              Submit
+            </Button>
             {next !== undefined && (
               <Button
                 size="xs"
-                disabled={next === active}
-                onClick={() => setActive(next)}
+                onClick={() => {
+                  if (explicit[question.question].length === 0) {
+                    setPicked({
+                      ...picked,
+                      [question.question]: recommendations(question),
+                    })
+                  }
+                  setActive(next)
+                }}
               >
                 Next
-              </Button>
-            )}
-            {next === undefined && (
-              <Button
-                size="xs"
-                disabled={uploads > 0}
-                onClick={() =>
-                  respond(
-                    props.request.id,
-                    'allow',
-                    Object.fromEntries(
-                      Object.entries(answers).filter(([, value]) => value !== '')
-                    )
-                  )
-                }
-              >
-                Submit
               </Button>
             )}
           </div>
