@@ -24,7 +24,7 @@ import {
   redeemCode,
   removeDevices,
 } from './storage/auth.ts'
-import { readConfig } from './storage/config.ts'
+import { claudeBaseDir } from './storage/config.ts'
 import { lockHome } from './storage/storage.ts'
 
 const UNPAIR_CHECK = 5000
@@ -64,7 +64,7 @@ if (args.command === 'unpair') {
 
 lockHome()
 
-process.env.CLAUDE_CONFIG_DIR = readConfig().claudeBaseDir
+process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
 watchSessions()
 refreshAll()
 

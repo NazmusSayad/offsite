@@ -31,7 +31,7 @@ import {
   removeOpenCode,
   renameOpenCode,
 } from '../lib/opencode/index.ts'
-import { readConfig } from '../storage/config.ts'
+import { claudeBaseDir, readConfig } from '../storage/config.ts'
 import { db } from '../storage/db.ts'
 import { sessions as sessionsTable } from '../storage/schema.ts'
 import { providerName } from './accounts.ts'
@@ -263,7 +263,7 @@ export function watchSessions() {
   for (const watcher of watchers) watcher.close()
   watchers = (
     [
-      ['claude', path.join(readConfig().claudeBaseDir, 'projects')],
+      ['claude', path.join(claudeBaseDir(), 'projects')],
       ['codex', path.join(codexBaseDir, 'sessions')],
     ] as const
   ).flatMap(([provider, dir]) => {

@@ -1,11 +1,11 @@
 import type {
   Accounts,
-  Config,
+  Composer,
   Provider,
   Settings,
 } from '@offsite/core/protocol'
 import { call } from '@/api/connection'
-import { updateConfig } from '@/api/machine-config'
+import { updateComposer } from '@/api/machine-config'
 import { saveDraftSettings } from '@/features/composer/drafts'
 import {
   activityOf,
@@ -26,11 +26,11 @@ export const emptySettings: Settings = {
 }
 
 export function providerSettings(
-  config: Config | null,
+  composer: Composer | null,
   provider: Provider
 ): Settings {
-  if (config === null) return { ...emptySettings, provider }
-  return { provider, ...config.composer[provider] }
+  if (composer === null) return { ...emptySettings, provider }
+  return { provider, ...composer[provider] }
 }
 
 export function changeSettings(patch: Partial<Settings>) {
@@ -40,20 +40,17 @@ export function changeSettings(patch: Partial<Settings>) {
   if (selection === null) return
   if (selection.sessionId !== null)
     saveDraftSettings(draftKey(selection), settings)
-  const config = machineOf(getState(), selection.machine).config
-  if (config !== null)
-    updateConfig(selection.machine, {
-      ...config,
-      composer: {
-        ...config.composer,
-        provider: settings.provider,
-        [settings.provider]: {
-          accountId: settings.accountId,
-          model: settings.model,
-          effort: settings.effort,
-          mode: settings.mode,
-          plan: settings.plan,
-        },
+  const composer = machineOf(getState(), selection.machine).composer
+  if (composer !== null)
+    updateComposer(selection.machine, {
+      ...composer,
+      provider: settings.provider,
+      [settings.provider]: {
+        accountId: settings.accountId,
+        model: settings.model,
+        effort: settings.effort,
+        mode: settings.mode,
+        plan: settings.plan,
       },
     })
   if (patch.accountId !== undefined) void refreshCapabilities()
@@ -103,7 +100,7 @@ export function setAccounts(machine: string, received: Accounts) {
   else if (other !== undefined)
     changeSettings({
       ...providerSettings(
-        machineOf(getState(), machine).config,
+        machineOf(getState(), machine).composer,
         other.provider
       ),
       accountId: other.accountId,

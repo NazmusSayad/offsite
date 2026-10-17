@@ -39,6 +39,7 @@ export type Directories = {
 }
 
 export type Snapshot = ConfigInfo & {
+  composer: Composer
   hostname: string
   projects: Project[]
   sessions: Session[]
@@ -156,10 +157,25 @@ export type TerminalConfig = {
   behavior: { terminalIdentity: TerminalIdentity; shellIntegration: boolean }
 }
 
+export type AccountConfig = {
+  id: string
+  provider: Exclude<Provider, 'opencode'>
+  name: string
+  configDir: Record<Platform, string | null>
+  enabled: boolean
+  hiddenModels: Record<string, boolean>
+}
+
+export type Composer = { provider: Provider } & Record<
+  Provider,
+  ProviderSettings
+>
+
 export type Config = {
-  claudeBaseDir: string
+  claudeBaseDir: Record<Platform, string | null>
+  claudeAccounts: AccountConfig[]
+  codexAccounts: AccountConfig[]
   enabledProviders: Record<Provider, boolean>
-  composer: { provider: Provider } & Record<Provider, ProviderSettings>
   commitMessage: {
     provider: Provider | null
     accountId: string | null
@@ -180,6 +196,7 @@ export type ConfigInfo = {
   defaults: Config
   platform: Platform
   defaultShell: string
+  defaultClaudeBaseDir: string
 }
 
 export type TerminalTab = {
@@ -356,6 +373,8 @@ export type Methods = {
   sync: { params: void; result: Snapshot }
   'config.get': { params: void; result: ConfigInfo }
   'config.save': { params: Config; result: Config }
+  'composer.get': { params: void; result: Composer }
+  'composer.save': { params: Composer; result: Composer }
   'projects.add': { params: { path: string }; result: Project }
   'projects.update': {
     params: { id: string; patch: ProjectPatch }
@@ -533,6 +552,7 @@ export type ServerEvent =
   | { type: 'activity'; activity: Record<string, Activity> }
   | { type: 'limits'; accountId: string; limits: RateLimit[] }
   | { type: 'config'; config: Config }
+  | { type: 'composer'; composer: Composer }
   | { type: 'projects'; projects: Project[] }
   | { type: 'sessions'; sessions: Session[] }
   | { type: 'providers'; providers: ProviderStatus[] }

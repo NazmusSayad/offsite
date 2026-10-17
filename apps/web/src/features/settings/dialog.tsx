@@ -266,18 +266,25 @@ export function SettingsDialog() {
               )}
             {page === 'Terminal' && <TerminalPage prefs={prefs} />}
             {page === 'Notifications' && <NotificationsPage prefs={prefs} />}
-            {pageProvider !== null && machine !== null && config !== null && (
-              <ProviderPage
-                key={pageProvider}
-                machine={machine.id}
-                config={config}
-                provider={pageProvider}
-                claudeAccounts={machine.claudeAccounts}
-                codexAccounts={machine.codexAccounts}
-                openCode={machine.openCode}
-                selected={settingsAccount}
-              />
-            )}
+            {pageProvider !== null &&
+              machine !== null &&
+              config !== null &&
+              machine.composer !== null &&
+              system !== null && (
+                <ProviderPage
+                  key={pageProvider}
+                  machine={machine.id}
+                  config={config}
+                  composer={machine.composer}
+                  platform={system.platform}
+                  defaultClaudeBaseDir={system.defaultClaudeBaseDir}
+                  provider={pageProvider}
+                  claudeAccounts={machine.claudeAccounts}
+                  codexAccounts={machine.codexAccounts}
+                  openCode={machine.openCode}
+                  selected={settingsAccount}
+                />
+              )}
             {page === 'Machines' && <MachinesPage />}
             {page === 'Shortcuts' && <ShortcutsPage />}
           </div>
@@ -311,11 +318,15 @@ export function SettingsDialog() {
                     updatePrefs(defaultPrefs)
                     return
                   }
-                  if (machine === null || system === null)
+                  if (machine === null || config === null || system === null)
                     throw new Error(
                       'Restoring machine defaults needs a connected machine'
                     )
-                  updateConfig(machine.id, system.defaults)
+                  updateConfig(machine.id, {
+                    ...system.defaults,
+                    claudeAccounts: config.claudeAccounts,
+                    codexAccounts: config.codexAccounts,
+                  })
                 }}
               >
                 Restore defaults

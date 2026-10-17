@@ -2,6 +2,7 @@ import type {
   Account,
   Activity,
   Capabilities,
+  Composer,
   Config,
   ConfigInfo,
   Context,
@@ -55,6 +56,7 @@ export type Machine = {
   icon: MachineIcon
   pairedAt: number | null
   config: Config | null
+  composer: Composer | null
   configError: string | null
   system: Omit<ConfigInfo, 'config'> | null
   claudeAccounts: Account[]

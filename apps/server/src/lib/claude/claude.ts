@@ -17,7 +17,7 @@ import type {
   RateLimit,
 } from '@offsite/core/protocol'
 import { type StoredAccount, storedAccount } from '../../services/accounts.ts'
-import { readConfig } from '../../storage/config.ts'
+import { claudeBaseDir } from '../../storage/config.ts'
 import { broadcast } from '../hub.ts'
 import { isRecord } from './content.ts'
 
@@ -225,7 +225,7 @@ async function recordUsage(accountId: string, probe: Query) {
 }
 
 function isLinked(configDir: string) {
-  const base = readConfig().claudeBaseDir
+  const base = claudeBaseDir()
   try {
     if (realpathSync(configDir) === realpathSync(base)) return true
     return (

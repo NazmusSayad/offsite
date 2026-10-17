@@ -33,13 +33,13 @@ export function openSession(selection: Selection) {
         ? null
         : getDraftSettings(draftKey(selection))) ??
       providerSettings(
-        machine.config,
+        machine.composer,
         getState().sessions.find(
           (item) =>
             item.machine === selection.machine &&
             item.id === selection.sessionId
         )?.provider ??
-          machine.config?.composer.provider ??
+          machine.composer?.provider ??
           'claude'
       ),
     context: null,

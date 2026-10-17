@@ -26,8 +26,7 @@ import {
   openCodeCapabilities,
   openCodeInstalled,
 } from '../lib/opencode/index.ts'
-import { readConfig } from '../storage/config.ts'
-import { readJson, writeJson } from '../storage/storage.ts'
+import { platform, readConfig, saveConfig } from '../storage/config.ts'
 
 export type StoredAccount = {
   id: string
@@ -49,21 +48,12 @@ export function providerName(provider: Provider) {
 }
 
 export function storedAccounts(): StoredAccount[] {
-  const items =
-    (readJson('accounts.json') as
-      | (Omit<StoredAccount, 'enabled' | 'hiddenModels'> & {
-          enabled?: boolean
-          hiddenModels?: Record<string, boolean>
-        })[]
-      | null) ?? []
-  return items.map((item) => ({
-    id: item.id,
-    provider: item.provider,
-    name: item.name,
-    configDir: item.configDir,
-    enabled: item.enabled ?? true,
-    hiddenModels: item.hiddenModels ?? {},
-  }))
+  const config = readConfig()
+  return [...config.claudeAccounts, ...config.codexAccounts].flatMap((item) => {
+    const configDir = item.configDir[platform()]
+    if (configDir === null) return []
+    return [{ ...item, configDir }]
+  })
 }
 
 export function assertEnabled(provider: Provider, accountId: string | null) {
@@ -205,40 +195,56 @@ export function addAccount(
   name: string,
   configDir: string
 ) {
-  saveAccounts([
-    ...storedAccounts(),
-    {
-      id: randomUUID(),
-      provider,
-      ...validAccount(name, configDir),
-      enabled: true,
-      hiddenModels: {},
-    },
-  ])
+  const account = validAccount(name, configDir)
+  const config = readConfig()
+  const key = `${provider}Accounts` as const
+  saveConfig({
+    ...config,
+    [key]: [
+      ...config[key],
+      {
+        id: randomUUID(),
+        provider,
+        name: account.name,
+        configDir: { [platform()]: account.configDir },
+        enabled: true,
+        hiddenModels: {},
+      },
+    ],
+  })
 }
 
 export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
   const before = storedAccounts().find((item) => item.id === update.id)
   if (before === undefined) throw new Error('That account was removed')
   const account = validAccount(update.name, update.configDir)
-  saveAccounts(
-    storedAccounts().map((item) =>
+  const config = readConfig()
+  const key = `${before.provider}Accounts` as const
+  saveConfig({
+    ...config,
+    [key]: config[key].map((item) =>
       item.id === update.id
         ? {
             ...item,
-            ...account,
+            name: account.name,
+            configDir: { ...item.configDir, [platform()]: account.configDir },
             enabled: update.enabled,
             hiddenModels: update.hiddenModels,
           }
         : item
-    )
-  )
+    ),
+  })
   forgetClaude(update.id)
   if (before.enabled && !update.enabled) await stopAccount(before)
 }
 
 export function removeAccount(id: string) {
-  saveAccounts(storedAccounts().filter((item) => item.id !== id))
+  const config = readConfig()
+  saveConfig({
+    ...config,
+    claudeAccounts: config.claudeAccounts.filter((item) => item.id !== id),
+    codexAccounts: config.codexAccounts.filter((item) => item.id !== id),
+  })
   forgetClaude(id)
 }
 
@@ -252,8 +258,4 @@ function validAccount(name: string, configDir: string) {
     }
   if (path.isAbsolute(dir)) return { name: name.trim(), configDir: dir }
   throw new Error('Use an absolute config directory or one starting with ~/')
-}
-
-function saveAccounts(items: StoredAccount[]) {
-  writeJson('accounts.json', items)
 }

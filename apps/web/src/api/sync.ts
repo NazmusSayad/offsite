@@ -25,7 +25,7 @@ import {
 import { applyTheme } from '@/lib/theme'
 import { selectionFromUrl, syncUrl } from '@/lib/url'
 import { call, connectMachine, listen } from './connection'
-import { receiveConfig } from './machine-config'
+import { receiveComposer, receiveConfig } from './machine-config'
 import {
   addMachine,
   loadMachines,
@@ -118,6 +118,7 @@ async function resync(machine: string) {
         defaults: snapshot.defaults,
         platform: snapshot.platform,
         defaultShell: snapshot.defaultShell,
+        defaultClaudeBaseDir: snapshot.defaultClaudeBaseDir,
       },
       activity: snapshot.activity,
       providers: snapshot.providers,
@@ -125,6 +126,7 @@ async function resync(machine: string) {
     setProjects(machine, snapshot.projects)
     setSessions(machine, snapshot.sessions)
     receiveConfig(machine, snapshot.config)
+    receiveComposer(machine, snapshot.composer)
     reopenThread(machine)
     void refreshAccounts(machine)
     if (getState().selection?.machine === machine) void refreshCapabilities()
@@ -210,6 +212,9 @@ function receive(machine: string, event: ServerEvent) {
     case 'config':
       receiveConfig(machine, event.config)
       return
+    case 'composer':
+      receiveComposer(machine, event.composer)
+      return
     case 'projects':
       setProjects(machine, event.projects)
       return
@@ -268,7 +273,7 @@ function receive(machine: string, event: ServerEvent) {
           (state.settings.provider === event.provider
             ? state.settings
             : providerSettings(
-                machineOf(state, machine).config,
+                machineOf(state, machine).composer,
                 event.provider
               )),
         context: event.context,

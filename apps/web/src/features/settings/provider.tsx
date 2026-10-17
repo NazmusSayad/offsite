@@ -3,14 +3,16 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import type {
   Account,
   Capabilities,
+  Composer,
   Config,
   ModelSetting,
+  Platform,
   Provider,
   RateLimit,
 } from '@offsite/core/protocol'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
-import { updateConfig } from '@/api/machine-config'
+import { updateComposer, updateConfig } from '@/api/machine-config'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -31,6 +33,9 @@ import { Row, Section, TextInput } from './controls'
 export function ProviderPage(props: {
   machine: string
   config: Config
+  composer: Composer
+  platform: Platform
+  defaultClaudeBaseDir: string
   provider: Provider
   claudeAccounts: Account[]
   codexAccounts: Account[]
@@ -46,6 +51,8 @@ export function ProviderPage(props: {
         ? props.codexAccounts
         : []
   const account = accounts.find((item) => item.valid)
+  const claudeBaseDir =
+    config.claudeBaseDir[props.platform] ?? props.defaultClaudeBaseDir
 
   if (props.selected === 'new') {
     if (props.provider === 'opencode')
@@ -75,12 +82,18 @@ export function ProviderPage(props: {
         <div className="divide-y overflow-hidden rounded-xl border">
           <Row label="Base directory">
             <TextInput
-              key={config.claudeBaseDir}
+              key={claudeBaseDir}
               className="w-72 font-mono"
-              value={config.claudeBaseDir}
+              value={claudeBaseDir}
               valid={(text) => text.trim() !== ''}
-              onCommit={(claudeBaseDir) =>
-                updateConfig(props.machine, { ...config, claudeBaseDir })
+              onCommit={(dir) =>
+                updateConfig(props.machine, {
+                  ...config,
+                  claudeBaseDir: {
+                    ...config.claudeBaseDir,
+                    [props.platform]: dir,
+                  },
+                })
               }
             />
           </Row>
@@ -100,6 +113,7 @@ export function ProviderPage(props: {
             <ProviderModels
               machine={props.machine}
               config={config}
+              composer={props.composer}
               provider={props.provider}
               accountId={null}
             />
@@ -108,6 +122,7 @@ export function ProviderPage(props: {
           <ProviderModels
             machine={props.machine}
             config={config}
+            composer={props.composer}
             provider={props.provider}
             accountId={account.id}
           />
@@ -120,6 +135,7 @@ export function ProviderPage(props: {
 function ProviderModels(props: {
   machine: string
   config: Config
+  composer: Composer
   provider: Provider
   accountId: string | null
 }) {
@@ -127,7 +143,7 @@ function ProviderModels(props: {
   const [error, setError] = useState<string | null>(null)
   const settings = props.config.models[props.provider]
   const models = capabilities === null ? null : capabilities.models
-  const composer = props.config.composer[props.provider]
+  const composer = props.composer[props.provider]
   const defaultModel =
     composer.model ?? (capabilities === null ? null : capabilities.defaultModel)
 
@@ -170,15 +186,12 @@ function ProviderModels(props: {
             value={defaultModel ?? undefined}
             onValueChange={(value) => {
               const effort = settings[value]?.effort ?? null
-              void updateConfig(props.machine, {
-                ...props.config,
-                composer: {
-                  ...props.config.composer,
-                  [props.provider]: {
-                    ...composer,
-                    model: value,
-                    ...(effort === null ? {} : { effort }),
-                  },
+              updateComposer(props.machine, {
+                ...props.composer,
+                [props.provider]: {
+                  ...composer,
+                  model: value,
+                  ...(effort === null ? {} : { effort }),
                 },
               })
             }}

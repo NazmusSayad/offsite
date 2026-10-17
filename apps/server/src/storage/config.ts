@@ -12,64 +12,47 @@ const modelSetting = z.strictObject({
   effort: z.string().nullable(),
 })
 
+const posixDir = z
+  .string()
+  .refine((value) => path.posix.isAbsolute(value), 'must be an absolute path')
+  .nullable()
+  .default(null)
+
+const platformDirs = z
+  .strictObject({
+    macos: posixDir,
+    linux: posixDir,
+    windows: z
+      .string()
+      .refine(
+        (value) => path.win32.isAbsolute(value),
+        'must be an absolute path'
+      )
+      .nullable()
+      .default(null),
+  })
+  .prefault({})
+
+function accountSchema(provider: 'claude' | 'codex') {
+  return z.strictObject({
+    id: z.string(),
+    provider: z.literal(provider),
+    name: z.string(),
+    configDir: platformDirs,
+    enabled: z.boolean().default(true),
+    hiddenModels: z.record(z.string(), z.boolean()).default({}),
+  })
+}
+
 const configSchema: z.ZodType<Config> = z.strictObject({
-  claudeBaseDir: z
-    .string()
-    .refine((value) => path.isAbsolute(value), 'must be an absolute path')
-    .default(path.join(os.homedir(), '.claude')),
+  claudeBaseDir: platformDirs,
+  claudeAccounts: z.array(accountSchema('claude')).default([]),
+  codexAccounts: z.array(accountSchema('codex')).default([]),
   enabledProviders: z
     .strictObject({
       claude: z.boolean().default(true),
       codex: z.boolean().default(true),
       opencode: z.boolean().default(true),
-    })
-    .prefault({}),
-  composer: z
-    .strictObject({
-      provider: z.enum(['claude', 'codex', 'opencode']).default('claude'),
-      claude: z
-        .strictObject({
-          accountId: z.string().nullable().default(null),
-          model: z.string().nullable().default(null),
-          effort: z
-            .enum(['low', 'medium', 'high', 'xhigh', 'max'])
-            .nullable()
-            .default(null),
-          mode: z
-            .enum([
-              'default',
-              'acceptEdits',
-              'bypassPermissions',
-              'plan',
-              'dontAsk',
-              'auto',
-            ])
-            .nullable()
-            .default('bypassPermissions'),
-          plan: z.boolean().default(false),
-        })
-        .prefault({}),
-      codex: z
-        .strictObject({
-          accountId: z.string().nullable().default(null),
-          model: z.string().nullable().default(null),
-          effort: z.string().nullable().default(null),
-          mode: z
-            .enum(['read-only', 'auto', 'full-access'])
-            .nullable()
-            .default('auto'),
-          plan: z.boolean().default(false),
-        })
-        .prefault({}),
-      opencode: z
-        .strictObject({
-          accountId: z.null().default(null),
-          model: z.string().nullable().default(null),
-          effort: z.string().nullable().default(null),
-          mode: z.string().nullable().default(null),
-          plan: z.boolean().default(false),
-        })
-        .prefault({}),
     })
     .prefault({}),
   commitMessage: z
@@ -127,6 +110,12 @@ export function platform(): Platform {
   throw new Error(`unsupported platform ${process.platform}`)
 }
 
+export function claudeBaseDir() {
+  return (
+    readConfig().claudeBaseDir[platform()] ?? path.join(os.homedir(), '.claude')
+  )
+}
+
 export function defaultShell() {
   if (process.platform === 'win32') return process.env.COMSPEC ?? 'cmd.exe'
   return os.userInfo().shell ?? '/bin/sh'
@@ -138,6 +127,7 @@ export function configInfo(): ConfigInfo {
     defaults,
     platform: platform(),
     defaultShell: defaultShell(),
+    defaultClaudeBaseDir: path.join(os.homedir(), '.claude'),
   }
 }
 
@@ -164,7 +154,7 @@ export function saveConfig(value: unknown) {
   const result = configSchema.safeParse(value)
   if (!result.success) throw new Error(z.prettifyError(result.error))
   writeJson('config.json', result.data)
-  process.env.CLAUDE_CONFIG_DIR = result.data.claudeBaseDir
+  process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
   broadcast({ type: 'config', config: result.data })
   return result.data
 }

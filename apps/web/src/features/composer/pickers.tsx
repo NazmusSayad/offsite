@@ -169,7 +169,7 @@ function ModelPicker() {
     else
       changeSettings({
         ...providerSettings(
-          machineOf(getState(), selection.machine).config,
+          machineOf(getState(), selection.machine).composer,
           provider
         ),
         ...choice,

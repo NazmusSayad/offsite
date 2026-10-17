@@ -60,6 +60,7 @@ import {
   terminalRequest,
 } from '../services/terminal/terminal.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
+import { readComposer, saveComposer } from '../storage/state.ts'
 
 type Handlers = {
   [M in Method]: (
@@ -74,6 +75,7 @@ const handlers: Handlers = {
     refreshAll()
     return {
       ...configInfo(),
+      composer: readComposer(),
       hostname: os.hostname(),
       projects: projects(),
       sessions: sessions(),
@@ -82,6 +84,8 @@ const handlers: Handlers = {
     }
   },
   'config.get': () => configInfo(),
+  'composer.get': () => readComposer(),
+  'composer.save': (params) => saveComposer(params),
   'config.save': async (params) => {
     const before = readConfig()
     const saved = saveConfig(params)
@@ -92,7 +96,8 @@ const handlers: Handlers = {
       )
         await stopProvider(provider)
     if (
-      saved.claudeBaseDir === before.claudeBaseDir &&
+      JSON.stringify(saved.claudeBaseDir) ===
+        JSON.stringify(before.claudeBaseDir) &&
       JSON.stringify(saved.enabledProviders) ===
         JSON.stringify(before.enabledProviders)
     )

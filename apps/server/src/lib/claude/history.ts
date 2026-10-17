@@ -7,13 +7,13 @@ import {
   type SessionStoreEntry,
 } from '@anthropic-ai/claude-agent-sdk'
 import type { Item, ServerEvent } from '@offsite/core/protocol'
-import { readConfig } from '../../storage/config.ts'
+import { claudeBaseDir } from '../../storage/config.ts'
 import { runs } from '../live.ts'
 import { contextTokens, type Message, toMessage } from './content.ts'
 import { toItems } from './items.ts'
 
 async function sessionFile(sessionId: string) {
-  const projectsDir = path.join(readConfig().claudeBaseDir, 'projects')
+  const projectsDir = path.join(claudeBaseDir(), 'projects')
   for (const dir of await readdir(projectsDir)) {
     const file = path.join(projectsDir, dir, `${sessionId}.jsonl`)
     try {
