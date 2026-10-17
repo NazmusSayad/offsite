@@ -31,14 +31,16 @@ export function scheduleAutoResolve(
   if (request.kind === 'plan') {
     return request
   }
-  const settings = readConfig().autoResolve
-  const minutes =
-    request.kind === 'question' ? settings.questions : settings.permissions
-  if (minutes === null) {
+  const config = readConfig()
+  const seconds =
+    request.kind === 'question'
+      ? config.autoSkipQuestionTimeout
+      : config.autoPermissionTimeout
+  if (seconds === null) {
     return request
   }
   const decision =
-    request.kind === 'question' ? 'allow' : settings.permissionDecision
+    request.kind === 'question' ? 'allow' : config.autoPermissionMode
   setTimeout(async () => {
     const run = runs.get(sessionId)
     if (run === undefined) {
@@ -53,9 +55,9 @@ export function scheduleAutoResolve(
     } catch (error) {
       console.warn(`could not auto-resolve ${request.id}: ${error}`)
     }
-  }, minutes * 60_000)
+  }, seconds * 1000)
   return {
     ...request,
-    autoResolve: { at: Date.now() + minutes * 60_000, decision },
+    autoResolve: { at: Date.now() + seconds * 1000, decision },
   }
 }

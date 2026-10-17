@@ -183,11 +183,9 @@ export type Config = {
   }
   models: Record<Provider, Record<string, ModelSetting>>
   delivery: Delivery
-  autoResolve: {
-    questions: number | null
-    permissions: number | null
-    permissionDecision: 'allow' | 'deny'
-  }
+  autoSkipQuestionTimeout: number | null
+  autoPermissionMode: 'allow' | 'deny'
+  autoPermissionTimeout: number | null
   terminal: TerminalConfig
 }
 

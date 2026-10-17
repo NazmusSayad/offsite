@@ -73,13 +73,9 @@ const configSchema: z.ZodType<Config> = z.strictObject({
     })
     .prefault({}),
   delivery: z.enum(['queue', 'steer']).default('steer'),
-  autoResolve: z
-    .strictObject({
-      questions: z.number().positive().nullable().default(3),
-      permissions: z.number().positive().nullable().default(1),
-      permissionDecision: z.enum(['allow', 'deny']).default('allow'),
-    })
-    .prefault({}),
+  autoSkipQuestionTimeout: z.number().positive().nullable().default(180),
+  autoPermissionMode: z.enum(['allow', 'deny']).default('allow'),
+  autoPermissionTimeout: z.number().positive().nullable().default(15),
   terminal: z
     .strictObject({
       shell: z

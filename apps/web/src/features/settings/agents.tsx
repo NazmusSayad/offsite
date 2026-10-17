@@ -9,17 +9,13 @@ import {
 } from '@/components/ui/select'
 import { Row, Section } from './controls'
 
-const presets = [1, 2, 3, 5, 10, 15, 30, 60]
+const presets = [10, 15, 30, 45, 60, 120, 180, 300, 600, 900, 1800, 3600]
 
 export function AgentsSection(props: { machine: string; config: Config }) {
   const config = props.config
-  const autoResolve = config.autoResolve
 
-  function save(patch: Partial<Config['autoResolve']>) {
-    void updateConfig(props.machine, {
-      ...config,
-      autoResolve: { ...autoResolve, ...patch },
-    })
+  function save(patch: Partial<Config>) {
+    void updateConfig(props.machine, { ...config, ...patch })
   }
 
   return (
@@ -45,23 +41,25 @@ export function AgentsSection(props: { machine: string; config: Config }) {
       </Row>
       <Row label="Auto-skip questions">
         <Timeout
-          value={autoResolve.questions}
-          onChange={(questions) => save({ questions })}
+          value={config.autoSkipQuestionTimeout}
+          onChange={(autoSkipQuestionTimeout) =>
+            save({ autoSkipQuestionTimeout })
+          }
         />
       </Row>
       <Row label="Auto-resolve permissions">
         <div className="flex items-center gap-2">
-          {autoResolve.permissions !== null && (
+          {config.autoPermissionTimeout !== null && (
             <Select
-              value={autoResolve.permissionDecision}
-              onValueChange={(permissionDecision) => {
+              value={config.autoPermissionMode}
+              onValueChange={(autoPermissionMode) => {
                 if (
-                  permissionDecision !== 'allow' &&
-                  permissionDecision !== 'deny'
+                  autoPermissionMode !== 'allow' &&
+                  autoPermissionMode !== 'deny'
                 ) {
-                  throw new Error(`Unknown decision ${permissionDecision}`)
+                  throw new Error(`Unknown decision ${autoPermissionMode}`)
                 }
-                save({ permissionDecision })
+                save({ autoPermissionMode })
               }}
             >
               <SelectTrigger className="w-24">
@@ -74,8 +72,10 @@ export function AgentsSection(props: { machine: string; config: Config }) {
             </Select>
           )}
           <Timeout
-            value={autoResolve.permissions}
-            onChange={(permissions) => save({ permissions })}
+            value={config.autoPermissionTimeout}
+            onChange={(autoPermissionTimeout) =>
+              save({ autoPermissionTimeout })
+            }
           />
         </div>
       </Row>
@@ -104,11 +104,15 @@ function Timeout(props: {
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="off">Off</SelectItem>
-        {options.map((minutes) => (
-          <SelectItem key={minutes} value={String(minutes)}>
-            {minutes === 60
+        {options.map((seconds) => (
+          <SelectItem key={seconds} value={String(seconds)}>
+            {seconds === 3600
               ? 'After 1 hour'
-              : `After ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`}
+              : seconds === 60
+                ? 'After 1 minute'
+                : seconds % 60 === 0
+                  ? `After ${seconds / 60} minutes`
+                  : `After ${seconds} seconds`}
           </SelectItem>
         ))}
       </SelectContent>
