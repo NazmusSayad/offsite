@@ -92,7 +92,7 @@ export function detachTerminal(client: Client) {
   }
   connections.delete(client)
   for (const terminal of terminals.values()) {
-    if (terminal.owner === connection) terminal.owner = null
+    if (terminal.owner === connection) {terminal.owner = null}
   }
 }
 
@@ -135,12 +135,12 @@ function attach(client: Client) {
   })
   for (const project of projects.values()) {
     for (const tab of project.tabs)
-      forward(
+      {forward(
         connection,
         tab.id,
         true,
         Buffer.concat(terminals.get(tab.id)?.history ?? [])
-      )
+      )}
   }
 }
 
@@ -322,7 +322,7 @@ function closeTab(id: number) {
   terminal.pty.kill()
   if (process.platform !== 'win32') {
     setTimeout(() => {
-      if (terminals.get(id) === terminal) terminal.pty.kill('SIGKILL')
+      if (terminals.get(id) === terminal) {terminal.pty.kill('SIGKILL')}
     }, KILL_DELAY)
   }
   return true
@@ -461,14 +461,14 @@ function findTab(id: number): TerminalTab | undefined {
 
 function nearestVisible(tabs: TerminalTab[], index: number) {
   for (let position = index; position < tabs.length; position++) {
-    if (!tabs[position].minimized) return position
+    if (!tabs[position].minimized) {return position}
   }
   for (
     let position = Math.min(index, tabs.length) - 1;
     position >= 0;
     position--
   ) {
-    if (!tabs[position].minimized) return position
+    if (!tabs[position].minimized) {return position}
   }
   return undefined
 }

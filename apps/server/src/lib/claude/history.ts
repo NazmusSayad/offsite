@@ -87,7 +87,7 @@ function messageTimes(entries: SessionStoreEntry[]) {
   const times = new Map<string, number>()
   for (const entry of entries) {
     if (typeof entry.uuid === 'string' && typeof entry.timestamp === 'string')
-      times.set(entry.uuid, Date.parse(entry.timestamp))
+      {times.set(entry.uuid, Date.parse(entry.timestamp))}
   }
   return times
 }
@@ -96,7 +96,7 @@ function toolOutputs(entries: SessionStoreEntry[]) {
   const outputs = new Map<string, unknown>()
   for (const entry of entries) {
     if (typeof entry.uuid === 'string' && entry.toolUseResult !== undefined)
-      outputs.set(entry.uuid, entry.toolUseResult)
+      {outputs.set(entry.uuid, entry.toolUseResult)}
   }
   return outputs
 }

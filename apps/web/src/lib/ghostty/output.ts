@@ -129,7 +129,7 @@ export class OutputScanner {
         this.state = 'ground'
         if (this.collecting) {
           if (onEvent({ type: 'sixel', data: this.take() }, index + 1))
-            return index + 1
+            {return index + 1}
         }
         continue
       }

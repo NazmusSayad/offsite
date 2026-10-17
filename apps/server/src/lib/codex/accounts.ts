@@ -124,11 +124,11 @@ export function publishCodexLimits(home: string, snapshot: RateLimitSnapshot) {
       account.provider === 'codex' &&
       (account.configDir ?? codexBaseDir) === home
     )
-      broadcast({
+      {broadcast({
         type: 'limits',
         accountId: account.id,
         limits: toLimits(snapshot),
-      })
+      })}
   }
 }
 

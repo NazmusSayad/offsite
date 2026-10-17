@@ -519,7 +519,7 @@ export class Terminal {
           this.core.currentColors().palette,
           event.terminator
         ))
-          this.handlers.onReply(reply)
+          {this.handlers.onReply(reply)}
       }
       return false
     }

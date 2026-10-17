@@ -587,8 +587,8 @@ function kittyBitmap(image: KittyPlacement['image']) {
     for (let pixel = 0; pixel < count; pixel += 1) {
       const from = pixel * channels
       const to = pixel * 4
-      if (channels === 3) data.set(source.subarray(from, from + 3), to)
-      else data.fill(source[from], to, to + 3)
+      if (channels === 3) {data.set(source.subarray(from, from + 3), to)}
+      else {data.fill(source[from], to, to + 3)}
       data[to + 3] = channels === 2 ? source[from + 1] : 255
     }
   }

@@ -92,7 +92,7 @@ export async function stopProvider(provider: Provider) {
   }
   if (provider === 'claude') {
     for (const account of storedAccounts())
-      if (account.provider === 'claude') forgetClaude(account.id)
+      {if (account.provider === 'claude') forgetClaude(account.id)}
   }
 }
 

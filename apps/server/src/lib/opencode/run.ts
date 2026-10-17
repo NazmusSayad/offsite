@@ -214,13 +214,13 @@ export class OpenCodeRun {
       ...forms.map((form) => form.id),
     ])
     for (const requestId of [...this.pending.keys()]) {
-      if (!open.has(requestId)) this.settle(requestId)
+      if (!open.has(requestId)) {this.settle(requestId)}
     }
     for (const permission of permissions) {
-      if (!this.pending.has(permission.id)) this.ask(permission)
+      if (!this.pending.has(permission.id)) {this.ask(permission)}
     }
     for (const form of forms) {
-      if (!this.pending.has(form.id)) this.askForm(form)
+      if (!this.pending.has(form.id)) {this.askForm(form)}
     }
     if (this.running && !active) {
       this.finishTurn()

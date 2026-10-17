@@ -110,8 +110,8 @@ export function editStats(item: FileChangeItem) {
   let removed = 0
   for (const diff of item.diffs) {
     for (const part of diffLines(diff.before, diff.after)) {
-      if (part.added) added += part.count
-      if (part.removed) removed += part.count
+      if (part.added) {added += part.count}
+      if (part.removed) {removed += part.count}
     }
   }
   return { added, removed }

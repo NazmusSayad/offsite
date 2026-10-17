@@ -116,7 +116,7 @@ export function syncQuietTimers() {
   const state = getState()
   const active = state.status === 'active'
   if (active && !live) {
-    for (const id of quietTimers.keys()) startQuietTimer(id)
+    for (const id of quietTimers.keys()) {startQuietTimer(id)}
   }
   live = active
 }

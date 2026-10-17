@@ -114,9 +114,9 @@ server.on('upgrade', (request, socket, head) => {
 
 if (args.auth) {
   setInterval(() => {
-    for (const [client, device] of paired) if (!isPaired(device)) client.close()
+    for (const [client, device] of paired) {if (!isPaired(device)) client.close()}
     for (const [ticket, item] of tickets)
-      if (item.expiresAt <= Date.now()) tickets.delete(ticket)
+      {if (item.expiresAt <= Date.now()) tickets.delete(ticket)}
   }, UNPAIR_CHECK)
 }
 
