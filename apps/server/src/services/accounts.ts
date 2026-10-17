@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import type { Account, Capabilities, Provider } from '@offsite/core/protocol'
+import { defaultModels, deprecatedModels } from '../constants.ts'
 import {
   claudeAccount,
   claudeCapabilities,
@@ -31,18 +32,7 @@ export type StoredAccount = {
   configDir: string
   enabled: boolean
   hiddenModels: Record<string, boolean>
-}
-
-const deprecatedModels: Record<Provider, string[]> = {
-  claude: [
-    'claude-haiku-4-5-20251001',
-    'claude-opus-4-8',
-    'claude-opus-4-7',
-    'claude-opus-4-6',
-    'claude-sonnet-4-6',
-  ],
-  codex: [],
-  opencode: [],
+  defaultModel: string | null
 }
 
 const providerNames: Record<Provider, string> = {
@@ -58,15 +48,17 @@ export function providerName(provider: Provider) {
 export function storedAccounts(): StoredAccount[] {
   const items =
     (readJson('accounts.json') as
-      | (Omit<StoredAccount, 'enabled' | 'hiddenModels'> & {
+      | (Omit<StoredAccount, 'enabled' | 'hiddenModels' | 'defaultModel'> & {
           enabled?: boolean
           hiddenModels?: Record<string, boolean>
+          defaultModel?: string | null
         })[]
       | null) ?? []
   return items.map((item) => ({
     ...item,
     enabled: item.enabled ?? true,
     hiddenModels: item.hiddenModels ?? {},
+    defaultModel: item.defaultModel ?? null,
   }))
 }
 
@@ -165,13 +157,20 @@ export async function capabilities(
   const provider = accountProvider(accountId)
   assertEnabled(provider, accountId)
   const result = await providerCapabilities(accountId, cwd)
-  const settings = readConfig().models[provider]
-  const overrides =
-    provider === 'opencode'
-      ? {}
-      : storedAccount(provider, accountId).hiddenModels
+  const config = readConfig()
+  const settings = config.models[provider]
+  const account =
+    provider === 'opencode' ? null : storedAccount(provider, accountId)
+  const overrides = account === null ? {} : account.hiddenModels
+  const providerDefaultModel =
+    config.defaultModels[provider] ?? defaultModels[provider]
   return {
     ...result,
+    providerDefaultModel,
+    defaultModel:
+      account === null || account.defaultModel === null
+        ? providerDefaultModel
+        : account.defaultModel,
     models: result.models
       .filter((model) => !(provider === 'claude' && model.value === 'default'))
       .map((model) => {
@@ -219,27 +218,30 @@ export function addAccount(
       ...validAccount(name, configDir),
       enabled: true,
       hiddenModels: {},
+      defaultModel: null,
     },
   ])
 }
 
-export async function updateAccount(
-  id: string,
-  name: string,
-  configDir: string,
-  enabled: boolean,
-  hiddenModels: Record<string, boolean>
-) {
-  const before = storedAccounts().find((item) => item.id === id)
+export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
+  const before = storedAccounts().find((item) => item.id === update.id)
   if (before === undefined) throw new Error('That account was removed')
-  const account = validAccount(name, configDir)
+  const account = validAccount(update.name, update.configDir)
   saveAccounts(
     storedAccounts().map((item) =>
-      item.id === id ? { ...item, ...account, enabled, hiddenModels } : item
+      item.id === update.id
+        ? {
+            ...item,
+            ...account,
+            enabled: update.enabled,
+            hiddenModels: update.hiddenModels,
+            defaultModel: update.defaultModel,
+          }
+        : item
     )
   )
-  forgetClaude(id)
-  if (before.enabled && !enabled) await stopAccount(before)
+  forgetClaude(update.id)
+  if (before.enabled && !update.enabled) await stopAccount(before)
 }
 
 export function removeAccount(id: string) {

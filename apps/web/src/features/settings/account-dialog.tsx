@@ -1,4 +1,8 @@
-import type { Account, Model, ModelSetting } from '@offsite/core/protocol'
+import type {
+  Account,
+  Capabilities,
+  ModelSetting,
+} from '@offsite/core/protocol'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
@@ -10,6 +14,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { providerNames } from '@/lib/format'
 import { cn, errorMessage } from '@/lib/utils'
@@ -29,10 +40,17 @@ export function AccountDialog(props: {
   const [hiddenModels, setHiddenModels] = useState(
     account === null ? {} : account.hiddenModels
   )
-  const [models, setModels] = useState<Model[] | null>(null)
+  const [defaultModel, setDefaultModel] = useState(
+    account === null ? null : account.defaultModel
+  )
+  const [capabilities, setCapabilities] = useState<Capabilities | null>(null)
   const [modelsError, setModelsError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const models = capabilities === null ? null : capabilities.models
+  const providerDefault = (models ?? []).find(
+    (model) => model.value === capabilities?.providerDefaultModel
+  )
 
   useEffect(() => {
     if (account === null) return
@@ -41,8 +59,8 @@ export function AccountDialog(props: {
       accountId: account.id,
       projectId: null,
     }).then(
-      (capabilities) => {
-        if (current) setModels(capabilities.models)
+      (result) => {
+        if (current) setCapabilities(result)
       },
       (caught: unknown) => {
         if (current) setModelsError(errorMessage(caught))
@@ -70,6 +88,7 @@ export function AccountDialog(props: {
           configDir,
           enabled: account.enabled,
           hiddenModels,
+          defaultModel,
         })
       props.onClose()
     } catch (caught) {
@@ -114,6 +133,42 @@ export function AccountDialog(props: {
               }
             />
           </label>
+          {account !== null && models !== null && (
+            <div className="flex flex-col gap-1.5 text-sm font-medium">
+              Default model
+              <Select
+                value={defaultModel ?? 'provider'}
+                onValueChange={(value) =>
+                  setDefaultModel(value === 'provider' ? null : value)
+                }
+              >
+                <SelectTrigger className="w-full font-normal">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="provider">
+                    {providerDefault === undefined
+                      ? 'Provider default'
+                      : `Provider default · ${providerDefault.name}`}
+                  </SelectItem>
+                  {models
+                    .filter(
+                      (model) =>
+                        !(
+                          hiddenModels[model.value] ??
+                          props.settings[model.value]?.hidden ??
+                          model.deprecated
+                        ) || model.value === defaultModel
+                    )
+                    .map((model) => (
+                      <SelectItem key={model.value} value={model.value}>
+                        {model.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {account !== null && (
             <div className="flex flex-col gap-1.5 text-sm font-medium">
               Models

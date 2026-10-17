@@ -29,6 +29,7 @@ export function openCodeAccount(): Account {
     configDir: '',
     enabled: true,
     hiddenModels: {},
+    defaultModel: null,
     email: null,
     plan: null,
     error: null,

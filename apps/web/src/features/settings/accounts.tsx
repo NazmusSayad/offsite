@@ -6,8 +6,8 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import type {
   Account,
+  Capabilities,
   Config,
-  Model,
   ModelSetting,
   Provider,
 } from '@offsite/core/protocol'
@@ -159,20 +159,24 @@ function ProviderModels(props: {
   provider: Provider
   accountId: string
 }) {
-  const [models, setModels] = useState<Model[] | null>(null)
+  const [capabilities, setCapabilities] = useState<Capabilities | null>(null)
   const [error, setError] = useState<string | null>(null)
   const settings = props.config.models[props.provider]
+  const models = capabilities === null ? null : capabilities.models
+  const defaultModel =
+    props.config.defaultModels[props.provider] ??
+    (capabilities === null ? null : capabilities.providerDefaultModel)
 
   useEffect(() => {
     let current = true
-    setModels(null)
+    setCapabilities(null)
     setError(null)
     call(props.machine, 'capabilities', {
       accountId: props.accountId,
       projectId: null,
     }).then(
-      (capabilities) => {
-        if (current) setModels(capabilities.models)
+      (result) => {
+        if (current) setCapabilities(result)
       },
       (caught: unknown) => {
         if (current) setError(errorMessage(caught))
@@ -195,6 +199,39 @@ function ProviderModels(props: {
 
   return (
     <div className="divide-y overflow-hidden rounded-xl border">
+      {models !== null && (
+        <Row label="Default model">
+          <Select
+            value={defaultModel ?? undefined}
+            onValueChange={(value) =>
+              void updateConfig(props.machine, {
+                ...props.config,
+                defaultModels: {
+                  ...props.config.defaultModels,
+                  [props.provider]: value,
+                },
+              })
+            }
+          >
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Choose a model" />
+            </SelectTrigger>
+            <SelectContent>
+              {models
+                .filter(
+                  (model) =>
+                    !(settings[model.value]?.hidden ?? model.deprecated) ||
+                    model.value === defaultModel
+                )
+                .map((model) => (
+                  <SelectItem key={model.value} value={model.value}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </Row>
+      )}
       <div className="text-muted-foreground px-4 py-2 text-xs font-medium">
         Models
       </div>
@@ -338,6 +375,7 @@ function ProviderAccounts(props: {
                   configDir: account.configDir,
                   enabled,
                   hiddenModels: account.hiddenModels,
+                  defaultModel: account.defaultModel,
                 })
               )
             }

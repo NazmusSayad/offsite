@@ -515,7 +515,10 @@ export async function refreshCapabilities() {
       return
     update({ capabilities })
     if (getState().settings.model !== null) return
-    const first = capabilities.models.find((item) => !item.hidden)
+    const first =
+      capabilities.models.find(
+        (item) => !item.hidden && item.value === capabilities.defaultModel
+      ) ?? capabilities.models.find((item) => !item.hidden)
     if (first === undefined) return
     changeSettings({
       model: first.value,

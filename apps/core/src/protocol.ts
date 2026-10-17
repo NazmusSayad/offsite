@@ -69,6 +69,7 @@ export type Account = {
   configDir: string
   enabled: boolean
   hiddenModels: Record<string, boolean>
+  defaultModel: string | null
   email: string | null
   plan: string | null
   error: string | null
@@ -95,11 +96,16 @@ export type Agent = { id: string; name: string; description: string }
 
 export type Capabilities = {
   models: Model[]
+  defaultModel: string | null
+  providerDefaultModel: string | null
   commands: Command[]
   agents: Agent[]
 }
 
-export type ProviderCapabilities = Omit<Capabilities, 'models'> & {
+export type ProviderCapabilities = Omit<
+  Capabilities,
+  'models' | 'defaultModel' | 'providerDefaultModel'
+> & {
   models: Omit<Model, 'deprecated' | 'hidden' | 'effort'>[]
 }
 
@@ -158,6 +164,7 @@ export type Config = {
   composer: { provider: Provider } & Record<Provider, ProviderSettings>
   commitMessage: { accountId: string | null; model: string | null }
   models: Record<Provider, Record<string, ModelSetting>>
+  defaultModels: Record<Provider, string | null>
   terminal: TerminalConfig
 }
 
@@ -423,6 +430,7 @@ export type Methods = {
       configDir: string
       enabled: boolean
       hiddenModels: Record<string, boolean>
+      defaultModel: string | null
     }
     result: null
   }

@@ -208,13 +208,7 @@ const handlers: Handlers = {
     return null
   },
   'accounts.update': async (params) => {
-    await updateAccount(
-      params.id,
-      params.name,
-      params.configDir,
-      params.enabled,
-      params.hiddenModels
-    )
+    await updateAccount(params)
     void publishAccounts()
     return null
   },

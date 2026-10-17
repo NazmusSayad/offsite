@@ -15,8 +15,8 @@ export const defaults: Config = {
     provider: 'claude',
     claude: {
       accountId: null,
-      model: 'haiku',
-      effort: 'low',
+      model: null,
+      effort: null,
       mode: 'bypassPermissions',
       plan: false,
     },
@@ -37,6 +37,7 @@ export const defaults: Config = {
   },
   commitMessage: { accountId: null, model: null },
   models: { claude: {}, codex: {}, opencode: {} },
+  defaultModels: { claude: null, codex: null, opencode: null },
   terminal: {
     shell: { macos: null, linux: null, windows: null },
     behavior: { terminalIdentity: 'offsite', shellIntegration: true },
@@ -72,6 +73,9 @@ const nullable = [
   'composer.opencode.mode',
   'commitMessage.accountId',
   'commitMessage.model',
+  'defaultModels.claude',
+  'defaultModels.codex',
+  'defaultModels.opencode',
   'terminal.shell.macos',
   'terminal.shell.linux',
   'terminal.shell.windows',
