@@ -1,6 +1,7 @@
 import type { PushRegistration, TerminalPush } from '@offsite/core/protocol'
 import { and, eq, inArray } from 'drizzle-orm'
 import webPush from 'web-push'
+import { type Client, clients } from '../lib/hub.ts'
 import { db } from '../storage/db.ts'
 import { pushSubscriptions } from '../storage/schema.ts'
 
@@ -11,16 +12,27 @@ const SEND_TIMEOUT = 10_000
 const SUBJECT = 'https://github.com/NazmusSayad/offsite'
 
 let server = ''
+let notifier: { client: Client; endpoint: string | null } | null = null
 
 export function startPush(address: string) {
   server = address
 }
 
 export function pushActive() {
-  return ours().length > 0
+  return targets().length > 0
 }
 
-export function subscribe(registration: PushRegistration) {
+export function notifierClient() {
+  return notifier === null ? null : notifier.client
+}
+
+export function claimNotifier(client: Client, endpoint: string | null) {
+  notifier = { client, endpoint }
+  for (const item of clients)
+    item.send({ type: 'notifier', active: item === client })
+}
+
+export function subscribe(registration: PushRegistration, client: Client) {
   const endpoint = new URL(registration.subscription.endpoint)
   if (endpoint.protocol !== 'https:')
     throw new Error('the endpoint must be an https URL')
@@ -37,6 +49,8 @@ export function subscribe(registration: PushRegistration) {
     .values(values)
     .onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: values })
     .run()
+  if (notifier !== null && notifier.client === client)
+    notifier.endpoint = registration.subscription.endpoint
   console.log('a browser subscribed to push notifications')
 }
 
@@ -44,11 +58,13 @@ export function unsubscribe(endpoint: string) {
   db.delete(pushSubscriptions)
     .where(eq(pushSubscriptions.endpoint, endpoint))
     .run()
+  if (notifier !== null && notifier.endpoint === endpoint)
+    notifier.endpoint = null
   console.log('a browser unsubscribed from push notifications')
 }
 
 export async function sendPush(message: TerminalPush) {
-  const subscriptions = ours()
+  const subscriptions = targets()
   if (subscriptions.length === 0) return
   const trimmed = {
     ...message,
@@ -102,10 +118,16 @@ export async function sendPush(message: TerminalPush) {
     .run()
 }
 
-function ours() {
+function targets() {
+  if (notifier === null || notifier.endpoint === null) return []
   return db
     .select()
     .from(pushSubscriptions)
-    .where(eq(pushSubscriptions.server, server))
+    .where(
+      and(
+        eq(pushSubscriptions.server, server),
+        eq(pushSubscriptions.endpoint, notifier.endpoint)
+      )
+    )
     .all()
 }

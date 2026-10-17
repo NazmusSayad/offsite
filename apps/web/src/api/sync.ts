@@ -11,7 +11,7 @@ import {
   refreshCapabilities,
   setAccounts,
 } from '@/lib/accounts'
-import { notify, push } from '@/lib/notifications'
+import { claimNotifications, notify, push } from '@/lib/notifications'
 import { loadPrefs } from '@/lib/prefs'
 import {
   createAppStore,
@@ -80,10 +80,12 @@ export function start() {
     close: (machine) => {
       const known = getState().machines.find((item) => item.id === machine)
       if (known !== undefined && known.status !== 'offline')
-        setMachine(machine, { status: 'offline', via: null })
+        setMachine(machine, { status: 'offline', via: null, notifier: false })
     },
     event: receive,
   })
+  addEventListener('keydown', claimNotifications, { capture: true })
+  addEventListener('pointerdown', claimNotifications, { capture: true })
   addEventListener('storage', (event) => {
     if (event.key === 'machines') receiveMachines()
   })
@@ -115,7 +117,6 @@ async function resync(machine: string) {
       system: {
         defaults: snapshot.defaults,
         platform: snapshot.platform,
-        version: snapshot.version,
         defaultShell: snapshot.defaultShell,
       },
       activity: snapshot.activity,
@@ -198,7 +199,10 @@ function receive(machine: string, event: ServerEvent) {
     }
     case 'limits':
       setMachine(machine, {
-        accounts: known.accounts.map((item) =>
+        claudeAccounts: known.claudeAccounts.map((item) =>
+          item.id === event.accountId ? { ...item, limits: event.limits } : item
+        ),
+        codexAccounts: known.codexAccounts.map((item) =>
           item.id === event.accountId ? { ...item, limits: event.limits } : item
         ),
       })
@@ -213,7 +217,7 @@ function receive(machine: string, event: ServerEvent) {
       setSessions(machine, event.sessions)
       return
     case 'accounts':
-      setAccounts(machine, event.accounts)
+      setAccounts(machine, event)
       return
     case 'providers':
       setMachine(machine, { providers: event.providers })
@@ -244,6 +248,9 @@ function receive(machine: string, event: ServerEvent) {
       return
     case 'notification':
       push(machine, event.sessionId, event.message)
+      return
+    case 'notifier':
+      setMachine(machine, { notifier: event.active })
       return
   }
   if (current === null || event.sessionId !== current) return

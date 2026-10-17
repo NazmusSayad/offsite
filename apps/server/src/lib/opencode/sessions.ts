@@ -1,5 +1,4 @@
 import type {
-  Account,
   ProviderCapabilities,
   Context,
   Item,
@@ -21,23 +20,6 @@ const PAGE = 100
 const COMMIT_LIMIT = 2 * 60 * 1000
 
 const temporary = new Set<string>()
-
-export function openCodeAccount(): Account {
-  return {
-    id: 'opencode',
-    provider: 'opencode',
-    name: 'OpenCode',
-    configDir: '',
-    enabled: true,
-    hiddenModels: {},
-    email: null,
-    plan: null,
-    error: null,
-    limits: [],
-    linked: true,
-    valid: true,
-  }
-}
 
 export function openCodeInstalled() {
   return findOpenCode() !== null

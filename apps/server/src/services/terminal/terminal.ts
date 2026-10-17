@@ -19,7 +19,7 @@ import {
 import type { Client } from '../../lib/hub.ts'
 import { home } from '../../storage/storage.ts'
 import { projectPath } from '../projects.ts'
-import { pushActive, sendPush } from '../push.ts'
+import { notifierClient, pushActive, sendPush } from '../push.ts'
 import { ALERT_DELAY, type Alert, Alerts, Scanner } from './alerts.ts'
 import { busyProgram, currentDirectory, startShell } from './process.ts'
 
@@ -350,7 +350,7 @@ function scan(id: number, terminal: Terminal, data: Buffer) {
     return
   }
   const alert = terminal.scanner.scan(data)
-  if (alert === null || browserOpen()) return
+  if (alert === null || notifierWatching()) return
   const started =
     alert.type === 'bell'
       ? terminal.alerts.startBell()
@@ -372,7 +372,7 @@ function push(id: number, alert: Alert, windowTitle: string) {
     title = alert.title
     body = alert.body
   }
-  if (browserOpen()) return
+  if (notifierWatching()) return
   const entry = [...projects].find(([, project]) =>
     project.tabs.some((tab) => tab.id === id)
   )
@@ -387,10 +387,10 @@ function push(id: number, alert: Alert, windowTitle: string) {
   })
 }
 
-function browserOpen() {
-  return [...connections.values()].some(
-    (connection) => Date.now() - connection.client.heardAt < SILENCE_LIMIT
-  )
+function notifierWatching() {
+  const client = notifierClient()
+  if (client === null || !connections.has(client)) return false
+  return Date.now() - client.heardAt < SILENCE_LIMIT
 }
 
 function findTab(id: number): TerminalTab | undefined {

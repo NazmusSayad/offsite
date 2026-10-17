@@ -4,7 +4,6 @@ import os from 'node:os'
 import path from 'node:path'
 import readline from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
-import { version } from '../../storage/config.ts'
 import { publishCodexLimits } from './accounts.ts'
 import type { RateLimitSnapshot } from './types.ts'
 
@@ -91,7 +90,7 @@ export class AppServer {
     this.ready = this.call(
       'initialize',
       {
-        clientInfo: { name: 'offsite', title: 'Offsite', version },
+        clientInfo: { name: 'offsite', title: 'Offsite', version: '0.0.0' },
         capabilities: { experimentalApi: true, requestAttestation: false },
       },
       START_TIMEOUT

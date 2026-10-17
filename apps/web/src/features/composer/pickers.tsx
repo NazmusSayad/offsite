@@ -79,21 +79,41 @@ export function Pickers() {
 function ModelPicker() {
   const settings = useStore((state) => state.settings)
   const selection = useStore((state) => state.selection)
-  const accounts = (
-    useStore(
-      (state) =>
-        state.machines.find(
-          (machine) => machine.id === state.selection?.machine
-        )?.accounts
-    ) ?? []
-  ).filter(
-    (item) =>
-      item.valid &&
-      (selection?.sessionId === null || item.provider === settings.provider)
+  const machine = useStore((state) =>
+    state.machines.find((item) => item.id === state.selection?.machine)
   )
+  const choices = [
+    ...[...(machine?.claudeAccounts ?? []), ...(machine?.codexAccounts ?? [])]
+      .filter((item) => item.valid)
+      .map((item) => ({
+        key: item.id,
+        provider: item.provider,
+        accountId: item.id as string | null,
+        name: item.name,
+        plan: item.plan,
+        error: item.error,
+      })),
+    ...(machine?.openCode.available === true
+      ? [
+          {
+            key: 'opencode',
+            provider: 'opencode' as const,
+            accountId: null,
+            name: 'OpenCode',
+            plan: null,
+            error: null,
+          },
+        ]
+      : []),
+  ].filter(
+    (item) =>
+      selection?.sessionId === null || item.provider === settings.provider
+  )
+  const current =
+    settings.provider === 'opencode' ? 'opencode' : settings.accountId
   const capabilities = useStore((state) => state.capabilities)
   const [open, setOpen] = useState(false)
-  const [viewed, setViewed] = useState(settings.accountId)
+  const [viewed, setViewed] = useState(current)
   const [query, setQuery] = useState('')
   const [fetched, setFetched] = useState<Record<string, Model[]>>({})
   const searchInput = useRef<HTMLInputElement>(null)
@@ -101,14 +121,14 @@ function ModelPicker() {
     (item) => item.value === settings.model
   )
   const label = model?.name ?? settings.model ?? 'Choose a model'
-  const account = accounts.find((item) => item.id === settings.accountId)
+  const account = choices.find((item) => item.key === current)
   const viewedModels =
     viewed === null
       ? []
-      : viewed === settings.accountId
+      : viewed === current
         ? (capabilities?.models ?? null)
         : (fetched[viewed] ?? null)
-  const viewedProvider = accounts.find((item) => item.id === viewed)?.provider
+  const viewedProvider = choices.find((item) => item.key === viewed)?.provider
   const visible = (viewedModels ?? []).filter((option) => !option.hidden)
   const searchable = visible.length >= 5
   const search = searchable ? query.trim().toLowerCase() : ''
@@ -119,27 +139,29 @@ function ModelPicker() {
   function changeOpen(next: boolean) {
     setOpen(next)
     if (!next) return
-    setViewed(settings.accountId)
+    setViewed(current)
     setQuery('')
     if (selection === null) return
-    for (const item of accounts) {
-      if (item.id === settings.accountId || item.error !== null) continue
+    for (const item of choices) {
+      if (item.key === current || item.error !== null) continue
       call(selection.machine, 'capabilities', {
-        accountId: item.id,
+        provider: item.provider,
+        accountId: item.accountId,
         projectId: selection.projectId,
       }).then(
         (result) =>
-          setFetched((current) => ({ ...current, [item.id]: result.models })),
+          setFetched((models) => ({ ...models, [item.key]: result.models })),
         showError
       )
     }
   }
 
-  function pick(accountId: string, option: Model) {
-    const provider = accounts.find((item) => item.id === accountId)?.provider
-    if (provider === undefined || selection === null) return
+  function pick(key: string, option: Model) {
+    const picked = choices.find((item) => item.key === key)
+    if (picked === undefined || selection === null) return
+    const provider = picked.provider
     const choice = {
-      accountId,
+      accountId: picked.accountId,
       model: option.value,
       ...(option.effort === null ? {} : { effort: option.effort }),
     }
@@ -164,7 +186,7 @@ function ModelPicker() {
         >
           <ProviderIcon provider={settings.provider} className="size-4" />
           <span className="max-w-40 truncate">{label}</span>
-          {accounts.length > 1 && account !== undefined && (
+          {choices.length > 1 && account !== undefined && (
             <span className="text-muted-foreground max-w-28 truncate font-normal">
               {account.name}
             </span>
@@ -188,11 +210,11 @@ function ModelPicker() {
           document.querySelector<HTMLElement>('[data-composer]')?.focus()
         }}
       >
-        {accounts.length > 1 && (
+        {choices.length > 1 && (
           <div className="bg-muted/30 flex w-11 shrink-0 [scrollbar-width:none] flex-col gap-1 overflow-y-auto p-1">
-            {accounts.map((item) => (
-              <div key={item.id} className="relative w-full">
-                {item.id === viewed && (
+            {choices.map((item) => (
+              <div key={item.key} className="relative w-full">
+                {item.key === viewed && (
                   <div className="bg-primary pointer-events-none absolute top-1/2 -right-1 z-10 h-5 w-0.75 -translate-y-1/2 rounded-l-full" />
                 )}
                 <Tooltip
@@ -212,11 +234,11 @@ function ModelPicker() {
                         'cursor-not-allowed opacity-50 hover:bg-transparent'
                     )}
                     aria-label={item.name}
-                    aria-pressed={item.id === viewed}
+                    aria-pressed={item.key === viewed}
                     aria-disabled={item.error !== null}
                     onClick={() => {
                       if (item.error !== null) return
-                      setViewed(item.id)
+                      setViewed(item.key)
                     }}
                   >
                     <ProviderIcon provider={item.provider} className="size-5" />
@@ -244,7 +266,7 @@ function ModelPicker() {
         <div
           className={cn(
             'bg-muted/40 flex min-h-0 min-w-0 flex-1 flex-col',
-            accounts.length > 1 && 'border-border/70 border-l'
+            choices.length > 1 && 'border-border/70 border-l'
           )}
         >
           {searchable && (
@@ -282,7 +304,7 @@ function ModelPicker() {
                   key={option.value}
                   className={cn(
                     'hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer flex-col justify-center rounded-sm px-2 py-1.5 text-left',
-                    viewed === settings.accountId &&
+                    viewed === current &&
                       option.value === settings.model &&
                       'text-foreground bg-foreground/[0.08]'
                   )}

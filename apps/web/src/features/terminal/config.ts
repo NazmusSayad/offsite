@@ -34,8 +34,7 @@ export async function applyStyle(config: TerminalPrefs) {
 
 export function terminalOptions(
   config: TerminalPrefs,
-  identity: TerminalIdentity,
-  version: string
+  identity: TerminalIdentity
 ): TerminalOptions {
   const scheme = currentScheme()
   return {
@@ -56,14 +55,14 @@ export function terminalOptions(
       selectionForeground: scheme.foreground,
       palette: scheme.palette,
     },
-    version: terminalVersion(identity, version),
+    version: terminalVersion(identity),
     clickToMoveCursor: config.behavior.clickToMoveCursor,
     optionAsMeta: config.behavior.optionAsMeta,
   }
 }
 
-function terminalVersion(identity: TerminalIdentity, version: string) {
-  if (identity === 'offsite') return `offsite ${version}`
+function terminalVersion(identity: TerminalIdentity) {
+  if (identity === 'offsite') return 'offsite 0.0.0'
   if (identity === 'ghostty') return `ghostty ${ghosttyVersion}`
   if (identity === 'iterm2') return `iTerm2 ${iterm2Version}`
   throw new Error(`unknown terminal identity ${identity}`)

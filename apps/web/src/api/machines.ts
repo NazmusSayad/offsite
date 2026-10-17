@@ -102,7 +102,10 @@ export function restoreMachine(machine: StoredMachine): Machine {
     config: null,
     configError: null,
     system: null,
-    accounts: [],
+    claudeAccounts: [],
+    codexAccounts: [],
+    openCode: { available: false },
+    notifier: false,
     activity: {},
     providers: [],
   }

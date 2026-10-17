@@ -32,14 +32,19 @@ export function ProviderPage(props: {
   machine: string
   config: Config
   provider: Provider
-  accounts: Account[]
+  claudeAccounts: Account[]
+  codexAccounts: Account[]
+  openCode: { available: boolean }
   selected: string | null
 }) {
   const config = props.config
   const enabled = config.enabledProviders[props.provider]
-  const accounts = props.accounts.filter(
-    (account) => account.provider === props.provider
-  )
+  const accounts =
+    props.provider === 'claude'
+      ? props.claudeAccounts
+      : props.provider === 'codex'
+        ? props.codexAccounts
+        : []
   const account = accounts.find((item) => item.valid)
 
   if (props.selected === 'new') {
@@ -89,7 +94,17 @@ export function ProviderPage(props: {
             <ProviderAccounts machine={props.machine} accounts={accounts} />
           </Section>
         )}
-        {enabled && account !== undefined && (
+        {enabled &&
+          props.provider === 'opencode' &&
+          props.openCode.available && (
+            <ProviderModels
+              machine={props.machine}
+              config={config}
+              provider={props.provider}
+              accountId={null}
+            />
+          )}
+        {enabled && props.provider !== 'opencode' && account !== undefined && (
           <ProviderModels
             machine={props.machine}
             config={config}
@@ -106,7 +121,7 @@ function ProviderModels(props: {
   machine: string
   config: Config
   provider: Provider
-  accountId: string
+  accountId: string | null
 }) {
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -121,6 +136,7 @@ function ProviderModels(props: {
     setCapabilities(null)
     setError(null)
     call(props.machine, 'capabilities', {
+      provider: props.provider,
       accountId: props.accountId,
       projectId: null,
     }).then(
@@ -134,7 +150,7 @@ function ProviderModels(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.accountId])
+  }, [props.machine, props.provider, props.accountId])
 
   function save(value: string, setting: ModelSetting) {
     void updateConfig(props.machine, {

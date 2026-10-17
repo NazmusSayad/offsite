@@ -172,8 +172,7 @@ function currentOptions() {
     throw new Error(`${target.name} is not connected`)
   return terminalOptions(
     terminalConfig(),
-    target.config.terminal.behavior.terminalIdentity,
-    target.system.version
+    target.config.terminal.behavior.terminalIdentity
   )
 }
 

@@ -51,8 +51,16 @@ export function openSession(selection: Selection) {
     ),
   })
   syncUrl()
-  if (machine.accounts.length > 0)
-    setAccounts(selection.machine, machine.accounts)
+  if (
+    machine.claudeAccounts.length > 0 ||
+    machine.codexAccounts.length > 0 ||
+    machine.openCode.available
+  )
+    setAccounts(selection.machine, {
+      claudeAccounts: machine.claudeAccounts,
+      codexAccounts: machine.codexAccounts,
+      openCode: machine.openCode,
+    })
   void refreshCapabilities()
   if (selection.sessionId !== null && machine.status === 'online')
     call(selection.machine, 'sessions.open', {

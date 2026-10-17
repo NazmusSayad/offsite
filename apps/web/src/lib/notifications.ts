@@ -3,13 +3,14 @@ import { call, isConnected } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { providerNames } from './format'
 import { openSession } from './sessions'
-import { getState } from './store'
+import { getState, machineOf } from './store'
 
 type PushKeys = { publicKey: string; privateKey: string }
 
 const storageKey = 'notifications'
 
 let pushWork: Promise<unknown> = Promise.resolve()
+const claiming = new Set<string>()
 
 export function notificationPermission() {
   if (!window.isSecureContext) return 'insecure'
@@ -76,7 +77,12 @@ function show(
   body: string,
   tag: string
 ) {
-  if (notificationPermission() !== 'granted' || !notificationsWanted()) return
+  if (
+    notificationPermission() !== 'granted' ||
+    !notificationsWanted() ||
+    !machineOf(getState(), machine).notifier
+  )
+    return
   const notification = new Notification(title, { body, tag })
   notification.onclick = () => {
     window.focus()
@@ -91,12 +97,52 @@ export async function showNotification(
   body: string,
   tab: { machine: string; project: string; tabId: number }
 ) {
-  if (notificationPermission() !== 'granted' || !notificationsWanted()) return
+  if (
+    notificationPermission() !== 'granted' ||
+    !notificationsWanted() ||
+    !machineOf(getState(), tab.machine).notifier
+  )
+    return
   const registration = await navigator.serviceWorker.ready
   await registration.showNotification(title, {
     body,
     data: tab,
   })
+}
+
+export function claimNotifications() {
+  const machines = getState()
+    .machines.filter(
+      (machine) =>
+        isConnected(machine.id) &&
+        !machine.notifier &&
+        !claiming.has(machine.id)
+    )
+    .map((machine) => machine.id)
+  if (machines.length === 0) return
+  for (const machine of machines) claiming.add(machine)
+  pushEndpoint()
+    .then((endpoint) =>
+      Promise.all(
+        machines.map((machine) =>
+          call(machine, 'notifications.claim', { endpoint })
+        )
+      )
+    )
+    .catch((error: unknown) =>
+      console.error('could not claim notifications', error)
+    )
+    .finally(() => {
+      for (const machine of machines) claiming.delete(machine)
+    })
+}
+
+async function pushEndpoint() {
+  if (pushSupport() !== 'supported') return null
+  const registration = await navigator.serviceWorker.getRegistration()
+  if (registration === undefined) return null
+  const subscription = await registration.pushManager.getSubscription()
+  return subscription === null ? null : subscription.endpoint
 }
 
 export function pushSupport() {

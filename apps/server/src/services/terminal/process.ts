@@ -4,12 +4,7 @@ import { readFile, readlink } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { spawn } from '@lydell/node-pty'
-import {
-  defaultShell,
-  platform,
-  readConfig,
-  version,
-} from '../../storage/config.ts'
+import { defaultShell, platform, readConfig } from '../../storage/config.ts'
 import { prepare } from './shell-integration.ts'
 
 const run = promisify(execFile)
@@ -127,7 +122,7 @@ async function programName(pid: number) {
 function launch() {
   const config = readConfig().terminal
   const [program, terminal, programVersion] = {
-    offsite: ['offsite', 'offsite', version],
+    offsite: ['offsite', 'offsite', '0.0.0'],
     ghostty: ['ghostty', 'ghostty', ghosttyVersion],
     iterm2: ['iTerm.app', 'iTerm2', iterm2Version],
   }[config.behavior.terminalIdentity]

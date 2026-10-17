@@ -84,7 +84,9 @@ function applyConfig(machine: string, config: Config) {
         ? config.composer.provider
         : getState().settings.provider
     )
-  const accountChanged = settings.accountId !== getState().settings.accountId
+  const accountChanged =
+    settings.provider !== getState().settings.provider ||
+    settings.accountId !== getState().settings.accountId
   update({ settings })
   if (accountChanged) void refreshCapabilities()
 }

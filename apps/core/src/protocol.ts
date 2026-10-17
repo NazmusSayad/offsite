@@ -58,7 +58,7 @@ export type Context = {
 
 export type Account = {
   id: string
-  provider: Provider
+  provider: Exclude<Provider, 'opencode'>
   name: string
   configDir: string
   enabled: boolean
@@ -69,6 +69,12 @@ export type Account = {
   limits: RateLimit[]
   linked: boolean
   valid: boolean
+}
+
+export type Accounts = {
+  claudeAccounts: Account[]
+  codexAccounts: Account[]
+  openCode: { available: boolean }
 }
 
 export type Model = {
@@ -154,7 +160,11 @@ export type Config = {
   claudeBaseDir: string
   enabledProviders: Record<Provider, boolean>
   composer: { provider: Provider } & Record<Provider, ProviderSettings>
-  commitMessage: { accountId: string | null; model: string | null }
+  commitMessage: {
+    provider: Provider | null
+    accountId: string | null
+    model: string | null
+  }
   models: Record<Provider, Record<string, ModelSetting>>
   delivery: Delivery
   autoResolve: {
@@ -169,7 +179,6 @@ export type ConfigInfo = {
   config: Config
   defaults: Config
   platform: Platform
-  version: string
   defaultShell: string
 }
 
@@ -421,9 +430,9 @@ export type Methods = {
     params: { sessionId: string; projectId: string; messageId: string }
     result: { sessionId: string }
   }
-  'accounts.list': { params: void; result: Account[] }
+  'accounts.list': { params: void; result: Accounts }
   'accounts.add': {
-    params: { provider: Provider; name: string; configDir: string }
+    params: { provider: Account['provider']; name: string; configDir: string }
     result: null
   }
   'accounts.update': {
@@ -438,7 +447,11 @@ export type Methods = {
   }
   'accounts.remove': { params: { id: string }; result: null }
   capabilities: {
-    params: { accountId: string; projectId: string | null }
+    params: {
+      provider: Provider
+      accountId: string | null
+      projectId: string | null
+    }
     result: Capabilities
   }
   'files.list': { params: { projectId: string }; result: string[] }
@@ -468,6 +481,7 @@ export type Methods = {
   }
   'push.subscribe': { params: PushRegistration; result: null }
   'push.unsubscribe': { params: { endpoint: string }; result: null }
+  'notifications.claim': { params: { endpoint: string | null }; result: null }
   terminal: { params: TerminalRequest; result: null }
   'terminal.shells': { params: void; result: Shell[] }
   'terminal.busy': { params: { id: number }; result: BusyResult }
@@ -522,7 +536,7 @@ export type ServerEvent =
   | { type: 'projects'; projects: Project[] }
   | { type: 'sessions'; sessions: Session[] }
   | { type: 'providers'; providers: ProviderStatus[] }
-  | { type: 'accounts'; accounts: Account[] }
+  | ({ type: 'accounts' } & Accounts)
   | { type: 'started'; sessionId: string; projectId: string }
   | {
       type: 'history'
@@ -544,3 +558,4 @@ export type ServerEvent =
   | { type: 'settings'; sessionId: string; settings: Settings }
   | { type: 'context'; sessionId: string; context: Context | null }
   | { type: 'notification'; sessionId: string; message: string }
+  | { type: 'notifier'; active: boolean }

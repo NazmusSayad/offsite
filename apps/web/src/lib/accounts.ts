@@ -1,5 +1,5 @@
 import type {
-  Account,
+  Accounts,
   Config,
   Provider,
   Settings,
@@ -69,23 +69,44 @@ export function changeSettings(patch: Partial<Settings>) {
     }).catch(showError)
 }
 
-export function setAccounts(machine: string, accounts: Account[]) {
-  setMachine(machine, { accounts })
+export function setAccounts(machine: string, received: Accounts) {
+  setMachine(machine, {
+    claudeAccounts: received.claudeAccounts,
+    codexAccounts: received.codexAccounts,
+    openCode: received.openCode,
+  })
   if (getState().selection?.machine !== machine) return
   const settings = getState().settings
-  const valid = accounts.filter((item) => item.valid)
-  if (valid.some((item) => item.id === settings.accountId)) return
-  const same = valid.find((item) => item.provider === settings.provider)
+  const choices = [
+    ...[...received.claudeAccounts, ...received.codexAccounts]
+      .filter((item) => item.valid)
+      .map((item) => ({
+        provider: item.provider,
+        accountId: item.id as string | null,
+      })),
+    ...(received.openCode.available
+      ? [{ provider: 'opencode' as const, accountId: null }]
+      : []),
+  ]
+  if (
+    choices.some(
+      (item) =>
+        item.provider === settings.provider &&
+        item.accountId === settings.accountId
+    )
+  )
+    return
+  const same = choices.find((item) => item.provider === settings.provider)
   const other =
-    getState().selection?.sessionId === null ? valid.at(0) : undefined
-  if (same !== undefined) changeSettings({ accountId: same.id })
+    getState().selection?.sessionId === null ? choices.at(0) : undefined
+  if (same !== undefined) changeSettings({ accountId: same.accountId })
   else if (other !== undefined)
     changeSettings({
       ...providerSettings(
         machineOf(getState(), machine).config,
         other.provider
       ),
-      accountId: other.id,
+      accountId: other.accountId,
     })
   else if (settings.accountId !== null) changeSettings({ accountId: null })
 }
@@ -101,19 +122,21 @@ export async function refreshAccounts(machine: string) {
 export async function refreshCapabilities() {
   const selection = getState().selection
   if (selection === null) return
-  const accountId = getState().settings.accountId
-  if (accountId === null) {
+  const { provider, accountId } = getState().settings
+  if (provider !== 'opencode' && accountId === null) {
     update({ capabilities: null })
     return
   }
   try {
     const capabilities = await call(selection.machine, 'capabilities', {
+      provider,
       accountId,
       projectId: selection.projectId,
     })
     if (
       getState().selection?.machine !== selection.machine ||
       getState().selection?.projectId !== selection.projectId ||
+      getState().settings.provider !== provider ||
       getState().settings.accountId !== accountId
     )
       return

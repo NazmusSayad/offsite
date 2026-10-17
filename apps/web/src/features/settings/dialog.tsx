@@ -76,8 +76,10 @@ export function SettingsDialog() {
   const accountTitle =
     settingsAccount === 'new'
       ? 'New account'
-      : machine?.accounts.find((account) => account.id === settingsAccount)
-          ?.name
+      : [
+          ...(machine?.claudeAccounts ?? []),
+          ...(machine?.codexAccounts ?? []),
+        ].find((account) => account.id === settingsAccount)?.name
   const editedMachine = useStore((state) =>
     page === 'Machines'
       ? (state.machines.find(
@@ -243,7 +245,9 @@ export function SettingsDialog() {
                   config={config}
                   platform={system.platform}
                   defaultShell={system.defaultShell}
-                  accounts={machine.accounts}
+                  claudeAccounts={machine.claudeAccounts}
+                  codexAccounts={machine.codexAccounts}
+                  openCode={machine.openCode}
                   onRestore={() => setConfirming('machine')}
                 />
               )}
@@ -268,7 +272,9 @@ export function SettingsDialog() {
                 machine={machine.id}
                 config={config}
                 provider={pageProvider}
-                accounts={machine.accounts}
+                claudeAccounts={machine.claudeAccounts}
+                codexAccounts={machine.codexAccounts}
+                openCode={machine.openCode}
                 selected={settingsAccount}
               />
             )}

@@ -39,6 +39,7 @@ export function AccountPage(props: {
     setCapabilities(null)
     setModelsError(null)
     call(props.machine, 'capabilities', {
+      provider: account.provider,
       accountId: account.id,
       projectId: null,
     }).then(
@@ -52,7 +53,7 @@ export function AccountPage(props: {
     return () => {
       current = false
     }
-  }, [props.machine, account.id, account.configDir])
+  }, [props.machine, account.provider, account.id, account.configDir])
 
   async function save(
     patch: Partial<Pick<Account, 'name' | 'configDir' | 'hiddenModels'>>

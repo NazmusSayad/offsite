@@ -37,7 +37,7 @@ import {
   removeProject,
   updateProject,
 } from '../services/projects.ts'
-import { subscribe, unsubscribe } from '../services/push.ts'
+import { claimNotifier, subscribe, unsubscribe } from '../services/push.ts'
 import { open, rewind, send } from '../services/runs.ts'
 import {
   fork,
@@ -211,6 +211,7 @@ const handlers: Handlers = {
   },
   capabilities: (params) =>
     capabilities(
+      params.provider,
       params.accountId,
       params.projectId === null ? os.homedir() : projectPath(params.projectId)
     ),
@@ -229,12 +230,16 @@ const handlers: Handlers = {
     createPullRequest(projectPath(params.projectId)),
   'git.message': (params) =>
     suggestCommitMessage(projectPath(params.projectId)),
-  'push.subscribe': (params) => {
-    subscribe(params)
+  'push.subscribe': (params, client) => {
+    subscribe(params, client)
     return null
   },
   'push.unsubscribe': (params) => {
     unsubscribe(params.endpoint)
+    return null
+  },
+  'notifications.claim': (params, client) => {
+    claimNotifier(client, params.endpoint)
     return null
   },
   terminal: async (params, client) => {

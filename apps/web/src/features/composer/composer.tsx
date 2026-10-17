@@ -46,7 +46,13 @@ export function Composer() {
   const queue = useStore((state) => state.queue)
   const draft = useStore((state) => state.draft)
   const capabilities = useStore((state) => state.capabilities)
-  const noAccount = useStore((state) => state.settings.accountId === null)
+  const noAccount = useStore((state) =>
+    state.settings.provider === 'opencode'
+      ? state.machines.find(
+          (machine) => machine.id === state.selection?.machine
+        )?.openCode.available !== true
+      : state.settings.accountId === null
+  )
   const [uploads, setUploads] = useState(0)
   const [sending, setSending] = useState(false)
   const [active, setActive] = useState(0)

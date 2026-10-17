@@ -58,7 +58,10 @@ export type Machine = {
   config: Config | null
   configError: string | null
   system: Omit<ConfigInfo, 'config'> | null
-  accounts: Account[]
+  claudeAccounts: Account[]
+  codexAccounts: Account[]
+  openCode: { available: boolean }
+  notifier: boolean
   activity: Record<string, Activity>
   providers: ProviderStatus[]
 }

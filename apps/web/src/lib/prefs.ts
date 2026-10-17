@@ -1,97 +1,80 @@
 import { schemes } from '@offsite/core/schemes'
+import { z } from 'zod'
 
-export type Prefs = {
-  theme: string
-  terminal: {
-    font: {
-      family: string
-      size: number
-      lineHeight: number
-      ligatures: boolean
-    }
-    cursor: { style: 'block' | 'bar' | 'underline'; blink: boolean }
-    padding: { top: number; right: number; bottom: number; left: number }
-    scrollback: number
-    boldIsBright: boolean
-    behavior: {
-      modernizeShiftEnter: boolean
-      pasteBrowserImages: boolean
-      captureShortcuts: boolean
-      bellFlash: boolean
-      bellSound: boolean
-      clickToMoveCursor: boolean
-      optionAsMeta: 'off' | 'left' | 'right' | 'both'
-      confirmCloseBusyTab: boolean
-    }
-  }
-  diff: { split: boolean; wrap: boolean }
-}
+const prefsSchema = z.strictObject({
+  theme: z
+    .string()
+    .refine((id) => schemes.some((scheme) => scheme.id === id))
+    .default(schemes[0].id),
+  terminal: z
+    .strictObject({
+      font: z
+        .strictObject({
+          family: z.string().default('FiraCode Nerd Font'),
+          size: z.number().default(14),
+          lineHeight: z.number().default(1.35),
+          ligatures: z.boolean().default(true),
+        })
+        .prefault({}),
+      cursor: z
+        .strictObject({
+          style: z.enum(['block', 'bar', 'underline']).default('bar'),
+          blink: z.boolean().default(true),
+        })
+        .prefault({}),
+      padding: z
+        .strictObject({
+          top: z.number().default(4),
+          right: z.number().default(4),
+          bottom: z.number().default(0),
+          left: z.number().default(4),
+        })
+        .prefault({}),
+      scrollback: z.number().default(1000),
+      boldIsBright: z.boolean().default(true),
+      behavior: z
+        .strictObject({
+          modernizeShiftEnter: z.boolean().default(true),
+          pasteBrowserImages: z.boolean().default(true),
+          captureShortcuts: z.boolean().default(true),
+          bellFlash: z.boolean().default(true),
+          bellSound: z.boolean().default(true),
+          clickToMoveCursor: z.boolean().default(true),
+          optionAsMeta: z.enum(['off', 'left', 'right', 'both']).default('off'),
+          confirmCloseBusyTab: z.boolean().default(true),
+        })
+        .prefault({}),
+    })
+    .prefault({}),
+  diff: z
+    .strictObject({
+      split: z.boolean().default(false),
+      wrap: z.boolean().default(true),
+    })
+    .prefault({}),
+})
+
+export type Prefs = z.infer<typeof prefsSchema>
 
 export type TerminalPrefs = Prefs['terminal']
 
 const storageKey = 'prefs'
 
-export const defaultPrefs: Prefs = {
-  theme: schemes[0].id,
-  terminal: {
-    font: {
-      family: 'FiraCode Nerd Font',
-      size: 14,
-      lineHeight: 1.35,
-      ligatures: true,
-    },
-    cursor: { style: 'bar', blink: true },
-    padding: { top: 4, right: 4, bottom: 0, left: 4 },
-    scrollback: 1000,
-    boldIsBright: true,
-    behavior: {
-      modernizeShiftEnter: true,
-      pasteBrowserImages: true,
-      captureShortcuts: true,
-      bellFlash: true,
-      bellSound: true,
-      clickToMoveCursor: true,
-      optionAsMeta: 'off',
-      confirmCloseBusyTab: true,
-    },
-  },
-  diff: { split: false, wrap: true },
-}
-
-const choices: Record<string, string[]> = {
-  theme: schemes.map((scheme) => scheme.id),
-  'terminal.cursor.style': ['block', 'bar', 'underline'],
-  'terminal.behavior.optionAsMeta': ['off', 'left', 'right', 'both'],
-}
+export const defaultPrefs = prefsSchema.parse({})
 
 export function loadPrefs(): Prefs {
   const raw = localStorage.getItem(storageKey)
   if (raw === null) return structuredClone(defaultPrefs)
-  return merge(defaultPrefs, JSON.parse(raw), '') as Prefs
+  const result = prefsSchema.safeParse(JSON.parse(raw))
+  if (!result.success) {
+    console.warn(
+      `invalid stored prefs, using the defaults:\n${z.prettifyError(result.error)}`
+    )
+    return structuredClone(defaultPrefs)
+  }
+  return result.data
 }
 
 export function savePrefs(prefs: Prefs) {
   localStorage.setItem(storageKey, JSON.stringify(prefs))
-}
-
-function merge(template: unknown, stored: unknown, key: string): unknown {
-  if (isObject(template))
-    return Object.fromEntries(
-      Object.entries(template).map((entry) => [
-        entry[0],
-        merge(
-          entry[1],
-          isObject(stored) ? stored[entry[0]] : undefined,
-          key === '' ? entry[0] : `${key}.${entry[0]}`
-        ),
-      ])
-    )
-  if (typeof stored !== typeof template) return template
-  if (key in choices && !choices[key].includes(stored as string))
-    return template
-  return stored
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

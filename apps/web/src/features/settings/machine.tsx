@@ -31,7 +31,9 @@ export function MachinePage(props: {
   config: Config
   platform: Platform
   defaultShell: string
-  accounts: Account[]
+  claudeAccounts: Account[]
+  codexAccounts: Account[]
+  openCode: { available: boolean }
   onRestore: () => void
 }) {
   return (
@@ -48,7 +50,9 @@ export function MachinePage(props: {
         key={`git-${props.machine}`}
         machine={props.machine}
         config={props.config}
-        accounts={props.accounts}
+        claudeAccounts={props.claudeAccounts}
+        codexAccounts={props.codexAccounts}
+        openCode={props.openCode}
       />
       <Button variant="outline" onClick={props.onRestore}>
         Restore machine defaults

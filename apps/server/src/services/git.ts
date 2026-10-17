@@ -8,7 +8,7 @@ import { claudeOptions } from '../lib/claude/index.ts'
 import { codexCommitMessage } from '../lib/codex/index.ts'
 import { openCodeCommitMessage } from '../lib/opencode/index.ts'
 import { readConfig } from '../storage/config.ts'
-import { accountProvider, assertEnabled } from './accounts.ts'
+import { assertEnabled } from './accounts.ts'
 
 const DIFF_LIMIT = 80_000
 const UNTRACKED_LIMIT = 100
@@ -71,11 +71,11 @@ export async function createPullRequest(cwd: string) {
 
 export async function suggestCommitMessage(cwd: string) {
   const settings = readConfig().commitMessage
+  const provider = settings.provider
   const accountId = settings.accountId
   const model = settings.model
-  if (accountId === null || model === null)
+  if (provider === null || model === null)
     throw new Error('Choose a commit message model in Settings → Git')
-  const provider = accountProvider(accountId)
   assertEnabled(provider, accountId)
   if (!(await isRepo(cwd))) throw new Error(`${cwd} is not a git repository`)
   const diff = (await repoDiff(cwd, '')).slice(0, DIFF_LIMIT)
