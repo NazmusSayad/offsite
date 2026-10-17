@@ -1,5 +1,6 @@
 import {
   Add01Icon,
+  Alert02Icon,
   ChevronDownIcon,
   ComputerIcon,
   InboxIcon,
@@ -11,7 +12,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { machineKey } from '@/api/machines'
+import { home, machineKey } from '@/api/machines'
 import { machineIcons, ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Tooltip } from '@/components/ui/tooltip'
 import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
 import {
   EditProjectDialog,
@@ -428,15 +430,25 @@ export function Sidebar(props: {
             )}
           </ul>
         </nav>
-        <div className="flex shrink-0 items-center gap-1 px-(--sidebar-content-inset) pb-(--sidebar-content-inset)">
+        <div className="border-sidebar-border flex shrink-0 items-center gap-1 border-t p-(--sidebar-content-inset)">
           <button
-            className={cn(iconButton, 'h-7 gap-2 px-2 text-sm')}
+            className={cn(
+              iconButton,
+              'h-8 flex-1 justify-start gap-2 px-2.5 text-sm'
+            )}
             title="Settings"
             onClick={() => showSettings(true)}
           >
             <HugeiconsIcon icon={Settings01Icon} />
             Settings
           </button>
+          {home === null && (
+            <Tooltip label="This is the hosted version of offsite. It may not be compatible with the offsite version on your machine. Use the web app your offsite serves instead.">
+              <span className="text-warning-foreground flex size-8 shrink-0 items-center justify-center">
+                <HugeiconsIcon icon={Alert02Icon} className="size-4" />
+              </span>
+            </Tooltip>
+          )}
         </div>
         <div
           role="separator"
