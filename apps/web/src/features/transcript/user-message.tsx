@@ -28,7 +28,8 @@ export function UserMessage(props: {
   const [expanded, setExpanded] = useState(false)
   const onRewind = props.onRewind
   const item = props.item
-  const prompt = item.format === 'text' ? item.text : ''
+  const prompt =
+    item.format === 'text' || item.format === 'command' ? item.text : ''
   const canCollapse =
     prompt.trim() !== '' &&
     (prompt.length > 600 || prompt.split('\n').length > 8)
