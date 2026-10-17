@@ -31,6 +31,7 @@ import {
   pairingFromUrl,
   probeMachine,
   saveMachines,
+  type StoredMachine,
   shareWithWorker,
 } from './machines'
 
@@ -38,30 +39,9 @@ export function start() {
   const stored = loadMachines()
   const selection = selectionFromUrl(stored.map((machine) => machine.id))
   createAppStore({
-    machines: stored.map((machine) => ({
-      id: machine.id,
-      addresses: machine.addresses,
-      via: null,
-      status: 'connecting',
-      name: machine.label ?? machine.name,
-      hostname: machine.name,
-      label: machine.label,
-      icon: machine.icon,
-      token: machine.token,
-      config: null,
-      configError: null,
-      system: null,
-      accounts: [],
-      activity: {},
-      providers: [],
-    })),
+    machines: stored.map(restoreMachine),
     sessions: [],
-    projects: stored.flatMap((machine) =>
-      machine.projects.map((project) => ({
-        ...project,
-        machine: machine.id,
-      }))
-    ),
+    projects: stored.flatMap(restoreProjects),
     prefs: loadPrefs(),
     paletteOpen: false,
     settingsOpen: false,
@@ -99,9 +79,74 @@ export function start() {
     refuse: (machine, reason) => setMachine(machine, { status: reason }),
     event: receive,
   })
+  addEventListener('storage', (event) => {
+    if (event.key === 'machines') receiveMachines()
+  })
   for (const machine of stored)
     connectMachine(machine.id, machine.addresses, machine.token)
   void attach()
+}
+
+function restoreMachine(machine: StoredMachine): Machine {
+  return {
+    id: machine.id,
+    addresses: machine.addresses,
+    via: null,
+    status: 'connecting',
+    name: machine.label ?? machine.name,
+    hostname: machine.name,
+    label: machine.label,
+    icon: machine.icon,
+    token: machine.token,
+    config: null,
+    configError: null,
+    system: null,
+    accounts: [],
+    activity: {},
+    providers: [],
+  }
+}
+
+function restoreProjects(machine: StoredMachine): MachineProject[] {
+  return machine.projects.map((project) => ({
+    ...project,
+    machine: machine.id,
+  }))
+}
+
+function receiveMachines() {
+  const stored = loadMachines()
+  const known = getState().machines
+  for (const machine of known)
+    if (!stored.some((item) => item.id === machine.id))
+      forgetMachine(machine.id)
+  for (const machine of stored) {
+    const current = known.find((item) => item.id === machine.id)
+    if (current === undefined) {
+      const state = getState()
+      update({
+        machines: [...state.machines, restoreMachine(machine)],
+        projects: [...state.projects, ...restoreProjects(machine)],
+      })
+      connectMachine(machine.id, machine.addresses, machine.token)
+      continue
+    }
+    setMachine(machine.id, {
+      label: machine.label,
+      icon: machine.icon,
+      name: machine.label ?? current.hostname,
+    })
+    if (
+      machine.addresses.join(' ') !== current.addresses.join(' ') ||
+      machine.token !== current.token
+    ) {
+      setMachine(machine.id, {
+        addresses: machine.addresses,
+        token: machine.token,
+      })
+      reconnectMachine(machine.id)
+    }
+  }
 }
 
 async function attach() {
@@ -452,6 +497,11 @@ export function reconnectMachine(id: string) {
 export function removeMachine(id: string) {
   if (homeMachine(getState())?.id === id)
     throw new Error('the machine serving this page stays')
+  forgetMachine(id)
+  persistMachines()
+}
+
+function forgetMachine(id: string) {
   disconnectMachine(id)
   const state = getState()
   const machines = state.machines.filter((item) => item.id !== id)
@@ -466,7 +516,6 @@ export function removeMachine(id: string) {
     ...(state.selection?.machine === id && { selection: null }),
   })
   syncUrl()
-  persistMachines()
 }
 
 function persistMachines() {
