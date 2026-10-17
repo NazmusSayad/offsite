@@ -226,7 +226,11 @@ export function NewAccountPage(props: {
             className="w-72 font-mono"
             value={configDir}
             onChange={(event) => setConfigDir(event.target.value)}
-            placeholder="Default"
+            placeholder={
+              props.provider === 'claude'
+                ? '~/.claude or empty for default'
+                : '~/.codex or empty for default'
+            }
           />
         </Row>
       </Section>
