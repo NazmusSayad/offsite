@@ -89,15 +89,13 @@ export type Thread = {
   name: string | null
   cwd: string
   updatedAt: number
-  model: string | null
-  reasoningEffort: string | null
   gitInfo: { branch: string | null } | null
   turns: Turn[]
 }
 
 export type ThreadStarted = { thread: Thread; model: string }
 
-export type RateLimitWindow = {
+type RateLimitWindow = {
   usedPercent: number
   windowDurationMins: number | null
   resetsAt: number | null

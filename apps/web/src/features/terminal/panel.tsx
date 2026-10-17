@@ -311,7 +311,7 @@ function MinimizedTabs(props: {
   )
 }
 
-export function AttentionDot(props: { ids: number[]; className: string }) {
+function AttentionDot(props: { ids: number[]; className: string }) {
   const alerts = getState().alerts
   if (!props.ids.some((id) => alerts.includes(id))) return null
   return <span className={cn('bg-primary', props.className)} />

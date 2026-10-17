@@ -64,7 +64,7 @@ type Pending = {
   params: Params
 }
 
-export function codexServer(settings: Settings) {
+function codexServer(settings: Settings) {
   return appServer(storedAccount('codex', settings.accountId).configDir)
 }
 
@@ -167,7 +167,12 @@ export class CodexRun implements ThreadListener {
   }
 
   configure(settings: Settings) {
-    this.updateSettings({ ...settings, accountId: this.settings.accountId })
+    this.settings = { ...settings, accountId: this.settings.accountId }
+    publish(this.sessionId, {
+      type: 'settings',
+      sessionId: this.sessionId,
+      settings: this.settings,
+    })
   }
 
   async interrupt() {
@@ -448,15 +453,6 @@ export class CodexRun implements ThreadListener {
     this.running = false
     broadcastActivity()
     this.close()
-  }
-
-  private updateSettings(settings: Settings) {
-    this.settings = settings
-    publish(this.sessionId, {
-      type: 'settings',
-      sessionId: this.sessionId,
-      settings,
-    })
   }
 
   private publishQueue() {

@@ -14,6 +14,7 @@ import type { Account, Capabilities, RateLimit } from '@offsite/core/protocol'
 import { type StoredAccount, storedAccount } from '../../services/accounts.ts'
 import { readConfig } from '../../storage/config.ts'
 import { broadcast } from '../hub.ts'
+import { isRecord } from './content.ts'
 
 const efforts: EffortLevel[] = ['low', 'medium', 'high', 'xhigh', 'max']
 const modes: PermissionMode[] = [
@@ -224,8 +225,4 @@ async function runProbe(accountId: string, cwd: string) {
 async function* idle(until: Promise<void>): AsyncGenerator<SDKUserMessage> {
   await until
   yield* []
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

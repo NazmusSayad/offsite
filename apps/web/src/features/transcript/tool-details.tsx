@@ -21,8 +21,6 @@ export type FileChangeItem = Extract<Item, { kind: 'file_change' }>
 export function ToolDetails(props: { item: Item }) {
   const item = props.item
   switch (item.kind) {
-    case 'command':
-      return <Code text={`$ ${item.command}`} />
     case 'file_change':
       return (
         <div className="flex flex-col gap-2">

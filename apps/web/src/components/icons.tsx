@@ -122,7 +122,7 @@ export function ProviderIcon(props: {
   }
 }
 
-export function OpenCodeIcon(props: { className?: string }) {
+function OpenCodeIcon(props: { className?: string }) {
   return (
     <svg
       viewBox="0 0 240 300"
@@ -135,7 +135,7 @@ export function OpenCodeIcon(props: { className?: string }) {
   )
 }
 
-export function ClaudeIcon(props: { className?: string }) {
+function ClaudeIcon(props: { className?: string }) {
   return (
     <svg
       viewBox="0 0 256 257"

@@ -229,7 +229,7 @@ export function setOpen(open: boolean) {
   setState({ open })
 }
 
-export function showTab(target: string, cwd: string, tabId: number) {
+function showTab(target: string, cwd: string, tabId: number) {
   const selection = appState().selection
   if (selection?.machine !== target || selection.cwd !== cwd)
     openSession({ machine: target, cwd, sessionId: null })

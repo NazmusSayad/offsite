@@ -340,11 +340,7 @@ function FileChange(props: {
   )
 }
 
-export function ErrorCard(props: {
-  title: string
-  subtitle: string
-  error: string
-}) {
+function ErrorCard(props: { title: string; subtitle: string; error: string }) {
   const [open, setOpen] = useState(false)
   const error = props.error.replace(/<\/?tool_use_error>/g, '').trim()
   const head = error.split(': ')[0].trim()

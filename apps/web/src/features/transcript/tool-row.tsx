@@ -9,7 +9,7 @@ export function Shimmer(props: { text: string; active: boolean }) {
   )
 }
 
-export function ToolTitle(props: {
+function ToolTitle(props: {
   title: string
   subtitle?: ReactNode
   args?: string[]

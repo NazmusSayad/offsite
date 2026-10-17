@@ -109,7 +109,7 @@ export function CloseDialog() {
   )
 }
 
-export function restoreFocus(event: Event) {
+function restoreFocus(event: Event) {
   event.preventDefault()
   const dialog = document.querySelector<HTMLElement>(
     '[role="dialog"], [role="alertdialog"]'

@@ -86,11 +86,9 @@ export function SessionItem(props: {
             })
           }
         >
-          {session.status === 'pinned' ? (
-            <HugeiconsIcon icon={PinOffIcon} />
-          ) : (
-            <HugeiconsIcon icon={PinIcon} />
-          )}
+          <HugeiconsIcon
+            icon={session.status === 'pinned' ? PinOffIcon : PinIcon}
+          />
           {session.status === 'pinned' ? 'Unpin' : 'Pin'}
         </DropdownMenuItem>
         <DropdownMenuItem
@@ -100,11 +98,9 @@ export function SessionItem(props: {
             })
           }
         >
-          {session.status === 'minimized' ? (
-            <HugeiconsIcon icon={MaximizeIcon} />
-          ) : (
-            <HugeiconsIcon icon={MinimizeIcon} />
-          )}
+          <HugeiconsIcon
+            icon={session.status === 'minimized' ? MaximizeIcon : MinimizeIcon}
+          />
           {session.status === 'minimized' ? 'Restore' : 'Minimize'}
         </DropdownMenuItem>
         {session.status !== 'inactive' && (

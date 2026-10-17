@@ -43,17 +43,10 @@ export function ComposerMenu(props: {
             props.onPick(item)
           }}
         >
-          {item.insert.startsWith('/') ? (
-            <HugeiconsIcon
-              icon={SquareSlashIcon}
-              className="text-muted-foreground size-4 shrink-0"
-            />
-          ) : (
-            <HugeiconsIcon
-              icon={FileIcon}
-              className="text-muted-foreground size-4 shrink-0"
-            />
-          )}
+          <HugeiconsIcon
+            icon={item.insert.startsWith('/') ? SquareSlashIcon : FileIcon}
+            className="text-muted-foreground size-4 shrink-0"
+          />
           <span className="shrink-0 text-xs font-medium">{item.label}</span>
           <span className="text-secondary-label min-w-0 truncate text-xs">
             {item.description}

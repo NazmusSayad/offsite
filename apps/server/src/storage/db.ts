@@ -1,9 +1,6 @@
-import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { home } from './storage.ts'
-
-mkdirSync(home, { recursive: true })
 
 export const db = new DatabaseSync(path.join(home, 'offsite.db'))
 

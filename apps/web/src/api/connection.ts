@@ -129,7 +129,7 @@ export async function checkConnection(machine: string) {
   return await connection.ping
 }
 
-export function machineHost(machine: string) {
+function machineHost(machine: string) {
   return new URL(machine).host
 }
 
@@ -163,7 +163,10 @@ async function pingServer(machine: string, connection: Connection) {
   const current = connection.socket
   if (current === null || !connection.connected) return false
   const alive = await Promise.race([
-    replied(call(machine, 'ping', undefined)),
+    call(machine, 'ping', undefined).then(
+      () => true,
+      () => false
+    ),
     new Promise<boolean>((resolve) =>
       window.setTimeout(() => resolve(false), PING_TIMEOUT)
     ),
@@ -174,15 +177,6 @@ async function pingServer(machine: string, connection: Connection) {
   disconnect(machine, connection)
   if (connections.get(machine) === connection) openSocket(machine, connection)
   return false
-}
-
-async function replied(request: Promise<unknown>) {
-  try {
-    await request
-    return true
-  } catch {
-    return false
-  }
 }
 
 function receive(machine: string, connection: Connection, data: unknown) {

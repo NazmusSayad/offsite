@@ -90,7 +90,7 @@ export function unseenAttention(alive: (id: number) => boolean) {
   const state = getState()
   return {
     alerts: state.alerts.filter((id) => alive(id) && !isSeen(id)),
-    quiet: state.quiet.filter((id) => alive(id)),
+    quiet: state.quiet.filter(alive),
   }
 }
 

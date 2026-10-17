@@ -7,7 +7,7 @@ import {
   terminalMachine,
 } from './session'
 
-export type Closing = { id: number; name: string; program: string | null }
+type Closing = { id: number; name: string; program: string | null }
 
 let closing: { open: boolean; closing: Closing } | null = null
 const checking = new Set<number>()

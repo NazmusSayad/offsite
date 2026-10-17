@@ -64,7 +64,7 @@ export function PermissionPrompt(props: {
   if (request.kind === 'question')
     return <QuestionPrompt machine={props.machine} request={request} />
   const plan = request.kind === 'plan'
-  const detail = request.kind === 'plan' ? '' : summary(request.item, props.cwd)
+  const detail = plan ? '' : summary(request.item, props.cwd)
   return (
     <div
       className={cn(
@@ -79,7 +79,7 @@ export function PermissionPrompt(props: {
         <span className="flex min-w-0 flex-col items-start gap-1">
           <span className="text-muted-foreground text-2xs flex w-full min-w-0 items-center gap-2">
             <span className="text-warning shrink-0 font-medium">
-              {request.kind === 'plan' ? 'Ready to code?' : request.title}
+              {plan ? 'Ready to code?' : request.title}
             </span>
             {props.count > 1 && (
               <span className="ml-auto shrink-0 tabular-nums">
@@ -114,7 +114,7 @@ export function PermissionPrompt(props: {
             {plan ? 'Approve plan' : 'Approve'}
           </Button>
         </span>
-        {request.kind === 'plan' && (
+        {plan && (
           <div className="col-span-3 max-h-60 overflow-auto px-1 empty:hidden">
             <Markdown text={request.plan} />
           </div>

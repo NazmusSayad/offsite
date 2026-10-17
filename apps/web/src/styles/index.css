@@ -121,7 +121,6 @@
   --info: var(--brand);
   --info-foreground: var(--brand);
   --success: var(--green);
-  --success-foreground: var(--green);
   --warning: var(--yellow);
   --warning-foreground: var(--yellow);
   --sidebar: color-mix(in srgb, var(--bg) 86%, black);
@@ -134,8 +133,6 @@
   --code-foreground: var(--foreground);
   --diff-addition: var(--success);
   --diff-deletion: var(--destructive);
-  --diff-addition-foreground: var(--success);
-  --diff-deletion-foreground: var(--destructive);
   --secondary-label: var(--muted-foreground);
   --placeholder: var(--muted-foreground);
   --icon-muted: var(--muted-foreground);
@@ -202,9 +199,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-info: var(--info);
-  --color-info-foreground: var(--info-foreground);
   --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-sidebar: var(--sidebar);
@@ -223,9 +218,6 @@
   --color-message-action-hover: var(--message-action-hover);
   --color-diff-addition: var(--diff-addition);
   --color-diff-deletion: var(--diff-deletion);
-  --color-diff-addition-foreground: var(--diff-addition-foreground);
-  --color-diff-deletion-foreground: var(--diff-deletion-foreground);
-  --color-surface-raised: var(--surface-raised);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -235,9 +227,6 @@
   --text-3xs: 0.625rem;
   --text-3xs--line-height: calc(0.875 / 0.625);
   --shadow-composer: 0 12px 28px -18px rgb(0 0 0 / 40%);
-  --shadow-composer-dark: 0 14px 32px -18px rgb(0 0 0 / 75%);
-  --inset-shadow-control-highlight: 0 1px rgb(255 255 255 / 16%);
-  --inset-shadow-control-pressed: 0 1px rgb(0 0 0 / 8%);
 }
 
 @utility dropdown-glass {

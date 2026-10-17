@@ -107,7 +107,7 @@ export async function suggestCommitMessage(
   throw new Error('Claude did not reply')
 }
 
-export async function workingDiff(cwd: string) {
+async function workingDiff(cwd: string) {
   if (!(await isRepo(cwd))) throw new Error(`${cwd} is not a git repository`)
   return repoDiff(cwd, '')
 }

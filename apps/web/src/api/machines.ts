@@ -1,6 +1,6 @@
 import type { Project } from '@offsite/core/protocol'
 
-export type StoredMachine = {
+type StoredMachine = {
   origin: string
   name: string
   projects: Project[]

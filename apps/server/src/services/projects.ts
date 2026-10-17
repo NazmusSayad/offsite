@@ -57,7 +57,6 @@ export function updateProject(folder: string, patch: ProjectPatch) {
 export function removeProject(folder: string) {
   db.prepare('DELETE FROM projects WHERE path = ?').run(folder)
   publish()
-  return null
 }
 
 export async function directories(input: string): Promise<Directories> {

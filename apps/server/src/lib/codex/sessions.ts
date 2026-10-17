@@ -6,7 +6,7 @@ import { appServer, codexBaseDir, findCodex } from './app-server.ts'
 import { turnItems, turnOf } from './items.ts'
 import type { Thread, ThreadItem, ThreadStarted, Turn } from './types.ts'
 
-export function codexInstalled() {
+function codexInstalled() {
   return findCodex() !== null && existsSync(codexBaseDir)
 }
 

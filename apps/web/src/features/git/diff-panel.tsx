@@ -131,11 +131,10 @@ export function DiffPanel(props: {
                 collapse(allCollapsed ? [] : list.map((file) => file.name))
               }
             >
-              {allCollapsed ? (
-                <HugeiconsIcon icon={UnfoldMoreIcon} className="size-3.5" />
-              ) : (
-                <HugeiconsIcon icon={ChevronsDownUpIcon} className="size-3.5" />
-              )}
+              <HugeiconsIcon
+                icon={allCollapsed ? UnfoldMoreIcon : ChevronsDownUpIcon}
+                className="size-3.5"
+              />
             </Button>
           )}
           <div className="bg-input/40 flex shrink-0 items-center rounded-lg p-0.5">
@@ -236,17 +235,10 @@ export function DiffPanel(props: {
                       )
                     }
                   >
-                    {closed ? (
-                      <HugeiconsIcon
-                        icon={ChevronRightIcon}
-                        className="size-3.5"
-                      />
-                    ) : (
-                      <HugeiconsIcon
-                        icon={ChevronDownIcon}
-                        className="size-3.5"
-                      />
-                    )}
+                    <HugeiconsIcon
+                      icon={closed ? ChevronRightIcon : ChevronDownIcon}
+                      className="size-3.5"
+                    />
                   </button>
                 )}
               />

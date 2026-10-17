@@ -354,7 +354,7 @@ export function removeMachine(origin: string) {
   persistMachines()
 }
 
-export function persistMachines() {
+function persistMachines() {
   const state = getState()
   saveMachines(
     state.machines.map((machine) => ({

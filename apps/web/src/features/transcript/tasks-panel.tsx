@@ -314,11 +314,7 @@ function TaskView(props: {
   }, [output, props.events])
 
   const shown =
-    props.path === null
-      ? props.events.join('\n')
-      : output === undefined || output === null
-        ? ''
-        : output.text
+    props.path === null ? props.events.join('\n') : (output?.text ?? '')
 
   return (
     <div
