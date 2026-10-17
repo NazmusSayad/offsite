@@ -96,6 +96,7 @@ export function Transcript(props: {
     fromBottom.current = null
   }, [earlier, start])
 
+  // oxlint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const element = scroller.current
     if (element === null || rows.length === 0) {
