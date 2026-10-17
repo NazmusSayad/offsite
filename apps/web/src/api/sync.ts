@@ -7,6 +7,7 @@ import {
   draftKey,
   emptySettings,
   getState,
+  homeMachine,
   type Machine,
   type MachineProject,
   type MachineSession,
@@ -27,18 +28,19 @@ import {
   home,
   loadMachines,
   machineKey,
+  pairingFromUrl,
+  probeMachine,
   saveMachines,
   shareWithWorker,
 } from './machines'
 
 export function start() {
   const stored = loadMachines()
-  const selection = selectionFromUrl(stored.map((machine) => machine.origin))
+  const selection = selectionFromUrl(stored.map((machine) => machine.id))
   createAppStore({
     machines: stored.map((machine) => ({
-      origin: machine.origin,
-      url: machine.url,
-      fallback: machine.fallback,
+      id: machine.id,
+      addresses: machine.addresses,
       via: null,
       status: 'connecting',
       name: machine.label ?? machine.name,
@@ -51,19 +53,20 @@ export function start() {
       system: null,
       accounts: [],
       activity: {},
+      providers: [],
     })),
     sessions: [],
     projects: stored.flatMap((machine) =>
       machine.projects.map((project) => ({
         ...project,
-        machine: machine.origin,
+        machine: machine.id,
       }))
     ),
     prefs: loadPrefs(),
     paletteOpen: false,
     settingsOpen: false,
     settingsPage: 'General',
-    settingsMachine: stored.at(0)?.origin ?? null,
+    settingsMachine: stored.at(0)?.id ?? null,
     unseen: [],
     selection,
     loaded: selection?.sessionId === null,
@@ -89,7 +92,7 @@ export function start() {
       void resync(machine)
     },
     close: (machine) => {
-      const known = getState().machines.find((item) => item.origin === machine)
+      const known = getState().machines.find((item) => item.id === machine)
       if (known !== undefined && known.status !== 'offline')
         setMachine(machine, { status: 'offline', via: null })
     },
@@ -97,17 +100,30 @@ export function start() {
     event: receive,
   })
   for (const machine of stored)
-    connectMachine(
-      machine.origin,
-      machineUrls(machine.url, machine.fallback),
-      machine.token
-    )
+    connectMachine(machine.id, machine.addresses, machine.token)
+  void attach()
+}
+
+async function attach() {
+  try {
+    const pairing = pairingFromUrl()
+    if (pairing !== null)
+      await addMachine(pairing.address, pairing.fallback, pairing.token)
+  } catch (error) {
+    showError(error)
+  }
+  if (home === null || homeMachine(getState()) !== undefined) return
+  try {
+    await addMachine(home, null, null)
+  } catch (error) {
+    showError(error)
+  }
 }
 
 async function resync(machine: string) {
   try {
     const snapshot = await call(machine, 'sync', undefined)
-    const known = getState().machines.find((item) => item.origin === machine)
+    const known = getState().machines.find((item) => item.id === machine)
     if (known === undefined) return
     if (snapshot.protocol !== PROTOCOL) {
       setMachine(machine, { status: 'outdated' })
@@ -124,6 +140,7 @@ async function resync(machine: string) {
         defaultShell: snapshot.defaultShell,
       },
       activity: snapshot.activity,
+      providers: snapshot.providers,
     })
     setProjects(
       machine,
@@ -169,14 +186,14 @@ function reopenThread(machine: string) {
     selection.sessionId !== null
   )
     call(machine, 'sessions.open', {
-      cwd: selection.cwd,
+      projectId: selection.projectId,
       sessionId: selection.sessionId,
     }).catch(showError)
 }
 
 function receive(machine: string, event: ServerEvent) {
   const state = getState()
-  const known = state.machines.find((item) => item.origin === machine)
+  const known = state.machines.find((item) => item.id === machine)
   if (known === undefined || known.status === 'outdated') return
   const selected = state.selection?.machine === machine
   const current = selected ? (state.selection?.sessionId ?? null) : null
@@ -235,21 +252,28 @@ function receive(machine: string, event: ServerEvent) {
     case 'accounts':
       setAccounts(machine, event.accounts)
       return
+    case 'providers':
+      setMachine(machine, { providers: event.providers })
+      return
     case 'started':
       saveDraftSettings(
         machineKey(machine, event.sessionId),
-        getDraftSettings(machineKey(machine, event.cwd))
+        getDraftSettings(machineKey(machine, event.projectId))
       )
-      saveDraftSettings(machineKey(machine, event.cwd), null)
+      saveDraftSettings(machineKey(machine, event.projectId), null)
       if (
         state.selection === null ||
         !selected ||
-        state.selection.cwd !== event.cwd ||
+        state.selection.projectId !== event.projectId ||
         state.selection.sessionId !== null
       )
         return
       update({
-        selection: { machine, cwd: event.cwd, sessionId: event.sessionId },
+        selection: {
+          machine,
+          projectId: event.projectId,
+          sessionId: event.sessionId,
+        },
         loaded: true,
         items: [],
         earlier: [],
@@ -333,34 +357,34 @@ function receive(machine: string, event: ServerEvent) {
   }
 }
 
-export function addMachine(
-  origin: string,
+export async function addMachine(
+  address: string,
   fallback: string | null,
   token: string | null
 ) {
-  const existing = getState().machines.find(
-    (item) => item.origin === origin || item.url === origin
-  )
+  const addresses = fallback === null ? [address] : [address, fallback]
+  const id = await identify(addresses)
+  const existing = getState().machines.find((item) => item.id === id)
   if (existing !== undefined) {
-    if (token === null && fallback === null)
-      throw new Error(`${origin} is already in the list`)
-    editMachine(existing.origin, {
+    const added = addresses.filter((item) => !existing.addresses.includes(item))
+    if (added.length === 0 && (token === null || token === existing.token))
+      throw new Error(`${new URL(address).host} is already in the list`)
+    editMachine(id, {
+      addresses: [...existing.addresses, ...added],
       ...(token !== null && { token }),
-      ...(fallback !== null && { fallback }),
     })
-    return existing.origin
+    return id
   }
   update({
     machines: [
       ...getState().machines,
       {
-        origin,
-        url: origin,
-        fallback,
+        id,
+        addresses,
         via: null,
         status: 'connecting',
-        name: new URL(origin).hostname,
-        hostname: new URL(origin).hostname,
+        name: new URL(address).hostname,
+        hostname: new URL(address).hostname,
         label: null,
         icon: 'computer',
         token,
@@ -369,63 +393,77 @@ export function addMachine(
         system: null,
         accounts: [],
         activity: {},
+        providers: [],
       },
     ],
   })
   persistMachines()
-  connectMachine(origin, machineUrls(origin, fallback), token)
-  return origin
+  connectMachine(id, addresses, token)
+  if (home !== null && addresses.includes(home)) shareToken(token)
+  return id
+}
+
+async function identify(addresses: string[]) {
+  let failure: unknown
+  for (const address of addresses) {
+    try {
+      return await probeMachine(address)
+    } catch (error) {
+      failure ??= error
+    }
+  }
+  throw failure
 }
 
 export function editMachine(
-  origin: string,
-  patch: Partial<Pick<Machine, 'url' | 'fallback' | 'label' | 'icon' | 'token'>>
+  id: string,
+  patch: Partial<Pick<Machine, 'addresses' | 'label' | 'icon' | 'token'>>
 ) {
-  const known = machineOf(getState(), origin)
+  const known = machineOf(getState(), id)
   const next = { ...known, ...patch }
-  setMachine(origin, { ...patch, name: next.label ?? next.hostname })
+  setMachine(id, { ...patch, name: next.label ?? next.hostname })
   persistMachines()
   if (
-    next.url !== known.url ||
-    next.fallback !== known.fallback ||
+    next.addresses.join(' ') !== known.addresses.join(' ') ||
     next.token !== known.token
   )
-    reconnectMachine(origin)
-  if (origin === home && next.token !== known.token)
-    shareWithWorker(next.token).catch((error: unknown) =>
-      console.error('could not share the token with the service worker', error)
-    )
+    reconnectMachine(id)
+  if (
+    home !== null &&
+    next.addresses.includes(home) &&
+    next.token !== known.token
+  )
+    shareToken(next.token)
 }
 
-export function reconnectMachine(origin: string) {
-  disconnectMachine(origin)
-  setMachine(origin, { status: 'connecting', via: null })
-  const machine = machineOf(getState(), origin)
-  connectMachine(
-    origin,
-    machineUrls(machine.url, machine.fallback),
-    machine.token
+function shareToken(token: string | null) {
+  shareWithWorker(token).catch((error: unknown) =>
+    console.error('could not share the token with the service worker', error)
   )
 }
 
-function machineUrls(url: string, fallback: string | null) {
-  return fallback === null ? [url] : [url, fallback]
+export function reconnectMachine(id: string) {
+  disconnectMachine(id)
+  setMachine(id, { status: 'connecting', via: null })
+  const machine = machineOf(getState(), id)
+  connectMachine(id, machine.addresses, machine.token)
 }
 
-export function removeMachine(origin: string) {
-  if (origin === home) throw new Error('the machine serving this page stays')
-  disconnectMachine(origin)
+export function removeMachine(id: string) {
+  if (homeMachine(getState())?.id === id)
+    throw new Error('the machine serving this page stays')
+  disconnectMachine(id)
   const state = getState()
-  const machines = state.machines.filter((item) => item.origin !== origin)
+  const machines = state.machines.filter((item) => item.id !== id)
   update({
     machines,
-    projects: state.projects.filter((item) => item.machine !== origin),
-    sessions: state.sessions.filter((item) => item.machine !== origin),
-    unseen: state.unseen.filter((key) => !key.startsWith(`${origin} `)),
-    ...(state.settingsMachine === origin && {
-      settingsMachine: machines.at(0)?.origin ?? null,
+    projects: state.projects.filter((item) => item.machine !== id),
+    sessions: state.sessions.filter((item) => item.machine !== id),
+    unseen: state.unseen.filter((key) => !key.startsWith(`${id} `)),
+    ...(state.settingsMachine === id && {
+      settingsMachine: machines.at(0)?.id ?? null,
     }),
-    ...(state.selection?.machine === origin && { selection: null }),
+    ...(state.selection?.machine === id && { selection: null }),
   })
   syncUrl()
   persistMachines()
@@ -435,16 +473,16 @@ function persistMachines() {
   const state = getState()
   saveMachines(
     state.machines.map((machine) => ({
-      origin: machine.origin,
-      url: machine.url,
-      fallback: machine.fallback,
+      id: machine.id,
+      addresses: machine.addresses,
       name: machine.hostname,
       label: machine.label,
       icon: machine.icon,
       token: machine.token,
       projects: state.projects
-        .filter((project) => project.machine === machine.origin)
+        .filter((project) => project.machine === machine.id)
         .map((project) => ({
+          id: project.id,
           path: project.path,
           name: project.name,
           logo: project.logo,

@@ -36,6 +36,7 @@ import {
   dismissError,
   getState,
   machineOf,
+  projectOf,
   selectedActivity,
   showPalette,
   selectedRunning,
@@ -55,7 +56,11 @@ const refusals = {
   },
   unauthorized: {
     title: (name: string) => `${name} needs pairing`,
-    body: 'Open the pairing link that offsite printed when it started, or enter its token in Settings → Machines.',
+    body: 'Run offsite pair on that machine and open the link it prints, or enter a token in Settings → Machines.',
+  },
+  mismatch: {
+    title: (name: string) => `${name} is a different machine now`,
+    body: 'Its address now reaches another offsite machine. Fix the address in Settings → Machines, or add it as a new machine.',
   },
 }
 
@@ -65,6 +70,12 @@ const toggle =
 export function App() {
   const selection = useStore((state) => state.selection)
   const sessions = useStore((state) => state.sessions)
+  const cwd = useStore((state) =>
+    state.selection === null
+      ? ''
+      : (projectOf(state, state.selection.machine, state.selection.projectId)
+          ?.path ?? '')
+  )
   const machine = useStore((state) => {
     const origin = defaultMachine(state)
     return origin === null ? null : machineOf(state, origin)
@@ -73,7 +84,8 @@ export function App() {
     machine !== null &&
     (machine.status === 'outdated' ||
       machine.status === 'newer' ||
-      machine.status === 'unauthorized')
+      machine.status === 'unauthorized' ||
+      machine.status === 'mismatch')
       ? refusals[machine.status]
       : null
   const error = useStore((state) => state.error)
@@ -107,7 +119,7 @@ export function App() {
   })
   const git = useGitStatus(
     selection?.machine ?? '',
-    machine?.status === 'online' ? (selection?.cwd ?? null) : null,
+    machine?.status === 'online' ? (selection?.projectId ?? null) : null,
     running
   )
   const session = sessions.find(
@@ -117,7 +129,7 @@ export function App() {
 
   const projectTitle = useProjectName(
     selection?.machine ?? '',
-    selection?.cwd ?? ''
+    selection?.projectId ?? ''
   )
   useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
     enableOnFormTags: true,
@@ -185,11 +197,11 @@ export function App() {
                 <ol className="flex min-w-0 items-center gap-2 text-sm sm:gap-3">
                   <li
                     className="text-muted-foreground flex min-w-0 shrink items-center gap-1.5 font-medium"
-                    title={`${machine.name}:${selection.cwd}`}
+                    title={`${machine.name}:${cwd}`}
                   >
                     <ProjectIcon
                       machine={selection.machine}
-                      cwd={selection.cwd}
+                      projectId={selection.projectId}
                       className="size-3.5"
                     />
                     <span className="max-w-40 truncate">{projectTitle}</span>
@@ -216,7 +228,7 @@ export function App() {
             {selection !== null && git.status !== null && (
               <GitActions
                 machine={selection.machine}
-                cwd={selection.cwd}
+                projectId={selection.projectId}
                 status={git.status}
                 onStatus={git.setStatus}
                 onRefresh={git.refresh}
@@ -272,7 +284,7 @@ export function App() {
             )}
             {selection !== null && refusal === null && (
               <Fragment
-                key={`${selection.machine} ${selection.sessionId ?? selection.cwd}`}
+                key={`${selection.machine} ${selection.sessionId ?? selection.projectId}`}
               >
                 <Transcript
                   onOpenDiff={() => setPanel('diff')}
@@ -311,7 +323,7 @@ export function App() {
               >
                 <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-x-0 top-0 h-px transition-colors" />
               </div>
-              <TerminalPanel cwd={selection.cwd} />
+              <TerminalPanel projectId={selection.projectId} />
             </aside>
           )}
         </div>
@@ -341,15 +353,15 @@ export function App() {
             {panel === 'files' && (
               <FilesPanel
                 machine={selection.machine}
-                cwd={selection.cwd}
+                projectId={selection.projectId}
                 onClose={() => setPanel(null)}
               />
             )}
             {panel === 'diff' && (
               <DiffPanel
-                key={`${selection.machine} ${selection.cwd}`}
+                key={`${selection.machine} ${selection.projectId}`}
                 machine={selection.machine}
-                cwd={selection.cwd}
+                projectId={selection.projectId}
                 running={running}
                 onClose={() => setPanel(null)}
               />
@@ -357,7 +369,7 @@ export function App() {
             {panel === 'tasks' && (
               <TasksPanel
                 machine={selection.machine}
-                cwd={selection.cwd}
+                cwd={cwd}
                 sessionId={selection.sessionId}
                 selected={selectedTask}
                 onSelect={setSelectedTask}

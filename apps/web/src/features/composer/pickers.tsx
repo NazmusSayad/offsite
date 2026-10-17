@@ -83,7 +83,7 @@ function ModelPicker() {
     useStore(
       (state) =>
         state.machines.find(
-          (machine) => machine.origin === state.selection?.machine
+          (machine) => machine.id === state.selection?.machine
         )?.accounts
     ) ?? []
   ).filter(
@@ -121,7 +121,7 @@ function ModelPicker() {
       if (item.id === settings.accountId || item.error !== null) continue
       call(selection.machine, 'capabilities', {
         accountId: item.id,
-        cwd: selection.cwd,
+        projectId: selection.projectId,
       }).then(
         (result) =>
           setFetched((current) => ({ ...current, [item.id]: result.models })),

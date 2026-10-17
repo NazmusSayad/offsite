@@ -1,50 +1,46 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { readJson, writeJson } from './storage.ts'
-
-export type PairingToken = {
-  token: string
-  name: string | null
-  createdAt: number
-}
+import { createHash, randomBytes } from 'node:crypto'
+import { eq, inArray } from 'drizzle-orm'
+import { db } from './db.ts'
+import { tokens } from './schema.ts'
 
 export function readTokens() {
-  const stored = readJson('tokens.json') as { tokens: PairingToken[] } | null
-  return stored === null ? [] : stored.tokens
+  return db.select().from(tokens).orderBy(tokens.createdAt).all()
 }
 
 export function addToken(name: string | null) {
   const token = randomBytes(32).toString('base64url')
-  writeJson('tokens.json', {
-    tokens: [...readTokens(), { token, name, createdAt: Date.now() }],
-  })
+  db.insert(tokens)
+    .values({ hash: hashToken(token), name, createdAt: Date.now() })
+    .run()
   return token
 }
 
-export function removeTokens(tokens: string[]) {
-  writeJson('tokens.json', {
-    tokens: readTokens().filter((item) => !tokens.includes(item.token)),
-  })
+export function removeTokens(hashes: string[]) {
+  db.delete(tokens).where(inArray(tokens.hash, hashes)).run()
 }
 
-export function firstToken() {
-  return readTokens().at(0)?.token ?? addToken(null)
+export function hasTokens() {
+  return db.select().from(tokens).limit(1).get() !== undefined
 }
 
 export function matchesToken(given: string | null) {
   if (given === null) return false
-  const actual = Buffer.from(given)
-  return readTokens().some((item) => {
-    const expected = Buffer.from(item.token)
-    return (
-      expected.length === actual.length && timingSafeEqual(expected, actual)
-    )
-  })
-}
-
-export function readUsage() {
-  return (readJson('token-usage.json') ?? {}) as Record<string, number>
+  return (
+    db
+      .select()
+      .from(tokens)
+      .where(eq(tokens.hash, hashToken(given)))
+      .get() !== undefined
+  )
 }
 
 export function recordUse(token: string) {
-  writeJson('token-usage.json', { ...readUsage(), [token]: Date.now() })
+  db.update(tokens)
+    .set({ lastUsedAt: Date.now() })
+    .where(eq(tokens.hash, hashToken(token)))
+    .run()
+}
+
+function hashToken(token: string) {
+  return createHash('sha256').update(token).digest('hex')
 }

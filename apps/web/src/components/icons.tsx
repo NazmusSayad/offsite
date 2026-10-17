@@ -11,8 +11,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Provider } from '@offsite/core/protocol'
-import { projectName } from '@/lib/format'
-import { useStore } from '@/lib/store'
+import { projectOf, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 export const machineIcons = {
@@ -51,17 +50,15 @@ const colors = [
 
 export function ProjectIcon(props: {
   machine: string
-  cwd: string
+  projectId: string
   className?: string
 }) {
   const project = useStore((state) =>
-    state.projects.find(
-      (item) => item.machine === props.machine && item.path === props.cwd
-    )
+    projectOf(state, props.machine, props.projectId)
   )
   return (
     <ProjectBadge
-      name={project?.name ?? projectName(props.cwd)}
+      name={project?.name ?? ''}
       logo={project?.logo ?? null}
       className={props.className}
     />

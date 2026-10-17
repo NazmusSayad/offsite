@@ -1,4 +1,4 @@
-export const PROTOCOL = 2
+export const PROTOCOL = 3
 
 export const HOSTED_APP = 'https://offsite.sayad.dev'
 
@@ -15,13 +15,24 @@ export type Session = {
   id: string
   provider: Provider
   title: string
-  cwd: string
+  projectId: string
   branch: string | null
   updatedAt: number
   status: 'active' | 'pinned' | 'minimized' | 'inactive'
 }
 
-export type Project = { path: string; name: string; logo: string | null }
+export type Project = {
+  id: string
+  path: string
+  name: string
+  logo: string | null
+}
+
+export type ProviderStatus = {
+  provider: Provider
+  state: 'loading' | 'ready' | 'missing' | 'error'
+  error: string | null
+}
 
 export type ProjectPatch = { name?: string; logo?: string | null }
 
@@ -33,9 +44,11 @@ export type Directories = {
 
 export type Snapshot = ConfigInfo & {
   protocol: number
+  machineId: string
   hostname: string
   projects: Project[]
   sessions: Session[]
+  providers: ProviderStatus[]
   activity: Record<string, Activity>
 }
 
@@ -91,7 +104,7 @@ export type Settings = ProviderSettings & { provider: Provider }
 
 export type Rewind = {
   sessionId: string
-  cwd: string
+  projectId: string
   messageId: string
   settings: Settings
   code: boolean
@@ -156,11 +169,11 @@ export type TerminalLayout = Record<string, TerminalProject>
 export type TerminalRequest =
   | { type: 'attach' }
   | { type: 'detach' }
-  | { type: 'createTab'; cwd: string }
+  | { type: 'createTab'; projectId: string }
   | { type: 'closeTab'; id: number }
   | { type: 'renameTab'; id: number; name: string }
   | { type: 'minimizeTab'; id: number }
-  | { type: 'select'; cwd: string; tabId: number | null }
+  | { type: 'select'; projectId: string; tabId: number | null }
   | { type: 'resize'; id: number; cols: number; rows: number }
 
 export type TerminalEvent =
@@ -174,7 +187,8 @@ export type BusyResult = { program: string | null } | { error: string }
 export type TerminalPush = {
   title: string
   body: string
-  cwd: string
+  machineId: string
+  projectId: string
   tabId: number
 }
 
@@ -312,17 +326,20 @@ export type Methods = {
   'config.save': { params: Config; result: Config }
   'projects.add': { params: { path: string }; result: Project }
   'projects.update': {
-    params: { path: string; patch: ProjectPatch }
+    params: { id: string; patch: ProjectPatch }
     result: null
   }
-  'projects.remove': { params: { path: string }; result: null }
+  'projects.remove': { params: { id: string }; result: null }
   'directories.list': { params: { path: string }; result: Directories }
   'sessions.update': {
     params: { id: string; patch: SessionPatch }
     result: null
   }
   'sessions.remove': { params: { id: string }; result: null }
-  'sessions.open': { params: { sessionId: string; cwd: string }; result: null }
+  'sessions.open': {
+    params: { sessionId: string; projectId: string }
+    result: null
+  }
   'sessions.earlier': {
     params: { sessionId: string; before: number }
     result: { items: Item[]; before: number | null }
@@ -332,13 +349,18 @@ export type Methods = {
     result: Image
   }
   'sessions.agent': {
-    params: { sessionId: string; cwd: string; agentId: string; parent: string }
+    params: {
+      sessionId: string
+      projectId: string
+      agentId: string
+      parent: string
+    }
     result: Item[]
   }
   'sessions.send': {
     params: {
       sessionId: string | null
-      cwd: string
+      projectId: string
       prompt: Prompt
       settings: Settings
       delivery: Delivery
@@ -373,7 +395,7 @@ export type Methods = {
   }
   'sessions.rewind': { params: Rewind; result: RewindResult }
   'sessions.fork': {
-    params: { sessionId: string; cwd: string; messageId: string }
+    params: { sessionId: string; projectId: string; messageId: string }
     result: { sessionId: string }
   }
   'accounts.list': { params: void; result: Account[] }
@@ -387,26 +409,32 @@ export type Methods = {
   }
   'accounts.remove': { params: { id: string }; result: null }
   capabilities: {
-    params: { accountId: string; cwd: string }
+    params: { accountId: string; projectId: string }
     result: Capabilities
   }
-  'files.list': { params: { cwd: string }; result: string[] }
-  'files.read': { params: { cwd: string; path: string }; result: FilePreview }
+  'files.list': { params: { projectId: string }; result: string[] }
+  'files.read': {
+    params: { projectId: string; path: string }
+    result: FilePreview
+  }
   'files.upload': { params: { name: string; data: string }; result: string }
   'tasks.output': {
     params: { sessionId: string; path: string }
     result: { text: string; truncated: boolean } | null
   }
-  'git.status': { params: { cwd: string }; result: GitStatus | null }
-  'git.diff': { params: { cwd: string }; result: string }
+  'git.status': { params: { projectId: string }; result: GitStatus | null }
+  'git.diff': { params: { projectId: string }; result: string }
   'git.commit': {
-    params: { cwd: string; message: string }
+    params: { projectId: string; message: string }
     result: GitStatus | null
   }
-  'git.push': { params: { cwd: string }; result: GitStatus | null }
-  'git.pullRequest': { params: { cwd: string }; result: { url: string } }
+  'git.push': { params: { projectId: string }; result: GitStatus | null }
+  'git.pullRequest': {
+    params: { projectId: string }
+    result: { url: string }
+  }
   'git.message': {
-    params: { provider: Provider; accountId: string | null; cwd: string }
+    params: { provider: Provider; accountId: string | null; projectId: string }
     result: { message: string }
   }
   'push.key': { params: void; result: { publicKey: string } }
@@ -465,8 +493,9 @@ export type ServerEvent =
   | { type: 'config'; config: Config }
   | { type: 'projects'; projects: Project[] }
   | { type: 'sessions'; sessions: Session[] }
+  | { type: 'providers'; providers: ProviderStatus[] }
   | { type: 'accounts'; accounts: Account[] }
-  | { type: 'started'; sessionId: string; cwd: string }
+  | { type: 'started'; sessionId: string; projectId: string }
   | {
       type: 'history'
       sessionId: string

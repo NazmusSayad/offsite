@@ -20,7 +20,7 @@ const MATCH_LIMIT = 200
 
 export function FilesPanel(props: {
   machine: string
-  cwd: string
+  projectId: string
   onClose: () => void
 }) {
   const [files, setFiles] = useState<string[] | null>(null)
@@ -32,7 +32,7 @@ export function FilesPanel(props: {
 
   useEffect(() => {
     let current = true
-    call(props.machine, 'files.list', { cwd: props.cwd }).then(
+    call(props.machine, 'files.list', { projectId: props.projectId }).then(
       (list) => {
         if (!current) return
         setFiles(list)
@@ -45,7 +45,7 @@ export function FilesPanel(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.cwd, version])
+  }, [props.machine, props.projectId, version])
 
   const tree = useMemo(() => buildTree(files ?? []), [files])
   const search = query.trim().toLowerCase()
@@ -202,7 +202,7 @@ export function FilesPanel(props: {
       </div>
       <FilePreview
         machine={props.machine}
-        cwd={props.cwd}
+        projectId={props.projectId}
         path={preview}
         onClose={() => setPreview(null)}
       />

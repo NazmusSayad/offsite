@@ -28,6 +28,7 @@ import { clock, fullTime } from '@/lib/format'
 import {
   forkFrom,
   loadEarlier,
+  projectOf,
   selectedActivity,
   selectedRunning,
   useStore,
@@ -55,7 +56,11 @@ export function Transcript(props: {
   const [rewind, setRewind] = useState<RewindTarget | null>(null)
   const [expanded, setExpanded] = useState<string[]>([])
   const [top, setTop] = useState<{ key: string; above: number } | null>(null)
-  const cwd = selection?.cwd ?? ''
+  const cwd = useStore((state) =>
+    selection === null
+      ? ''
+      : (projectOf(state, selection.machine, selection.projectId)?.path ?? '')
+  )
   const running = useStore(selectedRunning)
   const sentAt = useStore((state) => state.sentAt)
 

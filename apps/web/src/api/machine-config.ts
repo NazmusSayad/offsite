@@ -68,7 +68,7 @@ async function refreshConfig(machine: string) {
 }
 
 function applyConfig(machine: string, config: Config) {
-  if (!getState().machines.some((item) => item.origin === machine)) return
+  if (!getState().machines.some((item) => item.id === machine)) return
   setMachine(machine, { config })
   const selection = getState().selection
   if (selection === null || selection.machine !== machine) return

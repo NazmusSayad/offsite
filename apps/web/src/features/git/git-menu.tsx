@@ -27,12 +27,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { providerNames } from '@/lib/format'
-import { getState, showError, useStore } from '@/lib/store'
+import { getState, projectOf, showError, useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 
 export function useGitStatus(
   machine: string,
-  cwd: string | null,
+  projectId: string | null,
   running: boolean
 ) {
   const [result, setResult] = useState<{
@@ -42,10 +42,10 @@ export function useGitStatus(
   const [version, setVersion] = useState(0)
 
   useEffect(() => {
-    if (cwd === null || running) return
+    if (projectId === null || running) return
     let current = true
-    call(machine, 'git.status', { cwd }).then((status) => {
-      if (current) setResult({ key: machineKey(machine, cwd), status })
+    call(machine, 'git.status', { projectId }).then((status) => {
+      if (current) setResult({ key: machineKey(machine, projectId), status })
     }, showError)
     function refresh() {
       setVersion((value) => value + 1)
@@ -55,16 +55,20 @@ export function useGitStatus(
       current = false
       window.removeEventListener('focus', refresh)
     }
-  }, [machine, cwd, running, version])
+  }, [machine, projectId, running, version])
 
   return {
     status:
-      result !== null && cwd !== null && result.key === machineKey(machine, cwd)
+      result !== null &&
+      projectId !== null &&
+      result.key === machineKey(machine, projectId)
         ? result.status
         : null,
     setStatus: (status: GitStatus | null) =>
       setResult(
-        cwd === null ? null : { key: machineKey(machine, cwd), status }
+        projectId === null
+          ? null
+          : { key: machineKey(machine, projectId), status }
       ),
     refresh: () => setVersion((value) => value + 1),
   }
@@ -72,7 +76,7 @@ export function useGitStatus(
 
 export function GitActions(props: {
   machine: string
-  cwd: string
+  projectId: string
   status: GitStatus
   onStatus: (status: GitStatus | null) => void
   onRefresh: () => void
@@ -96,14 +100,16 @@ export function GitActions(props: {
 
   function push() {
     void run(async () => {
-      props.onStatus(await call(props.machine, 'git.push', { cwd: props.cwd }))
+      props.onStatus(
+        await call(props.machine, 'git.push', { projectId: props.projectId })
+      )
     })
   }
 
   function pullRequest() {
     void run(async () => {
       const result = await call(props.machine, 'git.pullRequest', {
-        cwd: props.cwd,
+        projectId: props.projectId,
       })
       window.open(result.url, '_blank', 'noopener')
     })
@@ -185,7 +191,7 @@ export function GitActions(props: {
       </div>
       <CommitDialog
         machine={props.machine}
-        cwd={props.cwd}
+        projectId={props.projectId}
         open={committing}
         onClose={() => setCommitting(false)}
         onDone={(next) => {
@@ -199,12 +205,15 @@ export function GitActions(props: {
 
 function CommitDialog(props: {
   machine: string
-  cwd: string
+  projectId: string
   open: boolean
   onClose: () => void
   onDone: (status: GitStatus | null) => void
 }) {
   const provider = useStore((state) => state.settings.provider)
+  const cwd = useStore(
+    (state) => projectOf(state, props.machine, props.projectId)?.path
+  )
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState<'generate' | 'commit' | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -217,19 +226,21 @@ function CommitDialog(props: {
         const result = await call(props.machine, 'git.message', {
           provider: getState().settings.provider,
           accountId: getState().settings.accountId,
-          cwd: props.cwd,
+          projectId: props.projectId,
         })
         setMessage(result.message)
         return
       }
       const committed = await call(props.machine, 'git.commit', {
-        cwd: props.cwd,
+        projectId: props.projectId,
         message,
       })
       setMessage('')
       props.onDone(
         andPush
-          ? await call(props.machine, 'git.push', { cwd: props.cwd })
+          ? await call(props.machine, 'git.push', {
+              projectId: props.projectId,
+            })
           : committed
       )
     } catch (caught) {
@@ -245,7 +256,7 @@ function CommitDialog(props: {
         <DialogHeader>
           <DialogTitle>Commit changes</DialogTitle>
           <DialogDescription>
-            Stages every change in {props.cwd} and commits it.
+            Stages every change in {cwd} and commits it.
           </DialogDescription>
         </DialogHeader>
         <textarea

@@ -28,7 +28,7 @@ const segment =
 
 export function DiffPanel(props: {
   machine: string
-  cwd: string
+  projectId: string
   running: boolean
   onClose: () => void
 }) {
@@ -38,28 +38,35 @@ export function DiffPanel(props: {
   const diff = useStore((state) => state.prefs.diff)
   const codeTheme = useCodeTheme()
   const [collapsed, setCollapsed] = useState<string[]>(() => {
-    const stored = localStorage.getItem(`diffCollapsed:${props.cwd}`)
+    const stored = localStorage.getItem(
+      `diffCollapsed:${props.machine}:${props.projectId}`
+    )
     if (stored === null) return []
     const names: unknown = JSON.parse(stored)
     if (Array.isArray(names) && names.every((name) => typeof name === 'string'))
       return names
-    throw new Error(`invalid diffCollapsed:${props.cwd} in localStorage`)
+    throw new Error(
+      `invalid diffCollapsed:${props.machine}:${props.projectId} in localStorage`
+    )
   })
 
   function collapse(names: string[]) {
     setCollapsed(names)
-    localStorage.setItem(`diffCollapsed:${props.cwd}`, JSON.stringify(names))
+    localStorage.setItem(
+      `diffCollapsed:${props.machine}:${props.projectId}`,
+      JSON.stringify(names)
+    )
   }
 
   useEffect(() => {
     let current = true
-    call(props.machine, 'git.diff', { cwd: props.cwd }).then(
+    call(props.machine, 'git.diff', { projectId: props.projectId }).then(
       (patch) => {
         if (!current) return
         setFiles(
           patch.trim() === ''
             ? []
-            : parsePatchFiles(patch, `${props.cwd}:${version}`).flatMap(
+            : parsePatchFiles(patch, `${props.projectId}:${version}`).flatMap(
                 (patch) => patch.files
               )
         )
@@ -72,7 +79,7 @@ export function DiffPanel(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.cwd, props.running, version])
+  }, [props.machine, props.projectId, props.running, version])
 
   const list = files ?? []
   const added = list.reduce(

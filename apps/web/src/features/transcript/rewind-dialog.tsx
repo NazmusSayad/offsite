@@ -9,7 +9,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { getState, openSession, setDraft, useStore } from '@/lib/store'
+import {
+  getState,
+  openSession,
+  projectOf,
+  setDraft,
+  useStore,
+} from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 
 export type RewindTarget = { messageId: string; text: string; first: boolean }
@@ -28,7 +34,10 @@ export function RewindDialog(props: {
   const restoresCode = provider !== 'codex'
   const machine = selection?.machine ?? null
   const sessionId = selection?.sessionId ?? null
-  const cwd = selection?.cwd ?? ''
+  const projectId = selection?.projectId ?? ''
+  const cwd = useStore((state) =>
+    machine === null ? '' : (projectOf(state, machine, projectId)?.path ?? '')
+  )
 
   useEffect(() => {
     setPreview(null)
@@ -44,7 +53,7 @@ export function RewindDialog(props: {
     let current = true
     call(machine, 'sessions.rewind', {
       sessionId,
-      cwd,
+      projectId,
       messageId: target.messageId,
       settings: getState().settings,
       code: true,
@@ -61,7 +70,7 @@ export function RewindDialog(props: {
     return () => {
       current = false
     }
-  }, [target, machine, sessionId, cwd, restoresCode])
+  }, [target, machine, sessionId, projectId, restoresCode])
 
   async function apply(code: boolean, conversation: boolean) {
     if (target === null || machine === null || sessionId === null) return
@@ -73,7 +82,7 @@ export function RewindDialog(props: {
       if (code || truncate)
         await call(machine, 'sessions.rewind', {
           sessionId,
-          cwd,
+          projectId,
           messageId: target.messageId,
           settings: getState().settings,
           code,
@@ -81,7 +90,7 @@ export function RewindDialog(props: {
           dryRun: false,
         })
       if (conversation && target.first && provider !== 'opencode')
-        openSession({ machine, cwd, sessionId: null })
+        openSession({ machine, projectId, sessionId: null })
       if (conversation) setDraft(target.text)
       props.onClose()
     } catch (caught) {

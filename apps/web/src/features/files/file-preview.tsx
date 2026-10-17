@@ -18,7 +18,7 @@ import diffCss from '@/features/git/diff.css?raw'
 
 export function FilePreview(props: {
   machine: string
-  cwd: string
+  projectId: string
   path: string | null
   onClose: () => void
 }) {
@@ -46,11 +46,11 @@ export function FilePreview(props: {
           <PreviewBody
             key={props.path}
             machine={props.machine}
-            cwd={props.cwd}
+            projectId={props.projectId}
             path={props.path}
             onInsert={(path) => {
               editDraft(
-                machineKey(props.machine, sessionId ?? props.cwd),
+                machineKey(props.machine, sessionId ?? props.projectId),
                 (current) => ({
                   ...current,
                   text: `${current.text}${/(^|\s)$/.test(current.text) ? '' : ' '}@${path} `,
@@ -68,7 +68,7 @@ export function FilePreview(props: {
 
 function PreviewBody(props: {
   machine: string
-  cwd: string
+  projectId: string
   path: string
   onInsert: (path: string) => void
 }) {
@@ -80,7 +80,7 @@ function PreviewBody(props: {
   useEffect(() => {
     let current = true
     call(props.machine, 'files.read', {
-      cwd: props.cwd,
+      projectId: props.projectId,
       path: props.path,
     }).then(
       (result) => {
@@ -93,7 +93,7 @@ function PreviewBody(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.cwd, props.path])
+  }, [props.machine, props.projectId, props.path])
 
   return (
     <>

@@ -17,7 +17,9 @@ import {
   type TerminalTab,
 } from '@offsite/core/protocol'
 import type { Client } from '../../lib/hub.ts'
+import { machineInfo } from '../../storage/db.ts'
 import { home } from '../../storage/storage.ts'
+import { projectPath } from '../projects.ts'
 import { pushActive, sendPush } from '../push.ts'
 import { ALERT_DELAY, type Alert, Alerts, Scanner } from './alerts.ts'
 import { busyProgram, currentDirectory, startShell } from './process.ts'
@@ -151,7 +153,7 @@ async function request(
       return
     }
     case 'createTab':
-      await createTab(message.cwd)
+      await createTab(message.projectId)
       break
     case 'closeTab':
       closeTab(message.id)
@@ -178,17 +180,17 @@ async function request(
       break
     }
     case 'select': {
-      const project = projects.get(message.cwd) ?? {
+      const project = projects.get(message.projectId) ?? {
         tabs: [],
         activeTab: null,
       }
-      projects.set(message.cwd, project)
+      projects.set(message.projectId, project)
       const tab = project.tabs.find((item) => item.id === message.tabId)
       if (tab !== undefined) {
         tab.minimized = false
         project.activeTab = tab.id
       }
-      if (project.tabs.length === 0) await createTab(message.cwd)
+      if (project.tabs.length === 0) await createTab(message.projectId)
       break
     }
   }
@@ -223,13 +225,14 @@ function input(connection: Connection, bytes: Buffer) {
   terminal.pty.write(Buffer.from(frame.data))
 }
 
-async function createTab(cwd: string) {
+async function createTab(projectId: string) {
+  const cwd = projectPath(projectId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
     console.error(`${cwd} is not a folder, terminal not created`)
     return
   }
-  const project = projects.get(cwd) ?? { tabs: [], activeTab: null }
-  projects.set(cwd, project)
+  const project = projects.get(projectId) ?? { tabs: [], activeTab: null }
+  projects.set(projectId, project)
   const active =
     project.activeTab === null ? undefined : terminals.get(project.activeTab)
   let directory = cwd
@@ -377,7 +380,13 @@ function push(id: number, alert: Alert, windowTitle: string) {
   if (entry === undefined) return
   const tab = findTab(id)
   if (title === '') title = tab?.customName ?? (windowTitle || 'Terminal')
-  void sendPush({ title, body, cwd: entry[0], tabId: id })
+  void sendPush({
+    title,
+    body,
+    machineId: machineInfo().id,
+    projectId: entry[0],
+    tabId: id,
+  })
 }
 
 function browserOpen() {

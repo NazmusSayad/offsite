@@ -84,6 +84,7 @@ export class CodexRun implements ThreadListener {
   prompted = false
   backgroundTasks = 0
   tasks: Record<string, TaskStatus> = {}
+  activeAt = Date.now()
   private readonly model: string
   private readonly close: () => void
   private turnId: string | null = null
@@ -214,12 +215,20 @@ export class CodexRun implements ThreadListener {
   }
 
   exited() {
-    this.put(errorItem(randomUUID(), 'Codex stopped'))
+    this.put(
+      errorItem(
+        randomUUID(),
+        this.pending.size === 0
+          ? 'Codex stopped'
+          : 'Codex stopped, its open requests expired'
+      )
+    )
     if (runs.get(this.sessionId) === this) runs.delete(this.sessionId)
     this.end()
   }
 
   notify(method: string, params: Params) {
+    this.activeAt = Date.now()
     switch (method) {
       case 'turn/started': {
         const turn = params.turn as Turn

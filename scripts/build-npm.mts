@@ -23,6 +23,7 @@ const manifest = {
 
 for (const folder of [
   ['apps', 'server', 'dist'],
+  ['apps', 'server', 'drizzle'],
   ['apps', 'server', 'src', 'services', 'terminal', 'shell-integration'],
   ['apps', 'web', 'dist'],
 ])

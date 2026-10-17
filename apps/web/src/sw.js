@@ -21,7 +21,11 @@ self.addEventListener('push', (event) => {
     message
       ? self.registration.showNotification(message.title, {
           body: message.body,
-          data: { machine: null, cwd: message.cwd, tabId: message.tabId },
+          data: {
+            machine: message.machineId,
+            project: message.projectId,
+            tabId: message.tabId,
+          },
         })
       : self.registration.showNotification('offsite', { data: null })
   )
@@ -98,7 +102,7 @@ async function openTab(tab) {
     page.postMessage({
       type: 'select',
       machine: tab.machine,
-      cwd: tab.cwd,
+      project: tab.project,
       tabId: tab.tabId,
     })
   await page.focus()
@@ -106,9 +110,8 @@ async function openTab(tab) {
 
 function tabParams(tab) {
   const params = new URLSearchParams()
-  if (tab.machine !== null && tab.machine !== self.location.origin)
-    params.set('machine', tab.machine)
-  params.set('cwd', tab.cwd)
+  params.set('machine', tab.machine)
+  params.set('project', tab.project)
   params.set('terminal', String(tab.tabId))
   return params
 }

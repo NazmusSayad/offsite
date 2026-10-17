@@ -19,6 +19,7 @@ export function Palette() {
   const selection = useStore((state) => state.selection)
   const sessionList = useStore((state) => state.sessions)
   const machines = useStore((state) => state.machines)
+  const projects = useStore((state) => state.projects)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const list = useRef<HTMLDivElement>(null)
@@ -31,7 +32,12 @@ export function Palette() {
           {
             key: 'new',
             label: 'New thread',
-            detail: selection.cwd,
+            detail:
+              projects.find(
+                (project) =>
+                  project.machine === selection.machine &&
+                  project.id === selection.projectId
+              )?.path ?? '',
             run: () => openSession({ ...selection, sessionId: null }),
           },
         ]),
@@ -51,11 +57,11 @@ export function Palette() {
   const sessions: Item[] = sessionList.map((session) => ({
     key: machineKey(session.machine, session.id),
     label: session.title,
-    detail: `${session.status === 'minimized' ? 'Minimized · ' : ''}${machines.length > 1 ? `${machines.find((item) => item.origin === session.machine)?.name ?? ''}:` : ''}${session.cwd}`,
+    detail: `${session.status === 'minimized' ? 'Minimized · ' : ''}${machines.length > 1 ? `${machines.find((item) => item.id === session.machine)?.name ?? ''}:` : ''}${projects.find((project) => project.machine === session.machine && project.id === session.projectId)?.path ?? ''}`,
     run: () =>
       openSession({
         machine: session.machine,
-        cwd: session.cwd,
+        projectId: session.projectId,
         sessionId: session.id,
       }),
   }))

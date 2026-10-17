@@ -34,11 +34,7 @@ export function providerName(provider: Provider) {
 }
 
 export function storedAccounts(): StoredAccount[] {
-  const items =
-    (readJson('accounts.json') as
-      | (Omit<StoredAccount, 'provider'> & { provider?: Provider })[]
-      | null) ?? []
-  return items.map((item) => ({ ...item, provider: item.provider ?? 'claude' }))
+  return (readJson('accounts.json') as StoredAccount[] | null) ?? []
 }
 
 export function storedAccount(provider: Provider, accountId: string | null) {

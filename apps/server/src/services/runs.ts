@@ -22,7 +22,8 @@ import {
   rewindOpenCode,
 } from '../lib/opencode/index.ts'
 import { providerName } from './accounts.ts'
-import { providerOf, recordInteraction } from './sessions.ts'
+import { projectPath } from './projects.ts'
+import { listedUpdatedAt, providerOf, recordInteraction } from './sessions.ts'
 
 const locks = new Map<string, Promise<void>>()
 
@@ -48,11 +49,14 @@ export function rewind(request: Rewind): Promise<RewindResult> {
 
 async function rewindNow(request: Rewind): Promise<RewindResult> {
   const sessionId = request.sessionId
+  const cwd = projectPath(request.projectId)
   if (runs.get(sessionId)?.running === true)
-    throw new Error('Stop Claude before rewinding')
+    throw new Error(
+      `Stop ${providerName(providerOf(sessionId))} before rewinding`
+    )
   if ((runs.get(sessionId)?.backgroundTasks ?? 0) > 0)
     throw new Error('Wait for background tasks to finish before rewinding')
-  const run = await runFor(sessionId, request.cwd, request.settings)
+  const run = await runFor(sessionId, cwd, request.settings)
   if (run.provider === 'codex') {
     if (request.code) throw new Error('Codex cannot restore files')
     if (request.dryRun || !request.conversation) return null
@@ -65,7 +69,7 @@ async function rewindNow(request: Rewind): Promise<RewindResult> {
     const result = await rewindOpenCode(request)
     if (request.dryRun) return result
     run.items.clear()
-    publish(sessionId, await openCodeHistory(sessionId, request.cwd))
+    publish(sessionId, await openCodeHistory(sessionId, cwd))
     return result
   }
   let result: RewindResult = null
@@ -82,25 +86,29 @@ async function rewindNow(request: Rewind): Promise<RewindResult> {
     }
   }
   if (request.dryRun || !request.conversation) return result
-  const disk = await getSessionMessages(sessionId, { dir: request.cwd })
+  const disk = await getSessionMessages(sessionId, { dir: cwd })
   const index = disk.findIndex((item) => item.uuid === request.messageId)
   if (index < 1) throw new Error('Cannot rewind the conversation to that point')
   run.stop()
   await run.closed
   new Run({
     sessionId,
-    cwd: request.cwd,
+    cwd,
     resume: true,
     resumeAt: disk[index - 1].uuid,
     settings: request.settings,
   })
-  publish(sessionId, await history(sessionId, request.cwd))
+  publish(sessionId, await history(sessionId, cwd))
   return result
 }
 
-export async function open(client: Client, sessionId: string, cwd: string) {
+export async function open(
+  client: Client,
+  sessionId: string,
+  projectId: string
+) {
   client.opening = sessionId
-  const event = await sessionHistory(sessionId, cwd)
+  const event = await sessionHistory(sessionId, projectPath(projectId))
   if (client.opening !== sessionId) return
   client.sessionId = sessionId
   client.send(event)
@@ -110,25 +118,27 @@ export async function send(
   client: Client,
   request: Methods['sessions.send']['params']
 ) {
-  if (!statSync(request.cwd, { throwIfNoEntry: false })?.isDirectory())
-    throw new Error(`${request.cwd} is not a folder`)
+  const cwd = projectPath(request.projectId)
+  if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory())
+    throw new Error(`${cwd} is not a folder`)
   if (request.sessionId === null) {
-    const run = await startRun(request.cwd, request.settings)
+    const run = await startRun(cwd, request.settings)
     const sessionId = run.sessionId
     client.opening = sessionId
     client.sessionId = sessionId
-    client.send({ type: 'started', sessionId, cwd: request.cwd })
+    client.send({ type: 'started', sessionId, projectId: request.projectId })
     await run.submit(request.prompt, request.delivery)
     recordInteraction(sessionId)
     return
   }
   const sessionId = request.sessionId
-  await locked(sessionId, () => sendExisting(client, sessionId, request))
+  await locked(sessionId, () => sendExisting(client, sessionId, cwd, request))
 }
 
 async function sendExisting(
   client: Client,
   sessionId: string,
+  cwd: string,
   request: Methods['sessions.send']['params']
 ) {
   const provider = providerOf(sessionId)
@@ -139,14 +149,23 @@ async function sendExisting(
     existing?.provider === 'claude' &&
     !existing.running &&
     existing.backgroundTasks === 0 &&
-    (await changedElsewhere(existing, request.cwd))
+    (await changedElsewhere(existing, cwd))
   ) {
     existing.stop()
     await existing.closed
   }
-  const run = await runFor(sessionId, request.cwd, request.settings)
+  if (
+    existing?.provider === 'codex' &&
+    !existing.running &&
+    existing.pending.size === 0 &&
+    (listedUpdatedAt('codex', sessionId) ?? 0) > existing.activeAt
+  ) {
+    existing.stop()
+    await existing.closed
+  }
+  const run = await runFor(sessionId, cwd, request.settings)
   if (run === existing) await run.configure(request.settings)
-  else await open(client, sessionId, request.cwd)
+  else await open(client, sessionId, request.projectId)
   await run.submit(request.prompt, request.delivery)
   recordInteraction(sessionId)
 }

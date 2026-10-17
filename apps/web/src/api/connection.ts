@@ -19,7 +19,7 @@ type Listener = {
   frame?: (machine: string, frame: ReturnType<typeof decodeFrame>) => void
 }
 
-export type Refusal = 'outdated' | 'newer' | 'unauthorized'
+export type Refusal = 'outdated' | 'newer' | 'unauthorized' | 'mismatch'
 
 type Connection = {
   urls: string[]
@@ -29,6 +29,7 @@ type Connection = {
   connected: boolean
   ping: Promise<boolean> | null
   timer: number | undefined
+  failures: number
   pending: Map<
     number,
     { resolve: (result: unknown) => void; reject: (error: Error) => void }
@@ -36,9 +37,21 @@ type Connection = {
 }
 
 const RECONNECT_DELAY = 1000
-const PING_INTERVAL = 30_000
-const PING_TIMEOUT = 3000
+const RECONNECT_LIMIT = 30_000
+const PING_INTERVAL = 10_000
+const PING_TIMEOUT = 10_000
 const CHECK_TIMEOUT = 3000
+const CALL_TIMEOUT = 30_000
+const LONG_CALL_TIMEOUT = 5 * 60_000
+const longCalls: Method[] = [
+  'sessions.send',
+  'sessions.rewind',
+  'sessions.fork',
+  'git.commit',
+  'git.push',
+  'git.pullRequest',
+  'git.message',
+]
 
 const listeners = new Set<Listener>()
 const connections = new Map<string, Connection>()
@@ -50,8 +63,23 @@ export function startConnections() {
   }, PING_INTERVAL)
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) return
-    for (const machine of connections.keys()) void checkConnection(machine)
+    wake()
   })
+  window.addEventListener('online', wake)
+}
+
+function wake() {
+  for (const [machine, connection] of connections) {
+    if (connection.connected) {
+      void checkConnection(machine)
+      continue
+    }
+    if (connection.timer === undefined) continue
+    window.clearTimeout(connection.timer)
+    connection.timer = undefined
+    connection.failures = 0
+    void openSocket(machine, connection, 0)
+  }
 }
 
 export function connectMachine(
@@ -68,6 +96,7 @@ export function connectMachine(
     connected: false,
     ping: null,
     timer: undefined,
+    failures: 0,
     pending: new Map(),
   }
   connections.set(machine, connection)
@@ -107,18 +136,35 @@ export function call<M extends Method>(
   )
     return Promise.reject(
       new Error(
-        `Not connected to ${new URL(connection?.url ?? machine).host}; reconnecting`
+        connection === undefined
+          ? 'That machine was removed'
+          : `Not connected to ${new URL(connection.url).host}; reconnecting`
       )
     )
   nextId += 1
   const id = nextId
   connection.socket.send(JSON.stringify({ id, method, params }))
-  return new Promise<Methods[M]['result']>((resolve, reject) =>
+  const timeout = longCalls.includes(method) ? LONG_CALL_TIMEOUT : CALL_TIMEOUT
+  return new Promise<Methods[M]['result']>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      connection.pending.delete(id)
+      reject(
+        new Error(
+          `${new URL(connection.url).host} did not answer ${method} within ${timeout / 1000} seconds`
+        )
+      )
+    }, timeout)
     connection.pending.set(id, {
-      resolve: (result) => resolve(result as Methods[M]['result']),
-      reject,
+      resolve: (result) => {
+        window.clearTimeout(timer)
+        resolve(result as Methods[M]['result'])
+      },
+      reject: (error) => {
+        window.clearTimeout(timer)
+        reject(error)
+      },
     })
-  )
+  })
 }
 
 export function sendFrame(
@@ -157,7 +203,7 @@ async function openSocket(
     protocol: String(PROTOCOL),
     ...(connection.token !== null && { token: connection.token }),
   })
-  const refusal = await checkServer(url, params)
+  const refusal = await checkServer(machine, url, params)
   if (connections.get(machine) !== connection) return
   if (refusal !== null) {
     const lastUrl = (attempt + 1) % connection.urls.length === 0
@@ -168,31 +214,40 @@ async function openSocket(
     if (refusal === 'offline')
       for (const listener of listeners) listener.close?.(machine)
     else for (const listener of listeners) listener.refuse?.(machine, refusal)
-    if (refusal !== 'unauthorized')
-      connection.timer = window.setTimeout(
-        () => void openSocket(machine, connection, attempt + 1),
-        RECONNECT_DELAY
-      )
+    if (refusal !== 'unauthorized') retry(machine, connection, attempt + 1)
     return
   }
   const next = new WebSocket(`${url.replace(/^http/, 'ws')}/ws?${params}`)
   next.binaryType = 'arraybuffer'
   next.onopen = () => {
     connection.connected = true
+    connection.failures = 0
     for (const listener of listeners) listener.open?.(machine, url)
   }
   next.onmessage = (event) => receive(machine, connection, event.data)
   next.onclose = () => {
     disconnect(machine, connection)
-    connection.timer = window.setTimeout(
-      () => void openSocket(machine, connection, 0),
-      RECONNECT_DELAY
-    )
+    retry(machine, connection, 0)
   }
   connection.socket = next
 }
 
-async function checkServer(url: string, params: URLSearchParams) {
+function retry(machine: string, connection: Connection, attempt: number) {
+  const delay =
+    Math.min(RECONNECT_LIMIT, RECONNECT_DELAY * 2 ** connection.failures) *
+    (0.8 + Math.random() * 0.4)
+  connection.failures += 1
+  connection.timer = window.setTimeout(() => {
+    connection.timer = undefined
+    void openSocket(machine, connection, attempt)
+  }, delay)
+}
+
+async function checkServer(
+  machine: string,
+  url: string,
+  params: URLSearchParams
+) {
   const signal = AbortSignal.timeout(CHECK_TIMEOUT)
   let response: Response
   try {
@@ -201,10 +256,14 @@ async function checkServer(url: string, params: URLSearchParams) {
     return 'offline'
   }
   if (!response.ok) return 'offline'
-  const server: { protocol: number; authorized: boolean } | null =
-    await response.json().catch(() => null)
+  const server: {
+    protocol: number
+    machineId: string
+    authorized: boolean
+  } | null = await response.json().catch(() => null)
   if (server === null || server.protocol < PROTOCOL) return 'outdated'
   if (server.protocol > PROTOCOL) return 'newer'
+  if (server.machineId !== machine) return 'mismatch'
   if (!server.authorized) return 'unauthorized'
   return null
 }
@@ -235,8 +294,7 @@ async function pingServer(machine: string, connection: Connection) {
   current.onclose = null
   current.close()
   disconnect(machine, connection)
-  if (connections.get(machine) === connection)
-    void openSocket(machine, connection, 0)
+  if (connections.get(machine) === connection) retry(machine, connection, 0)
   return false
 }
 
