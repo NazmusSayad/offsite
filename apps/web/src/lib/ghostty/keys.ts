@@ -222,7 +222,7 @@ let keyboardLayoutMapPromise:
 export function loadGhosttyKeyboardLayoutMap(): Promise<
   GhosttyKeyboardLayoutMap | undefined
 > {
-  if (keyboardLayoutMapPromise) return keyboardLayoutMapPromise
+  if (keyboardLayoutMapPromise) {return keyboardLayoutMapPromise}
   const browserNavigator = globalThis.navigator as
     | (Navigator & {
         readonly keyboard?: {
@@ -248,7 +248,7 @@ export function ghosttyConsumedMods(
   >
 ): number {
   if (!event.shiftKey || event.ctrlKey || event.altKey || event.metaKey)
-    return 0
+    {return 0}
   return [...event.key].length === 1 ? 1 : 0
 }
 
@@ -256,15 +256,15 @@ export function ghosttyUnshiftedCodepoint(
   event: Pick<KeyboardEvent, 'code' | 'key' | 'shiftKey'>,
   layoutMap?: GhosttyKeyboardLayoutMap
 ): number {
-  if ([...event.key].length !== 1) return 0
+  if ([...event.key].length !== 1) {return 0}
   const layoutCharacter = layoutMap?.get(event.code)
   if (layoutCharacter && [...layoutCharacter].length === 1) {
     return layoutCharacter.codePointAt(0) ?? 0
   }
-  if (/^[A-Z]$/u.test(event.key)) return event.key.charCodeAt(0) + 32
+  if (/^[A-Z]$/u.test(event.key)) {return event.key.charCodeAt(0) + 32}
   if (event.shiftKey) {
     const unshiftedCharacter = shiftedToUnshiftedCharacter.get(event.key)
-    if (unshiftedCharacter) return unshiftedCharacter.codePointAt(0) ?? 0
+    if (unshiftedCharacter) {return unshiftedCharacter.codePointAt(0) ?? 0}
     const lowercase = event.key.toLowerCase()
     if (lowercase !== event.key && [...lowercase].length === 1) {
       return lowercase.codePointAt(0) ?? 0
@@ -299,8 +299,8 @@ const unshiftedToShiftedCharacter = new Map(
 )
 
 function usUnshiftedCharacter(code: string) {
-  if (/^Key[A-Z]$/u.test(code)) return code[3].toLowerCase()
-  if (/^Digit[0-9]$/u.test(code)) return code[5]
+  if (/^Key[A-Z]$/u.test(code)) {return code[3].toLowerCase()}
+  if (/^Digit[0-9]$/u.test(code)) {return code[5]}
   return usPunctuationCharacter.get(code)
 }
 
@@ -320,11 +320,11 @@ export function ghosttyMetaText(
       ? layoutCharacter
       : usUnshiftedCharacter(event.code)
   if (unshifted === undefined)
-    return [...event.key].length === 1 ? null : event.key
-  if (!event.shiftKey) return unshifted
+    {return [...event.key].length === 1 ? null : event.key}
+  if (!event.shiftKey) {return unshifted}
   const uppercase = unshifted.toUpperCase()
-  if (uppercase !== unshifted && [...uppercase].length === 1) return uppercase
-  if (layoutMap === undefined || !isUsLayout(layoutMap)) return null
+  if (uppercase !== unshifted && [...uppercase].length === 1) {return uppercase}
+  if (layoutMap === undefined || !isUsLayout(layoutMap)) {return null}
   return unshiftedToShiftedCharacter.get(unshifted) ?? unshifted
 }
 
@@ -411,7 +411,7 @@ export class InputEncoder {
       !(event.shiftKey && /^[a-z]$/u.test(key)) &&
       !runtime.flag('ghostty_terminal_get', this.terminal, 8)
     )
-      return control
+      {return control}
     const metaText = optionAsMeta ? this.metaText(event) : null
     const text = metaText ?? event.key
     if (
@@ -423,7 +423,7 @@ export class InputEncoder {
       runtime.flag('ghostty_terminal_mode_get', this.terminal, 1036) &&
       this.isLegacyKeyboard()
     )
-      return `\x1b${text}`
+      {return `\x1b${text}`}
     runtime.call(
       'ghostty_key_encoder_setopt_from_terminal',
       this.keyEncoder,
@@ -469,7 +469,7 @@ export class InputEncoder {
     const textPointer =
       textBytes.length === 0 ? 0 : runtime.alloc(textBytes.length)
     if (textPointer !== 0)
-      runtime.bytes(textPointer, textBytes.length).set(textBytes)
+      {runtime.bytes(textPointer, textBytes.length).set(textBytes)}
     runtime.call(
       'ghostty_key_event_set_utf8',
       this.keyEvent,
@@ -486,7 +486,7 @@ export class InputEncoder {
         written
       )
     )
-    if (textPointer !== 0) runtime.free(textPointer, textBytes.length)
+    if (textPointer !== 0) {runtime.free(textPointer, textBytes.length)}
     return encoded
   }
 
@@ -501,7 +501,7 @@ export class InputEncoder {
   encodePaste(data: string) {
     const runtime = this.runtime
     const input = encoder.encode(data)
-    if (input.length === 0) return ''
+    if (input.length === 0) {return ''}
     const pointer = runtime.alloc(input.length)
     runtime.bytes(pointer, input.length).set(input)
     const bracketed = runtime.flag(
@@ -575,13 +575,13 @@ export class InputEncoder {
       { press: 0, release: 1, motion: 2 }[input.action]
     )
     if (input.button === null)
-      runtime.call('ghostty_mouse_event_clear_button', this.mouseEvent)
+      {runtime.call('ghostty_mouse_event_clear_button', this.mouseEvent)}
     else
-      runtime.call(
+      {runtime.call(
         'ghostty_mouse_event_set_button',
         this.mouseEvent,
         input.button
-      )
+      )}
     runtime.call('ghostty_mouse_event_set_mods', this.mouseEvent, input.mods)
     const positionLayout = runtime.layout('GhosttyMousePosition')
     const position = runtime.alloc(positionLayout.size)

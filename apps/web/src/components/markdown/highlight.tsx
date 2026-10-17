@@ -41,11 +41,11 @@ export function Highlight(props: { code: string; language: string }) {
       )
       .then((tree) => {
         if (current)
-          setNode(
+          {setNode(
             <div className="chat-markdown-shiki">
               {toJsxRuntime(tree, { Fragment, jsx, jsxs })}
             </div>
-          )
+          )}
       })
       .catch((error: unknown) => console.error(error))
     return () => {
@@ -53,7 +53,7 @@ export function Highlight(props: { code: string; language: string }) {
     }
   }, [props.code, props.language, codeTheme])
 
-  if (node !== null) return node
+  if (node !== null) {return node}
   return (
     <pre>
       <code>{props.code}</code>

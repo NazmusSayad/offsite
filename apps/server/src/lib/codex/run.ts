@@ -143,7 +143,7 @@ export class CodexRun implements ThreadListener {
     }
     switch (delivery) {
       case 'steer':
-        if (this.turnId === null) throw new Error('Codex has no turn to steer')
+        if (this.turnId === null) {throw new Error('Codex has no turn to steer')}
         await this.server.request('turn/steer', {
           threadId: this.sessionId,
           input: await this.input(prompt),
@@ -163,7 +163,7 @@ export class CodexRun implements ThreadListener {
 
   steer(id: string) {
     const item = this.queue.find((queued) => queued.id === id)
-    if (item === undefined) return
+    if (item === undefined) {return}
     this.unqueue(id)
     this.submit(item.prompt, 'steer').catch((error: unknown) =>
       this.fail(error)
@@ -180,7 +180,7 @@ export class CodexRun implements ThreadListener {
   }
 
   async interrupt() {
-    if (this.turnId === null) return
+    if (this.turnId === null) {return}
     await this.server.request('turn/interrupt', {
       threadId: this.sessionId,
       turnId: this.turnId,
@@ -197,7 +197,7 @@ export class CodexRun implements ThreadListener {
     answers: Record<string, string> | null
   ) {
     const pending = this.pending.get(requestId)
-    if (pending === undefined) return
+    if (pending === undefined) {return}
     this.server.reply(
       pending.id,
       reply(pending.method, pending.params, decision, answers)
@@ -206,7 +206,7 @@ export class CodexRun implements ThreadListener {
   }
 
   stop() {
-    if (runs.get(this.sessionId) === this) runs.delete(this.sessionId)
+    if (runs.get(this.sessionId) === this) {runs.delete(this.sessionId)}
     this.server.threads.delete(this.sessionId)
     clearTimeout(this.idleTimer)
     this.server
@@ -226,7 +226,7 @@ export class CodexRun implements ThreadListener {
           : 'Codex stopped, its open requests expired'
       )
     )
-    if (runs.get(this.sessionId) === this) runs.delete(this.sessionId)
+    if (runs.get(this.sessionId) === this) {runs.delete(this.sessionId)}
     this.end()
   }
 
@@ -237,7 +237,7 @@ export class CodexRun implements ThreadListener {
         const turn = params.turn as Turn
         this.turnId = turn.id
         clearTimeout(this.idleTimer)
-        if (!this.running) this.prompted = false
+        if (!this.running) {this.prompted = false}
         this.running = true
         broadcastActivity()
         return
@@ -245,7 +245,7 @@ export class CodexRun implements ThreadListener {
       case 'turn/completed': {
         const turn = params.turn as Turn
         if (turn.status === 'failed' && turn.error !== null)
-          this.put(errorItem(`${turn.id}:error`, turn.error.message))
+          {this.put(errorItem(`${turn.id}:error`, turn.error.message))}
         this.finishTurn()
         return
       }
@@ -257,7 +257,7 @@ export class CodexRun implements ThreadListener {
           null,
           Date.now()
         ))
-          this.put(item)
+          {this.put(item)}
         return
       case 'item/agentMessage/delta':
         this.partial += params.delta as string
@@ -272,7 +272,7 @@ export class CodexRun implements ThreadListener {
           itemId(params.turnId as string, params.itemId as string)
         )
         if (item?.kind === 'command')
-          this.put({ ...item, output: item.output + (params.delta as string) })
+          {this.put({ ...item, output: item.output + (params.delta as string) })}
         return
       }
       case 'turn/plan/updated': {
@@ -311,7 +311,7 @@ export class CodexRun implements ThreadListener {
       case 'error': {
         const error = params.error as { message: string }
         if (params.willRetry !== true)
-          this.put(errorItem(randomUUID(), error.message))
+          {this.put(errorItem(randomUUID(), error.message))}
         return
       }
       case 'serverRequest/resolved':
@@ -425,7 +425,7 @@ export class CodexRun implements ThreadListener {
   }
 
   private settle(requestId: string) {
-    if (!this.pending.delete(requestId)) return
+    if (!this.pending.delete(requestId)) {return}
     publish(this.sessionId, {
       type: 'requestDone',
       sessionId: this.sessionId,
@@ -454,15 +454,15 @@ export class CodexRun implements ThreadListener {
 
   private armIdleTimer() {
     clearTimeout(this.idleTimer)
-    if (this.running) return
+    if (this.running) {return}
     this.idleTimer = setTimeout(() => {
-      if (!this.running && this.pending.size === 0) this.stop()
+      if (!this.running && this.pending.size === 0) {this.stop()}
     }, IDLE_LIMIT)
   }
 
   private end() {
     clearTimeout(this.idleTimer)
-    for (const requestId of [...this.pending.keys()]) this.settle(requestId)
+    for (const requestId of [...this.pending.keys()]) {this.settle(requestId)}
     this.running = false
     broadcastActivity()
     this.close()
@@ -479,13 +479,13 @@ export class CodexRun implements ThreadListener {
 
 function threadPreset(settings: Settings) {
   const preset = modePreset(settings.mode)
-  if (preset === null) return {}
+  if (preset === null) {return {}}
   return { approvalPolicy: preset.approvalPolicy, sandbox: preset.sandbox }
 }
 
 function modePreset(mode: string | null) {
-  if (mode === null) return null
+  if (mode === null) {return null}
   const preset = presets.get(mode)
-  if (preset === undefined) throw new Error(`Codex has no ${mode} mode`)
+  if (preset === undefined) {throw new Error(`Codex has no ${mode} mode`)}
   return preset
 }

@@ -104,9 +104,9 @@ const configSchema: z.ZodType<Config> = z.strictObject({
 export const defaults = configSchema.parse({})
 
 export function platform(): Platform {
-  if (process.platform === 'darwin') return 'macos'
-  if (process.platform === 'linux') return 'linux'
-  if (process.platform === 'win32') return 'windows'
+  if (process.platform === 'darwin') {return 'macos'}
+  if (process.platform === 'linux') {return 'linux'}
+  if (process.platform === 'win32') {return 'windows'}
   throw new Error(`unsupported platform ${process.platform}`)
 }
 
@@ -117,7 +117,7 @@ export function claudeBaseDir() {
 }
 
 export function defaultShell() {
-  if (process.platform === 'win32') return process.env.COMSPEC ?? 'cmd.exe'
+  if (process.platform === 'win32') {return process.env.COMSPEC ?? 'cmd.exe'}
   return os.userInfo().shell ?? '/bin/sh'
 }
 
@@ -139,7 +139,7 @@ export function readConfig() {
     console.warn(`invalid ${configFile}, using the default config: ${error}`)
     return structuredClone(defaults)
   }
-  if (user === null) return structuredClone(defaults)
+  if (user === null) {return structuredClone(defaults)}
   const result = configSchema.safeParse(user)
   if (!result.success) {
     console.warn(
@@ -152,7 +152,7 @@ export function readConfig() {
 
 export function saveConfig(value: unknown) {
   const result = configSchema.safeParse(value)
-  if (!result.success) throw new Error(z.prettifyError(result.error))
+  if (!result.success) {throw new Error(z.prettifyError(result.error))}
   writeJson('config.json', result.data)
   process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
   broadcast({ type: 'config', config: result.data })

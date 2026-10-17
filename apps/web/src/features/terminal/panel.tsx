@@ -71,17 +71,17 @@ export function TerminalPanel(props: { projectId: string }) {
 
   useEffect(() => {
     if (active)
-      send({ type: 'select', projectId: props.projectId, tabId: null })
+      {send({ type: 'select', projectId: props.projectId, tabId: null })}
   }, [props.projectId, active])
 
   if (!state.loaded)
-    return (
+    {return (
       <div className="text-muted-foreground grid h-full place-items-center p-4 text-xs whitespace-pre-wrap">
         {state.failure === null
           ? 'Starting the terminal…'
           : `The terminal could not start: ${state.failure}`}
       </div>
-    )
+    )}
 
   return (
     <div ref={shortcuts} className="flex h-full flex-col text-sm">
@@ -223,7 +223,7 @@ function TerminalPane(props: { id: number }) {
   const container = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!container.current) throw new Error('terminal container missing')
+    if (!container.current) {throw new Error('terminal container missing')}
     return mount(props.id, container.current)
   }, [props.id])
 
@@ -323,7 +323,7 @@ function MinimizedTabs(props: {
 }
 
 function AttentionDot(props: { id: number; className: string }) {
-  if (!getState().alerts.includes(props.id)) return null
+  if (!getState().alerts.includes(props.id)) {return null}
   return <span className={cn('bg-primary', props.className)} />
 }
 
@@ -344,11 +344,11 @@ function CountBadge(props: { count: number; alert: boolean }) {
 
 function TabProgress(props: { progress: Progress | undefined }) {
   const progress = props.progress
-  if (!progress || progress.state === 0) return null
+  if (!progress || progress.state === 0) {return null}
   if (progress.state === 3)
-    return (
+    {return (
       <span className="bg-primary absolute inset-x-0 bottom-0 h-0.5 animate-pulse" />
-    )
+    )}
   return (
     <span
       className={cn(

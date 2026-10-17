@@ -70,7 +70,7 @@ export async function terminalRequest(
     return
   }
   const connection = connections.get(client)
-  if (connection === undefined) throw new Error('the terminal is not attached')
+  if (connection === undefined) {throw new Error('the terminal is not attached')}
   await request(connection, message)
 }
 
@@ -85,15 +85,15 @@ export function terminalInput(client: Client, frame: Buffer) {
 
 export function detachTerminal(client: Client) {
   const connection = connections.get(client)
-  if (connection === undefined) return
+  if (connection === undefined) {return}
   connections.delete(client)
   for (const terminal of terminals.values())
-    if (terminal.owner === connection) terminal.owner = null
+    {if (terminal.owner === connection) terminal.owner = null}
 }
 
 export async function busyTerminal(id: number): Promise<BusyResult> {
   const terminal = terminals.get(id)
-  if (terminal === undefined) return { program: null }
+  if (terminal === undefined) {return { program: null }}
   try {
     return { program: await busyProgram(terminal.pty.pid) }
   } catch (error) {
@@ -105,7 +105,7 @@ export async function busyTerminal(id: number): Promise<BusyResult> {
 export function savePastedImage(type: string, data: Buffer) {
   const extension = pasteTypes[type]
   if (extension === undefined)
-    throw new Error('pasted image must be a PNG, JPEG, GIF or WebP image')
+    {throw new Error('pasted image must be a PNG, JPEG, GIF or WebP image')}
   const directory = path.join(home, 'paste')
   mkdirSync(directory, { recursive: true })
   const file = path.join(
@@ -126,13 +126,13 @@ function attach(client: Client) {
     instance,
   })
   for (const project of projects.values())
-    for (const tab of project.tabs)
+    {for (const tab of project.tabs)
       forward(
         connection,
         tab.id,
         true,
         Buffer.concat(terminals.get(tab.id)?.history ?? [])
-      )
+      )}
 }
 
 async function request(
@@ -142,7 +142,7 @@ async function request(
   switch (message.type) {
     case 'resize': {
       const terminal = terminals.get(message.id)
-      if (terminal === undefined) return
+      if (terminal === undefined) {return}
       connection.sizes.set(message.id, {
         cols: message.cols,
         rows: message.rows,
@@ -159,7 +159,7 @@ async function request(
       break
     case 'renameTab': {
       const tab = findTab(message.id)
-      if (tab === undefined) return
+      if (tab === undefined) {return}
       tab.customName = message.name === '' ? null : message.name
       break
     }
@@ -167,9 +167,9 @@ async function request(
       const project = [...projects.values()].find((item) =>
         item.tabs.some((tab) => tab.id === message.id)
       )
-      if (project === undefined) return
+      if (project === undefined) {return}
       if (!project.tabs.some((tab) => tab.id !== message.id && !tab.minimized))
-        return
+        {return}
       const index = project.tabs.findIndex((tab) => tab.id === message.id)
       project.tabs[index].minimized = true
       if (project.activeTab === message.id) {
@@ -189,7 +189,7 @@ async function request(
         tab.minimized = false
         project.activeTab = tab.id
       }
-      if (project.tabs.length === 0) await createTab(message.projectId)
+      if (project.tabs.length === 0) {await createTab(message.projectId)}
       break
     }
   }
@@ -210,7 +210,7 @@ function input(connection: Connection, bytes: Buffer) {
     return
   }
   if (frame.kind === FRAME_REPLY) {
-    if (terminal.owner !== null && terminal.owner !== connection) return
+    if (terminal.owner !== null && terminal.owner !== connection) {return}
   } else if (frame.kind === FRAME_INPUT) {
     const size = connection.sizes.get(frame.id)
     if (terminal.owner !== connection && size !== undefined) {
@@ -268,7 +268,7 @@ async function createTab(projectId: string) {
   pty.onExit(() => {
     terminals.delete(id)
     paused.delete(pty)
-    if (closeTab(id)) publish()
+    if (closeTab(id)) {publish()}
   })
 }
 
@@ -276,23 +276,23 @@ function closeTab(id: number) {
   const project = [...projects.values()].find((item) =>
     item.tabs.some((tab) => tab.id === id)
   )
-  if (project === undefined) return false
+  if (project === undefined) {return false}
   const index = project.tabs.findIndex((tab) => tab.id === id)
   project.tabs.splice(index, 1)
   if (project.activeTab === id) {
     let next: number | undefined = nearestVisible(project.tabs, index)
     if (next === undefined && project.tabs.length > 0)
-      next = Math.min(index, project.tabs.length - 1)
-    if (next !== undefined) project.tabs[next].minimized = false
+      {next = Math.min(index, project.tabs.length - 1)}
+    if (next !== undefined) {project.tabs[next].minimized = false}
     project.activeTab = next === undefined ? null : project.tabs[next].id
   }
   const terminal = terminals.get(id)
-  if (terminal === undefined) return true
+  if (terminal === undefined) {return true}
   terminal.pty.kill()
   if (process.platform !== 'win32')
-    setTimeout(() => {
+    {setTimeout(() => {
       if (terminals.get(id) === terminal) terminal.pty.kill('SIGKILL')
-    }, KILL_DELAY)
+    }, KILL_DELAY)}
   return true
 }
 
@@ -304,7 +304,7 @@ function output(id: number, terminal: Terminal, data: Buffer) {
     terminal.history.shift()
   }
   for (const connection of connections.values())
-    forward(connection, id, false, data)
+    {forward(connection, id, false, data)}
   scan(id, terminal, data)
   if (
     [...connections.values()].some(
@@ -323,10 +323,10 @@ function drain() {
     let full = false
     for (const connection of connections.values()) {
       const queued = connection.client.socket.bufferedAmount
-      if (queued <= OUTPUT_LIMIT) continue
+      if (queued <= OUTPUT_LIMIT) {continue}
       const now = Date.now()
       const last = progress.get(connection) ?? { queued: Infinity, at: now }
-      if (queued < last.queued) last.at = now
+      if (queued < last.queued) {last.at = now}
       last.queued = queued
       progress.set(connection, last)
       if (now - last.at > STALL_LIMIT) {
@@ -336,10 +336,10 @@ function drain() {
       }
       full = true
     }
-    if (full) return
-    if (draining !== null) clearInterval(draining)
+    if (full) {return}
+    if (draining !== null) {clearInterval(draining)}
     draining = null
-    for (const pty of paused) pty.resume()
+    for (const pty of paused) {pty.resume()}
     paused.clear()
   }, 10)
 }
@@ -350,35 +350,35 @@ function scan(id: number, terminal: Terminal, data: Buffer) {
     return
   }
   const alert = terminal.scanner.scan(data)
-  if (alert === null || notifierWatching()) return
+  if (alert === null || notifierWatching()) {return}
   const started =
     alert.type === 'bell'
       ? terminal.alerts.startBell()
       : terminal.alerts.startNotification()
-  if (!started) return
+  if (!started) {return}
   const windowTitle = terminal.scanner.title
   setTimeout(() => push(id, alert, windowTitle), ALERT_DELAY)
 }
 
 function push(id: number, alert: Alert, windowTitle: string) {
   const terminal = terminals.get(id)
-  if (terminal === undefined) return
+  if (terminal === undefined) {return}
   let title = ''
   let body: string
   if (alert.type === 'bell') {
-    if (!terminal.alerts.finishBell()) return
+    if (!terminal.alerts.finishBell()) {return}
     body = 'Bell'
   } else {
     title = alert.title
     body = alert.body
   }
-  if (notifierWatching()) return
+  if (notifierWatching()) {return}
   const entry = [...projects].find(([, project]) =>
     project.tabs.some((tab) => tab.id === id)
   )
-  if (entry === undefined) return
+  if (entry === undefined) {return}
   const tab = findTab(id)
-  if (title === '') title = tab?.customName ?? (windowTitle || 'Terminal')
+  if (title === '') {title = tab?.customName ?? (windowTitle || 'Terminal')}
   void sendPush({
     kind: 'terminal',
     title,
@@ -390,7 +390,7 @@ function push(id: number, alert: Alert, windowTitle: string) {
 
 function notifierWatching() {
   const client = notifierClient()
-  if (client === null || !connections.has(client)) return false
+  if (client === null || !connections.has(client)) {return false}
   return Date.now() - client.heardAt < SILENCE_LIMIT
 }
 
@@ -402,13 +402,13 @@ function findTab(id: number): TerminalTab | undefined {
 
 function nearestVisible(tabs: TerminalTab[], index: number) {
   for (let position = index; position < tabs.length; position++)
-    if (!tabs[position].minimized) return position
+    {if (!tabs[position].minimized) return position}
   for (
     let position = Math.min(index, tabs.length) - 1;
     position >= 0;
     position--
   )
-    if (!tabs[position].minimized) return position
+    {if (!tabs[position].minimized) return position}
   return undefined
 }
 
@@ -418,7 +418,7 @@ function layout(): TerminalLayout {
 
 function publish() {
   const event: TerminalEvent = { type: 'layout', layout: layout() }
-  for (const connection of connections.values()) send(connection, event)
+  for (const connection of connections.values()) {send(connection, event)}
 }
 
 function forward(

@@ -66,16 +66,16 @@ export function FolderDialog(props: {
   }
 
   useEffect(() => {
-    if (path.trim() === '') return
+    if (path.trim() === '') {return}
     let cancelled = false
     const timer = setTimeout(async () => {
       try {
         const next = await call(machine, 'directories.list', { path })
-        if (cancelled) return
+        if (cancelled) {return}
         setLoaded({ path, listing: next })
         setError(null)
       } catch (failure) {
-        if (cancelled) return
+        if (cancelled) {return}
         setLoaded(null)
         setError(errorMessage(failure))
       }
@@ -111,7 +111,7 @@ export function FolderDialog(props: {
             disabled={listing?.parent === undefined || listing.parent === null}
             onClick={() => {
               if (listing?.parent !== undefined && listing.parent !== null)
-                open(listing.parent)
+                {open(listing.parent)}
             }}
           >
             <HugeiconsIcon icon={ArrowUp02Icon} />
@@ -195,7 +195,7 @@ export function FolderDialog(props: {
           <Button
             disabled={loaded?.path !== path || adding}
             onClick={async () => {
-              if (loaded === null || loaded.path !== path) return
+              if (loaded === null || loaded.path !== path) {return}
               setAdding(true)
               try {
                 props.onAdd({
@@ -314,7 +314,7 @@ export function EditProjectDialog(props: {
                 onChange={async (event) => {
                   const file = event.target.files?.[0]
                   event.target.value = ''
-                  if (file === undefined) return
+                  if (file === undefined) {return}
                   setLogo(`data:${file.type};base64,${await readBase64(file)}`)
                 }}
               />
@@ -403,9 +403,9 @@ function IconPickerDialog(props: {
         const next = await call(props.machine, 'files.list', {
           projectId: props.projectId,
         })
-        if (!cancelled) setFiles(next)
+        if (!cancelled) {setFiles(next)}
       } catch (failure) {
-        if (!cancelled) setError(errorMessage(failure))
+        if (!cancelled) {setError(errorMessage(failure))}
       }
     })()
     return () => {
@@ -452,12 +452,12 @@ function IconPickerDialog(props: {
                     path: file,
                   })
                   if (preview.kind === 'image')
-                    props.onPick(
+                    {props.onPick(
                       `data:${preview.mediaType};base64,${preview.data}`
-                    )
+                    )}
                   else if (preview.kind === 'large')
-                    setError(`${file} is too large`)
-                  else setError(`${file} is not an image`)
+                    {setError(`${file} is too large`)}
+                  else {setError(`${file} is not an image`)}
                 } catch (failure) {
                   setError(errorMessage(failure))
                 }

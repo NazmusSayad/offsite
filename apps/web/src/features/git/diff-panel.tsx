@@ -41,10 +41,10 @@ export function DiffPanel(props: {
   const storageKey = `diffCollapsed:${props.machine}:${props.projectId}`
   const [collapsed, setCollapsed] = useState<string[]>(() => {
     const stored = localStorage.getItem(storageKey)
-    if (stored === null) return []
+    if (stored === null) {return []}
     const names: unknown = JSON.parse(stored)
     if (Array.isArray(names) && names.every((name) => typeof name === 'string'))
-      return names
+      {return names}
     throw new Error(`invalid ${storageKey} in localStorage`)
   })
 
@@ -61,7 +61,7 @@ export function DiffPanel(props: {
     let current = true
     call(props.machine, 'git.diff', { projectId: props.projectId }).then(
       (patch) => {
-        if (!current) return
+        if (!current) {return}
         setFiles(
           patch.trim() === ''
             ? []
@@ -72,7 +72,7 @@ export function DiffPanel(props: {
         setError(null)
       },
       (caught: unknown) => {
-        if (current) setError(errorMessage(caught))
+        if (current) {setError(errorMessage(caught))}
       }
     )
     return () => {

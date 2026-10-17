@@ -90,18 +90,18 @@ const handlers: Handlers = {
     const before = readConfig()
     const saved = saveConfig(params)
     for (const provider of ['claude', 'codex', 'opencode'] as const)
-      if (
+      {if (
         before.enabledProviders[provider] &&
         !saved.enabledProviders[provider]
       )
-        await stopProvider(provider)
+        await stopProvider(provider)}
     if (
       JSON.stringify(saved.claudeBaseDir) ===
         JSON.stringify(before.claudeBaseDir) &&
       JSON.stringify(saved.enabledProviders) ===
         JSON.stringify(before.enabledProviders)
     )
-      return saved
+      {return saved}
     watchSessions()
     refreshAll()
     void publishAccounts()
@@ -183,7 +183,7 @@ const handlers: Handlers = {
   },
   'sessions.respond': async (params) => {
     const run = runs.get(params.sessionId)
-    if (run === undefined) return null
+    if (run === undefined) {return null}
     await run.respond(params.requestId, params.decision, params.answers)
     recordInteraction(params.sessionId)
     return null
@@ -293,7 +293,7 @@ async function answer(client: Client, text: string) {
   }
   try {
     if (!Object.hasOwn(handlers, call.method))
-      throw new Error(`unknown method ${call.method}`)
+      {throw new Error(`unknown method ${call.method}`)}
     const handler = handlers[call.method] as (
       params: unknown,
       client: Client

@@ -42,13 +42,13 @@ export function ToolPart(props: {
   const item = props.item
   const pending = props.live && item.status === 'running'
   if (item.status === 'failed')
-    return (
+    {return (
       <ErrorCard
         title={toolTitle(item)}
         subtitle={subtitleOf(item, props.cwd)}
         error={item.output}
       />
-    )
+    )}
   switch (item.kind) {
     case 'command':
       return (
@@ -63,13 +63,13 @@ export function ToolPart(props: {
     case 'web_search': {
       const url = item.url
       if (url === null)
-        return (
+        {return (
           <WebSearchTool
             query={item.query ?? ''}
             links={item.results}
             pending={pending}
           />
-        )
+        )}
       return (
         <ToolRow
           title="Webfetch"

@@ -21,7 +21,7 @@ export function redeemCode(code: string) {
     .where(eq(pairingCodes.hash, hash(code)))
     .returning()
     .get()
-  if (found === undefined || found.expiresAt <= Date.now()) return null
+  if (found === undefined || found.expiresAt <= Date.now()) {return null}
   const token = randomBytes(32).toString('base64url')
   const now = Date.now()
   db.insert(devices)

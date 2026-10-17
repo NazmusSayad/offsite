@@ -29,7 +29,7 @@ export function AgentsSection(props: { machine: string; config: Config }) {
           value={config.delivery}
           onValueChange={(delivery) => {
             if (delivery !== 'queue' && delivery !== 'steer')
-              throw new Error(`Unknown delivery ${delivery}`)
+              {throw new Error(`Unknown delivery ${delivery}`)}
             void updateConfig(props.machine, { ...config, delivery })
           }}
         >
@@ -58,7 +58,7 @@ export function AgentsSection(props: { machine: string; config: Config }) {
                   permissionDecision !== 'allow' &&
                   permissionDecision !== 'deny'
                 )
-                  throw new Error(`Unknown decision ${permissionDecision}`)
+                  {throw new Error(`Unknown decision ${permissionDecision}`)}
                 save({ permissionDecision })
               }}
             >

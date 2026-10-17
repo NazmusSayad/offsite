@@ -33,24 +33,24 @@ self.addEventListener('push', (event) => {
 
 function notificationData(message) {
   if (message.kind === 'terminal')
-    return {
+    {return {
       kind: 'terminal',
       machine: message.machineId,
       project: message.projectId,
       tabId: message.tabId,
-    }
+    }}
   if (message.kind === 'session')
-    return {
+    {return {
       kind: 'session',
       machine: message.machineId,
       project: message.projectId,
       sessionId: message.sessionId,
-    }
+    }}
   throw new Error(`unknown push kind ${message.kind}`)
 }
 
 function readMessage(data) {
-  if (!data) return null
+  if (!data) {return null}
   try {
     return data.json()
   } catch {
@@ -64,7 +64,7 @@ self.addEventListener('pushsubscriptionchange', (event) => {
 
 async function renewSubscription(event) {
   const keys = await stored('/push-keys')
-  if (!keys) return
+  if (!keys) {return}
   const machines = (await stored('/machines')) ?? []
   const subscription =
     event.newSubscription ??
@@ -75,9 +75,9 @@ async function renewSubscription(event) {
   await Promise.allSettled(
     machines.map(async (machine) => {
       if (event.oldSubscription)
-        await call(machine, 'push.unsubscribe', {
+        {await call(machine, 'push.unsubscribe', {
           endpoint: event.oldSubscription.endpoint,
-        })
+        })}
       await call(machine, 'push.subscribe', {
         subscription: subscription.toJSON(),
         ...keys,
@@ -111,7 +111,7 @@ async function callAddress(address, id, method, params) {
     method: 'POST',
     headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
   })
-  if (!response.ok) throw new Error(await response.text())
+  if (!response.ok) {throw new Error(await response.text())}
   const body = await response.json()
   const query =
     body.ticket === null
@@ -122,10 +122,10 @@ async function callAddress(address, id, method, params) {
     socket.onopen = () => socket.send(JSON.stringify({ id: 1, method, params }))
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data)
-      if (message.type !== 'reply') return
+      if (message.type !== 'reply') {return}
       socket.close()
-      if ('error' in message) reject(new Error(message.error))
-      else resolve(message.result)
+      if ('error' in message) {reject(new Error(message.error))}
+      else {resolve(message.result)}
     }
     socket.onclose = () => reject(new Error('offsite closed the connection'))
   })
@@ -147,19 +147,19 @@ async function openTarget(target) {
     return
   }
   if (target?.kind === 'terminal')
-    page.postMessage({
+    {page.postMessage({
       type: 'select',
       machine: target.machine,
       project: target.project,
       tabId: target.tabId,
-    })
+    })}
   if (target?.kind === 'session')
-    page.postMessage({
+    {page.postMessage({
       type: 'openSession',
       machine: target.machine,
       project: target.project,
       sessionId: target.sessionId,
-    })
+    })}
   await page.focus()
 }
 
@@ -167,7 +167,7 @@ function targetParams(target) {
   const params = new URLSearchParams()
   params.set('machine', target.machine)
   params.set('project', target.project)
-  if (target.kind === 'terminal') params.set('terminal', String(target.tabId))
-  if (target.kind === 'session') params.set('session', target.sessionId)
+  if (target.kind === 'terminal') {params.set('terminal', String(target.tabId))}
+  if (target.kind === 'session') {params.set('session', target.sessionId)}
   return params
 }

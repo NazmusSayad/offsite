@@ -32,7 +32,7 @@ export function MarkdownTable(props: { children: ReactNode }) {
   const copyLabel = clipboard.copied ? 'Copied' : 'Copy table'
   function copy(format: 'markdown' | 'csv') {
     const element = table.current
-    if (element === null) return
+    if (element === null) {return}
     const rows = [...element.rows].map((row) =>
       [...row.cells].map((cell) => (cell.textContent ?? '').trim())
     )
@@ -75,13 +75,13 @@ export function MarkdownTable(props: { children: ReactNode }) {
               if (element !== null && !expanded) {
                 const widths: number[] = []
                 for (const row of element.rows)
-                  [...row.cells].forEach((cell, index) => {
+                  {[...row.cells].forEach((cell, index) => {
                     widths[index] = Math.max(
                       widths[index] ?? 0,
                       cell.getBoundingClientRect().width
                     )
                   })
-                ;[...(element.tHead?.rows[0]?.cells ?? [])].forEach(
+                ;}[...(element.tHead?.rows[0]?.cells ?? [])].forEach(
                   (cell, index) => {
                     cell.style.minWidth = `${widths[index]}px`
                   }

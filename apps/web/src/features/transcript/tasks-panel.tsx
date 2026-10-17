@@ -283,7 +283,7 @@ function TaskView(props: {
 
   useEffect(() => {
     const path = props.path
-    if (path === null) return
+    if (path === null) {return}
     let current = true
     async function load(file: string) {
       try {
@@ -291,11 +291,11 @@ function TaskView(props: {
           sessionId: props.sessionId,
           path: file,
         })
-        if (!current) return
+        if (!current) {return}
         setOutput(result)
         setError(null)
       } catch (caught) {
-        if (current) setError(errorMessage(caught))
+        if (current) {setError(errorMessage(caught))}
       }
     }
     void load(path)
@@ -304,14 +304,14 @@ function TaskView(props: {
       : null
     return () => {
       current = false
-      if (timer !== null) window.clearInterval(timer)
+      if (timer !== null) {window.clearInterval(timer)}
     }
   }, [props.machine, props.sessionId, props.path, props.running])
 
   useLayoutEffect(() => {
     const element = scroller.current
     if (element !== null && pinned.current)
-      element.scrollTop = element.scrollHeight
+      {element.scrollTop = element.scrollHeight}
   }, [output, props.events])
 
   const shown =
@@ -380,7 +380,7 @@ function AgentView(props: {
   useLayoutEffect(() => {
     const element = scroller.current
     if (element !== null && pinned.current)
-      element.scrollTop = element.scrollHeight
+      {element.scrollTop = element.scrollHeight}
   }, [props.items, props.running])
 
   function toggle(key: string) {
@@ -396,7 +396,7 @@ function AgentView(props: {
 
   useEffect(() => {
     if (missing && props.agentId !== null)
-      void loadAgent(props.item.id, props.agentId)
+      {void loadAgent(props.item.id, props.agentId)}
   }, [missing, props.item.id, props.agentId])
 
   const first = agentItems.at(0)

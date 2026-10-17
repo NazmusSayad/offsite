@@ -42,7 +42,7 @@ export class OutputScanner {
         continue
       }
       if (this.state === 'ground') {
-        if (byte === ESC) this.state = 'escape'
+        if (byte === ESC) {this.state = 'escape'}
         continue
       }
       if (this.state === 'escape') {
@@ -70,7 +70,7 @@ export class OutputScanner {
               index + 1
             )
           )
-            return index + 1
+            {return index + 1}
           continue
         }
         if (byte === ESC) {
@@ -88,7 +88,7 @@ export class OutputScanner {
               index + 1
             )
           )
-            return index + 1
+            {return index + 1}
           continue
         }
         this.drop()
@@ -102,7 +102,7 @@ export class OutputScanner {
           continue
         }
         if (byte >= 0x20 && byte <= 0x3f) {
-          if (this.params.length < 16) this.params += String.fromCharCode(byte)
+          if (this.params.length < 16) {this.params += String.fromCharCode(byte)}
           continue
         }
         this.state = 'dcs'
@@ -122,8 +122,8 @@ export class OutputScanner {
       if (byte === 0x5c) {
         this.state = 'ground'
         if (this.collecting)
-          if (onEvent({ type: 'sixel', data: this.take() }, index + 1))
-            return index + 1
+          {if (onEvent({ type: 'sixel', data: this.take() }, index + 1))
+            return index + 1}
         continue
       }
       this.drop()
@@ -131,7 +131,7 @@ export class OutputScanner {
       index -= 1
     }
     if (this.state === 'osc' || this.state === 'dcs')
-      this.append(bytes, start, bytes.length)
+      {this.append(bytes, start, bytes.length)}
     return bytes.length
   }
 
@@ -142,7 +142,7 @@ export class OutputScanner {
   }
 
   private append(bytes: Uint8Array, start: number, end: number) {
-    if (!this.collecting || end <= start) return
+    if (!this.collecting || end <= start) {return}
     if (this.size + end - start > PAYLOAD_LIMIT) {
       this.drop()
       return

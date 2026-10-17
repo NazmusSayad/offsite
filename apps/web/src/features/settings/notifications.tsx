@@ -67,7 +67,7 @@ function NotificationSwitch() {
 
   useEffect(() => {
     const current = notificationPermission()
-    if (current === 'insecure' || current === 'unsupported') return
+    if (current === 'insecure' || current === 'unsupported') {return}
     const controller = new AbortController()
     watchPermission(controller.signal, () =>
       setPermission(notificationPermission())
@@ -106,16 +106,16 @@ function PushSwitch() {
   const [failure, setFailure] = useState<string | null>(null)
 
   useEffect(() => {
-    if (pushSupport() !== 'supported') return
+    if (pushSupport() !== 'supported') {return}
     let mounted = true
     async function load() {
       try {
         const value = await pushSubscribed()
-        if (mounted) setSubscribed(value)
+        if (mounted) {setSubscribed(value)}
       } catch (error) {
         console.error('could not read the push subscription', error)
       }
-      if (mounted) setBusy(false)
+      if (mounted) {setBusy(false)}
     }
     void load()
     return () => {
@@ -127,7 +127,7 @@ function PushSwitch() {
     setBusy(true)
     setFailure(null)
     try {
-      if (checked) setSubscribed(await subscribePush())
+      if (checked) {setSubscribed(await subscribePush())}
       else {
         await unsubscribePush()
         setSubscribed(false)
