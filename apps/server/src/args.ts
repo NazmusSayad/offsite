@@ -17,6 +17,7 @@ const program = new Command('offsite')
   .option('--no-auth', 'Accept connections without pairing')
   .option('--no-pair', "Don't create a pairing code or print pairing links")
   .option('--pwa', 'Serve the web app as an installable app that works offline')
+  .configureHelp({ showGlobalOptions: true })
 
 program
   .command('web', { isDefault: true })
@@ -48,6 +49,9 @@ program
 program.parse()
 
 const options = program.opts()
+
+if (!options.auth && !options.pair)
+  program.error("error: --no-pair can't be used with --no-auth")
 
 export const args = {
   ...options,
