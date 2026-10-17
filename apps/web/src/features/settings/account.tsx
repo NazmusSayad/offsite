@@ -235,19 +235,19 @@ export function NewAccountPage(props: {
       {error !== null && (
         <p className="text-destructive px-1 text-xs">{error}</p>
       )}
-      <div className="flex gap-2">
-        <Button
-          type="submit"
-          disabled={busy || name.trim() === '' || configDir.trim() === ''}
-        >
-          Add account
-        </Button>
+      <div className="flex justify-end gap-2">
         <Button
           type="button"
           variant="ghost"
           onClick={() => update({ settingsAccount: null })}
         >
           Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={busy || name.trim() === '' || configDir.trim() === ''}
+        >
+          Add account
         </Button>
       </div>
     </form>
