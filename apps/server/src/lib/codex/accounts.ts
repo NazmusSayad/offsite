@@ -29,10 +29,11 @@ const windowNames = new Map([
 ])
 
 export async function codexAccount(account: StoredAccount): Promise<Account> {
-  const linked = isMirror(account.configDir)
+  const configDir = account.configDir ?? codexBaseDir
+  const linked = isMirror(configDir)
   const base = { ...account, email: null, plan: null, limits: [], linked }
   try {
-    const server = appServer(account.configDir)
+    const server = appServer(configDir)
     const result = await server.request<{ account: CodexLogin | null }>(
       'account/read',
       {}
@@ -40,7 +41,7 @@ export async function codexAccount(account: StoredAccount): Promise<Account> {
     if (result.account === null)
       return {
         ...base,
-        error: `Not logged in. Run CODEX_HOME=${account.configDir} codex login in a terminal`,
+        error: `Not logged in. Run CODEX_HOME=${configDir} codex login in a terminal`,
         valid: false,
       }
     switch (result.account.type) {
@@ -71,7 +72,7 @@ export async function codexCapabilities(
   account: StoredAccount,
   cwd: string
 ): Promise<ProviderCapabilities> {
-  const server = appServer(account.configDir)
+  const server = appServer(account.configDir ?? codexBaseDir)
   const models: CodexModel[] = []
   let cursor: string | null = null
   do {
@@ -118,7 +119,10 @@ export async function skills(server: AppServer, cwd: string) {
 
 export function publishCodexLimits(home: string, snapshot: RateLimitSnapshot) {
   for (const account of storedAccounts())
-    if (account.provider === 'codex' && account.configDir === home)
+    if (
+      account.provider === 'codex' &&
+      (account.configDir ?? codexBaseDir) === home
+    )
       broadcast({
         type: 'limits',
         accountId: account.id,
