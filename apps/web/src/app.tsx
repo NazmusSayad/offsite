@@ -11,7 +11,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { Fragment, useState, useSyncExternalStore } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useProjectName } from '@/api/projects'
-import { ProjectIcon } from '@/components/icons'
+import { machineIcons, ProjectIcon } from '@/components/icons'
 import { Toast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
 import { Composer } from '@/features/composer/composer'
@@ -174,6 +174,16 @@ export function App() {
             {selection !== null && machine !== null && (
               <nav className="min-w-0 flex-1">
                 <ol className="flex min-w-0 items-center gap-2 text-sm sm:gap-3">
+                  <li className="text-icon-muted flex shrink-0 items-center gap-1.5">
+                    <HugeiconsIcon
+                      icon={machineIcons[machine.icon]}
+                      className="size-3.5 shrink-0"
+                    />
+                    <span className="max-w-40 truncate">{machine.name}</span>
+                  </li>
+                  <li aria-hidden className="text-icon-muted shrink-0">
+                    /
+                  </li>
                   <li
                     className="text-muted-foreground flex min-w-0 shrink items-center gap-1.5 font-medium"
                     title={`${machine.name}:${cwd}`}
