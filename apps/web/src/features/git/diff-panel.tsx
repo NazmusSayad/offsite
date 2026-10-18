@@ -245,7 +245,7 @@ export function DiffPanel(props: {
                   themeType: 'dark',
                   unsafeCSS: diffCss,
                   collapsed: closed,
-                  lineDiffType: 'char',
+                  lineDiffType: 'word-alt',
                   overflow: diff.wrap ? 'wrap' : 'scroll',
                   diffStyle: diff.split ? 'split' : 'unified',
                 }}

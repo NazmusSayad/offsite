@@ -43,7 +43,7 @@
   );
   --diffs-bg-addition-emphasis-override: color-mix(
     in srgb,
-    var(--code-background) 80%,
+    var(--code-background) 65%,
     var(--diff-addition)
   );
 
@@ -54,7 +54,7 @@
   );
   --diffs-bg-deletion-emphasis-override: color-mix(
     in srgb,
-    var(--code-background) 80%,
+    var(--code-background) 65%,
     var(--diff-deletion)
   );
 
