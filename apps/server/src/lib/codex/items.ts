@@ -1,5 +1,11 @@
-import type { Item, ItemImage, ItemStatus } from '@offsite/core/items'
+import type {
+  ImageAttachment,
+  Item,
+  ItemImage,
+  ItemStatus,
+} from '@offsite/core/items'
 import { isRecord } from '../claude/content.ts'
+import { saveImage } from '../images.ts'
 import type { Status, ThreadItem, Turn, UserInput } from './types.ts'
 
 const statuses: Record<Status | 'interrupted', ItemStatus> = {
@@ -191,7 +197,7 @@ export function toItems(
 function userText(input: UserInput) {
   switch (input.type) {
     case 'text':
-      return [input.text]
+      return [input.text.replaceAll(/\[Image: source: [^\]]+\]/g, '')]
     case 'skill':
     case 'mention':
       return [`$${input.name}`]
@@ -199,6 +205,26 @@ function userText(input: UserInput) {
     case 'localImage':
       return []
   }
+}
+
+export async function imageInputs(
+  sessionId: string,
+  images: ImageAttachment[]
+): Promise<UserInput[]> {
+  const files = await Promise.all(
+    images.map((image) => saveImage(sessionId, image))
+  )
+  return [
+    ...images.map((image) => ({
+      type: 'image' as const,
+      url: `data:${image.mediaType};base64,${image.data}`,
+    })),
+    ...files.map((file) => ({
+      type: 'text' as const,
+      text: `[Image: source: ${file}]`,
+      text_elements: [] as [],
+    })),
+  ]
 }
 
 function userImages(input: UserInput): ItemImage[] {

@@ -125,6 +125,7 @@ export function UserMessage(props: {
                       onRewind({
                         messageId: item.id,
                         text: prompt,
+                        images: item.images,
                         first: props.first,
                       })
                     }

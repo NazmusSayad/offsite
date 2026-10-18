@@ -4,7 +4,12 @@ import type {
   ConfigWithDefaults,
   SessionSettings,
 } from '@offsite/core/config'
-import type { Item, PermissionRequest, QueuedPrompt } from '@offsite/core/items'
+import type {
+  Item,
+  PermissionRequest,
+  Prompt,
+  QueuedPrompt,
+} from '@offsite/core/items'
 import type { Project } from '@offsite/core/projects'
 import type {
   Account,
@@ -94,7 +99,7 @@ export type State = {
   requests: PermissionRequest[]
   queue: QueuedPrompt[]
   settings: SessionSettings
-  draft: string | null
+  draft: Prompt | null
   context: ContextUsage | null
   capabilities: Capabilities | null
   error: string | null
@@ -179,7 +184,7 @@ export function draftKey(selection: Selection) {
   )
 }
 
-export function setDraft(draft: string | null) {
+export function setDraft(draft: Prompt | null) {
   update({ draft })
 }
 

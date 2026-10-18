@@ -18,7 +18,7 @@ import {
   type Params,
   type ThreadListener,
 } from './app-server.ts'
-import { errorItem, itemId, toItems } from './items.ts'
+import { errorItem, imageInputs, itemId, toItems } from './items.ts'
 import { reply, toRequest } from './requests.ts'
 import type { ThreadItem, ThreadStarted, Turn, UserInput } from './types.ts'
 
@@ -423,10 +423,7 @@ export class CodexRun implements ThreadListener {
       ...(text === ''
         ? []
         : [{ type: 'text' as const, text, text_elements: [] as [] }]),
-      ...prompt.images.map((image) => ({
-        type: 'image' as const,
-        url: `data:${image.mediaType};base64,${image.data}`,
-      })),
+      ...(await imageInputs(this.sessionId, prompt.images)),
     ]
   }
 

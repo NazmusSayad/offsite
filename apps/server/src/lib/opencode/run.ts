@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { pathToFileURL } from 'node:url'
 import type { PromptDelivery, SessionSettings } from '@offsite/core/config'
 import type {
   PermissionDecision,
@@ -17,6 +18,7 @@ import type {
 } from '@opencode/client'
 import { errorItem } from '../codex/index.ts'
 import { publish } from '../hub.ts'
+import { saveImage } from '../images.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import { openCode } from './client.ts'
 import { formAnswer, formQuestions, messageItems } from './items.ts'
@@ -113,7 +115,7 @@ export class OpenCodeRun {
         ).session.prompt({
           sessionID: this.sessionId,
           text: prompt.text,
-          files: files(prompt),
+          files: await files(this.sessionId, prompt),
           delivery: 'steer',
         })
         return
@@ -351,7 +353,7 @@ export class OpenCodeRun {
           sessionID,
           name: match[1],
           text: match[2],
-          files: files(prompt),
+          files: await files(sessionID, prompt),
         })
         return
       }
@@ -361,7 +363,7 @@ export class OpenCodeRun {
         await client.session.prompt({
           sessionID,
           text: match[2],
-          files: files(prompt),
+          files: await files(sessionID, prompt),
           skills: [{ id: skill.id }],
         })
         return
@@ -370,7 +372,7 @@ export class OpenCodeRun {
     await client.session.prompt({
       sessionID,
       text: prompt.text,
-      files: files(prompt),
+      files: await files(sessionID, prompt),
     })
   }
 
@@ -519,8 +521,10 @@ export class OpenCodeRun {
   }
 }
 
-function files(prompt: Prompt) {
-  return prompt.images.map((image) => ({
-    uri: `data:${image.mediaType};base64,${image.data}`,
-  }))
+function files(sessionId: string, prompt: Prompt) {
+  return Promise.all(
+    prompt.images.map(async (image) => ({
+      uri: pathToFileURL(await saveImage(sessionId, image)).href,
+    }))
+  )
 }

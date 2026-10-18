@@ -15,8 +15,9 @@ import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { summary, ToolDetails } from '@/features/transcript/tool-details'
 import { respond } from '@/lib/sessions'
-import { showError } from '@/lib/store'
+import { getState, showError } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { lastImageNumber } from './attached-images'
 
 const recommendedSuffix = '(Recommended)'
 
@@ -77,10 +78,17 @@ export function PermissionPrompt(props: {
   machine: string
   cwd: string
   count: number
+  draft: string
 }) {
   const request = props.request
   if (request.kind === 'question') {
-    return <QuestionPrompt machine={props.machine} request={request} />
+    return (
+      <QuestionPrompt
+        machine={props.machine}
+        request={request}
+        draft={props.draft}
+      />
+    )
   }
   const plan = request.kind === 'plan'
   const detail = plan ? '' : summary(request.item, props.cwd)
@@ -159,6 +167,7 @@ export function PermissionPrompt(props: {
 function QuestionPrompt(props: {
   machine: string
   request: Extract<PermissionRequest, { kind: 'question' }>
+  draft: string
 }) {
   const questions = props.request.questions
   const [active, setActive] = useState(0)
@@ -214,14 +223,23 @@ function QuestionPrompt(props: {
   }
 
   async function attach(question: Question, files: File[]) {
+    let number = lastImageNumber(getState().items, [
+      props.draft,
+      ...Object.values(other),
+    ])
     for (const file of files) {
       try {
         const path = await uploadFile(props.machine, file)
+        let value = path
+        if (file.type.startsWith('image/')) {
+          number += 1
+          value = `[Image #${number}] (saved at ${path})`
+        }
         setOther((current) => {
           const text = current[question.question] ?? ''
           return {
             ...current,
-            [question.question]: `${text}${/(^|\s)$/.test(text) ? '' : ' '}${path}`,
+            [question.question]: `${text}${/(^|\s)$/.test(text) ? '' : ' '}${value}`,
           }
         })
         if (!question.multiSelect) {

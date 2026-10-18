@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { listen, startConnections } from '@/api/connection'
 import { start } from '@/api/sync'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { loadDrafts } from '@/features/composer/drafts'
 import { startTerminal } from '@/features/terminal/session'
 import { refreshPushSubscription } from '@/lib/notifications'
 import { openSession } from '@/lib/sessions'
@@ -44,6 +45,7 @@ if ('serviceWorker' in navigator) {
     )
 }
 
+await loadDrafts()
 startConnections()
 listen({
   open: (machine) => {
