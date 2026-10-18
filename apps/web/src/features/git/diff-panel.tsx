@@ -241,13 +241,13 @@ export function DiffPanel(props: {
                 key={file.name}
                 fileDiff={file}
                 options={{
-                  collapsed: closed,
-                  diffStyle: diff.split ? 'split' : 'unified',
-                  lineDiffType: 'none',
-                  overflow: diff.wrap ? 'wrap' : 'scroll',
                   theme: codeTheme,
                   themeType: 'dark',
                   unsafeCSS: diffCss,
+                  collapsed: closed,
+                  lineDiffType: 'char',
+                  overflow: diff.wrap ? 'wrap' : 'scroll',
+                  diffStyle: diff.split ? 'split' : 'unified',
                 }}
                 renderHeaderPrefix={() => (
                   <button
