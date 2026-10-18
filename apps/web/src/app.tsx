@@ -22,6 +22,7 @@ import { Toast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
 import { Composer } from '@/features/composer/composer'
 import { FilesPanel } from '@/features/files/files-panel'
+import { CommitToast } from '@/features/git/commit-toast'
 import { DiffPanel } from '@/features/git/diff-panel'
 import { GitActions, useGitStatus } from '@/features/git/git-menu'
 import { SettingsDialog } from '@/features/settings/dialog'
@@ -454,7 +455,10 @@ export function App() {
       )}
       <Palette />
       <SettingsDialog />
-      <Toast />
+      <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+        <CommitToast />
+        <Toast />
+      </div>
     </div>
   )
 }
