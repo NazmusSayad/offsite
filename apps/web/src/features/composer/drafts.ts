@@ -10,7 +10,7 @@ import {
 
 type Draft = {
   text: string
-  images: ImageAttachment[]
+  images: (ImageAttachment & { number: number })[]
   settings: SessionSettings | null
 }
 type Drafts = { drafts: Record<string, Draft> }
@@ -35,6 +35,15 @@ const useDrafts = create<Drafts>()(
   persist(() => ({ drafts: {} }), {
     name: storageKey,
     storage,
+    version: 1,
+    migrate: (persisted) => ({
+      drafts: Object.fromEntries(
+        Object.entries((persisted as Drafts).drafts).map((entry) => [
+          entry[0],
+          { ...entry[1], images: [] },
+        ])
+      ),
+    }),
   })
 )
 
@@ -82,6 +91,10 @@ export function editDraft(key: string, change: (draft: Draft) => Draft) {
 
 export function deleteDraft(key: string) {
   editDraft(key, () => empty)
+}
+
+export function getDraft(key: string) {
+  return useDrafts.getState().drafts[key] ?? empty
 }
 
 export function getDraftSettings(key: string) {

@@ -1,3 +1,4 @@
+import type { ItemImage } from '@offsite/core/items'
 import type { RewindResult } from '@offsite/core/sessions'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
@@ -14,7 +15,12 @@ import { getState, projectOf, setDraft, useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 import { relative } from './tool-details'
 
-export type RewindTarget = { messageId: string; text: string; first: boolean }
+export type RewindTarget = {
+  messageId: string
+  text: string
+  images: ItemImage[]
+  first: boolean
+}
 
 export function RewindDialog(props: {
   target: RewindTarget | null
@@ -80,6 +86,19 @@ export function RewindDialog(props: {
     setBusy(true)
     setError(null)
     try {
+      const images = conversation
+        ? await Promise.all(
+            target.images.map((image, index) =>
+              image.data === null
+                ? call(machine, 'sessions.image', {
+                    sessionId,
+                    itemId: target.messageId,
+                    index,
+                  })
+                : { mediaType: image.mediaType, data: image.data }
+            )
+          )
+        : []
       const truncate =
         conversation && (!target.first || provider === 'opencode')
       if (code || truncate) {
@@ -97,7 +116,7 @@ export function RewindDialog(props: {
         openSession({ machine, projectId, sessionId: null })
       }
       if (conversation) {
-        setDraft(target.text)
+        setDraft({ text: target.text, images })
       }
       props.onClose()
     } catch (caught) {

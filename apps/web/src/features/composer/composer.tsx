@@ -1,4 +1,4 @@
-import { PaperclipIcon, XIcon } from '@hugeicons/core-free-icons'
+import { PaperclipIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Item } from '@offsite/core/items'
 import { useEffect, useRef, useState } from 'react'
@@ -6,7 +6,6 @@ import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { readBase64, uploadFile } from '@/api/upload'
 import { Button } from '@/components/ui/button'
-import { ViewableImage } from '@/components/viewable-image'
 import { changeSettings } from '@/lib/accounts'
 import { interrupt, sendPrompt } from '@/lib/sessions'
 import {
@@ -19,8 +18,13 @@ import {
   useStore,
 } from '@/lib/store'
 import { cn, mod } from '@/lib/utils'
+import {
+  AttachedImages,
+  lastImageNumber,
+  restoredDraft,
+} from './attached-images'
 import { ComposerMenu, type Suggestion } from './composer-menu'
-import { editDraft, useDraft } from './drafts'
+import { editDraft, getDraft, useDraft } from './drafts'
 import { MoreMenu, providerModes } from './more-menu'
 import { PermissionPrompt } from './permission-prompt'
 import { Pickers } from './pickers'
@@ -83,8 +87,9 @@ export function Composer() {
     if (draft === null) {
       return
     }
-    editDraft(key, (current) => ({ ...current, text: draft }))
-    setCaret(draft.length)
+    const restored = restoredDraft(draft)
+    editDraft(key, (current) => ({ ...current, ...restored }))
+    setCaret(restored.text.length)
     setDraft(null)
     input.current?.focus()
   }, [draft, key])
@@ -134,7 +139,13 @@ export function Composer() {
     noAccount
 
   function edit(value: string, position: number) {
-    editDraft(key, (current) => ({ ...current, text: value }))
+    editDraft(key, (current) => ({
+      ...current,
+      text: value,
+      images: current.images.filter((image) =>
+        value.includes(`[Image #${image.number}]`)
+      ),
+    }))
     setCaret(position)
     setActive(0)
     setMenuClosed(false)
@@ -162,7 +173,13 @@ export function Composer() {
         throw new Error('This machine is not connected')
       }
       await sendPrompt(
-        { text: text.trim(), images },
+        {
+          text: text.trim(),
+          images: images.map((image) => ({
+            mediaType: image.mediaType,
+            data: image.data,
+          })),
+        },
         swap ? (delivery === 'queue' ? 'steer' : 'queue') : delivery
       )
       editDraft(key, (current) => ({ ...current, text: '', images: [] }))
@@ -185,13 +202,27 @@ export function Composer() {
   }
 
   async function attach(list: File[]) {
+    let position = caret
+    let space = /(^|\s)$/.test(text.slice(0, caret)) ? '' : ' '
     for (const file of list) {
       if (imageTypes.includes(file.type) && file.size <= maxImageSize) {
         const data = await readBase64(file)
+        const number =
+          lastImageNumber(getState().items, [getDraft(key).text]) + 1
+        const image = { number, mediaType: file.type, data }
+        const at = position
+        const marker = `${space}[Image #${number}] `
+        space = ''
         editDraft(key, (current) => ({
           ...current,
-          images: [...current.images, { mediaType: file.type, data }],
+          text: `${current.text.slice(0, at)}${marker}${current.text.slice(at)}`,
+          images: [...current.images, image],
         }))
+        position += marker.length
+        setCaret(position)
+        requestAnimationFrame(() =>
+          input.current?.setSelectionRange(position, position)
+        )
         continue
       }
       setUploads((count) => count + 1)
@@ -235,6 +266,7 @@ export function Composer() {
               machine={machine}
               cwd={project?.path ?? ''}
               count={requests.length}
+              draft={text}
             />
           )}
           {suggestions.length > 0 && (
@@ -271,38 +303,7 @@ export function Composer() {
             }}
           >
             <div className={cn('pb-2', images.length > 0 && 'pt-3.5 sm:pt-4')}>
-              {images.length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-2 px-3 sm:px-4">
-                  {images.map((image, index) => (
-                    <div
-                      key={index}
-                      className="border-border/80 bg-background relative size-16 overflow-hidden rounded-lg border"
-                    >
-                      <ViewableImage
-                        src={`data:${image.mediaType};base64,${image.data}`}
-                        alt=""
-                        name="Image"
-                        className="block size-full"
-                        imageClassName="size-full object-cover"
-                      />
-                      <button
-                        className="absolute top-1 right-1 grid size-5 cursor-pointer place-items-center rounded-full bg-black/60 text-white"
-                        title="Remove image"
-                        onClick={() =>
-                          editDraft(key, (current) => ({
-                            ...current,
-                            images: current.images.filter(
-                              (_, other) => other !== index
-                            ),
-                          }))
-                        }
-                      >
-                        <HugeiconsIcon icon={XIcon} className="size-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {images.length > 0 && <AttachedImages draftKey={key} />}
               <textarea
                 ref={input}
                 data-composer

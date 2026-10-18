@@ -77,6 +77,9 @@ export function toUserInput(
     message: {
       role: 'user',
       content: [
+        ...(prompt.text === ''
+          ? []
+          : [{ type: 'text' as const, text: prompt.text }]),
         ...prompt.images.map((image) => ({
           type: 'image' as const,
           source: {
@@ -85,9 +88,6 @@ export function toUserInput(
             data: image.data,
           },
         })),
-        ...(prompt.text === ''
-          ? []
-          : [{ type: 'text' as const, text: prompt.text }]),
       ],
     },
     parent_tool_use_id: null,
@@ -102,10 +102,10 @@ export function promptMessage(prompt: Prompt, uuid: string): Message {
     uuid,
     time: Date.now(),
     content: [
-      ...prompt.images.map((image) => ({ type: 'image' as const, ...image })),
       ...(prompt.text === ''
         ? []
         : [{ type: 'text' as const, text: prompt.text }]),
+      ...prompt.images.map((image) => ({ type: 'image' as const, ...image })),
     ],
     parent: null,
   }

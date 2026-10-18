@@ -241,7 +241,9 @@ async function find(
           {
             id: thread.id,
             provider: 'codex' as const,
-            title: thread.name ?? thread.preview,
+            title:
+              thread.name ??
+              thread.preview.replaceAll(/\[Image: source: [^\]]+\]/g, ''),
             projectId,
             branch: thread.gitInfo?.branch ?? null,
             updatedAt: thread.updatedAt * 1000,
