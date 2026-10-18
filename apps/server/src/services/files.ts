@@ -19,7 +19,12 @@ const READ_LIMIT = 1024 * 1024
 const MEDIA_LINK_LIFETIME = 60 * 60_000
 const mediaLinks = new Map<
   string,
-  { file: string; mediaType: string; expiresAt: number }
+  {
+    file: string
+    mediaType: string
+    download: string | null
+    expiresAt: number
+  }
 >()
 const skipped = new Set([
   'node_modules',
@@ -96,6 +101,18 @@ export function linkProjectMedia(cwd: string, file: string) {
   if (mediaType === undefined) {
     throw new Error(`${file} is not an image, video or audio file`)
   }
+  return addLink(full, mediaType, null)
+}
+
+export function linkProjectDownload(cwd: string, file: string) {
+  return addLink(
+    resolveProjectFile(cwd, file),
+    'application/octet-stream',
+    path.basename(file)
+  )
+}
+
+function addLink(file: string, mediaType: string, download: string | null) {
   for (const [token, link] of mediaLinks) {
     if (link.expiresAt <= Date.now()) {
       mediaLinks.delete(token)
@@ -103,8 +120,9 @@ export function linkProjectMedia(cwd: string, file: string) {
   }
   const token = randomBytes(32).toString('base64url')
   mediaLinks.set(token, {
-    file: full,
+    file,
     mediaType,
+    download,
     expiresAt: Date.now() + MEDIA_LINK_LIFETIME,
   })
   return token

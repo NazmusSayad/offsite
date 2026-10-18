@@ -1,9 +1,14 @@
-import { AtIcon, CheckIcon, CopyIcon } from '@hugeicons/core-free-icons'
+import {
+  AtIcon,
+  CheckIcon,
+  CopyIcon,
+  Download01Icon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { FilePreview as Preview } from '@offsite/core/projects'
 import { File } from '@pierre/diffs/react'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { call } from '@/api/connection'
+import { call, machineUrl } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { Markdown } from '@/components/markdown/markdown'
 import { PreviewDialog, PreviewHeader } from '@/components/preview-dialog'
@@ -115,6 +120,27 @@ function PreviewBody(props: {
   return (
     <>
       <PreviewHeader title={props.path}>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          title="Download"
+          aria-label="Download"
+          onClick={async () => {
+            try {
+              const token = await call(props.machine, 'files.download', {
+                projectId: props.projectId,
+                path: props.path,
+              })
+              const anchor = document.createElement('a')
+              anchor.href = `${machineUrl(props.machine)}/api/media?${new URLSearchParams({ token })}`
+              anchor.click()
+            } catch (caught) {
+              setError(errorMessage(caught))
+            }
+          }}
+        >
+          <HugeiconsIcon icon={Download01Icon} className="size-3.5" />
+        </Button>
         <Button
           size="icon-sm"
           variant="ghost"

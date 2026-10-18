@@ -164,6 +164,10 @@ export type RpcMethods = {
     result: FilePreview
   }
   'files.media': { params: { projectId: string; path: string }; result: string }
+  'files.download': {
+    params: { projectId: string; path: string }
+    result: string
+  }
   'files.upload': { params: { name: string; data: string }; result: string }
   'tasks.output': {
     params: { sessionId: string; path: string }

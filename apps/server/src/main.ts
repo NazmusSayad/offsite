@@ -233,6 +233,12 @@ function serveMedia(
     return
   }
   response.setHeader('content-type', link.mediaType)
+  if (link.download !== null) {
+    response.setHeader(
+      'content-disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(link.download)}`
+    )
+  }
   response.setHeader('accept-ranges', 'bytes')
   response.setHeader('cache-control', 'private, max-age=3600')
   response.setHeader('content-security-policy', 'sandbox')
