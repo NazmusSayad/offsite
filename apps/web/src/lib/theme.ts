@@ -24,7 +24,7 @@ export function applyTheme() {
   const style = document.documentElement.style
   style.setProperty('--bg', scheme.background)
   style.setProperty('--text', scheme.foreground)
-  style.setProperty('--brand', scheme.palette[4])
+  style.setProperty('--blue', scheme.palette[4])
   style.setProperty('--danger', scheme.palette[1])
   style.setProperty('--green', scheme.palette[2])
   style.setProperty('--yellow', scheme.palette[3])

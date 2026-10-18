@@ -80,7 +80,8 @@
   color-scheme: dark;
   --bg: #15181c;
   --text: #abb2bf;
-  --brand: #61afef;
+  --blue: #61afef;
+  --brand: color-mix(in srgb, var(--text) 25%, white);
   --danger: #ee5d69;
   --green: #97c775;
   --yellow: #b68353;
@@ -118,8 +119,8 @@
   --border: color-mix(in srgb, var(--text) 6%, transparent);
   --input: color-mix(in srgb, var(--text) 10%, transparent);
   --ring: var(--brand);
-  --info: var(--brand);
-  --info-foreground: var(--brand);
+  --info: var(--blue);
+  --info-foreground: var(--blue);
   --success: var(--green);
   --warning: var(--yellow);
   --warning-foreground: var(--yellow);
