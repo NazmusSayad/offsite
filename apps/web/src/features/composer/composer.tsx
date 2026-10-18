@@ -219,7 +219,7 @@ export function Composer() {
       )}
     >
       <div className={cn('w-full px-3 sm:px-12', hero && 'pb-3 sm:pb-4')}>
-        <div className="pointer-events-auto relative z-10 mx-auto w-full max-w-(--chat-content-max-width)">
+        <div className="pointer-events-auto relative z-10 mx-auto w-full max-w-[calc(var(--chat-content-max-width)+1rem)]">
           {hero && (
             <ProjectHeading
               machine={machine}
