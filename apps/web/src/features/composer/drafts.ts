@@ -25,21 +25,8 @@ const save = debounce(
 )
 
 const storage: PersistStorage<Drafts> = {
-  getItem: async (name) => {
-    const stored = await get<StorageValue<Drafts>>(name, database)
-    const legacy = localStorage.getItem(name)
-    if (stored !== undefined) {
-      localStorage.removeItem(name)
-      return stored
-    }
-    if (legacy === null) {
-      return null
-    }
-    const value: StorageValue<Drafts> = JSON.parse(legacy)
-    await set(name, value, database)
-    localStorage.removeItem(name)
-    return value
-  },
+  getItem: async (name) =>
+    (await get<StorageValue<Drafts>>(name, database)) ?? null,
   setItem: (_name, value) => save(value),
   removeItem: (name) => del(name, database),
 }
@@ -49,15 +36,6 @@ const useDrafts = create<Drafts>()(
     name: storageKey,
     storage,
     skipHydration: true,
-    version: 1,
-    migrate: (persisted) => ({
-      drafts: Object.fromEntries(
-        Object.entries((persisted as Drafts).drafts).map((entry) => [
-          entry[0],
-          { ...entry[1], images: [] },
-        ])
-      ),
-    }),
   })
 )
 
