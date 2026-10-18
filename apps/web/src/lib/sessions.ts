@@ -218,6 +218,28 @@ export async function editSession(
       item.machine === machine && item.id === id ? { ...item, ...patch } : item
     ),
   })
+  const selection = getState().selection
+  if (
+    patch.status === 'inactive' &&
+    selection?.machine === machine &&
+    selection.sessionId === id
+  ) {
+    const latest = getState()
+      .sessions.filter(
+        (item) => item.status === 'pinned' || item.status === 'active'
+      )
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .at(0)
+    openSession(
+      latest === undefined
+        ? { ...selection, sessionId: null }
+        : {
+            machine: latest.machine,
+            projectId: latest.projectId,
+            sessionId: latest.id,
+          }
+    )
+  }
   try {
     await call(machine, 'sessions.update', { id, patch })
   } catch (error) {
