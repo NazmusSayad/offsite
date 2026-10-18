@@ -9,7 +9,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
-import { isEqual, sumBy } from 'es-toolkit'
+import { isEqual } from 'es-toolkit'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
@@ -255,10 +255,6 @@ export function GitActions(props: {
                 className={cn('size-3.5 shrink-0', syncing && 'animate-spin')}
               />
               <span className="truncate">{branchesLabel}</span>
-              <SyncCounts
-                behind={sumBy(unsynced, (item) => item.repo.behind)}
-                ahead={sumBy(unsynced, (item) => item.repo.ahead)}
-              />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">

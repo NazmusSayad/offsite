@@ -103,7 +103,6 @@ export function BranchPicker(props: {
             className="size-3.5 shrink-0"
           />
           <span className="truncate">{props.repo.branch ?? 'detached'}</span>
-          <SyncCounts behind={props.repo.behind} ahead={props.repo.ahead} />
         </button>
       </PopoverTrigger>
       <PopoverContent
