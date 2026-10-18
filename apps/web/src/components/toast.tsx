@@ -34,7 +34,7 @@ export function Toast() {
     return null
   }
   return (
-    <div className="bg-popover text-popover-foreground fixed right-4 bottom-4 z-50 rounded-md border px-3 py-2 shadow-md">
+    <div className="bg-popover text-popover-foreground rounded-md border px-3 py-2 shadow-md">
       {current}
     </div>
   )

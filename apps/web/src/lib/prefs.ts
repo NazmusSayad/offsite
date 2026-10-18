@@ -52,11 +52,14 @@ const prefsSchema = z.strictObject({
       wrap: z.boolean().default(true),
     })
     .prefault({}),
+  rewind: z.enum(['all', 'chat', 'code']).default('chat'),
 })
 
 export type Prefs = z.infer<typeof prefsSchema>
 
 export type TerminalPrefs = Prefs['terminal']
+
+export type RewindMode = Prefs['rewind']
 
 const storageKey = 'prefs'
 

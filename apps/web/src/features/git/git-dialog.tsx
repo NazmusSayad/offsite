@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import { projectOf, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
+import { startCommit } from './commit-toast'
 import {
   BaseSelect,
   type Draft,
@@ -138,21 +139,18 @@ export function GitDialog(props: {
   }
 
   function commit(andPush: boolean) {
-    start(
-      message.trim() === '' ? 'Writing message and committing…' : 'Committing…',
-      async (repo) => {
-        const result = await call(props.machine, 'git.commit', {
-          projectId: props.projectId,
-          repo,
-          message,
-          push: andPush,
-        })
-        patch(repo, {
-          state: 'done',
-          text: `${andPush ? 'Committed and pushed' : 'Committed'}: ${result.message.split('\n')[0]}`,
-        })
-      }
-    )
+    startCommit({
+      machine: props.machine,
+      projectId: props.projectId,
+      repos: chosen.map((repo) => ({
+        path: repo.path,
+        name: repoName(repo.path, projectName),
+      })),
+      message,
+      push: andPush,
+      onRefresh: props.onRefresh,
+    })
+    props.onClose()
   }
 
   function push() {
@@ -410,17 +408,19 @@ export function GitDialog(props: {
               return (
                 <div key={entry.path} className="flex flex-col gap-2">
                   <div className="flex items-start gap-2">
-                    <HugeiconsIcon
-                      icon={stateIcons[entry.state]}
-                      className={cn(
-                        'mt-0.5 size-4 shrink-0',
-                        entry.state === 'working' && 'animate-spin',
-                        entry.state === 'review' && 'text-info',
-                        entry.state === 'done' && 'text-success',
-                        entry.state === 'failed' && 'text-destructive',
-                        entry.state === 'skipped' && 'text-muted-foreground'
-                      )}
-                    />
+                    <span className="mt-0.5 flex size-4 shrink-0 overflow-hidden">
+                      <HugeiconsIcon
+                        icon={stateIcons[entry.state]}
+                        className={cn(
+                          'size-4',
+                          entry.state === 'working' && 'animate-spin',
+                          entry.state === 'review' && 'text-info',
+                          entry.state === 'done' && 'text-success',
+                          entry.state === 'failed' && 'text-destructive',
+                          entry.state === 'skipped' && 'text-muted-foreground'
+                        )}
+                      />
+                    </span>
                     <span className="shrink-0 font-medium">
                       {repoName(entry.path, projectName)}
                     </span>
