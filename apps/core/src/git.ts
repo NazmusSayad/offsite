@@ -2,6 +2,7 @@ export type GitRepo = {
   path: string
   branch: string | null
   upstream: string | null
+  remote: boolean
   ahead: number
   behind: number
   changed: number

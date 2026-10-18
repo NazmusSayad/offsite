@@ -1,4 +1,5 @@
 import {
+  ArrowDataTransferVerticalIcon,
   ChevronDownIcon,
   CircleDashedIcon,
   CloudUploadIcon,
@@ -8,6 +9,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
+import { isEqual, sumBy } from 'es-toolkit'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
@@ -22,8 +24,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { showError } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { BranchPicker } from './branch-picker'
+import { BranchPicker, SyncCounts, syncAction } from './branch-picker'
 import { type Action, eligible, GitDialog } from './git-dialog'
+
+const STATUS_REFRESH = 3000
+const FETCH_REFRESH = 180_000
 
 export function useGitStatus(
   machine: string,
@@ -37,24 +42,87 @@ export function useGitStatus(
   const [version, setVersion] = useState(0)
 
   useEffect(() => {
-    if (projectId === null || running) {
+    if (projectId === null) {
       return
     }
+    const key = machineKey(machine, projectId)
+    const params = { projectId }
     let current = true
-    call(machine, 'git.status', { projectId }).then((repos) => {
-      if (current) {
-        setResult({ key: machineKey(machine, projectId), repos })
+    let loading = false
+    let failed = false
+    async function load() {
+      if (loading) {
+        return
       }
-    }, showError)
-    function refresh() {
-      setVersion((value) => value + 1)
+      loading = true
+      try {
+        const repos = await call(machine, 'git.status', params)
+        if (!current) {
+          return
+        }
+        failed = false
+        setResult((previous) =>
+          previous !== null &&
+          previous.key === key &&
+          isEqual(previous.repos, repos)
+            ? previous
+            : { key, repos }
+        )
+      } catch (error) {
+        if (current && !failed) {
+          failed = true
+          showError(error)
+        }
+      } finally {
+        loading = false
+      }
     }
+    function refresh() {
+      if (!document.hidden) {
+        void load()
+      }
+    }
+    void load()
+    const timer = window.setInterval(refresh, STATUS_REFRESH)
     window.addEventListener('focus', refresh)
     return () => {
       current = false
+      window.clearInterval(timer)
       window.removeEventListener('focus', refresh)
     }
   }, [machine, projectId, running, version])
+
+  useEffect(() => {
+    if (projectId === null) {
+      return
+    }
+    const params = { projectId }
+    let current = true
+    let failed = false
+    async function fetchRemote() {
+      if (document.hidden) {
+        return
+      }
+      try {
+        await call(machine, 'git.fetch', params)
+        if (current) {
+          failed = false
+          setVersion((value) => value + 1)
+        }
+      } catch (error) {
+        if (current && !failed) {
+          failed = true
+          showError(error)
+        }
+      }
+    }
+    void fetchRemote()
+    const timer = window.setInterval(fetchRemote, FETCH_REFRESH)
+    return () => {
+      current = false
+      window.clearInterval(timer)
+    }
+  }, [machine, projectId])
 
   return {
     repos:
@@ -77,12 +145,26 @@ export function GitActions(props: {
   const [menuOpen, setMenuOpen] = useState(false)
   const [pushing, setPushing] = useState(false)
   const [committing, setCommitting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const unpushed = props.repos.reduce((total, repo) => total + repo.ahead, 0)
   const branches = [
     ...new Set(props.repos.map((repo) => repo.branch ?? 'detached')),
   ]
   const pushable = eligible(props.repos, 'push')
   const committable = eligible(props.repos, 'commit')
+  const unsynced = props.repos.flatMap((repo) => {
+    const next = syncAction(repo)
+    return next === null ? [] : [{ repo, next }]
+  })
+  const branchesTitle = props.repos
+    .map((repo) =>
+      repo.path === ''
+        ? (repo.branch ?? 'detached')
+        : `${repo.path}: ${repo.branch ?? 'detached'}`
+    )
+    .join('\n')
+  const branchesLabel =
+    branches.length === 1 ? branches[0] : `${branches.length} branches`
 
   async function push(repo: string) {
     setPushing(true)
@@ -96,6 +178,21 @@ export function GitActions(props: {
       showError(error)
     } finally {
       setPushing(false)
+      props.onRefresh()
+    }
+  }
+
+  async function sync(repo: string) {
+    setSyncing(true)
+    try {
+      await call(props.machine, 'git.sync', {
+        projectId: props.projectId,
+        repo,
+      })
+    } catch (error) {
+      showError(error)
+    } finally {
+      setSyncing(false)
       props.onRefresh()
     }
   }
@@ -131,24 +228,61 @@ export function GitActions(props: {
           onRefresh={props.onRefresh}
         />
       )}
-      {props.repos.length > 1 && (
+      {props.repos.length > 1 && unsynced.length === 0 && (
         <span
           className="text-muted-foreground hidden max-w-48 items-center gap-1 text-xs sm:flex"
-          title={props.repos
-            .map((repo) =>
-              repo.path === ''
-                ? (repo.branch ?? 'detached')
-                : `${repo.path}: ${repo.branch ?? 'detached'}`
-            )
-            .join('\n')}
+          title={branchesTitle}
         >
           <HugeiconsIcon icon={GitBranchIcon} className="size-3.5 shrink-0" />
-          <span className="truncate">
-            {branches.length === 1
-              ? branches[0]
-              : `${branches.length} branches`}
-          </span>
+          <span className="truncate">{branchesLabel}</span>
         </span>
+      )}
+      {props.repos.length > 1 && unsynced.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="text-muted-foreground hover:text-foreground hidden max-w-48 cursor-pointer items-center gap-1 text-xs sm:flex"
+              title={branchesTitle}
+            >
+              <HugeiconsIcon
+                icon={
+                  syncing
+                    ? CircleDashedIcon
+                    : unsynced.length === 1
+                      ? unsynced[0].next.icon
+                      : ArrowDataTransferVerticalIcon
+                }
+                className={cn('size-3.5 shrink-0', syncing && 'animate-spin')}
+              />
+              <span className="truncate">{branchesLabel}</span>
+              <SyncCounts
+                behind={sumBy(unsynced, (item) => item.repo.behind)}
+                ahead={sumBy(unsynced, (item) => item.repo.ahead)}
+              />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            {unsynced.map((item) => (
+              <DropdownMenuItem
+                key={item.repo.path}
+                disabled={syncing}
+                onSelect={() => void sync(item.repo.path)}
+              >
+                <HugeiconsIcon icon={item.next.icon} />
+                <span className="min-w-0 flex-1 truncate">
+                  {item.next.label} ·{' '}
+                  {item.repo.path === '' ? item.repo.branch : item.repo.path}
+                </span>
+                <span className="text-muted-foreground flex gap-1 text-xs">
+                  <SyncCounts
+                    behind={item.repo.behind}
+                    ahead={item.repo.ahead}
+                  />
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
       <div className="flex w-fit">
         <Button

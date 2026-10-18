@@ -1,5 +1,10 @@
 import {
+  ArrowDataTransferVerticalIcon,
+  ArrowDown02Icon,
+  ArrowUp02Icon,
   CheckIcon,
+  CircleDashedIcon,
+  CloudUploadIcon,
   GitBranchIcon,
   PlusSignIcon,
   SearchIcon,
@@ -26,6 +31,8 @@ export function BranchPicker(props: {
   const [branches, setBranches] = useState<string[] | null>(null)
   const [query, setQuery] = useState('')
   const [switching, setSwitching] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const action = syncAction(props.repo)
   const searchInput = useRef<HTMLInputElement>(null)
   const name = query.trim()
   const matches = (branches ?? []).filter((branch) =>
@@ -44,6 +51,26 @@ export function BranchPicker(props: {
       projectId: props.projectId,
       repo: props.repo.path,
     }).then(setBranches, showError)
+    call(props.machine, 'git.fetch', { projectId: props.projectId }).then(
+      props.onRefresh,
+      showError
+    )
+  }
+
+  async function sync() {
+    setSyncing(true)
+    try {
+      await call(props.machine, 'git.sync', {
+        projectId: props.projectId,
+        repo: props.repo.path,
+      })
+      setOpen(false)
+    } catch (error) {
+      showError(error)
+    } finally {
+      setSyncing(false)
+      props.onRefresh()
+    }
   }
 
   async function switchTo(branch: string, create: boolean) {
@@ -71,8 +98,12 @@ export function BranchPicker(props: {
           className="text-muted-foreground hover:text-foreground hidden max-w-48 cursor-pointer items-center gap-1 text-xs sm:flex"
           title="Switch or create a branch"
         >
-          <HugeiconsIcon icon={GitBranchIcon} className="size-3.5 shrink-0" />
+          <HugeiconsIcon
+            icon={action === null ? GitBranchIcon : action.icon}
+            className="size-3.5 shrink-0"
+          />
           <span className="truncate">{props.repo.branch ?? 'detached'}</span>
+          <SyncCounts behind={props.repo.behind} ahead={props.repo.ahead} />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -106,6 +137,22 @@ export function BranchPicker(props: {
             />
           </div>
         </div>
+        {action !== null && (
+          <div className="border-border/70 shrink-0 border-b px-2 py-1.5">
+            <button
+              disabled={syncing || switching}
+              className="hover:bg-accent hover:text-accent-foreground flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50"
+              onClick={() => void sync()}
+            >
+              <HugeiconsIcon
+                icon={syncing ? CircleDashedIcon : action.icon}
+                className={cn('size-3.5 shrink-0', syncing && 'animate-spin')}
+              />
+              <span className="min-w-0 flex-1 truncate">{action.label}</span>
+              <SyncCounts behind={props.repo.behind} ahead={props.repo.ahead} />
+            </button>
+          </div>
+        )}
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1.5">
           {branches === null && (
             <p className="text-muted-foreground p-2 text-center text-sm">
@@ -163,4 +210,36 @@ export function BranchPicker(props: {
       </PopoverContent>
     </Popover>
   )
+}
+
+export function SyncCounts(props: { behind: number; ahead: number }) {
+  return (
+    <>
+      {props.behind > 0 && (
+        <span className="shrink-0 tabular-nums">↓{props.behind}</span>
+      )}
+      {props.ahead > 0 && (
+        <span className="shrink-0 tabular-nums">↑{props.ahead}</span>
+      )}
+    </>
+  )
+}
+
+export function syncAction(repo: GitRepo) {
+  if (repo.branch === null || !repo.remote) {
+    return null
+  }
+  if (repo.upstream === null) {
+    return { icon: CloudUploadIcon, label: 'Publish branch' }
+  }
+  if (repo.behind > 0 && repo.ahead > 0) {
+    return { icon: ArrowDataTransferVerticalIcon, label: 'Pull and push' }
+  }
+  if (repo.behind > 0) {
+    return { icon: ArrowDown02Icon, label: 'Pull commits' }
+  }
+  if (repo.ahead > 0) {
+    return { icon: ArrowUp02Icon, label: 'Push commits' }
+  }
+  return null
 }
