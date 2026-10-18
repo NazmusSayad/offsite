@@ -5,7 +5,6 @@ import {
   readdirSync,
   readFileSync,
   readlinkSync,
-  statSync,
 } from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -21,6 +20,7 @@ const DIFF_LIMIT = 80_000
 const UNTRACKED_LIMIT = 100
 const NEW_FILE_LIMIT = 256 * 1024
 const REPO_DEPTH = 3
+const FETCH_TIMEOUT = 60_000
 const run = promisify(execFile)
 
 const PULL_REQUEST_INSTRUCTIONS = `You write GitHub pull requests as Markdown.
@@ -90,19 +90,46 @@ export async function push(cwd: string) {
       await git(cwd, ['push'])
     }
   } catch (error) {
-    throw new Error(
-      (error instanceof Error ? error.message : String(error))
-        .split('\n')
-        .filter(
-          (line) =>
-            line.trim() !== '' &&
-            !line.startsWith('hint:') &&
-            !line.startsWith('Command failed:')
-        )
-        .join('\n'),
-      { cause: error }
-    )
+    throw gitError(error)
   }
+}
+
+export async function sync(cwd: string) {
+  if ((await gitStatus(cwd)).upstream === null) {
+    await push(cwd)
+    return
+  }
+  try {
+    await git(cwd, ['fetch'])
+    const status = await gitStatus(cwd)
+    if (status.behind > 0 && status.ahead === 0) {
+      await git(cwd, ['merge', '--ff-only', '@{upstream}'])
+    }
+    if (status.behind > 0 && status.ahead > 0) {
+      await rebaseOnUpstream(cwd)
+    }
+  } catch (error) {
+    throw gitError(error)
+  }
+  if ((await gitStatus(cwd)).ahead > 0) {
+    await push(cwd)
+  }
+}
+
+export async function fetchProject(cwd: string) {
+  await Promise.all(
+    (await projectRepos(cwd)).map(async (repo) => {
+      try {
+        await run('git', ['fetch'], {
+          cwd: path.join(cwd, repo),
+          env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+          timeout: FETCH_TIMEOUT,
+        })
+      } catch (error) {
+        throw gitError(error)
+      }
+    })
+  )
 }
 
 export async function localBranches(cwd: string) {
@@ -342,10 +369,17 @@ async function projectRepos(cwd: string) {
 }
 
 async function gitStatus(cwd: string) {
-  const output = await git(cwd, ['status', '--porcelain=v2', '--branch'])
+  const output = await git(cwd, [
+    '--no-optional-locks',
+    'status',
+    '--porcelain=v2',
+    '--branch',
+  ])
+  const remotes = await git(cwd, ['remote'])
   const status: Omit<GitRepo, 'path'> = {
     branch: null,
     upstream: null,
+    remote: remotes.stdout.trim() !== '',
     ahead: 0,
     behind: 0,
     changed: 0,
@@ -364,6 +398,37 @@ async function gitStatus(cwd: string) {
     }
   }
   return status
+}
+
+async function rebaseOnUpstream(cwd: string) {
+  try {
+    await git(cwd, ['rebase', '@{upstream}'])
+  } catch (error) {
+    const rebasing = await git(cwd, ['rev-parse', '--git-path', 'rebase-merge'])
+    if (existsSync(path.resolve(cwd, rebasing.stdout.trim()))) {
+      await git(cwd, ['rebase', '--abort'])
+      throw new Error(
+        'Your commits conflict with the remote branch, so nothing was pulled or pushed. Resolve it in a terminal.',
+        { cause: error }
+      )
+    }
+    throw error
+  }
+}
+
+function gitError(error: unknown) {
+  return new Error(
+    (error instanceof Error ? error.message : String(error))
+      .split('\n')
+      .filter(
+        (line) =>
+          line.trim() !== '' &&
+          !line.startsWith('hint:') &&
+          !line.startsWith('Command failed:')
+      )
+      .join('\n'),
+    { cause: error }
+  )
 }
 
 async function isRepo(cwd: string) {
@@ -440,10 +505,14 @@ function newFilePatch(cwd: string, file: string, prefix: string) {
   const name = `${prefix}${file}`
   const header = `diff --git a/${name} b/${name}\nnew file\n--- /dev/null\n+++ b/${name}\n`
   const full = path.join(cwd, file)
-  if (lstatSync(full).isSymbolicLink()) {
+  const stats = lstatSync(full)
+  if (stats.isSymbolicLink()) {
     return `${header}@@ -0,0 +1 @@\n+${readlinkSync(full)}\n`
   }
-  if (statSync(full).size > NEW_FILE_LIMIT) {
+  if (stats.isDirectory()) {
+    return `${header}Nested repository\n`
+  }
+  if (stats.size > NEW_FILE_LIMIT) {
     return `${header}Binary or large file\n`
   }
   const content = readFileSync(full, 'utf8')

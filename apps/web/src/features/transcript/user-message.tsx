@@ -1,8 +1,4 @@
-import {
-  CheckIcon,
-  CopyIcon,
-  PencilEdit02Icon,
-} from '@hugeicons/core-free-icons'
+import { CheckIcon, CopyIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
@@ -10,7 +6,7 @@ import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { ViewableImage } from '@/components/viewable-image'
-import type { RewindTarget } from '@/features/transcript/rewind-dialog'
+import { RewindMenu } from '@/features/transcript/rewind-menu'
 import type { UserItem } from '@/features/transcript/timeline'
 import { useCopy } from '@/lib/clipboard'
 import { clock, fullTime } from '@/lib/format'
@@ -24,10 +20,9 @@ export function UserMessage(props: {
   item: UserItem
   first: boolean
   running: boolean
-  onRewind: ((target: RewindTarget) => void) | null
+  rewind: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
-  const onRewind = props.onRewind
   const item = props.item
   const prompt =
     item.format === 'text' || item.format === 'command' ? item.text : ''
@@ -102,7 +97,7 @@ export function UserMessage(props: {
           </div>
         )}
       </div>
-      <div className="flex w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
+      <div className="flex w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100">
         <div className="flex shrink-0 items-center gap-2">
           {item.time !== null && (
             <Tooltip label={fullTime(item.time)}>
@@ -113,29 +108,16 @@ export function UserMessage(props: {
           )}
           {prompt !== '' && (
             <div className="flex items-center gap-0.5">
-              {onRewind !== null && (
-                <Tooltip label="Edit from here">
-                  <Button
-                    type="button"
-                    size="icon-xs"
-                    variant="ghost-muted"
-                    aria-label="Edit from here"
-                    disabled={props.running}
-                    onClick={() =>
-                      onRewind({
-                        messageId: item.id,
-                        text: prompt,
-                        images: item.images,
-                        first: props.first,
-                      })
-                    }
-                  >
-                    <HugeiconsIcon
-                      icon={PencilEdit02Icon}
-                      className="size-3.5"
-                    />
-                  </Button>
-                </Tooltip>
+              {props.rewind && (
+                <RewindMenu
+                  target={{
+                    messageId: item.id,
+                    text: prompt,
+                    images: item.images,
+                    first: props.first,
+                  }}
+                  disabled={props.running}
+                />
               )}
               <MessageCopyButton text={prompt} />
             </div>

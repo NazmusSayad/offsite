@@ -12,10 +12,6 @@ import { AgentLine } from '@/features/transcript/agent-pill'
 import { ChangedFilesCard } from '@/features/transcript/changed-files'
 import { PlanCard } from '@/features/transcript/plan-card'
 import { QuestionCard } from '@/features/transcript/question-card'
-import {
-  RewindDialog,
-  type RewindTarget,
-} from '@/features/transcript/rewind-dialog'
 import { threadTasks } from '@/features/transcript/tasks'
 import { isTool, mainRows, type Row } from '@/features/transcript/timeline'
 import { ContextGroup } from '@/features/transcript/tool-group'
@@ -52,7 +48,6 @@ export function Transcript(props: {
   const pinned = useRef(true)
   const fromBottom = useRef<number | null>(null)
   const [loadingEarlier, setLoadingEarlier] = useState(false)
-  const [rewind, setRewind] = useState<RewindTarget | null>(null)
   const [expanded, setExpanded] = useState<string[]>([])
   const [top, setTop] = useState<{ key: string; above: number } | null>(null)
   const cwd = useStore((state) =>
@@ -195,7 +190,7 @@ export function Transcript(props: {
                 expanded={expanded.includes(row.key)}
                 onToggle={() => toggle(row.key)}
                 onOpenTask={props.onOpenTask}
-                onRewind={older ? null : setRewind}
+                rewind={!older}
                 onOpenDiff={props.onOpenDiff}
                 cwd={cwd}
               />
@@ -203,7 +198,6 @@ export function Transcript(props: {
           )
         })}
       </div>
-      <RewindDialog target={rewind} onClose={() => setRewind(null)} />
     </div>
   )
 }
@@ -218,7 +212,7 @@ export function RowView(props: {
   expanded: boolean
   onToggle: () => void
   onOpenTask: (id: string) => void
-  onRewind: ((target: RewindTarget) => void) | null
+  rewind: boolean
   onOpenDiff: () => void
 }) {
   const row = props.row
@@ -229,7 +223,7 @@ export function RowView(props: {
           item={row.item}
           first={row.first}
           running={props.running}
-          onRewind={props.onRewind}
+          rewind={props.rewind}
         />
       )
     case 'working':

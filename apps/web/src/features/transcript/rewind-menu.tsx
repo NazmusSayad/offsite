@@ -1,15 +1,19 @@
+import { PencilEdit02Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import type { ItemImage } from '@offsite/core/items'
 import type { RewindResult } from '@offsite/core/sessions'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Tooltip } from '@/components/ui/tooltip'
 import { openSession } from '@/lib/sessions'
 import { getState, projectOf, setDraft, useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
@@ -22,15 +26,14 @@ export type RewindTarget = {
   first: boolean
 }
 
-export function RewindDialog(props: {
-  target: RewindTarget | null
-  onClose: () => void
-}) {
+export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
+  const [open, setOpen] = useState(false)
   const [preview, setPreview] = useState<RewindResult>(null)
   const [codeError, setCodeError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const target = props.target
+  const messageId = target.messageId
   const selection = useStore((state) => state.selection)
   const provider = useStore((state) => state.settings.provider)
   const restoresCode = provider !== 'codex'
@@ -45,19 +48,14 @@ export function RewindDialog(props: {
     setPreview(null)
     setCodeError(null)
     setError(null)
-    if (
-      target === null ||
-      machine === null ||
-      sessionId === null ||
-      !restoresCode
-    ) {
+    if (!open || machine === null || sessionId === null || !restoresCode) {
       return
     }
     let current = true
     call(machine, 'sessions.rewind', {
       sessionId,
       projectId,
-      messageId: target.messageId,
+      messageId,
       settings: getState().settings,
       code: true,
       conversation: false,
@@ -77,10 +75,10 @@ export function RewindDialog(props: {
     return () => {
       current = false
     }
-  }, [target, machine, sessionId, projectId, restoresCode])
+  }, [open, messageId, machine, sessionId, projectId, restoresCode])
 
   async function apply(code: boolean, conversation: boolean) {
-    if (target === null || machine === null || sessionId === null) {
+    if (machine === null || sessionId === null) {
       return
     }
     setBusy(true)
@@ -118,7 +116,7 @@ export function RewindDialog(props: {
       if (conversation) {
         setDraft({ text: target.text, images })
       }
-      props.onClose()
+      setOpen(false)
     } catch (caught) {
       setError(errorMessage(caught))
     } finally {
@@ -128,17 +126,31 @@ export function RewindDialog(props: {
 
   const codeReady = preview !== null && codeError === null
   return (
-    <Dialog open={target !== null} onOpenChange={() => props.onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Rewind to this message</DialogTitle>
-          <DialogDescription>
-            The conversation restarts from just before this message, which goes
-            back into the composer so you can edit and resend it.
-          </DialogDescription>
-        </DialogHeader>
+    <DropdownMenu
+      open={open}
+      onOpenChange={(next) => {
+        if (!busy) {
+          setOpen(next)
+        }
+      }}
+    >
+      <Tooltip label="Edit from here">
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost-muted"
+            aria-label="Edit from here"
+            disabled={props.disabled}
+          >
+            <HugeiconsIcon icon={PencilEdit02Icon} className="size-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+      </Tooltip>
+      <DropdownMenuContent align="end" className="w-72">
+        <DropdownMenuLabel>Edit from this message</DropdownMenuLabel>
         {restoresCode && (
-          <div className="bg-secondary dark:bg-input/20 text-muted-foreground rounded-lg px-3 py-2 text-xs">
+          <div className="text-muted-foreground px-2 pb-1.5 text-xs">
             {codeError !== null && `Code can't be restored: ${codeError}`}
             {codeError === null && preview === null && 'Checking file changes…'}
             {preview !== null &&
@@ -157,7 +169,7 @@ export function RewindDialog(props: {
                   </span>
                   )
                 </div>
-                <ul className="mt-1 max-h-32 overflow-y-auto font-mono">
+                <ul className="mt-1 max-h-24 overflow-y-auto font-mono">
                   {preview.files.map((file) => (
                     <li key={file} className="truncate">
                       {relative(file, cwd)}
@@ -168,36 +180,42 @@ export function RewindDialog(props: {
             )}
           </div>
         )}
-        {error !== null && <p className="text-destructive text-xs">{error}</p>}
-        <div className="flex flex-col gap-2">
-          {restoresCode && (
-            <Button
-              disabled={busy || !codeReady}
-              onClick={() => void apply(true, true)}
-            >
-              Restore code and conversation
-            </Button>
-          )}
-          <Button
-            variant={restoresCode ? 'secondary' : 'default'}
-            disabled={busy}
-            onClick={() => void apply(false, true)}
+        <DropdownMenuSeparator />
+        {restoresCode && (
+          <DropdownMenuItem
+            disabled={busy || !codeReady}
+            onSelect={(event) => {
+              event.preventDefault()
+              void apply(true, true)
+            }}
           >
-            {restoresCode
-              ? 'Restore conversation only'
-              : 'Restore conversation'}
-          </Button>
-          {provider === 'claude' && (
-            <Button
-              variant="secondary"
-              disabled={busy || !codeReady}
-              onClick={() => void apply(true, false)}
-            >
-              Restore code only
-            </Button>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+            Restore code and conversation
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem
+          disabled={busy}
+          onSelect={(event) => {
+            event.preventDefault()
+            void apply(false, true)
+          }}
+        >
+          {restoresCode ? 'Restore conversation only' : 'Restore conversation'}
+        </DropdownMenuItem>
+        {provider === 'claude' && (
+          <DropdownMenuItem
+            disabled={busy || !codeReady}
+            onSelect={(event) => {
+              event.preventDefault()
+              void apply(true, false)
+            }}
+          >
+            Restore code only
+          </DropdownMenuItem>
+        )}
+        {error !== null && (
+          <p className="text-destructive px-2 py-1.5 text-xs">{error}</p>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

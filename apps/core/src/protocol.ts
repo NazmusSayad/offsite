@@ -176,6 +176,8 @@ export type RpcMethods = {
     result: { message: string }
   }
   'git.push': { params: { projectId: string; repo: string }; result: null }
+  'git.sync': { params: { projectId: string; repo: string }; result: null }
+  'git.fetch': { params: { projectId: string }; result: null }
   'git.branches': {
     params: { projectId: string; repo: string }
     result: PullRequestBranches

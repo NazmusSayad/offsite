@@ -26,6 +26,7 @@ import {
 import {
   commit,
   createPullRequest,
+  fetchProject,
   gitRepos,
   localBranches,
   preparePullRequest,
@@ -33,6 +34,7 @@ import {
   pullRequestBranches,
   push,
   switchBranch,
+  sync,
 } from '../services/git.ts'
 import {
   addProject,
@@ -248,6 +250,14 @@ const handlers: Handlers = {
     ),
   'git.push': async (params) => {
     await push(path.join(projectPath(params.projectId), params.repo))
+    return null
+  },
+  'git.sync': async (params) => {
+    await sync(path.join(projectPath(params.projectId), params.repo))
+    return null
+  },
+  'git.fetch': async (params) => {
+    await fetchProject(projectPath(params.projectId))
     return null
   },
   'git.branches': (params) =>

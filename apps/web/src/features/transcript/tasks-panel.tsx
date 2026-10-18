@@ -472,7 +472,7 @@ function AgentView(props: {
               expanded={expanded.includes(row.key)}
               onToggle={() => toggle(row.key)}
               onOpenTask={props.onSelect}
-              onRewind={null}
+              rewind={false}
               onOpenDiff={props.onOpenDiff}
               cwd={props.cwd}
             />
