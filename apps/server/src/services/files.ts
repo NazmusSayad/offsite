@@ -96,7 +96,11 @@ export function readProjectFile(cwd: string, file: string): FilePreview {
 }
 
 export function linkProjectMedia(cwd: string, file: string) {
-  const full = resolveProjectFile(cwd, file)
+  const resolved = path.resolve(realpathSync(cwd), file)
+  if (!existsSync(resolved)) {
+    throw new Error(`${file} does not exist`)
+  }
+  const full = realpathSync(resolved)
   const mediaType = mediaTypes.get(path.extname(full).toLowerCase())
   if (mediaType === undefined) {
     throw new Error(`${file} is not an image, video or audio file`)
