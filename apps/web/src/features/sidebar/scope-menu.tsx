@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { activityOf, type MachineProject, useStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 
 export function ScopeMenu(props: {
   scope: { machine: string; projectId: string } | null
@@ -136,6 +137,9 @@ export function ScopeMenu(props: {
               </span>
             )}
           </DropdownMenuRadioItem>
+
+          <DropdownMenuSeparator />
+
           {projects.map((project) => {
             const count = attention.filter(
               (session) =>
@@ -147,7 +151,10 @@ export function ScopeMenu(props: {
                 key={machineKey(project.machine, project.id)}
                 value={machineKey(project.machine, project.id)}
                 title={project.path}
-                className="pr-2 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
+                className={cn(
+                  'pr-2 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2',
+                  machines.length > 1 && 'gap-2.5 py-1.5'
+                )}
                 onSelect={() =>
                   props.onScope({
                     machine: project.machine,
@@ -163,12 +170,18 @@ export function ScopeMenu(props: {
                 <ProjectIcon
                   machine={project.machine}
                   projectId={project.id}
-                  className="size-4 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
+                  className={cn(
+                    'shrink-0',
+                    machines.length > 1 &&
+                      'size-7 [&>img]:rounded-md [&>svg]:rounded-md',
+                    machines.length === 1 &&
+                      'size-5 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]'
+                  )}
                 />
-                <span className="min-w-0 flex-1 truncate">
-                  {project.name}
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate">{project.name}</span>
                   {machines.length > 1 && (
-                    <span className="text-muted-foreground ml-1.5 text-xs">
+                    <span className="text-muted-foreground truncate text-xs">
                       {machineIcon(project.machine)}
                       {machineLabel(project.machine)}
                     </span>

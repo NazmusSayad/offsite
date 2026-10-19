@@ -29,7 +29,7 @@ import {
   createPullRequest,
   fetchProject,
   gitRepos,
-  localBranches,
+  listBranches,
   preparePullRequest,
   projectDiff,
   pullRequestBranches,
@@ -266,7 +266,9 @@ const handlers: Handlers = {
   'git.branches': (params) =>
     pullRequestBranches(path.join(projectPath(params.projectId), params.repo)),
   'git.localBranches': (params) =>
-    localBranches(path.join(projectPath(params.projectId), params.repo)),
+    listBranches(path.join(projectPath(params.projectId), params.repo), false),
+  'git.remoteBranches': (params) =>
+    listBranches(path.join(projectPath(params.projectId), params.repo), true),
   'git.switch': async (params) => {
     await switchBranch(
       path.join(projectPath(params.projectId), params.repo),

@@ -132,12 +132,13 @@ export async function fetchProject(cwd: string) {
   )
 }
 
-export async function localBranches(cwd: string) {
+export async function listBranches(cwd: string, remote: boolean) {
   return (
     await git(cwd, [
-      'branch',
+      'for-each-ref',
       '--sort=-committerdate',
-      '--format=%(refname:short)',
+      '--format=%(if)%(symref)%(then)%(else)%(refname:short)%(end)',
+      remote ? 'refs/remotes' : 'refs/heads',
     ])
   ).stdout
     .split('\n')

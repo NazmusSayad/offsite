@@ -4,6 +4,7 @@ import {
   ArrowUp02Icon,
   CheckIcon,
   CircleDashedIcon,
+  CloudIcon,
   CloudUploadIcon,
   GitBranchIcon,
   PlusSignIcon,
@@ -83,12 +84,16 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   const repoPath = target.repo.path
   const onRefresh = target.onRefresh
   const [branches, setBranches] = useState<string[] | null>(null)
+  const [remotes, setRemotes] = useState<string[] | null>(null)
   const [query, setQuery] = useState('')
   const [switching, setSwitching] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const action = syncAction(target.repo)
   const name = query.trim()
   const matches = (branches ?? []).filter((branch) =>
+    branch.toLowerCase().includes(name.toLowerCase())
+  )
+  const remoteMatches = (remotes ?? []).filter((branch) =>
     branch.toLowerCase().includes(name.toLowerCase())
   )
   const exists = (branches ?? []).includes(name)
@@ -210,6 +215,23 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             )}
           </button>
         ))}
+        {remotes !== null && remoteMatches.length > 0 && (
+          <p className="text-muted-foreground px-2 pt-2 pb-1 text-xs font-medium">
+            Remote
+          </p>
+        )}
+        {remoteMatches.map((branch) => (
+          <button
+            key={branch}
+            disabled={switching}
+            className="hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50"
+            onClick={() =>
+              void switchTo(branch.slice(branch.indexOf('/') + 1), false)
+            }
+          >
+            <span className="min-w-0 flex-1 truncate">{branch}</span>
+          </button>
+        ))}
         {branches !== null && name !== '' && !exists && (
           <button
             disabled={switching}
@@ -222,6 +244,26 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             </span>
           </button>
         )}
+      </div>
+      <div className="border-border/70 shrink-0 border-t px-2 py-1.5">
+        <button
+          className="text-muted-foreground hover:bg-accent hover:text-accent-foreground flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm"
+          onClick={() => {
+            if (remotes !== null) {
+              setRemotes(null)
+              return
+            }
+            call(machine, 'git.remoteBranches', {
+              projectId,
+              repo: repoPath,
+            }).then(setRemotes, showError)
+          }}
+        >
+          <HugeiconsIcon icon={CloudIcon} className="size-3.5 shrink-0" />
+          <span className="min-w-0 flex-1 truncate">
+            {remotes === null ? 'Show remote branches' : 'Hide remote branches'}
+          </span>
+        </button>
       </div>
     </>
   )

@@ -172,7 +172,7 @@
 
 @supports (corner-shape: squircle) {
   :root {
-    --radius: 0.9rem;
+    --radius: 1rem;
   }
 
   [class*='rounded-']:not(.rounded-full) {

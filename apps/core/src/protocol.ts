@@ -190,6 +190,10 @@ export type RpcMethods = {
     params: { projectId: string; repo: string }
     result: string[]
   }
+  'git.remoteBranches': {
+    params: { projectId: string; repo: string }
+    result: string[]
+  }
   'git.switch': {
     params: { projectId: string; repo: string; branch: string; create: boolean }
     result: null

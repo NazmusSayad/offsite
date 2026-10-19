@@ -196,13 +196,17 @@ function ModelPicker() {
           className={cn(control, controlSm)}
           title={account === undefined ? 'Model' : `${account.name} · ${label}`}
         >
-          <ProviderIcon provider={settings.provider} className="size-4" />
+          <span className="relative">
+            <ProviderIcon provider={settings.provider} className="size-4" />
+            {choices.filter((item) => item.provider === settings.provider)
+              .length > 1 &&
+              account !== undefined && (
+                <span className="bg-card text-muted-foreground pointer-events-none absolute -right-1 -bottom-1 flex h-3 min-w-3 items-center justify-center rounded-full border px-0.5 text-[8px] leading-none font-semibold shadow-sm">
+                  {account.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+          </span>
           <span className="max-w-40 truncate">{label}</span>
-          {choices.length > 1 && account !== undefined && (
-            <span className="text-muted-foreground max-w-28 truncate font-normal">
-              {account.name}
-            </span>
-          )}
           <HugeiconsIcon
             icon={ChevronDownIcon}
             strokeWidth={2.25}
@@ -256,9 +260,12 @@ function ModelPicker() {
                     }}
                   >
                     <ProviderIcon provider={item.provider} className="size-5" />
-                    <span className="bg-card text-muted-foreground text-3xs pointer-events-none absolute right-0.5 bottom-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full border px-0.5 leading-none font-semibold shadow-sm">
-                      {item.name.charAt(0).toUpperCase()}
-                    </span>
+                    {choices.filter((other) => other.provider === item.provider)
+                      .length > 1 && (
+                      <span className="bg-card text-muted-foreground text-3xs pointer-events-none absolute right-0.5 bottom-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full border px-0.5 leading-none font-semibold shadow-sm">
+                        {item.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </button>
                 </Tooltip>
               </div>
