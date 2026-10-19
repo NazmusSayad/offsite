@@ -84,7 +84,7 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
     )
   }
   return (
-    <span className="border-border bg-muted/50 inline-flex max-w-[min(100%,36rem)] flex-col gap-1 rounded-xl border p-1 align-top">
+    <span className="border-border bg-muted/50 flex w-fit max-w-[min(100%,36rem)] flex-col gap-1 rounded-xl border p-1">
       <span className="text-muted-foreground flex items-center gap-1.5 pl-1.5 [contain:inline-size]">
         <HugeiconsIcon
           icon={kindIcons[mediaKind(props.path) ?? 'image']}
@@ -146,7 +146,7 @@ export function Media(props: {
         src={props.src}
         alt={props.alt}
         name={props.name}
-        className="max-w-[min(100%,36rem)]"
+        className="block w-fit max-w-[min(100%,36rem)]"
         onError={() => setFailed(props.src)}
       />
     )
@@ -157,7 +157,7 @@ export function Media(props: {
         <AudioPlayer
           src={props.src}
           label={props.alt === '' ? props.name : props.alt}
-          className="w-[28rem] max-w-full"
+          className="flex w-[28rem] max-w-full"
           onError={() => setFailed(props.src)}
         />
       </Suspense>
@@ -168,7 +168,7 @@ export function Media(props: {
       src={props.src}
       alt={props.alt}
       name={props.name}
-      className="inline-block max-w-[min(100%,36rem)] align-top"
+      className="block w-fit max-w-[min(100%,36rem)]"
       imageClassName="border-border/40 h-auto max-h-[28rem] w-auto max-w-full rounded-lg border object-contain"
       onError={() => setFailed(props.src)}
     />
@@ -181,7 +181,7 @@ function MediaUnavailable(props: {
   raw: string
 }) {
   return (
-    <span className="border-border/70 text-muted-foreground inline-flex max-w-full flex-col gap-1 rounded-lg border border-dashed px-3 py-2 align-top text-xs">
+    <span className="border-border/70 text-muted-foreground flex w-fit max-w-full flex-col gap-1 rounded-lg border border-dashed px-3 py-2 text-xs">
       <span className="flex items-start gap-1.5">
         <HugeiconsIcon
           icon={unavailableIcons[props.kind]}

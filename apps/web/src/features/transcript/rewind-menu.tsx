@@ -10,6 +10,16 @@ import type { Provider } from '@offsite/core/providers'
 import type { RewindResult } from '@offsite/core/sessions'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -42,18 +52,24 @@ export type RewindTarget = {
 const modes = {
   all: {
     label: 'Restore code and chat',
+    description:
+      'This will undo file changes made since this message and remove this message and everything after it from the chat.',
     icon: ArrowTurnBackwardIcon,
     code: true,
     conversation: true,
   },
   chat: {
     label: 'Restore chat',
+    description:
+      'This will remove this message and everything after it from the chat. Files will not change.',
     icon: BubbleChatEditIcon,
     code: false,
     conversation: true,
   },
   code: {
     label: 'Restore code',
+    description:
+      'This will undo file changes made since this message. The chat will not change.',
     icon: SourceCodeIcon,
     code: true,
     conversation: false,
@@ -78,6 +94,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
   const [preview, setPreview] = useState<RewindResult>(null)
   const [codeError, setCodeError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [confirming, setConfirming] = useState<RewindMode | null>(null)
   const target = props.target
   const messageId = target.messageId
   const selection = useStore((state) => state.selection)
@@ -234,10 +251,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
               <DropdownMenuItem
                 key={option}
                 disabled={busy || (modes[option].code && !codeReady)}
-                onSelect={(event) => {
-                  event.preventDefault()
-                  void apply(option)
-                }}
+                onSelect={() => setConfirming(option)}
               >
                 <HugeiconsIcon icon={modes[option].icon} />
                 {modes[option].label}
@@ -253,11 +267,39 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
           variant="ghost-muted"
           aria-label={modes[mode].label}
           disabled={props.disabled || busy}
-          onClick={() => void apply(mode)}
+          onClick={() => setConfirming(mode)}
         >
           <HugeiconsIcon icon={modes[mode].icon} className="size-3.5" />
         </Button>
       </Tooltip>
+      <AlertDialog
+        open={confirming !== null}
+        onOpenChange={(next) => {
+          if (!next) {
+            setConfirming(null)
+          }
+        }}
+      >
+        {confirming !== null && (
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{modes[confirming].label}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {modes[confirming].description} Do you really want to continue?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={() => void apply(confirming)}
+              >
+                {modes[confirming].label}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
     </>
   )
 }

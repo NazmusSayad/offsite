@@ -78,7 +78,7 @@ export function Composer() {
 
   useEffect(() => {
     const element = input.current
-    if (element === null) {
+    if (element === null || touch.matches) {
       return
     }
     element.focus()
