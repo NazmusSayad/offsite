@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
+import { MobileMenu, type ThreadFilter } from '@/features/sidebar/mobile-menu'
 import {
   EditProjectDialog,
   FolderDialog,
@@ -64,6 +65,7 @@ export function Sidebar(
   const [picking, setPicking] = useState(false)
   const [minimizedOpen, setMinimizedOpen] = useState(false)
   const [inactiveOpen, setInactiveOpen] = useState(false)
+  const [filter, setFilter] = useState<ThreadFilter>('active')
   const [width, setWidth] = useLocalStorage('sidebarWidth', 240)
   const projects = [...registered].sort(
     (a, b) =>
@@ -193,6 +195,7 @@ export function Sidebar(
         activity={activityOf(machines, session.machine, session.id)}
         unseen={unseen.includes(machineKey(session.machine, session.id))}
         saved={session !== started}
+        scope={scope}
         onSelect={() => select(session.machine, session.projectId, session.id)}
       />
     )
@@ -250,16 +253,22 @@ export function Sidebar(
         style={props.mobile ? undefined : { width }}
       >
         <div className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 px-3">
-          <button
-            className={cn(iconButton, 'size-7')}
-            title={props.mobile ? 'Settings' : `Hide sidebar (${mod}+B)`}
-            aria-label={props.mobile ? 'Settings' : 'Hide sidebar'}
-            onClick={props.mobile ? () => showSettings(true) : props.onHide}
-          >
-            <HugeiconsIcon
-              icon={props.mobile ? Settings01Icon : PanelLeftOpenIcon}
+          {props.mobile ? (
+            <MobileMenu
+              className={cn(iconButton, 'size-7')}
+              filter={filter}
+              onFilter={setFilter}
             />
-          </button>
+          ) : (
+            <button
+              className={cn(iconButton, 'size-7')}
+              title={`Hide sidebar (${mod}+B)`}
+              aria-label="Hide sidebar"
+              onClick={props.onHide}
+            >
+              <HugeiconsIcon icon={PanelLeftOpenIcon} />
+            </button>
+          )}
           <DropdownMenu open={picking} onOpenChange={setPicking}>
             <DropdownMenuTrigger asChild>
               <button
@@ -408,37 +417,58 @@ export function Sidebar(
         </div>
         <nav className="flex min-h-0 flex-1 [scrollbar-width:none] flex-col overflow-y-auto px-(--sidebar-content-inset) pb-(--sidebar-content-inset)">
           <ul className="flex flex-1 flex-col gap-px">
-            {selection !== null && selection.sessionId === null && (
-              <DraftRow
-                machine={selection.machine}
-                projectId={selection.projectId}
-                onSelect={() =>
-                  select(selection.machine, selection.projectId, null)
-                }
-              />
+            {props.mobile && filter !== 'active' && (
+              <>
+                {(filter === 'minimized' ? minimized : inactive).map(
+                  (session) => row(session, filter === 'inactive')
+                )}
+                {(filter === 'minimized' ? minimized : inactive).length ===
+                  0 && (
+                  <li className="text-sidebar-muted-foreground/60 px-2.5 py-6 text-center text-xs">
+                    No {filter} threads
+                  </li>
+                )}
+              </>
             )}
-            {started !== null && row(started, false)}
-            {active.map((session) => row(session, false))}
-            {active.length === 0 &&
-              started === null &&
-              selection?.sessionId !== null && (
-                <li className="text-sidebar-muted-foreground/60 px-2.5 py-6 text-center text-xs">
-                  No threads yet
-                </li>
-              )}
-            {section(
-              'Minimized',
-              minimized,
-              minimizedOpen,
-              () => setMinimizedOpen(!minimizedOpen),
-              true
+            {(!props.mobile || filter === 'active') && (
+              <>
+                {selection !== null && selection.sessionId === null && (
+                  <DraftRow
+                    machine={selection.machine}
+                    projectId={selection.projectId}
+                    onSelect={() =>
+                      select(selection.machine, selection.projectId, null)
+                    }
+                  />
+                )}
+                {started !== null && row(started, false)}
+                {active.map((session) => row(session, false))}
+                {active.length === 0 &&
+                  started === null &&
+                  selection?.sessionId !== null && (
+                    <li className="text-sidebar-muted-foreground/60 px-2.5 py-6 text-center text-xs">
+                      No threads yet
+                    </li>
+                  )}
+              </>
             )}
-            {section(
-              'Inactive',
-              inactive,
-              inactiveOpen,
-              () => setInactiveOpen(!inactiveOpen),
-              minimized.length === 0
+            {!props.mobile && (
+              <>
+                {section(
+                  'Minimized',
+                  minimized,
+                  minimizedOpen,
+                  () => setMinimizedOpen(!minimizedOpen),
+                  true
+                )}
+                {section(
+                  'Inactive',
+                  inactive,
+                  inactiveOpen,
+                  () => setInactiveOpen(!inactiveOpen),
+                  minimized.length === 0
+                )}
+              </>
             )}
           </ul>
         </nav>

@@ -36,7 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { providerNames, timeAgo } from '@/lib/format'
-import { editSession, removeSession } from '@/lib/sessions'
+import { deactivateSession, editSession, removeSession } from '@/lib/sessions'
 import { type MachineSession } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -50,6 +50,7 @@ export function SessionItem(props: {
   activity: SessionActivity | undefined
   unseen: boolean
   saved: boolean
+  scope: { machine: string; projectId: string } | null
   onSelect: () => void
 }) {
   const session = props.session
@@ -69,7 +70,7 @@ export function SessionItem(props: {
   const recede = !props.selected && !waiting && !done
 
   function makeInactive() {
-    void editSession(session.machine, session.id, { status: 'inactive' })
+    void deactivateSession(session.machine, session.id, props.scope)
   }
 
   function deactivate() {

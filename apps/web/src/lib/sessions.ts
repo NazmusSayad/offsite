@@ -233,15 +233,28 @@ export async function editSession(
       item.machine === machine && item.id === id ? { ...item, ...patch } : item
     ),
   })
+  try {
+    await call(machine, 'sessions.update', { id, patch })
+  } catch (error) {
+    showError(error)
+  }
+}
+
+export async function deactivateSession(
+  machine: string,
+  id: string,
+  scope: { machine: string; projectId: string } | null
+) {
   const selection = getState().selection
-  if (
-    patch.status === 'inactive' &&
-    selection?.machine === machine &&
-    selection.sessionId === id
-  ) {
+  if (selection?.machine === machine && selection.sessionId === id) {
     const latest = getState()
       .sessions.filter(
-        (item) => item.status === 'pinned' || item.status === 'active'
+        (item) =>
+          (item.status === 'pinned' || item.status === 'active') &&
+          !(item.machine === machine && item.id === id) &&
+          (scope === null ||
+            (item.machine === scope.machine &&
+              item.projectId === scope.projectId))
       )
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .at(0)
@@ -255,11 +268,7 @@ export async function editSession(
           }
     )
   }
-  try {
-    await call(machine, 'sessions.update', { id, patch })
-  } catch (error) {
-    showError(error)
-  }
+  await editSession(machine, id, { status: 'inactive' })
 }
 
 export async function removeSession(machine: string, id: string) {
