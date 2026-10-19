@@ -285,9 +285,8 @@ export function MobileSessionItem(props: {
   return (
     <li className="relative list-none py-0.5">
       {offset > 0 && (
-        <div className="text-muted-foreground absolute inset-y-0.5 left-0 flex items-center gap-1.5 px-3 text-xs">
-          <HugeiconsIcon icon={Plug01Icon} className="size-4" />
-          Make inactive
+        <div className="bg-destructive absolute inset-x-0 inset-y-0.5 flex items-center rounded-md px-4 text-white">
+          <HugeiconsIcon icon={Plug01Icon} className="size-6" />
         </div>
       )}
       <ContextMenu onOpenChange={() => setConfirming(false)}>
