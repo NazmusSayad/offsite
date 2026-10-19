@@ -38,7 +38,6 @@ import {
 import { Transcript } from '@/features/transcript/transcript'
 import { MobileLayout } from '@/features/workspace/mobile'
 import {
-  ErrorBanner,
   type Panel,
   PanelMenu,
   PanelToggles,
@@ -275,7 +274,6 @@ function DesktopLayout() {
             )}
           </header>
           <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-            <ErrorBanner />
             {machine === null && <ConnectMachine />}
             {selection === null && machine !== null && (
               <div className="grid flex-1 place-items-center p-6 text-center">

@@ -1,15 +1,12 @@
 import {
-  AlertCircleIcon,
   Folder01Icon,
   GitCompareIcon,
   MoreVerticalIcon,
   SquareTerminalIcon,
   TaskDaily01Icon,
-  XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import { type ReactNode, useSyncExternalStore } from 'react'
-import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,12 +21,7 @@ import {
 } from '@/features/terminal/session'
 import { threadTasks } from '@/features/transcript/tasks'
 import { TasksPanel } from '@/features/transcript/tasks-panel'
-import {
-  dismissError,
-  selectedActivity,
-  type Selection,
-  useStore,
-} from '@/lib/store'
+import { selectedActivity, type Selection, useStore } from '@/lib/store'
 import { cn, mod } from '@/lib/utils'
 
 export type Panel = 'diff' | 'tasks' | 'files'
@@ -261,34 +253,5 @@ export function PanelView(props: {
         />
       )}
     </>
-  )
-}
-
-export function ErrorBanner() {
-  const error = useStore((state) => state.error)
-  if (error === null) {
-    return null
-  }
-
-  return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center px-4 pt-3">
-      <div className="border-error/30 bg-background/80 text-error-foreground pointer-events-auto flex w-fit max-w-[min(48rem,100%)] items-start gap-2 rounded-xl border px-3.5 py-3 text-sm backdrop-blur-md">
-        <HugeiconsIcon
-          icon={AlertCircleIcon}
-          className="text-error mt-0.5 size-4 shrink-0"
-        />
-        <div className="line-clamp-3 min-w-0 flex-1 whitespace-pre-wrap">
-          {error}
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label="Dismiss"
-          onClick={dismissError}
-        >
-          <HugeiconsIcon icon={XIcon} />
-        </Button>
-      </div>
-    </div>
   )
 }

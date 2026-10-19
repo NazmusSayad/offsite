@@ -21,12 +21,7 @@ import {
   subscribe as subscribeTerminal,
 } from '@/features/terminal/session'
 import { Transcript } from '@/features/transcript/transcript'
-import {
-  ErrorBanner,
-  type Panel,
-  PanelMenu,
-  PanelView,
-} from '@/features/workspace/panels'
+import { type Panel, PanelMenu, PanelView } from '@/features/workspace/panels'
 import type { Search } from '@/lib/router'
 import { closeSession } from '@/lib/sessions'
 import {
@@ -55,7 +50,6 @@ export function MobileLayout() {
   return (
     <div className="bg-sidebar relative flex min-w-0 flex-1 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <Sidebar className="min-w-0 flex-1 border-r-0" mobile />
-      <ErrorBanner />
     </div>
   )
 }
@@ -182,7 +176,6 @@ function MobileChat(props: { selection: Selection }) {
         <GitCommandDialog git={commands} />
       </header>
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        <ErrorBanner />
         <Fragment
           key={`${props.selection.machine} ${props.selection.sessionId ?? props.selection.projectId}`}
         >
