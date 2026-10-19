@@ -16,6 +16,13 @@ import {
 import { syncUrl } from './url'
 export function openSession(selection: Selection) {
   const machine = machineOf(getState(), selection.machine)
+  localStorage.setItem(
+    'lastProject',
+    JSON.stringify({
+      machine: selection.machine,
+      projectId: selection.projectId,
+    })
+  )
   update({
     selection,
     loaded: selection.sessionId === null,

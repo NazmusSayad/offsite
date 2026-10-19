@@ -47,6 +47,7 @@ export function Sidebar(
   const selection = useStore((state) => state.selection)
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
+  const projects = useStore((state) => state.projects)
   const provider = useStore((state) => state.settings.provider)
   const unseen = useStore((state) => state.unseen)
   const [scope, setScope] = useLocalStorage<{
@@ -108,12 +109,30 @@ export function Sidebar(
   }
 
   function startThread() {
-    const target = scope ?? selection
+    const target = scope ?? selection ?? lastProject()
     if (target === null) {
       setAdding(true)
     } else {
       select(target.machine, target.projectId, null)
     }
+  }
+
+  function lastProject() {
+    const raw = localStorage.getItem('lastProject')
+    const last: { machine: string; projectId: string } | null =
+      raw === null ? null : JSON.parse(raw)
+    const registered =
+      last === null
+        ? undefined
+        : projects.find(
+            (project) =>
+              project.machine === last.machine && project.id === last.projectId
+          )
+    const project = registered ?? projects.at(0)
+    if (project === undefined) {
+      return null
+    }
+    return { machine: project.machine, projectId: project.id }
   }
 
   useHotkeys(['mod+n', 'mod+t'], startThread, {
