@@ -84,6 +84,7 @@ export class CodexRun implements ThreadListener {
   partial = ''
   running = false
   prompted = false
+  compacting = false
   backgroundTasks = 0
   tasks: Record<string, TaskStatus> = {}
   activeAt = Date.now()
@@ -268,16 +269,25 @@ export class CodexRun implements ThreadListener {
         return
       }
       case 'item/started':
-      case 'item/completed':
+      case 'item/completed': {
+        const thread = params.item as ThreadItem
+        if (thread.type === 'contextCompaction') {
+          this.compacting = method === 'item/started'
+          broadcastActivity()
+          if (this.compacting) {
+            return
+          }
+        }
         for (const item of toItems(
           params.turnId as string,
-          params.item as ThreadItem,
+          thread,
           null,
           Date.now()
         )) {
           this.put(item)
         }
         return
+      }
       case 'item/agentMessage/delta':
         this.partial += params.delta as string
         publish(this.sessionId, {
@@ -429,6 +439,7 @@ export class CodexRun implements ThreadListener {
 
   private finishTurn() {
     this.partial = ''
+    this.compacting = false
     this.turnId = null
     const [next, ...rest] = this.queue
     if (next !== undefined) {

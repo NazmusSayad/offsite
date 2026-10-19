@@ -187,6 +187,7 @@ export function Transcript(props: {
                 agents={found.agents}
                 tasks={found.tasks}
                 running={running}
+                compacting={activity?.compacting === true}
                 fork={!older}
                 expanded={expanded.includes(row.key)}
                 onToggle={() => toggle(row.key)}
@@ -209,6 +210,7 @@ export function RowView(props: {
   tasks: ReturnType<typeof threadTasks>['tasks']
   cwd: string
   running: boolean
+  compacting: boolean
   fork: boolean
   expanded: boolean
   onToggle: () => void
@@ -230,7 +232,10 @@ export function RowView(props: {
     case 'working':
       return (
         <div className="text-muted-foreground h-9 pt-3 text-[13px] leading-5 font-medium tracking-[-0.04px]">
-          <Shimmer text="Working" active />
+          <Shimmer
+            text={props.compacting ? 'Compacting conversation' : 'Working'}
+            active
+          />
         </div>
       )
     case 'group':

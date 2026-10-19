@@ -468,6 +468,7 @@ function AgentView(props: {
               agents={props.found.agents}
               tasks={props.found.tasks}
               running={props.running}
+              compacting={false}
               fork={false}
               expanded={expanded.includes(row.key)}
               onToggle={() => toggle(row.key)}

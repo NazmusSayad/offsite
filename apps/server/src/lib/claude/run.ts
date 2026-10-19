@@ -52,6 +52,7 @@ export class Run {
   private model: string | null = null
   running = false
   prompted = false
+  compacting = false
   backgroundTasks = 0
   tasks: Record<string, TaskStatus> = {}
   private readonly inbox: SDKUserMessage[] = []
@@ -357,6 +358,10 @@ export class Run {
             broadcastActivity()
             return
           case 'status':
+            if (this.compacting !== (message.status === 'compacting')) {
+              this.compacting = message.status === 'compacting'
+              broadcastActivity()
+            }
             if (message.permissionMode !== undefined) {
               this.updateSettings({
                 ...this.settings,
@@ -392,6 +397,7 @@ export class Run {
 
   private finishTurn() {
     this.partial = ''
+    this.compacting = false
     const [next, ...rest] = this.queue
     if (next !== undefined) {
       this.queue = rest

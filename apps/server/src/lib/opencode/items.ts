@@ -81,9 +81,14 @@ export function messageItems(
         partItems(message, part, index, parent)
       )
     case 'compaction':
-      return message.status === 'failed'
-        ? [{ ...errorItem(message.id, message.error.message), parent }]
-        : [{ ...base, kind: 'compaction' }]
+      switch (message.status) {
+        case 'running':
+          return []
+        case 'completed':
+          return [{ ...base, kind: 'compaction' }]
+        case 'failed':
+          return [{ ...errorItem(message.id, message.error.message), parent }]
+      }
     case 'idle':
       return message.outcome === 'failed' && message.error !== undefined
         ? [{ ...errorItem(message.id, message.error.message), parent }]

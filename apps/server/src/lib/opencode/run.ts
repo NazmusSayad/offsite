@@ -51,6 +51,7 @@ export class OpenCodeRun {
   partial = ''
   running = false
   prompted = false
+  compacting = false
   backgroundTasks = 0
   tasks: Record<string, TaskStatus> = {}
   private readonly close: () => void
@@ -242,6 +243,16 @@ export class OpenCodeRun {
       case 'session.reasoning.delta':
       case 'session.tool.input.delta':
       case 'session.compaction.delta':
+        return
+      case 'session.compaction.started':
+        this.compacting = true
+        broadcastActivity()
+        return
+      case 'session.compaction.ended':
+      case 'session.compaction.failed':
+        this.compacting = false
+        broadcastActivity()
+        this.refresh()
         return
       case 'session.execution.started':
         clearTimeout(this.idleTimer)
@@ -439,6 +450,7 @@ export class OpenCodeRun {
 
   private finishTurn() {
     this.partial = ''
+    this.compacting = false
     const [next, ...rest] = this.queue
     if (next !== undefined) {
       this.queue = rest
