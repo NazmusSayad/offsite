@@ -431,7 +431,7 @@ function gitError(error: unknown) {
   )
 }
 
-async function isRepo(cwd: string) {
+export async function isRepo(cwd: string) {
   try {
     await git(cwd, ['rev-parse', '--is-inside-work-tree'])
     return true
