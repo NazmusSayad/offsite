@@ -169,6 +169,8 @@ export type RpcMethods = {
     result: string
   }
   'files.upload': { params: { name: string; data: string }; result: string }
+  'files.browse': { params: void; result: string }
+  'browser.proxy': { params: { origin: string }; result: number }
   'tasks.output': {
     params: { sessionId: string; path: string }
     result: { text: string; truncated: boolean } | null
@@ -268,3 +270,4 @@ export type ServerEvent =
   | { type: 'context'; sessionId: string; context: ContextUsage | null }
   | { type: 'notification'; sessionId: string; message: string }
   | { type: 'notifier'; active: boolean }
+  | { type: 'open'; path: string }

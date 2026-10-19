@@ -1,5 +1,5 @@
 import { router, type Search } from './router'
-import { getState, type Selection } from './store'
+import { getState, projectOf, type Selection } from './store'
 
 export function currentSearch() {
   return router.parseLocation(router.history.location).search
@@ -31,6 +31,37 @@ export function replaceSearch(next: Search) {
 
 export function pushSearch(next: Search, layer: 'chat' | 'overlay') {
   navigate({ ...currentSearch(), ...next }, false, layer)
+}
+
+export function openBrowser(target: string) {
+  const state = getState()
+  if (state.selection === null) {
+    throw new Error('no project is open to show the browser in')
+  }
+  if (target.startsWith('file:')) {
+    replaceSearch({
+      panel: 'browser',
+      browse: decodeURIComponent(new URL(target).pathname),
+    })
+    return
+  }
+  if (
+    /^https?:\/\//i.test(target) ||
+    target.startsWith('/') ||
+    /^[a-z]:[\\/]/i.test(target)
+  ) {
+    replaceSearch({ panel: 'browser', browse: target })
+    return
+  }
+  const project = projectOf(
+    state,
+    state.selection.machine,
+    state.selection.projectId
+  )
+  if (project === undefined) {
+    throw new Error(`project ${state.selection.projectId} is not listed`)
+  }
+  replaceSearch({ panel: 'browser', browse: `${project.path}/${target}` })
 }
 
 export function leaveLayer(layer: 'chat' | 'overlay', fallback: () => void) {

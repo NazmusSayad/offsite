@@ -1,5 +1,6 @@
 import { Terminal } from '@/lib/ghostty/terminal'
 import { getState as appState, machineOf } from '@/lib/store'
+import { openBrowser } from '@/lib/url'
 import { beep, isSeen, notifyFromProgram, ringBell } from './attention'
 import {
   imagePasteKeys,
@@ -77,7 +78,13 @@ export function createSession(id: number) {
       }
       void readClipboard((text) => terminal.replyClipboard(text, query))
     },
-    onLink: (uri) => window.open(uri, '_blank', 'noopener'),
+    onLink: (uri) => {
+      if (uri.startsWith('file:')) {
+        openBrowser(uri)
+        return
+      }
+      window.open(uri, '_blank', 'noopener')
+    },
     beforeKey: (event) => {
       if (event.type !== 'keydown') {
         return true
