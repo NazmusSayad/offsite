@@ -1,0 +1,22 @@
+---
+interface Props {
+  name: string
+  command: string
+}
+
+const { name, command } = Astro.props
+---
+
+<div class="flex items-center gap-4 px-6 py-7 md:px-8">
+  <span
+    class="border-line bg-surface grid size-11 shrink-0 place-items-center rounded-xl border"
+  >
+    <slot />
+  </span>
+  <div>
+    <p class="font-medium">{name}</p>
+    <p class="text-subtle text-sm">
+      Same sessions as <code class="text-muted font-mono">{command}</code>
+    </p>
+  </div>
+</div>

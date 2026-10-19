@@ -36,6 +36,11 @@ export default defineConfig({
       env: { serviceworker: true },
     },
     {
+      files: ['**/*.astro'],
+      globals: { Astro: 'readonly' },
+      rules: { 'oxfmt/oxfmt': 'off' },
+    },
+    {
       files: ['**/*.{mts,cts}'],
       rules: typescriptRules,
     },
