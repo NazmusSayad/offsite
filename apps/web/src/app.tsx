@@ -15,7 +15,6 @@ import { Toast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Composer } from '@/features/composer/composer'
-import { CommitToast } from '@/features/git/commit-toast'
 import {
   GitActions,
   GitCommandDialog,
@@ -23,6 +22,7 @@ import {
   useGitCommands,
   useGitStatus,
 } from '@/features/git/git-menu'
+import { GitToast } from '@/features/git/git-toast'
 import { SettingsDialog } from '@/features/settings/dialog'
 import { MobileSettings } from '@/features/settings/mobile'
 import { ConnectMachine } from '@/features/sidebar/connect-machine'
@@ -75,7 +75,7 @@ export function App() {
       <Palette />
       {desktop ? <SettingsDialog /> : <MobileSettings />}
       <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
-        <CommitToast />
+        <GitToast />
         <Toast />
       </div>
     </div>

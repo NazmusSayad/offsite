@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import { projectOf, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
-import { startCommit } from './commit-toast'
+import { showGitToast, startCommit, startPullRequest } from './git-toast'
 import {
   BaseSelect,
   type Draft,
@@ -107,6 +107,11 @@ export function GitDialog(props: {
     try {
       await task()
     } catch (error) {
+      if (repos.length === 1) {
+        props.onClose()
+        showGitToast('Pull request failed', { error: errorMessage(error) })
+        return
+      }
       patch(repo, { state: 'failed', text: errorMessage(error), draft: null })
     } finally {
       props.onRefresh()
@@ -139,18 +144,21 @@ export function GitDialog(props: {
   }
 
   function commit(andPush: boolean) {
-    startCommit({
-      machine: props.machine,
-      projectId: props.projectId,
-      repos: chosen.map((repo) => ({
-        path: repo.path,
-        name: repoName(repo.path, projectName),
-      })),
-      message,
-      push: andPush,
-      onRefresh: props.onRefresh,
+    if (repos.length === 1) {
+      props.onClose()
+      startCommit(props, repos[0].path, message, andPush)
+      return
+    }
+    const done = andPush ? 'Committed and pushed' : 'Committed'
+    start(andPush ? 'Committing and pushing…' : 'Committing…', async (repo) => {
+      await call(props.machine, 'git.commit', {
+        projectId: props.projectId,
+        repo,
+        message,
+        push: andPush,
+      })
+      patch(repo, { state: 'done', text: done })
     })
-    props.onClose()
   }
 
   function push() {
@@ -182,6 +190,11 @@ export function GitDialog(props: {
       commit: commitFirst,
     })
     if (result.kind === 'open') {
+      if (repos.length === 1) {
+        props.onClose()
+        showGitToast('Pull request already open', { url: result.url })
+        return
+      }
       patch(repo, {
         state: 'done',
         text: 'A pull request is already open',
@@ -216,6 +229,11 @@ export function GitDialog(props: {
   }
 
   function createPullRequest(repo: string, draft: Draft) {
+    if (repos.length === 1) {
+      props.onClose()
+      startPullRequest(props, repo, draft)
+      return
+    }
     void step(repo, async () => {
       patch(repo, {
         state: 'working',
