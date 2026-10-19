@@ -143,14 +143,18 @@ function MobileChat(props: { selection: Selection }) {
 
   return (
     <main className="bg-background flex min-w-0 flex-1 flex-col overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-      <header className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 pr-3 pl-1.5">
+      <header className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-1.5 px-2">
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon"
           aria-label="Back"
           onClick={() => history.back()}
         >
-          <HugeiconsIcon icon={ArrowLeft01Icon} />
+          <HugeiconsIcon
+            icon={ArrowLeft01Icon}
+            className="text-foreground size-5"
+            strokeWidth={2}
+          />
         </Button>
         <div className="min-w-0 flex-1">
           <div className="text-foreground truncate font-medium">
@@ -213,7 +217,7 @@ function MobileChat(props: { selection: Selection }) {
         <DialogPrimitive.Portal>
           <DialogPrimitive.Content
             aria-describedby={undefined}
-            className="bg-background data-open:animate-in data-open:slide-in-from-right fixed inset-0 z-40 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-sm duration-200 outline-none [--panel-header-end:0.75rem] motion-reduce:animate-none"
+            className="bg-background data-open:animate-in data-open:slide-in-from-right fixed inset-0 z-40 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-sm duration-200 outline-none [--panel-header-end:0.75rem] [--workspace-topbar-height:44px] motion-reduce:animate-none"
           >
             <DialogPrimitive.Title className="sr-only">
               {panel === 'diff' && 'Diff'}
