@@ -21,6 +21,7 @@ const MATCH_LIMIT = 200
 export function FilesPanel(props: {
   machine: string
   projectId: string
+  toggles: ReactNode
   onClose: () => void
 }) {
   const [files, setFiles] = useState<string[] | null>(null)
@@ -125,7 +126,7 @@ export function FilesPanel(props: {
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-(--panel-header-end) pl-3">
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-3 pl-3">
         <div className="flex min-w-0 items-center gap-1">
           <Button
             size="icon-sm"
@@ -150,6 +151,7 @@ export function FilesPanel(props: {
           >
             <HugeiconsIcon icon={RefreshCwIcon} className="size-3.5" />
           </Button>
+          {props.toggles}
         </div>
       </div>
       <div className="shrink-0 p-2 pb-0">

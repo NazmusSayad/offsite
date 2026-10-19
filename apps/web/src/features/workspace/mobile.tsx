@@ -193,7 +193,7 @@ function MobileChat(props: { selection: Selection }) {
         <DialogPrimitive.Portal>
           <DialogPrimitive.Content
             aria-describedby={undefined}
-            className="bg-background data-open:animate-in data-open:slide-in-from-right fixed inset-0 z-40 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-sm duration-200 outline-none [--panel-header-end:0.75rem] [--workspace-topbar-height:44px] motion-reduce:animate-none"
+            className="bg-background data-open:animate-in data-open:slide-in-from-right fixed inset-0 z-40 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-sm duration-200 outline-none [--workspace-topbar-height:44px] motion-reduce:animate-none"
           >
             <DialogPrimitive.Title className="sr-only">
               {panel === 'diff' && 'Diff'}
@@ -211,6 +211,7 @@ function MobileChat(props: { selection: Selection }) {
                   selectedTask={selectedTask}
                   onSelectTask={setSelectedTask}
                   onPanel={showPanel}
+                  toggles={null}
                 />
               )}
               {panel === null && terminal && (

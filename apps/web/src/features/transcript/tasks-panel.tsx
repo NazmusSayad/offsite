@@ -6,7 +6,13 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Item } from '@offsite/core/items'
 import type { RpcMethods } from '@offsite/core/protocol'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { call } from '@/api/connection'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
@@ -32,6 +38,7 @@ export function TasksPanel(props: {
   selected: string | null
   onSelect: (id: string | null) => void
   onOpenDiff: () => void
+  toggles: ReactNode
   onClose: () => void
 }) {
   const items = useStore((state) => state.items)
@@ -47,7 +54,7 @@ export function TasksPanel(props: {
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-1 border-b pr-(--panel-header-end) pl-3">
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-1 border-b pr-3 pl-3">
         <Button
           size="icon-sm"
           variant="ghost"
@@ -129,6 +136,7 @@ export function TasksPanel(props: {
             )}
           </div>
         )}
+        {props.toggles}
       </div>
       {agent === undefined && task === undefined && (
         <div className="min-h-0 flex-1 overflow-y-auto p-3">

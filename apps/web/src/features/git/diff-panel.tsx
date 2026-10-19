@@ -14,7 +14,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs'
 import { FileDiff } from '@pierre/diffs/react'
 import { sumBy } from 'es-toolkit'
-import { useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useLocalStorage } from 'usehooks-ts'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
@@ -34,6 +34,7 @@ export function DiffPanel(props: {
   machine: string
   projectId: string
   running: boolean
+  toggles: ReactNode
   onClose: () => void
 }) {
   const [files, setFiles] = useState<FileDiffMetadata[] | null>(null)
@@ -114,7 +115,7 @@ export function DiffPanel(props: {
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-(--panel-header-end) pl-3">
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-3 pl-3">
         <div className="flex min-w-0 items-center gap-1">
           <Button
             size="icon-sm"
@@ -186,6 +187,7 @@ export function DiffPanel(props: {
           >
             <HugeiconsIcon icon={TextWrapIcon} className="size-3.5" />
           </button>
+          {props.toggles}
         </div>
       </div>
       <div className="diff-render-surface min-h-0 flex-1 overflow-y-auto [--code-background:var(--background)]">

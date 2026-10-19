@@ -191,6 +191,22 @@ function DesktopLayout() {
     return () => observer.disconnect()
   }, [])
 
+  const toggles =
+    selection === null ? null : (
+      <PanelToggles
+        className="ml-auto flex shrink-0 items-center gap-1"
+        selection={selection}
+        panel={panel}
+        terminal={terminal}
+        changed={git.repos.some((repo) => repo.changed > 0)}
+        onPanel={(next) => {
+          setSelectedTask(null)
+          setPanel(next)
+        }}
+        onTerminal={setTerminal}
+      />
+    )
+
   return (
     <>
       <Sidebar
@@ -220,7 +236,7 @@ function DesktopLayout() {
             className={cn(
               'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-5 pl-[3.25rem]',
               sidebar && 'pl-5',
-              panel === null && 'pr-36'
+              panel === null && 'pr-3'
             )}
           >
             {selection !== null && machine !== null && (
@@ -295,6 +311,7 @@ function DesktopLayout() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            {panel === null && toggles}
           </header>
           <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
             {machine === null && <ConnectMachine />}
@@ -385,24 +402,11 @@ function DesktopLayout() {
               selectedTask={selectedTask}
               onSelectTask={setSelectedTask}
               onPanel={setPanel}
+              toggles={toggles}
             />
           </div>
         )}
       </main>
-      {selection !== null && (
-        <PanelToggles
-          className="fixed top-0 right-3 z-50 flex h-(--workspace-topbar-height) items-center gap-1"
-          selection={selection}
-          panel={panel}
-          terminal={terminal}
-          changed={git.repos.some((repo) => repo.changed > 0)}
-          onPanel={(next) => {
-            setSelectedTask(null)
-            setPanel(next)
-          }}
-          onTerminal={setTerminal}
-        />
-      )}
       <GitCommandDialog git={commands} />
     </>
   )
