@@ -3,21 +3,26 @@ import {
   FilePenIcon,
   ListTodoIcon,
   MoreHorizontalIcon,
+  Queue01Icon,
+  SentIcon,
   ShieldCheckIcon,
   ShieldOffIcon,
   SparklesIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
+import type { PromptDelivery } from '@offsite/core/config'
 import type { Capabilities, Provider } from '@offsite/core/providers'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -27,6 +32,7 @@ import { changeSettings } from '@/lib/accounts'
 import { compact } from '@/lib/format'
 import { sendPrompt } from '@/lib/sessions'
 import { showError, useStore } from '@/lib/store'
+import { mod } from '@/lib/utils'
 
 const fixedModes: Record<
   Exclude<Provider, 'opencode'>,
@@ -50,10 +56,7 @@ const fixedModes: Record<
   ],
 }
 
-export function providerModes(
-  provider: Provider,
-  capabilities: Capabilities | null
-) {
+function providerModes(provider: Provider, capabilities: Capabilities | null) {
   if (provider !== 'opencode') {
     return fixedModes[provider]
   }
@@ -64,7 +67,11 @@ export function providerModes(
   }))
 }
 
-export function MoreMenu() {
+export function MoreMenu(props: {
+  empty: boolean
+  delivery: PromptDelivery | null
+  onSubmit: () => void
+}) {
   const settings = useStore((state) => state.settings)
   const context = useStore((state) => state.context)
   const capabilities = useStore((state) => state.capabilities)
@@ -85,7 +92,7 @@ export function MoreMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-72"
+        className="w-56"
         side="top"
         align="end"
         onCloseAutoFocus={(event) => {
@@ -96,17 +103,13 @@ export function MoreMenu() {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <HugeiconsIcon icon={mode?.icon ?? ShieldCheckIcon} />
-            <span className="flex-1 whitespace-nowrap">{title}</span>
-            <span className="text-muted-foreground min-w-0 truncate text-xs">
+            <span className="min-w-0 flex-1 truncate">
               {mode?.label ?? 'Default'}
             </span>
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent className="w-56">
-              <DropdownMenuLabel className="flex justify-between">
-                <span>{title}</span>
-                <span>Shift+Tab</span>
-              </DropdownMenuLabel>
+              <DropdownMenuLabel>{title}</DropdownMenuLabel>
               <DropdownMenuRadioGroup value={settings.mode ?? ''}>
                 {modes.map((item) => (
                   <DropdownMenuRadioItem
@@ -136,9 +139,7 @@ export function MoreMenu() {
             <HugeiconsIcon icon={ChartRingIcon} />
             <span className="flex-1">Context</span>
             <span className="text-muted-foreground text-xs tabular-nums">
-              {context.window === null
-                ? compact(context.tokens)
-                : `${compact(context.tokens)} / ${compact(context.window)}`}
+              {compact(context.tokens)}
             </span>
             <Button
               variant="outline"
@@ -152,6 +153,21 @@ export function MoreMenu() {
               Compact
             </Button>
           </div>
+        )}
+        {props.delivery !== null && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={props.empty} onSelect={props.onSubmit}>
+              <HugeiconsIcon
+                icon={props.delivery === 'steer' ? Queue01Icon : SentIcon}
+              />
+              <span className="flex-1">
+                {props.delivery === 'steer' && 'Queue'}
+                {props.delivery === 'queue' && 'Send now'}
+              </span>
+              <span className="text-muted-foreground text-xs">{mod}+Enter</span>
+            </DropdownMenuItem>
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

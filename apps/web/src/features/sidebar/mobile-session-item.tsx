@@ -1,0 +1,470 @@
+import {
+  CircleCheckIcon,
+  CircleDashedIcon,
+  Delete02Icon,
+  MaximizeIcon,
+  MinimizeIcon,
+  PencilIcon,
+  PinIcon,
+  PinOffIcon,
+  Plug01Icon,
+  PlugZapIcon,
+  ShieldQuestionMarkIcon,
+  SquarePenIcon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
+import type { SessionActivity } from '@offsite/core/sessions'
+import { useRef, useState } from 'react'
+import { useProjectName } from '@/api/projects'
+import { ProjectIcon } from '@/components/icons'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import { providerNames, timeAgo } from '@/lib/format'
+import { deactivateSession, editSession, removeSession } from '@/lib/sessions'
+import { type MachineSession } from '@/lib/store'
+import { cn } from '@/lib/utils'
+
+const surface =
+  'relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none touch-pan-y [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
+
+export function MobileSessionItem(props: {
+  session: MachineSession
+  slim: boolean
+  selected: boolean
+  activity: SessionActivity | undefined
+  unseen: boolean
+  saved: boolean
+  scope: { machine: string; projectId: string } | null
+  onSelect: () => void
+}) {
+  const session = props.session
+  const projectTitle = useProjectName(session.machine, session.projectId)
+  const [title, setTitle] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const [stopping, setStopping] = useState(false)
+  const [offset, setOffset] = useState(0)
+  const field = useRef<HTMLInputElement>(null)
+  const swipe = useRef<{ x: number; y: number; swiping: boolean } | null>(null)
+  const swiped = useRef(false)
+  const waiting = props.activity?.waiting === true
+  const turning = !waiting && props.activity?.running === true
+  const backgroundRunning = Object.values(props.activity?.tasks ?? {}).includes(
+    'running'
+  )
+  const working = turning || (!waiting && backgroundRunning)
+  const busy = props.activity?.running === true || backgroundRunning
+  const done = !waiting && !working && props.unseen
+  const recede = !props.selected && !waiting && !done
+  const swipeable =
+    props.saved &&
+    !props.slim &&
+    (session.status === 'active' || session.status === 'pinned')
+
+  function makeInactive() {
+    void deactivateSession(session.machine, session.id, props.scope)
+  }
+
+  function deactivate() {
+    if (busy) {
+      setStopping(true)
+      return
+    }
+    makeInactive()
+  }
+
+  function release(event: React.PointerEvent<HTMLDivElement>) {
+    const start = swipe.current
+    swipe.current = null
+    setOffset(0)
+    if (start === null || !start.swiping) {
+      return
+    }
+    swiped.current = true
+    if (event.clientX - start.x > event.currentTarget.offsetWidth * 0.4) {
+      deactivate()
+    }
+  }
+
+  const stopDialog = (
+    <AlertDialog open={stopping} onOpenChange={setStopping}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Stop running work?</AlertDialogTitle>
+          <AlertDialogDescription>
+            The agent or background tasks are running. Do you really want to
+            stop them?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={makeInactive}>
+            Stop and Make Inactive
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+
+  const menu = (
+    <ContextMenuContent
+      className="w-44"
+      onCloseAutoFocus={(event) => {
+        if (field.current === null) {
+          return
+        }
+        event.preventDefault()
+        field.current.focus()
+        field.current.select()
+      }}
+    >
+      <ContextMenuItem onSelect={() => setTitle(session.title)}>
+        <HugeiconsIcon icon={PencilIcon} />
+        Rename
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() =>
+          void editSession(session.machine, session.id, {
+            status: session.status === 'pinned' ? 'active' : 'pinned',
+          })
+        }
+      >
+        <HugeiconsIcon
+          icon={session.status === 'pinned' ? PinOffIcon : PinIcon}
+        />
+        {session.status === 'pinned' ? 'Unpin' : 'Pin'}
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() =>
+          void editSession(session.machine, session.id, {
+            status: session.status === 'minimized' ? 'active' : 'minimized',
+          })
+        }
+      >
+        <HugeiconsIcon
+          icon={session.status === 'minimized' ? MaximizeIcon : MinimizeIcon}
+        />
+        {session.status === 'minimized' ? 'Restore' : 'Minimize'}
+      </ContextMenuItem>
+      {session.status === 'inactive' ? (
+        <ContextMenuItem
+          onSelect={() =>
+            void editSession(session.machine, session.id, {
+              status: 'active',
+            })
+          }
+        >
+          <HugeiconsIcon icon={PlugZapIcon} />
+          Make active
+        </ContextMenuItem>
+      ) : (
+        <ContextMenuItem onSelect={deactivate}>
+          <HugeiconsIcon icon={Plug01Icon} />
+          Make inactive
+        </ContextMenuItem>
+      )}
+      <ContextMenuSeparator />
+      <ContextMenuItem
+        variant="destructive"
+        title={`Also removes it from ${providerNames[session.provider]}`}
+        onSelect={(event) => {
+          if (confirming) {
+            void removeSession(session.machine, session.id)
+            return
+          }
+          event.preventDefault()
+          setConfirming(true)
+        }}
+      >
+        <HugeiconsIcon icon={Delete02Icon} />
+        {confirming ? 'Tap again to delete' : 'Delete'}
+      </ContextMenuItem>
+    </ContextMenuContent>
+  )
+
+  const titleText =
+    title === null ? (
+      <span
+        className={cn(
+          'min-w-0 flex-1 truncate text-sm',
+          recede ? 'text-secondary-label font-normal' : 'font-medium',
+          !recede && (props.unseen || waiting) && 'text-foreground',
+          !recede && !props.unseen && !waiting && 'text-foreground/90'
+        )}
+      >
+        {session.title}
+      </span>
+    ) : (
+      <form
+        className="min-w-0 flex-1"
+        onSubmit={(event) => {
+          event.preventDefault()
+          const value = title.trim()
+          setTitle(null)
+          if (value !== '' && value !== session.title) {
+            void editSession(session.machine, session.id, { title: value })
+          }
+        }}
+      >
+        <input
+          ref={field}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          onClick={(event) => event.stopPropagation()}
+          onBlur={() => setTitle(null)}
+          onKeyDown={(event) => {
+            event.stopPropagation()
+            if (event.key === 'Escape') {
+              setTitle(null)
+            }
+          }}
+          className="text-foreground ring-ring/50 focus:ring-ring w-full rounded-sm bg-transparent text-sm font-medium ring-1 outline-none ring-inset"
+        />
+      </form>
+    )
+
+  const rowState = cn(
+    props.selected && 'bg-sidebar-row-active text-sidebar-foreground',
+    recede && 'text-sidebar-muted-foreground/75',
+    !props.selected && !recede && 'text-sidebar-foreground bg-transparent'
+  )
+
+  if (props.slim) {
+    return (
+      <li className="list-none">
+        <ContextMenu onOpenChange={() => setConfirming(false)}>
+          <ContextMenuTrigger asChild disabled={!props.saved}>
+            <div
+              role="button"
+              tabIndex={0}
+              className={cn(
+                surface,
+                rowState,
+                'flex h-9 items-center gap-2.5 px-2.5'
+              )}
+              onClick={props.onSelect}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  props.onSelect()
+                }
+              }}
+            >
+              <span className="flex shrink-0 items-center opacity-40 grayscale">
+                <ProjectIcon
+                  machine={session.machine}
+                  projectId={session.projectId}
+                />
+              </span>
+              {titleText}
+              <span className="text-secondary-label ml-auto shrink-0 text-xs tabular-nums">
+                {timeAgo(session.updatedAt)}
+              </span>
+            </div>
+          </ContextMenuTrigger>
+          {menu}
+        </ContextMenu>
+        {stopDialog}
+      </li>
+    )
+  }
+
+  return (
+    <li className="relative list-none py-0.5">
+      {offset > 0 && (
+        <div className="bg-destructive absolute inset-x-0 inset-y-0.5 flex items-center rounded-md px-4 text-white">
+          <HugeiconsIcon icon={Plug01Icon} className="size-6" />
+        </div>
+      )}
+      <ContextMenu onOpenChange={() => setConfirming(false)}>
+        <ContextMenuTrigger asChild disabled={!props.saved}>
+          <div
+            role="button"
+            tabIndex={0}
+            className={cn(
+              surface,
+              rowState,
+              working && !props.selected && 'opacity-70',
+              offset > 0 && 'bg-sidebar'
+            )}
+            style={
+              offset > 0 ? { transform: `translateX(${offset}px)` } : undefined
+            }
+            onClick={() => {
+              if (swiped.current) {
+                swiped.current = false
+                return
+              }
+              props.onSelect()
+            }}
+            onPointerDown={(event) => {
+              if (!swipeable || event.pointerType !== 'touch') {
+                return
+              }
+              swiped.current = false
+              swipe.current = {
+                x: event.clientX,
+                y: event.clientY,
+                swiping: false,
+              }
+            }}
+            onPointerMove={(event) => {
+              const start = swipe.current
+              if (start === null) {
+                return
+              }
+              const dx = event.clientX - start.x
+              const dy = event.clientY - start.y
+              if (!start.swiping && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+                return
+              }
+              if (!start.swiping && dx <= Math.abs(dy)) {
+                swipe.current = null
+                return
+              }
+              start.swiping = true
+              setOffset(Math.max(0, dx))
+            }}
+            onPointerUp={release}
+            onPointerCancel={() => {
+              swipe.current = null
+              setOffset(0)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                props.onSelect()
+              }
+            }}
+          >
+            <div className="px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
+              <div className="flex h-6 min-w-0 items-center gap-2">
+                <ProjectIcon
+                  machine={session.machine}
+                  projectId={session.projectId}
+                  className="size-5"
+                />
+                {titleText}
+                {session.status === 'pinned' && (
+                  <HugeiconsIcon
+                    icon={PinIcon}
+                    className="text-muted-foreground/65 size-3 shrink-0"
+                  />
+                )}
+                {working && (
+                  <span
+                    title={turning ? 'Working' : 'Running in background'}
+                    className={cn(
+                      'flex',
+                      turning ? 'text-info' : 'text-muted-foreground'
+                    )}
+                  >
+                    <HugeiconsIcon
+                      icon={CircleDashedIcon}
+                      className="size-4 shrink-0 animate-spin"
+                    />
+                  </span>
+                )}
+                {waiting && (
+                  <span
+                    title="Waiting for approval"
+                    className="text-warning-foreground flex"
+                  >
+                    <HugeiconsIcon
+                      icon={ShieldQuestionMarkIcon}
+                      className="size-4 shrink-0"
+                    />
+                  </span>
+                )}
+                {done && (
+                  <span title="Done" className="text-success flex">
+                    <HugeiconsIcon
+                      icon={CircleCheckIcon}
+                      className="size-4 shrink-0"
+                    />
+                  </span>
+                )}
+              </div>
+              <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
+                <span
+                  className={cn(
+                    'min-w-0 flex-1 truncate',
+                    recede ? 'font-normal' : 'font-medium'
+                  )}
+                >
+                  {projectTitle}
+                  {session.branch !== null && (
+                    <span className="text-muted-foreground/40 font-normal">
+                      {` | ${session.branch}`}
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  {timeAgo(session.updatedAt)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </ContextMenuTrigger>
+        {menu}
+      </ContextMenu>
+      {stopDialog}
+    </li>
+  )
+}
+
+export function MobileDraftRow(props: {
+  machine: string
+  projectId: string
+  onSelect: () => void
+}) {
+  const projectTitle = useProjectName(props.machine, props.projectId)
+  return (
+    <li className="list-none py-0.5">
+      <div
+        role="button"
+        tabIndex={0}
+        className={cn(surface, 'bg-sidebar-row-active text-sidebar-foreground')}
+        onClick={props.onSelect}
+      >
+        <div className="px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
+          <div className="flex h-6 min-w-0 items-center gap-2">
+            <ProjectIcon
+              machine={props.machine}
+              projectId={props.projectId}
+              className="size-5"
+            />
+            <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
+              New thread
+            </span>
+            <HugeiconsIcon
+              icon={SquarePenIcon}
+              className="text-warning-foreground size-4 shrink-0"
+            />
+          </div>
+          <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
+            <span className="min-w-0 flex-1 truncate font-medium">
+              {projectTitle}
+              <span className="text-muted-foreground/40 font-normal">
+                {' | Draft'}
+              </span>
+            </span>
+            <span className="shrink-0 tabular-nums">now</span>
+          </div>
+        </div>
+      </div>
+    </li>
+  )
+}

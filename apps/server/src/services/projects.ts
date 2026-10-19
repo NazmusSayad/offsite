@@ -11,6 +11,7 @@ import { eq } from 'drizzle-orm'
 import { broadcast } from '../lib/hub.ts'
 import { db } from '../storage/db.ts'
 import { projects as projectsTable } from '../storage/schema.ts'
+import { findLogo, LOGO_LIMIT } from './logos.ts'
 
 const LOGO_TYPES = [
   'image/png',
@@ -21,7 +22,6 @@ const LOGO_TYPES = [
   'image/x-icon',
   'image/vnd.microsoft.icon',
 ]
-const LOGO_LIMIT = 512 * 1024
 
 export function projects(): Project[] {
   return db.select().from(projectsTable).all()
@@ -49,7 +49,7 @@ export async function addProject(input: string) {
       id: randomUUID(),
       path: folder,
       name: path.basename(folder) || folder,
-      logo: null,
+      logo: await findLogo(folder),
     })
     .onConflictDoNothing({ target: projectsTable.path })
     .run()

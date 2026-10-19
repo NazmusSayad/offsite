@@ -10,7 +10,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
 import { isEqual } from 'es-toolkit'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { showToast } from '@/components/toast'
@@ -24,7 +24,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { showError } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { BranchPicker, SyncCounts, syncAction } from './branch-picker'
+import {
+  BranchDialog,
+  BranchPicker,
+  SyncCounts,
+  syncAction,
+} from './branch-picker'
 import { type Action, eligible, GitDialog } from './git-dialog'
 
 const STATUS_REFRESH = 3000
@@ -124,6 +129,8 @@ export function useGitStatus(
     }
   }, [machine, projectId])
 
+  const refresh = useCallback(() => setVersion((value) => value + 1), [])
+
   return {
     repos:
       result !== null &&
@@ -131,40 +138,25 @@ export function useGitStatus(
       result.key === machineKey(machine, projectId)
         ? result.repos
         : [],
-    refresh: () => setVersion((value) => value + 1),
+    refresh,
   }
 }
 
-export function GitActions(props: {
+type GitTarget = {
   machine: string
   projectId: string
   repos: GitRepo[]
   onRefresh: () => void
-}) {
+}
+
+export function useGitCommands(props: GitTarget) {
   const [action, setAction] = useState<Action | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [branchRepo, setBranchRepo] = useState<string | null>(null)
   const [pushing, setPushing] = useState(false)
   const [committing, setCommitting] = useState(false)
-  const [syncing, setSyncing] = useState(false)
-  const unpushed = props.repos.reduce((total, repo) => total + repo.ahead, 0)
-  const branches = [
-    ...new Set(props.repos.map((repo) => repo.branch ?? 'detached')),
-  ]
   const pushable = eligible(props.repos, 'push')
   const committable = eligible(props.repos, 'commit')
-  const unsynced = props.repos.flatMap((repo) => {
-    const next = syncAction(repo)
-    return next === null ? [] : [{ repo, next }]
-  })
-  const branchesTitle = props.repos
-    .map((repo) =>
-      repo.path === ''
-        ? (repo.branch ?? 'detached')
-        : `${repo.path}: ${repo.branch ?? 'detached'}`
-    )
-    .join('\n')
-  const branchesLabel =
-    branches.length === 1 ? branches[0] : `${branches.length} branches`
 
   async function push(repo: string) {
     setPushing(true)
@@ -178,21 +170,6 @@ export function GitActions(props: {
       showError(error)
     } finally {
       setPushing(false)
-      props.onRefresh()
-    }
-  }
-
-  async function sync(repo: string) {
-    setSyncing(true)
-    try {
-      await call(props.machine, 'git.sync', {
-        projectId: props.projectId,
-        repo,
-      })
-    } catch (error) {
-      showError(error)
-    } finally {
-      setSyncing(false)
       props.onRefresh()
     }
   }
@@ -214,6 +191,177 @@ export function GitActions(props: {
       showError(error)
     } finally {
       setCommitting(false)
+      props.onRefresh()
+    }
+  }
+
+  return {
+    target: props,
+    action,
+    setAction,
+    menuOpen,
+    setMenuOpen,
+    branchRepo,
+    setBranchRepo,
+    pushing,
+    committing,
+    pushable,
+    committable,
+    push,
+    yoloCommit,
+  }
+}
+
+type GitCommands = ReturnType<typeof useGitCommands>
+
+export function GitMenuItems(props: { git: GitCommands; collapsed: boolean }) {
+  const git = props.git
+  const repos = git.target.repos
+  const busy = git.pushing || git.committing
+  const unpushed = repos.reduce((total, repo) => total + repo.ahead, 0)
+
+  return (
+    <>
+      {props.collapsed &&
+        repos.map((repo) => (
+          <DropdownMenuItem
+            key={repo.path}
+            onSelect={() => git.setBranchRepo(repo.path)}
+          >
+            <HugeiconsIcon icon={GitBranchIcon} />
+            <span className="min-w-0 flex-1 truncate">
+              {repo.path === ''
+                ? (repo.branch ?? 'detached')
+                : `${repo.path}: ${repo.branch ?? 'detached'}`}
+            </span>
+            <span className="text-muted-foreground flex gap-1 text-xs">
+              <SyncCounts behind={repo.behind} ahead={repo.ahead} />
+            </span>
+          </DropdownMenuItem>
+        ))}
+      {props.collapsed && <DropdownMenuSeparator />}
+      {props.collapsed && (
+        <DropdownMenuItem
+          disabled={git.committable.length === 0}
+          onSelect={() => git.setAction('commit')}
+        >
+          <HugeiconsIcon icon={GitCommitHorizontalIcon} />
+          Commit…
+        </DropdownMenuItem>
+      )}
+      <DropdownMenuItem
+        disabled={git.pushable.length === 0 || busy}
+        onSelect={(event) => {
+          if (git.pushable.length === 1) {
+            event.preventDefault()
+            void git.push(git.pushable[0].path)
+            return
+          }
+          git.setAction('push')
+        }}
+      >
+        <HugeiconsIcon
+          icon={git.pushing ? CircleDashedIcon : CloudUploadIcon}
+          className={cn(git.pushing && 'animate-spin')}
+        />
+        {git.pushing
+          ? 'Pushing…'
+          : git.pushable.length > 1
+            ? 'Just Push…'
+            : 'Just Push'}
+        {unpushed > 0 && (
+          <span className="text-muted-foreground ml-auto text-xs tabular-nums">
+            ↑{unpushed}
+          </span>
+        )}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        disabled={git.committable.length === 0 || busy}
+        onSelect={(event) => {
+          event.preventDefault()
+          void git.yoloCommit()
+        }}
+      >
+        <HugeiconsIcon
+          icon={git.committing ? CircleDashedIcon : GitCommitHorizontalIcon}
+          className={cn(git.committing && 'animate-spin')}
+        />
+        {git.committing ? 'Committing…' : 'Yolo Commit'}
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        disabled={eligible(repos, 'pullRequest').length === 0}
+        onSelect={() => git.setAction('pullRequest')}
+      >
+        <HugeiconsIcon icon={GitPullRequestIcon} />
+        Create pull request…
+      </DropdownMenuItem>
+    </>
+  )
+}
+
+export function GitCommandDialog(props: { git: GitCommands }) {
+  const git = props.git
+  const branchRepo = git.target.repos.find(
+    (repo) => repo.path === git.branchRepo
+  )
+
+  return (
+    <>
+      {git.action !== null && (
+        <GitDialog
+          machine={git.target.machine}
+          projectId={git.target.projectId}
+          action={git.action}
+          repos={git.target.repos}
+          onClose={() => git.setAction(null)}
+          onRefresh={git.target.onRefresh}
+        />
+      )}
+      {git.branchRepo !== null && branchRepo !== undefined && (
+        <BranchDialog
+          machine={git.target.machine}
+          projectId={git.target.projectId}
+          repo={branchRepo}
+          onRefresh={git.target.onRefresh}
+          onClose={() => git.setBranchRepo(null)}
+        />
+      )}
+    </>
+  )
+}
+
+export function GitActions(props: GitTarget) {
+  const git = useGitCommands(props)
+  const [syncing, setSyncing] = useState(false)
+  const branches = [
+    ...new Set(props.repos.map((repo) => repo.branch ?? 'detached')),
+  ]
+  const unsynced = props.repos.flatMap((repo) => {
+    const next = syncAction(repo)
+    return next === null ? [] : [{ repo, next }]
+  })
+  const branchesTitle = props.repos
+    .map((repo) =>
+      repo.path === ''
+        ? (repo.branch ?? 'detached')
+        : `${repo.path}: ${repo.branch ?? 'detached'}`
+    )
+    .join('\n')
+  const branchesLabel =
+    branches.length === 1 ? branches[0] : `${branches.length} branches`
+
+  async function sync(repo: string) {
+    setSyncing(true)
+    try {
+      await call(props.machine, 'git.sync', {
+        projectId: props.projectId,
+        repo,
+      })
+    } catch (error) {
+      showError(error)
+    } finally {
+      setSyncing(false)
       props.onRefresh()
     }
   }
@@ -285,13 +433,13 @@ export function GitActions(props: {
           variant="outline"
           size="xs"
           className="rounded-e-none border-e-0"
-          disabled={eligible(props.repos, 'commit').length === 0}
-          onClick={() => setAction('commit')}
+          disabled={git.committable.length === 0}
+          onClick={() => git.setAction('commit')}
         >
           <HugeiconsIcon icon={GitCommitHorizontalIcon} />
           <span className="hidden sm:inline">Commit</span>
         </Button>
-        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenu open={git.menuOpen} onOpenChange={git.setMenuOpen}>
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
@@ -301,76 +449,23 @@ export function GitActions(props: {
             >
               <HugeiconsIcon
                 icon={
-                  pushing || committing ? CircleDashedIcon : ChevronDownIcon
+                  git.pushing || git.committing
+                    ? CircleDashedIcon
+                    : ChevronDownIcon
                 }
                 className={cn(
                   'size-4',
-                  (pushing || committing) && 'animate-spin'
+                  (git.pushing || git.committing) && 'animate-spin'
                 )}
               />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem
-              disabled={pushable.length === 0 || pushing || committing}
-              onSelect={(event) => {
-                if (pushable.length === 1) {
-                  event.preventDefault()
-                  void push(pushable[0].path)
-                  return
-                }
-                setAction('push')
-              }}
-            >
-              <HugeiconsIcon
-                icon={pushing ? CircleDashedIcon : CloudUploadIcon}
-                className={cn(pushing && 'animate-spin')}
-              />
-              {pushing
-                ? 'Pushing…'
-                : pushable.length > 1
-                  ? 'Just Push…'
-                  : 'Just Push'}
-              {unpushed > 0 && (
-                <span className="text-muted-foreground ml-auto text-xs tabular-nums">
-                  ↑{unpushed}
-                </span>
-              )}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={committable.length === 0 || pushing || committing}
-              onSelect={(event) => {
-                event.preventDefault()
-                void yoloCommit()
-              }}
-            >
-              <HugeiconsIcon
-                icon={committing ? CircleDashedIcon : GitCommitHorizontalIcon}
-                className={cn(committing && 'animate-spin')}
-              />
-              {committing ? 'Committing…' : 'Yolo Commit'}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={eligible(props.repos, 'pullRequest').length === 0}
-              onSelect={() => setAction('pullRequest')}
-            >
-              <HugeiconsIcon icon={GitPullRequestIcon} />
-              Create pull request…
-            </DropdownMenuItem>
+            <GitMenuItems git={git} collapsed={false} />
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {action !== null && (
-        <GitDialog
-          machine={props.machine}
-          projectId={props.projectId}
-          action={action}
-          repos={props.repos}
-          onClose={() => setAction(null)}
-          onRefresh={props.onRefresh}
-        />
-      )}
+      <GitCommandDialog git={git} />
     </div>
   )
 }

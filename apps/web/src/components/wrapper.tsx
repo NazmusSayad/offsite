@@ -1,24 +1,23 @@
-type WrapperProps = React.ComponentProps<'div'> & {
-  maxWidth?: number | string
-  padding?: number | string
-}
+import type { ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 
-export function Wrapper({
-  className,
-  maxWidth,
-  padding,
-  ...props
-}: WrapperProps) {
+export function Wrapper(props: {
+  width: 'chat' | 'composer'
+  className: string
+  children: ReactNode
+}) {
   return (
     <div
-      className={`mx-auto w-full max-w-[min(var(--max-width,80rem),calc(100%-(var(--padding,4%)*2)))] ${typeof className === 'string' ? className : ''}`}
-      style={{
-        // @ts-expect-error Ignore
-        '--max-width': maxWidth ? `${maxWidth}px` : undefined,
-        '--padding': padding ? `${padding}px` : undefined,
-        ...(typeof props.style === 'object' ? props.style : {}),
-      }}
-      {...props}
-    />
+      className={cn(
+        'mx-auto w-full',
+        props.width === 'chat' &&
+          'max-w-[min(var(--chat-content-max-width),calc(100%-2*var(--wrapper-gutter)))]',
+        props.width === 'composer' &&
+          'max-w-[calc(min(var(--chat-content-max-width),calc(100%-2*var(--wrapper-gutter)))+0.75rem)]',
+        props.className
+      )}
+    >
+      {props.children}
+    </div>
   )
 }

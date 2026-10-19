@@ -125,7 +125,7 @@ export function FilesPanel(props: {
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-39 pl-3">
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-(--panel-header-end) pl-3">
         <div className="flex min-w-0 items-center gap-1">
           <Button
             size="icon-sm"

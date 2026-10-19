@@ -43,5 +43,6 @@ export type SessionActivity = {
   running: boolean
   waiting: boolean
   prompted: boolean
+  compacting: boolean
   tasks: Record<string, TaskStatus>
 }

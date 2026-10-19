@@ -15,6 +15,7 @@ import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs'
 import { FileDiff } from '@pierre/diffs/react'
 import { sumBy } from 'es-toolkit'
 import { useEffect, useRef, useState } from 'react'
+import { useLocalStorage } from 'usehooks-ts'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { getState, updatePrefs, useStore } from '@/lib/store'
@@ -44,26 +45,7 @@ export function DiffPanel(props: {
   })
   const diff = useStore((state) => state.prefs.diff)
   const codeTheme = useCodeTheme()
-  const storageKey = `diffCollapsed:${props.machine}:${props.projectId}`
-  const [collapsed, setCollapsed] = useState<string[]>(() => {
-    const stored = localStorage.getItem(storageKey)
-    if (stored === null) {
-      return []
-    }
-    const names: unknown = JSON.parse(stored)
-    if (
-      Array.isArray(names) &&
-      names.every((name) => typeof name === 'string')
-    ) {
-      return names
-    }
-    throw new Error(`invalid ${storageKey} in localStorage`)
-  })
-
-  function collapse(names: string[]) {
-    setCollapsed(names)
-    localStorage.setItem(storageKey, JSON.stringify(names))
-  }
+  const [collapsed, collapse] = useLocalStorage<string[]>('diffCollapsed', [])
 
   function changeDiff(change: Partial<typeof diff>) {
     updatePrefs({ ...getState().prefs, diff: { ...diff, ...change } })
@@ -132,7 +114,7 @@ export function DiffPanel(props: {
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-39 pl-3">
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-(--panel-header-end) pl-3">
         <div className="flex min-w-0 items-center gap-1">
           <Button
             size="icon-sm"

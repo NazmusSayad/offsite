@@ -15,6 +15,7 @@ export function activity() {
       running: run.running,
       waiting: run.pending.size > 0,
       prompted: run.prompted,
+      compacting: run.compacting,
       tasks: run.tasks,
     }
   }

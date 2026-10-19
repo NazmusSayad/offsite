@@ -8,6 +8,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
+import { Wrapper } from '@/components/wrapper'
 import { AgentLine } from '@/features/transcript/agent-pill'
 import { ChangedFilesCard } from '@/features/transcript/changed-files'
 import { PlanCard } from '@/features/transcript/plan-card'
@@ -123,7 +124,7 @@ export function Transcript(props: {
   return (
     <div
       ref={scroller}
-      className="topbar-scroll-fade min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 pb-8 sm:px-12"
+      className="topbar-scroll-fade min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-8"
       onScroll={(event) => {
         const element = event.currentTarget
         pinned.current =
@@ -131,7 +132,7 @@ export function Transcript(props: {
         showMore(element)
       }}
     >
-      <div className="mx-auto w-full max-w-(--chat-content-max-width) pt-3">
+      <Wrapper width="chat" className="pt-3">
         {!loaded && (
           <p className="text-muted-foreground py-6 text-center text-xs">
             Loading…
@@ -186,6 +187,7 @@ export function Transcript(props: {
                 agents={found.agents}
                 tasks={found.tasks}
                 running={running}
+                compacting={activity?.compacting === true}
                 fork={!older}
                 expanded={expanded.includes(row.key)}
                 onToggle={() => toggle(row.key)}
@@ -197,7 +199,7 @@ export function Transcript(props: {
             </div>
           )
         })}
-      </div>
+      </Wrapper>
     </div>
   )
 }
@@ -208,6 +210,7 @@ export function RowView(props: {
   tasks: ReturnType<typeof threadTasks>['tasks']
   cwd: string
   running: boolean
+  compacting: boolean
   fork: boolean
   expanded: boolean
   onToggle: () => void
@@ -229,7 +232,10 @@ export function RowView(props: {
     case 'working':
       return (
         <div className="text-muted-foreground h-9 pt-3 text-[13px] leading-5 font-medium tracking-[-0.04px]">
-          <Shimmer text="Working" active />
+          <Shimmer
+            text={props.compacting ? 'Compacting conversation' : 'Working'}
+            active
+          />
         </div>
       )
     case 'group':

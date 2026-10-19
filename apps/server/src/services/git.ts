@@ -364,7 +364,7 @@ export function git(cwd: string, args: string[]) {
   return run('git', args, { cwd, maxBuffer: 64 * 1024 * 1024 })
 }
 
-async function projectRepos(cwd: string) {
+export async function projectRepos(cwd: string) {
   return (await isRepo(cwd)) ? [''] : childRepos(cwd, '', REPO_DEPTH)
 }
 

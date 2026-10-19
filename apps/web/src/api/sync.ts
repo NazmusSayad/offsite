@@ -49,6 +49,7 @@ export function start() {
     settingsPage: 'General',
     settingsAccount: null,
     settingsEditedMachine: null,
+    settingsListing: true,
     settingsMachine: stored.at(0)?.id ?? null,
     unseen: [],
     selection,
