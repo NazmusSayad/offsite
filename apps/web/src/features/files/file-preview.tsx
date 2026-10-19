@@ -21,6 +21,10 @@ import { useCodeTheme } from '@/lib/theme'
 import { errorMessage } from '@/lib/utils'
 import diffCss from '@/features/git/diff.css?raw'
 
+const AudioPlayer = lazy(async () => ({
+  default: (await import('@/components/audio-player')).AudioPlayer,
+}))
+
 const VideoPlayer = lazy(async () => ({
   default: (await import('@/components/video-player')).VideoPlayer,
 }))
@@ -202,13 +206,13 @@ function PreviewBody(props: {
         )}
         {media !== null && kind === 'audio' && (
           <div className="grid size-full place-items-center p-6">
-            <audio
-              src={media}
-              aria-label={props.path}
-              controls
-              preload="metadata"
-              className="w-full max-w-md"
-            />
+            <Suspense>
+              <AudioPlayer
+                src={media}
+                label={props.path}
+                className="w-full max-w-md"
+              />
+            </Suspense>
           </div>
         )}
         {preview?.kind === 'text' && /\.(md|markdown)$/i.test(props.path) && (

@@ -4,12 +4,16 @@ import {
   VideoOffIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { ViewableImage } from '@/components/viewable-image'
 import { ViewableVideo } from '@/components/viewable-video'
 import { mediaKind, mediaUrl } from '@/lib/media'
 import { useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
+
+const AudioPlayer = lazy(async () => ({
+  default: (await import('@/components/audio-player')).AudioPlayer,
+}))
 
 const unavailableIcons = {
   image: ImageNotFound01Icon,
@@ -105,14 +109,14 @@ export function Media(props: {
   }
   if (props.kind === 'audio') {
     return (
-      <audio
-        src={props.src}
-        aria-label={props.alt}
-        controls
-        preload="metadata"
-        className="inline-block w-full max-w-[min(100%,28rem)] align-top"
-        onError={() => setFailed(props.src)}
-      />
+      <Suspense>
+        <AudioPlayer
+          src={props.src}
+          label={props.alt === '' ? props.name : props.alt}
+          className="w-full max-w-[min(100%,28rem)]"
+          onError={() => setFailed(props.src)}
+        />
+      </Suspense>
     )
   }
   return (
