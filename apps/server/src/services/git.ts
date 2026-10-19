@@ -364,7 +364,7 @@ export function git(cwd: string, args: string[]) {
   return run('git', args, { cwd, maxBuffer: 64 * 1024 * 1024 })
 }
 
-async function projectRepos(cwd: string) {
+export async function projectRepos(cwd: string) {
   return (await isRepo(cwd)) ? [''] : childRepos(cwd, '', REPO_DEPTH)
 }
 
@@ -431,7 +431,7 @@ function gitError(error: unknown) {
   )
 }
 
-export async function isRepo(cwd: string) {
+async function isRepo(cwd: string) {
   try {
     await git(cwd, ['rev-parse', '--is-inside-work-tree'])
     return true
