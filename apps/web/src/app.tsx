@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { useLocalStorage } from 'usehooks-ts'
 import { useProjectName } from '@/api/projects'
 import { machineIcons, ProjectIcon } from '@/components/icons'
 import { Toast } from '@/components/toast'
@@ -100,13 +101,7 @@ function DesktopLayout() {
   const [panel, setPanel] = useState<Panel | null>(null)
   const lastPanel = useRef<Panel>('diff')
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
-  const [panelWidth, setPanelWidth] = useState(() => {
-    const stored = Number(localStorage.getItem('panelWidth') ?? 540)
-    if (Number.isFinite(stored) && stored >= 360) {
-      return stored
-    }
-    return 540
-  })
+  const [panelWidth, setPanelWidth] = useLocalStorage('panelWidth', 540)
   const [terminalHeight, setTerminalHeight] = useState(280)
   const terminal = useSyncExternalStore(
     subscribeTerminal,
@@ -340,7 +335,6 @@ function DesktopLayout() {
                     Math.max(360, window.innerWidth - next.clientX)
                   )
                   setPanelWidth(value)
-                  localStorage.setItem('panelWidth', String(value))
                 })
               }
             >
