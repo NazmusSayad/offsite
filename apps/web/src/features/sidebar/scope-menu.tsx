@@ -6,20 +6,20 @@ import {
   Settings01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { machineKey } from '@/api/machines'
 import { machineIcons, ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { activityOf, type MachineProject, useStore } from '@/lib/store'
-import { cn } from '@/lib/utils'
 
 export function ScopeMenu(props: {
   scope: { machine: string; projectId: string } | null
@@ -33,12 +33,14 @@ export function ScopeMenu(props: {
   const sessions = useStore((state) => state.sessions)
   const unseen = useStore((state) => state.unseen)
   const [picking, setPicking] = useState(false)
-  const projects = [...registered].sort(
-    (a, b) =>
-      machines.findIndex((item) => item.id === a.machine) -
-        machines.findIndex((item) => item.id === b.machine) ||
-      a.name.localeCompare(b.name)
-  )
+  const groups = machines
+    .map((machine) => ({
+      machine,
+      projects: registered
+        .filter((project) => project.machine === machine.id)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .filter((group) => group.projects.length > 0)
   const attention = sessions.filter((session) => {
     const activity = activityOf(machines, session.machine, session.id)
     return (
@@ -55,11 +57,7 @@ export function ScopeMenu(props: {
     )
   }
 
-  function machineLabel(id: string) {
-    const machine = machines.find((item) => item.id === id)
-    if (machine === undefined) {
-      return ''
-    }
+  function machineLabel(machine: (typeof machines)[number]) {
     if (machine.status === 'online') {
       return machine.name
     }
@@ -67,19 +65,6 @@ export function ScopeMenu(props: {
       return `${machine.name} · needs pairing`
     }
     return `${machine.name} · offline`
-  }
-
-  function machineIcon(id: string) {
-    const machine = machines.find((item) => item.id === id)
-    if (machine === undefined) {
-      return null
-    }
-    return (
-      <HugeiconsIcon
-        icon={machineIcons[machine.icon]}
-        className="mr-1 inline size-3 align-[-2px]"
-      />
-    )
   }
 
   return (
@@ -140,73 +125,72 @@ export function ScopeMenu(props: {
 
           <DropdownMenuSeparator />
 
-          {projects.map((project) => {
-            const count = attention.filter(
-              (session) =>
-                session.machine === project.machine &&
-                session.projectId === project.id
-            ).length
-            return (
-              <DropdownMenuRadioItem
-                key={machineKey(project.machine, project.id)}
-                value={machineKey(project.machine, project.id)}
-                title={project.path}
-                className={cn(
-                  'pr-2 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2',
-                  machines.length > 1 && 'gap-2.5 py-1.5'
-                )}
-                onSelect={() =>
-                  props.onScope({
-                    machine: project.machine,
-                    projectId: project.id,
-                  })
-                }
-                onContextMenu={(event) => {
-                  event.preventDefault()
-                  setPicking(false)
-                  props.onEdit(project)
-                }}
-              >
-                <ProjectIcon
-                  machine={project.machine}
-                  projectId={project.id}
-                  className={cn(
-                    'shrink-0',
-                    machines.length > 1 &&
-                      'size-7 [&>img]:rounded-md [&>svg]:rounded-md',
-                    machines.length === 1 &&
-                      'size-5 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]'
-                  )}
-                />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate">{project.name}</span>
-                  {machines.length > 1 && (
-                    <span className="text-muted-foreground truncate text-xs">
-                      {machineIcon(project.machine)}
-                      {machineLabel(project.machine)}
+          {groups.map(({ machine, projects }, index) => (
+            <Fragment key={machine.id}>
+              {index > 0 && <DropdownMenuSeparator />}
+              {machines.length > 1 && (
+                <DropdownMenuLabel className="text-2xs flex items-center gap-1 pl-5">
+                  <HugeiconsIcon
+                    icon={machineIcons[machine.icon]}
+                    className="size-3 shrink-0"
+                  />
+                  <span className="truncate">{machineLabel(machine)}</span>
+                </DropdownMenuLabel>
+              )}
+              {projects.map((project) => {
+                const count = attention.filter(
+                  (session) =>
+                    session.machine === project.machine &&
+                    session.projectId === project.id
+                ).length
+                return (
+                  <DropdownMenuRadioItem
+                    key={machineKey(project.machine, project.id)}
+                    value={machineKey(project.machine, project.id)}
+                    title={project.path}
+                    className="group/project pr-2 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
+                    onSelect={() =>
+                      props.onScope({
+                        machine: project.machine,
+                        projectId: project.id,
+                      })
+                    }
+                    onContextMenu={(event) => {
+                      event.preventDefault()
+                      setPicking(false)
+                      props.onEdit(project)
+                    }}
+                  >
+                    <ProjectIcon
+                      machine={project.machine}
+                      projectId={project.id}
+                      className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {project.name}
                     </span>
-                  )}
-                </span>
-                {count > 0 && (
-                  <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
-                    {count}
-                  </span>
-                )}
-                <button
-                  className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 -my-0.5 grid size-5 shrink-0 cursor-pointer place-items-center rounded-sm [&_svg]:size-3.5"
-                  title="Configure project"
-                  aria-label={`Configure ${project.name}`}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    setPicking(false)
-                    props.onEdit(project)
-                  }}
-                >
-                  <HugeiconsIcon icon={Settings01Icon} />
-                </button>
-              </DropdownMenuRadioItem>
-            )
-          })}
+                    {count > 0 && (
+                      <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+                        {count}
+                      </span>
+                    )}
+                    <button
+                      className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 -my-0.5 grid size-5 shrink-0 cursor-pointer place-items-center rounded-sm opacity-0 transition-opacity group-data-highlighted/project:opacity-100 pointer-coarse:opacity-100 [&_svg]:size-3.5"
+                      title="Configure project"
+                      aria-label={`Configure ${project.name}`}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        setPicking(false)
+                        props.onEdit(project)
+                      }}
+                    >
+                      <HugeiconsIcon icon={Settings01Icon} />
+                    </button>
+                  </DropdownMenuRadioItem>
+                )
+              })}
+            </Fragment>
+          ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="pl-8" onSelect={props.onAddProject}>
