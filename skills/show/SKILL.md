@@ -5,7 +5,7 @@ description: Shows images, videos and audio inline in the offsite chat. Use when
 
 # Show images, videos and audio in chat
 
-The user reads your replies in offsite, which renders a Markdown image inline when its path points to an existing file in the project:
+The user reads your replies in offsite, which renders a Markdown image inline when its path points to an existing file:
 
 ```markdown
 ![Alt text](/absolute/path/to/file.png)

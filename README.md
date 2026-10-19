@@ -44,6 +44,12 @@ Give each instance its own port and `--dir`.
 npx offsite --port 47850 --dir ~/.offsite-work
 ```
 
+## Images, videos and audio
+
+OffSite shows images, videos and audio inline when a reply links to a file with Markdown image syntax, like `![Header](/absolute/path/header.png)` or `![Header](./relative/path/header.png)`. Relative paths start at the project folder.
+
+The `show` skill in `skills/show` teaches agents this syntax.
+
 ## Development
 
 ```sh
