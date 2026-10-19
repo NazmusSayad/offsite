@@ -12,9 +12,16 @@ import { useProjectName } from '@/api/projects'
 import { machineIcons, ProjectIcon } from '@/components/icons'
 import { Toast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
+import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Composer } from '@/features/composer/composer'
 import { CommitToast } from '@/features/git/commit-toast'
-import { GitActions, useGitStatus } from '@/features/git/git-menu'
+import {
+  GitActions,
+  GitCommandDialog,
+  GitMenuItems,
+  useGitCommands,
+  useGitStatus,
+} from '@/features/git/git-menu'
 import { SettingsDialog } from '@/features/settings/dialog'
 import { ConnectMachine } from '@/features/sidebar/connect-machine'
 import { Palette } from '@/features/sidebar/palette'
@@ -30,6 +37,7 @@ import { MobileLayout } from '@/features/workspace/mobile'
 import {
   ErrorBanner,
   type Panel,
+  PanelMenu,
   PanelToggles,
   PanelView,
 } from '@/features/workspace/panels'
@@ -45,6 +53,7 @@ import {
 import { cn, drag, mod } from '@/lib/utils'
 
 const wide = window.matchMedia('(min-width: 768px)')
+const compactWidth = 800
 
 function subscribeWide(listener: () => void) {
   wide.addEventListener('change', listener)
@@ -85,6 +94,8 @@ function DesktopLayout() {
     return origin === null ? null : machineOf(state, origin)
   })
   const [sidebar, setSidebar] = useState(true)
+  const column = useRef<HTMLDivElement>(null)
+  const [compact, setCompact] = useState(false)
   const [panel, setPanel] = useState<Panel | null>(null)
   const lastPanel = useRef<Panel>('diff')
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
@@ -106,6 +117,12 @@ function DesktopLayout() {
     machine?.status === 'online' ? (selection?.projectId ?? null) : null,
     running
   )
+  const commands = useGitCommands({
+    machine: selection?.machine ?? '',
+    projectId: selection?.projectId ?? '',
+    repos: git.repos,
+    onRefresh: git.refresh,
+  })
   const session = sessions.find(
     (item) =>
       item.machine === selection?.machine && item.id === selection.sessionId
@@ -148,6 +165,17 @@ function DesktopLayout() {
     enableOnFormTags: true,
     preventDefault: true,
   })
+  useEffect(() => {
+    const element = column.current
+    if (element === null) {
+      throw new Error('chat column is not mounted')
+    }
+    const observer = new ResizeObserver((entries) =>
+      setCompact(entries[0].contentRect.width < compactWidth)
+    )
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <>
@@ -170,12 +198,15 @@ function DesktopLayout() {
         </div>
       )}
       <main className="bg-background relative flex min-w-0 flex-1 overflow-hidden">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
+        <div
+          ref={column}
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden"
+        >
           <header
             className={cn(
               'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-5 pl-[3.25rem]',
               sidebar && 'pl-5',
-              panel === null && 'pr-36'
+              panel === null && (compact ? 'pr-20' : 'pr-36')
             )}
           >
             {selection !== null && machine !== null && (
@@ -222,7 +253,7 @@ function DesktopLayout() {
                   `${machine.name} needs pairing`}
               </span>
             )}
-            {selection !== null && git.repos.length > 0 && (
+            {selection !== null && !compact && git.repos.length > 0 && (
               <GitActions
                 machine={selection.machine}
                 projectId={selection.projectId}
@@ -326,7 +357,7 @@ function DesktopLayout() {
           </div>
         )}
       </main>
-      {selection !== null && (
+      {selection !== null && !compact && (
         <PanelToggles
           className="fixed top-0 right-3 z-50 flex h-(--workspace-topbar-height) items-center gap-1"
           selection={selection}
@@ -340,6 +371,30 @@ function DesktopLayout() {
           onTerminal={setTerminal}
         />
       )}
+      {selection !== null && compact && (
+        <PanelMenu
+          className="fixed top-0 right-3 z-50 flex h-(--workspace-topbar-height) items-center gap-1"
+          selection={selection}
+          panel={panel}
+          terminal={terminal}
+          changed={git.repos.some((repo) => repo.changed > 0)}
+          onPanel={(next) => {
+            setSelectedTask(null)
+            setPanel(next)
+          }}
+          onTerminal={setTerminal}
+          open={commands.menuOpen}
+          onOpenChange={commands.setMenuOpen}
+        >
+          {git.repos.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <GitMenuItems git={commands} commit />
+            </>
+          )}
+        </PanelMenu>
+      )}
+      <GitCommandDialog git={commands} />
     </>
   )
 }

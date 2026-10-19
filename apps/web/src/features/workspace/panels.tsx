@@ -7,7 +7,7 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useSyncExternalStore } from 'react'
+import { type ReactNode, useSyncExternalStore } from 'react'
 import { LastUsedMenu, type MenuOption } from '@/components/last-used-menu'
 import { Button } from '@/components/ui/button'
 import { FilesPanel } from '@/features/files/files-panel'
@@ -63,16 +63,26 @@ export function PanelToggles(props: ToggleProps) {
   )
 }
 
-export function PanelMenu(props: ToggleProps) {
+export function PanelMenu(
+  props: ToggleProps & {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    children: ReactNode
+  }
+) {
   const options = usePanelOptions(props)
 
   return (
     <LastUsedMenu
-      storageKey="mobilePanel"
+      storageKey="panelMenu"
       className={props.className}
       buttonClassName={toggle}
       options={options}
-    />
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+    >
+      {props.children}
+    </LastUsedMenu>
   )
 }
 

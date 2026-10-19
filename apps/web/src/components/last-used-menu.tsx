@@ -26,6 +26,9 @@ export function LastUsedMenu(props: {
   className: string
   buttonClassName: string
   options: [MenuOption, ...MenuOption[]]
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  children: ReactNode
 }) {
   const [lastId, setLastId] = useState(() =>
     localStorage.getItem(props.storageKey)
@@ -52,7 +55,7 @@ export function LastUsedMenu(props: {
         <HugeiconsIcon icon={last.icon} />
         {last.badge}
       </button>
-      <DropdownMenu>
+      <DropdownMenu open={props.open} onOpenChange={props.onOpenChange}>
         <DropdownMenuTrigger asChild>
           <button
             className={cn(props.buttonClassName, 'data-[state=open]:bg-accent')}
@@ -65,7 +68,7 @@ export function LastUsedMenu(props: {
             )}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-44" align="end">
+        <DropdownMenuContent className="w-56" align="end">
           {others.map((option) => (
             <DropdownMenuItem key={option.id} onSelect={() => select(option)}>
               <HugeiconsIcon icon={option.icon} />
@@ -73,6 +76,7 @@ export function LastUsedMenu(props: {
               {option.detail}
             </DropdownMenuItem>
           ))}
+          {props.children}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

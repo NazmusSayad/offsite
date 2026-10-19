@@ -4,8 +4,14 @@ import { Dialog as DialogPrimitive } from 'radix-ui'
 import { Fragment, useEffect, useState, useSyncExternalStore } from 'react'
 import { useProjectName } from '@/api/projects'
 import { Button } from '@/components/ui/button'
+import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Composer } from '@/features/composer/composer'
-import { useGitStatus } from '@/features/git/git-menu'
+import {
+  GitCommandDialog,
+  GitMenuItems,
+  useGitCommands,
+  useGitStatus,
+} from '@/features/git/git-menu'
 import { ConnectMachine } from '@/features/sidebar/connect-machine'
 import { Sidebar } from '@/features/sidebar/sidebar'
 import { TerminalPanel } from '@/features/terminal/panel'
@@ -19,7 +25,6 @@ import {
   ErrorBanner,
   type Panel,
   PanelMenu,
-  PanelToggles,
   PanelView,
 } from '@/features/workspace/panels'
 import { closeSession, openSession } from '@/lib/sessions'
@@ -111,6 +116,12 @@ function MobileChat(props: { selection: Selection }) {
     machine.status === 'online' ? props.selection.projectId : null,
     running
   )
+  const commands = useGitCommands({
+    machine: props.selection.machine,
+    projectId: props.selection.projectId,
+    repos: git.repos,
+    onRefresh: git.refresh,
+  })
   const terminal = useSyncExternalStore(
     subscribeTerminal,
     () => terminalState().open
@@ -166,9 +177,19 @@ function MobileChat(props: { selection: Selection }) {
           panel={panel}
           terminal={terminal}
           changed={changed}
+          open={commands.menuOpen}
+          onOpenChange={commands.setMenuOpen}
           onPanel={showPanel}
           onTerminal={showTerminal}
-        />
+        >
+          {git.repos.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <GitMenuItems git={commands} commit />
+            </>
+          )}
+        </PanelMenu>
+        <GitCommandDialog git={commands} />
       </header>
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <ErrorBanner />
@@ -234,15 +255,6 @@ function MobileChat(props: { selection: Selection }) {
                 </>
               )}
             </div>
-            <PanelToggles
-              className="border-border/60 flex h-12 shrink-0 items-center justify-around border-t"
-              selection={props.selection}
-              panel={panel}
-              terminal={terminal}
-              changed={changed}
-              onPanel={showPanel}
-              onTerminal={showTerminal}
-            />
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
