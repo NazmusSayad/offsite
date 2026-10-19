@@ -13,7 +13,7 @@ export function Wrapper(props: {
         props.width === 'chat' &&
           'max-w-[min(var(--chat-content-max-width),calc(100%-2*var(--wrapper-gutter)))]',
         props.width === 'composer' &&
-          'max-w-[min(calc(var(--chat-content-max-width)+1rem),calc(100%-2*var(--wrapper-gutter)))]',
+          'max-w-[calc(min(var(--chat-content-max-width),calc(100%-2*var(--wrapper-gutter)))+0.75rem)]',
         props.className
       )}
     >
