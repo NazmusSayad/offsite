@@ -37,7 +37,6 @@ export function LastUsedMenu(props: {
   )
   const last =
     props.options.find((option) => option.id === lastId) ?? props.options[0]
-  const others = props.options.filter((option) => option !== last)
 
   function select(option: MenuOption) {
     setLastId(option.id)
@@ -64,13 +63,15 @@ export function LastUsedMenu(props: {
             title="More"
           >
             <HugeiconsIcon icon={MoreHorizontalIcon} />
-            {others.some((option) => option.attention) && (
+            {props.options.some(
+              (option) => option !== last && option.attention
+            ) && (
               <span className="bg-muted-foreground ring-background absolute top-0.5 right-0.5 size-1.5 rounded-full ring-2" />
             )}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" align="end">
-          {others.map((option) => (
+          {props.options.map((option) => (
             <DropdownMenuItem key={option.id} onSelect={() => select(option)}>
               <HugeiconsIcon icon={option.icon} />
               <span className="flex-1">{option.label}</span>
