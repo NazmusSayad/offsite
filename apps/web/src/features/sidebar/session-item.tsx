@@ -19,6 +19,16 @@ import { useRef, useState } from 'react'
 import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -46,14 +56,49 @@ export function SessionItem(props: {
   const projectTitle = useProjectName(session.machine, session.projectId)
   const [title, setTitle] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const [stopping, setStopping] = useState(false)
   const field = useRef<HTMLInputElement>(null)
   const waiting = props.activity?.waiting === true
   const turning = !waiting && props.activity?.running === true
-  const working =
-    turning ||
-    (!waiting && Object.values(props.activity?.tasks ?? {}).includes('running'))
+  const backgroundRunning = Object.values(props.activity?.tasks ?? {}).includes(
+    'running'
+  )
+  const working = turning || (!waiting && backgroundRunning)
+  const busy = props.activity?.running === true || backgroundRunning
   const done = !waiting && !working && props.unseen
   const recede = !props.selected && !waiting && !done
+
+  function makeInactive() {
+    void editSession(session.machine, session.id, { status: 'inactive' })
+  }
+
+  function deactivate() {
+    if (busy) {
+      setStopping(true)
+      return
+    }
+    makeInactive()
+  }
+
+  const stopDialog = (
+    <AlertDialog open={stopping} onOpenChange={setStopping}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Stop running work?</AlertDialogTitle>
+          <AlertDialogDescription>
+            The agent or background tasks are running. Do you really want to
+            stop them?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={makeInactive}>
+            Stop and Make Inactive
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
 
   const menu = props.saved && (
     <DropdownMenu onOpenChange={() => setConfirming(false)}>
@@ -119,13 +164,7 @@ export function SessionItem(props: {
             Make active
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem
-            onSelect={() =>
-              void editSession(session.machine, session.id, {
-                status: 'inactive',
-              })
-            }
-          >
+          <DropdownMenuItem onSelect={deactivate}>
             <HugeiconsIcon icon={Plug01Icon} />
             Make inactive
           </DropdownMenuItem>
@@ -234,6 +273,7 @@ export function SessionItem(props: {
             </span>
           </span>
         </div>
+        {stopDialog}
       </li>
     )
   }
@@ -340,9 +380,7 @@ export function SessionItem(props: {
                 aria-label="Make inactive"
                 onClick={(event) => {
                   event.stopPropagation()
-                  void editSession(session.machine, session.id, {
-                    status: 'inactive',
-                  })
+                  deactivate()
                 }}
               >
                 <HugeiconsIcon
@@ -355,6 +393,7 @@ export function SessionItem(props: {
           </div>
         )}
       </div>
+      {stopDialog}
     </li>
   )
 }

@@ -13,7 +13,7 @@ export function Section(props: {
         {props.title}
         {props.note && <span className="font-normal"> · {props.note}</span>}
       </h2>
-      <div className="divide-y overflow-hidden rounded-xl border">
+      <div className="@container divide-y overflow-hidden rounded-xl border">
         {props.children}
       </div>
     </section>
@@ -26,7 +26,9 @@ export function Row(props: { label: ReactNode; children: ReactNode }) {
       <span className="min-w-0 flex-1 basis-40 text-sm font-medium">
         {props.label}
       </span>
-      <div className="max-w-full shrink-0">{props.children}</div>
+      <div className="max-w-full shrink-0 @max-lg:has-[[data-slot=select-trigger],input:not([type=number])]:w-full @max-lg:has-[[data-slot=select-trigger],input:not([type=number])]:*:w-full @max-lg:**:data-[slot=select-trigger]:w-full">
+        {props.children}
+      </div>
     </label>
   )
 }
