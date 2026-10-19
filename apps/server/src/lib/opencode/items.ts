@@ -89,6 +89,7 @@ export function messageItems(
         case 'failed':
           return [{ ...errorItem(message.id, message.error.message), parent }]
       }
+      throw new Error('Unknown compaction status')
     case 'idle':
       return message.outcome === 'failed' && message.error !== undefined
         ? [{ ...errorItem(message.id, message.error.message), parent }]

@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { pathToFileURL } from 'node:url'
 import type { PromptDelivery, SessionSettings } from '@offsite/core/config'
 import type {
   PermissionDecision,
@@ -18,10 +17,10 @@ import type {
 } from '@opencode/client'
 import { errorItem } from '../codex/index.ts'
 import { publish } from '../hub.ts'
-import { saveImage } from '../images.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import { openCode } from './client.ts'
 import { formAnswer, formQuestions, messageItems } from './items.ts'
+import { files, sendPrompt } from './prompts.ts'
 import { permissionRequest } from './requests.ts'
 import { contextOf, modelRef, sessionSettings } from './sessions.ts'
 
@@ -339,52 +338,13 @@ export class OpenCodeRun {
     broadcastActivity()
     try {
       await this.apply()
-      await this.send(prompt)
+      await sendPrompt(this.sessionId, this.cwd, prompt)
     } catch (error) {
       this.running = false
       broadcastActivity()
       this.armIdleTimer()
       throw error
     }
-  }
-
-  private async send(prompt: Prompt) {
-    const client = await openCode()
-    const sessionID = this.sessionId
-    const location = { directory: this.cwd }
-    const match = /^\/(\S+)\s*([\s\S]*)$/.exec(prompt.text)
-    if (match !== null) {
-      if (match[1] === 'compact' && prompt.images.length === 0) {
-        await client.session.compact({ sessionID })
-        return
-      }
-      const commands = await client.command.list({ location })
-      if (commands.data.some((command) => command.name === match[1])) {
-        await client.session.command({
-          sessionID,
-          name: match[1],
-          text: match[2],
-          files: await files(sessionID, prompt),
-        })
-        return
-      }
-      const skills = await client.skill.list({ location })
-      const skill = skills.data.find((item) => item.name === match[1])
-      if (skill !== undefined) {
-        await client.session.prompt({
-          sessionID,
-          text: match[2],
-          files: await files(sessionID, prompt),
-          skills: [{ id: skill.id }],
-        })
-        return
-      }
-    }
-    await client.session.prompt({
-      sessionID,
-      text: prompt.text,
-      files: await files(sessionID, prompt),
-    })
   }
 
   private async apply() {
@@ -531,12 +491,4 @@ export class OpenCodeRun {
       queue: this.queue,
     })
   }
-}
-
-function files(sessionId: string, prompt: Prompt) {
-  return Promise.all(
-    prompt.images.map(async (image) => ({
-      uri: pathToFileURL(await saveImage(sessionId, image)).href,
-    }))
-  )
 }

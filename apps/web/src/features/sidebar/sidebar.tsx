@@ -1,8 +1,5 @@
 import {
-  Add01Icon,
   ChevronDownIcon,
-  ComputerIcon,
-  InboxIcon,
   PanelLeftOpenIcon,
   SearchIcon,
   Settings01Icon,
@@ -13,16 +10,6 @@ import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocalStorage } from 'usehooks-ts'
 import { machineKey } from '@/api/machines'
-import { machineIcons, ProjectIcon } from '@/components/icons'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   DesktopDraftRow,
   DesktopSessionItem,
@@ -37,6 +24,7 @@ import {
   EditProjectDialog,
   FolderDialog,
 } from '@/features/sidebar/project-dialogs'
+import { ScopeMenu } from '@/features/sidebar/scope-menu'
 import { openSession } from '@/lib/sessions'
 import {
   activityOf,
@@ -58,7 +46,6 @@ export function Sidebar(
 ) {
   const selection = useStore((state) => state.selection)
   const machines = useStore((state) => state.machines)
-  const registered = useStore((state) => state.projects)
   const sessions = useStore((state) => state.sessions)
   const provider = useStore((state) => state.settings.provider)
   const unseen = useStore((state) => state.unseen)
@@ -69,17 +56,10 @@ export function Sidebar(
   const [adding, setAdding] = useState(false)
   const [addingMachine, setAddingMachine] = useState(false)
   const [editing, setEditing] = useState<MachineProject | null>(null)
-  const [picking, setPicking] = useState(false)
   const [minimizedOpen, setMinimizedOpen] = useState(false)
   const [inactiveOpen, setInactiveOpen] = useState(false)
   const [filter, setFilter] = useState<ThreadFilter>('active')
   const [width, setWidth] = useLocalStorage('sidebarWidth', 240)
-  const projects = [...registered].sort(
-    (a, b) =>
-      machines.findIndex((item) => item.id === a.machine) -
-        machines.findIndex((item) => item.id === b.machine) ||
-      a.name.localeCompare(b.name)
-  )
   const shown = sessions
     .filter(
       (session) =>
@@ -88,15 +68,6 @@ export function Sidebar(
           session.projectId === scope.projectId)
     )
     .sort((a, b) => b.updatedAt - a.updatedAt)
-  const attention = sessions.filter((session) => {
-    const activity = activityOf(machines, session.machine, session.id)
-    return (
-      activity?.running === true ||
-      activity?.waiting === true ||
-      Object.values(activity?.tasks ?? {}).includes('running') ||
-      unseen.includes(machineKey(session.machine, session.id))
-    )
-  })
   const active = [
     ...shown.filter((session) => session.status === 'pinned'),
     ...shown.filter((session) => session.status === 'active'),
@@ -127,39 +98,6 @@ export function Sidebar(
 
   const folderMachine =
     scope?.machine ?? selection?.machine ?? machines.at(0)?.id
-
-  function projectAt(machine: string, projectId: string) {
-    return registered.find(
-      (project) => project.machine === machine && project.id === projectId
-    )
-  }
-
-  function machineLabel(id: string) {
-    const machine = machines.find((item) => item.id === id)
-    if (machine === undefined) {
-      return ''
-    }
-    if (machine.status === 'online') {
-      return machine.name
-    }
-    if (machine.status === 'unpaired') {
-      return `${machine.name} · needs pairing`
-    }
-    return `${machine.name} · offline`
-  }
-
-  function machineIcon(id: string) {
-    const machine = machines.find((item) => item.id === id)
-    if (machine === undefined) {
-      return null
-    }
-    return (
-      <HugeiconsIcon
-        icon={machineIcons[machine.icon]}
-        className="mr-1 inline size-3 align-[-2px]"
-      />
-    )
-  }
 
   function select(
     machine: string,
@@ -279,136 +217,13 @@ export function Sidebar(
               <HugeiconsIcon icon={PanelLeftOpenIcon} />
             </button>
           )}
-          <DropdownMenu open={picking} onOpenChange={setPicking}>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="hover:bg-sidebar-row-hover data-[state=open]:bg-sidebar-row-hover -ml-1.5 flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-[var(--control-radius)] px-1.5 text-sm font-medium"
-                title={
-                  scope === null
-                    ? 'Inbox'
-                    : projectAt(scope.machine, scope.projectId)?.path
-                }
-              >
-                {scope === null ? (
-                  <HugeiconsIcon
-                    icon={InboxIcon}
-                    className="size-4 shrink-0 text-(--sidebar-icon-color)"
-                  />
-                ) : (
-                  <ProjectIcon
-                    machine={scope.machine}
-                    projectId={scope.projectId}
-                    className="size-4 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
-                  />
-                )}
-                <span className="truncate">
-                  {scope === null
-                    ? 'Inbox'
-                    : projectAt(scope.machine, scope.projectId)?.name}
-                </span>
-                <HugeiconsIcon
-                  icon={ChevronDownIcon}
-                  className="text-sidebar-muted-foreground size-3.5 shrink-0"
-                />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-64">
-              <DropdownMenuRadioGroup
-                value={
-                  scope === null
-                    ? ''
-                    : machineKey(scope.machine, scope.projectId)
-                }
-              >
-                <DropdownMenuRadioItem
-                  value=""
-                  className="pr-9 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
-                  onSelect={() => setScope(null)}
-                >
-                  <HugeiconsIcon icon={InboxIcon} />
-                  <span className="min-w-0 flex-1 truncate">Inbox</span>
-                  {attention.length > 0 && (
-                    <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
-                      {attention.length}
-                    </span>
-                  )}
-                </DropdownMenuRadioItem>
-                {projects.map((project) => {
-                  const count = attention.filter(
-                    (session) =>
-                      session.machine === project.machine &&
-                      session.projectId === project.id
-                  ).length
-                  return (
-                    <DropdownMenuRadioItem
-                      key={machineKey(project.machine, project.id)}
-                      value={machineKey(project.machine, project.id)}
-                      title={project.path}
-                      className="pr-2 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
-                      onSelect={() =>
-                        setScope({
-                          machine: project.machine,
-                          projectId: project.id,
-                        })
-                      }
-                      onContextMenu={(event) => {
-                        event.preventDefault()
-                        setPicking(false)
-                        setEditing(project)
-                      }}
-                    >
-                      <ProjectIcon
-                        machine={project.machine}
-                        projectId={project.id}
-                        className="size-4 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
-                      />
-                      <span className="min-w-0 flex-1 truncate">
-                        {project.name}
-                        {machines.length > 1 && (
-                          <span className="text-muted-foreground ml-1.5 text-xs">
-                            {machineIcon(project.machine)}
-                            {machineLabel(project.machine)}
-                          </span>
-                        )}
-                      </span>
-                      {count > 0 && (
-                        <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
-                          {count}
-                        </span>
-                      )}
-                      <button
-                        className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 -my-0.5 grid size-5 shrink-0 cursor-pointer place-items-center rounded-sm [&_svg]:size-3.5"
-                        title="Configure project"
-                        aria-label={`Configure ${project.name}`}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          setPicking(false)
-                          setEditing(project)
-                        }}
-                      >
-                        <HugeiconsIcon icon={Settings01Icon} />
-                      </button>
-                    </DropdownMenuRadioItem>
-                  )
-                })}
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="pl-8"
-                onSelect={() => setAdding(true)}
-              >
-                <HugeiconsIcon icon={Add01Icon} />
-                Add project…
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="pl-8"
-                onSelect={() => setAddingMachine(true)}
-              >
-                <HugeiconsIcon icon={ComputerIcon} />
-                Add machine…
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ScopeMenu
+            scope={scope}
+            onScope={setScope}
+            onEdit={setEditing}
+            onAddProject={() => setAdding(true)}
+            onAddMachine={() => setAddingMachine(true)}
+          />
           <button
             className={cn(iconButton, 'ml-auto size-7')}
             title={`Search (${mod}+K)`}
