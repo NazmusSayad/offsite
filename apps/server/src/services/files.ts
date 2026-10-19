@@ -17,6 +17,7 @@ const FILE_LIMIT = 20_000
 const OUTPUT_LIMIT = 256 * 1024
 const READ_LIMIT = 1024 * 1024
 const MEDIA_LINK_LIFETIME = 60 * 60_000
+export const browseToken = randomBytes(32).toString('base64url')
 const mediaLinks = new Map<
   string,
   {

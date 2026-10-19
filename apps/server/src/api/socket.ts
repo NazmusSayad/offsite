@@ -17,6 +17,7 @@ import {
   updateAccount,
 } from '../services/accounts.ts'
 import {
+  browseToken,
   linkProjectDownload,
   linkProjectMedia,
   listFiles,
@@ -45,6 +46,7 @@ import {
   removeProject,
   updateProject,
 } from '../services/projects.ts'
+import { proxyPort } from '../services/proxy.ts'
 import { claimNotifier, subscribe, unsubscribe } from '../services/push.ts'
 import { open, rewind, send } from '../services/runs.ts'
 import {
@@ -242,6 +244,8 @@ const handlers: Handlers = {
     linkProjectDownload(projectPath(params.projectId), params.path),
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
+  'files.browse': () => browseToken,
+  'browser.proxy': (params) => proxyPort(params.origin),
   'tasks.output': (params) => taskOutput(params.sessionId, params.path),
   'git.status': (params) => gitRepos(projectPath(params.projectId)),
   'git.diff': (params) => projectDiff(projectPath(params.projectId)),

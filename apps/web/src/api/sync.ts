@@ -1,6 +1,7 @@
 import type { Project } from '@offsite/core/projects'
 import type { ServerEvent } from '@offsite/core/protocol'
 import type { Session } from '@offsite/core/sessions'
+import { showToast } from '@/components/toast'
 import { getDraftSettings, saveDraftSettings } from '@/features/composer/drafts'
 import {
   emptySettings,
@@ -23,7 +24,7 @@ import {
   update,
 } from '@/lib/store'
 import { applyTheme } from '@/lib/theme'
-import { selectionFromUrl, syncUrl } from '@/lib/url'
+import { openBrowser, selectionFromUrl, syncUrl } from '@/lib/url'
 import { call, connectMachine, listen } from './connection'
 import { receiveComposer, receiveConfig } from './machine-config'
 import {
@@ -287,6 +288,13 @@ function receive(machine: string, event: ServerEvent) {
       return
     case 'notifier':
       setMachine(machine, { notifier: event.active })
+      return
+    case 'open':
+      if (selected) {
+        openBrowser(event.path)
+        return
+      }
+      showToast(`${known.name} opened ${event.path}`)
       return
   }
   if (current === null || event.sessionId !== current) {

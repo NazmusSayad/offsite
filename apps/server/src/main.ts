@@ -1,17 +1,29 @@
 import { randomBytes } from 'node:crypto'
-import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
+import {
+  closeSync,
+  createReadStream,
+  existsSync,
+  openSync,
+  readFileSync,
+  readSync,
+  statSync,
+} from 'node:fs'
 import {
   createServer,
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http'
 import path from 'node:path'
+import { mediaTypes } from '@offsite/core/media'
 import { consola } from 'consola'
 import { type WebSocket, WebSocketServer } from 'ws'
+import { z } from 'zod'
 import { connectClient } from './api/socket.ts'
 import { args } from './args.ts'
 import { findClaude } from './lib/claude/index.ts'
-import { findMediaLink } from './services/files.ts'
+import { broadcast, clients } from './lib/hub.ts'
+import { browseToken, findMediaLink } from './services/files.ts'
+import { installOpen, openSecret } from './services/open/open.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
 import { refreshAll, watchSessions } from './services/sessions.ts'
@@ -30,6 +42,8 @@ import { lockHome } from './storage/storage.ts'
 
 const UNPAIR_CHECK = 5000
 const TICKET_LIFETIME = 60_000
+const SNIFF_LENGTH = 8000
+const openBody = z.object({ path: z.string() })
 
 const contentTypes: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -42,6 +56,20 @@ const contentTypes: Record<string, string> = {
   '.webmanifest': 'application/manifest+json',
   '.woff2': 'font/woff2',
 }
+
+const browseTypes = new Map([
+  ...Object.entries(contentTypes),
+  ...mediaTypes,
+  ['.htm', 'text/html; charset=utf-8'],
+  ['.mjs', 'text/javascript; charset=utf-8'],
+  ['.json', 'application/json; charset=utf-8'],
+  ['.pdf', 'application/pdf'],
+  ['.xml', 'application/xml'],
+  ['.wasm', 'application/wasm'],
+  ['.woff', 'font/woff'],
+  ['.ttf', 'font/ttf'],
+  ['.otf', 'font/otf'],
+])
 
 const port = Number(args.port)
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -66,6 +94,7 @@ if (args.command === 'unpair') {
 lockHome()
 
 process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
+installOpen(args.host, port)
 watchSessions()
 refreshAll()
 
@@ -82,6 +111,14 @@ const server = createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
   if (url.pathname === '/api/media') {
     serveMedia(url.searchParams.get('token'), request, response)
+    return
+  }
+  if (url.pathname.startsWith('/api/browse/')) {
+    serveBrowse(url.pathname, request, response)
+    return
+  }
+  if (url.pathname === `/api/open/${openSecret}`) {
+    void answerOpen(request, response)
     return
   }
   if (url.pathname.startsWith('/api/')) {
@@ -239,31 +276,121 @@ function serveMedia(
       `attachment; filename*=UTF-8''${encodeURIComponent(link.download)}`
     )
   }
-  response.setHeader('accept-ranges', 'bytes')
   response.setHeader('cache-control', 'private, max-age=3600')
   response.setHeader('content-security-policy', 'sandbox')
   response.setHeader('x-content-type-options', 'nosniff')
+  streamFile(link.file, stats.size, request, response)
+}
+
+function serveBrowse(
+  pathname: string,
+  request: IncomingMessage,
+  response: ServerResponse
+) {
+  if (request.method !== 'GET') {
+    response.statusCode = 405
+    response.end('use GET')
+    return
+  }
+  const rest = pathname.slice('/api/browse/'.length)
+  const slash = rest.indexOf('/')
+  if (slash === -1 || rest.slice(0, slash) !== browseToken) {
+    response.statusCode = 404
+    response.end('This browser link expired')
+    return
+  }
+  let file
+  try {
+    file = decodeURIComponent(
+      rest.slice(process.platform === 'win32' ? slash + 1 : slash)
+    )
+  } catch {
+    response.statusCode = 400
+    response.end('bad path')
+    return
+  }
+  const stats = statSync(file, { throwIfNoEntry: false })
+  if (stats === undefined || !stats.isFile()) {
+    response.statusCode = 404
+    response.end(`${file} is not a file`)
+    return
+  }
+  response.setHeader('content-type', browseType(file))
+  response.setHeader('access-control-allow-origin', '*')
+  response.setHeader('cache-control', 'no-cache')
+  streamFile(file, stats.size, request, response)
+}
+
+function browseType(file: string) {
+  const known = browseTypes.get(path.extname(file).toLowerCase())
+  if (known !== undefined) {
+    return known
+  }
+  const head = Buffer.alloc(SNIFF_LENGTH)
+  const handle = openSync(file, 'r')
+  const read = readSync(handle, head, 0, SNIFF_LENGTH, 0)
+  closeSync(handle)
+  return head.subarray(0, read).includes(0)
+    ? 'application/octet-stream'
+    : 'text/plain; charset=utf-8'
+}
+
+async function answerOpen(request: IncomingMessage, response: ServerResponse) {
+  if (request.method !== 'POST') {
+    response.statusCode = 405
+    response.end('use POST')
+    return
+  }
+  let body = ''
+  for await (const chunk of request) {
+    body += chunk
+  }
+  let parsed
+  try {
+    parsed = openBody.parse(JSON.parse(body))
+  } catch {
+    response.statusCode = 400
+    response.end('expected { path }')
+    return
+  }
+  if (clients.size === 0) {
+    response.statusCode = 409
+    response.end('no browser is connected to OffSite')
+    return
+  }
+  broadcast({ type: 'open', path: parsed.path })
+  response.statusCode = 204
+  response.end()
+}
+
+function streamFile(
+  file: string,
+  size: number,
+  request: IncomingMessage,
+  response: ServerResponse
+) {
+  response.setHeader('accept-ranges', 'bytes')
   if (request.headers.range === undefined) {
-    response.setHeader('content-length', stats.size)
-    createReadStream(link.file)
+    response.setHeader('content-length', size)
+    createReadStream(file)
       .on('error', () => response.destroy())
       .pipe(response)
     return
   }
-  const range = byteRange(request.headers.range, stats.size)
+  const range = byteRange(request.headers.range, size)
   if (range === null) {
     response.statusCode = 416
-    response.setHeader('content-range', `bytes */${stats.size}`)
+    response.setHeader('content-range', `bytes */${size}`)
     response.end()
     return
   }
   response.statusCode = 206
   response.setHeader(
     'content-range',
-    `bytes ${range.start}-${range.end}/${stats.size}`
+    `bytes ${range.start}-${range.end}/${size}`
   )
   response.setHeader('content-length', range.end - range.start + 1)
-  createReadStream(link.file, range)
+  createReadStream(file, range)
     .on('error', () => response.destroy())
     .pipe(response)
 }

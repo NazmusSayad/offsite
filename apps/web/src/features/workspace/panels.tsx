@@ -1,4 +1,5 @@
 import {
+  BrowserIcon,
   Folder01Icon,
   GitCompareIcon,
   MoreVerticalIcon,
@@ -13,6 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { BrowserPanel } from '@/features/browser/browser-panel'
 import { FilesPanel } from '@/features/files/files-panel'
 import { DiffPanel } from '@/features/git/diff-panel'
 import {
@@ -24,7 +26,7 @@ import { TasksPanel } from '@/features/transcript/tasks-panel'
 import { selectedActivity, type Selection, useStore } from '@/lib/store'
 import { cn, mod } from '@/lib/utils'
 
-export type Panel = 'diff' | 'tasks' | 'files'
+export type Panel = 'diff' | 'tasks' | 'files' | 'browser'
 
 type MenuOption = {
   id: string
@@ -214,6 +216,18 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       detail: null,
       onSelect: () => props.onPanel(props.panel === 'files' ? null : 'files'),
     },
+    {
+      id: 'browser',
+      label: 'Browser',
+      title: 'Browser',
+      icon: BrowserIcon,
+      pressed: props.panel === 'browser',
+      attention: false,
+      badge: null,
+      detail: null,
+      onSelect: () =>
+        props.onPanel(props.panel === 'browser' ? null : 'browser'),
+    },
   ]
 }
 
@@ -233,6 +247,13 @@ export function PanelView(props: {
         <FilesPanel
           machine={props.selection.machine}
           projectId={props.selection.projectId}
+          toggles={props.toggles}
+          onClose={() => props.onPanel(null)}
+        />
+      )}
+      {props.panel === 'browser' && (
+        <BrowserPanel
+          machine={props.selection.machine}
           toggles={props.toggles}
           onClose={() => props.onPanel(null)}
         />

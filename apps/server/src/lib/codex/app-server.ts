@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import readline from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
+import { openEnv } from '../../services/open/open.ts'
 import { publishCodexLimits } from './accounts.ts'
 import type { RateLimitSnapshot } from './types.ts'
 
@@ -83,7 +84,7 @@ export class AppServer {
     }
     this.home = home
     this.child = spawn(executable, ['app-server'], {
-      env: { ...process.env, CODEX_HOME: home },
+      env: { ...process.env, ...openEnv(), CODEX_HOME: home },
       stdio: ['pipe', 'pipe', 'ignore'],
     })
     readline

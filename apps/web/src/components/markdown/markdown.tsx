@@ -12,7 +12,10 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { memo, useState } from 'react'
-import ReactMarkdown, { type Components } from 'react-markdown'
+import ReactMarkdown, {
+  type Components,
+  defaultUrlTransform,
+} from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkBreaks from 'remark-breaks'
@@ -32,6 +35,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useCopy } from '@/lib/clipboard'
 import { mediaKind } from '@/lib/media'
+import { openBrowser } from '@/lib/url'
 import { cn } from '@/lib/utils'
 
 type MarkdownNode = {
@@ -79,6 +83,10 @@ const schema = {
   attributes: {
     ...defaultSchema.attributes,
     blockquote: [...(defaultSchema.attributes?.blockquote ?? []), 'dataAlert'],
+  },
+  protocols: {
+    ...defaultSchema.protocols,
+    href: [...(defaultSchema.protocols?.href ?? []), 'file'],
   },
 }
 
@@ -185,6 +193,20 @@ const components: Components = {
     )
   },
   a({ node, href, children }) {
+    const file = localFile(href)
+    if (file !== null) {
+      return (
+        <a
+          href={href}
+          onClick={(event) => {
+            event.preventDefault()
+            openBrowser(file)
+          }}
+        >
+          {children}
+        </a>
+      )
+    }
     const host = externalHost(href)
     if (host === null) {
       return <a href={href}>{children}</a>
@@ -287,11 +309,36 @@ function MarkdownView(props: {
           props.rawHtml === false ? [] : [rehypeRaw, [rehypeSanitize, schema]]
         }
         components={components}
+        urlTransform={(url) =>
+          url.startsWith('file:') ? url : defaultUrlTransform(url)
+        }
       >
         {props.text}
       </ReactMarkdown>
     </div>
   )
+}
+
+function localFile(href: string | undefined) {
+  if (
+    href === undefined ||
+    href === '' ||
+    href.startsWith('#') ||
+    href.startsWith('//')
+  ) {
+    return null
+  }
+  if (href.startsWith('file:')) {
+    return decodeURIComponent(new URL(href).pathname)
+  }
+  if (!/^[a-z]:[\\/]/i.test(href) && /^[a-z][a-z0-9+.-]*:/i.test(href)) {
+    return null
+  }
+  try {
+    return decodeURI(href)
+  } catch {
+    return href
+  }
 }
 
 function externalHost(href: string | undefined) {
