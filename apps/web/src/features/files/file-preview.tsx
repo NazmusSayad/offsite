@@ -15,7 +15,7 @@ import { PreviewDialog, PreviewHeader } from '@/components/preview-dialog'
 import { Button } from '@/components/ui/button'
 import { editDraft } from '@/features/composer/drafts'
 import { useCopy } from '@/lib/clipboard'
-import { mediaKind, mediaUrl } from '@/lib/media'
+import { downloadFile, mediaKind, mediaUrl } from '@/lib/media'
 import { useStore } from '@/lib/store'
 import { useCodeTheme } from '@/lib/theme'
 import { errorMessage } from '@/lib/utils'
@@ -127,27 +127,6 @@ function PreviewBody(props: {
         <Button
           size="icon-sm"
           variant="ghost"
-          title="Download"
-          aria-label="Download"
-          onClick={async () => {
-            try {
-              const token = await call(props.machine, 'files.download', {
-                projectId: props.projectId,
-                path: props.path,
-              })
-              const anchor = document.createElement('a')
-              anchor.href = `${machineUrl(props.machine)}/api/media?${new URLSearchParams({ token })}`
-              anchor.click()
-            } catch (caught) {
-              setError(errorMessage(caught))
-            }
-          }}
-        >
-          <HugeiconsIcon icon={Download01Icon} className="size-3.5" />
-        </Button>
-        <Button
-          size="icon-sm"
-          variant="ghost"
           title={clipboard.copied ? 'Copied' : 'Copy path'}
           aria-label="Copy path"
           onClick={() => void clipboard.copy(props.path)}
@@ -156,6 +135,28 @@ function PreviewBody(props: {
             icon={clipboard.copied ? CheckIcon : CopyIcon}
             className="size-3.5"
           />
+        </Button>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          title="Download"
+          aria-label="Download"
+          onClick={async () => {
+            try {
+              const token = await call(props.machine, 'files.download', {
+                projectId: props.projectId,
+                path: props.path,
+              })
+              await downloadFile(
+                `${machineUrl(props.machine)}/api/media?${new URLSearchParams({ token })}`,
+                props.path
+              )
+            } catch (caught) {
+              setError(errorMessage(caught))
+            }
+          }}
+        >
+          <HugeiconsIcon icon={Download01Icon} className="size-3.5" />
         </Button>
         <Button
           size="icon-sm"

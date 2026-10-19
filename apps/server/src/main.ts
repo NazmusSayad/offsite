@@ -269,6 +269,7 @@ function serveMedia(
     response.end('not found')
     return
   }
+  response.setHeader('access-control-allow-origin', '*')
   response.setHeader('content-type', link.mediaType)
   if (link.download !== null) {
     response.setHeader(

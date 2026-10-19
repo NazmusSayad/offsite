@@ -1,6 +1,7 @@
 import {
   CheckIcon,
   CopyIcon,
+  Download01Icon,
   Image01Icon,
   ImageNotFound01Icon,
   MusicNote01Icon,
@@ -15,8 +16,8 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { ViewableImage } from '@/components/viewable-image'
 import { ViewableVideo } from '@/components/viewable-video'
 import { useCopy } from '@/lib/clipboard'
-import { mediaKind, mediaUrl } from '@/lib/media'
-import { useStore } from '@/lib/store'
+import { downloadFile, mediaKind, mediaUrl } from '@/lib/media'
+import { showError, useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 
 const AudioPlayer = lazy(async () => ({
@@ -109,6 +110,19 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
               icon={clipboard.copied ? CheckIcon : CopyIcon}
               className="size-3"
             />
+          </Button>
+        </Tooltip>
+        <Tooltip label="Download">
+          <Button
+            type="button"
+            variant="ghost-muted"
+            size="icon-xs"
+            aria-label="Download"
+            onClick={() =>
+              void downloadFile(media.src, props.path).catch(showError)
+            }
+          >
+            <HugeiconsIcon icon={Download01Icon} className="size-3" />
           </Button>
         </Tooltip>
       </span>

@@ -27,3 +27,16 @@ export async function mediaUrl(
   const token = await call(machine, 'files.media', { projectId, path })
   return `${machineUrl(machine)}/api/media?${new URLSearchParams({ token })}`
 }
+
+export async function downloadFile(src: string, path: string) {
+  const response = await fetch(src)
+  if (!response.ok) {
+    throw new Error(await response.text())
+  }
+  const url = URL.createObjectURL(await response.blob())
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = path.slice(path.lastIndexOf('/') + 1)
+  anchor.click()
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
