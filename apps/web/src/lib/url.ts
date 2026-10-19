@@ -21,5 +21,5 @@ export function syncUrl() {
     }
   }
   const search = params.toString()
-  history.replaceState(null, '', search === '' ? '/' : `/?${search}`)
+  history.replaceState(history.state, '', search === '' ? '/' : `/?${search}`)
 }

@@ -42,11 +42,11 @@ import { cn, drag, mod } from '@/lib/utils'
 const iconButton =
   'text-sidebar-muted-foreground/80 hover:bg-sidebar-row-hover hover:text-sidebar-foreground flex shrink-0 cursor-pointer items-center justify-center rounded-[var(--control-radius)] [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-(--sidebar-icon-color) hover:[&>svg]:text-sidebar-foreground'
 
-export function Sidebar(props: {
-  className: string
-  onNavigate: () => void
-  onHide: () => void
-}) {
+export function Sidebar(
+  props:
+    | { className: string; mobile: false; onHide: () => void }
+    | { className: string; mobile: true }
+) {
   const selection = useStore((state) => state.selection)
   const machines = useStore((state) => state.machines)
   const registered = useStore((state) => state.projects)
@@ -157,7 +157,6 @@ export function Sidebar(props: {
     sessionId: string | null
   ) {
     openSession({ machine, projectId, sessionId })
-    props.onNavigate()
   }
 
   function startThread() {
@@ -245,16 +244,24 @@ export function Sidebar(props: {
         props.className
       )}
     >
-      <div className="relative flex min-w-0 flex-col" style={{ width }}>
+      <div
+        className={cn(
+          'relative flex min-w-0 flex-col',
+          props.mobile && 'flex-1'
+        )}
+        style={props.mobile ? undefined : { width }}
+      >
         <div className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 px-3">
-          <button
-            className={cn(iconButton, 'size-7')}
-            title={`Hide sidebar (${mod}+B)`}
-            aria-label="Hide sidebar"
-            onClick={props.onHide}
-          >
-            <HugeiconsIcon icon={PanelLeftCloseIcon} />
-          </button>
+          {!props.mobile && (
+            <button
+              className={cn(iconButton, 'size-7')}
+              title={`Hide sidebar (${mod}+B)`}
+              aria-label="Hide sidebar"
+              onClick={props.onHide}
+            >
+              <HugeiconsIcon icon={PanelLeftCloseIcon} />
+            </button>
+          )}
           <DropdownMenu open={picking} onOpenChange={setPicking}>
             <DropdownMenuTrigger asChild>
               <button
@@ -450,14 +457,16 @@ export function Sidebar(props: {
             Settings
           </button>
         </div>
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          className="group absolute inset-y-0 -right-1 z-20 hidden w-2 cursor-col-resize select-none md:block"
-          onPointerDown={resize}
-        >
-          <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
-        </div>
+        {!props.mobile && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            className="group absolute inset-y-0 -right-1 z-20 w-2 cursor-col-resize select-none"
+            onPointerDown={resize}
+          >
+            <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
+          </div>
+        )}
       </div>
       {adding && folderMachine === undefined && (
         <AddMachineDialog onClose={() => setAdding(false)} />

@@ -68,6 +68,21 @@ export function openSession(selection: Selection) {
   }
 }
 
+export function closeSession() {
+  update({
+    selection: null,
+    loaded: false,
+    items: [],
+    earlier: [],
+    before: null,
+    partial: '',
+    requests: [],
+    queue: [],
+    context: null,
+  })
+  syncUrl()
+}
+
 export async function sendPrompt(prompt: Prompt, delivery: PromptDelivery) {
   const selection = getState().selection
   if (selection === null) {

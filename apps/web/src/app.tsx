@@ -1,12 +1,4 @@
-import {
-  AlertCircleIcon,
-  Folder01Icon,
-  GitCompareIcon,
-  PanelLeftIcon,
-  SquareTerminalIcon,
-  TaskDaily01Icon,
-  XIcon,
-} from '@hugeicons/core-free-icons'
+import { PanelLeftIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
   Fragment,
@@ -21,9 +13,7 @@ import { machineIcons, ProjectIcon } from '@/components/icons'
 import { Toast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
 import { Composer } from '@/features/composer/composer'
-import { FilesPanel } from '@/features/files/files-panel'
 import { CommitToast } from '@/features/git/commit-toast'
-import { DiffPanel } from '@/features/git/diff-panel'
 import { GitActions, useGitStatus } from '@/features/git/git-menu'
 import { SettingsDialog } from '@/features/settings/dialog'
 import { ConnectMachine } from '@/features/sidebar/connect-machine'
@@ -35,27 +25,53 @@ import {
   setOpen as setTerminal,
   subscribe as subscribeTerminal,
 } from '@/features/terminal/session'
-import { threadTasks } from '@/features/transcript/tasks'
-import { TasksPanel } from '@/features/transcript/tasks-panel'
 import { Transcript } from '@/features/transcript/transcript'
+import { MobileLayout } from '@/features/workspace/mobile'
+import {
+  ErrorBanner,
+  type Panel,
+  PanelToggles,
+  PanelView,
+} from '@/features/workspace/panels'
 import {
   defaultMachine,
-  dismissError,
   getState,
   machineOf,
   projectOf,
-  selectedActivity,
   showPalette,
   selectedRunning,
   useStore,
 } from '@/lib/store'
 import { cn, drag, mod } from '@/lib/utils'
 
-const desktop = window.matchMedia('(min-width: 768px)')
-const toggle =
-  'text-foreground hover:bg-accent data-[pressed=true]:bg-accent grid h-7 min-w-7 cursor-pointer place-items-center rounded-lg border border-transparent [&_svg]:size-4 [&_svg]:opacity-80'
+const wide = window.matchMedia('(min-width: 768px)')
+
+function subscribeWide(listener: () => void) {
+  wide.addEventListener('change', listener)
+  return () => wide.removeEventListener('change', listener)
+}
 
 export function App() {
+  const desktop = useSyncExternalStore(subscribeWide, () => wide.matches)
+  useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
+    enableOnFormTags: true,
+    preventDefault: true,
+  })
+
+  return (
+    <div className="flex h-dvh text-sm">
+      {desktop ? <DesktopLayout /> : <MobileLayout />}
+      <Palette />
+      <SettingsDialog />
+      <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+        <CommitToast />
+        <Toast />
+      </div>
+    </div>
+  )
+}
+
+function DesktopLayout() {
   const selection = useStore((state) => state.selection)
   const sessions = useStore((state) => state.sessions)
   const cwd = useStore((state) =>
@@ -68,10 +84,9 @@ export function App() {
     const origin = defaultMachine(state)
     return origin === null ? null : machineOf(state, origin)
   })
-  const error = useStore((state) => state.error)
-  const [sidebar, setSidebar] = useState(desktop.matches)
-  const [panel, setPanel] = useState<'diff' | 'tasks' | 'files' | null>(null)
-  const lastPanel = useRef<'diff' | 'tasks' | 'files'>('diff')
+  const [sidebar, setSidebar] = useState(true)
+  const [panel, setPanel] = useState<Panel | null>(null)
+  const lastPanel = useRef<Panel>('diff')
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [panelWidth, setPanelWidth] = useState(() => {
     const stored = Number(localStorage.getItem('panelWidth') ?? 540)
@@ -85,28 +100,7 @@ export function App() {
     subscribeTerminal,
     () => terminalState().open
   )
-  const terminalAlert = useSyncExternalStore(
-    subscribeTerminal,
-    () => terminalState().alerts.length > 0
-  )
-  const terminalTabs = useSyncExternalStore(subscribeTerminal, () =>
-    selection === null
-      ? 0
-      : (terminalState().layout[selection.projectId]?.tabs.length ?? 0)
-  )
   const running = useStore(selectedRunning)
-  const runningTasks = useStore((state) => {
-    if (state.selection?.sessionId === null) {
-      return 0
-    }
-    const found = threadTasks(
-      [...state.earlier, ...state.items],
-      selectedActivity(state)
-    )
-    return [...found.agents, ...found.tasks].filter(
-      (item) => item.status === 'Running'
-    ).length
-  })
   const git = useGitStatus(
     selection?.machine ?? '',
     machine?.status === 'online' ? (selection?.projectId ?? null) : null,
@@ -121,10 +115,6 @@ export function App() {
     selection?.machine ?? '',
     selection?.projectId ?? ''
   )
-  useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
-    enableOnFormTags: true,
-    preventDefault: true,
-  })
   useHotkeys(
     ['meta+backquote', 'ctrl+backquote'],
     (event) => {
@@ -160,23 +150,10 @@ export function App() {
   })
 
   return (
-    <div className="flex h-dvh text-sm">
-      {sidebar && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
-          onClick={() => setSidebar(false)}
-        />
-      )}
+    <>
       <Sidebar
-        className={cn(
-          'fixed inset-y-0 left-0 z-40 transition-transform motion-reduce:transition-none md:relative md:z-auto',
-          sidebar ? 'translate-x-0' : '-translate-x-full md:hidden'
-        )}
-        onNavigate={() => {
-          if (!desktop.matches) {
-            setSidebar(false)
-          }
-        }}
+        className={cn('relative', !sidebar && 'hidden')}
+        mobile={false}
         onHide={() => setSidebar(false)}
       />
       {!sidebar && (
@@ -196,14 +173,14 @@ export function App() {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
           <header
             className={cn(
-              'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-3 pl-[3.25rem] sm:pr-5',
-              sidebar && 'md:pl-5',
-              panel === null && 'pr-36 sm:pr-36'
+              'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-5 pl-[3.25rem]',
+              sidebar && 'pl-5',
+              panel === null && 'pr-36'
             )}
           >
             {selection !== null && machine !== null && (
               <nav className="min-w-0 flex-1">
-                <ol className="flex min-w-0 items-center gap-2 text-sm sm:gap-3">
+                <ol className="flex min-w-0 items-center gap-3 text-sm">
                   <li className="text-icon-muted flex shrink-0 items-center gap-1.5">
                     <HugeiconsIcon
                       icon={machineIcons[machine.icon]}
@@ -255,32 +232,12 @@ export function App() {
             )}
           </header>
           <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-            {error !== null && (
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center px-4 pt-3">
-                <div className="border-error/30 bg-background/80 text-error-foreground pointer-events-auto flex w-fit max-w-[min(48rem,100%)] items-start gap-2 rounded-xl border px-3.5 py-3 text-sm backdrop-blur-md">
-                  <HugeiconsIcon
-                    icon={AlertCircleIcon}
-                    className="text-error mt-0.5 size-4 shrink-0"
-                  />
-                  <div className="line-clamp-3 min-w-0 flex-1 whitespace-pre-wrap">
-                    {error}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label="Dismiss"
-                    onClick={dismissError}
-                  >
-                    <HugeiconsIcon icon={XIcon} />
-                  </Button>
-                </div>
-              </div>
-            )}
+            <ErrorBanner />
             {machine === null && <ConnectMachine />}
             {selection === null && machine !== null && (
               <div className="grid flex-1 place-items-center p-6 text-center">
                 <div>
-                  <h1 className="text-foreground text-2xl font-normal tracking-tight sm:text-3xl">
+                  <h1 className="text-foreground text-3xl font-normal tracking-tight">
                     Pick a thread, or start one
                   </h1>
                   <p className="text-muted-foreground mt-2 text-sm">
@@ -336,13 +293,13 @@ export function App() {
         </div>
         {selection !== null && panel !== null && (
           <div
-            className="bg-background fixed inset-0 z-40 flex flex-col md:relative md:inset-auto md:z-auto md:shrink-0 md:border-l"
-            style={desktop.matches ? { width: panelWidth } : undefined}
+            className="bg-background relative flex shrink-0 flex-col border-l"
+            style={{ width: panelWidth }}
           >
             <div
               role="separator"
               aria-orientation="vertical"
-              className="group absolute inset-y-0 -left-1 z-20 hidden w-2 cursor-col-resize select-none md:block"
+              className="group absolute inset-y-0 -left-1 z-20 w-2 cursor-col-resize select-none"
               onPointerDown={(event) =>
                 drag(event, (next) => {
                   const max = Math.max(360, Math.floor(window.innerWidth * 0.7))
@@ -357,108 +314,32 @@ export function App() {
             >
               <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
             </div>
-            {panel === 'files' && (
-              <FilesPanel
-                machine={selection.machine}
-                projectId={selection.projectId}
-                onClose={() => setPanel(null)}
-              />
-            )}
-            {panel === 'diff' && (
-              <DiffPanel
-                key={`${selection.machine} ${selection.projectId}`}
-                machine={selection.machine}
-                projectId={selection.projectId}
-                running={running}
-                onClose={() => setPanel(null)}
-              />
-            )}
-            {panel === 'tasks' && (
-              <TasksPanel
-                machine={selection.machine}
-                cwd={cwd}
-                sessionId={selection.sessionId}
-                selected={selectedTask}
-                onSelect={setSelectedTask}
-                onOpenDiff={() => setPanel('diff')}
-                onClose={() => setPanel(null)}
-              />
-            )}
+            <PanelView
+              panel={panel}
+              selection={selection}
+              cwd={cwd}
+              running={running}
+              selectedTask={selectedTask}
+              onSelectTask={setSelectedTask}
+              onPanel={setPanel}
+            />
           </div>
         )}
       </main>
       {selection !== null && (
-        <div className="fixed top-0 right-3 z-50 flex h-(--workspace-topbar-height) items-center gap-1">
-          {panel !== null && (
-            <span className="bg-foreground/15 mr-0.5 h-4 w-px" />
-          )}
-          <button
-            className={cn(toggle, 'relative')}
-            data-pressed={panel === 'diff'}
-            aria-label="Toggle diff panel"
-            title="Diff"
-            onClick={() => setPanel(panel === 'diff' ? null : 'diff')}
-          >
-            <HugeiconsIcon icon={GitCompareIcon} />
-            {git.repos.some((repo) => repo.changed > 0) && (
-              <span className="bg-muted-foreground ring-background absolute top-0.5 right-0.5 size-1.5 rounded-full ring-2" />
-            )}
-          </button>
-          <button
-            className={cn(toggle, 'relative')}
-            data-pressed={terminal}
-            aria-label="Toggle terminal"
-            title={`Terminal (${mod}+\`)`}
-            onClick={() => setTerminal(!terminal)}
-          >
-            <HugeiconsIcon icon={SquareTerminalIcon} />
-            {terminalTabs > 0 && (
-              <span
-                className={cn(
-                  'absolute top-0 right-0 grid h-3 min-w-3 place-items-center rounded-full px-0.5 text-[8px] leading-none font-medium tabular-nums',
-                  terminalAlert
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-foreground bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))]'
-                )}
-              >
-                {terminalTabs}
-              </span>
-            )}
-          </button>
-          <button
-            className={cn(toggle, 'relative')}
-            data-pressed={panel === 'tasks'}
-            aria-label="Toggle tasks panel"
-            title="Tasks"
-            onClick={() => {
-              setSelectedTask(null)
-              setPanel(panel === 'tasks' ? null : 'tasks')
-            }}
-          >
-            <HugeiconsIcon icon={TaskDaily01Icon} />
-            {runningTasks > 0 && (
-              <span className="text-foreground absolute top-0 right-0 grid h-3 min-w-3 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-0.5 text-[8px] leading-none font-medium tabular-nums">
-                {runningTasks}
-              </span>
-            )}
-          </button>
-          <button
-            className={toggle}
-            data-pressed={panel === 'files'}
-            aria-label="Toggle files panel"
-            title="Files"
-            onClick={() => setPanel(panel === 'files' ? null : 'files')}
-          >
-            <HugeiconsIcon icon={Folder01Icon} />
-          </button>
-        </div>
+        <PanelToggles
+          className="fixed top-0 right-3 z-50 flex h-(--workspace-topbar-height) items-center gap-1"
+          selection={selection}
+          panel={panel}
+          terminal={terminal}
+          changed={git.repos.some((repo) => repo.changed > 0)}
+          onPanel={(next) => {
+            setSelectedTask(null)
+            setPanel(next)
+          }}
+          onTerminal={setTerminal}
+        />
       )}
-      <Palette />
-      <SettingsDialog />
-      <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
-        <CommitToast />
-        <Toast />
-      </div>
-    </div>
+    </>
   )
 }
