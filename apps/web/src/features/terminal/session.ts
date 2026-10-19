@@ -20,6 +20,7 @@ import {
   machineOf,
   subscribe as subscribeApp,
 } from '@/lib/store'
+import { terminalFromUrl } from '@/lib/url'
 import { errorMessage, isMac } from '@/lib/utils'
 import {
   forgetTab,
@@ -58,7 +59,7 @@ let state: State = {
   status: 'connecting',
   failure: null,
   loaded: false,
-  open: false,
+  open: terminalFromUrl(),
   instance: null,
   layout: {},
   ctrl: false,

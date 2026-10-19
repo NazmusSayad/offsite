@@ -36,7 +36,13 @@ import {
   selectedRunning,
   useStore,
 } from '@/lib/store'
-import { selectionFromUrl } from '@/lib/url'
+import {
+  panelFromUrl,
+  selectionFromUrl,
+  syncPanels,
+  syncUrl,
+  terminalFromUrl,
+} from '@/lib/url'
 
 export function MobileLayout() {
   const selection = useStore((state) => state.selection)
@@ -44,11 +50,14 @@ export function MobileLayout() {
   const open = selection !== null
 
   useEffect(() => {
-    if (open && history.state !== 'chat') {
+    if (open && history.state !== 'chat' && history.state !== 'panel') {
       history.pushState('chat', '', location.href)
     }
     if (!open && history.state === 'chat') {
       history.back()
+    }
+    if (!open && history.state === 'panel') {
+      history.go(-2)
     }
     if (!open) {
       setTerminal(false)
@@ -57,8 +66,12 @@ export function MobileLayout() {
 
   useEffect(() => {
     function navigate() {
-      if (history.state !== 'chat') {
+      if (history.state !== 'chat' && history.state !== 'panel') {
         closeSession()
+        return
+      }
+      if (getState().selection !== null) {
+        syncUrl()
         return
       }
       const next = selectionFromUrl(
@@ -126,9 +139,34 @@ function MobileChat(props: { selection: Selection }) {
     subscribeTerminal,
     () => terminalState().open
   )
-  const [panel, setPanel] = useState<Panel | null>(null)
+  const [panel, setPanel] = useState<Panel | null>(panelFromUrl)
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const changed = git.repos.some((repo) => repo.changed > 0)
+  const open = panel !== null || terminal
+
+  useEffect(() => {
+    if (open && history.state !== 'panel') {
+      history.pushState('panel', '', location.href)
+    }
+    if (!open && history.state === 'panel') {
+      history.back()
+    }
+    syncPanels(panel, terminal)
+  }, [open, panel, terminal])
+
+  useEffect(() => {
+    function navigate() {
+      if (history.state === 'panel') {
+        setPanel(panelFromUrl())
+        setTerminal(terminalFromUrl())
+        return
+      }
+      setPanel(null)
+      setTerminal(false)
+    }
+    addEventListener('popstate', navigate)
+    return () => removeEventListener('popstate', navigate)
+  }, [])
 
   function showPanel(next: Panel | null) {
     setSelectedTask(null)
@@ -210,10 +248,7 @@ function MobileChat(props: { selection: Selection }) {
           <Composer />
         </Fragment>
       </div>
-      <DialogPrimitive.Root
-        open={panel !== null || terminal}
-        onOpenChange={() => showPanel(null)}
-      >
+      <DialogPrimitive.Root open={open} onOpenChange={() => showPanel(null)}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Content
             aria-describedby={undefined}

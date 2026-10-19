@@ -52,6 +52,7 @@ import {
   selectedRunning,
   useStore,
 } from '@/lib/store'
+import { panelFromUrl, syncPanels } from '@/lib/url'
 import { cn, drag, mod } from '@/lib/utils'
 
 const wide = window.matchMedia('(min-width: 768px)')
@@ -105,7 +106,7 @@ function DesktopLayout() {
   const [sidebar, setSidebar] = useState(true)
   const column = useRef<HTMLDivElement>(null)
   const [compact, setCompact] = useState(false)
-  const [panel, setPanel] = useState<Panel | null>(null)
+  const [panel, setPanel] = useState<Panel | null>(panelFromUrl)
   const lastPanel = useRef<Panel>('diff')
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [panelWidth, setPanelWidth] = useLocalStorage('panelWidth', 540)
@@ -164,6 +165,7 @@ function DesktopLayout() {
       lastPanel.current = panel
     }
   }, [panel])
+  useEffect(() => syncPanels(panel, terminal), [panel, terminal])
   useHotkeys('mod+b', () => setSidebar((open) => !open), {
     enableOnFormTags: true,
     preventDefault: true,
