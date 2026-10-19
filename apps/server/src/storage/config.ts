@@ -33,6 +33,17 @@ const platformDirs = z
   })
   .prefault({})
 
+function workingDir(isAbsolute: (value: string) => boolean) {
+  return z
+    .string()
+    .refine(
+      (value) => value === '~' || value.startsWith('~/') || isAbsolute(value),
+      'must be an absolute path or start with ~'
+    )
+    .nullable()
+    .default(null)
+}
+
 function accountSchema(provider: 'claude' | 'codex') {
   return z.strictObject({
     id: z.string(),
@@ -46,6 +57,13 @@ function accountSchema(provider: 'claude' | 'codex') {
 
 const configSchema: z.ZodType<Config> = z.strictObject({
   claudeBaseDir: platformDirs,
+  workingDir: z
+    .strictObject({
+      macos: workingDir(path.posix.isAbsolute),
+      linux: workingDir(path.posix.isAbsolute),
+      windows: workingDir(path.win32.isAbsolute),
+    })
+    .prefault({}),
   claudeAccounts: z.array(accountSchema('claude')).default([]),
   codexAccounts: z.array(accountSchema('codex')).default([]),
   enabledProviders: z

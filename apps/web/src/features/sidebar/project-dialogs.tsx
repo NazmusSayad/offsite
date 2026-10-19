@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { projectName } from '@/lib/format'
-import { type MachineProject, useStore } from '@/lib/store'
+import { type Machine, type MachineProject, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
 const IMAGE_FILE = /\.(png|jpe?g|gif|webp|svg)$/i
@@ -52,7 +52,9 @@ export function FolderDialog(props: {
     listing: DirectoryListing
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [path, setPath] = useState('~')
+  const [path, setPath] = useState(() =>
+    workingDir(machines.find((item) => item.id === props.machine))
+  )
   const [search, setSearch] = useState('')
   const [adding, setAdding] = useState(false)
   const listing = path.trim() === '' ? undefined : loaded?.listing
@@ -180,7 +182,7 @@ export function FolderDialog(props: {
               onValueChange={(next) => {
                 setMachine(next)
                 setLoaded(null)
-                open('~')
+                open(workingDir(machines.find((item) => item.id === next)))
               }}
             >
               <SelectTrigger className="sm:mr-auto sm:w-56">
@@ -223,6 +225,17 @@ export function FolderDialog(props: {
       </DialogContent>
     </Dialog>
   )
+}
+
+function workingDir(machine: Machine | undefined) {
+  if (
+    machine === undefined ||
+    machine.config === null ||
+    machine.system === null
+  ) {
+    return '~'
+  }
+  return machine.config.workingDir[machine.system.platform] ?? '~'
 }
 
 export function EditProjectDialog(props: {

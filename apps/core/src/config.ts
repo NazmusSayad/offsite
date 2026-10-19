@@ -37,6 +37,7 @@ export type ComposerSettings = { provider: Provider } & Record<
 
 export type Config = {
   claudeBaseDir: Record<Platform, string | null>
+  workingDir: Record<Platform, string | null>
   claudeAccounts: AccountConfig[]
   codexAccounts: AccountConfig[]
   enabledProviders: Record<Provider, boolean>

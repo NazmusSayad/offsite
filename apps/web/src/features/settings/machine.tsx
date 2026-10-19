@@ -22,7 +22,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tooltip } from '@/components/ui/tooltip'
 import { platforms } from '@/features/terminal/config'
 import { AgentsSection } from './agents'
-import { Row, Section } from './controls'
+import { Row, Section, TextInput } from './controls'
 import { GitSection } from './git'
 import { ShellInput } from './shell-input'
 
@@ -36,8 +36,29 @@ export function MachinePage(props: {
   openCode: { available: boolean }
   onRestore: () => void
 }) {
+  const workingDir = props.config.workingDir[props.platform] ?? ''
+
   return (
     <>
+      <Section title="Projects">
+        <Row label="Working directory">
+          <TextInput
+            key={`${props.machine}-${workingDir}`}
+            className="w-72 font-mono"
+            value={workingDir}
+            placeholder="Home folder"
+            onCommit={(dir) =>
+              updateConfig(props.machine, {
+                ...props.config,
+                workingDir: {
+                  ...props.config.workingDir,
+                  [props.platform]: dir.trim() === '' ? null : dir.trim(),
+                },
+              })
+            }
+          />
+        </Row>
+      </Section>
       <ShellSection
         key={props.machine}
         machine={props.machine}
