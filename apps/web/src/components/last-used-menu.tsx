@@ -1,6 +1,7 @@
 import { MoreHorizontalIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
-import { type ReactNode, useState } from 'react'
+import type { ReactNode } from 'react'
+import { useLocalStorage } from 'usehooks-ts'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,8 +31,9 @@ export function LastUsedMenu(props: {
   onOpenChange: (open: boolean) => void
   children: ReactNode
 }) {
-  const [lastId, setLastId] = useState(() =>
-    localStorage.getItem(props.storageKey)
+  const [lastId, setLastId] = useLocalStorage<string | null>(
+    props.storageKey,
+    null
   )
   const last =
     props.options.find((option) => option.id === lastId) ?? props.options[0]
@@ -39,7 +41,6 @@ export function LastUsedMenu(props: {
 
   function select(option: MenuOption) {
     setLastId(option.id)
-    localStorage.setItem(props.storageKey, option.id)
     option.onSelect()
   }
 

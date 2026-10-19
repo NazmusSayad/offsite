@@ -1,5 +1,6 @@
 import { ArrowRight01Icon, Cancel01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import type { Provider } from '@offsite/core/providers'
 import { useState } from 'react'
 import { updateConfig } from '@/api/machine-config'
 import { machineIcons, ProviderIcon } from '@/components/icons'
@@ -47,39 +48,32 @@ import { ProviderPage } from './provider'
 import { ShortcutsPage } from './shortcuts'
 import { TerminalPage } from './terminal'
 
-const browserPages: SettingsPage[] = [
+export const browserPages: SettingsPage[] = [
   'General',
   'Terminal',
   'Notifications',
   'Shortcuts',
   'Machines',
 ]
-const machinePages: SettingsPage[] = ['Machine', 'Claude', 'Codex', 'OpenCode']
+export const machinePages: SettingsPage[] = [
+  'Machine',
+  'Claude',
+  'Codex',
+  'OpenCode',
+]
 
-export function SettingsDialog() {
-  const open = useStore((state) => state.settingsOpen)
-  const prefs = useStore((state) => state.prefs)
+export function useSettingsView() {
   const machines = useStore((state) => state.machines)
   const machine = useStore((state) =>
     state.settingsMachine === null
       ? null
       : machineOf(state, state.settingsMachine)
   )
-  const config = machine === null ? null : machine.config
-  const system = machine === null ? null : machine.system
   const page = useStore((state) => state.settingsPage)
-  const machinePage = machinePages.includes(page)
-  const pageProvider = providerOf(page)
-  const settingsAccount = useStore((state) =>
-    pageProvider === null ? null : state.settingsAccount
+  const provider = providerOf(page)
+  const account = useStore((state) =>
+    provider === null ? null : state.settingsAccount
   )
-  const accountTitle =
-    settingsAccount === 'new'
-      ? 'New account'
-      : [
-          ...(machine?.claudeAccounts ?? []),
-          ...(machine?.codexAccounts ?? []),
-        ].find((account) => account.id === settingsAccount)?.name
   const editedMachine = useStore((state) =>
     page === 'Machines'
       ? (state.machines.find(
@@ -87,14 +81,38 @@ export function SettingsDialog() {
         ) ?? null)
       : null
   )
-  const subpage = settingsAccount !== null || editedMachine !== null
-  const [confirming, setConfirming] = useState<'browser' | 'machine' | null>(
-    null
-  )
-  const [revision, setRevision] = useState(0)
+
+  return {
+    machines,
+    machine,
+    config: machine === null ? null : machine.config,
+    system: machine === null ? null : machine.system,
+    page,
+    provider,
+    account,
+    editedMachine,
+    subpage: account !== null || editedMachine !== null,
+    subpageTitle:
+      account === 'new'
+        ? 'New account'
+        : account !== null
+          ? [
+              ...(machine?.claudeAccounts ?? []),
+              ...(machine?.codexAccounts ?? []),
+            ].find((item) => item.id === account)?.name
+          : editedMachine?.name,
+  }
+}
+
+type SettingsView = ReturnType<typeof useSettingsView>
+
+export function SettingsDialog() {
+  const open = useStore((state) => state.settingsOpen)
+  const view = useSettingsView()
+  const page = view.page
+  const machine = view.machine
 
   function navButton(item: SettingsPage) {
-    const provider = providerOf(item)
     return (
       <button
         key={item}
@@ -104,19 +122,7 @@ export function SettingsDialog() {
         )}
         onClick={() => showSettingsPage(item)}
       >
-        {provider !== null && (
-          <span className="mr-2.5 flex size-4 items-center justify-center">
-            <ProviderIcon
-              provider={provider}
-              className={cn(
-                provider === 'claude' && 'size-4',
-                provider === 'codex' && 'size-[19px] shrink-0',
-                provider === 'opencode' && 'h-3.5'
-              )}
-            />
-          </span>
-        )}
-        {item === 'Machine' ? 'General' : item}
+        <PageLabel page={item} />
       </button>
     )
   }
@@ -134,7 +140,7 @@ export function SettingsDialog() {
           </DialogTitle>
           {browserPages.map(navButton)}
           <div className="flex flex-none items-center gap-1 sm:mt-6 sm:flex-col sm:items-stretch">
-            {machine !== null && machines.length > 1 && (
+            {machine !== null && view.machines.length > 1 && (
               <Select
                 value={machine.id}
                 onValueChange={(settingsMachine) =>
@@ -145,7 +151,7 @@ export function SettingsDialog() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {machines.map((item) => (
+                  {view.machines.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       <HugeiconsIcon icon={machineIcons[item.icon]} />
                       {item.name}
@@ -154,7 +160,7 @@ export function SettingsDialog() {
                 </SelectContent>
               </Select>
             )}
-            {machine !== null && machines.length === 1 && (
+            {machine !== null && view.machines.length === 1 && (
               <p className="text-muted-foreground flex h-9 items-center gap-1.5 px-2 text-xs font-medium [&_svg]:size-4">
                 <HugeiconsIcon icon={machineIcons[machine.icon]} />
                 <span className="truncate">{machine.name}</span>
@@ -165,7 +171,7 @@ export function SettingsDialog() {
         </nav>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-7">
           <div className="mb-5 flex h-9 items-center">
-            {subpage && (
+            {view.subpage && (
               <>
                 <button
                   className="text-muted-foreground hover:text-foreground text-xl font-semibold tracking-tight transition-colors"
@@ -183,36 +189,16 @@ export function SettingsDialog() {
                   className="text-muted-foreground mx-1.5 size-5"
                 />
                 <h2 className="truncate text-xl font-semibold tracking-tight">
-                  {settingsAccount !== null
-                    ? accountTitle
-                    : editedMachine?.name}
+                  {view.subpageTitle}
                 </h2>
               </>
             )}
-            {!subpage && (
+            {!view.subpage && (
               <h2 className="text-xl font-semibold tracking-tight">
                 {page === 'Machine' ? 'General' : page}
               </h2>
             )}
-            {pageProvider !== null &&
-              settingsAccount === null &&
-              machine !== null &&
-              config !== null && (
-                <Switch
-                  className="ml-3"
-                  checked={config.enabledProviders[pageProvider]}
-                  onCheckedChange={(checked) =>
-                    void updateConfig(machine.id, {
-                      ...config,
-                      enabledProviders: {
-                        ...config.enabledProviders,
-                        [pageProvider]: checked,
-                      },
-                    })
-                  }
-                  aria-label={`Enable ${page}`}
-                />
-              )}
+            <ProviderSwitch view={view} className="ml-3" />
             <DialogClose asChild>
               <Button
                 variant="ghost"
@@ -224,125 +210,196 @@ export function SettingsDialog() {
               </Button>
             </DialogClose>
           </div>
-          {machinePage && machine !== null && machine.configError !== null && (
-            <p className="text-destructive mb-5 text-sm whitespace-pre-wrap">
-              Not saved: {machine.configError}
-            </p>
-          )}
-          <div key={revision} className="w-full space-y-5">
-            {page === 'General' && (
-              <GeneralPage
-                prefs={prefs}
-                onRestore={() => setConfirming('browser')}
-              />
-            )}
-            {page === 'Machine' &&
-              machine !== null &&
-              config !== null &&
-              system !== null && (
-                <MachinePage
-                  machine={machine.id}
-                  config={config}
-                  platform={system.platform}
-                  defaultShell={system.defaultShell}
-                  claudeAccounts={machine.claudeAccounts}
-                  codexAccounts={machine.codexAccounts}
-                  openCode={machine.openCode}
-                  onRestore={() => setConfirming('machine')}
-                />
-              )}
-            {machinePage && machine === null && (
-              <p className="text-muted-foreground text-sm">
-                Add a machine to see its settings.
-              </p>
-            )}
-            {machinePage &&
-              machine !== null &&
-              (config === null || system === null) && (
-                <p className="text-muted-foreground text-sm">
-                  {machine.name} is not connected. Its settings show up once it
-                  is.
-                </p>
-              )}
-            {page === 'Terminal' && <TerminalPage prefs={prefs} />}
-            {page === 'Notifications' && <NotificationsPage prefs={prefs} />}
-            {pageProvider !== null &&
-              machine !== null &&
-              config !== null &&
-              machine.composer !== null &&
-              system !== null && (
-                <ProviderPage
-                  key={pageProvider}
-                  machine={machine.id}
-                  config={config}
-                  composer={machine.composer}
-                  platform={system.platform}
-                  defaultClaudeBaseDir={system.defaultClaudeBaseDir}
-                  provider={pageProvider}
-                  claudeAccounts={machine.claudeAccounts}
-                  codexAccounts={machine.codexAccounts}
-                  openCode={machine.openCode}
-                  selected={settingsAccount}
-                />
-              )}
-            {page === 'Machines' && <MachinesPage />}
-            {page === 'Shortcuts' && <ShortcutsPage />}
-          </div>
+          <SettingsContent view={view} />
         </div>
-        <AlertDialog
-          open={confirming !== null}
-          onOpenChange={(open) => {
-            if (!open) {
-              setConfirming(null)
-            }
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {confirming === 'browser'
-                  ? 'Restore browser defaults?'
-                  : 'Restore machine defaults?'}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {confirming === 'browser'
-                  ? 'All settings of this browser go back to their defaults.'
-                  : `All settings of ${machine?.name} go back to their defaults.`}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                onClick={() => {
-                  setRevision(revision + 1)
-                  if (confirming === 'browser') {
-                    updatePrefs(defaultPrefs)
-                    return
-                  }
-                  if (machine === null || config === null || system === null) {
-                    throw new Error(
-                      'Restoring machine defaults needs a connected machine'
-                    )
-                  }
-                  updateConfig(machine.id, {
-                    ...system.defaults,
-                    claudeAccounts: config.claudeAccounts,
-                    codexAccounts: config.codexAccounts,
-                  })
-                }}
-              >
-                Restore defaults
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </DialogContent>
     </Dialog>
   )
 }
 
-function providerOf(page: SettingsPage) {
+export function PageLabel(props: { page: SettingsPage }) {
+  const provider = providerOf(props.page)
+
+  return (
+    <>
+      {provider !== null && (
+        <span className="mr-2.5 flex size-4 items-center justify-center">
+          <ProviderIcon
+            provider={provider}
+            className={cn(
+              provider === 'claude' && 'size-4',
+              provider === 'codex' && 'size-[19px] shrink-0',
+              provider === 'opencode' && 'h-3.5'
+            )}
+          />
+        </span>
+      )}
+      {props.page === 'Machine' ? 'General' : props.page}
+    </>
+  )
+}
+
+export function ProviderSwitch(props: {
+  view: SettingsView
+  className: string
+}) {
+  const machine = props.view.machine
+  const config = props.view.config
+  const provider = props.view.provider
+  if (
+    provider === null ||
+    props.view.account !== null ||
+    machine === null ||
+    config === null
+  ) {
+    return null
+  }
+
+  return (
+    <Switch
+      className={props.className}
+      checked={config.enabledProviders[provider]}
+      onCheckedChange={(checked) =>
+        void updateConfig(machine.id, {
+          ...config,
+          enabledProviders: { ...config.enabledProviders, [provider]: checked },
+        })
+      }
+      aria-label={`Enable ${props.view.page}`}
+    />
+  )
+}
+
+export function SettingsContent(props: { view: SettingsView }) {
+  const prefs = useStore((state) => state.prefs)
+  const page = props.view.page
+  const machine = props.view.machine
+  const config = props.view.config
+  const system = props.view.system
+  const machinePage = machinePages.includes(page)
+  const [confirming, setConfirming] = useState<'browser' | 'machine' | null>(
+    null
+  )
+  const [revision, setRevision] = useState(0)
+
+  return (
+    <>
+      {machinePage && machine !== null && machine.configError !== null && (
+        <p className="text-destructive mb-5 text-sm whitespace-pre-wrap">
+          Not saved: {machine.configError}
+        </p>
+      )}
+      <div key={revision} className="w-full space-y-5">
+        {page === 'General' && (
+          <GeneralPage
+            prefs={prefs}
+            onRestore={() => setConfirming('browser')}
+          />
+        )}
+        {page === 'Machine' &&
+          machine !== null &&
+          config !== null &&
+          system !== null && (
+            <MachinePage
+              machine={machine.id}
+              config={config}
+              platform={system.platform}
+              defaultShell={system.defaultShell}
+              claudeAccounts={machine.claudeAccounts}
+              codexAccounts={machine.codexAccounts}
+              openCode={machine.openCode}
+              onRestore={() => setConfirming('machine')}
+            />
+          )}
+        {machinePage && machine === null && (
+          <p className="text-muted-foreground text-sm">
+            Add a machine to see its settings.
+          </p>
+        )}
+        {machinePage &&
+          machine !== null &&
+          (config === null || system === null) && (
+            <p className="text-muted-foreground text-sm">
+              {machine.name} is not connected. Its settings show up once it is.
+            </p>
+          )}
+        {page === 'Terminal' && <TerminalPage prefs={prefs} />}
+        {page === 'Notifications' && <NotificationsPage prefs={prefs} />}
+        {props.view.provider !== null &&
+          machine !== null &&
+          config !== null &&
+          machine.composer !== null &&
+          system !== null && (
+            <ProviderPage
+              key={props.view.provider}
+              machine={machine.id}
+              config={config}
+              composer={machine.composer}
+              platform={system.platform}
+              defaultClaudeBaseDir={system.defaultClaudeBaseDir}
+              provider={props.view.provider}
+              claudeAccounts={machine.claudeAccounts}
+              codexAccounts={machine.codexAccounts}
+              openCode={machine.openCode}
+              selected={props.view.account}
+            />
+          )}
+        {page === 'Machines' && <MachinesPage />}
+        {page === 'Shortcuts' && <ShortcutsPage />}
+      </div>
+      <AlertDialog
+        open={confirming !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirming(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirming === 'browser'
+                ? 'Restore browser defaults?'
+                : 'Restore machine defaults?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirming === 'browser'
+                ? 'All settings of this browser go back to their defaults.'
+                : `All settings of ${machine?.name} go back to their defaults.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                setRevision(revision + 1)
+                if (confirming === 'browser') {
+                  updatePrefs(defaultPrefs)
+                  return
+                }
+                if (machine === null || config === null || system === null) {
+                  throw new Error(
+                    'Restoring machine defaults needs a connected machine'
+                  )
+                }
+                updateConfig(machine.id, {
+                  ...system.defaults,
+                  claudeAccounts: config.claudeAccounts,
+                  codexAccounts: config.codexAccounts,
+                })
+              }}
+            >
+              Restore defaults
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
+function providerOf(page: SettingsPage): Provider | null {
   if (page === 'Claude') {
     return 'claude'
   }

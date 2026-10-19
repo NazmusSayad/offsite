@@ -3,7 +3,7 @@ import {
   ChevronDownIcon,
   ComputerIcon,
   InboxIcon,
-  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
   SearchIcon,
   Settings01Icon,
   SquarePenIcon,
@@ -11,6 +11,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { useLocalStorage } from 'usehooks-ts'
 import { machineKey } from '@/api/machines'
 import { machineIcons, ProjectIcon } from '@/components/icons'
 import {
@@ -53,19 +54,17 @@ export function Sidebar(
   const sessions = useStore((state) => state.sessions)
   const provider = useStore((state) => state.settings.provider)
   const unseen = useStore((state) => state.unseen)
-  const [scope, setScope] = useState<{
+  const [scope, setScope] = useLocalStorage<{
     machine: string
     projectId: string
-  } | null>(null)
+  } | null>('sidebarScope', null)
   const [adding, setAdding] = useState(false)
   const [addingMachine, setAddingMachine] = useState(false)
   const [editing, setEditing] = useState<MachineProject | null>(null)
   const [picking, setPicking] = useState(false)
   const [minimizedOpen, setMinimizedOpen] = useState(false)
   const [inactiveOpen, setInactiveOpen] = useState(false)
-  const [width, setWidth] = useState(
-    Number(localStorage.getItem('sidebarWidth') ?? 240)
-  )
+  const [width, setWidth] = useLocalStorage('sidebarWidth', 240)
   const projects = [...registered].sort(
     (a, b) =>
       machines.findIndex((item) => item.id === a.machine) -
@@ -178,7 +177,6 @@ export function Sidebar(
     drag(event, (next) => {
       const value = Math.min(480, Math.max(200, next.clientX - start))
       setWidth(value)
-      localStorage.setItem('sidebarWidth', String(value))
     })
   }
 
@@ -252,16 +250,16 @@ export function Sidebar(
         style={props.mobile ? undefined : { width }}
       >
         <div className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 px-3">
-          {!props.mobile && (
-            <button
-              className={cn(iconButton, 'size-7')}
-              title={`Hide sidebar (${mod}+B)`}
-              aria-label="Hide sidebar"
-              onClick={props.onHide}
-            >
-              <HugeiconsIcon icon={PanelLeftCloseIcon} />
-            </button>
-          )}
+          <button
+            className={cn(iconButton, 'size-7')}
+            title={props.mobile ? 'Settings' : `Hide sidebar (${mod}+B)`}
+            aria-label={props.mobile ? 'Settings' : 'Hide sidebar'}
+            onClick={props.mobile ? () => showSettings(true) : props.onHide}
+          >
+            <HugeiconsIcon
+              icon={props.mobile ? Settings01Icon : PanelLeftOpenIcon}
+            />
+          </button>
           <DropdownMenu open={picking} onOpenChange={setPicking}>
             <DropdownMenuTrigger asChild>
               <button
@@ -444,19 +442,21 @@ export function Sidebar(
             )}
           </ul>
         </nav>
-        <div className="border-sidebar-border flex shrink-0 items-center gap-1 border-t p-(--sidebar-content-inset)">
-          <button
-            className={cn(
-              iconButton,
-              'h-8 flex-1 justify-start gap-2 px-2.5 text-sm'
-            )}
-            title="Settings"
-            onClick={() => showSettings(true)}
-          >
-            <HugeiconsIcon icon={Settings01Icon} />
-            Settings
-          </button>
-        </div>
+        {!props.mobile && (
+          <div className="border-sidebar-border flex shrink-0 items-center gap-1 border-t p-(--sidebar-content-inset)">
+            <button
+              className={cn(
+                iconButton,
+                'h-8 flex-1 justify-start gap-2 px-2.5 text-sm'
+              )}
+              title="Settings"
+              onClick={() => showSettings(true)}
+            >
+              <HugeiconsIcon icon={Settings01Icon} />
+              Settings
+            </button>
+          </div>
+        )}
         {!props.mobile && (
           <div
             role="separator"

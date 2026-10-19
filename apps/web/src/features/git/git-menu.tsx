@@ -10,7 +10,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
 import { isEqual } from 'es-toolkit'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { showToast } from '@/components/toast'
@@ -24,7 +24,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { showError } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { BranchPicker, SyncCounts, syncAction } from './branch-picker'
+import {
+  BranchDialog,
+  BranchPicker,
+  SyncCounts,
+  syncAction,
+} from './branch-picker'
 import { type Action, eligible, GitDialog } from './git-dialog'
 
 const STATUS_REFRESH = 3000
@@ -124,6 +129,8 @@ export function useGitStatus(
     }
   }, [machine, projectId])
 
+  const refresh = useCallback(() => setVersion((value) => value + 1), [])
+
   return {
     repos:
       result !== null &&
@@ -131,7 +138,7 @@ export function useGitStatus(
       result.key === machineKey(machine, projectId)
         ? result.repos
         : [],
-    refresh: () => setVersion((value) => value + 1),
+    refresh,
   }
 }
 
@@ -145,6 +152,7 @@ type GitTarget = {
 export function useGitCommands(props: GitTarget) {
   const [action, setAction] = useState<Action | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [branchRepo, setBranchRepo] = useState<string | null>(null)
   const [pushing, setPushing] = useState(false)
   const [committing, setCommitting] = useState(false)
   const pushable = eligible(props.repos, 'push')
@@ -193,6 +201,8 @@ export function useGitCommands(props: GitTarget) {
     setAction,
     menuOpen,
     setMenuOpen,
+    branchRepo,
+    setBranchRepo,
     pushing,
     committing,
     pushable,
@@ -204,7 +214,7 @@ export function useGitCommands(props: GitTarget) {
 
 type GitCommands = ReturnType<typeof useGitCommands>
 
-export function GitMenuItems(props: { git: GitCommands; commit: boolean }) {
+export function GitMenuItems(props: { git: GitCommands; collapsed: boolean }) {
   const git = props.git
   const repos = git.target.repos
   const busy = git.pushing || git.committing
@@ -212,7 +222,25 @@ export function GitMenuItems(props: { git: GitCommands; commit: boolean }) {
 
   return (
     <>
-      {props.commit && (
+      {props.collapsed &&
+        repos.map((repo) => (
+          <DropdownMenuItem
+            key={repo.path}
+            onSelect={() => git.setBranchRepo(repo.path)}
+          >
+            <HugeiconsIcon icon={GitBranchIcon} />
+            <span className="min-w-0 flex-1 truncate">
+              {repo.path === ''
+                ? (repo.branch ?? 'detached')
+                : `${repo.path}: ${repo.branch ?? 'detached'}`}
+            </span>
+            <span className="text-muted-foreground flex gap-1 text-xs">
+              <SyncCounts behind={repo.behind} ahead={repo.ahead} />
+            </span>
+          </DropdownMenuItem>
+        ))}
+      {props.collapsed && <DropdownMenuSeparator />}
+      {props.collapsed && (
         <DropdownMenuItem
           disabled={git.committable.length === 0}
           onSelect={() => git.setAction('commit')}
@@ -273,19 +301,33 @@ export function GitMenuItems(props: { git: GitCommands; commit: boolean }) {
 }
 
 export function GitCommandDialog(props: { git: GitCommands }) {
-  if (props.git.action === null) {
-    return null
-  }
+  const git = props.git
+  const branchRepo = git.target.repos.find(
+    (repo) => repo.path === git.branchRepo
+  )
 
   return (
-    <GitDialog
-      machine={props.git.target.machine}
-      projectId={props.git.target.projectId}
-      action={props.git.action}
-      repos={props.git.target.repos}
-      onClose={() => props.git.setAction(null)}
-      onRefresh={props.git.target.onRefresh}
-    />
+    <>
+      {git.action !== null && (
+        <GitDialog
+          machine={git.target.machine}
+          projectId={git.target.projectId}
+          action={git.action}
+          repos={git.target.repos}
+          onClose={() => git.setAction(null)}
+          onRefresh={git.target.onRefresh}
+        />
+      )}
+      {git.branchRepo !== null && branchRepo !== undefined && (
+        <BranchDialog
+          machine={git.target.machine}
+          projectId={git.target.projectId}
+          repo={branchRepo}
+          onRefresh={git.target.onRefresh}
+          onClose={() => git.setBranchRepo(null)}
+        />
+      )}
+    </>
   )
 }
 
@@ -419,7 +461,7 @@ export function GitActions(props: GitTarget) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <GitMenuItems git={git} commit={false} />
+            <GitMenuItems git={git} collapsed={false} />
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

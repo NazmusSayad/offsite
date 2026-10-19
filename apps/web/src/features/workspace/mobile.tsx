@@ -189,7 +189,7 @@ function MobileChat(props: { selection: Selection }) {
           {git.repos.length > 0 && (
             <>
               <DropdownMenuSeparator />
-              <GitMenuItems git={commands} commit />
+              <GitMenuItems git={commands} collapsed />
             </>
           )}
         </PanelMenu>

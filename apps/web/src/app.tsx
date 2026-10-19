@@ -23,6 +23,7 @@ import {
   useGitStatus,
 } from '@/features/git/git-menu'
 import { SettingsDialog } from '@/features/settings/dialog'
+import { MobileSettings } from '@/features/settings/mobile'
 import { ConnectMachine } from '@/features/sidebar/connect-machine'
 import { Palette } from '@/features/sidebar/palette'
 import { Sidebar } from '@/features/sidebar/sidebar'
@@ -71,7 +72,7 @@ export function App() {
     <div className="flex h-dvh text-sm">
       {desktop ? <DesktopLayout /> : <MobileLayout />}
       <Palette />
-      <SettingsDialog />
+      {desktop ? <SettingsDialog /> : <MobileSettings />}
       <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
         <CommitToast />
         <Toast />
@@ -389,7 +390,7 @@ function DesktopLayout() {
           {git.repos.length > 0 && (
             <>
               <DropdownMenuSeparator />
-              <GitMenuItems git={commands} commit />
+              <GitMenuItems git={commands} collapsed />
             </>
           )}
         </PanelMenu>
