@@ -82,9 +82,7 @@ export function BrowserPanel(props: {
             if (address === '') {
               return
             }
-            openBrowser(
-              /^[\w.-]+:\d+(\/|$)/.test(address) ? `http://${address}` : address
-            )
+            openBrowser(browserAddress(address))
           }}
         >
           <Input
@@ -154,6 +152,26 @@ async function browserSource(machine: string, target: string) {
   }
   const token = await call(machine, 'files.browse', undefined)
   return `${machineUrl(machine)}/api/browse/${token}${browsePath(target)}`
+}
+
+function browserAddress(value: string) {
+  if (/^file:/i.test(value)) {
+    return decodeURIComponent(new URL(value).pathname)
+  }
+  if (
+    /^https?:\/\//i.test(value) ||
+    /^[/.]/.test(value) ||
+    /^[a-z]:[\\/]/i.test(value)
+  ) {
+    return value
+  }
+  if (/^(localhost|\d+(\.\d+){3}|[\w.-]+:\d+)([:/?#]\S*)?$/i.test(value)) {
+    return `http://${value}`
+  }
+  if (/^[\w-]+(\.[\w-]+)+([/?#]\S*)?$/.test(value)) {
+    return `https://${value}`
+  }
+  return `https://www.google.com/search?q=${encodeURIComponent(value)}`
 }
 
 function browsePath(file: string) {
