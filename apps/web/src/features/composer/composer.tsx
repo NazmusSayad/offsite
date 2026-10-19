@@ -7,7 +7,6 @@ import { machineKey } from '@/api/machines'
 import { readBase64, uploadFile } from '@/api/upload'
 import { Button } from '@/components/ui/button'
 import { Wrapper } from '@/components/wrapper'
-import { changeSettings } from '@/lib/accounts'
 import { interrupt, sendPrompt } from '@/lib/sessions'
 import {
   getState,
@@ -26,14 +25,16 @@ import {
 } from './attached-images'
 import { ComposerMenu, type Suggestion } from './composer-menu'
 import { editDraft, getDraft, useDraft } from './drafts'
-import { MoreMenu, providerModes } from './more-menu'
+import { MoreMenu } from './more-menu'
 import { PermissionPrompt } from './permission-prompt'
 import { Pickers } from './pickers'
 import { ProjectHeading } from './project-heading'
 import { QueuedMessages } from './queue'
+import { SendControls } from './send-controls'
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 const maxImageSize = 5 * 1024 * 1024
+const touch = window.matchMedia('(pointer: coarse)')
 
 export function Composer() {
   const selection = useStore((state) => state.selection)
@@ -190,16 +191,6 @@ export function Composer() {
     } finally {
       setSending(false)
     }
-  }
-
-  function cycleMode() {
-    const settings = getState().settings
-    const list = providerModes(settings.provider, getState().capabilities)
-    if (list.length === 0) {
-      return
-    }
-    const index = list.findIndex((mode) => mode.value === settings.mode)
-    changeSettings({ mode: list[(index + 1) % list.length].value })
   }
 
   async function attach(list: File[]) {
@@ -361,14 +352,13 @@ export function Composer() {
                     return
                   }
                 }
-                if (event.key === 'Enter' && !event.shiftKey) {
+                if (
+                  event.key === 'Enter' &&
+                  !event.shiftKey &&
+                  !touch.matches
+                ) {
                   event.preventDefault()
                   void submit(event.metaKey || event.ctrlKey)
-                  return
-                }
-                if (event.key === 'Tab' && event.shiftKey) {
-                  event.preventDefault()
-                  cycleMode()
                   return
                 }
                 if (event.key === 'ArrowUp' && text === '') {
@@ -426,7 +416,11 @@ export function Composer() {
                   Uploading…
                 </span>
               )}
-              <MoreMenu />
+              <MoreMenu
+                empty={empty}
+                delivery={delivery}
+                onSubmit={() => void submit(true)}
+              />
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -436,56 +430,13 @@ export function Composer() {
               >
                 <HugeiconsIcon icon={PaperclipIcon} />
               </Button>
-              {running && empty ? (
-                <button
-                  className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors"
-                  title="Stop (Esc)"
-                  aria-label="Stop generation"
-                  onClick={interrupt}
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <rect x="2" y="2" width="8" height="8" rx="1.5" />
-                  </svg>
-                </button>
-              ) : (
-                <button
-                  className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover relative flex size-9 items-center justify-center overflow-hidden rounded-full shadow-xs transition-all duration-150 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:opacity-64 disabled:shadow-none"
-                  title={
-                    running && delivery === 'steer'
-                      ? `Send now (Enter) · Queue (${mod}+Enter)`
-                      : running
-                        ? `Queue (Enter) · Send now (${mod}+Enter)`
-                        : 'Send (Enter)'
-                  }
-                  aria-label="Send message"
-                  disabled={empty}
-                  onClick={(event) =>
-                    void submit(event.metaKey || event.ctrlKey)
-                  }
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 14 14"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M7 11.5V2.5M7 2.5L3 6.5M7 2.5L11 6.5"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              )}
+              <SendControls
+                running={running}
+                empty={empty}
+                delivery={delivery}
+                onSubmit={(swap) => void submit(swap)}
+                onStop={interrupt}
+              />
             </div>
           </div>
         </div>

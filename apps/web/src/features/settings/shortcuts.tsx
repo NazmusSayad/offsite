@@ -8,7 +8,6 @@ const shortcuts = [
   [`${mod}+Enter`, 'Send the other way while the agent works'],
   ['Shift+Enter', 'New line'],
   ['↑', 'Recall your last message'],
-  ['Shift+Tab', 'Cycle permission mode'],
   ['Esc', 'Stop the agent'],
   ['/', 'Slash commands'],
   ['@', 'Mention a file'],
