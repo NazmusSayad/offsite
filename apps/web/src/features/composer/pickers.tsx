@@ -1,6 +1,5 @@
 import {
   BrainIcon,
-  ChevronDownIcon,
   SearchIcon,
   UserSettings01Icon,
 } from '@hugeicons/core-free-icons'
@@ -37,7 +36,7 @@ import { cn } from '@/lib/utils'
 export const control =
   'relative inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-(--control-radius) border border-transparent outline-none hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-64 [&_svg]:pointer-events-none [&_svg]:shrink-0'
 const controlSm =
-  'h-7 gap-1.5 px-2.5 text-sm font-medium text-secondary-label hover:text-foreground [&_svg:not([class*=text-])]:text-muted-foreground [&_svg:not([class*=size-])]:size-4'
+  'h-7 gap-1.5 px-1.5 text-sm sm:px-2.5 font-medium text-secondary-label hover:text-foreground [&_svg:not([class*=text-])]:text-muted-foreground [&_svg:not([class*=size-])]:size-4'
 
 export function Pickers() {
   const settings = useStore((state) => state.settings)
@@ -207,11 +206,6 @@ function ModelPicker() {
               )}
           </span>
           <span className="max-w-40 truncate">{label}</span>
-          <HugeiconsIcon
-            icon={ChevronDownIcon}
-            strokeWidth={2.25}
-            className="text-icon-muted size-3.5"
-          />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -370,11 +364,6 @@ function Picker(props: {
       <DropdownMenuTrigger asChild>
         <button className={cn(control, controlSm)} title={props.title}>
           {props.trigger}
-          <HugeiconsIcon
-            icon={ChevronDownIcon}
-            strokeWidth={2.25}
-            className="text-icon-muted size-3.5"
-          />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

@@ -74,7 +74,14 @@ export function App() {
       {desktop ? <DesktopLayout /> : <MobileLayout />}
       <Palette />
       {desktop ? <SettingsDialog /> : <MobileSettings />}
-      <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+      <div
+        className={cn(
+          'fixed z-50 flex flex-col gap-2',
+          desktop
+            ? 'right-4 bottom-4 items-end'
+            : 'inset-x-4 top-[calc(env(safe-area-inset-top)+0.5rem)] items-center'
+        )}
+      >
         <GitToast />
         <Toast />
       </div>
