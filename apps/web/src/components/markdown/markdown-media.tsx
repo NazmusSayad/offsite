@@ -1,12 +1,20 @@
 import {
+  CheckIcon,
+  CopyIcon,
+  Image01Icon,
   ImageNotFound01Icon,
+  MusicNote01Icon,
   UnavailableIcon,
+  Video01Icon,
   VideoOffIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Tooltip } from '@/components/ui/tooltip'
 import { ViewableImage } from '@/components/viewable-image'
 import { ViewableVideo } from '@/components/viewable-video'
+import { useCopy } from '@/lib/clipboard'
 import { mediaKind, mediaUrl } from '@/lib/media'
 import { useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
@@ -14,6 +22,12 @@ import { errorMessage } from '@/lib/utils'
 const AudioPlayer = lazy(async () => ({
   default: (await import('@/components/audio-player')).AudioPlayer,
 }))
+
+const kindIcons = {
+  image: Image01Icon,
+  video: Video01Icon,
+  audio: MusicNote01Icon,
+}
 
 const unavailableIcons = {
   image: ImageNotFound01Icon,
@@ -29,6 +43,7 @@ const unavailableLabels = {
 
 export function LocalMedia(props: { path: string; alt: string; raw: string }) {
   const selection = useStore((state) => state.selection)
+  const clipboard = useCopy()
   const [media, setMedia] = useState<
     { path: string; src: string } | { path: string; error: string } | null
   >(null)
@@ -69,13 +84,42 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
     )
   }
   return (
-    <Media
-      src={media.src}
-      alt={props.alt}
-      name={props.path}
-      kind={mediaKind(props.path) ?? 'image'}
-      raw={props.raw}
-    />
+    <span className="border-border bg-muted/50 inline-flex max-w-[min(100%,36rem)] flex-col gap-1 rounded-xl border p-1 align-top">
+      <span className="text-muted-foreground flex items-center gap-1.5 pl-1.5 [contain:inline-size]">
+        <HugeiconsIcon
+          icon={kindIcons[mediaKind(props.path) ?? 'image']}
+          aria-hidden
+          className="size-3.5 shrink-0"
+        />
+        <span
+          className="text-2xs min-w-0 flex-1 truncate font-mono"
+          title={props.path}
+        >
+          {props.path}
+        </span>
+        <Tooltip label={clipboard.copied ? 'Copied' : 'Copy path'}>
+          <Button
+            type="button"
+            variant="ghost-muted"
+            size="icon-xs"
+            aria-label="Copy path"
+            onClick={() => void clipboard.copy(props.path)}
+          >
+            <HugeiconsIcon
+              icon={clipboard.copied ? CheckIcon : CopyIcon}
+              className="size-3"
+            />
+          </Button>
+        </Tooltip>
+      </span>
+      <Media
+        src={media.src}
+        alt={props.alt}
+        name={props.path}
+        kind={mediaKind(props.path) ?? 'image'}
+        raw={props.raw}
+      />
+    </span>
   )
 }
 
@@ -113,7 +157,7 @@ export function Media(props: {
         <AudioPlayer
           src={props.src}
           label={props.alt === '' ? props.name : props.alt}
-          className="w-full max-w-[min(100%,28rem)]"
+          className="w-[28rem] max-w-full"
           onError={() => setFailed(props.src)}
         />
       </Suspense>

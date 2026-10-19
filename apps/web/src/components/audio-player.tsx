@@ -18,13 +18,10 @@ export function AudioPlayer(props: {
   return (
     <span
       className={cn(
-        'border-border bg-muted inline-flex flex-col rounded-lg border align-top',
+        'border-border bg-muted inline-flex rounded-lg border align-top',
         props.className
       )}
     >
-      <span className="text-muted-foreground truncate px-3 pt-2 text-xs">
-        {props.label}
-      </span>
       <MediaController
         audio
         className="w-full rounded-lg outline-none [--media-background-color:transparent] [--media-control-background:transparent] [--media-control-hover-background:var(--accent)] [--media-font-family:inherit] [--media-primary-color:var(--foreground)] [--media-range-bar-color:var(--primary)] [--media-range-thumb-background:var(--primary)] [--media-range-track-background:var(--border)] [--media-range-track-border-radius:9999px] [--media-secondary-color:transparent] [--media-text-color:var(--muted-foreground)] [--media-time-range-buffered-color:var(--border)]"
