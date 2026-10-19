@@ -2,14 +2,20 @@ import {
   AlertCircleIcon,
   Folder01Icon,
   GitCompareIcon,
+  MoreVerticalIcon,
   SquareTerminalIcon,
   TaskDaily01Icon,
   XIcon,
 } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import { type ReactNode, useSyncExternalStore } from 'react'
-import { LastUsedMenu, type MenuOption } from '@/components/last-used-menu'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { FilesPanel } from '@/features/files/files-panel'
 import { DiffPanel } from '@/features/git/diff-panel'
 import {
@@ -27,6 +33,18 @@ import {
 import { cn, mod } from '@/lib/utils'
 
 export type Panel = 'diff' | 'tasks' | 'files'
+
+type MenuOption = {
+  id: string
+  label: string
+  title: string
+  icon: IconSvgElement
+  pressed: boolean
+  attention: boolean
+  badge: ReactNode
+  detail: ReactNode
+  onSelect: () => void
+}
 
 const toggle =
   'text-foreground hover:bg-accent data-[pressed=true]:bg-accent relative grid h-7 min-w-7 cursor-pointer place-items-center rounded-lg border border-transparent [&_svg]:size-4 [&_svg]:opacity-80'
@@ -73,16 +91,32 @@ export function PanelMenu(
   const options = usePanelOptions(props)
 
   return (
-    <LastUsedMenu
-      storageKey="panelMenu"
-      className={props.className}
-      buttonClassName={toggle}
-      options={options}
-      open={props.open}
-      onOpenChange={props.onOpenChange}
-    >
-      {props.children}
-    </LastUsedMenu>
+    <div className={props.className}>
+      <DropdownMenu open={props.open} onOpenChange={props.onOpenChange}>
+        <DropdownMenuTrigger asChild>
+          <button
+            className={cn(toggle, 'data-[state=open]:bg-accent')}
+            aria-label="More"
+            title="More"
+          >
+            <HugeiconsIcon icon={MoreVerticalIcon} />
+            {options.some((option) => option.attention) && (
+              <span className="bg-muted-foreground ring-background absolute top-0.5 right-0.5 size-1.5 rounded-full ring-2" />
+            )}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" align="end">
+          {options.map((option) => (
+            <DropdownMenuItem key={option.id} onSelect={option.onSelect}>
+              <HugeiconsIcon icon={option.icon} />
+              <span className="flex-1">{option.label}</span>
+              {option.detail}
+            </DropdownMenuItem>
+          ))}
+          {props.children}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   )
 }
 
