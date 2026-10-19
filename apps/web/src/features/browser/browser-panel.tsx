@@ -155,11 +155,8 @@ async function browserSource(machine: string, target: string) {
 }
 
 function browserAddress(value: string) {
-  if (/^file:/i.test(value)) {
-    return decodeURIComponent(new URL(value).pathname)
-  }
   if (
-    /^https?:\/\//i.test(value) ||
+    /^(https?:\/\/|file:)/i.test(value) ||
     /^[/.]/.test(value) ||
     /^[a-z]:[\\/]/i.test(value)
   ) {

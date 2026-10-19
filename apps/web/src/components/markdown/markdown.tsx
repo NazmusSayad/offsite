@@ -329,7 +329,7 @@ function localFile(href: string | undefined) {
     return null
   }
   if (href.startsWith('file:')) {
-    return decodeURIComponent(new URL(href).pathname)
+    return href
   }
   if (!/^[a-z]:[\\/]/i.test(href) && /^[a-z][a-z0-9+.-]*:/i.test(href)) {
     return null

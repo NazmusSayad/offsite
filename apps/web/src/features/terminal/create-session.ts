@@ -80,7 +80,7 @@ export function createSession(id: number) {
     },
     onLink: (uri) => {
       if (uri.startsWith('file:')) {
-        openBrowser(decodeURIComponent(new URL(uri).pathname))
+        openBrowser(uri)
         return
       }
       window.open(uri, '_blank', 'noopener')

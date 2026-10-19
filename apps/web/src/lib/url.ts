@@ -38,6 +38,13 @@ export function openBrowser(target: string) {
   if (state.selection === null) {
     throw new Error('no project is open to show the browser in')
   }
+  if (target.startsWith('file:')) {
+    replaceSearch({
+      panel: 'browser',
+      browse: decodeURIComponent(new URL(target).pathname),
+    })
+    return
+  }
   if (
     /^https?:\/\//i.test(target) ||
     target.startsWith('/') ||

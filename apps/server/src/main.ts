@@ -316,7 +316,6 @@ function serveBrowse(
     return
   }
   response.setHeader('content-type', browseType(file))
-  response.setHeader('access-control-allow-origin', '*')
   response.setHeader('cache-control', 'no-cache')
   streamFile(file, stats.size, request, response)
 }
