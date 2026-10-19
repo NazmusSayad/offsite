@@ -43,7 +43,7 @@ import { cn } from '@/lib/utils'
 const surface =
   'group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
 
-export function SessionItem(props: {
+export function DesktopSessionItem(props: {
   session: MachineSession
   slim: boolean
   selected: boolean
@@ -399,7 +399,7 @@ export function SessionItem(props: {
   )
 }
 
-export function DraftRow(props: {
+export function DesktopDraftRow(props: {
   machine: string
   projectId: string
   onSelect: () => void

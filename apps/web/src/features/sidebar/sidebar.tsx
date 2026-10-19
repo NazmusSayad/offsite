@@ -23,13 +23,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  DesktopDraftRow,
+  DesktopSessionItem,
+} from '@/features/sidebar/desktop-session-item'
 import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
 import { MobileMenu, type ThreadFilter } from '@/features/sidebar/mobile-menu'
+import {
+  MobileDraftRow,
+  MobileSessionItem,
+} from '@/features/sidebar/mobile-session-item'
 import {
   EditProjectDialog,
   FolderDialog,
 } from '@/features/sidebar/project-dialogs'
-import { DraftRow, SessionItem } from '@/features/sidebar/session-item'
 import { openSession } from '@/lib/sessions'
 import {
   activityOf,
@@ -116,6 +123,8 @@ export function Sidebar(
         }
       : null
 
+  const Draft = props.mobile ? MobileDraftRow : DesktopDraftRow
+
   const folderMachine =
     scope?.machine ?? selection?.machine ?? machines.at(0)?.id
 
@@ -183,8 +192,9 @@ export function Sidebar(
   }
 
   function row(session: MachineSession, slim: boolean) {
+    const Item = props.mobile ? MobileSessionItem : DesktopSessionItem
     return (
-      <SessionItem
+      <Item
         key={machineKey(session.machine, session.id)}
         session={session}
         slim={slim}
@@ -433,7 +443,7 @@ export function Sidebar(
             {(!props.mobile || filter === 'active') && (
               <>
                 {selection !== null && selection.sessionId === null && (
-                  <DraftRow
+                  <Draft
                     machine={selection.machine}
                     projectId={selection.projectId}
                     onSelect={() =>
