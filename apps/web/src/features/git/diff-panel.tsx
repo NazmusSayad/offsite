@@ -46,7 +46,7 @@ export function DiffPanel(props: {
   })
   const diff = useStore((state) => state.prefs.diff)
   const codeTheme = useCodeTheme()
-  const [collapsed, collapse] = useLocalStorage<string[]>('diffCollapsed', [])
+  const [flipped, flip] = useLocalStorage<string[]>('diffFlipped', [])
 
   function changeDiff(change: Partial<typeof diff>) {
     updatePrefs({ ...getState().prefs, diff: { ...diff, ...change } })
@@ -110,9 +110,6 @@ export function DiffPanel(props: {
   const removed = sumBy(list, (file) =>
     sumBy(file.hunks, (hunk) => hunk.deletionLines)
   )
-  const allCollapsed =
-    list.length > 0 && list.every((file) => collapsed.includes(file.name))
-
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
       <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-3 pl-3">
@@ -150,13 +147,14 @@ export function DiffPanel(props: {
             <Button
               size="icon-sm"
               variant="ghost"
-              title={allCollapsed ? 'Expand all files' : 'Collapse all files'}
-              onClick={() =>
-                collapse(allCollapsed ? [] : list.map((file) => file.name))
-              }
+              title={diff.collapsed ? 'Expand all files' : 'Collapse all files'}
+              onClick={() => {
+                flip([])
+                changeDiff({ collapsed: !diff.collapsed })
+              }}
             >
               <HugeiconsIcon
-                icon={allCollapsed ? UnfoldMoreIcon : ChevronsDownUpIcon}
+                icon={diff.collapsed ? UnfoldMoreIcon : ChevronsDownUpIcon}
                 className="size-3.5"
               />
             </Button>
@@ -219,7 +217,7 @@ export function DiffPanel(props: {
         )}
         {error === null &&
           list.map((file) => {
-            const closed = collapsed.includes(file.name)
+            const closed = diff.collapsed !== flipped.includes(file.name)
             return (
               <FileDiff
                 key={file.name}
@@ -238,10 +236,10 @@ export function DiffPanel(props: {
                     className="text-muted-foreground hover:text-foreground flex size-5 cursor-pointer items-center justify-center"
                     aria-label={closed ? 'Expand file' : 'Collapse file'}
                     onClick={() =>
-                      collapse(
-                        closed
-                          ? collapsed.filter((name) => name !== file.name)
-                          : [...collapsed, file.name]
+                      flip(
+                        flipped.includes(file.name)
+                          ? flipped.filter((name) => name !== file.name)
+                          : [...flipped, file.name]
                       )
                     }
                   >

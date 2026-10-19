@@ -50,6 +50,7 @@ const prefsSchema = z.strictObject({
     .strictObject({
       split: z.boolean().default(false),
       wrap: z.boolean().default(true),
+      collapsed: z.boolean().default(false),
     })
     .prefault({}),
   rewind: z.enum(['all', 'chat', 'code']).default('chat'),

@@ -27,16 +27,16 @@ export function VideoPlayer(props: { src: string; label: string }) {
         className="size-full object-contain"
       />
       <MediaLoadingIndicator slot="centered-chrome" noAutohide />
-      <MediaControlBar className="w-full bg-linear-to-t from-black/70 to-transparent px-2 pt-6 pb-1 *:p-2.5">
+      <MediaControlBar className="w-full bg-linear-to-t from-black/70 to-transparent px-2 pt-6 pb-1 *:p-2.5 max-sm:flex-wrap max-sm:*:p-2">
         <MediaPlayButton />
         <MediaSeekBackwardButton seekOffset={10} />
         <MediaSeekForwardButton seekOffset={10} />
-        <MediaTimeRange className="grow" />
-        <MediaTimeDisplay showDuration />
+        <MediaTimeRange className="grow max-sm:order-first max-sm:min-h-0 max-sm:basis-full" />
+        <MediaTimeDisplay showDuration className="max-sm:mr-auto" />
         <MediaMuteButton />
-        <MediaVolumeRange />
+        <MediaVolumeRange className="max-sm:hidden" />
         <MediaPlaybackRateButton />
-        <MediaPipButton />
+        <MediaPipButton className="max-sm:hidden" />
         <MediaFullscreenButton />
       </MediaControlBar>
     </MediaController>
