@@ -14,13 +14,14 @@ import {
   type Progress,
   Terminal,
 } from '@/lib/ghostty/terminal'
+import { router } from '@/lib/router'
 import { openSession } from '@/lib/sessions'
 import {
   getState as appState,
   machineOf,
   subscribe as subscribeApp,
 } from '@/lib/store'
-import { terminalFromUrl } from '@/lib/url'
+import { currentSearch, leaveLayer, replaceSearch } from '@/lib/url'
 import { errorMessage, isMac } from '@/lib/utils'
 import {
   forgetTab,
@@ -59,7 +60,7 @@ let state: State = {
   status: 'connecting',
   failure: null,
   loaded: false,
-  open: terminalFromUrl(),
+  open: false,
   instance: null,
   layout: {},
   ctrl: false,
@@ -70,6 +71,8 @@ let machine: string | null = null
 let attached = false
 
 export async function startTerminal() {
+  followUrl()
+  router.history.subscribe(followUrl)
   try {
     await Promise.all([loadGhostty(), applyStyle(terminalConfig())])
     setState({ loaded: true })
@@ -242,7 +245,18 @@ export function tabTitle(tab: TerminalTab) {
 }
 
 export function setOpen(open: boolean) {
-  setState({ open })
+  if (open) {
+    replaceSearch({ bottom: 'terminal' })
+    return
+  }
+  leaveLayer('overlay', () => replaceSearch({ bottom: undefined }))
+}
+
+function followUrl() {
+  const open = currentSearch().bottom === 'terminal'
+  if (open !== state.open) {
+    setState({ open })
+  }
 }
 
 function showTab(target: string, projectId: string, tabId: number) {
@@ -250,7 +264,7 @@ function showTab(target: string, projectId: string, tabId: number) {
   if (selection?.machine !== target || selection.projectId !== projectId) {
     openSession({ machine: target, projectId, sessionId: null })
   }
-  setState({ open: true })
+  setOpen(true)
   send({ type: 'select', projectId, tabId })
 }
 
@@ -367,8 +381,10 @@ function handle(message: TerminalEvent) {
   setState({
     status: awaitingReplay.size === 0 ? 'active' : 'connecting',
     layout: message.layout,
-    ...(closedLastTab && { open: false }),
   })
+  if (closedLastTab && state.open) {
+    setOpen(false)
+  }
 }
 
 function sync(layout: TerminalLayout) {
@@ -444,15 +460,14 @@ async function applyConfig() {
 }
 
 function selectLinkedTab() {
-  const params = new URLSearchParams(location.search)
-  const target = params.get('machine')
-  const projectId = params.get('project')
-  const tabId = params.get('terminal')
-  if (target === null || projectId === null || tabId === null) {
+  const search = currentSearch()
+  const target = search.machine
+  const projectId = search.project
+  const tabId = search.terminal
+  if (target === undefined || projectId === undefined || tabId === undefined) {
     return
   }
-  params.delete('terminal')
-  history.replaceState(null, '', `/?${params}`)
+  replaceSearch({ terminal: undefined })
   const unsubscribe = subscribe(() => {
     if (state.status !== 'active' || machine !== target) {
       return

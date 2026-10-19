@@ -11,6 +11,8 @@ import {
 } from '@/lib/accounts'
 import { claimNotifications, notify, push } from '@/lib/notifications'
 import { loadPrefs } from '@/lib/prefs'
+import { router } from '@/lib/router'
+import { closeSession, openSession } from '@/lib/sessions'
 import {
   createAppStore,
   draftKey,
@@ -92,6 +94,21 @@ export function start() {
     if (event.key === 'machines') {
       receiveMachines()
     }
+  })
+  router.history.subscribe((event) => {
+    if (event.action.type === 'PUSH' || event.action.type === 'REPLACE') {
+      return
+    }
+    const next = selectionFromUrl(getState().machines.map((item) => item.id))
+    if (next === null) {
+      closeSession()
+      return
+    }
+    if (getState().selection === null) {
+      openSession(next)
+      return
+    }
+    syncUrl()
   })
   for (const machine of stored) {
     connectMachine(machine.id, machine.addresses)

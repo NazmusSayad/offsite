@@ -1,7 +1,8 @@
 import { ArrowLeft01Icon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { useSearch } from '@tanstack/react-router'
 import { Dialog as DialogPrimitive } from 'radix-ui'
-import { Fragment, useEffect, useState, useSyncExternalStore } from 'react'
+import { Fragment, useState, useSyncExternalStore } from 'react'
 import { useProjectName } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
@@ -17,7 +18,6 @@ import { Sidebar } from '@/features/sidebar/sidebar'
 import { TerminalPanel } from '@/features/terminal/panel'
 import {
   getState as terminalState,
-  setOpen as setTerminal,
   subscribe as subscribeTerminal,
 } from '@/features/terminal/session'
 import { Transcript } from '@/features/transcript/transcript'
@@ -27,65 +27,20 @@ import {
   PanelMenu,
   PanelView,
 } from '@/features/workspace/panels'
-import { closeSession, openSession } from '@/lib/sessions'
+import type { Search } from '@/lib/router'
+import { closeSession } from '@/lib/sessions'
 import {
-  getState,
   machineOf,
   projectOf,
   type Selection,
   selectedRunning,
   useStore,
 } from '@/lib/store'
-import {
-  panelFromUrl,
-  selectionFromUrl,
-  syncPanels,
-  syncUrl,
-  terminalFromUrl,
-} from '@/lib/url'
+import { leaveLayer, pushSearch, replaceSearch } from '@/lib/url'
 
 export function MobileLayout() {
   const selection = useStore((state) => state.selection)
   const hasMachine = useStore((state) => state.machines.length > 0)
-  const open = selection !== null
-
-  useEffect(() => {
-    if (open && history.state !== 'chat' && history.state !== 'panel') {
-      history.pushState('chat', '', location.href)
-    }
-    if (!open && history.state === 'chat') {
-      history.back()
-    }
-    if (!open && history.state === 'panel') {
-      history.go(-2)
-    }
-    if (!open) {
-      setTerminal(false)
-    }
-  }, [open])
-
-  useEffect(() => {
-    function navigate() {
-      if (history.state !== 'chat' && history.state !== 'panel') {
-        closeSession()
-        return
-      }
-      if (getState().selection !== null) {
-        syncUrl()
-        return
-      }
-      const next = selectionFromUrl(
-        getState().machines.map((machine) => machine.id)
-      )
-      if (next === null) {
-        history.back()
-        return
-      }
-      openSession(next)
-    }
-    addEventListener('popstate', navigate)
-    return () => removeEventListener('popstate', navigate)
-  }, [])
 
   if (selection !== null) {
     return <MobileChat selection={selection} />
@@ -139,44 +94,37 @@ function MobileChat(props: { selection: Selection }) {
     subscribeTerminal,
     () => terminalState().open
   )
-  const [panel, setPanel] = useState<Panel | null>(panelFromUrl)
+  const panel = useSearch({
+    from: '__root__',
+    select: (search) => search.panel ?? null,
+  })
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const changed = git.repos.some((repo) => repo.changed > 0)
   const open = panel !== null || terminal
 
-  useEffect(() => {
-    if (open && history.state !== 'panel') {
-      history.pushState('panel', '', location.href)
+  function showOverlay(search: Search) {
+    if (open) {
+      replaceSearch(search)
+      return
     }
-    if (!open && history.state === 'panel') {
-      history.back()
-    }
-    syncPanels(panel, terminal)
-  }, [open, panel, terminal])
-
-  useEffect(() => {
-    function navigate() {
-      if (history.state === 'panel') {
-        setPanel(panelFromUrl())
-        setTerminal(terminalFromUrl())
-        return
-      }
-      setPanel(null)
-      setTerminal(false)
-    }
-    addEventListener('popstate', navigate)
-    return () => removeEventListener('popstate', navigate)
-  }, [])
+    pushSearch(search, 'overlay')
+  }
 
   function showPanel(next: Panel | null) {
     setSelectedTask(null)
-    setPanel(next)
-    setTerminal(false)
+    if (next === null) {
+      closeOverlay()
+      return
+    }
+    showOverlay({ panel: next, bottom: undefined })
   }
 
   function showTerminal(next: boolean) {
-    setPanel(null)
-    setTerminal(next)
+    if (!next) {
+      closeOverlay()
+      return
+    }
+    showOverlay({ panel: undefined, bottom: 'terminal' })
   }
 
   return (
@@ -186,7 +134,7 @@ function MobileChat(props: { selection: Selection }) {
           variant="ghost"
           size="icon"
           aria-label="Back"
-          onClick={() => history.back()}
+          onClick={() => leaveLayer('chat', closeSession)}
         >
           <HugeiconsIcon
             icon={ArrowLeft01Icon}
@@ -298,5 +246,11 @@ function MobileChat(props: { selection: Selection }) {
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
     </main>
+  )
+}
+
+function closeOverlay() {
+  leaveLayer('overlay', () =>
+    replaceSearch({ panel: undefined, bottom: undefined })
   )
 }

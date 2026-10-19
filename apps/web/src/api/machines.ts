@@ -1,5 +1,6 @@
 import type { Project } from '@offsite/core/projects'
 import type { MachineIcon } from '@/components/icons'
+import { router } from '@/lib/router'
 import {
   getState,
   type Machine,
@@ -50,7 +51,7 @@ export function pairingFromUrl() {
     return null
   }
   const params = new URLSearchParams(location.hash.slice(1))
-  history.replaceState(null, '', '/')
+  void router.navigate({ to: '/', replace: true })
   const machine = params.get('machine')
   if (machine === null) {
     throw new Error('the pairing link has no machine')

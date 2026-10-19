@@ -1,4 +1,5 @@
 import '@/styles/index.css'
+import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { listen, startConnections } from '@/api/connection'
@@ -7,8 +8,8 @@ import { ErrorBoundary } from '@/components/error-boundary'
 import { loadDrafts } from '@/features/composer/drafts'
 import { startTerminal } from '@/features/terminal/session'
 import { refreshPushSubscription } from '@/lib/notifications'
+import { router } from '@/lib/router'
 import { openSession } from '@/lib/sessions'
-import { App } from './app'
 
 const root = document.getElementById('root')
 if (!root) {
@@ -59,7 +60,7 @@ void startTerminal()
 createRoot(root).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <RouterProvider router={router} />
     </ErrorBoundary>
   </StrictMode>
 )

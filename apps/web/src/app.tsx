@@ -1,5 +1,6 @@
 import { PanelLeftIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { useSearch } from '@tanstack/react-router'
 import {
   Fragment,
   useEffect,
@@ -52,7 +53,7 @@ import {
   selectedRunning,
   useStore,
 } from '@/lib/store'
-import { panelFromUrl, syncPanels } from '@/lib/url'
+import { currentSearch, replaceSearch } from '@/lib/url'
 import { cn, drag, mod } from '@/lib/utils'
 
 const wide = window.matchMedia('(min-width: 768px)')
@@ -90,6 +91,10 @@ export function App() {
   )
 }
 
+function setPanel(next: Panel | null) {
+  replaceSearch({ panel: next ?? undefined })
+}
+
 function DesktopLayout() {
   const selection = useStore((state) => state.selection)
   const sessions = useStore((state) => state.sessions)
@@ -106,7 +111,10 @@ function DesktopLayout() {
   const [sidebar, setSidebar] = useState(true)
   const column = useRef<HTMLDivElement>(null)
   const [compact, setCompact] = useState(false)
-  const [panel, setPanel] = useState<Panel | null>(panelFromUrl)
+  const panel = useSearch({
+    from: '__root__',
+    select: (search) => search.panel ?? null,
+  })
   const lastPanel = useRef<Panel>('diff')
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const [panelWidth, setPanelWidth] = useLocalStorage('panelWidth', 540)
@@ -152,7 +160,7 @@ function DesktopLayout() {
     'mod+j',
     (event) => {
       event.stopPropagation()
-      setPanel((current) => (current === null ? lastPanel.current : null))
+      setPanel(currentSearch().panel === undefined ? lastPanel.current : null)
     },
     {
       enableOnFormTags: true,
@@ -165,7 +173,6 @@ function DesktopLayout() {
       lastPanel.current = panel
     }
   }, [panel])
-  useEffect(() => syncPanels(panel, terminal), [panel, terminal])
   useHotkeys('mod+b', () => setSidebar((open) => !open), {
     enableOnFormTags: true,
     preventDefault: true,
