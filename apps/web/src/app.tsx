@@ -1,4 +1,4 @@
-import { PanelLeftIcon } from '@hugeicons/core-free-icons'
+import { MoreVerticalIcon, PanelLeftIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useSearch } from '@tanstack/react-router'
 import {
@@ -14,7 +14,11 @@ import { useProjectName } from '@/api/projects'
 import { machineIcons, ProjectIcon } from '@/components/icons'
 import { Toast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
-import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Composer } from '@/features/composer/composer'
 import {
   GitActions,
@@ -39,7 +43,6 @@ import { Transcript } from '@/features/transcript/transcript'
 import { MobileLayout } from '@/features/workspace/mobile'
 import {
   type Panel,
-  PanelMenu,
   PanelToggles,
   PanelView,
 } from '@/features/workspace/panels'
@@ -217,7 +220,7 @@ function DesktopLayout() {
             className={cn(
               'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-5 pl-[3.25rem]',
               sidebar && 'pl-5',
-              panel === null && (compact ? 'pr-20' : 'pr-36')
+              panel === null && 'pr-36'
             )}
           >
             {selection !== null && machine !== null && (
@@ -271,6 +274,26 @@ function DesktopLayout() {
                 repos={git.repos}
                 onRefresh={git.refresh}
               />
+            )}
+            {selection !== null && compact && git.repos.length > 0 && (
+              <DropdownMenu
+                open={commands.menuOpen}
+                onOpenChange={commands.setMenuOpen}
+              >
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Git actions"
+                    title="Git actions"
+                  >
+                    <HugeiconsIcon icon={MoreVerticalIcon} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <GitMenuItems git={commands} collapsed />
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </header>
           <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
@@ -366,7 +389,7 @@ function DesktopLayout() {
           </div>
         )}
       </main>
-      {selection !== null && !compact && (
+      {selection !== null && (
         <PanelToggles
           className="fixed top-0 right-3 z-50 flex h-(--workspace-topbar-height) items-center gap-1"
           selection={selection}
@@ -379,29 +402,6 @@ function DesktopLayout() {
           }}
           onTerminal={setTerminal}
         />
-      )}
-      {selection !== null && compact && (
-        <PanelMenu
-          className="fixed top-0 right-3 z-50 flex h-(--workspace-topbar-height) items-center gap-1"
-          selection={selection}
-          panel={panel}
-          terminal={terminal}
-          changed={git.repos.some((repo) => repo.changed > 0)}
-          onPanel={(next) => {
-            setSelectedTask(null)
-            setPanel(next)
-          }}
-          onTerminal={setTerminal}
-          open={commands.menuOpen}
-          onOpenChange={commands.setMenuOpen}
-        >
-          {git.repos.length > 0 && (
-            <>
-              <DropdownMenuSeparator />
-              <GitMenuItems git={commands} collapsed />
-            </>
-          )}
-        </PanelMenu>
       )}
       <GitCommandDialog git={commands} />
     </>

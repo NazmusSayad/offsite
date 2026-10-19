@@ -56,6 +56,9 @@ export function PanelToggles(props: ToggleProps) {
 
   return (
     <div className={props.className}>
+      {props.panel !== null && (
+        <span className="bg-foreground/15 mr-0.5 h-4 w-px" />
+      )}
       {options.map((option) => (
         <button
           key={option.id}
