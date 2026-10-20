@@ -5,7 +5,6 @@ import {
   SearchIcon,
   Settings01Icon,
   SquarePenIcon,
-  XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
@@ -103,6 +102,30 @@ export function Sidebar(
           status: 'active' as const,
         }
       : null
+
+  const errorButton = error !== null && (
+    <Popover onOpenChange={(open) => !open && dismissError()}>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            iconButton,
+            '[&>svg]:text-error hover:[&>svg]:text-error ml-auto size-7'
+          )}
+          title="Error"
+          aria-label="Error"
+        >
+          <HugeiconsIcon icon={AlertCircleIcon} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        collisionPadding={12}
+        className="text-error-foreground max-w-[min(20rem,calc(100vw-2rem))] p-3 text-sm whitespace-pre-wrap"
+      >
+        {error}
+      </PopoverContent>
+    </Popover>
+  )
 
   const Draft = props.mobile ? MobileDraftRow : DesktopDraftRow
 
@@ -252,29 +275,7 @@ export function Sidebar(
             onAddProject={() => setAdding(true)}
             onAddMachine={() => setAddingMachine(true)}
           />
-          {props.mobile && error !== null && (
-            <Popover onOpenChange={(open) => !open && dismissError()}>
-              <PopoverTrigger asChild>
-                <button
-                  className={cn(
-                    iconButton,
-                    '[&>svg]:text-error hover:[&>svg]:text-error ml-auto size-7'
-                  )}
-                  title="Error"
-                  aria-label="Error"
-                >
-                  <HugeiconsIcon icon={AlertCircleIcon} />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                collisionPadding={12}
-                className="text-error-foreground max-w-[min(20rem,calc(100vw-2rem))] p-3 text-sm whitespace-pre-wrap"
-              >
-                {error}
-              </PopoverContent>
-            </Popover>
-          )}
+          {props.mobile && errorButton}
           <button
             className={cn(
               iconButton,
@@ -352,24 +353,6 @@ export function Sidebar(
             )}
           </ul>
         </nav>
-        {!props.mobile && error !== null && (
-          <div className="border-error/30 text-error-foreground mx-(--sidebar-content-inset) mb-(--sidebar-content-inset) flex shrink-0 items-start gap-2 rounded-lg border px-2.5 py-2 text-xs">
-            <HugeiconsIcon
-              icon={AlertCircleIcon}
-              className="text-error mt-px size-3.5 shrink-0"
-            />
-            <div className="line-clamp-4 min-w-0 flex-1 whitespace-pre-wrap select-text">
-              {error}
-            </div>
-            <button
-              className="text-sidebar-muted-foreground hover:text-sidebar-foreground shrink-0 cursor-pointer"
-              aria-label="Dismiss"
-              onClick={dismissError}
-            >
-              <HugeiconsIcon icon={XIcon} className="size-3.5" />
-            </button>
-          </div>
-        )}
         {!props.mobile && (
           <div className="border-sidebar-border flex shrink-0 items-center gap-1 border-t p-(--sidebar-content-inset)">
             <button
@@ -383,6 +366,7 @@ export function Sidebar(
               <HugeiconsIcon icon={Settings01Icon} />
               Settings
             </button>
+            {errorButton}
           </div>
         )}
         {!props.mobile && (

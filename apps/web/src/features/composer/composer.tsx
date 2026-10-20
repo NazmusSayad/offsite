@@ -387,7 +387,7 @@ export function Composer() {
                 'placeholder:text-placeholder/75 block [field-sizing:content] w-full resize-none bg-transparent px-3 text-sm leading-relaxed outline-none sm:px-4',
                 images.length > 0
                   ? 'max-h-52 min-h-19.5'
-                  : 'max-h-55.5 min-h-23 pt-3.5 sm:max-h-56 sm:min-h-23.5 sm:pt-4'
+                  : 'max-h-55.5 min-h-20 pt-3.5 sm:max-h-56 sm:pt-4 [@media(min-height:840px)]:min-h-23 sm:[@media(min-height:840px)]:min-h-23.5'
               )}
             />
           </div>
@@ -397,7 +397,7 @@ export function Composer() {
               hero ? 'pb-3 sm:pb-4' : 'pb-2.5 sm:pb-3.5'
             )}
           >
-            <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-1 overflow-x-auto p-1 ps-3.5">
+            <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-1 overflow-x-auto p-1 ps-2">
               <Pickers />
             </div>
             <div className="flex shrink-0 items-center justify-end gap-2">

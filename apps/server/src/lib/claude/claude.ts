@@ -67,6 +67,9 @@ export function claudeMode(value: string) {
 }
 
 export function claudeOptions(accountId: string | null, cwd: string): Options {
+  if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
+    throw new Error(`Project folder ${cwd} does not exist`)
+  }
   const account = storedAccount('claude', accountId)
   const configDir = account.configDir ?? claudeBaseDir()
   const env: Record<string, string | undefined> = {
