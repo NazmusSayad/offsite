@@ -79,7 +79,7 @@ export function PullRequestForm(props: {
           props.onChange({ ...props.draft, body: event.target.value })
         }
         rows={8}
-        className="bg-background focus:border-ring/60 w-full resize-y rounded-lg border px-3 py-2 font-mono text-xs outline-none"
+        className="bg-background focus-visible:border-ring focus-visible:ring-ring/33 w-full resize-y rounded-lg border px-3 py-2 font-mono text-xs transition-[border-color,box-shadow] duration-200 ease-out outline-none focus-visible:ring-3"
       />
       <div className="flex flex-wrap justify-end gap-2">
         {props.onSkip !== null && (

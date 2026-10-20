@@ -350,7 +350,7 @@ export function GitDialog(props: {
                 onChange={(event) => setMessage(event.target.value)}
                 placeholder="Leave empty to write the message with AI"
                 rows={5}
-                className="bg-background focus:border-ring/60 w-full resize-none rounded-lg border px-3 py-2 font-mono text-xs outline-none"
+                className="bg-background focus-visible:border-ring focus-visible:ring-ring/33 w-full resize-none rounded-lg border px-3 py-2 font-mono text-xs transition-[border-color,box-shadow] duration-200 ease-out outline-none focus-visible:ring-3"
               />
             )}
             {props.action === 'pullRequest' && dirty.length > 0 && (
