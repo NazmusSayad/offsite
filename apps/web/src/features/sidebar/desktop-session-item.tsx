@@ -17,7 +17,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { useRef, useState } from 'react'
 import { useProjectName } from '@/api/projects'
-import { ProjectIcon } from '@/components/icons'
+import { machineIcons, ProjectIcon } from '@/components/icons'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { providerNames, timeAgo } from '@/lib/format'
 import { deactivateSession, editSession, removeSession } from '@/lib/sessions'
-import { type MachineSession } from '@/lib/store'
+import { machineOf, type MachineSession, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 const surface =
@@ -55,6 +55,9 @@ export function DesktopSessionItem(props: {
 }) {
   const session = props.session
   const projectTitle = useProjectName(session.machine, session.projectId)
+  const machineIcon = useStore(
+    (state) => machineIcons[machineOf(state, session.machine).icon]
+  )
   const [title, setTitle] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [stopping, setStopping] = useState(false)
@@ -347,6 +350,7 @@ export function DesktopSessionItem(props: {
             )}
           </div>
           <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
+            <HugeiconsIcon icon={machineIcon} className="size-3 shrink-0" />
             <span
               className={cn(
                 'min-w-0 flex-1 truncate',
@@ -405,6 +409,9 @@ export function DesktopDraftRow(props: {
   onSelect: () => void
 }) {
   const projectTitle = useProjectName(props.machine, props.projectId)
+  const machineIcon = useStore(
+    (state) => machineIcons[machineOf(state, props.machine).icon]
+  )
   return (
     <li className="list-none py-0.5">
       <div
@@ -429,6 +436,7 @@ export function DesktopDraftRow(props: {
             />
           </div>
           <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
+            <HugeiconsIcon icon={machineIcon} className="size-3 shrink-0" />
             <span className="min-w-0 flex-1 truncate font-medium">
               {projectTitle}
               <span className="text-muted-foreground/40 font-normal">
