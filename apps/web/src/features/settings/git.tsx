@@ -137,15 +137,11 @@ export function GitSection(props: {
               />
             </SelectTrigger>
             <SelectContent>
-              {(models ?? [])
-                .filter(
-                  (model) => !model.hidden || model.value === settings.model
-                )
-                .map((model) => (
-                  <SelectItem key={model.value} value={model.value}>
-                    {model.name}
-                  </SelectItem>
-                ))}
+              {(models ?? []).map((model) => (
+                <SelectItem key={model.value} value={model.value}>
+                  {model.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </Row>
