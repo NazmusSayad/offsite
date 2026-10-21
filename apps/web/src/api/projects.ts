@@ -21,3 +21,7 @@ export async function updateProject(
 export async function removeProject(machine: string, id: string) {
   await call(machine, 'projects.remove', { id })
 }
+
+export async function reorderProjects(machine: string, ids: string[]) {
+  await call(machine, 'projects.reorder', { ids })
+}

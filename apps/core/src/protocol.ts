@@ -66,6 +66,7 @@ export type RpcMethods = {
     result: null
   }
   'projects.remove': { params: { id: string }; result: null }
+  'projects.reorder': { params: { ids: string[] }; result: null }
   'directories.list': { params: { path: string }; result: DirectoryListing }
   'sessions.update': {
     params: { id: string; patch: SessionPatch }

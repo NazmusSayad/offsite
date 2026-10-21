@@ -50,8 +50,7 @@ export function ProjectHeading(props: {
                   .sort(
                     (a, b) =>
                       machines.findIndex((item) => item.id === a.machine) -
-                        machines.findIndex((item) => item.id === b.machine) ||
-                      a.name.localeCompare(b.name)
+                      machines.findIndex((item) => item.id === b.machine)
                   )
                   .map((item) => (
                     <DropdownMenuRadioItem

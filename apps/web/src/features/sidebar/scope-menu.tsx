@@ -6,8 +6,10 @@ import {
   Settings01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { Fragment, useState } from 'react'
+import { Reorder } from 'motion/react'
+import { Fragment, useRef, useState } from 'react'
 import { machineKey } from '@/api/machines'
+import { reorderProjects } from '@/api/projects'
 import { machineIcons, ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
@@ -19,7 +21,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { activityOf, type MachineProject, useStore } from '@/lib/store'
+import {
+  activityOf,
+  type MachineProject,
+  showError,
+  useStore,
+} from '@/lib/store'
 
 export function ScopeMenu(props: {
   scope: { machine: string; projectId: string } | null
@@ -33,12 +40,20 @@ export function ScopeMenu(props: {
   const sessions = useStore((state) => state.sessions)
   const unseen = useStore((state) => state.unseen)
   const [picking, setPicking] = useState(false)
+  const [order, setOrder] = useState<{ machine: string; ids: string[] } | null>(
+    null
+  )
+  const dragged = useRef(false)
   const groups = machines
     .map((machine) => ({
       machine,
       projects: registered
         .filter((project) => project.machine === machine.id)
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        .sort((a, b) =>
+          order !== null && order.machine === machine.id
+            ? order.ids.indexOf(a.id) - order.ids.indexOf(b.id)
+            : 0
+        ),
     }))
     .filter((group) => group.projects.length > 0)
   const attention = sessions.filter((session) => {
@@ -137,58 +152,92 @@ export function ScopeMenu(props: {
                   <span className="truncate">{machineLabel(machine)}</span>
                 </DropdownMenuLabel>
               )}
-              {projects.map((project) => {
-                const count = attention.filter(
-                  (session) =>
-                    session.machine === project.machine &&
-                    session.projectId === project.id
-                ).length
-                return (
-                  <DropdownMenuRadioItem
-                    key={machineKey(project.machine, project.id)}
-                    value={machineKey(project.machine, project.id)}
-                    title={project.path}
-                    className="group/project pr-2 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
-                    onSelect={() =>
-                      props.onScope({
-                        machine: project.machine,
-                        projectId: project.id,
-                      })
-                    }
-                    onContextMenu={(event) => {
-                      event.preventDefault()
-                      setPicking(false)
-                      props.onEdit(project)
-                    }}
-                  >
-                    <ProjectIcon
-                      machine={project.machine}
-                      projectId={project.id}
-                      className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
-                    />
-                    <span className="min-w-0 flex-1 truncate">
-                      {project.name}
-                    </span>
-                    {count > 0 && (
-                      <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
-                        {count}
-                      </span>
-                    )}
-                    <button
-                      className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 -my-0.5 grid size-5 shrink-0 cursor-pointer place-items-center rounded-sm opacity-0 transition-opacity group-data-highlighted/project:opacity-100 pointer-coarse:opacity-100 [&_svg]:size-3.5"
-                      title="Configure project"
-                      aria-label={`Configure ${project.name}`}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        setPicking(false)
-                        props.onEdit(project)
+              <Reorder.Group
+                as="div"
+                axis="y"
+                values={projects.map((project) => project.id)}
+                onReorder={(ids) => setOrder({ machine: machine.id, ids })}
+              >
+                {projects.map((project) => {
+                  const count = attention.filter(
+                    (session) =>
+                      session.machine === project.machine &&
+                      session.projectId === project.id
+                  ).length
+                  return (
+                    <Reorder.Item
+                      key={machineKey(project.machine, project.id)}
+                      as="div"
+                      value={project.id}
+                      className="relative"
+                      onDragStart={() => {
+                        dragged.current = true
+                      }}
+                      onDragEnd={async () => {
+                        if (order === null) {
+                          return
+                        }
+                        try {
+                          await reorderProjects(order.machine, order.ids)
+                        } catch (error) {
+                          showError(error)
+                        }
+                        setOrder(null)
                       }}
                     >
-                      <HugeiconsIcon icon={Settings01Icon} />
-                    </button>
-                  </DropdownMenuRadioItem>
-                )
-              })}
+                      <DropdownMenuRadioItem
+                        value={machineKey(project.machine, project.id)}
+                        title={project.path}
+                        className="group/project pr-2 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
+                        onPointerDown={() => {
+                          dragged.current = false
+                        }}
+                        onSelect={(event) => {
+                          if (dragged.current) {
+                            event.preventDefault()
+                            return
+                          }
+                          props.onScope({
+                            machine: project.machine,
+                            projectId: project.id,
+                          })
+                        }}
+                        onContextMenu={(event) => {
+                          event.preventDefault()
+                          setPicking(false)
+                          props.onEdit(project)
+                        }}
+                      >
+                        <ProjectIcon
+                          machine={project.machine}
+                          projectId={project.id}
+                          className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          {project.name}
+                        </span>
+                        {count > 0 && (
+                          <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+                            {count}
+                          </span>
+                        )}
+                        <button
+                          className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 -my-0.5 grid size-5 shrink-0 cursor-pointer place-items-center rounded-sm opacity-0 transition-opacity group-data-highlighted/project:opacity-100 pointer-coarse:opacity-100 [&_svg]:size-3.5"
+                          title="Configure project"
+                          aria-label={`Configure ${project.name}`}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setPicking(false)
+                            props.onEdit(project)
+                          }}
+                        >
+                          <HugeiconsIcon icon={Settings01Icon} />
+                        </button>
+                      </DropdownMenuRadioItem>
+                    </Reorder.Item>
+                  )
+                })}
+              </Reorder.Group>
             </Fragment>
           ))}
         </DropdownMenuRadioGroup>
