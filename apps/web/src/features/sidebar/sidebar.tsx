@@ -188,7 +188,9 @@ export function Sidebar(
             onClick={onToggle}
           >
             <span className="shrink-0">
-              {open ? label : `${label} (${items.length})`}
+              {open || label === 'Inactive'
+                ? label
+                : `${label} (${items.length})`}
             </span>
             <span className="bg-sidebar-border/60 h-px min-w-2 flex-1" />
             <HugeiconsIcon
