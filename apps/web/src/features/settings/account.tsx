@@ -100,16 +100,21 @@ export function AccountPage(props: {
         </Row>
         <Row label="Color">
           <div className="flex items-center gap-2">
-            <span
-              className="size-5 shrink-0 rounded-full"
-              style={{ backgroundColor: account.color }}
-            />
+            {account.color !== null && (
+              <span
+                className="size-5 shrink-0 rounded-full"
+                style={{ backgroundColor: account.color }}
+              />
+            )}
             <TextInput
-              key={account.color}
+              key={account.color ?? ''}
               className="w-28 font-mono"
-              value={account.color}
-              valid={(text) => /^#[0-9a-f]{6}$/i.test(text)}
-              onCommit={(color) => void save({ color })}
+              value={account.color ?? ''}
+              placeholder="#3b82f6"
+              valid={(text) => text === '' || /^#[0-9a-f]{6}$/i.test(text)}
+              onCommit={(color) =>
+                void save({ color: color === '' ? null : color })
+              }
             />
           </div>
         </Row>

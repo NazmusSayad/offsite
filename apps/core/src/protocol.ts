@@ -143,7 +143,7 @@ export type RpcMethods = {
     params: {
       id: string
       name: string
-      color: string
+      color: string | null
       configDir: string | null
       enabled: boolean
       hiddenModels: Record<string, boolean>
