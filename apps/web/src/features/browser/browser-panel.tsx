@@ -1,17 +1,32 @@
 import {
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
   LinkSquare02Icon,
   RefreshCwIcon,
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useSearch } from '@tanstack/react-router'
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { z } from 'zod'
 import { call, machineUrl } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { machineOf, useStore } from '@/lib/store'
-import { openBrowser } from '@/lib/url'
-import { errorMessage } from '@/lib/utils'
+import { openBrowser, replaceSearch } from '@/lib/url'
+import { cn, errorMessage } from '@/lib/utils'
+
+const pageMessage = z.discriminatedUnion('event', [
+  z.object({
+    offsite: z.literal('browser'),
+    event: z.literal('location'),
+    url: z.string(),
+    proxied: z.string(),
+    back: z.boolean(),
+    forward: z.boolean(),
+  }),
+  z.object({ offsite: z.literal('browser'), event: z.literal('navigate') }),
+])
 
 export function BrowserPanel(props: {
   machine: string
@@ -24,10 +39,20 @@ export function BrowserPanel(props: {
   })
   const [loaded, setLoaded] = useState<{
     target: string
-    url: string | null
+    src: string | null
+    href: string | null
     error: string | null
   } | null>(null)
   const [version, setVersion] = useState(0)
+  const [frameKey, setFrameKey] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState<{
+    back: boolean
+    forward: boolean
+    proxied: string
+  } | null>(null)
+  const frame = useRef<HTMLIFrameElement>(null)
+  const followed = useRef<string | null>(null)
   const online = useStore(
     (state) => machineOf(state, props.machine).status === 'online'
   )
@@ -36,16 +61,30 @@ export function BrowserPanel(props: {
     if (target === null || !online) {
       return
     }
+    if (followed.current === target) {
+      followed.current = null
+      return
+    }
     let current = true
     browserSource(props.machine, target).then(
-      (url) => {
+      (src) => {
         if (current) {
-          setLoaded({ target, url, error: null })
+          setLoaded({ target, src, href: src, error: null })
+          setFrameKey((key) => key + 1)
+          setPage(null)
+          setLoading(true)
         }
       },
       (caught: unknown) => {
         if (current) {
-          setLoaded({ target, url: null, error: errorMessage(caught) })
+          setLoaded({
+            target,
+            src: null,
+            href: null,
+            error: errorMessage(caught),
+          })
+          setPage(null)
+          setLoading(false)
         }
       }
     )
@@ -54,8 +93,58 @@ export function BrowserPanel(props: {
     }
   }, [props.machine, target, version, online])
 
-  const shown = loaded?.target === target ? loaded : null
-  const url = shown?.url ?? null
+  useEffect(() => {
+    function listen(event: MessageEvent) {
+      if (
+        event.source === null ||
+        event.source !== frame.current?.contentWindow
+      ) {
+        return
+      }
+      const message = pageMessage.safeParse(event.data)
+      if (!message.success) {
+        return
+      }
+      if (message.data.event === 'navigate') {
+        setPage(null)
+        setLoading(true)
+        return
+      }
+      setPage({
+        back: message.data.back,
+        forward: message.data.forward,
+        proxied: message.data.proxied,
+      })
+      if (target === null || loaded === null) {
+        throw new Error('a page reported its location outside the browser')
+      }
+      const next = message.data.url
+      if (next === target) {
+        return
+      }
+      followed.current = next
+      setLoaded({ ...loaded, target: next, href: message.data.proxied })
+      replaceSearch({ browse: next })
+    }
+    window.addEventListener('message', listen)
+    return () => window.removeEventListener('message', listen)
+  }, [target, loaded])
+
+  const src = target === null ? null : (loaded?.src ?? null)
+  const href = loaded?.target === target ? loaded.href : null
+  const error = loaded?.target === target ? loaded.error : null
+  const busy =
+    target !== null && online && (loaded?.target !== target || loading)
+
+  function command(name: 'back' | 'forward' | 'reload') {
+    if (page === null) {
+      throw new Error('no page is open to send a browser command to')
+    }
+    frame.current?.contentWindow?.postMessage(
+      { offsite: 'browser', command: name },
+      new URL(page.proxied).origin
+    )
+  }
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
@@ -69,6 +158,46 @@ export function BrowserPanel(props: {
         >
           <HugeiconsIcon icon={XIcon} className="size-3.5" />
         </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title="Back"
+            aria-label="Back"
+            disabled={page?.back !== true}
+            onClick={() => command('back')}
+          >
+            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" />
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title="Forward"
+            aria-label="Forward"
+            disabled={page?.forward !== true}
+            onClick={() => command('forward')}
+          >
+            <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title="Reload"
+            aria-label="Reload"
+            onClick={() => {
+              if (page === null) {
+                setVersion(version + 1)
+                return
+              }
+              command('reload')
+            }}
+          >
+            <HugeiconsIcon
+              icon={RefreshCwIcon}
+              className={cn('size-3.5', busy && 'animate-spin')}
+            />
+          </Button>
+        </div>
         <form
           key={target}
           className="min-w-0 flex-1"
@@ -94,19 +223,10 @@ export function BrowserPanel(props: {
           />
         </form>
         <div className="flex shrink-0 items-center gap-1">
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            title="Reload"
-            aria-label="Reload"
-            onClick={() => setVersion(version + 1)}
-          >
-            <HugeiconsIcon icon={RefreshCwIcon} className="size-3.5" />
-          </Button>
-          {url !== null && (
+          {href !== null && (
             <Button size="icon-sm" variant="ghost" asChild>
               <a
-                href={url}
+                href={href}
                 target="_blank"
                 rel="noopener noreferrer"
                 title="Open in a new tab"
@@ -119,22 +239,22 @@ export function BrowserPanel(props: {
           {props.toggles}
         </div>
       </div>
-      {shown !== null && shown.error !== null && (
-        <p className="text-muted-foreground p-4 text-center text-xs">
-          {shown.error}
-        </p>
+      {error !== null && (
+        <p className="text-muted-foreground p-4 text-center text-xs">{error}</p>
       )}
       {target === null && (
         <p className="text-muted-foreground p-4 text-center text-xs">
           Type a URL or a file path above. URLs load from this machine.
         </p>
       )}
-      {url !== null && (
+      {src !== null && (
         <iframe
-          key={version}
-          src={url}
+          key={frameKey}
+          ref={frame}
+          src={src}
           title={target ?? ''}
           className="min-h-0 w-full flex-1 bg-white"
+          onLoad={() => setLoading(false)}
         />
       )}
     </div>
