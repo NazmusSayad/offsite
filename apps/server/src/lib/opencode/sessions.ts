@@ -92,6 +92,11 @@ export async function openCodeSessions(paths: string[]) {
   return lists.flat().filter((session) => !temporary.has(session.id))
 }
 
+export async function openCodeSession(sessionId: string) {
+  const client = await openCode()
+  return client.session.get({ sessionID: sessionId })
+}
+
 export async function openCodeHistory(
   sessionId: string,
   cwd: string

@@ -1,12 +1,16 @@
 import { SearchIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useDebounceValue } from 'usehooks-ts'
+import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { openSession } from '@/lib/sessions'
 import {
   getState,
+  type MachineSession,
   providerPages,
+  showError,
   showPalette,
   showSettings,
   showSettingsPage,
@@ -19,10 +23,11 @@ type Item = { key: string; label: string; detail: string; run: () => void }
 export function Palette() {
   const open = useStore((state) => state.paletteOpen)
   const selection = useStore((state) => state.selection)
-  const sessionList = useStore((state) => state.sessions)
   const machines = useStore((state) => state.machines)
   const projects = useStore((state) => state.projects)
   const [query, setQuery] = useState('')
+  const [search] = useDebounceValue(query, 150)
+  const [found, setFound] = useState<MachineSession[]>([])
   const [active, setActive] = useState(0)
   const list = useRef<HTMLDivElement>(null)
   const words = query.toLowerCase().split(/\s+/).filter(Boolean)
@@ -56,7 +61,7 @@ export function Palette() {
       run: () => showSettings(true),
     },
   ]
-  const sessions: Item[] = sessionList.map((session) => ({
+  const sessions: Item[] = found.map((session) => ({
     key: machineKey(session.machine, session.id),
     label: session.title,
     detail: `${session.status === 'minimized' ? 'Minimized · ' : ''}${machines.length > 1 ? `${machines.find((item) => item.id === session.machine)?.name ?? ''}:` : ''}${projects.find((project) => project.machine === session.machine && project.id === session.projectId)?.path ?? ''}`,
@@ -67,13 +72,39 @@ export function Palette() {
         sessionId: session.id,
       }),
   }))
-  const items = [...actions, ...sessions]
-    .filter((item) => {
+  const items = [
+    ...actions.filter((item) => {
       const text = `${item.label} ${item.detail}`.toLowerCase()
       return words.every((word) => text.includes(word))
-    })
-    .slice(0, 50)
+    }),
+    ...sessions,
+  ]
   const activeIndex = Math.min(active, items.length - 1)
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    let current = true
+    Promise.all(
+      getState()
+        .machines.filter((machine) => machine.status === 'online')
+        .map(async (machine) =>
+          (await call(machine.id, 'sessions.search', { query: search })).map(
+            (session) => ({ ...session, machine: machine.id })
+          )
+        )
+    )
+      .then((lists) => {
+        if (current) {
+          setFound(lists.flat())
+        }
+      })
+      .catch(showError)
+    return () => {
+      current = false
+    }
+  }, [open, search])
 
   useLayoutEffect(() => {
     list.current

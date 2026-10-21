@@ -50,13 +50,16 @@ import { proxyPort } from '../services/proxy.ts'
 import { claimNotifier, subscribe, unsubscribe } from '../services/push.ts'
 import { open, rewind, send } from '../services/runs.ts'
 import {
+  findSession,
   fork,
+  inactiveSessions,
   providerOf,
   providerStatuses,
   publishSessions,
   recordInteraction,
   refreshAll,
   removeSession,
+  searchSessions,
   sessions,
   updateSession,
   watchSessions,
@@ -150,9 +153,12 @@ const handlers: Handlers = {
     return null
   },
   'sessions.open': async (params, client) => {
+    const session = await findSession(params.sessionId)
     await open(client, params.sessionId, params.projectId)
-    return null
+    return session
   },
+  'sessions.inactive': (params) => inactiveSessions(params.projectId),
+  'sessions.search': (params) => searchSessions(params.query),
   'sessions.earlier': (params) => earlier(params.sessionId, params.before),
   'sessions.image': (params) =>
     image(params.sessionId, params.itemId, params.index),

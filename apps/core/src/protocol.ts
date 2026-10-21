@@ -74,8 +74,13 @@ export type RpcMethods = {
   'sessions.remove': { params: { id: string }; result: null }
   'sessions.open': {
     params: { sessionId: string; projectId: string }
-    result: null
+    result: Session | null
   }
+  'sessions.inactive': {
+    params: { projectId: string | null }
+    result: Session[]
+  }
+  'sessions.search': { params: { query: string }; result: Session[] }
   'sessions.earlier': {
     params: { sessionId: string; before: number }
     result: { items: Item[]; before: number | null }

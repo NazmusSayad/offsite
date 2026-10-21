@@ -6,9 +6,10 @@ import {
   SquarePenIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocalStorage } from 'usehooks-ts'
+import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import {
   DesktopDraftRow,
@@ -29,10 +30,13 @@ import { StatusChips } from '@/features/sidebar/status-chips'
 import { openSession } from '@/lib/sessions'
 import {
   activityOf,
+  getState,
   type MachineProject,
   type MachineSession,
+  showError,
   showPalette,
   showSettings,
+  update,
   useStore,
 } from '@/lib/store'
 import { cn, drag, mod } from '@/lib/utils'
@@ -51,6 +55,9 @@ export function Sidebar(
   const projects = useStore((state) => state.projects)
   const provider = useStore((state) => state.settings.provider)
   const unseen = useStore((state) => state.unseen)
+  const loaded = useStore((state) => state.loaded)
+  const inactive = useStore((state) => state.inactive)
+  const inactiveVersion = useStore((state) => state.inactiveVersion)
   const [scope, setScope] = useLocalStorage<{
     machine: string
     projectId: string
@@ -75,10 +82,11 @@ export function Sidebar(
     ...shown.filter((session) => session.status === 'active'),
   ]
   const minimized = shown.filter((session) => session.status === 'minimized')
-  const inactive = shown.filter((session) => session.status === 'inactive')
+  const showInactive = props.mobile ? filter === 'inactive' : inactiveOpen
   const started =
     selection !== null &&
     selection.sessionId !== null &&
+    loaded &&
     !sessions.some(
       (session) =>
         session.machine === selection.machine &&
@@ -97,6 +105,37 @@ export function Sidebar(
       : null
 
   const Draft = props.mobile ? MobileDraftRow : DesktopDraftRow
+
+  useEffect(() => {
+    if (!showInactive) {
+      return
+    }
+    let current = true
+    const targets =
+      scope === null
+        ? getState()
+            .machines.filter((machine) => machine.status === 'online')
+            .map((machine) => machine.id)
+        : [scope.machine]
+    Promise.all(
+      targets.map(async (machine) =>
+        (
+          await call(machine, 'sessions.inactive', {
+            projectId: scope?.projectId ?? null,
+          })
+        ).map((session) => ({ ...session, machine }))
+      )
+    )
+      .then((lists) => {
+        if (current) {
+          update({ inactive: lists.flat() })
+        }
+      })
+      .catch(showError)
+    return () => {
+      current = false
+    }
+  }, [showInactive, scope, inactiveVersion])
 
   const folderMachine =
     scope?.machine ?? selection?.machine ?? machines.at(0)?.id
@@ -176,9 +215,6 @@ export function Sidebar(
     onToggle: () => void,
     first: boolean
   ) {
-    if (items.length === 0) {
-      return null
-    }
     return (
       <>
         <li className={cn('mx-0.5 h-9 pt-2', first && 'mt-auto')}>
@@ -187,11 +223,7 @@ export function Sidebar(
             className="text-sidebar-muted-foreground/60 flex h-9 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs font-medium"
             onClick={onToggle}
           >
-            <span className="shrink-0">
-              {open || label === 'Inactive'
-                ? label
-                : `${label} (${items.length})`}
-            </span>
+            <span className="shrink-0">{label}</span>
             <span className="bg-sidebar-border/60 h-px min-w-2 flex-1" />
             <HugeiconsIcon
               icon={ChevronDownIcon}
@@ -302,13 +334,16 @@ export function Sidebar(
             )}
             {!props.mobile && (
               <>
-                {section(
-                  'Minimized',
-                  minimized,
-                  minimizedOpen,
-                  () => setMinimizedOpen(!minimizedOpen),
-                  true
-                )}
+                {minimized.length > 0 &&
+                  section(
+                    minimizedOpen
+                      ? 'Minimized'
+                      : `Minimized (${minimized.length})`,
+                    minimized,
+                    minimizedOpen,
+                    () => setMinimizedOpen(!minimizedOpen),
+                    true
+                  )}
                 {section(
                   'Inactive',
                   inactive,

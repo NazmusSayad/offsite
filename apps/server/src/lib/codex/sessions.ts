@@ -33,6 +33,14 @@ export async function codexThreads(paths: string[]) {
   return threads
 }
 
+export async function codexThread(threadId: string) {
+  const result = await server(threadId).request<{ thread: Thread }>(
+    'thread/read',
+    { threadId, includeTurns: false }
+  )
+  return result.thread
+}
+
 export async function codexHistory(sessionId: string): Promise<ServerEvent> {
   const run = codexRun(sessionId)
   const thread = await readThread(sessionId)

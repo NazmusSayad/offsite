@@ -81,6 +81,8 @@ export type MachineSession = Session & { machine: string }
 export type State = {
   machines: Machine[]
   sessions: MachineSession[]
+  inactive: MachineSession[]
+  inactiveVersion: number
   projects: MachineProject[]
   prefs: Prefs
   paletteOpen: boolean

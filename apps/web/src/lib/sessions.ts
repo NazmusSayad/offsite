@@ -8,6 +8,7 @@ import { providerSettings, refreshCapabilities, setAccounts } from './accounts'
 import {
   draftKey,
   getState,
+  type MachineSession,
   machineOf,
   type Selection,
   showError,
@@ -68,11 +69,28 @@ export function openSession(selection: Selection) {
   }
   void refreshCapabilities()
   if (selection.sessionId !== null && machine.status === 'online') {
-    call(selection.machine, 'sessions.open', {
-      projectId: selection.projectId,
-      sessionId: selection.sessionId,
-    }).catch(showError)
+    loadSession(selection.machine, selection.projectId, selection.sessionId)
   }
+}
+
+export function loadSession(
+  machine: string,
+  projectId: string,
+  sessionId: string
+) {
+  call(machine, 'sessions.open', { projectId, sessionId })
+    .then((session) => {
+      if (
+        session === null ||
+        getState().sessions.some(
+          (item) => item.machine === machine && item.id === session.id
+        )
+      ) {
+        return
+      }
+      update({ sessions: [...getState().sessions, { ...session, machine }] })
+    })
+    .catch(showError)
 }
 
 export function closeSession() {
@@ -235,11 +253,27 @@ export async function editSession(
   id: string,
   patch: SessionPatch
 ) {
-  update({
-    sessions: getState().sessions.map((item) =>
-      item.machine === machine && item.id === id ? { ...item, ...patch } : item
-    ),
-  })
+  const state = getState()
+  function same(item: MachineSession) {
+    return item.machine === machine && item.id === id
+  }
+  const session = [...state.sessions, ...state.inactive].find(same)
+  if (session !== undefined) {
+    const edited = { ...session, ...patch }
+    update({
+      sessions: state.sessions.some(same)
+        ? state.sessions.map((item) => (same(item) ? edited : item))
+        : edited.status === 'inactive'
+          ? state.sessions
+          : [...state.sessions, edited],
+      inactive:
+        edited.status !== 'inactive'
+          ? state.inactive.filter((item) => !same(item))
+          : state.inactive.some(same)
+            ? state.inactive.map((item) => (same(item) ? edited : item))
+            : [edited, ...state.inactive],
+    })
+  }
   try {
     await call(machine, 'sessions.update', { id, patch })
   } catch (error) {
@@ -308,6 +342,9 @@ export async function deactivateSession(
 export async function removeSession(machine: string, id: string) {
   update({
     sessions: getState().sessions.filter(
+      (item) => item.machine !== machine || item.id !== id
+    ),
+    inactive: getState().inactive.filter(
       (item) => item.machine !== machine || item.id !== id
     ),
   })

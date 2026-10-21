@@ -218,38 +218,54 @@ export function DiffPanel(props: {
         {error === null &&
           list.map((file) => {
             const closed = diff.collapsed !== flipped.includes(file.name)
+            function toggleFile() {
+              flip(
+                flipped.includes(file.name)
+                  ? flipped.filter((name) => name !== file.name)
+                  : [...flipped, file.name]
+              )
+            }
             return (
-              <FileDiff
+              <div
                 key={file.name}
-                fileDiff={file}
-                options={{
-                  theme: codeTheme,
-                  themeType: 'dark',
-                  unsafeCSS: diffCss,
-                  collapsed: closed,
-                  lineDiffType: 'word-alt',
-                  overflow: diff.wrap ? 'wrap' : 'scroll',
-                  diffStyle: diff.split ? 'split' : 'unified',
+                onClick={(event) => {
+                  const title = event.nativeEvent
+                    .composedPath()
+                    .some(
+                      (target) =>
+                        target instanceof Element &&
+                        target.hasAttribute('data-title')
+                    )
+                  if (title) {
+                    toggleFile()
+                  }
                 }}
-                renderHeaderPrefix={() => (
-                  <button
-                    className="text-muted-foreground hover:text-foreground flex size-5 cursor-pointer items-center justify-center"
-                    aria-label={closed ? 'Expand file' : 'Collapse file'}
-                    onClick={() =>
-                      flip(
-                        flipped.includes(file.name)
-                          ? flipped.filter((name) => name !== file.name)
-                          : [...flipped, file.name]
-                      )
-                    }
-                  >
-                    <HugeiconsIcon
-                      icon={closed ? ChevronRightIcon : ChevronDownIcon}
-                      className="size-3.5"
-                    />
-                  </button>
-                )}
-              />
+              >
+                <FileDiff
+                  fileDiff={file}
+                  options={{
+                    theme: codeTheme,
+                    themeType: 'dark',
+                    unsafeCSS: diffCss,
+                    collapsed: closed,
+                    lineDiffType: 'word-alt',
+                    overflow: diff.wrap ? 'wrap' : 'scroll',
+                    diffStyle: diff.split ? 'split' : 'unified',
+                  }}
+                  renderHeaderPrefix={() => (
+                    <button
+                      className="text-muted-foreground hover:text-foreground flex size-5 cursor-pointer items-center justify-center"
+                      aria-label={closed ? 'Expand file' : 'Collapse file'}
+                      onClick={toggleFile}
+                    >
+                      <HugeiconsIcon
+                        icon={closed ? ChevronRightIcon : ChevronDownIcon}
+                        className="size-3.5"
+                      />
+                    </button>
+                  )}
+                />
+              </div>
             )
           })}
       </div>

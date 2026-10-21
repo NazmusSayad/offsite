@@ -13,7 +13,7 @@ import {
 import { claimNotifications, notify, push } from '@/lib/notifications'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
-import { closeSession, openSession } from '@/lib/sessions'
+import { closeSession, loadSession, openSession } from '@/lib/sessions'
 import {
   createAppStore,
   draftKey,
@@ -45,6 +45,8 @@ export function start() {
   createAppStore({
     machines: stored.map(restoreMachine),
     sessions: [],
+    inactive: [],
+    inactiveVersion: 0,
     projects: stored.flatMap(restoreProjects),
     prefs: loadPrefs(),
     paletteOpen: false,
@@ -174,21 +176,41 @@ function setProjects(machine: string, projects: Project[]) {
 }
 
 function setSessions(machine: string, sessions: Session[]) {
+  const state = getState()
+  const selection = state.selection
+  const listed = state.sessions
+    .filter((item) => item.machine === machine && item.status !== 'inactive')
+    .map((item) => item.id)
+    .sort()
+    .join(' ')
+  const opened = state.sessions.find(
+    (item) =>
+      item.machine === machine &&
+      item.id === selection?.sessionId &&
+      !sessions.some((session) => session.id === item.id)
+  )
   update({
     sessions: [
-      ...getState().sessions.filter((item) => item.machine !== machine),
+      ...state.sessions.filter((item) => item.machine !== machine),
       ...sessions.map((session) => ({ ...session, machine })),
+      ...(opened === undefined
+        ? []
+        : [{ ...opened, status: 'inactive' as const }]),
     ],
+    inactiveVersion:
+      sessions
+        .map((session) => session.id)
+        .sort()
+        .join(' ') === listed
+        ? state.inactiveVersion
+        : state.inactiveVersion + 1,
   })
 }
 
 function reopenThread(machine: string) {
   const selection = getState().selection
   if (selection?.machine === machine && selection.sessionId !== null) {
-    call(machine, 'sessions.open', {
-      projectId: selection.projectId,
-      sessionId: selection.sessionId,
-    }).catch(showError)
+    loadSession(machine, selection.projectId, selection.sessionId)
   }
 }
 
