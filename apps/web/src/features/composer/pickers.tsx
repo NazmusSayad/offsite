@@ -185,7 +185,6 @@ function ModelPicker() {
         ...choice,
       })
     }
-    setOpen(false)
   }
 
   return (
@@ -250,6 +249,21 @@ function ModelPicker() {
                       if (item.error !== null) {
                         return
                       }
+                      const same = fetched[item.key]?.find(
+                        (option) => option.value === settings.model
+                      )
+                      if (
+                        item.key !== current &&
+                        current !== null &&
+                        capabilities !== null &&
+                        same !== undefined
+                      ) {
+                        setFetched((models) => ({
+                          ...models,
+                          [current]: capabilities.models,
+                        }))
+                        pick(item.key, same)
+                      }
                       setViewed(item.key)
                     }}
                   >
@@ -307,6 +321,7 @@ function ModelPicker() {
                     }
                     event.preventDefault()
                     pick(viewed, first)
+                    setOpen(false)
                   }}
                 />
               </div>
@@ -332,6 +347,7 @@ function ModelPicker() {
                       return
                     }
                     pick(viewed, option)
+                    setOpen(false)
                   }}
                 >
                   <span className="truncate text-sm leading-snug font-medium">
