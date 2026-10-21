@@ -147,13 +147,13 @@ function Chip(props: {
       <PopoverTrigger asChild>
         <button
           className={cn(
-            'flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-[7px] px-1.5 text-xs font-medium tabular-nums',
+            'flex h-5 shrink-0 cursor-pointer items-center gap-0.75 rounded-[6px] px-1.25 text-[11px] font-medium tabular-nums',
             props.className
           )}
           title={props.label}
           aria-label={props.label}
         >
-          <HugeiconsIcon icon={props.icon} className="size-3.5 shrink-0" />
+          <HugeiconsIcon icon={props.icon} className="size-3 shrink-0" />
           {props.count}
         </button>
       </PopoverTrigger>

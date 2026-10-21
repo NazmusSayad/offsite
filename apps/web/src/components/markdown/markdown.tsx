@@ -7,6 +7,7 @@ import {
   LightbulbIcon,
   MessageSquareWarningIcon,
   OctagonAlertIcon,
+  SourceCodeIcon,
   TextWrapIcon,
   TriangleAlertIcon,
 } from '@hugeicons/core-free-icons'
@@ -31,6 +32,7 @@ import {
   MarkdownTable,
 } from '@/components/markdown/markdown-blocks'
 import { LocalMedia, Media } from '@/components/markdown/markdown-media'
+import { MermaidDiagram, useMermaid } from '@/components/markdown/mermaid'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useCopy } from '@/lib/clipboard'
@@ -412,8 +414,11 @@ function LinkFavicon(props: { host: string }) {
 
 function CodeBlock(props: { code: string; language: string }) {
   const [wrap, setWrap] = useState(true)
+  const [source, setSource] = useState(false)
+  const svg = useMermaid(props.language === 'mermaid' ? props.code : null)
   const clipboard = useCopy()
   const wrapLabel = wrap ? 'Disable line wrap' : 'Wrap lines'
+  const sourceLabel = source ? 'Show diagram' : 'Show code'
   const copyLabel = clipboard.copied ? 'Copied' : 'Copy code'
   return (
     <div
@@ -440,18 +445,34 @@ function CodeBlock(props: { code: string; language: string }) {
           )}
         </span>
         <span className="flex items-center gap-0.5" role="toolbar">
-          <Tooltip label={wrapLabel}>
-            <Button
-              type="button"
-              variant={wrap ? 'secondary' : 'ghost-muted'}
-              size="icon-xs"
-              aria-pressed={wrap}
-              aria-label={wrapLabel}
-              onClick={() => setWrap(!wrap)}
-            >
-              <HugeiconsIcon icon={TextWrapIcon} className="size-3" />
-            </Button>
-          </Tooltip>
+          {svg !== null && (
+            <Tooltip label={sourceLabel}>
+              <Button
+                type="button"
+                variant={source ? 'secondary' : 'ghost-muted'}
+                size="icon-xs"
+                aria-pressed={source}
+                aria-label={sourceLabel}
+                onClick={() => setSource(!source)}
+              >
+                <HugeiconsIcon icon={SourceCodeIcon} className="size-3" />
+              </Button>
+            </Tooltip>
+          )}
+          {(svg === null || source) && (
+            <Tooltip label={wrapLabel}>
+              <Button
+                type="button"
+                variant={wrap ? 'secondary' : 'ghost-muted'}
+                size="icon-xs"
+                aria-pressed={wrap}
+                aria-label={wrapLabel}
+                onClick={() => setWrap(!wrap)}
+              >
+                <HugeiconsIcon icon={TextWrapIcon} className="size-3" />
+              </Button>
+            </Tooltip>
+          )}
           <Tooltip label={copyLabel}>
             <Button
               type="button"
@@ -468,7 +489,11 @@ function CodeBlock(props: { code: string; language: string }) {
           </Tooltip>
         </span>
       </div>
-      <Highlight code={props.code} language={props.language} />
+      {svg !== null && !source ? (
+        <MermaidDiagram svg={svg} />
+      ) : (
+        <Highlight code={props.code} language={props.language} />
+      )}
     </div>
   )
 }
