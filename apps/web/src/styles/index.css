@@ -125,6 +125,7 @@
   --success: var(--green);
   --warning: var(--yellow);
   --warning-foreground: var(--yellow);
+  --question: color-mix(in srgb, var(--blue) 65%, var(--text));
   --sidebar: color-mix(in srgb, var(--bg) 86%, black);
   --sidebar-foreground: var(--foreground);
   --sidebar-muted-foreground: var(--muted-foreground);
@@ -204,6 +205,7 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-question: var(--question);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);

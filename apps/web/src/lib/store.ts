@@ -103,7 +103,7 @@ export type State = {
   draft: Prompt | null
   context: ContextUsage | null
   capabilities: Capabilities | null
-  error: string | null
+  errors: string[]
   sentAt: number
 }
 
@@ -227,9 +227,9 @@ export function updatePrefs(prefs: Prefs) {
 }
 
 export function showError(error: unknown) {
-  update({ error: errorMessage(error) })
+  update({ errors: [...getState().errors, errorMessage(error)] })
 }
 
-export function dismissError() {
-  update({ error: null })
+export function dismissErrors() {
+  update({ errors: [] })
 }

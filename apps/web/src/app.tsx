@@ -33,6 +33,7 @@ import { MobileSettings } from '@/features/settings/mobile'
 import { ConnectMachine } from '@/features/sidebar/connect-machine'
 import { Palette } from '@/features/sidebar/palette'
 import { Sidebar } from '@/features/sidebar/sidebar'
+import { StatusChips } from '@/features/sidebar/status-chips'
 import { TerminalPanel } from '@/features/terminal/panel'
 import {
   getState as terminalState,
@@ -266,12 +267,23 @@ function DesktopLayout() {
                   <li aria-hidden className="text-icon-muted shrink-0">
                     /
                   </li>
-                  <li className="text-foreground min-w-10 flex-1 truncate font-medium">
+                  <li
+                    className={cn(
+                      'text-foreground min-w-10 truncate font-medium',
+                      sidebar && 'flex-1'
+                    )}
+                  >
                     {session?.title ?? 'New thread'}
                   </li>
+                  {!sidebar && (
+                    <li className="shrink-0">
+                      <StatusChips hideDone />
+                    </li>
+                  )}
                 </ol>
               </nav>
             )}
+            {selection === null && !sidebar && <StatusChips hideDone />}
             {selection === null && <span className="flex-1" />}
             {machine !== null && machine.status !== 'online' && (
               <span className="text-warning-foreground shrink-0 text-xs">

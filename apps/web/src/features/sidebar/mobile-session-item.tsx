@@ -405,7 +405,7 @@ export function MobileSessionItem(props: {
                 {waiting && (
                   <span
                     title="Waiting for approval"
-                    className="text-warning-foreground flex"
+                    className="text-question flex"
                   >
                     <HugeiconsIcon
                       icon={ShieldQuestionMarkIcon}

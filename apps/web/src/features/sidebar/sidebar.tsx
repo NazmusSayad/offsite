@@ -1,5 +1,4 @@
 import {
-  AlertCircleIcon,
   ChevronDownIcon,
   PanelLeftOpenIcon,
   SearchIcon,
@@ -11,11 +10,6 @@ import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocalStorage } from 'usehooks-ts'
 import { machineKey } from '@/api/machines'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 import {
   DesktopDraftRow,
   DesktopSessionItem,
@@ -31,10 +25,10 @@ import {
   FolderDialog,
 } from '@/features/sidebar/project-dialogs'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
+import { StatusChips } from '@/features/sidebar/status-chips'
 import { openSession } from '@/lib/sessions'
 import {
   activityOf,
-  dismissError,
   type MachineProject,
   type MachineSession,
   showPalette,
@@ -57,7 +51,6 @@ export function Sidebar(
   const projects = useStore((state) => state.projects)
   const provider = useStore((state) => state.settings.provider)
   const unseen = useStore((state) => state.unseen)
-  const error = useStore((state) => state.error)
   const [scope, setScope] = useLocalStorage<{
     machine: string
     projectId: string
@@ -102,30 +95,6 @@ export function Sidebar(
           status: 'active' as const,
         }
       : null
-
-  const errorButton = error !== null && (
-    <Popover onOpenChange={(open) => !open && dismissError()}>
-      <PopoverTrigger asChild>
-        <button
-          className={cn(
-            iconButton,
-            '[&>svg]:text-error hover:[&>svg]:text-error ml-auto size-7'
-          )}
-          title="Error"
-          aria-label="Error"
-        >
-          <HugeiconsIcon icon={AlertCircleIcon} />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        collisionPadding={12}
-        className="text-error-foreground max-w-[min(20rem,calc(100vw-2rem))] p-3 text-sm whitespace-pre-wrap"
-      >
-        {error}
-      </PopoverContent>
-    </Popover>
-  )
 
   const Draft = props.mobile ? MobileDraftRow : DesktopDraftRow
 
@@ -275,13 +244,9 @@ export function Sidebar(
             onAddProject={() => setAdding(true)}
             onAddMachine={() => setAddingMachine(true)}
           />
-          {props.mobile && errorButton}
+          {props.mobile && <StatusChips hideDone />}
           <button
-            className={cn(
-              iconButton,
-              'size-7',
-              (!props.mobile || error === null) && 'ml-auto'
-            )}
+            className={cn(iconButton, 'ml-auto size-7')}
             title={`Search (${mod}+K)`}
             aria-label="Search"
             onClick={() => showPalette(true)}
@@ -354,7 +319,7 @@ export function Sidebar(
           </ul>
         </nav>
         {!props.mobile && (
-          <div className="border-sidebar-border flex shrink-0 items-center gap-1 border-t p-(--sidebar-content-inset)">
+          <div className="border-sidebar-border @container flex shrink-0 items-center gap-1 border-t p-(--sidebar-content-inset)">
             <button
               className={cn(
                 iconButton,
@@ -364,9 +329,9 @@ export function Sidebar(
               onClick={() => showSettings(true)}
             >
               <HugeiconsIcon icon={Settings01Icon} />
-              Settings
+              <span className="hidden @min-[15rem]:inline">Settings</span>
             </button>
-            {errorButton}
+            <StatusChips hideDone={false} />
           </div>
         )}
         {!props.mobile && (

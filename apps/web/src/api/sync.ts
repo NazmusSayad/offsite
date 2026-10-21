@@ -70,7 +70,7 @@ export function start() {
     draft: null,
     context: null,
     capabilities: null,
-    error: null,
+    errors: [],
     sentAt: 0,
   })
   applyTheme()

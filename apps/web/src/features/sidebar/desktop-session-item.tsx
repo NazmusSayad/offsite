@@ -352,10 +352,7 @@ export function DesktopSessionItem(props: {
               </span>
             )}
             {waiting && (
-              <span
-                title="Waiting for approval"
-                className="text-warning-foreground flex"
-              >
+              <span title="Waiting for approval" className="text-question flex">
                 <HugeiconsIcon
                   icon={ShieldQuestionMarkIcon}
                   className="size-4 shrink-0"
