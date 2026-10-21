@@ -21,6 +21,7 @@ const MATCH_LIMIT = 200
 export function FilesPanel(props: {
   machine: string
   projectId: string
+  toggles: ReactNode
   onClose: () => void
 }) {
   const [files, setFiles] = useState<string[] | null>(null)
@@ -150,6 +151,7 @@ export function FilesPanel(props: {
           >
             <HugeiconsIcon icon={RefreshCwIcon} className="size-3.5" />
           </Button>
+          {props.toggles}
         </div>
       </div>
       <div className="shrink-0 p-2 pb-0">

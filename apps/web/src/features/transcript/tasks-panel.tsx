@@ -6,7 +6,13 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Item } from '@offsite/core/items'
 import type { RpcMethods } from '@offsite/core/protocol'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { call } from '@/api/connection'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
@@ -32,6 +38,7 @@ export function TasksPanel(props: {
   selected: string | null
   onSelect: (id: string | null) => void
   onOpenDiff: () => void
+  toggles: ReactNode
   onClose: () => void
 }) {
   const items = useStore((state) => state.items)
@@ -129,6 +136,7 @@ export function TasksPanel(props: {
             )}
           </div>
         )}
+        {props.toggles}
       </div>
       {agent === undefined && task === undefined && (
         <div className="min-h-0 flex-1 overflow-y-auto p-3">

@@ -123,7 +123,7 @@ export function ScopeMenu(props: {
             )}
           </DropdownMenuRadioItem>
 
-          <DropdownMenuSeparator />
+          {groups.length > 0 && <DropdownMenuSeparator />}
 
           {groups.map(({ machine, projects }, index) => (
             <Fragment key={machine.id}>

@@ -234,8 +234,9 @@ function DesktopLayout() {
         >
           <header
             className={cn(
-              'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-3 pl-[3.25rem]',
-              sidebar && 'pl-5'
+              'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-5 pl-[3.25rem]',
+              sidebar && 'pl-5',
+              panel === null && 'pr-3'
             )}
           >
             {selection !== null && machine !== null && (
@@ -310,7 +311,7 @@ function DesktopLayout() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {toggles}
+            {panel === null && toggles}
           </header>
           <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
             {machine === null && <ConnectMachine />}
@@ -401,6 +402,7 @@ function DesktopLayout() {
               selectedTask={selectedTask}
               onSelectTask={setSelectedTask}
               onPanel={setPanel}
+              toggles={toggles}
             />
           </div>
         )}

@@ -7,7 +7,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useSearch } from '@tanstack/react-router'
-import { useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 import { call, machineUrl } from '@/api/connection'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,7 @@ const pageMessage = z.discriminatedUnion('event', [
 
 export function BrowserPanel(props: {
   machine: string
+  toggles: ReactNode
   onClose: () => void
 }) {
   const target = useSearch({
@@ -235,6 +236,7 @@ export function BrowserPanel(props: {
               </a>
             </Button>
           )}
+          {props.toggles}
         </div>
       </div>
       {error !== null && (

@@ -239,6 +239,7 @@ export function PanelView(props: {
   selectedTask: string | null
   onSelectTask: (id: string | null) => void
   onPanel: (panel: Panel | null) => void
+  toggles: ReactNode
 }) {
   return (
     <>
@@ -246,12 +247,14 @@ export function PanelView(props: {
         <FilesPanel
           machine={props.selection.machine}
           projectId={props.selection.projectId}
+          toggles={props.toggles}
           onClose={() => props.onPanel(null)}
         />
       )}
       {props.panel === 'browser' && (
         <BrowserPanel
           machine={props.selection.machine}
+          toggles={props.toggles}
           onClose={() => props.onPanel(null)}
         />
       )}
@@ -261,6 +264,7 @@ export function PanelView(props: {
           machine={props.selection.machine}
           projectId={props.selection.projectId}
           running={props.running}
+          toggles={props.toggles}
           onClose={() => props.onPanel(null)}
         />
       )}
@@ -272,6 +276,7 @@ export function PanelView(props: {
           selected={props.selectedTask}
           onSelect={props.onSelectTask}
           onOpenDiff={() => props.onPanel('diff')}
+          toggles={props.toggles}
           onClose={() => props.onPanel(null)}
         />
       )}
