@@ -57,13 +57,16 @@ export function AccountPage(props: {
   }, [props.machine, account.provider, account.id, account.configDir])
 
   async function save(
-    patch: Partial<Pick<Account, 'name' | 'configDir' | 'hiddenModels'>>
+    patch: Partial<
+      Pick<Account, 'name' | 'color' | 'configDir' | 'hiddenModels'>
+    >
   ) {
     setError(null)
     try {
       await call(props.machine, 'accounts.update', {
         id: account.id,
         name: account.name,
+        color: account.color,
         configDir: account.configDir,
         enabled: account.enabled,
         hiddenModels: account.hiddenModels,
@@ -94,6 +97,21 @@ export function AccountPage(props: {
             valid={(text) => text.trim() !== ''}
             onCommit={(name) => void save({ name })}
           />
+        </Row>
+        <Row label="Color">
+          <div className="flex items-center gap-2">
+            <span
+              className="size-5 shrink-0 rounded-full"
+              style={{ backgroundColor: account.color }}
+            />
+            <TextInput
+              key={account.color}
+              className="w-28 font-mono"
+              value={account.color}
+              valid={(text) => /^#[0-9a-f]{6}$/i.test(text)}
+              onCommit={(color) => void save({ color })}
+            />
+          </div>
         </Row>
         <Row label="Config directory">
           <TextInput

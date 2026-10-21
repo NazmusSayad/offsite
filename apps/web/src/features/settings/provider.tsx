@@ -364,6 +364,7 @@ function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
                 call(props.machine, 'accounts.update', {
                   id: account.id,
                   name: account.name,
+                  color: account.color,
                   configDir: account.configDir,
                   enabled,
                   hiddenModels: account.hiddenModels,

@@ -37,10 +37,20 @@ export type StoredAccount = {
   id: string
   provider: Exclude<Provider, 'opencode'>
   name: string
+  color: string
   configDir: string | null
   enabled: boolean
   hiddenModels: Record<string, boolean>
 }
+
+const accountColors = [
+  '#3b82f6',
+  '#16a34a',
+  '#f97316',
+  '#a855f7',
+  '#ec4899',
+  '#0d9488',
+]
 
 const providerNames: Record<Provider, string> = {
   claude: 'Claude',
@@ -54,16 +64,13 @@ export function providerName(provider: Provider) {
 
 export function storedAccounts(): StoredAccount[] {
   const config = readConfig()
-  return [
-    ...config.claudeAccounts.map((item) => ({
+  return [...config.claudeAccounts, ...config.codexAccounts].map(
+    (item, index) => ({
       ...item,
+      color: item.color ?? accountColors[index % accountColors.length],
       configDir: item.configDir[platform()],
-    })),
-    ...config.codexAccounts.map((item) => ({
-      ...item,
-      configDir: item.configDir[platform()],
-    })),
-  ]
+    })
+  )
 }
 
 export function assertEnabled(provider: Provider, accountId: string | null) {
@@ -242,6 +249,11 @@ export function addAccount(
   configDir: string
 ) {
   const account = validAccount(name, configDir)
+  const stored = storedAccounts()
+  const color =
+    accountColors.find((item) =>
+      stored.every((other) => other.color !== item)
+    ) ?? accountColors[stored.length % accountColors.length]
   const config = readConfig()
   const key = `${provider}Accounts` as const
   saveConfig({
@@ -252,6 +264,7 @@ export function addAccount(
         id: randomUUID(),
         provider,
         name: account.name,
+        color,
         configDir: { [platform()]: account.configDir },
         enabled: true,
         hiddenModels: {},
@@ -275,6 +288,7 @@ export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
         ? {
             ...item,
             name: account.name,
+            color: update.color,
             configDir: { ...item.configDir, [platform()]: account.configDir },
             enabled: update.enabled,
             hiddenModels: update.hiddenModels,

@@ -49,6 +49,11 @@ function accountSchema(provider: 'claude' | 'codex') {
     id: z.string(),
     provider: z.literal(provider),
     name: z.string(),
+    color: z
+      .string()
+      .regex(/^#[0-9a-f]{6}$/i, 'must be a hex color like #3b82f6')
+      .nullable()
+      .default(null),
     configDir: platformDirs,
     enabled: z.boolean().default(true),
     hiddenModels: z.record(z.string(), z.boolean()).default({}),

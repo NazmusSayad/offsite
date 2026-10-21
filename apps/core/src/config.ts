@@ -25,6 +25,7 @@ export type AccountConfig = {
   id: string
   provider: Exclude<Provider, 'opencode'>
   name: string
+  color: string | null
   configDir: Record<Platform, string | null>
   enabled: boolean
   hiddenModels: Record<string, boolean>

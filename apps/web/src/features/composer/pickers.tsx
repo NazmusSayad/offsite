@@ -91,6 +91,7 @@ function ModelPicker() {
         provider: item.provider,
         accountId: item.id as string | null,
         name: item.name,
+        color: item.color,
         plan: item.plan,
         error: item.error,
       })),
@@ -101,6 +102,7 @@ function ModelPicker() {
             provider: 'opencode' as const,
             accountId: null,
             name: 'OpenCode',
+            color: null,
             plan: null,
             error: null,
           },
@@ -198,8 +200,12 @@ function ModelPicker() {
             <ProviderIcon provider={settings.provider} className="size-4" />
             {choices.filter((item) => item.provider === settings.provider)
               .length > 1 &&
-              account !== undefined && (
-                <span className="bg-card text-muted-foreground pointer-events-none absolute -right-1 -bottom-1 flex h-3 min-w-3 items-center justify-center rounded-full border px-0.5 text-[8px] leading-none font-semibold shadow-sm">
+              account !== undefined &&
+              account.color !== null && (
+                <span
+                  className="border-card pointer-events-none absolute -right-1 -bottom-1 flex h-3 min-w-3 items-center justify-center rounded-full border px-0.5 text-[8px] leading-none font-semibold text-white shadow-sm"
+                  style={{ backgroundColor: account.color }}
+                >
                   {account.name.charAt(0).toUpperCase()}
                 </span>
               )}
@@ -269,11 +275,15 @@ function ModelPicker() {
                   >
                     <ProviderIcon provider={item.provider} className="size-5" />
                     {choices.filter((other) => other.provider === item.provider)
-                      .length > 1 && (
-                      <span className="bg-card text-muted-foreground text-3xs pointer-events-none absolute right-0.5 bottom-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full border px-0.5 leading-none font-semibold shadow-sm">
-                        {item.name.charAt(0).toUpperCase()}
-                      </span>
-                    )}
+                      .length > 1 &&
+                      item.color !== null && (
+                        <span
+                          className="border-card text-3xs pointer-events-none absolute right-0.5 bottom-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full border px-0.5 leading-none font-semibold text-white shadow-sm"
+                          style={{ backgroundColor: item.color }}
+                        >
+                          {item.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
                   </button>
                 </Tooltip>
               </div>
