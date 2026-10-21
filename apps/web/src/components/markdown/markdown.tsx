@@ -249,13 +249,15 @@ const components: Components = {
       )
     }
     return (
-      <Media
-        src={src}
-        alt={alt ?? ''}
-        name={src.startsWith('data:') ? 'Image' : src.split(/[?#]/)[0]}
-        kind={mediaKind(src) ?? 'image'}
-        raw={`![${alt ?? ''}](${src})`}
-      />
+      <span className={cn('block', mediaKind(src) !== 'audio' && 'w-1/2')}>
+        <Media
+          src={src}
+          alt={alt ?? ''}
+          name={src.startsWith('data:') ? 'Image' : src.split(/[?#]/)[0]}
+          kind={mediaKind(src) ?? 'image'}
+          raw={`![${alt ?? ''}](${src})`}
+        />
+      </span>
     )
   },
   pre({ node, children }) {

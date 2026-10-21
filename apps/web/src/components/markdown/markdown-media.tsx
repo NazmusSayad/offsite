@@ -18,7 +18,7 @@ import { ViewableVideo } from '@/components/viewable-video'
 import { useCopy } from '@/lib/clipboard'
 import { downloadFile, mediaKind, mediaUrl } from '@/lib/media'
 import { showError, useStore } from '@/lib/store'
-import { errorMessage } from '@/lib/utils'
+import { cn, errorMessage } from '@/lib/utils'
 
 const AudioPlayer = lazy(async () => ({
   default: (await import('@/components/audio-player')).AudioPlayer,
@@ -72,20 +72,24 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
     }
   }, [selection, props.path])
 
-  if (media === null || media.path !== props.path) {
-    return null
-  }
-  if ('error' in media) {
+  const loaded = media !== null && media.path === props.path ? media : null
+  if (loaded !== null && 'error' in loaded) {
     return (
       <MediaUnavailable
         kind={mediaKind(props.path) ?? 'image'}
-        reason={media.error}
+        reason={loaded.error}
         raw={props.raw}
       />
     )
   }
   return (
-    <span className="border-border bg-muted/50 flex w-fit max-w-[min(100%,36rem)] flex-col gap-1 rounded-xl border p-1">
+    <span
+      className={cn(
+        'border-border bg-muted/50 flex flex-col gap-1 rounded-xl border p-1',
+        mediaKind(props.path) === 'audio' && 'w-fit max-w-[min(100%,36rem)]',
+        mediaKind(props.path) !== 'audio' && 'w-1/2'
+      )}
+    >
       <span className="text-muted-foreground flex items-center gap-1.5 pl-1.5 [contain:inline-size]">
         <HugeiconsIcon
           icon={kindIcons[mediaKind(props.path) ?? 'image']}
@@ -118,21 +122,30 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
             variant="ghost-muted"
             size="icon-xs"
             aria-label="Download"
-            onClick={() =>
-              void downloadFile(media.src, props.path).catch(showError)
-            }
+            disabled={loaded === null}
+            onClick={() => {
+              if (loaded === null) {
+                throw new Error('media is still loading')
+              }
+              void downloadFile(loaded.src, props.path).catch(showError)
+            }}
           >
             <HugeiconsIcon icon={Download01Icon} className="size-3" />
           </Button>
         </Tooltip>
       </span>
-      <Media
-        src={media.src}
-        alt={props.alt}
-        name={props.path}
-        kind={mediaKind(props.path) ?? 'image'}
-        raw={props.raw}
-      />
+      {loaded !== null && (
+        <Media
+          src={loaded.src}
+          alt={props.alt}
+          name={props.path}
+          kind={mediaKind(props.path) ?? 'image'}
+          raw={props.raw}
+        />
+      )}
+      {loaded === null && mediaKind(props.path) !== 'audio' && (
+        <span className="border-border/40 block aspect-[3/2] w-full rounded-lg border" />
+      )}
     </span>
   )
 }
@@ -160,7 +173,7 @@ export function Media(props: {
         src={props.src}
         alt={props.alt}
         name={props.name}
-        className="block w-fit max-w-[min(100%,36rem)]"
+        className="block aspect-[3/2] w-full"
         onError={() => setFailed(props.src)}
       />
     )
@@ -182,8 +195,8 @@ export function Media(props: {
       src={props.src}
       alt={props.alt}
       name={props.name}
-      className="block w-fit max-w-[min(100%,36rem)]"
-      imageClassName="border-border/40 h-auto max-h-[28rem] w-auto max-w-full rounded-lg border object-contain"
+      className="border-border/40 block aspect-[3/2] w-full overflow-hidden rounded-lg border"
+      imageClassName="size-full object-contain"
       onError={() => setFailed(props.src)}
     />
   )

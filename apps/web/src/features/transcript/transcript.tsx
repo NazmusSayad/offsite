@@ -4,7 +4,7 @@ import {
   Minimize02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -46,6 +46,7 @@ export function Transcript(props: {
   const requests = useStore((state) => state.requests)
   const activity = useStore(selectedActivity)
   const scroller = useRef<HTMLDivElement>(null)
+  const content = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
   const fromBottom = useRef<number | null>(null)
   const [loadingEarlier, setLoadingEarlier] = useState(false)
@@ -67,6 +68,21 @@ export function Transcript(props: {
     pinned.current = true
     element.scrollTop = element.scrollHeight
   }, [sentAt])
+
+  useEffect(() => {
+    const element = scroller.current
+    if (element === null || content.current === null) {
+      throw new Error('transcript is not mounted')
+    }
+    const observer = new ResizeObserver(() => {
+      if (pinned.current) {
+        element.scrollTop = element.scrollHeight
+      }
+    })
+    observer.observe(element)
+    observer.observe(content.current)
+    return () => observer.disconnect()
+  }, [])
 
   useLayoutEffect(() => {
     const element = scroller.current
@@ -132,74 +148,77 @@ export function Transcript(props: {
         showMore(element)
       }}
     >
-      <Wrapper width="chat" className="pt-3">
-        {!loaded && (
-          <p className="text-muted-foreground py-6 text-center text-xs">
-            Loading…
-          </p>
-        )}
-        {before !== null && start === 0 && (
-          <div className="flex justify-center pb-4">
-            <Button
-              type="button"
-              size="xs"
-              variant="ghost-muted"
-              disabled={loadingEarlier}
-              onClick={async () => {
-                const element = scroller.current
-                if (element !== null) {
-                  fromBottom.current = element.scrollHeight - element.scrollTop
-                }
-                setTop({ key: rows[0].key, above: PAGE })
-                setLoadingEarlier(true)
-                await loadEarlier()
-                setLoadingEarlier(false)
-              }}
-            >
-              {loadingEarlier ? 'Loading…' : 'Load earlier conversation'}
-            </Button>
-          </div>
-        )}
-        {rows.slice(start).map((row, offset) => {
-          const index = start + offset
-          const previous = rows[index - 1]
-          const older = index < olderRows.length
-          return (
-            <div
-              key={row.key}
-              className={cn(
-                previous === undefined
-                  ? undefined
-                  : row.kind === 'user'
-                    ? 'pt-6'
-                    : row.kind === 'working'
-                      ? undefined
-                      : isTool(row) && isTool(previous)
-                        ? 'pt-2'
-                        : isTool(row) || isTool(previous)
-                          ? 'pt-3'
-                          : 'pt-4',
-                row.kind === 'assistant' && 'group/assistant'
-              )}
-            >
-              <RowView
-                row={row}
-                agents={found.agents}
-                tasks={found.tasks}
-                running={running}
-                compacting={activity?.compacting === true}
-                fork={!older}
-                expanded={expanded.includes(row.key)}
-                onToggle={() => toggle(row.key)}
-                onOpenTask={props.onOpenTask}
-                rewind={!older}
-                onOpenDiff={props.onOpenDiff}
-                cwd={cwd}
-              />
+      <div ref={content}>
+        <Wrapper width="chat" className="pt-3">
+          {!loaded && (
+            <p className="text-muted-foreground py-6 text-center text-xs">
+              Loading…
+            </p>
+          )}
+          {before !== null && start === 0 && (
+            <div className="flex justify-center pb-4">
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost-muted"
+                disabled={loadingEarlier}
+                onClick={async () => {
+                  const element = scroller.current
+                  if (element !== null) {
+                    fromBottom.current =
+                      element.scrollHeight - element.scrollTop
+                  }
+                  setTop({ key: rows[0].key, above: PAGE })
+                  setLoadingEarlier(true)
+                  await loadEarlier()
+                  setLoadingEarlier(false)
+                }}
+              >
+                {loadingEarlier ? 'Loading…' : 'Load earlier conversation'}
+              </Button>
             </div>
-          )
-        })}
-      </Wrapper>
+          )}
+          {rows.slice(start).map((row, offset) => {
+            const index = start + offset
+            const previous = rows[index - 1]
+            const older = index < olderRows.length
+            return (
+              <div
+                key={row.key}
+                className={cn(
+                  previous === undefined
+                    ? undefined
+                    : row.kind === 'user'
+                      ? 'pt-6'
+                      : row.kind === 'working'
+                        ? undefined
+                        : isTool(row) && isTool(previous)
+                          ? 'pt-2'
+                          : isTool(row) || isTool(previous)
+                            ? 'pt-3'
+                            : 'pt-4',
+                  row.kind === 'assistant' && 'group/assistant'
+                )}
+              >
+                <RowView
+                  row={row}
+                  agents={found.agents}
+                  tasks={found.tasks}
+                  running={running}
+                  compacting={activity?.compacting === true}
+                  fork={!older}
+                  expanded={expanded.includes(row.key)}
+                  onToggle={() => toggle(row.key)}
+                  onOpenTask={props.onOpenTask}
+                  rewind={!older}
+                  onOpenDiff={props.onOpenDiff}
+                  cwd={cwd}
+                />
+              </div>
+            )
+          })}
+        </Wrapper>
+      </div>
     </div>
   )
 }

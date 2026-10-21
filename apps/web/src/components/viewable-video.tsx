@@ -36,7 +36,7 @@ export function ViewableVideo(props: {
           muted
           playsInline
           preload="metadata"
-          className="pointer-events-none block h-auto max-h-[28rem] w-auto max-w-full"
+          className="pointer-events-none block size-full object-contain"
           onError={props.onError}
           onLoadedMetadata={(event) =>
             setLength(
