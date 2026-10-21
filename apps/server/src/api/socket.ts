@@ -44,6 +44,7 @@ import {
   projectPath,
   projects,
   removeProject,
+  reorderProjects,
   updateProject,
 } from '../services/projects.ts'
 import { proxyPort } from '../services/proxy.ts'
@@ -135,6 +136,7 @@ const handlers: Handlers = {
     refreshAll()
     return null
   },
+  'projects.reorder': (params) => reorderProjects(params.ids),
   'directories.list': (params) => directories(params.path),
   'sessions.update': async (params) => {
     try {

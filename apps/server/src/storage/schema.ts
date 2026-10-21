@@ -5,6 +5,7 @@ export const projects = snakeCase.table('projects', {
   path: text().notNull().unique(),
   name: text().notNull(),
   logo: text(),
+  position: integer().notNull().default(0),
 })
 
 export const sessions = snakeCase.table('sessions', {
