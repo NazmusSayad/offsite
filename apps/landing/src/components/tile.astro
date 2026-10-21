@@ -1,0 +1,27 @@
+---
+import type { GithubIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
+
+interface Props {
+  icon: typeof GithubIcon
+  title: string
+  text: string
+  class?: string
+}
+
+const { icon, title, text, class: className } = Astro.props
+---
+
+<div
+  class:list={[
+    'bg-surface/80 group relative flex flex-col overflow-hidden rounded-2xl border border-white/8 transition-colors hover:border-white/16',
+    className,
+  ]}
+>
+  <div class="p-6 md:p-7">
+    <HugeiconsIcon icon={icon} className="text-accent size-5" />
+    <h3 class="mt-4 text-lg font-medium tracking-tight">{title}</h3>
+    <p class="text-muted mt-2 leading-relaxed">{text}</p>
+  </div>
+  <slot />
+</div>

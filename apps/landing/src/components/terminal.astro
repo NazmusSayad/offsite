@@ -1,0 +1,31 @@
+---
+interface Props {
+  title: string
+  class?: string
+  typewriter?: boolean
+}
+
+const { title, class: className, typewriter = false } = Astro.props
+---
+
+<div
+  data-typewriter={typewriter ? '' : undefined}
+  class:list={[
+    'overflow-hidden rounded-xl border border-white/12 bg-[#0d1014] font-mono text-sm shadow-[0_30px_80px_-30px_rgb(0_0_0/90%),inset_0_1px_0_rgb(255_255_255/6%)]',
+    className,
+  ]}
+>
+  <div
+    class="text-subtle flex h-9 items-center gap-2 border-b border-white/8 px-4 text-xs"
+  >
+    <span class="flex gap-1.5" aria-hidden="true">
+      <span class="size-2.5 rounded-full bg-white/12"></span>
+      <span class="size-2.5 rounded-full bg-white/12"></span>
+      <span class="size-2.5 rounded-full bg-white/12"></span>
+    </span>
+    <span class="ml-2">{title}</span>
+  </div>
+  <div class="px-4 py-4 leading-7">
+    <slot />
+  </div>
+</div>

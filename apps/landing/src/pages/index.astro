@@ -8,19 +8,58 @@ import {
   Folder01Icon,
   GitPullRequestIcon,
   GithubIcon,
-  LockKeyIcon,
+  GlobalIcon,
   Notification01Icon,
   ServerStack01Icon,
+  Task01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import Cell from '../components/cell.astro'
-import Connector from '../components/connector.astro'
+import Browser from '../components/browser.astro'
 import { CopyCommand } from '../components/copy-command'
 import Feature from '../components/feature.astro'
 import Provider from '../components/provider.astro'
+import Terminal from '../components/terminal.astro'
+import Tile from '../components/tile.astro'
 import { ClaudeIcon, OpenCodeIcon } from '../icons'
 
 const GITHUB_URL = 'https://github.com/NazmusSayad/offsite'
+const NPM_URL = 'https://www.npmjs.com/package/offsite'
+
+const steps = [
+  {
+    where: 'Terminal',
+    title: 'Start where you always do',
+    text: 'Run claude, codex or opencode and give it something to chew on. Nothing about your setup changes.',
+  },
+  {
+    where: 'Browser',
+    title: 'Open a tab. It is already there',
+    text: 'OffSite reads the session straight from the provider, so every message is in the browser the moment it exists. Nothing to sync, nothing to export.',
+  },
+  {
+    where: 'Phone',
+    title: 'Leave the desk',
+    text: 'Answer a question, approve a plan or queue the next step from the couch. A push tells you when the agent needs you.',
+  },
+  {
+    where: 'Terminal',
+    title: 'Pick it back up in the CLI',
+    text: 'Resume the thread in the terminal. What you did from the browser is part of its history, because it was the same session all along.',
+  },
+]
+
+const themes = [
+  ['One Dark Darker', '#15181C', '#ABB2BF', '#EE5D69', '#97C775', '#61AFEF', '#C678DD'],
+  ['One Dark Pro', '#282C34', '#ABB2BF', '#E05561', '#8CC265', '#4AA5F0', '#C162DE'],
+  ['Dracula', '#282A36', '#F8F8F2', '#FF5555', '#50FA7B', '#BD93F9', '#FF79C6'],
+  ['Tokyo Night', '#1A1B26', '#C0CAF5', '#F7768E', '#9ECE6A', '#7AA2F7', '#BB9AF7'],
+  ['Catppuccin Mocha', '#1E1E2E', '#CDD6F4', '#F38BA8', '#A6E3A1', '#89B4FA', '#F5C2E7'],
+  ['Nord', '#2E3440', '#D8DEE9', '#BF616A', '#A3BE8C', '#81A1C1', '#B48EAD'],
+  ['Gruvbox Dark', '#282828', '#EBDBB2', '#CC241D', '#98971A', '#458588', '#B16286'],
+  ['Solarized Dark', '#002B36', '#839496', '#DC322F', '#859900', '#268BD2', '#D33682'],
+  ['GitHub Dark', '#0D1117', '#E6EDF3', '#FF7B72', '#3FB950', '#58A6FF', '#BC8CFF'],
+  ['Rosé Pine', '#191724', '#E0DEF4', '#EB6F92', '#31748F', '#9CCFD8', '#C4A7E7'],
+]
 ---
 
 <html lang="en">
@@ -29,16 +68,25 @@ const GITHUB_URL = 'https://github.com/NazmusSayad/offsite'
     <meta charset="UTF-8" />
     <meta
       name="description"
-      content="Claude Code, Codex and OpenCode in your browser. It uses the same sessions as their CLIs, so you can start in one and resume in the other."
+      content="Claude Code, Codex and OpenCode in your browser, on the same sessions as their CLIs. Start a task in the terminal, check on it from your phone, finish it at your desk."
     />
-    <meta name="theme-color" content="#0a0a0a" />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="OffSite: Claude Code, Codex and OpenCode in your browser"
+    />
+    <meta
+      property="og:description"
+      content="Runs on your machine, opens the same sessions as the CLIs, and reaches your phone through one pairing link."
+    />
+    <meta name="theme-color" content="#0a0c0f" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
   </head>
   <body>
     <div class="overflow-x-clip">
       <header
-        class="border-line bg-background/70 sticky top-0 z-20 border-b backdrop-blur-md"
+        class="bg-background/60 sticky top-0 z-20 border-b border-white/6 backdrop-blur-xl"
       >
         <div
           class="mx-auto flex h-14 max-w-6xl items-center justify-between px-6"
@@ -50,276 +98,517 @@ const GITHUB_URL = 'https://github.com/NazmusSayad/offsite'
             <img src="/icon.svg" alt="" class="size-6" />
             OffSite
           </a>
-          <a
-            href={GITHUB_URL}
-            class="text-muted hover:text-foreground flex items-center gap-2 text-sm transition-colors"
-          >
-            <HugeiconsIcon icon={GithubIcon} className="size-4" />
-            GitHub
-          </a>
+          <nav class="text-muted flex items-center gap-6 text-sm">
+            <a href={NPM_URL} class="hover:text-foreground transition-colors"
+              >npm</a
+            >
+            <a
+              href={GITHUB_URL}
+              class="hover:text-foreground flex items-center gap-2 transition-colors"
+            >
+              <HugeiconsIcon icon={GithubIcon} className="size-4" />
+              GitHub
+            </a>
+          </nav>
         </div>
       </header>
 
-      <main class="border-line mx-auto max-w-6xl border-x">
+      <main>
         <section class="relative">
           <div
             aria-hidden="true"
-            class="pointer-events-none absolute inset-x-0 -top-14 h-[44rem] bg-[radial-gradient(ellipse_55%_50%_at_50%_0%,rgb(255_255_255/11%),transparent)]"
+            class="dots pointer-events-none absolute inset-x-0 top-0 h-[56rem]"
           >
           </div>
-          <div class="relative px-6 pt-20 pb-14 md:px-12 md:pt-28">
+          <div class="relative mx-auto max-w-6xl px-6 pt-20 md:pt-28">
             <h1
-              class="fade-up max-w-4xl text-[2.75rem] leading-[1.02] font-semibold tracking-[-0.045em] text-balance md:text-7xl"
+              class="reveal in-view max-w-5xl text-[2.6rem] leading-[1.02] font-semibold tracking-[-0.045em] md:text-[4rem] lg:text-[4.5rem]"
             >
-              Claude Code, Codex and OpenCode.{' '}
-              <span class="text-muted">In your browser.</span>
+              <span class="block">Start a task in the terminal.</span>
+              <span class="text-muted block">Check on it from your phone.</span>
+              <span class="block"
+                >Finish it back at your desk.<span
+                  aria-hidden="true"
+                  class="blink bg-accent ml-2 inline-block h-[0.76em] w-[0.4em] translate-y-[0.07em] rounded-[2px]"
+                ></span></span
+              >
             </h1>
             <p
-              class="fade-up text-muted mt-6 max-w-xl text-lg leading-relaxed [animation-delay:80ms]"
+              class="reveal in-view text-muted mt-8 max-w-xl text-lg leading-relaxed [--delay:120ms] md:text-xl"
             >
-              OffSite runs on your machine and opens the same sessions as the
-              CLIs. Start a task in the terminal, carry on in a browser tab, and
-              switch back whenever you like.
+              OffSite opens Claude Code, Codex and OpenCode in your browser, on
+              the very same sessions as their CLIs. It runs on your machine,
+              keeps no history of its own, and only talks to browsers you have
+              paired.
             </p>
             <div
-              class="fade-up mt-10 flex flex-wrap items-center gap-3 [animation-delay:160ms]"
+              class="reveal in-view mt-10 flex flex-wrap items-center gap-3 [--delay:200ms]"
             >
               <CopyCommand client:load />
               <a
                 href={GITHUB_URL}
-                class="border-line hover:bg-surface flex h-11 items-center gap-2 rounded-full border px-5 text-sm font-medium transition-colors"
+                class="flex h-11 items-center gap-2 rounded-full border border-white/12 px-5 text-sm font-medium transition-colors hover:bg-white/5"
               >
                 <HugeiconsIcon icon={GithubIcon} className="size-4" />
                 View on GitHub
               </a>
             </div>
           </div>
+
           <div
-            class="fade-up relative px-3 pb-16 [animation-delay:240ms] md:px-12 md:pb-24"
+            class="reveal in-view relative mx-auto mt-16 max-w-6xl px-6 pb-24 [--delay:320ms] md:mt-24 md:pb-32"
           >
             <div
-              class="border-line bg-surface rounded-2xl border p-1.5 shadow-[0_40px_160px_-40px_rgb(255_255_255/18%)] md:p-2"
+              aria-hidden="true"
+              class="pointer-events-none absolute inset-x-6 top-10 -bottom-10 bg-[radial-gradient(ellipse_60%_55%_at_55%_45%,rgb(245_181_68/14%),transparent)] blur-2xl"
             >
-              <img
-                src="/app-coding.webp"
-                width={2880}
-                height={1800}
-                alt="OffSite with a Claude Code thread open next to the thread list"
-                class="aspect-[4/3] rounded-xl object-cover object-left-top md:aspect-auto"
-              />
+            </div>
+            <div class="relative md:h-[44rem]">
+              <Browser class="md:absolute md:top-0 md:left-[17%] md:w-[86%]">
+                <img
+                  src="/app-hero.webp"
+                  width={2600}
+                  height={1625}
+                  alt="OffSite in a browser: the thread list on the left, a Claude Code thread in the middle, and the composer with model and effort pickers at the bottom"
+                  class="aspect-[4/3] w-full object-cover object-left-top sm:aspect-[16/10]"
+                />
+              </Browser>
+              <Terminal
+                title="zsh"
+                typewriter
+                class="relative z-10 mt-6 md:absolute md:top-28 md:left-0 md:mt-0 md:w-[27rem]"
+              >
+                <p>
+                  <span class="text-accent mr-[1ch]">$</span>
+                  <span data-type="claude"></span>
+                </p>
+                <p class="text-muted">
+                  <span class="text-subtle mr-[1ch]">&gt;</span>
+                  <span data-type="Add a download button to the file preview"
+                  ></span>
+                </p>
+                <p class="text-subtle">
+                  <span data-type="⏳ Working…"></span>
+                </p>
+              </Terminal>
+              <div
+                class="absolute right-2 -bottom-10 z-10 w-36 sm:right-6 sm:w-44 md:right-[2%] md:bottom-0 md:w-60"
+              >
+                <img
+                  src="/app-mobile.webp"
+                  width={1179}
+                  height={1977}
+                  alt="The same thread on a phone"
+                  class="phone w-full"
+                />
+                <span
+                  aria-hidden="true"
+                  class="absolute -top-2 -left-2 grid size-7 place-items-center"
+                >
+                  <span
+                    class="pulse-ring bg-accent absolute size-3 rounded-full"
+                  ></span>
+                  <span
+                    class="bg-accent ring-background relative size-3 rounded-full ring-4"
+                  ></span>
+                </span>
+              </div>
             </div>
           </div>
         </section>
 
-        <section
-          class="border-line divide-line grid divide-y border-t md:grid-cols-3 md:divide-x md:divide-y-0"
-        >
-          <Provider name="Claude Code" command="claude">
-            <ClaudeIcon className="size-6" />
-          </Provider>
-          <Provider name="Codex" command="codex">
-            <HugeiconsIcon icon={ChatGptIcon} className="size-6" />
-          </Provider>
-          <Provider name="OpenCode" command="opencode">
-            <OpenCodeIcon className="h-6" />
-          </Provider>
-        </section>
-
-        <section class="border-line border-t px-6 py-20 md:px-12 md:py-28">
-          <h2
-            class="max-w-2xl text-3xl font-semibold tracking-[-0.035em] md:text-5xl"
-          >
-            One history, two ways in.
-          </h2>
-          <p class="text-muted mt-5 max-w-2xl text-lg leading-relaxed">
-            OffSite doesn&apos;t keep its own copy of your conversations. It
-            reads each provider&apos;s sessions directly, so a thread you start
-            in the terminal is already in the browser, and one you start in the
-            browser resumes in the CLI.
-          </p>
-
+        <section class="border-t border-white/6">
           <div
-            class="mt-14 flex flex-col items-stretch md:flex-row md:items-center"
+            class="mx-auto grid max-w-6xl divide-y divide-white/6 px-6 md:grid-cols-3 md:divide-x md:divide-y-0"
           >
-            <div class="border-line bg-surface rounded-xl border p-5 md:w-64">
-              <p
-                class="text-subtle text-xs font-medium tracking-wide uppercase"
-              >
-                Terminal
-              </p>
-              <p class="mt-3 font-mono text-sm">
-                <span class="text-subtle">$</span> claude
-              </p>
-            </div>
-            <Connector />
-            <div
-              class="relative flex-1 rounded-xl border border-white/25 bg-white/[0.04] p-5 shadow-[0_0_60px_-12px_rgb(255_255_255/18%)]"
-            >
-              <p
-                class="text-subtle text-xs font-medium tracking-wide uppercase"
-              >
-                Session history
-              </p>
-              <p class="mt-3 text-sm">Kept by Claude Code, Codex or OpenCode</p>
-            </div>
-            <Connector />
-            <div class="border-line bg-surface rounded-xl border p-5 md:w-64">
-              <p
-                class="text-subtle text-xs font-medium tracking-wide uppercase"
-              >
-                Browser
-              </p>
-              <p class="mt-3 flex items-center gap-2 text-sm">
-                <img src="/icon.svg" alt="" class="size-4" />
-                OffSite
-              </p>
-            </div>
+            <Provider name="Claude Code" command="claude">
+              <ClaudeIcon className="size-6" />
+            </Provider>
+            <Provider name="Codex" command="codex">
+              <HugeiconsIcon icon={ChatGptIcon} className="size-6" />
+            </Provider>
+            <Provider name="OpenCode" command="opencode">
+              <OpenCodeIcon className="h-6" />
+            </Provider>
           </div>
         </section>
 
-        <section class="border-line grid border-t md:grid-cols-[5fr_7fr]">
-          <div class="px-6 py-20 md:px-12 md:py-24">
-            <h2 class="text-3xl font-semibold tracking-[-0.035em] md:text-5xl">
-              The rest of your desk, too.
+        <section class="journey border-t border-white/6" data-active="0">
+          <div class="mx-auto max-w-6xl px-6 pt-24 md:pt-32">
+            <h2
+              class="reveal max-w-3xl text-3xl font-semibold tracking-[-0.035em] text-balance md:text-6xl"
+            >
+              Not a copy. The same session, on every screen.
             </h2>
-            <p class="text-muted mt-5 text-lg leading-relaxed">
-              The chat sits next to the tools you&apos;d otherwise switch
-              windows for.
+            <p
+              class="reveal text-muted mt-6 max-w-2xl text-lg leading-relaxed [--delay:100ms] md:text-xl"
+            >
+              Other tools keep their own chat history and hand you a second
+              place to look. OffSite keeps none. It reads each provider&apos;s
+              sessions from the provider, so there is one thread, and you pick
+              the screen.
             </p>
-            <ul class="mt-10 space-y-6">
-              <Feature
+          </div>
+          <div
+            class="mx-auto grid max-w-6xl gap-10 px-6 pb-24 md:grid-cols-[5fr_7fr] md:gap-20 md:pb-32"
+          >
+            <ol class="md:pt-[16vh] md:pb-[10vh]">
+              {
+                steps.map((step, index) => (
+                  <li
+                    data-step={index}
+                    class="border-l border-white/10 py-10 pl-8 md:min-h-[52vh] md:py-14"
+                  >
+                    <p class="text-accent font-mono text-xs tracking-wide uppercase">
+                      {step.where}
+                    </p>
+                    <h3 class="mt-3 text-2xl font-semibold tracking-tight md:text-3xl">
+                      {step.title}
+                    </h3>
+                    <p class="text-muted mt-3 leading-relaxed md:text-lg">
+                      {step.text}
+                    </p>
+                    <div class="mt-6 md:hidden">
+                      {index === 0 && (
+                        <Terminal title="zsh">
+                          <p>
+                            <span class="text-accent">$</span> claude
+                          </p>
+                          <p class="text-muted">
+                            <span class="text-subtle">&gt;</span> Add a download
+                            button to the file preview
+                          </p>
+                        </Terminal>
+                      )}
+                      {index === 1 && (
+                        <Browser>
+                          <img
+                            src="/app-hero.webp"
+                            width={2600}
+                            height={1625}
+                            alt=""
+                            class="aspect-[4/3] w-full object-cover object-left-top"
+                          />
+                        </Browser>
+                      )}
+                      {index === 2 && (
+                        <img
+                          src="/app-mobile.webp"
+                          width={1179}
+                          height={1977}
+                          alt=""
+                          class="phone mx-auto w-56"
+                        />
+                      )}
+                      {index === 3 && (
+                        <Terminal title="zsh">
+                          <p>
+                            <span class="text-accent">$</span> claude --resume
+                          </p>
+                        </Terminal>
+                      )}
+                    </div>
+                  </li>
+                ))
+              }
+            </ol>
+            <div class="hidden md:block">
+              <div class="sticky top-24 h-[calc(100vh-8rem)] max-h-[44rem]">
+                <div class="absolute inset-0 grid place-items-center">
+                  <div data-visual="0" class="w-full max-w-md">
+                  <Terminal title="zsh">
+                    <p>
+                      <span class="text-accent">$</span> claude
+                    </p>
+                    <p class="text-muted">
+                      <span class="text-subtle">&gt;</span> Add a download button
+                      to the file preview
+                    </p>
+                    <p class="text-subtle">⏳ Working…</p>
+                  </Terminal>
+                  </div>
+                </div>
+                <div class="absolute inset-0 grid place-items-center">
+                  <div data-visual="1" class="w-full">
+                  <Browser>
+                    <img
+                      src="/app-hero.webp"
+                      width={2600}
+                      height={1625}
+                      alt=""
+                      class="aspect-[16/10] w-full object-cover object-left-top"
+                    />
+                  </Browser>
+                  </div>
+                </div>
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <img
+                    data-visual="2"
+                    src="/app-mobile.webp"
+                    width={1179}
+                    height={1977}
+                    alt=""
+                    class="phone h-[88%] w-auto max-w-full object-contain"
+                  />
+                </div>
+                <div class="absolute inset-0 grid place-items-center">
+                  <div data-visual="3" class="w-full max-w-md">
+                  <Terminal title="zsh">
+                    <p>
+                      <span class="text-accent">$</span> claude --resume
+                    </p>
+                  </Terminal>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p
+            class="text-subtle mx-auto max-w-6xl px-6 pb-24 text-sm md:-mt-20 md:pb-32"
+          >
+            Switch as often as you like, just not both at once. Keep a session
+            open in one place at a time.
+          </p>
+        </section>
+
+        <section class="border-t border-white/6">
+          <div class="mx-auto max-w-6xl px-6 py-24 md:py-32">
+            <div class="grid gap-6 md:grid-cols-2 md:gap-16">
+              <h2
+                class="reveal text-3xl font-semibold tracking-[-0.035em] text-balance md:text-6xl"
+              >
+                The whole desk, in one tab.
+              </h2>
+              <p
+                class="reveal text-muted text-lg leading-relaxed [--delay:100ms] md:pt-3 md:text-xl"
+              >
+                Everything you would otherwise switch windows for sits next to
+                the chat. A real terminal, git, the files, and a browser for
+                whatever you are building.
+              </p>
+            </div>
+            <div
+              class="reveal mt-14 grid gap-4 md:mt-16 md:grid-cols-2 lg:grid-cols-6 [--delay:160ms]"
+            >
+              <Tile
                 icon={ComputerTerminal01Icon}
-                title="Terminal"
-                text="Run commands in a real terminal under the chat."
-              />
-              <Feature
+                title="A real terminal"
+                text="Ghostty, compiled to WebAssembly. Tabs, find, clickable links and inline images, with the font and theme you pick."
+                class="md:col-span-2 lg:col-span-4 lg:row-span-2"
+              >
+                <div class="relative mt-auto pl-6 md:pl-7">
+                  <img
+                    src="/app-terminal-panel.webp"
+                    width={2400}
+                    height={870}
+                    alt="The composer with a terminal panel under it, showing git log output"
+                    class="w-full rounded-tl-lg border-t border-l border-white/10 object-cover object-left"
+                  />
+                </div>
+              </Tile>
+              <Tile
                 icon={GitPullRequestIcon}
                 title="Git"
-                text="Review diffs, commit, switch branches and open pull requests."
-              />
-              <Feature
+                text="Diffs, branches, push, and pull requests. Commit messages are written by the model you choose."
+                class="lg:col-span-2"
+              >
+                <div class="mt-auto pr-6 pb-6 pl-6 md:pr-7 md:pb-7 md:pl-7">
+                  <img
+                    src="/app-gitbar.webp"
+                    width={900}
+                    height={104}
+                    alt="The toolbar with the current branch, a Commit button and panel toggles"
+                    class="w-full rounded-lg border border-white/10"
+                  />
+                </div>
+              </Tile>
+              <Tile
                 icon={Folder01Icon}
                 title="Files"
-                text="Browse the project and preview any file."
+                text="Browse the project, preview and download any file. Type @ to put one in front of the agent."
+                class="lg:col-span-2"
+              >
+                <div class="mt-auto pl-6 md:pl-7">
+                  <img
+                    src="/app-composer.webp"
+                    width={1240}
+                    height={320}
+                    alt="The composer, which takes @ for files and / for commands"
+                    class="w-full rounded-tl-lg border-t border-l border-white/10"
+                  />
+                </div>
+              </Tile>
+              <Tile
+                icon={GlobalIcon}
+                title="Browser"
+                text="Open your dev server or any file in a panel beside the chat. It goes through your machine, so localhost just works."
+                class="lg:col-span-2"
               />
-              <Feature
+              <Tile
                 icon={ArrowTurnBackwardIcon}
                 title="Rewind and fork"
-                text="Edit an earlier message, restore code, or fork from any reply."
+                text="Restore the code, the chat or both to any earlier message, or fork a new thread from any reply."
+                class="lg:col-span-2"
               />
-            </ul>
-          </div>
-          <div
-            class="border-line relative min-h-80 overflow-hidden border-t md:border-t-0 md:border-l"
-          >
-            <img
-              src="/app-terminal.webp"
-              width={2880}
-              height={1800}
-              alt="OffSite with the terminal panel open under a thread"
-              class="absolute top-12 left-10 h-[calc(100%-3rem)] w-[calc(100%-2.5rem)] rounded-tl-xl border-t border-l border-white/10 object-cover object-[47%_100%] md:top-16 md:left-14 md:h-[calc(100%-4rem)] md:w-[calc(100%-3.5rem)]"
-            />
+              <Tile
+                icon={Task01Icon}
+                title="Plans and questions"
+                text="Approve plans and answer the agent in the thread, or put them on a timer so a question never stalls a task."
+                class="lg:col-span-2"
+              />
+            </div>
           </div>
         </section>
 
-        <section class="border-line border-t">
-          <div class="px-6 pt-20 pb-14 md:px-12 md:pt-28">
-            <h2
-              class="max-w-2xl text-3xl font-semibold tracking-[-0.035em] md:text-5xl"
-            >
-              Check in from anywhere.
-            </h2>
-            <p class="text-muted mt-5 max-w-xl text-lg leading-relaxed">
-              The whole app fits a phone screen, so a long task doesn&apos;t
-              keep you at your desk.
-            </p>
+        <section class="relative border-t border-white/6">
+          <div
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-[radial-gradient(ellipse_60%_50%_at_30%_50%,rgb(97_175_239/8%),transparent)]"
+          >
           </div>
-          <div class="border-line grid border-t md:grid-cols-3 md:grid-rows-2">
-            <div
-              class="border-line relative h-96 overflow-hidden border-b bg-[radial-gradient(ellipse_70%_60%_at_50%_100%,rgb(255_255_255/9%),transparent)] md:row-span-2 md:h-auto md:border-r md:border-b-0"
-            >
+          <div
+            class="relative mx-auto grid max-w-6xl gap-14 px-6 py-24 md:grid-cols-[2fr_3fr] md:items-center md:gap-20 md:py-32"
+          >
+            <div class="reveal relative mx-auto w-72 md:w-80">
               <img
                 src="/app-mobile.webp"
                 width={1179}
                 height={1977}
-                alt="OffSite on a phone, showing a thread and the message box"
-                class="absolute top-10 left-1/2 w-60 -translate-x-1/2 rounded-[2rem] border-4 border-[#1c1c1c] shadow-2xl"
+                alt="OffSite on a phone, with a thread open above the composer"
+                class="phone w-full"
               />
             </div>
-            <Cell
-              icon={Download01Icon}
-              title="Install it as an app"
-              class="md:border-r md:border-b"
-            >
-              Start with <code class="text-foreground font-mono">--pwa</code> and
-              add OffSite to your home screen. It opens offline too.
-            </Cell>
-            <Cell
-              icon={Notification01Icon}
-              title="Notifications"
-              class="border-t md:border-t-0 md:border-b"
-            >
-              Get a push when an agent or a terminal needs you, even with no
-              OffSite tab open.
-            </Cell>
-            <Cell
-              icon={ServerStack01Icon}
-              title="More than one machine"
-              class="border-t md:border-t-0 md:border-r"
-            >
-              Pair your laptop and your desktop, and switch between them from
-              the sidebar.
-            </Cell>
-            <Cell
-              icon={LockKeyIcon}
-              title="Paired browsers only"
-              class="border-t md:border-t-0"
-            >
-              Only browsers that opened a pairing link can connect. Remove one
-              any time with
-              <code class="text-foreground font-mono">offsite unpair</code>.
-            </Cell>
+            <div>
+              <h2
+                class="reveal text-3xl font-semibold tracking-[-0.035em] text-balance md:text-6xl"
+              >
+                Check in from anywhere.
+              </h2>
+              <p
+                class="reveal text-muted mt-6 text-lg leading-relaxed [--delay:100ms] md:text-xl"
+              >
+                The whole app fits a phone screen, so a long task does not keep
+                you at your desk. Open the pairing link on your phone once, and
+                your machine is a tap away.
+              </p>
+              <ul class="reveal mt-10 space-y-6 [--delay:160ms]">
+                <Feature
+                  icon={Download01Icon}
+                  title="Install it as an app"
+                  text="Add OffSite to your home screen. It opens offline too."
+                />
+                <Feature
+                  icon={Notification01Icon}
+                  title="Notifications"
+                  text="Get a push when an agent or a terminal needs you, even with no OffSite tab open."
+                />
+                <Feature
+                  icon={ServerStack01Icon}
+                  title="More than one machine"
+                  text="Pair your laptop and your desktop, and switch between them from the sidebar."
+                />
+              </ul>
+            </div>
           </div>
         </section>
 
-        <section
-          class="border-line relative overflow-hidden border-t px-6 py-24 text-center md:py-32"
-        >
+        <section class="border-t border-white/6">
+          <div class="mx-auto max-w-6xl px-6 py-24 md:py-32">
+            <div class="grid gap-6 md:grid-cols-2 md:gap-16">
+              <h2
+                class="reveal text-3xl font-semibold tracking-[-0.035em] text-balance md:text-6xl"
+              >
+                Your colors, your font.
+              </h2>
+              <p
+                class="reveal text-muted text-lg leading-relaxed [--delay:100ms] md:pt-3 md:text-xl"
+              >
+                Ten themes for the app and the terminal, with JetBrains Mono,
+                Fira Code, Caskaydia Cove or Hack, each with ligatures and Nerd
+                Font icons.
+              </p>
+            </div>
+            <ul
+              class="reveal mt-14 grid grid-cols-2 gap-3 [--delay:160ms] sm:grid-cols-3 md:mt-16 lg:grid-cols-5"
+            >
+              {
+                themes.map(([name, background, foreground, ...palette]) => (
+                  <li
+                    style={{ background, color: foreground }}
+                    class="rounded-xl p-4 font-mono text-sm ring-1 ring-white/10 ring-inset"
+                  >
+                    <p class="flex items-center justify-between">
+                      <span>Aa</span>
+                      <span class="flex gap-1.5">
+                        {palette.map((color) => (
+                          <span
+                            style={{ background: color }}
+                            class="size-2.5 rounded-full"
+                          />
+                        ))}
+                      </span>
+                    </p>
+                    <p class="mt-5 text-xs opacity-70">{name}</p>
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
+        </section>
+
+        <section class="relative border-t border-white/6">
           <div
             aria-hidden="true"
-            class="pointer-events-none absolute inset-x-0 bottom-0 h-full bg-[radial-gradient(ellipse_50%_70%_at_50%_100%,rgb(255_255_255/8%),transparent)]"
+            class="pointer-events-none absolute inset-x-0 bottom-0 h-[40rem] bg-[radial-gradient(ellipse_50%_60%_at_50%_100%,rgb(245_181_68/12%),transparent)]"
           >
           </div>
-          <h2
-            class="relative text-4xl font-semibold tracking-[-0.04em] md:text-6xl"
+          <div
+            class="relative mx-auto max-w-6xl px-6 py-28 text-center md:py-40"
           >
-            Start with one command.
-          </h2>
-          <p
-            class="text-muted relative mx-auto mt-5 max-w-md text-lg leading-relaxed"
-          >
-            Run it, then open the pairing link it prints. Your agents are one
-            tab away.
-          </p>
-          <div class="relative mt-10 flex justify-center">
-            <CopyCommand client:load />
+            <h2
+              class="reveal text-4xl font-semibold tracking-[-0.04em] text-balance md:text-7xl"
+            >
+              One command away.
+            </h2>
+            <p
+              class="reveal text-muted mx-auto mt-6 max-w-lg text-lg leading-relaxed [--delay:100ms] md:text-xl"
+            >
+              It runs on your machine and prints a link. The browser that opens
+              it is paired. Every other browser is refused.
+            </p>
+            <div
+              class="reveal mt-10 flex flex-wrap items-center justify-center gap-3 [--delay:160ms]"
+            >
+              <CopyCommand client:load />
+              <a
+                href={GITHUB_URL}
+                class="flex h-11 items-center gap-2 rounded-full border border-white/12 px-5 text-sm font-medium transition-colors hover:bg-white/5"
+              >
+                <HugeiconsIcon icon={GithubIcon} className="size-4" />
+                View on GitHub
+              </a>
+            </div>
+            <Terminal
+              title="zsh"
+              typewriter
+              class="reveal mx-auto mt-14 max-w-xl text-left [--delay:240ms]"
+            >
+              <p>
+                <span class="text-accent mr-[1ch]">$</span>
+                <span data-type="npx offsite"></span>
+              </p>
+              <p class="text-muted">
+                <span class="mr-[1ch]" data-type="offsite is running at"></span>
+                <span
+                  class="text-foreground"
+                  data-type="http://127.0.0.1:47841/pair#…"></span>
+              </p>
+            </Terminal>
           </div>
-          <dl
-            class="border-line bg-surface/60 relative mx-auto mt-16 grid max-w-2xl gap-x-8 gap-y-3 rounded-xl border p-6 text-left text-sm sm:grid-cols-[auto_1fr]"
-          >
-            <dt class="font-mono">offsite</dt>
-            <dd class="text-muted">Starts the server and the web app</dd>
-            <dt class="font-mono">offsite serve</dt>
-            <dd class="text-muted">Starts only the server</dd>
-            <dt class="font-mono">offsite pair</dt>
-            <dd class="text-muted">Makes a pairing link for another browser</dd>
-            <dt class="font-mono">offsite unpair</dt>
-            <dd class="text-muted">Picks a paired browser to remove</dd>
-          </dl>
         </section>
       </main>
 
-      <footer class="border-line border-t">
+      <footer class="border-t border-white/6">
         <div
           class="text-subtle mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-sm"
         >
@@ -327,11 +616,115 @@ const GITHUB_URL = 'https://github.com/NazmusSayad/offsite'
             <img src="/icon.svg" alt="" class="size-5" />
             MIT License · Nazmus Sayad
           </span>
-          <a href={GITHUB_URL} class="hover:text-foreground transition-colors">
-            github.com/NazmusSayad/offsite
-          </a>
+          <span class="flex items-center gap-6">
+            <a href={NPM_URL} class="hover:text-foreground transition-colors"
+              >npm</a
+            >
+            <a href={GITHUB_URL} class="hover:text-foreground transition-colors"
+              >github.com/NazmusSayad/offsite</a
+            >
+          </span>
         </div>
       </footer>
     </div>
+
+    <script>
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
+        .matches
+
+      const revealer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('in-view')
+              revealer.unobserve(entry.target)
+            }
+          }
+        },
+        { rootMargin: '0px 0px -10% 0px' }
+      )
+      for (const element of document.querySelectorAll('.reveal')) {
+        revealer.observe(element)
+      }
+
+      const journey = document.querySelector<HTMLElement>('.journey')
+      if (journey === null) {
+        throw new Error('the journey section is missing')
+      }
+      const stepper = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              const step = entry.target.getAttribute('data-step')
+              if (step === null) {
+                throw new Error('a step is missing its index')
+              }
+              journey.dataset.active = step
+            }
+          }
+        },
+        { rootMargin: '-45% 0px -45% 0px' }
+      )
+      for (const step of journey.querySelectorAll('[data-step]')) {
+        stepper.observe(step)
+      }
+
+      function type(container: Element) {
+        const parts = [...container.querySelectorAll<HTMLElement>('[data-type]')]
+        const texts = parts.map((part) => part.dataset.type ?? '')
+        const cursor = document.createElement('span')
+        cursor.className =
+          'bg-accent ml-0.5 inline-block h-[1.1em] w-[0.55em] translate-y-[0.2em] rounded-[1px]'
+        cursor.setAttribute('aria-hidden', 'true')
+
+        function run() {
+          for (const part of parts) {
+            part.textContent = ''
+            part.parentElement?.classList.add('invisible')
+          }
+          let index = 0
+          let offset = 0
+          function tick() {
+            if (index >= parts.length) {
+              cursor.classList.add('blink')
+              setTimeout(run, 5000)
+              return
+            }
+            const part = parts[index]
+            const text = texts[index]
+            part.parentElement?.classList.remove('invisible')
+            part.textContent = text.slice(0, offset + 1)
+            part.append(cursor)
+            offset += 1
+            if (offset >= text.length) {
+              index += 1
+              offset = 0
+              setTimeout(tick, index === 1 ? 700 : 350)
+              return
+            }
+            setTimeout(tick, 28 + Math.random() * 50)
+          }
+          cursor.classList.remove('blink')
+          tick()
+        }
+
+        if (reduced) {
+          parts.forEach((part, index) => {
+            part.textContent = texts[index]
+          })
+          return
+        }
+        const starter = new IntersectionObserver((entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            starter.disconnect()
+            run()
+          }
+        })
+        starter.observe(container)
+      }
+      for (const container of document.querySelectorAll('[data-typewriter]')) {
+        type(container)
+      }
+    </script>
   </body>
 </html>
