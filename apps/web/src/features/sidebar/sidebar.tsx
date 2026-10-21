@@ -83,6 +83,8 @@ export function Sidebar(
   ]
   const minimized = shown.filter((session) => session.status === 'minimized')
   const showInactive = props.mobile ? filter === 'inactive' : inactiveOpen
+  const scopeMachine = scope?.machine ?? null
+  const scopeProject = scope?.projectId ?? null
   const started =
     selection !== null &&
     selection.sessionId !== null &&
@@ -112,16 +114,16 @@ export function Sidebar(
     }
     let current = true
     const targets =
-      scope === null
+      scopeMachine === null
         ? getState()
             .machines.filter((machine) => machine.status === 'online')
             .map((machine) => machine.id)
-        : [scope.machine]
+        : [scopeMachine]
     Promise.all(
       targets.map(async (machine) =>
         (
           await call(machine, 'sessions.inactive', {
-            projectId: scope?.projectId ?? null,
+            projectId: scopeProject,
           })
         ).map((session) => ({ ...session, machine }))
       )
@@ -135,7 +137,7 @@ export function Sidebar(
     return () => {
       current = false
     }
-  }, [showInactive, scope, inactiveVersion])
+  }, [showInactive, scopeMachine, scopeProject, inactiveVersion])
 
   const folderMachine =
     scope?.machine ?? selection?.machine ?? machines.at(0)?.id

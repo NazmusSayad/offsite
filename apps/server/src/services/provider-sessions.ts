@@ -42,7 +42,7 @@ export async function info(
       const thread = await codexThread(id).catch((error: unknown) => {
         if (
           error instanceof Error &&
-          error.message.startsWith('no rollout found')
+          error.message.startsWith('thread not loaded')
         ) {
           return null
         }
