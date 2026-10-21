@@ -247,6 +247,33 @@ export async function editSession(
   }
 }
 
+export async function closingTerminals(machine: string, id: string) {
+  const sessions = getState().sessions
+  const session = sessions.find(
+    (item) => item.machine === machine && item.id === id
+  )
+  if (
+    session === undefined ||
+    sessions.some(
+      (item) =>
+        item.machine === machine &&
+        item.projectId === session.projectId &&
+        item.id !== id &&
+        item.status !== 'inactive'
+    )
+  ) {
+    return 0
+  }
+  try {
+    return await call(machine, 'terminal.count', {
+      projectId: session.projectId,
+    })
+  } catch (error) {
+    showError(error)
+    return null
+  }
+}
+
 export async function deactivateSession(
   machine: string,
   id: string,

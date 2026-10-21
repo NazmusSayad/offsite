@@ -35,7 +35,12 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { providerNames, timeAgo } from '@/lib/format'
-import { deactivateSession, editSession, removeSession } from '@/lib/sessions'
+import {
+  closingTerminals,
+  deactivateSession,
+  editSession,
+  removeSession,
+} from '@/lib/sessions'
 import { machineOf, type MachineSession, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -59,7 +64,11 @@ export function MobileSessionItem(props: {
   )
   const [title, setTitle] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
-  const [stopping, setStopping] = useState(false)
+  const [warning, setWarning] = useState({
+    open: false,
+    busy: false,
+    terminals: 0,
+  })
   const [offset, setOffset] = useState(0)
   const field = useRef<HTMLInputElement>(null)
   const swipe = useRef<{ x: number; y: number; swiping: boolean } | null>(null)
@@ -82,9 +91,13 @@ export function MobileSessionItem(props: {
     void deactivateSession(session.machine, session.id, props.scope)
   }
 
-  function deactivate() {
-    if (busy) {
-      setStopping(true)
+  async function deactivate() {
+    const terminals = await closingTerminals(session.machine, session.id)
+    if (terminals === null) {
+      return
+    }
+    if (busy || terminals > 0) {
+      setWarning({ open: true, busy, terminals })
       return
     }
     makeInactive()
@@ -99,24 +112,33 @@ export function MobileSessionItem(props: {
     }
     swiped.current = true
     if (event.clientX - start.x > event.currentTarget.offsetWidth * 0.4) {
-      deactivate()
+      void deactivate()
     }
   }
 
   const stopDialog = (
-    <AlertDialog open={stopping} onOpenChange={setStopping}>
+    <AlertDialog
+      open={warning.open}
+      onOpenChange={(open) => setWarning({ ...warning, open })}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Stop running work?</AlertDialogTitle>
+          <AlertDialogTitle>
+            {warning.busy ? 'Stop running work?' : 'Close terminals?'}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            The agent or background tasks are running. Do you really want to
-            stop them?
+            {warning.busy &&
+              'The agent or background tasks are running. Do you really want to stop them? '}
+            {warning.terminals > 0 &&
+              `This is the last active thread in this project, so its ${warning.terminals} terminal${warning.terminals === 1 ? '' : 's'} will also be closed.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction variant="destructive" onClick={makeInactive}>
-            Stop and Make Inactive
+            {warning.busy
+              ? 'Stop and Make Inactive'
+              : 'Close and Make Inactive'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -175,7 +197,7 @@ export function MobileSessionItem(props: {
           Make active
         </ContextMenuItem>
       ) : (
-        <ContextMenuItem onSelect={deactivate}>
+        <ContextMenuItem onSelect={() => void deactivate()}>
           <HugeiconsIcon icon={Plug01Icon} />
           Make inactive
         </ContextMenuItem>

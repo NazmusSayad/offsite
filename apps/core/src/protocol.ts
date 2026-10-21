@@ -222,6 +222,7 @@ export type RpcMethods = {
   terminal: { params: TerminalRequest; result: null }
   'terminal.shells': { params: void; result: Shell[] }
   'terminal.busy': { params: { id: number }; result: BusyResult }
+  'terminal.count': { params: { projectId: string }; result: number }
   'terminal.paste': { params: { type: string; data: string }; result: string }
 }
 

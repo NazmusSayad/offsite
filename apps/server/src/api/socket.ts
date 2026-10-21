@@ -66,6 +66,7 @@ import {
   busyTerminal,
   detachTerminal,
   savePastedImage,
+  terminalCount,
   terminalInput,
   terminalRequest,
 } from '../services/terminal/terminal.ts'
@@ -310,6 +311,7 @@ const handlers: Handlers = {
   },
   'terminal.shells': () => listShells(),
   'terminal.busy': (params) => busyTerminal(params.id),
+  'terminal.count': (params) => terminalCount(params.projectId),
   'terminal.paste': (params) =>
     savePastedImage(params.type, Buffer.from(params.data, 'base64')),
 }

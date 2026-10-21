@@ -111,6 +111,21 @@ export async function busyTerminal(id: number): Promise<BusyResult> {
   }
 }
 
+export function terminalCount(projectId: string) {
+  return projects.get(projectId)?.tabs.length ?? 0
+}
+
+export function closeProjectTabs(projectId: string) {
+  const project = projects.get(projectId)
+  if (project === undefined) {
+    return
+  }
+  for (const tab of [...project.tabs]) {
+    closeTab(tab.id)
+  }
+  publish()
+}
+
 export function savePastedImage(type: string, data: Buffer) {
   const extension = pasteTypes[type]
   if (extension === undefined) {
