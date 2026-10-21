@@ -212,7 +212,6 @@ function MobileChat(props: { selection: Selection }) {
                   selectedTask={selectedTask}
                   onSelectTask={setSelectedTask}
                   onPanel={showPanel}
-                  toggles={null}
                 />
               )}
               {panel === null && terminal && (
