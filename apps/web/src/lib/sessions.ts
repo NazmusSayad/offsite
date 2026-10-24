@@ -283,6 +283,7 @@ export async function editSession(
 
 export async function closingTerminals(machine: string, id: string) {
   const sessions = getState().sessions
+  const selection = getState().selection
   const session = sessions.find(
     (item) => item.machine === machine && item.id === id
   )
@@ -294,7 +295,14 @@ export async function closingTerminals(machine: string, id: string) {
         item.projectId === session.projectId &&
         item.id !== id &&
         item.status !== 'inactive'
-    )
+    ) ||
+    (getState().loaded &&
+      selection?.machine === machine &&
+      selection.projectId === session.projectId &&
+      selection.sessionId !== null &&
+      !sessions.some(
+        (item) => item.machine === machine && item.id === selection.sessionId
+      ))
   ) {
     return 0
   }

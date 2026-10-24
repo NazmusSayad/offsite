@@ -362,6 +362,12 @@ export async function updateSession(id: string, patch: SessionPatch) {
       all.every(
         (item) =>
           item.projectId !== session.projectId || item.status === 'inactive'
+      ) &&
+      [...runs.values()].every(
+        (other) =>
+          other.sessionId === id ||
+          other.cwd !== projectPath(session.projectId) ||
+          all.some((item) => item.id === other.sessionId)
       )
     ) {
       closeProjectTabs(session.projectId)

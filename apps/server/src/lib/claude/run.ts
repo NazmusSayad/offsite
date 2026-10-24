@@ -39,6 +39,7 @@ type Pending = {
 export class Run {
   readonly provider = 'claude'
   readonly sessionId: string
+  readonly cwd: string
   readonly messages: Message[] = []
   readonly pending = new Map<string, Pending>()
   private readonly published = new Map<string, string>()
@@ -68,6 +69,7 @@ export class Run {
     settings: SessionSettings
   }) {
     this.sessionId = options.sessionId
+    this.cwd = options.cwd
     this.resumeAt = options.resumeAt
     this.settings = options.settings
     this.query = query({
