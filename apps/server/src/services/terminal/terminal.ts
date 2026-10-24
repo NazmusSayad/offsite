@@ -307,7 +307,7 @@ async function createTab(projectId: string) {
   terminals.set(id, terminal)
   project.tabs.push({ id, customName: null, minimized: false })
   project.activeTab = id
-  pty.onData((data) => output(id, terminal, data as unknown as Buffer))
+  pty.onData((data) => output(id, terminal, Buffer.from(data)))
   pty.onExit(() => {
     terminals.delete(id)
     paused.delete(pty)
