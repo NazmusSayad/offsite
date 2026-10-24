@@ -9,14 +9,13 @@ import type { FilePreview as Preview } from '@offsite/core/projects'
 import { File } from '@pierre/diffs/react'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { call, machineUrl } from '@/api/connection'
-import { machineKey } from '@/api/machines'
 import { Markdown } from '@/components/markdown/markdown'
 import { PreviewDialog, PreviewHeader } from '@/components/preview-dialog'
 import { Button } from '@/components/ui/button'
 import { editDraft } from '@/features/composer/drafts'
 import { useCopy } from '@/lib/clipboard'
 import { downloadFile, mediaKind, mediaUrl } from '@/lib/media'
-import { useStore } from '@/lib/store'
+import { draftKey, useStore } from '@/lib/store'
 import { useCodeTheme } from '@/lib/theme'
 import { errorMessage } from '@/lib/utils'
 import diffCss from '@/features/git/diff.css?raw'
@@ -63,7 +62,11 @@ export function FilePreview(props: {
           path={props.path}
           onInsert={(path) => {
             editDraft(
-              machineKey(props.machine, sessionId ?? props.projectId),
+              draftKey({
+                machine: props.machine,
+                projectId: props.projectId,
+                sessionId,
+              }),
               (current) => ({
                 ...current,
                 text: `${current.text}${/(^|\s)$/.test(current.text) ? '' : ' '}@${path} `,

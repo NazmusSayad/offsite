@@ -1,6 +1,6 @@
 import { call } from './connection'
 
-const UPLOAD_LIMIT = 50 * 1024 * 1024
+export const UPLOAD_LIMIT = 50 * 1024 * 1024
 
 export async function uploadFile(machine: string, file: File) {
   if (file.size > UPLOAD_LIMIT) {

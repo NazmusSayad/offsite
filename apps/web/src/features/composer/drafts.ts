@@ -12,13 +12,15 @@ import {
 type Draft = {
   text: string
   images: (ImageAttachment & { number: number })[]
+  files: { number: number; id: string; name: string }[]
   settings: SessionSettings | null
 }
 type Drafts = { drafts: Record<string, Draft> }
 
 const storageKey = 'composerDrafts'
-const empty: Draft = { text: '', images: [], settings: null }
+const empty: Draft = { text: '', images: [], files: [], settings: null }
 const database = createStore('offsite-drafts', 'drafts')
+const fileDatabase = createStore('offsite-draft-files', 'files')
 const save = debounce(
   (value: StorageValue<Drafts>) => void set(storageKey, value, database),
   300
@@ -36,6 +38,8 @@ const useDrafts = create<Drafts>()(
     name: storageKey,
     storage,
     skipHydration: true,
+    version: 1,
+    migrate: () => ({ drafts: {} }),
   })
 )
 
@@ -50,18 +54,35 @@ export function useDraft(key: string) {
 }
 
 export function editDraft(key: string, change: (draft: Draft) => Draft) {
+  const current = getDraft(key)
+  const draft = change(current)
+  for (const file of current.files) {
+    if (!draft.files.some((other) => other.id === file.id)) {
+      void del(file.id, fileDatabase)
+    }
+  }
   useDrafts.setState((state) => {
-    const draft = change(state.drafts[key] ?? empty)
     const drafts = { ...state.drafts, [key]: draft }
     if (
       draft.text === '' &&
       draft.images.length === 0 &&
+      draft.files.length === 0 &&
       draft.settings === null
     ) {
       delete drafts[key]
     }
     return { drafts }
   })
+}
+
+export async function saveDraftFile(file: File) {
+  const id = crypto.randomUUID()
+  await set(id, file, fileDatabase)
+  return id
+}
+
+export async function loadDraftFile(id: string) {
+  return await get<File>(id, fileDatabase)
 }
 
 export function deleteDraft(key: string) {

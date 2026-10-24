@@ -181,10 +181,10 @@ export function selectedRunning(state: State) {
 }
 
 export function draftKey(selection: Selection) {
-  return machineKey(
-    selection.machine,
-    selection.sessionId ?? selection.projectId
-  )
+  if (selection.sessionId === null) {
+    return 'new'
+  }
+  return machineKey(selection.machine, selection.sessionId)
 }
 
 export function setDraft(draft: Prompt | null) {

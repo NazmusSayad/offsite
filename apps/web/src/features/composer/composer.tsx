@@ -3,12 +3,12 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import type { Item } from '@offsite/core/items'
 import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
-import { machineKey } from '@/api/machines'
-import { readBase64, uploadFile } from '@/api/upload'
+import { readBase64, UPLOAD_LIMIT, uploadFile } from '@/api/upload'
 import { Button } from '@/components/ui/button'
 import { Wrapper } from '@/components/wrapper'
 import { interrupt, sendPrompt } from '@/lib/sessions'
 import {
+  draftKey,
   getState,
   machineOf,
   projectOf,
@@ -24,7 +24,13 @@ import {
   restoredDraft,
 } from './attached-images'
 import { ComposerMenu, type Suggestion } from './composer-menu'
-import { editDraft, getDraft, useDraft } from './drafts'
+import {
+  editDraft,
+  getDraft,
+  loadDraftFile,
+  saveDraftFile,
+  useDraft,
+} from './drafts'
 import { MoreMenu } from './more-menu'
 import { PermissionPrompt } from './permission-prompt'
 import { Pickers } from './pickers'
@@ -53,7 +59,6 @@ export function Composer() {
         )?.openCode.available !== true
       : state.settings.accountId === null
   )
-  const [uploads, setUploads] = useState(0)
   const [sending, setSending] = useState(false)
   const [active, setActive] = useState(0)
   const [menuClosed, setMenuClosed] = useState(false)
@@ -67,10 +72,11 @@ export function Composer() {
   const delivery = useStore(
     (state) => machineOf(state, machine).config?.delivery ?? null
   )
-  const key = machineKey(machine, selection?.sessionId ?? projectId)
+  const key = selection === null ? '' : draftKey(selection)
   const stored = useDraft(key)
   const text = stored.text
   const images = stored.images
+  const attachedFiles = stored.files
   const [caret, setCaret] = useState(text.length)
   const running = useStore(selectedRunning)
   const hero = loaded && blank && !running
@@ -135,10 +141,7 @@ export function Composer() {
             }))
   const activeIndex = Math.min(active, suggestions.length - 1)
   const empty =
-    (text.trim() === '' && images.length === 0) ||
-    uploads > 0 ||
-    sending ||
-    noAccount
+    (text.trim() === '' && images.length === 0) || sending || noAccount
 
   function edit(value: string, position: number) {
     editDraft(key, (current) => ({
@@ -147,6 +150,7 @@ export function Composer() {
       images: current.images.filter((image) =>
         value.includes(`[Image #${image.number}]`)
       ),
+      files: current.files.filter((file) => value.includes(fileMarker(file))),
     }))
     setCaret(position)
     setActive(0)
@@ -174,9 +178,18 @@ export function Composer() {
       if (delivery === null) {
         throw new Error('This machine is not connected')
       }
+      let prompt = text.trim()
+      for (const file of attachedFiles) {
+        const saved = await loadDraftFile(file.id)
+        if (saved === undefined) {
+          throw new Error(`${file.name} is no longer saved, attach it again`)
+        }
+        const path = await uploadFile(machine, saved)
+        prompt = prompt.replace(fileMarker(file), () => `@${path}`)
+      }
       await sendPrompt(
         {
-          text: text.trim(),
+          text: prompt,
           images: images.map((image) => ({
             mediaType: image.mediaType,
             data: image.data,
@@ -184,7 +197,12 @@ export function Composer() {
         },
         swap ? (delivery === 'queue' ? 'steer' : 'queue') : delivery
       )
-      editDraft(key, (current) => ({ ...current, text: '', images: [] }))
+      editDraft(key, (current) => ({
+        ...current,
+        text: '',
+        images: [],
+        files: [],
+      }))
       setCaret(0)
     } catch (error) {
       showError(error)
@@ -217,18 +235,27 @@ export function Composer() {
         )
         continue
       }
-      setUploads((count) => count + 1)
-      try {
-        const path = await uploadFile(machine, file)
-        editDraft(key, (current) => ({
-          ...current,
-          text: `${current.text}${/(^|\s)$/.test(current.text) ? '' : ' '}@${path} `,
-        }))
-      } catch (error) {
-        showError(error)
-      } finally {
-        setUploads((count) => count - 1)
+      if (file.size > UPLOAD_LIMIT) {
+        showError(new Error(`${file.name} is larger than 50 MB`))
+        continue
       }
+      const id = await saveDraftFile(file)
+      const number =
+        Math.max(0, ...getDraft(key).files.map((item) => item.number)) + 1
+      const attached = { number, id, name: file.name }
+      const at = position
+      const marker = `${space}${fileMarker(attached)} `
+      space = ''
+      editDraft(key, (current) => ({
+        ...current,
+        text: `${current.text.slice(0, at)}${marker}${current.text.slice(at)}`,
+        files: [...current.files, attached],
+      }))
+      position += marker.length
+      setCaret(position)
+      requestAnimationFrame(() =>
+        input.current?.setSelectionRange(position, position)
+      )
     }
   }
 
@@ -411,7 +438,7 @@ export function Composer() {
                   event.target.value = ''
                 }}
               />
-              {uploads > 0 && (
+              {sending && attachedFiles.length > 0 && (
                 <span className="text-muted-foreground text-xs">
                   Uploading…
                 </span>
@@ -443,6 +470,10 @@ export function Composer() {
       </Wrapper>
     </div>
   )
+}
+
+function fileMarker(file: { number: number; name: string }) {
+  return `[File #${file.number}: ${file.name}]`
 }
 
 function lastUserText(items: Item[]) {
