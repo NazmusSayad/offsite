@@ -54,6 +54,7 @@ export class CodexRun implements ThreadListener {
   prompted = false
   compacting = false
   backgroundTasks = 0
+  backgroundAgents = 0
   tasks: Record<string, TaskStatus> = {}
   activeAt = Date.now()
   private readonly model: string

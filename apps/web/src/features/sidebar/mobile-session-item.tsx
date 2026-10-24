@@ -1,6 +1,4 @@
 import {
-  CircleCheckIcon,
-  CircleDashedIcon,
   Delete02Icon,
   MaximizeIcon,
   MinimizeIcon,
@@ -9,7 +7,6 @@ import {
   PinOffIcon,
   Plug01Icon,
   PlugZapIcon,
-  ShieldQuestionMarkIcon,
   SquarePenIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -43,6 +40,7 @@ import {
 } from '@/lib/sessions'
 import { machineOf, type MachineSession, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { SessionStatus } from './session-status'
 
 const surface =
   'relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none touch-pan-y [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
@@ -74,11 +72,11 @@ export function MobileSessionItem(props: {
   const swipe = useRef<{ x: number; y: number; swiping: boolean } | null>(null)
   const swiped = useRef(false)
   const waiting = props.activity?.waiting === true
-  const turning = !waiting && props.activity?.running === true
   const backgroundRunning = Object.values(props.activity?.tasks ?? {}).includes(
     'running'
   )
-  const working = turning || (!waiting && backgroundRunning)
+  const working =
+    !waiting && (props.activity?.running === true || backgroundRunning)
   const busy = props.activity?.running === true || backgroundRunning
   const done = !waiting && !working && props.unseen
   const recede = !props.selected && !waiting && !done
@@ -388,39 +386,11 @@ export function MobileSessionItem(props: {
                     className="text-muted-foreground/65 size-3 shrink-0"
                   />
                 )}
-                {working && (
-                  <span
-                    title={turning ? 'Working' : 'Running in background'}
-                    className={cn(
-                      'flex',
-                      turning ? 'text-info' : 'text-muted-foreground'
-                    )}
-                  >
-                    <HugeiconsIcon
-                      icon={CircleDashedIcon}
-                      className="size-4 shrink-0 animate-spin"
-                    />
-                  </span>
-                )}
-                {waiting && (
-                  <span
-                    title="Waiting for approval"
-                    className="text-question flex"
-                  >
-                    <HugeiconsIcon
-                      icon={ShieldQuestionMarkIcon}
-                      className="size-4 shrink-0"
-                    />
-                  </span>
-                )}
-                {done && (
-                  <span title="Done" className="text-success flex">
-                    <HugeiconsIcon
-                      icon={CircleCheckIcon}
-                      className="size-4 shrink-0"
-                    />
-                  </span>
-                )}
+                <SessionStatus
+                  activity={props.activity}
+                  backgroundRunning={backgroundRunning}
+                  done={done}
+                />
               </div>
               <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
                 <HugeiconsIcon icon={machineIcon} className="size-3 shrink-0" />

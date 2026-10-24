@@ -106,6 +106,7 @@ export default defineConfig({
     },
     {
       files: ['**/*.astro'],
+      env: { browser: true },
       globals: { Astro: 'readonly' },
       rules: {
         'oxfmt/oxfmt': 'off',

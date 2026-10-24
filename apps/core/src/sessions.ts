@@ -42,7 +42,10 @@ export type TaskStatus = 'running' | 'completed' | 'failed' | 'stopped'
 export type SessionActivity = {
   running: boolean
   waiting: boolean
+  approval: boolean
+  question: boolean
   prompted: boolean
   compacting: boolean
+  backgroundAgent: boolean
   tasks: Record<string, TaskStatus>
 }

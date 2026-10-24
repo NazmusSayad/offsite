@@ -52,6 +52,7 @@ export class OpenCodeRun {
   prompted = false
   compacting = false
   backgroundTasks = 0
+  backgroundAgents = 0
   tasks: Record<string, TaskStatus> = {}
   private readonly close: () => void
   private applied: SessionSettings

@@ -55,6 +55,7 @@ export class Run {
   prompted = false
   compacting = false
   backgroundTasks = 0
+  backgroundAgents = 0
   tasks: Record<string, TaskStatus> = {}
   private readonly inbox: SDKUserMessage[] = []
   private wake: (() => void) | null = null
@@ -338,6 +339,9 @@ export class Run {
           case 'background_tasks_changed': {
             const live = message.tasks.filter((task) => task.ambient !== true)
             this.backgroundTasks = live.length
+            this.backgroundAgents = live.filter(
+              (task) => task.task_type === 'local_agent'
+            ).length
             this.tasks = {
               ...Object.fromEntries(
                 Object.entries(this.tasks).filter(

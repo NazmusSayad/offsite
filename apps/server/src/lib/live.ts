@@ -14,8 +14,16 @@ export function activity() {
     result[run.sessionId] = {
       running: run.running,
       waiting: run.pending.size > 0,
+      approval: [...run.pending.values()].some(
+        (pending) =>
+          pending.request.kind === 'approval' || pending.request.kind === 'plan'
+      ),
+      question: [...run.pending.values()].some(
+        (pending) => pending.request.kind === 'question'
+      ),
       prompted: run.prompted,
       compacting: run.compacting,
+      backgroundAgent: run.backgroundAgents > 0,
       tasks: run.tasks,
     }
   }

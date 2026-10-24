@@ -120,12 +120,14 @@
   --border: color-mix(in srgb, var(--text) 6%, transparent);
   --input: color-mix(in srgb, var(--text) 10%, transparent);
   --ring: color-mix(in srgb, var(--text) 30%, transparent);
+
   --info: var(--blue);
   --info-foreground: var(--blue);
+  --question: #d2a86b;
+
   --success: var(--green);
   --warning: var(--yellow);
   --warning-foreground: var(--yellow);
-  --question: color-mix(in srgb, var(--blue) 65%, var(--text));
   --sidebar: color-mix(in srgb, var(--bg) 86%, black);
   --sidebar-foreground: var(--foreground);
   --sidebar-muted-foreground: var(--muted-foreground);
