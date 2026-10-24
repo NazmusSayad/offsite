@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, statSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import path from 'node:path'
 import type { IPty } from '@lydell/node-pty'
 import {
@@ -19,8 +18,9 @@ import {
   type TerminalTab,
 } from '@offsite/core/terminal'
 import type { Client } from '../../lib/hub.ts'
+import { platform, readConfig } from '../../storage/config.ts'
 import { home } from '../../storage/storage.ts'
-import { projectPath } from '../projects.ts'
+import { expandHome, projectPath } from '../projects.ts'
 import { notifierClient, pushActive, sendPush } from '../push.ts'
 import { ALERT_DELAY, type Alert, Alerts, Scanner } from './alerts.ts'
 import { busyProgram, currentDirectory, startShell } from './process.ts'
@@ -268,7 +268,9 @@ function input(connection: Connection, bytes: Buffer) {
 
 async function createTab(projectId: string) {
   const cwd =
-    projectId === GLOBAL_TERMINALS ? homedir() : projectPath(projectId)
+    projectId === GLOBAL_TERMINALS
+      ? expandHome(readConfig().workingDir[platform()] ?? '~')
+      : projectPath(projectId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
     console.error(`${cwd} is not a folder, terminal not created`)
     return
