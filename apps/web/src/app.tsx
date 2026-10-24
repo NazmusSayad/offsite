@@ -40,6 +40,7 @@ import {
   setOpen as setTerminal,
   subscribe as subscribeTerminal,
 } from '@/features/terminal/session'
+import { TerminalPage } from '@/features/terminal/terminal-page'
 import { Transcript } from '@/features/transcript/transcript'
 import { MobileLayout } from '@/features/workspace/mobile'
 import {
@@ -56,7 +57,7 @@ import {
   selectedRunning,
   useStore,
 } from '@/lib/store'
-import { currentSearch, replaceSearch } from '@/lib/url'
+import { currentSearch, replaceSearch, useTerminalPage } from '@/lib/url'
 import { cn, drag, mod } from '@/lib/utils'
 
 const wide = window.matchMedia('(min-width: 768px)')
@@ -69,6 +70,7 @@ function subscribeWide(listener: () => void) {
 
 export function App() {
   const desktop = useSyncExternalStore(subscribeWide, () => wide.matches)
+  const page = useTerminalPage()
   useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
     enableOnFormTags: true,
     preventDefault: true,
@@ -76,7 +78,8 @@ export function App() {
 
   return (
     <div className="flex h-dvh text-sm">
-      {desktop ? <DesktopLayout /> : <MobileLayout />}
+      {page !== null && <TerminalPage machine={page} />}
+      {page === null && (desktop ? <DesktopLayout /> : <MobileLayout />)}
       <Palette />
       {desktop ? <SettingsDialog /> : <MobileSettings />}
       <div

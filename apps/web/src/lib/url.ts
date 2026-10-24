@@ -1,8 +1,30 @@
+import { useParams } from '@tanstack/react-router'
 import { router, type Search } from './router'
-import { getState, projectOf, type Selection } from './store'
+import { getState, projectOf, type Selection, useStore } from './store'
 
 export function currentSearch() {
   return router.parseLocation(router.history.location).search
+}
+
+export function terminalPage() {
+  const match = /^\/terminal\/([^/]+)$/.exec(router.history.location.pathname)
+  if (match === null) {
+    return null
+  }
+  const machine = decodeURIComponent(match[1])
+  return getState().machines.some((item) => item.id === machine)
+    ? machine
+    : null
+}
+
+export function useTerminalPage() {
+  const machine = useParams({
+    strict: false,
+    select: (params) => params.machine ?? null,
+  })
+  return useStore((state) =>
+    state.machines.some((item) => item.id === machine) ? machine : null
+  )
 }
 
 export function selectionFromUrl(machines: string[]): Selection | null {
@@ -83,6 +105,15 @@ export function syncUrl() {
     project: selection.projectId,
     session: selection.sessionId ?? undefined,
   }
+  if (terminalPage() !== null) {
+    void router.navigate({
+      to: '/',
+      search: next,
+      state: { layer: 'chat' },
+      resetScroll: false,
+    })
+    return
+  }
   if (currentSearch().machine === undefined) {
     pushSearch(next, 'chat')
     return
@@ -95,6 +126,18 @@ function navigate(
   replace: boolean,
   layer: 'chat' | 'overlay' | undefined
 ) {
+  const machine = terminalPage()
+  if (machine !== null) {
+    void router.navigate({
+      to: '/terminal/$machine',
+      params: { machine },
+      search,
+      replace,
+      state: { layer },
+      resetScroll: false,
+    })
+    return
+  }
   void router.navigate({
     to: '/',
     search,

@@ -2,6 +2,7 @@ import {
   FRAME_INPUT,
   FRAME_REPLAY,
   FRAME_REPLY,
+  GLOBAL_TERMINALS,
   type TerminalEvent,
   type TerminalLayout,
   type TerminalRequest,
@@ -15,13 +16,18 @@ import {
   Terminal,
 } from '@/lib/ghostty/terminal'
 import { router } from '@/lib/router'
-import { openSession } from '@/lib/sessions'
+import { openSession, openTerminalPage } from '@/lib/sessions'
 import {
   getState as appState,
   machineOf,
   subscribe as subscribeApp,
 } from '@/lib/store'
-import { currentSearch, leaveLayer, replaceSearch } from '@/lib/url'
+import {
+  currentSearch,
+  leaveLayer,
+  replaceSearch,
+  terminalPage,
+} from '@/lib/url'
 import { errorMessage, isMac } from '@/lib/utils'
 import {
   forgetTab,
@@ -103,6 +109,7 @@ export async function startTerminal() {
     },
   })
   followSelection()
+  router.history.subscribe(followSelection)
   document.addEventListener('visibilitychange', () => setState({}))
   window.addEventListener('focus', () => {
     setState({})
@@ -139,7 +146,7 @@ export async function startTerminal() {
 }
 
 function followSelection() {
-  const target = appState().selection?.machine ?? null
+  const target = terminalPage() ?? appState().selection?.machine ?? null
   if (target !== machine) {
     if (machine !== null && attached) {
       send({ type: 'detach' })
@@ -224,7 +231,8 @@ export function terminalConfig() {
 }
 
 export function currentProject() {
-  const projectId = appState().selection?.projectId
+  const projectId =
+    terminalPage() === null ? appState().selection?.projectId : GLOBAL_TERMINALS
   if (projectId === undefined) {
     return null
   }
@@ -253,18 +261,22 @@ export function setOpen(open: boolean) {
 }
 
 function followUrl() {
-  const open = currentSearch().bottom === 'terminal'
+  const open = currentSearch().bottom === 'terminal' || terminalPage() !== null
   if (open !== state.open) {
     setState({ open })
   }
 }
 
 function showTab(target: string, projectId: string, tabId: number) {
-  const selection = appState().selection
-  if (selection?.machine !== target || selection.projectId !== projectId) {
-    openSession({ machine: target, projectId, sessionId: null })
+  if (projectId === GLOBAL_TERMINALS) {
+    openTerminalPage(target)
+  } else {
+    const selection = appState().selection
+    if (selection?.machine !== target || selection.projectId !== projectId) {
+      openSession({ machine: target, projectId, sessionId: null })
+    }
+    setOpen(true)
   }
-  setOpen(true)
   send({ type: 'select', projectId, tabId })
 }
 
@@ -461,8 +473,9 @@ async function applyConfig() {
 
 function selectLinkedTab() {
   const search = currentSearch()
-  const target = search.machine
-  const projectId = search.project
+  const page = terminalPage()
+  const target = page ?? search.machine
+  const projectId = page === null ? search.project : GLOBAL_TERMINALS
   const tabId = search.terminal
   if (target === undefined || projectId === undefined || tabId === undefined) {
     return

@@ -31,8 +31,13 @@ const indexRoute = createRoute({
   path: '/',
 })
 
+const terminalRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/terminal/$machine',
+})
+
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([indexRoute]),
+  routeTree: rootRoute.addChildren([indexRoute, terminalRoute]),
   disableGlobalCatchBoundary: true,
   parseSearch: (value) =>
     searchSchema.parse(Object.fromEntries(new URLSearchParams(value))),

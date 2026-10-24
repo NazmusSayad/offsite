@@ -4,6 +4,7 @@ import {
   Plug01Icon,
   PlugZapIcon,
   Settings01Icon,
+  SquareTerminalIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
@@ -23,6 +24,7 @@ export function MobileMenu(props: {
   className: string
   filter: ThreadFilter
   onFilter: (filter: ThreadFilter) => void
+  onTerminal: () => void
 }) {
   return (
     <DropdownMenu>
@@ -52,6 +54,10 @@ export function MobileMenu(props: {
           ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={props.onTerminal}>
+          <HugeiconsIcon icon={SquareTerminalIcon} />
+          Terminal
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => showSettings(true)}>
           <HugeiconsIcon icon={Settings01Icon} />
           Settings

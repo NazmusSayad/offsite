@@ -1,3 +1,4 @@
+import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import { clientsClaim } from 'workbox-core'
 import {
   cleanupOutdatedCaches,
@@ -157,7 +158,7 @@ async function openTarget(target) {
   })
   const page = windows[0]
   if (!page) {
-    await self.clients.openWindow(target ? `/?${targetParams(target)}` : '/')
+    await self.clients.openWindow(targetUrl(target))
     return
   }
   if (target?.kind === 'terminal') {
@@ -177,6 +178,16 @@ async function openTarget(target) {
     })
   }
   await page.focus()
+}
+
+function targetUrl(target) {
+  if (!target) {
+    return '/'
+  }
+  if (target.kind === 'terminal' && target.project === GLOBAL_TERMINALS) {
+    return `/terminal/${encodeURIComponent(target.machine)}?terminal=${target.tabId}`
+  }
+  return `/?${targetParams(target)}`
 }
 
 function targetParams(target) {

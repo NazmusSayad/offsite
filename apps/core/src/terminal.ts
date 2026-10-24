@@ -8,6 +8,8 @@ export type TerminalProject = { tabs: TerminalTab[]; activeTab: number | null }
 
 export type TerminalLayout = Record<string, TerminalProject>
 
+export const GLOBAL_TERMINALS = 'global'
+
 export type TerminalRequest =
   | { type: 'attach' }
   | { type: 'detach' }

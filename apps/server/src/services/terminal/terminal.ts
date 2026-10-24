@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, statSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import path from 'node:path'
 import type { IPty } from '@lydell/node-pty'
 import {
@@ -10,6 +11,7 @@ import {
   FRAME_OUTPUT,
   FRAME_REPLAY,
   FRAME_REPLY,
+  GLOBAL_TERMINALS,
   type TerminalEvent,
   type TerminalLayout,
   type TerminalProject,
@@ -265,7 +267,8 @@ function input(connection: Connection, bytes: Buffer) {
 }
 
 async function createTab(projectId: string) {
-  const cwd = projectPath(projectId)
+  const cwd =
+    projectId === GLOBAL_TERMINALS ? homedir() : projectPath(projectId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
     console.error(`${cwd} is not a folder, terminal not created`)
     return

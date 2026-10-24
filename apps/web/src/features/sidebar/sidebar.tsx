@@ -4,6 +4,7 @@ import {
   SearchIcon,
   Settings01Icon,
   SquarePenIcon,
+  SquareTerminalIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useState } from 'react'
@@ -27,7 +28,7 @@ import {
 } from '@/features/sidebar/project-dialogs'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
 import { StatusChips } from '@/features/sidebar/status-chips'
-import { openSession } from '@/lib/sessions'
+import { openSession, openTerminalPage } from '@/lib/sessions'
 import {
   activityOf,
   getState,
@@ -177,6 +178,10 @@ export function Sidebar(
     return { machine: project.machine, projectId: project.id }
   }
 
+  function openTerminal() {
+    openTerminalPage(selection?.machine ?? machines[0].id)
+  }
+
   useHotkeys(['mod+n', 'mod+t'], startThread, {
     enableOnFormTags: true,
     preventDefault: true,
@@ -262,6 +267,7 @@ export function Sidebar(
               className={cn(iconButton, 'size-7')}
               filter={filter}
               onFilter={setFilter}
+              onTerminal={openTerminal}
             />
           ) : (
             <button
@@ -358,19 +364,34 @@ export function Sidebar(
           </ul>
         </nav>
         {!props.mobile && (
-          <div className="border-sidebar-border @container flex shrink-0 items-center gap-1 border-t p-(--sidebar-content-inset)">
-            <button
-              className={cn(
-                iconButton,
-                'h-8 flex-1 justify-start gap-2 px-2.5 text-sm'
-              )}
-              title="Settings"
-              onClick={() => showSettings(true)}
-            >
-              <HugeiconsIcon icon={Settings01Icon} />
-              <span className="hidden @min-[15rem]:inline">Settings</span>
-            </button>
-            <StatusChips hideDone={false} />
+          <div className="border-sidebar-border @container flex shrink-0 flex-col gap-px border-t p-(--sidebar-content-inset)">
+            {machines.length > 0 && (
+              <button
+                className={cn(
+                  iconButton,
+                  'h-8 justify-start gap-2 px-2.5 text-sm'
+                )}
+                title="Terminal"
+                onClick={openTerminal}
+              >
+                <HugeiconsIcon icon={SquareTerminalIcon} />
+                Terminal
+              </button>
+            )}
+            <div className="flex items-center gap-1">
+              <button
+                className={cn(
+                  iconButton,
+                  'h-8 flex-1 justify-start gap-2 px-2.5 text-sm'
+                )}
+                title="Settings"
+                onClick={() => showSettings(true)}
+              >
+                <HugeiconsIcon icon={Settings01Icon} />
+                <span className="hidden @min-[15rem]:inline">Settings</span>
+              </button>
+              <StatusChips hideDone={false} />
+            </div>
           </div>
         )}
         {!props.mobile && (

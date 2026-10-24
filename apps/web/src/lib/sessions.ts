@@ -5,6 +5,7 @@ import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { deleteDraft, getDraftSettings } from '@/features/composer/drafts'
 import { providerSettings, refreshCapabilities, setAccounts } from './accounts'
+import { router } from './router'
 import {
   draftKey,
   getState,
@@ -14,7 +15,7 @@ import {
   showError,
   update,
 } from './store'
-import { syncUrl } from './url'
+import { syncUrl, terminalPage } from './url'
 export function openSession(selection: Selection) {
   const machine = machineOf(getState(), selection.machine)
   localStorage.setItem(
@@ -106,6 +107,22 @@ export function closeSession() {
     context: null,
   })
   syncUrl()
+}
+
+export function openTerminalPage(machine: string) {
+  const current = terminalPage()
+  if (current === machine) {
+    return
+  }
+  void router.navigate({
+    to: '/terminal/$machine',
+    params: { machine },
+    search: {},
+    replace: current !== null,
+    state: { layer: 'chat' },
+    resetScroll: false,
+  })
+  closeSession()
 }
 
 export async function sendPrompt(prompt: Prompt, delivery: PromptDelivery) {

@@ -56,7 +56,11 @@ const keys = [
   { label: '→', sequence: '\x1b[C' },
 ]
 
-export function TerminalPanel(props: { projectId: string }) {
+export function TerminalPanel(props: {
+  projectId: string
+  leading?: ReactNode
+  tabSize?: 'default' | 'lg'
+}) {
   const state = useSyncExternalStore(subscribe, getState)
   const [renaming, setRenaming] = useState<{
     id: number
@@ -90,9 +94,20 @@ export function TerminalPanel(props: { projectId: string }) {
       <header
         className={cn(
           'flex h-9 flex-none select-none',
+          props.tabSize === 'lg' && 'h-10',
           visibleTabs.length === 1 ? 'bg-background' : 'bg-sidebar'
         )}
       >
+        {props.leading !== undefined && (
+          <div
+            className={cn(
+              'flex flex-none items-center gap-2 px-1.5',
+              visibleTabs.length > 1 && 'border-r border-b'
+            )}
+          >
+            {props.leading}
+          </div>
+        )}
         {minimizedTabs.length > 0 && (
           <MinimizedTabs
             projectId={props.projectId}
@@ -118,6 +133,7 @@ export function TerminalPanel(props: { projectId: string }) {
               <div
                 className={cn(
                   'group/tab text-muted-foreground hover:text-foreground relative flex min-w-28 flex-1 items-center justify-center border-r border-b px-7 text-xs transition-colors last:border-r-0',
+                  props.tabSize === 'lg' && 'text-[13px]',
                   tab.id === tabId &&
                     'bg-background text-foreground border-b-transparent'
                 )}
@@ -173,6 +189,18 @@ export function TerminalPanel(props: { projectId: string }) {
         )}
         {tabId !== null && state.finding === tabId && (
           <FindBar key={tabId} id={tabId} />
+        )}
+        {active && project !== undefined && project.tabs.length === 0 && (
+          <div className="grid h-full place-items-center">
+            <Button
+              variant="secondary"
+              onClick={() =>
+                send({ type: 'createTab', projectId: props.projectId })
+              }
+            >
+              New terminal
+            </Button>
+          </div>
         )}
         {!active && (
           <div className="bg-background/80 animate-in fade-in absolute inset-0 z-20 grid place-items-center p-6 text-center backdrop-blur-md duration-200">
