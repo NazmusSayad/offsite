@@ -183,6 +183,9 @@ function DesktopLayout() {
     preventDefault: true,
   })
   useEffect(() => {
+    if (page !== null) {
+      return
+    }
     const element = column.current
     if (element === null) {
       throw new Error('chat column is not mounted')
@@ -192,7 +195,7 @@ function DesktopLayout() {
     )
     observer.observe(element)
     return () => observer.disconnect()
-  }, [])
+  }, [page])
 
   const toggles =
     selection === null ? null : (

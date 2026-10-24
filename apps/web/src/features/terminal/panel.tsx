@@ -191,16 +191,14 @@ export function TerminalPanel(props: {
           <FindBar key={tabId} id={tabId} />
         )}
         {active && project !== undefined && project.tabs.length === 0 && (
-          <div className="grid h-full place-items-center">
-            <Button
-              variant="secondary"
-              onClick={() =>
-                send({ type: 'createTab', projectId: props.projectId })
-              }
-            >
-              New terminal
-            </Button>
-          </div>
+          <button
+            className="text-muted-foreground hover:text-foreground grid size-full cursor-pointer place-items-center text-xs transition-colors"
+            onClick={() =>
+              send({ type: 'createTab', projectId: props.projectId })
+            }
+          >
+            New terminal
+          </button>
         )}
         {!active && (
           <div className="bg-background/80 animate-in fade-in absolute inset-0 z-20 grid place-items-center p-6 text-center backdrop-blur-md duration-200">
