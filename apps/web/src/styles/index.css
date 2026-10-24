@@ -81,7 +81,7 @@
   --bg: #15181c;
   --text: #abb2bf;
   --blue: #61afef;
-  --brand: color-mix(in srgb, var(--text) 25%, white);
+  --brand: #0078d4;
   --danger: #ee5d69;
   --green: #97c775;
   --yellow: #b68353;
@@ -107,7 +107,7 @@
   --popover-foreground: var(--text);
   --surface-raised: color-mix(in srgb, var(--bg) 96%, var(--text));
   --primary: var(--brand);
-  --primary-foreground: var(--bg);
+  --primary-foreground: white;
   --secondary: color-mix(in srgb, var(--bg) 93%, var(--text));
   --secondary-foreground: var(--text);
   --muted: color-mix(in srgb, var(--bg) 93%, var(--text));
