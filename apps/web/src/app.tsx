@@ -70,7 +70,6 @@ function subscribeWide(listener: () => void) {
 
 export function App() {
   const desktop = useSyncExternalStore(subscribeWide, () => wide.matches)
-  const page = useTerminalPage()
   useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
     enableOnFormTags: true,
     preventDefault: true,
@@ -78,8 +77,7 @@ export function App() {
 
   return (
     <div className="flex h-dvh text-sm">
-      {page !== null && <TerminalPage machine={page} />}
-      {page === null && (desktop ? <DesktopLayout /> : <MobileLayout />)}
+      {desktop ? <DesktopLayout /> : <MobileLayout />}
       <Palette />
       {desktop ? <SettingsDialog /> : <MobileSettings />}
       <div
@@ -104,6 +102,7 @@ function setPanel(next: Panel | null) {
 function DesktopLayout() {
   const selection = useStore((state) => state.selection)
   const sessions = useStore((state) => state.sessions)
+  const page = useTerminalPage()
   const cwd = useStore((state) =>
     state.selection === null
       ? ''
@@ -210,6 +209,34 @@ function DesktopLayout() {
         onTerminal={setTerminal}
       />
     )
+
+  if (page !== null) {
+    return (
+      <>
+        <Sidebar
+          className={cn('relative', !sidebar && 'hidden')}
+          mobile={false}
+          onHide={() => setSidebar(false)}
+        />
+        <TerminalPage
+          machine={page}
+          leading={
+            !sidebar && (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Show sidebar"
+                title={`Show sidebar (${mod}+B)`}
+                onClick={() => setSidebar(true)}
+              >
+                <HugeiconsIcon icon={PanelLeftIcon} />
+              </Button>
+            )
+          }
+        />
+      </>
+    )
+  }
 
   return (
     <>

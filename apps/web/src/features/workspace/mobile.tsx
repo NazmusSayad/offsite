@@ -20,9 +20,10 @@ import {
   getState as terminalState,
   subscribe as subscribeTerminal,
 } from '@/features/terminal/session'
+import { TerminalPage } from '@/features/terminal/terminal-page'
 import { Transcript } from '@/features/transcript/transcript'
 import { type Panel, PanelMenu, PanelView } from '@/features/workspace/panels'
-import type { Search } from '@/lib/router'
+import { router, type Search } from '@/lib/router'
 import { closeSession } from '@/lib/sessions'
 import {
   machineOf,
@@ -31,12 +32,42 @@ import {
   selectedRunning,
   useStore,
 } from '@/lib/store'
-import { leaveLayer, pushSearch, replaceSearch } from '@/lib/url'
+import {
+  leaveLayer,
+  pushSearch,
+  replaceSearch,
+  useTerminalPage,
+} from '@/lib/url'
 
 export function MobileLayout() {
   const selection = useStore((state) => state.selection)
   const hasMachine = useStore((state) => state.machines.length > 0)
+  const page = useTerminalPage()
 
+  if (page !== null) {
+    return (
+      <TerminalPage
+        machine={page}
+        leading={
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Back"
+            title="Back"
+            onClick={() =>
+              leaveLayer(
+                'chat',
+                () =>
+                  void router.navigate({ to: '/', search: {}, replace: true })
+              )
+            }
+          >
+            <HugeiconsIcon icon={ArrowLeft01Icon} />
+          </Button>
+        }
+      />
+    )
+  }
   if (selection !== null) {
     return <MobileChat selection={selection} />
   }
