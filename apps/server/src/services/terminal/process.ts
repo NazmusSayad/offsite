@@ -5,6 +5,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { spawn } from '@lydell/node-pty'
 import { defaultShell, platform, readConfig } from '../../storage/config.ts'
+import { findWindowsProgram } from './find-program.ts'
 import { prepare } from './shell-integration.ts'
 
 const run = promisify(execFile)
@@ -22,7 +23,7 @@ export function startShell(cwd: string) {
   let args: string[]
   if (process.platform === 'win32') {
     Object.assign(env, process.env)
-    file = options.command ?? defaultShell()
+    file = findWindowsProgram(options.command ?? defaultShell())
     args = []
   } else {
     for (const name of ['HOME', 'USER', 'LOGNAME', 'TMPDIR', 'SSH_AUTH_SOCK']) {
