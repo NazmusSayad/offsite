@@ -18,9 +18,9 @@ import {
   type TerminalTab,
 } from '@offsite/core/terminal'
 import type { Client } from '../../lib/hub.ts'
-import { platform, readConfig } from '../../storage/config.ts'
+import { workingDirectory } from '../../storage/config.ts'
 import { home } from '../../storage/storage.ts'
-import { expandHome, projectPath } from '../projects.ts'
+import { projectPath } from '../projects.ts'
 import { notifierClient, pushActive, sendPush } from '../push.ts'
 import { ALERT_DELAY, type Alert, Alerts, Scanner } from './alerts.ts'
 import { busyProgram, currentDirectory, startShell } from './process.ts'
@@ -268,9 +268,7 @@ function input(connection: Connection, bytes: Buffer) {
 
 async function createTab(projectId: string) {
   const cwd =
-    projectId === GLOBAL_TERMINALS
-      ? expandHome(readConfig().workingDir[platform()] ?? '~')
-      : projectPath(projectId)
+    projectId === GLOBAL_TERMINALS ? workingDirectory() : projectPath(projectId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
     console.error(`${cwd} is not a folder, terminal not created`)
     return
@@ -282,7 +280,10 @@ async function createTab(projectId: string) {
   let directory = cwd
   if (active !== undefined) {
     try {
-      directory = await currentDirectory(active.pty.pid)
+      directory = await currentDirectory(
+        active.pty.pid,
+        active.scanner.directory
+      )
     } catch (error) {
       console.warn(
         `starting in the project folder, could not read the folder of the active terminal: ${error}`
@@ -413,12 +414,8 @@ function drain() {
 }
 
 function scan(id: number, terminal: Terminal, data: Buffer) {
-  if (!pushActive()) {
-    terminal.scanner = new Scanner()
-    return
-  }
   const alert = terminal.scanner.scan(data)
-  if (alert === null || notifierWatching()) {
+  if (!pushActive() || alert === null || notifierWatching()) {
     return
   }
   const started =

@@ -14,6 +14,7 @@ const SUB = 0x1a
 
 export class Scanner {
   title = ''
+  directory: string | null = null
   private state:
     | 'ground'
     | 'escape'
@@ -119,6 +120,10 @@ export class Scanner {
     const text = Buffer.from(this.payload).toString('utf8')
     if (text.startsWith('0;') || text.startsWith('2;')) {
       this.title = text.slice(2)
+      return null
+    }
+    if (text.startsWith('9;9;')) {
+      this.directory = text.slice(4).replace(/^"(.*)"$/, '$1')
       return null
     }
     if (text.startsWith('9;')) {

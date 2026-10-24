@@ -154,7 +154,7 @@ function checkLogo(logo: string) {
   }
 }
 
-export function expandHome(input: string) {
+function expandHome(input: string) {
   if (input === '~') {
     return os.homedir()
   }

@@ -141,6 +141,11 @@ export function claudeBaseDir() {
   )
 }
 
+export function workingDirectory() {
+  const dir = readConfig().workingDir[platform()] ?? '~'
+  return dir.startsWith('~') ? path.join(os.homedir(), dir.slice(1)) : dir
+}
+
 export function defaultShell() {
   if (process.platform === 'win32') {
     return process.env.COMSPEC ?? 'cmd.exe'

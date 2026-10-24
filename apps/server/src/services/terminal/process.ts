@@ -60,7 +60,7 @@ export function startShell(cwd: string) {
   })
 }
 
-export async function currentDirectory(pid: number) {
+export async function currentDirectory(pid: number, reported: string | null) {
   if (process.platform === 'linux') {
     return readlink(`/proc/${pid}/cwd`)
   }
@@ -78,6 +78,17 @@ export async function currentDirectory(pid: number) {
       throw new Error(`lsof found no folder for ${pid}`)
     }
     return line.slice(1)
+  }
+  if (process.platform === 'win32') {
+    if (
+      reported === null ||
+      !statSync(reported, { throwIfNoEntry: false })?.isDirectory()
+    ) {
+      throw new Error(
+        `the shell reported no existing folder, it reported ${reported}`
+      )
+    }
+    return reported
   }
   throw new Error(
     'reading the directory of another process is not supported on this platform'
