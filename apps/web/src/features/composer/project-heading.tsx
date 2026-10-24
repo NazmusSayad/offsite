@@ -1,10 +1,14 @@
+import { HugeiconsIcon } from '@hugeicons/react'
+import { Fragment } from 'react'
 import { machineKey } from '@/api/machines'
-import { ProjectIcon } from '@/components/icons'
+import { machineIcons, ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { openSession } from '@/lib/sessions'
@@ -46,43 +50,50 @@ export function ProjectHeading(props: {
               <DropdownMenuRadioGroup
                 value={machineKey(props.machine, props.projectId)}
               >
-                {[...projects]
-                  .sort(
-                    (a, b) =>
-                      machines.findIndex((item) => item.id === a.machine) -
-                      machines.findIndex((item) => item.id === b.machine)
-                  )
-                  .map((item) => (
-                    <DropdownMenuRadioItem
-                      key={machineKey(item.machine, item.id)}
-                      value={machineKey(item.machine, item.id)}
-                      title={item.path}
-                      onSelect={() =>
-                        openSession({
-                          machine: item.machine,
-                          projectId: item.id,
-                          sessionId: null,
-                        })
-                      }
-                    >
-                      <ProjectIcon
-                        machine={item.machine}
-                        projectId={item.id}
-                        className="size-4 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
-                      />
-                      <span className="min-w-0 flex-1 truncate">
-                        {item.name}
-                        {machines.length > 1 && (
-                          <span className="text-muted-foreground ml-1.5 text-xs">
-                            {
-                              machines.find(
-                                (other) => other.id === item.machine
-                              )?.name
-                            }
+                {machines
+                  .map((machine) => ({
+                    machine,
+                    items: projects.filter(
+                      (item) => item.machine === machine.id
+                    ),
+                  }))
+                  .filter((group) => group.items.length > 0)
+                  .map(({ machine, items }, index) => (
+                    <Fragment key={machine.id}>
+                      {index > 0 && <DropdownMenuSeparator />}
+                      {machines.length > 1 && (
+                        <DropdownMenuLabel className="text-2xs flex items-center gap-1">
+                          <HugeiconsIcon
+                            icon={machineIcons[machine.icon]}
+                            className="size-3 shrink-0"
+                          />
+                          <span className="truncate">{machine.name}</span>
+                        </DropdownMenuLabel>
+                      )}
+                      {items.map((item) => (
+                        <DropdownMenuRadioItem
+                          key={machineKey(item.machine, item.id)}
+                          value={machineKey(item.machine, item.id)}
+                          title={item.path}
+                          onSelect={() =>
+                            openSession({
+                              machine: item.machine,
+                              projectId: item.id,
+                              sessionId: null,
+                            })
+                          }
+                        >
+                          <ProjectIcon
+                            machine={item.machine}
+                            projectId={item.id}
+                            className="size-4 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
+                          />
+                          <span className="min-w-0 flex-1 truncate">
+                            {item.name}
                           </span>
-                        )}
-                      </span>
-                    </DropdownMenuRadioItem>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </Fragment>
                   ))}
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
