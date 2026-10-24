@@ -14,7 +14,7 @@ export function TerminalPage(props: { machine: string; leading: ReactNode }) {
             {props.leading}
             <MachineSwitcher
               machine={props.machine}
-              className="text-muted-foreground enabled:hover:text-foreground max-w-48 px-1.5 text-[13px]"
+              className="text-muted-foreground enabled:hover:text-foreground max-w-48 px-3 text-[13px]"
             />
           </>
         }

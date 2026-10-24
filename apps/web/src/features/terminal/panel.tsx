@@ -94,7 +94,7 @@ export function TerminalPanel(props: {
       <header
         className={cn(
           'flex h-9 flex-none select-none',
-          props.tabSize === 'lg' && 'h-10',
+          props.tabSize === 'lg' && 'h-(--workspace-topbar-height)',
           visibleTabs.length === 1 ? 'bg-background' : 'bg-sidebar'
         )}
       >
