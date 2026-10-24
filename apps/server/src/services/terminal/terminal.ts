@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, statSync, writeFileSync } from 'node:fs'
-import path from 'node:path'
+import { statSync } from 'node:fs'
 import type { IPty } from '@lydell/node-pty'
 import {
   type BusyResult,
@@ -19,7 +18,6 @@ import {
 } from '@offsite/core/terminal'
 import type { Client } from '../../lib/hub.ts'
 import { workingDirectory } from '../../storage/config.ts'
-import { home } from '../../storage/storage.ts'
 import { projectPath } from '../projects.ts'
 import { notifierClient, pushActive, sendPush } from '../push.ts'
 import { ALERT_DELAY, type Alert, Alerts, Scanner } from './alerts.ts'
@@ -44,12 +42,6 @@ const OUTPUT_LIMIT = 1024 * 1024
 const STALL_LIMIT = 10_000
 const SILENCE_LIMIT = 90_000
 const KILL_DELAY = 3000
-const pasteTypes: Record<string, string> = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/gif': 'gif',
-  'image/webp': 'webp',
-}
 
 const instance = `${Date.now()}-${randomUUID()}`
 const projects = new Map<string, TerminalProject>()
@@ -126,21 +118,6 @@ export function closeProjectTabs(projectId: string) {
     closeTab(tab.id)
   }
   publish()
-}
-
-export function savePastedImage(type: string, data: Buffer) {
-  const extension = pasteTypes[type]
-  if (extension === undefined) {
-    throw new Error('pasted image must be a PNG, JPEG, GIF or WebP image')
-  }
-  const directory = path.join(home, 'paste')
-  mkdirSync(directory, { recursive: true })
-  const file = path.join(
-    directory,
-    `${Date.now()}-${randomUUID()}.${extension}`
-  )
-  writeFileSync(file, data)
-  return file
 }
 
 function attach(client: Client) {

@@ -65,11 +65,11 @@ import {
   updateSession,
   watchSessions,
 } from '../services/sessions.ts'
+import { savePastedImage } from '../services/terminal/paste.ts'
 import { listShells } from '../services/terminal/process.ts'
 import {
   busyTerminal,
   detachTerminal,
-  savePastedImage,
   terminalCount,
   terminalInput,
   terminalRequest,
