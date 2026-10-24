@@ -1,9 +1,13 @@
 import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect } from 'react'
 import { MachineSwitcher } from './machine-switcher'
 import { TerminalPanel } from './panel'
 
 export function TerminalPage(props: { machine: string; leading: ReactNode }) {
+  useEffect(() => {
+    localStorage.setItem('lastTerminal', props.machine)
+  }, [props.machine])
+
   return (
     <main className="bg-background flex min-w-0 flex-1 flex-col overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <TerminalPanel

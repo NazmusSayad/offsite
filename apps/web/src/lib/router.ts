@@ -2,9 +2,11 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  redirect,
 } from '@tanstack/react-router'
 import { z } from 'zod'
 import { App } from '@/app'
+import { lastTerminalMachine } from '@/lib/sessions'
 
 const searchSchema = z.object({
   machine: z.string().optional().catch(undefined),
@@ -31,13 +33,34 @@ const indexRoute = createRoute({
   path: '/',
 })
 
+const lastTerminalRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/terminal',
+  beforeLoad: () => {
+    const machine = lastTerminalMachine()
+    if (machine === null) {
+      throw redirect({ to: '/', search: {}, replace: true })
+    }
+    throw redirect({
+      to: '/terminal/$machine',
+      params: { machine },
+      search: {},
+      replace: true,
+    })
+  },
+})
+
 const terminalRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/terminal/$machine',
 })
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([indexRoute, terminalRoute]),
+  routeTree: rootRoute.addChildren([
+    indexRoute,
+    lastTerminalRoute,
+    terminalRoute,
+  ]),
   disableGlobalCatchBoundary: true,
   parseSearch: (value) =>
     searchSchema.parse(Object.fromEntries(new URLSearchParams(value))),

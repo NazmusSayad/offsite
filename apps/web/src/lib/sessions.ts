@@ -109,6 +109,15 @@ export function closeSession() {
   syncUrl()
 }
 
+export function lastTerminalMachine() {
+  const machines = getState().machines
+  const last = localStorage.getItem('lastTerminal')
+  if (last !== null && machines.some((item) => item.id === last)) {
+    return last
+  }
+  return machines.at(0)?.id ?? null
+}
+
 export function openTerminalPage(machine: string) {
   const current = terminalPage()
   if (current === machine) {

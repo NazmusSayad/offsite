@@ -28,7 +28,11 @@ import {
 } from '@/features/sidebar/project-dialogs'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
 import { StatusChips } from '@/features/sidebar/status-chips'
-import { openSession, openTerminalPage } from '@/lib/sessions'
+import {
+  lastTerminalMachine,
+  openSession,
+  openTerminalPage,
+} from '@/lib/sessions'
 import {
   activityOf,
   getState,
@@ -179,7 +183,11 @@ export function Sidebar(
   }
 
   function openTerminal() {
-    openTerminalPage(selection?.machine ?? machines[0].id)
+    const machine = lastTerminalMachine()
+    if (machine === null) {
+      throw new Error('there is no machine to open a terminal on')
+    }
+    openTerminalPage(machine)
   }
 
   useHotkeys(['mod+n', 'mod+t'], startThread, {
