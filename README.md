@@ -10,32 +10,6 @@ Claude Code, Codex and OpenCode in your browser. It uses the same sessions as th
 npx offsite
 ```
 
-Then open the pairing link it prints. It pairs this browser with the server, so only browsers that opened the link can use it.
-
-| Command          | What it does                                                                      |
-| ---------------- | --------------------------------------------------------------------------------- |
-| `offsite`        | Starts the server and the web app                                                 |
-| `offsite web`    | Same as `offsite`                                                                 |
-| `offsite serve`  | Starts only the server                                                            |
-| `offsite pair`   | Makes a pairing token for another browser and prints its link. `--name` labels it |
-| `offsite unpair` | Lists paired browsers so you can pick which to unpair                             |
-
-| Flag        | Default      | What it sets                                                 |
-| ----------- | ------------ | ------------------------------------------------------------ |
-| `--host`    | `127.0.0.1`  | Address to listen on                                         |
-| `--port`    | `47841`      | Port to listen on                                            |
-| `--dir`     | `~/.offsite` | Folder for settings and accounts                             |
-| `--no-auth` | auth on      | Accept connections without the pairing token                 |
-| `--no-pair` | pair on      | Don't create a pairing token or print pairing links on start |
-| `--pwa`     | off          | Serve the web app as an installable app that works offline   |
-
-Pairing tokens stay in `tokens.json` inside `--dir`. A running OffSite disconnects an unpaired browser within seconds.
-
-> [!WARNING]
-> With `--no-auth`, anyone who can reach its port, including any website open in your browser, can run your coding agents and open a terminal on your machine.
-
-Don't use the same session in OffSite and the CLI at the same time. Switching between them is fine.
-
 ## Separate instances
 
 Give each instance its own port and `--dir`.
