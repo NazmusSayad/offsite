@@ -21,7 +21,6 @@ const MATCH_LIMIT = 200
 export function FilesPanel(props: {
   machine: string
   projectId: string
-  toggles: ReactNode
   onClose: () => void
 }) {
   const [files, setFiles] = useState<string[] | null>(null)
@@ -126,35 +125,16 @@ export function FilesPanel(props: {
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-3 pl-3">
-        <div className="flex min-w-0 items-center gap-1">
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            title="Close"
-            aria-label="Close"
-            onClick={props.onClose}
-          >
-            <HugeiconsIcon icon={XIcon} className="size-3.5" />
-          </Button>
-          <span className="text-foreground min-w-0 truncate text-xs font-medium">
-            Files
-          </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            title="Refresh files"
-            aria-label="Refresh files"
-            onClick={() => setVersion(version + 1)}
-          >
-            <HugeiconsIcon icon={RefreshCwIcon} className="size-3.5" />
-          </Button>
-          {props.toggles}
-        </div>
-      </div>
-      <div className="shrink-0 p-2 pb-0">
+      <div className="flex shrink-0 items-center gap-1 p-2 pb-0">
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          title="Close"
+          aria-label="Close"
+          onClick={props.onClose}
+        >
+          <HugeiconsIcon icon={XIcon} className="size-3.5" />
+        </Button>
         <Input
           className="h-7"
           placeholder="Filter files"
@@ -162,6 +142,15 @@ export function FilesPanel(props: {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          title="Refresh files"
+          aria-label="Refresh files"
+          onClick={() => setVersion(version + 1)}
+        >
+          <HugeiconsIcon icon={RefreshCwIcon} className="size-3.5" />
+        </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {error !== null && (

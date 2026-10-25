@@ -7,7 +7,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useSearch } from '@tanstack/react-router'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 import { call, machineUrl } from '@/api/connection'
 import { Button } from '@/components/ui/button'
@@ -28,11 +28,7 @@ const pageMessage = z.discriminatedUnion('event', [
   z.object({ offsite: z.literal('browser'), event: z.literal('navigate') }),
 ])
 
-export function BrowserPanel(props: {
-  machine: string
-  toggles: ReactNode
-  onClose: () => void
-}) {
+export function BrowserPanel(props: { machine: string; onClose: () => void }) {
   const target = useSearch({
     from: '__root__',
     select: (search) => search.browse ?? null,
@@ -222,22 +218,19 @@ export function BrowserPanel(props: {
             defaultValue={target ?? ''}
           />
         </form>
-        <div className="flex shrink-0 items-center gap-1">
-          {href !== null && (
-            <Button size="icon-sm" variant="ghost" asChild>
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Open in a new tab"
-                aria-label="Open in a new tab"
-              >
-                <HugeiconsIcon icon={LinkSquare02Icon} className="size-3.5" />
-              </a>
-            </Button>
-          )}
-          {props.toggles}
-        </div>
+        {href !== null && (
+          <Button size="icon-sm" variant="ghost" asChild>
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open in a new tab"
+              aria-label="Open in a new tab"
+            >
+              <HugeiconsIcon icon={LinkSquare02Icon} className="size-3.5" />
+            </a>
+          </Button>
+        )}
       </div>
       {error !== null && (
         <p className="text-muted-foreground p-4 text-center text-xs">{error}</p>

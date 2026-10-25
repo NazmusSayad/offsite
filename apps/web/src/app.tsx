@@ -114,7 +114,7 @@ function DesktopLayout() {
     return origin === null ? null : machineOf(state, origin)
   })
   const [sidebar, setSidebar] = useState(true)
-  const column = useRef<HTMLDivElement>(null)
+  const header = useRef<HTMLElement>(null)
   const [compact, setCompact] = useState(false)
   const panel = useSearch({
     from: '__root__',
@@ -186,9 +186,9 @@ function DesktopLayout() {
     if (page !== null) {
       return
     }
-    const element = column.current
+    const element = header.current
     if (element === null) {
-      throw new Error('chat column is not mounted')
+      throw new Error('header is not mounted')
     }
     const observer = new ResizeObserver((entries) =>
       setCompact(entries[0].contentRect.width < compactWidth)
@@ -196,22 +196,6 @@ function DesktopLayout() {
     observer.observe(element)
     return () => observer.disconnect()
   }, [page])
-
-  const toggles =
-    selection === null ? null : (
-      <PanelToggles
-        className="ml-auto flex shrink-0 items-center gap-1"
-        selection={selection}
-        panel={panel}
-        terminal={terminal}
-        changed={git.repos.some((repo) => repo.changed > 0)}
-        onPanel={(next) => {
-          setSelectedTask(null)
-          setPanel(next)
-        }}
-        onTerminal={setTerminal}
-      />
-    )
 
   if (page !== null) {
     return (
@@ -261,196 +245,211 @@ function DesktopLayout() {
           </Button>
         </div>
       )}
-      <main className="bg-background relative flex min-w-0 flex-1 overflow-hidden">
-        <div
-          ref={column}
-          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden"
+      <main className="bg-background relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <header
+          ref={header}
+          className={cn(
+            'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-3 pl-[3.25rem]',
+            sidebar && 'pl-5'
+          )}
         >
-          <header
-            className={cn(
-              'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-5 pl-[3.25rem]',
-              sidebar && 'pl-5',
-              panel === null && 'pr-3'
-            )}
-          >
-            {selection !== null && machine !== null && (
-              <nav className="min-w-0 flex-1">
-                <ol className="flex min-w-0 items-center gap-3 text-sm">
-                  <li className="text-icon-muted flex shrink-0 items-center gap-1.5">
-                    <HugeiconsIcon
-                      icon={machineIcons[machine.icon]}
-                      className="size-3.5 shrink-0"
-                    />
-                    <span className="max-w-40 truncate">{machine.name}</span>
-                  </li>
-                  <li aria-hidden className="text-icon-muted shrink-0">
-                    /
-                  </li>
-                  <li
-                    className="text-muted-foreground flex min-w-0 shrink items-center gap-1.5 font-medium"
-                    title={`${machine.name}:${cwd}`}
-                  >
-                    <ProjectIcon
-                      machine={selection.machine}
-                      projectId={selection.projectId}
-                      className="size-3.5"
-                    />
-                    <span className="max-w-40 truncate">{projectTitle}</span>
-                  </li>
-                  <li aria-hidden className="text-icon-muted shrink-0">
-                    /
-                  </li>
-                  <li
-                    className={cn(
-                      'text-foreground min-w-10 truncate font-medium',
-                      sidebar && 'flex-1'
-                    )}
-                  >
-                    {session?.title ?? 'New thread'}
-                  </li>
-                  {!sidebar && (
-                    <li className="shrink-0">
-                      <StatusChips hideDone />
-                    </li>
+          {selection !== null && machine !== null && (
+            <nav className="min-w-0 flex-1">
+              <ol className="flex min-w-0 items-center gap-3 text-sm">
+                <li className="text-icon-muted flex shrink-0 items-center gap-1.5">
+                  <HugeiconsIcon
+                    icon={machineIcons[machine.icon]}
+                    className="size-3.5 shrink-0"
+                  />
+                  <span className="max-w-40 truncate">{machine.name}</span>
+                </li>
+                <li aria-hidden className="text-icon-muted shrink-0">
+                  /
+                </li>
+                <li
+                  className="text-muted-foreground flex min-w-0 shrink items-center gap-1.5 font-medium"
+                  title={`${machine.name}:${cwd}`}
+                >
+                  <ProjectIcon
+                    machine={selection.machine}
+                    projectId={selection.projectId}
+                    className="size-3.5"
+                  />
+                  <span className="max-w-40 truncate">{projectTitle}</span>
+                </li>
+                <li aria-hidden className="text-icon-muted shrink-0">
+                  /
+                </li>
+                <li
+                  className={cn(
+                    'text-foreground min-w-10 truncate font-medium',
+                    sidebar && 'flex-1'
                   )}
-                </ol>
-              </nav>
-            )}
-            {selection === null && !sidebar && <StatusChips hideDone />}
-            {selection === null && <span className="flex-1" />}
-            {machine !== null && machine.status !== 'online' && (
-              <span className="text-warning-foreground shrink-0 text-xs">
-                {machine.status === 'connecting' &&
-                  `Connecting to ${machine.name}…`}
-                {machine.status === 'offline' &&
-                  `${machine.name} is offline, reconnecting…`}
-                {machine.status === 'unpaired' &&
-                  `${machine.name} needs pairing`}
-              </span>
-            )}
-            {selection !== null && !compact && git.repos.length > 0 && (
-              <GitActions
-                machine={selection.machine}
-                projectId={selection.projectId}
-                repos={git.repos}
-                onRefresh={git.refresh}
-              />
-            )}
-            {selection !== null && compact && git.repos.length > 0 && (
-              <DropdownMenu
-                open={commands.menuOpen}
-                onOpenChange={commands.setMenuOpen}
-              >
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Git actions"
-                    title="Git actions"
-                  >
-                    <HugeiconsIcon icon={MoreVerticalIcon} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end">
-                  <GitMenuItems git={commands} collapsed />
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            {panel === null && toggles}
-          </header>
-          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-            {machine === null && <ConnectMachine />}
-            {selection === null && machine !== null && (
-              <div className="grid flex-1 place-items-center p-6 text-center">
-                <div>
-                  <h1 className="text-foreground text-3xl font-normal tracking-tight">
-                    Pick a thread, or start one
-                  </h1>
-                  <p className="text-muted-foreground mt-2 text-sm">
-                    Open a project from the sidebar to talk to Claude.
-                  </p>
+                >
+                  {session?.title ?? 'New thread'}
+                </li>
+                {!sidebar && (
+                  <li className="shrink-0">
+                    <StatusChips hideDone />
+                  </li>
+                )}
+              </ol>
+            </nav>
+          )}
+          {selection === null && !sidebar && <StatusChips hideDone />}
+          {selection === null && <span className="flex-1" />}
+          {machine !== null && machine.status !== 'online' && (
+            <span className="text-warning-foreground shrink-0 text-xs">
+              {machine.status === 'connecting' &&
+                `Connecting to ${machine.name}…`}
+              {machine.status === 'offline' &&
+                `${machine.name} is offline, reconnecting…`}
+              {machine.status === 'unpaired' && `${machine.name} needs pairing`}
+            </span>
+          )}
+          {selection !== null && !compact && git.repos.length > 0 && (
+            <GitActions
+              machine={selection.machine}
+              projectId={selection.projectId}
+              repos={git.repos}
+              onRefresh={git.refresh}
+            />
+          )}
+          {selection !== null && compact && git.repos.length > 0 && (
+            <DropdownMenu
+              open={commands.menuOpen}
+              onOpenChange={commands.setMenuOpen}
+            >
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Git actions"
+                  title="Git actions"
+                >
+                  <HugeiconsIcon icon={MoreVerticalIcon} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end">
+                <GitMenuItems git={commands} collapsed />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {selection !== null && (
+            <PanelToggles
+              className="ml-auto flex shrink-0 items-center gap-1"
+              selection={selection}
+              panel={panel}
+              terminal={terminal}
+              changed={git.repos.some((repo) => repo.changed > 0)}
+              onPanel={(next) => {
+                setSelectedTask(null)
+                setPanel(next)
+              }}
+              onTerminal={setTerminal}
+            />
+          )}
+        </header>
+        <div className="flex min-h-0 flex-1">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+              {machine === null && <ConnectMachine />}
+              {selection === null && machine !== null && (
+                <div className="grid flex-1 place-items-center p-6 text-center">
+                  <div>
+                    <h1 className="text-foreground text-3xl font-normal tracking-tight">
+                      Pick a thread, or start one
+                    </h1>
+                    <p className="text-muted-foreground mt-2 text-sm">
+                      Open a project from the sidebar to talk to Claude.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
-            {selection !== null && (
-              <Fragment
-                key={`${selection.machine} ${selection.sessionId ?? selection.projectId}`}
+              )}
+              {selection !== null && (
+                <Fragment
+                  key={`${selection.machine} ${selection.sessionId ?? selection.projectId}`}
+                >
+                  <Transcript
+                    onOpenDiff={() => setPanel('diff')}
+                    onOpenTask={(id) => {
+                      setSelectedTask(id)
+                      setPanel('tasks')
+                    }}
+                  />
+                  <Composer />
+                </Fragment>
+              )}
+            </div>
+            {selection !== null && terminal && (
+              <aside
+                className="border-border/80 bg-background relative shrink-0 overflow-hidden border-t"
+                style={{ height: terminalHeight }}
               >
-                <Transcript
-                  onOpenDiff={() => setPanel('diff')}
-                  onOpenTask={(id) => {
-                    setSelectedTask(id)
-                    setPanel('tasks')
-                  }}
-                />
-                <Composer />
-              </Fragment>
+                <div
+                  role="separator"
+                  aria-orientation="horizontal"
+                  className="group absolute inset-x-0 top-0 z-30 h-1.5 cursor-row-resize touch-none select-none"
+                  onPointerDown={(event) =>
+                    drag(event, (next) => {
+                      const max = Math.max(
+                        120,
+                        Math.floor(window.innerHeight * 0.8)
+                      )
+                      setTerminalHeight(
+                        Math.min(
+                          max,
+                          Math.max(120, window.innerHeight - next.clientY)
+                        )
+                      )
+                    })
+                  }
+                >
+                  <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-x-0 top-0 h-px transition-colors" />
+                </div>
+                <TerminalPanel projectId={selection.projectId} />
+              </aside>
             )}
           </div>
-          {selection !== null && terminal && (
-            <aside
-              className="border-border/80 bg-background relative shrink-0 overflow-hidden border-t"
-              style={{ height: terminalHeight }}
+          {selection !== null && panel !== null && (
+            <div
+              className="relative flex shrink-0"
+              style={{ width: panelWidth }}
             >
               <div
                 role="separator"
-                aria-orientation="horizontal"
-                className="group absolute inset-x-0 top-0 z-30 h-1.5 cursor-row-resize touch-none select-none"
+                aria-orientation="vertical"
+                className="group absolute inset-y-0 -left-1 z-20 w-2 cursor-col-resize select-none"
                 onPointerDown={(event) =>
                   drag(event, (next) => {
                     const max = Math.max(
-                      120,
-                      Math.floor(window.innerHeight * 0.8)
+                      360,
+                      Math.floor(window.innerWidth * 0.7)
                     )
-                    setTerminalHeight(
-                      Math.min(
-                        max,
-                        Math.max(120, window.innerHeight - next.clientY)
-                      )
+                    const value = Math.min(
+                      max,
+                      Math.max(360, window.innerWidth - next.clientX)
                     )
+                    setPanelWidth(value)
                   })
                 }
               >
-                <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-x-0 top-0 h-px transition-colors" />
+                <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
               </div>
-              <TerminalPanel projectId={selection.projectId} />
-            </aside>
+              <div className="bg-background flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-lg border-t border-l">
+                <PanelView
+                  panel={panel}
+                  selection={selection}
+                  cwd={cwd}
+                  running={running}
+                  selectedTask={selectedTask}
+                  onSelectTask={setSelectedTask}
+                  onPanel={setPanel}
+                />
+              </div>
+            </div>
           )}
         </div>
-        {selection !== null && panel !== null && (
-          <div
-            className="bg-background relative flex shrink-0 flex-col border-l"
-            style={{ width: panelWidth }}
-          >
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              className="group absolute inset-y-0 -left-1 z-20 w-2 cursor-col-resize select-none"
-              onPointerDown={(event) =>
-                drag(event, (next) => {
-                  const max = Math.max(360, Math.floor(window.innerWidth * 0.7))
-                  const value = Math.min(
-                    max,
-                    Math.max(360, window.innerWidth - next.clientX)
-                  )
-                  setPanelWidth(value)
-                })
-              }
-            >
-              <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
-            </div>
-            <PanelView
-              panel={panel}
-              selection={selection}
-              cwd={cwd}
-              running={running}
-              selectedTask={selectedTask}
-              onSelectTask={setSelectedTask}
-              onPanel={setPanel}
-              toggles={toggles}
-            />
-          </div>
-        )}
       </main>
       <GitCommandDialog git={commands} />
     </>
