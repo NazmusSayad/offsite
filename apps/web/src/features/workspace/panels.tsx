@@ -44,7 +44,6 @@ const toggle =
   'text-foreground hover:bg-accent data-[pressed=true]:bg-accent relative grid h-7 min-w-7 cursor-pointer place-items-center rounded-lg border border-transparent [&_svg]:size-4 [&_svg]:opacity-80'
 
 type ToggleProps = {
-  className: string
   selection: Selection
   panel: Panel | null
   terminal: boolean
@@ -56,27 +55,24 @@ type ToggleProps = {
 export function PanelToggles(props: ToggleProps) {
   const options = usePanelOptions(props)
 
-  return (
-    <div className={props.className}>
-      {options.map((option) => (
-        <button
-          key={option.id}
-          className={toggle}
-          data-pressed={option.pressed}
-          aria-label={option.label}
-          title={option.title}
-          onClick={option.onSelect}
-        >
-          <HugeiconsIcon icon={option.icon} />
-          {option.badge}
-        </button>
-      ))}
-    </div>
-  )
+  return options.map((option) => (
+    <button
+      key={option.id}
+      className={toggle}
+      data-pressed={option.pressed}
+      aria-label={option.label}
+      title={option.title}
+      onClick={option.onSelect}
+    >
+      <HugeiconsIcon icon={option.icon} />
+      {option.badge}
+    </button>
+  ))
 }
 
 export function PanelMenu(
   props: ToggleProps & {
+    className: string
     open: boolean
     onOpenChange: (open: boolean) => void
     children: ReactNode

@@ -307,47 +307,49 @@ function DesktopLayout() {
               {machine.status === 'unpaired' && `${machine.name} needs pairing`}
             </span>
           )}
-          {selection !== null && !compact && git.repos.length > 0 && (
-            <GitActions
-              machine={selection.machine}
-              projectId={selection.projectId}
-              repos={git.repos}
-              onRefresh={git.refresh}
-            />
-          )}
-          {selection !== null && compact && git.repos.length > 0 && (
-            <DropdownMenu
-              open={commands.menuOpen}
-              onOpenChange={commands.setMenuOpen}
-            >
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Git actions"
-                  title="Git actions"
-                >
-                  <HugeiconsIcon icon={MoreVerticalIcon} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end">
-                <GitMenuItems git={commands} collapsed />
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
           {selection !== null && (
-            <PanelToggles
-              className="ml-auto flex shrink-0 items-center gap-1"
-              selection={selection}
-              panel={panel}
-              terminal={terminal}
-              changed={git.repos.some((repo) => repo.changed > 0)}
-              onPanel={(next) => {
-                setSelectedTask(null)
-                setPanel(next)
-              }}
-              onTerminal={setTerminal}
-            />
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              {!compact && git.repos.length > 0 && (
+                <GitActions
+                  machine={selection.machine}
+                  projectId={selection.projectId}
+                  repos={git.repos}
+                  onRefresh={git.refresh}
+                />
+              )}
+              {compact && git.repos.length > 0 && (
+                <DropdownMenu
+                  open={commands.menuOpen}
+                  onOpenChange={commands.setMenuOpen}
+                >
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Git actions"
+                      title="Git actions"
+                    >
+                      <HugeiconsIcon icon={MoreVerticalIcon} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end">
+                    <GitMenuItems git={commands} collapsed />
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              <span className="bg-foreground/15 mr-1 ml-2.5 h-4 w-px" />
+              <PanelToggles
+                selection={selection}
+                panel={panel}
+                terminal={terminal}
+                changed={git.repos.some((repo) => repo.changed > 0)}
+                onPanel={(next) => {
+                  setSelectedTask(null)
+                  setPanel(next)
+                }}
+                onTerminal={setTerminal}
+              />
+            </div>
           )}
         </header>
         <div className="flex min-h-0 flex-1">

@@ -358,7 +358,7 @@ export function GitActions(props: GitTarget) {
   }
 
   return (
-    <div className="flex w-fit items-center gap-3.5">
+    <>
       {props.repos.length === 1 && (
         <BranchPicker
           machine={props.machine}
@@ -419,7 +419,7 @@ export function GitActions(props: GitTarget) {
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-      <div className="flex w-fit">
+      <div className="ml-2.5 flex w-fit">
         <Button
           variant="outline"
           size="xs"
@@ -450,6 +450,6 @@ export function GitActions(props: GitTarget) {
         </DropdownMenu>
       </div>
       <GitCommandDialog git={git} />
-    </div>
+    </>
   )
 }
