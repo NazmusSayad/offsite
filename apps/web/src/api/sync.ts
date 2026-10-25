@@ -29,6 +29,7 @@ import { call, connectMachine, listen } from './connection'
 import { receiveComposer, receiveConfig } from './machine-config'
 import {
   addMachine,
+  connectAddresses,
   loadMachines,
   machineKey,
   pairingFromUrl,
@@ -122,9 +123,12 @@ export function start() {
 
 async function attach() {
   try {
+    if (connectAddresses !== null) {
+      await addMachine(connectAddresses, null)
+    }
     const pairing = pairingFromUrl()
     if (pairing !== null) {
-      await addMachine(pairing.address, pairing.code)
+      await addMachine([pairing.address], pairing.code)
     }
   } catch (error) {
     showError(error)

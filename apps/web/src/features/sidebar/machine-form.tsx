@@ -23,12 +23,12 @@ export function MachineForm(props: {
         try {
           if (manual) {
             await addMachine(
-              readMachineLink(address).address,
+              [readMachineLink(address).address],
               code.trim() === '' ? null : code.trim()
             )
           } else {
             const read = readMachineLink(link)
-            await addMachine(read.address, read.code)
+            await addMachine([read.address], read.code)
           }
           props.onAdded?.()
         } catch (failure) {

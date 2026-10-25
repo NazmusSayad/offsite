@@ -25,6 +25,12 @@ export type StoredMachine = {
 
 const storageKey = 'machines'
 
+export const connectAddresses =
+  document
+    .querySelector('meta[name="offsite-connect"]')
+    ?.getAttribute('content')
+    ?.split(' ') ?? null
+
 export function loadMachines(): StoredMachine[] {
   const raw = localStorage.getItem(storageKey)
   return raw === null ? [] : JSON.parse(raw)
@@ -153,9 +159,9 @@ export function receiveMachines() {
   }
 }
 
-export async function addMachine(address: string, code: string | null) {
+export async function addMachine(addresses: string[], code: string | null) {
   const existing = getState().machines.find((item) =>
-    item.addresses.includes(address)
+    item.addresses.some((address) => addresses.includes(address))
   )
   if (existing !== undefined) {
     if (code !== null) {
@@ -167,15 +173,15 @@ export async function addMachine(address: string, code: string | null) {
     byte.toString(16).padStart(2, '0')
   ).join('')
   if (code !== null) {
-    await saveToken(id, await redeemCode([address], code))
+    await saveToken(id, await redeemCode(addresses, code))
   }
   update({
     machines: [
       ...getState().machines,
       restoreMachine({
         id,
-        addresses: [address],
-        name: new URL(address).hostname,
+        addresses,
+        name: new URL(addresses[0]).hostname,
         label: null,
         icon: 'computer',
         pairedAt: code === null ? null : Date.now(),
@@ -184,7 +190,7 @@ export async function addMachine(address: string, code: string | null) {
     ],
   })
   persistMachines()
-  connectMachine(id, [address])
+  connectMachine(id, addresses)
   return id
 }
 

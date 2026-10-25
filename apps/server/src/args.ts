@@ -17,6 +17,10 @@ const program = new Command('offsite')
   .option('--no-auth', 'Accept connections without pairing')
   .option('--no-pair', "Don't create a pairing code or print pairing links")
   .option('--pwa', 'Serve the web app as an installable app that works offline')
+  .option(
+    '--connect <addresses>',
+    'Add this machine to the web app with these comma separated addresses; needs --no-auth'
+  )
   .configureHelp({ showGlobalOptions: true })
 
 program
@@ -54,11 +58,36 @@ if (!options.auth && !options.pair) {
   program.error("error: --no-pair can't be used with --no-auth")
 }
 
+if (options.connect !== undefined && options.auth) {
+  program.error('error: --connect needs --no-auth')
+}
+
+if (options.connect !== undefined && command === 'serve') {
+  program.error("error: --connect can't be used with offsite serve")
+}
+
+const connect =
+  options.connect === undefined
+    ? null
+    : options.connect.split(',').map((address) => {
+        const url = URL.parse(address)
+        if (
+          url === null ||
+          (url.protocol !== 'http:' && url.protocol !== 'https:')
+        ) {
+          return program.error(
+            `error: --connect address ${address} needs http:// or https://, like https://example.com`
+          )
+        }
+        return url.origin
+      })
+
 export const args = {
   ...options,
   dir: path.resolve(options.dir),
   command,
   name,
+  connect,
 }
 
 export const serverDir = path.join(import.meta.dirname, '..')

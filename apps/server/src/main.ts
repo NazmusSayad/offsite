@@ -171,14 +171,14 @@ if (args.auth) {
 
 server.listen(port, args.host, () => {
   startPush(`${args.host}:${port}`)
-  if (args.pair && (code !== null || !args.auth)) {
+  if (args.connect === null && args.pair && (code !== null || !args.auth)) {
     const links = pairingLinks(code)
     if (args.command === 'web') {
       console.log(`offsite is running at ${links.local}`)
     }
   } else {
     console.log(`offsite is running at ${address}`)
-    if (args.pair) {
+    if (args.auth && args.pair) {
       console.log('Run offsite pair to pair another browser')
     }
   }
@@ -497,10 +497,18 @@ function serveFile(pathname: string, response: ServerResponse) {
     'content-type',
     contentTypes[path.extname(file)] ?? 'application/octet-stream'
   )
-  if (!args.pwa && path.basename(file) === 'index.html') {
-    response.end(
-      readFileSync(file, 'utf8').replace(/<link rel="manifest"[^>]*>/, '')
-    )
+  if (path.basename(file) === 'index.html') {
+    let page = readFileSync(file, 'utf8')
+    if (!args.pwa) {
+      page = page.replace(/<link rel="manifest"[^>]*>/, '')
+    }
+    if (args.connect !== null) {
+      page = page.replace(
+        '</head>',
+        `<meta name="offsite-connect" content="${args.connect.join(' ')}"></head>`
+      )
+    }
+    response.end(page)
     return
   }
   createReadStream(file).pipe(response)

@@ -10,6 +10,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { Reorder, useDragControls } from 'motion/react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import {
+  connectAddresses,
   editMachine,
   pairMachine,
   readMachineLink,
@@ -33,7 +34,7 @@ import { Input } from '@/components/ui/input'
 import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
 import { fullTime, providerNames } from '@/lib/format'
 import { type Machine, update, useStore } from '@/lib/store'
-import { errorMessage } from '@/lib/utils'
+import { cn, errorMessage } from '@/lib/utils'
 import { Row, Section, TextInput } from './controls'
 
 const statuses = {
@@ -136,6 +137,9 @@ function EditMachinePage(props: { machine: Machine }) {
   const [error, setError] = useState<string | null>(null)
   const [order, setOrder] = useState<string[] | null>(null)
   const addresses = order ?? machine.addresses
+  const locked = machine.addresses.some(
+    (address) => connectAddresses !== null && connectAddresses.includes(address)
+  )
   const newAddress = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -217,46 +221,48 @@ function EditMachinePage(props: { machine: Machine }) {
           </div>
         </div>
       </Section>
-      <Section title="Pairing">
-        <div className="flex min-h-13 items-center justify-between gap-4 px-4 py-2.5">
-          {machine.pairedAt !== null && machine.status !== 'unpaired' && (
-            <span className="text-sm">
-              {machine.pairedAt === null
-                ? 'Paired'
-                : `Paired ${fullTime(machine.pairedAt)}`}
-            </span>
-          )}
-          {(machine.pairedAt === null || machine.status === 'unpaired') && (
-            <form
-              className="flex flex-1 items-center gap-3"
-              onSubmit={async (event) => {
-                event.preventDefault()
-                if (await savePairing(pairing)) {
-                  setPairing('')
-                }
-              }}
-            >
-              <Input
-                className="flex-1 font-mono"
-                placeholder="Pairing link or code"
-                spellCheck={false}
-                autoComplete="off"
-                value={pairing}
-                onChange={(event) => setPairing(event.target.value)}
-              />
-              <Button
-                type="submit"
-                variant="outline"
-                className="px-4"
-                disabled={pairing.trim() === ''}
+      {!locked && (
+        <Section title="Pairing">
+          <div className="flex min-h-13 items-center justify-between gap-4 px-4 py-2.5">
+            {machine.pairedAt !== null && machine.status !== 'unpaired' && (
+              <span className="text-sm">
+                {machine.pairedAt === null
+                  ? 'Paired'
+                  : `Paired ${fullTime(machine.pairedAt)}`}
+              </span>
+            )}
+            {(machine.pairedAt === null || machine.status === 'unpaired') && (
+              <form
+                className="flex flex-1 items-center gap-3"
+                onSubmit={async (event) => {
+                  event.preventDefault()
+                  if (await savePairing(pairing)) {
+                    setPairing('')
+                  }
+                }}
               >
-                <HugeiconsIcon icon={Link01Icon} />
-                Pair
-              </Button>
-            </form>
-          )}
-        </div>
-      </Section>
+                <Input
+                  className="flex-1 font-mono"
+                  placeholder="Pairing link or code"
+                  spellCheck={false}
+                  autoComplete="off"
+                  value={pairing}
+                  onChange={(event) => setPairing(event.target.value)}
+                />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  className="px-4"
+                  disabled={pairing.trim() === ''}
+                >
+                  <HugeiconsIcon icon={Link01Icon} />
+                  Pair
+                </Button>
+              </form>
+            )}
+          </div>
+        </Section>
+      )}
       <Section
         title="Addresses"
         note="OffSite tries them in order whenever it reconnects"
@@ -272,6 +278,7 @@ function EditMachinePage(props: { machine: Machine }) {
             <AddressRow
               key={address}
               address={address}
+              disabled={locked}
               onDragEnd={() => {
                 if (order !== null) {
                   saveAddresses(order)
@@ -282,6 +289,7 @@ function EditMachinePage(props: { machine: Machine }) {
               <TextInput
                 className="flex-1 font-mono"
                 value={address}
+                disabled={locked}
                 onCommit={(text) =>
                   saveAddresses(
                     addresses.map((item, at) => (at === index ? text : item))
@@ -292,7 +300,7 @@ function EditMachinePage(props: { machine: Machine }) {
                 size="icon-sm"
                 variant="ghost"
                 title="Remove address"
-                disabled={addresses.length === 1}
+                disabled={locked || addresses.length === 1}
                 onClick={() =>
                   saveAddresses(addresses.filter((_, at) => at !== index))
                 }
@@ -327,7 +335,7 @@ function EditMachinePage(props: { machine: Machine }) {
             />
           </div>
         )}
-        {!adding && (
+        {!adding && !locked && (
           <button
             type="button"
             className="text-muted-foreground hover:bg-muted/50 hover:text-foreground flex w-full items-center gap-2 px-4 py-3 text-sm transition-colors"
@@ -341,40 +349,43 @@ function EditMachinePage(props: { machine: Machine }) {
       {error !== null && (
         <p className="text-destructive px-1 text-xs break-all">{error}</p>
       )}
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant="outline" className="text-destructive">
-            Remove machine
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove {machine.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This browser forgets the machine. The machine and its threads stay
-              untouched.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                update({ settingsEditedMachine: null })
-                removeMachine(machine.id)
-              }}
-            >
+      {!locked && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" className="text-destructive">
               Remove machine
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove {machine.name}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This browser forgets the machine. The machine and its threads
+                stay untouched.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={() => {
+                  update({ settingsEditedMachine: null })
+                  removeMachine(machine.id)
+                }}
+              >
+                Remove machine
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   )
 }
 
 function AddressRow(props: {
   address: string
+  disabled: boolean
   onDragEnd: () => void
   children: ReactNode
 }) {
@@ -390,7 +401,10 @@ function AddressRow(props: {
       className="bg-background relative flex items-center gap-3 px-4 py-2.5"
     >
       <span
-        className="text-muted-foreground hover:text-foreground cursor-grab touch-none active:cursor-grabbing"
+        className={cn(
+          'text-muted-foreground hover:text-foreground cursor-grab touch-none active:cursor-grabbing',
+          props.disabled && 'pointer-events-none opacity-50'
+        )}
         title="Drag to reorder"
         onPointerDown={(event) => controls.start(event)}
       >

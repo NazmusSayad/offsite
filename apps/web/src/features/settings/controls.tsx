@@ -40,6 +40,7 @@ export function TextInput(props: {
   type?: 'text' | 'number'
   step?: number
   valid?: (text: string) => boolean
+  disabled?: boolean
   onCommit: (text: string) => void
 }) {
   const [text, setText] = useState(props.value)
@@ -62,6 +63,7 @@ export function TextInput(props: {
       min={props.type === 'number' ? 0 : undefined}
       step={props.step}
       placeholder={props.placeholder}
+      disabled={props.disabled}
       value={text}
       onChange={(event) => setText(event.target.value)}
       onBlur={finish}

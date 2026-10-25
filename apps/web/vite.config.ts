@@ -8,6 +8,23 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: 'offsite-connect',
+      apply: 'serve',
+      transformIndexHtml: () =>
+        process.env.OFFSITE_CONNECT === undefined
+          ? []
+          : [
+              {
+                tag: 'meta',
+                attrs: {
+                  name: 'offsite-connect',
+                  content: process.env.OFFSITE_CONNECT.split(',').join(' '),
+                },
+                injectTo: 'head',
+              },
+            ],
+    },
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
