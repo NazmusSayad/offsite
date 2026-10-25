@@ -72,7 +72,6 @@ export function PanelToggles(props: ToggleProps) {
 
 export function PanelMenu(
   props: ToggleProps & {
-    className: string
     open: boolean
     onOpenChange: (open: boolean) => void
     children: ReactNode
@@ -81,7 +80,7 @@ export function PanelMenu(
   const options = usePanelOptions(props)
 
   return (
-    <div className={props.className}>
+    <div className="flex shrink-0 items-center gap-1">
       <DropdownMenu open={props.open} onOpenChange={props.onOpenChange}>
         <DropdownMenuTrigger asChild>
           <button

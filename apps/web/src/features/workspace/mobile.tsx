@@ -187,7 +187,6 @@ function MobileChat(props: { selection: Selection }) {
           )}
         </div>
         <PanelMenu
-          className="flex shrink-0 items-center gap-1"
           selection={props.selection}
           panel={panel}
           terminal={terminal}
