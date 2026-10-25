@@ -35,7 +35,7 @@ export function MachineSwitcher(props: { machine: string; className: string }) {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="start" className="w-auto">
         <DropdownMenuRadioGroup value={props.machine}>
           {machines.map((machine) => (
             <DropdownMenuRadioItem
