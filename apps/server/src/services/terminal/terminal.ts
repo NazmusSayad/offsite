@@ -204,7 +204,10 @@ async function request(
         tab.minimized = false
         project.activeTab = tab.id
       }
-      if (project.tabs.length === 0) {
+      if (
+        project.tabs.length === 0 &&
+        message.projectId !== GLOBAL_TERMINALS
+      ) {
         await createTab(message.projectId)
       }
       break

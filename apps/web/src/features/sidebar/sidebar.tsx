@@ -422,7 +422,6 @@ export function Sidebar(
           onClose={() => setAdding(false)}
           onAdd={(project) => {
             setAdding(false)
-            setScope({ machine: project.machine, projectId: project.id })
             select(project.machine, project.id, null)
           }}
         />
