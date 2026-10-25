@@ -157,6 +157,12 @@ export function receiveMachines() {
       reconnectMachine(machine.id)
     }
   }
+  const ids = stored.map((item) => item.id)
+  update({
+    machines: [...getState().machines].sort(
+      (a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)
+    ),
+  })
 }
 
 export async function addMachine(addresses: string[], code: string | null) {
@@ -238,6 +244,15 @@ export function editMachine(
   if (next.addresses.join(' ') !== known.addresses.join(' ')) {
     reconnectMachine(id)
   }
+}
+
+export function reorderMachines(ids: string[]) {
+  update({
+    machines: [...getState().machines].sort(
+      (a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)
+    ),
+  })
+  persistMachines()
 }
 
 export function shareMachines(machines: StoredMachine[]) {

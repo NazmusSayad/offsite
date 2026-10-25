@@ -16,6 +16,7 @@ import {
   readMachineLink,
   reconnectMachine,
   removeMachine,
+  reorderMachines,
 } from '@/api/machines'
 import { type MachineIcon, machineIcons } from '@/components/icons'
 import {
@@ -50,6 +51,11 @@ export function MachinesPage() {
     state.machines.find((item) => item.id === state.settingsEditedMachine)
   )
   const [adding, setAdding] = useState(false)
+  const [order, setOrder] = useState<string[] | null>(null)
+  const listed =
+    order === null
+      ? machines
+      : [...machines].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
 
   if (edited !== undefined) {
     return <EditMachinePage machine={edited} />
@@ -61,64 +67,80 @@ export function MachinesPage() {
         title="Machines"
         note="This browser connects to each one directly. The list stays in this browser"
       >
-        {machines.map((machine) => (
-          <div
-            key={machine.id}
-            className="flex min-h-13 items-center gap-4 px-4 py-2.5"
-          >
-            <HugeiconsIcon
-              icon={machineIcons[machine.icon]}
-              className="text-muted-foreground size-5 shrink-0"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{machine.name}</p>
-              {machine.addresses.map((address) => (
-                <p
-                  key={address}
-                  className="text-muted-foreground truncate font-mono text-xs"
-                >
-                  {address}
-                </p>
-              ))}
-              {machine.providers
-                .filter((item) => item.state === 'error')
-                .map((item) => (
+        <Reorder.Group
+          as="div"
+          axis="y"
+          className="divide-y"
+          values={listed.map((machine) => machine.id)}
+          onReorder={setOrder}
+        >
+          {listed.map((machine) => (
+            <ReorderRow
+              key={machine.id}
+              value={machine.id}
+              disabled={false}
+              className="min-h-13 gap-4"
+              onDragEnd={() => {
+                if (order !== null) {
+                  reorderMachines(order)
+                }
+                setOrder(null)
+              }}
+            >
+              <HugeiconsIcon
+                icon={machineIcons[machine.icon]}
+                className="text-muted-foreground size-5 shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{machine.name}</p>
+                {machine.addresses.map((address) => (
                   <p
-                    key={item.provider}
-                    className="text-destructive truncate text-xs"
-                    title={item.error ?? undefined}
+                    key={address}
+                    className="text-muted-foreground truncate font-mono text-xs"
                   >
-                    {providerNames[item.provider]} threads: {item.error}
+                    {address}
                   </p>
                 ))}
-            </div>
-            <span className="text-muted-foreground shrink-0 text-xs">
-              {statuses[machine.status]}
-              {machine.status === 'online' &&
-                machine.via !== null &&
-                machine.via !== machine.addresses[0] &&
-                ` · via ${new URL(machine.via).host}`}
-            </span>
-            <div className="flex shrink-0 items-center gap-1">
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                title="Reconnect, trying the first address first"
-                onClick={() => reconnectMachine(machine.id)}
-              >
-                <HugeiconsIcon icon={Refresh01Icon} />
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="ghost-muted"
-                title="Open machine"
-                onClick={() => update({ settingsEditedMachine: machine.id })}
-              >
-                <HugeiconsIcon icon={ArrowRight01Icon} />
-              </Button>
-            </div>
-          </div>
-        ))}
+                {machine.providers
+                  .filter((item) => item.state === 'error')
+                  .map((item) => (
+                    <p
+                      key={item.provider}
+                      className="text-destructive truncate text-xs"
+                      title={item.error ?? undefined}
+                    >
+                      {providerNames[item.provider]} threads: {item.error}
+                    </p>
+                  ))}
+              </div>
+              <span className="text-muted-foreground shrink-0 text-xs">
+                {statuses[machine.status]}
+                {machine.status === 'online' &&
+                  machine.via !== null &&
+                  machine.via !== machine.addresses[0] &&
+                  ` · via ${new URL(machine.via).host}`}
+              </span>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  title="Reconnect, trying the first address first"
+                  onClick={() => reconnectMachine(machine.id)}
+                >
+                  <HugeiconsIcon icon={Refresh01Icon} />
+                </Button>
+                <Button
+                  size="icon-sm"
+                  variant="ghost-muted"
+                  title="Open machine"
+                  onClick={() => update({ settingsEditedMachine: machine.id })}
+                >
+                  <HugeiconsIcon icon={ArrowRight01Icon} />
+                </Button>
+              </div>
+            </ReorderRow>
+          ))}
+        </Reorder.Group>
       </Section>
       <div className="flex gap-2">
         <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
@@ -275,9 +297,9 @@ function EditMachinePage(props: { machine: Machine }) {
           onReorder={setOrder}
         >
           {addresses.map((address, index) => (
-            <AddressRow
+            <ReorderRow
               key={address}
-              address={address}
+              value={address}
               disabled={locked}
               onDragEnd={() => {
                 if (order !== null) {
@@ -307,7 +329,7 @@ function EditMachinePage(props: { machine: Machine }) {
               >
                 <HugeiconsIcon icon={Delete02Icon} />
               </Button>
-            </AddressRow>
+            </ReorderRow>
           ))}
         </Reorder.Group>
         {adding && (
@@ -383,9 +405,10 @@ function EditMachinePage(props: { machine: Machine }) {
   )
 }
 
-function AddressRow(props: {
-  address: string
+function ReorderRow(props: {
+  value: string
   disabled: boolean
+  className?: string
   onDragEnd: () => void
   children: ReactNode
 }) {
@@ -394,11 +417,14 @@ function AddressRow(props: {
   return (
     <Reorder.Item
       as="div"
-      value={props.address}
+      value={props.value}
       dragListener={false}
       dragControls={controls}
       onDragEnd={props.onDragEnd}
-      className="bg-background relative flex items-center gap-3 px-4 py-2.5"
+      className={cn(
+        'bg-background relative flex items-center gap-3 px-4 py-2.5',
+        props.className
+      )}
     >
       <span
         className={cn(
