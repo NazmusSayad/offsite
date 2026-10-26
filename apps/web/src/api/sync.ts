@@ -41,6 +41,11 @@ import {
   shareMachines,
 } from './machines'
 
+const DELTA_DELAY = 50
+
+let pendingDelta: { machine: string; sessionId: string; text: string } | null =
+  null
+
 export function start() {
   const stored = loadMachines()
   const selection = selectionFromUrl(stored.map((machine) => machine.id))
@@ -221,6 +226,11 @@ function reopenThread(machine: string) {
 }
 
 function receive(machine: string, event: ServerEvent) {
+  if (event.type === 'delta') {
+    queueDelta(machine, event.sessionId, event.text)
+    return
+  }
+  flushDelta()
   const state = getState()
   const known = state.machines.find((item) => item.id === machine)
   if (known === undefined) {
@@ -384,9 +394,6 @@ function receive(machine: string, event: ServerEvent) {
       })
       return
     }
-    case 'delta':
-      update({ partial: state.partial + event.text })
-      return
     case 'request':
       update({ requests: [...state.requests, event.request] })
       return
@@ -406,5 +413,38 @@ function receive(machine: string, event: ServerEvent) {
       update({ settings })
       saveDraftSettings(machineKey(machine, event.sessionId), settings)
     }
+  }
+}
+
+function queueDelta(machine: string, sessionId: string, text: string) {
+  const selection = getState().selection
+  if (selection?.machine !== machine || selection.sessionId !== sessionId) {
+    return
+  }
+  if (
+    pendingDelta !== null &&
+    (pendingDelta.machine !== machine || pendingDelta.sessionId !== sessionId)
+  ) {
+    flushDelta()
+  }
+  if (pendingDelta === null) {
+    pendingDelta = { machine, sessionId, text: '' }
+    setTimeout(flushDelta, DELTA_DELAY)
+  }
+  pendingDelta.text += text
+}
+
+function flushDelta() {
+  if (pendingDelta === null) {
+    return
+  }
+  const delta = pendingDelta
+  pendingDelta = null
+  const state = getState()
+  if (
+    state.selection?.machine === delta.machine &&
+    state.selection.sessionId === delta.sessionId
+  ) {
+    update({ partial: state.partial + delta.text })
   }
 }
