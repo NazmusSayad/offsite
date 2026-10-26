@@ -348,7 +348,9 @@ export async function deactivateSession(
     const latest = getState()
       .sessions.filter(
         (item) =>
-          (item.status === 'pinned' || item.status === 'active') &&
+          (item.status === 'pinned' ||
+            item.status === 'active' ||
+            item.status === 'snoozed') &&
           !(item.machine === machine && item.id === id) &&
           (scope === null ||
             (item.machine === scope.machine &&

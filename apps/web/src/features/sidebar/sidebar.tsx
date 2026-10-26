@@ -70,6 +70,7 @@ export function Sidebar(
   const [adding, setAdding] = useState(false)
   const [addingMachine, setAddingMachine] = useState(false)
   const [editing, setEditing] = useState<MachineProject | null>(null)
+  const [snoozedOpen, setSnoozedOpen] = useState(false)
   const [minimizedOpen, setMinimizedOpen] = useState(false)
   const [inactiveOpen, setInactiveOpen] = useState(false)
   const [filter, setFilter] = useState<ThreadFilter>('active')
@@ -82,11 +83,25 @@ export function Sidebar(
           session.projectId === scope.projectId)
     )
     .sort((a, b) => b.updatedAt - a.updatedAt)
+  const snoozed = shown.filter((session) => {
+    const activity = activityOf(machines, session.machine, session.id)
+    return (
+      session.status === 'snoozed' &&
+      activity?.waiting !== true &&
+      (activity?.running === true ||
+        Object.values(activity?.tasks ?? {}).includes('running'))
+    )
+  })
   const active = [
     ...shown.filter((session) => session.status === 'pinned'),
-    ...shown.filter((session) => session.status === 'active'),
+    ...shown.filter(
+      (session) =>
+        session.status === 'active' ||
+        (session.status === 'snoozed' && !snoozed.includes(session))
+    ),
   ]
   const minimized = shown.filter((session) => session.status === 'minimized')
+  const lists = { snoozed, minimized, inactive }
   const showInactive = props.mobile ? filter === 'inactive' : inactiveOpen
   const scopeMachine = scope?.machine ?? null
   const scopeProject = scope?.projectId ?? null
@@ -315,11 +330,10 @@ export function Sidebar(
           <ul className="flex flex-1 flex-col gap-px">
             {props.mobile && filter !== 'active' && (
               <>
-                {(filter === 'minimized' ? minimized : inactive).map(
-                  (session) => row(session, filter === 'inactive')
+                {lists[filter].map((session) =>
+                  row(session, filter === 'inactive')
                 )}
-                {(filter === 'minimized' ? minimized : inactive).length ===
-                  0 && (
+                {lists[filter].length === 0 && (
                   <li className="text-sidebar-muted-foreground/60 px-2.5 py-6 text-center text-xs">
                     No {filter} threads
                   </li>
@@ -350,6 +364,14 @@ export function Sidebar(
             )}
             {!props.mobile && (
               <>
+                {snoozed.length > 0 &&
+                  section(
+                    snoozedOpen ? 'Snoozed' : `Snoozed (${snoozed.length})`,
+                    snoozed,
+                    snoozedOpen,
+                    () => setSnoozedOpen(!snoozedOpen),
+                    true
+                  )}
                 {minimized.length > 0 &&
                   section(
                     minimizedOpen
@@ -358,14 +380,14 @@ export function Sidebar(
                     minimized,
                     minimizedOpen,
                     () => setMinimizedOpen(!minimizedOpen),
-                    true
+                    snoozed.length === 0
                   )}
                 {section(
                   'Inactive',
                   inactive,
                   inactiveOpen,
                   () => setInactiveOpen(!inactiveOpen),
-                  minimized.length === 0
+                  snoozed.length === 0 && minimized.length === 0
                 )}
               </>
             )}

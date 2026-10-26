@@ -8,12 +8,12 @@ export type Session = {
   projectId: string
   branch: string | null
   updatedAt: number
-  status: 'active' | 'pinned' | 'minimized' | 'inactive'
+  status: 'active' | 'pinned' | 'snoozed' | 'minimized' | 'inactive'
 }
 
 export type SessionPatch = {
   title?: string
-  status?: 'active' | 'pinned' | 'minimized' | 'inactive'
+  status?: 'active' | 'pinned' | 'snoozed' | 'minimized' | 'inactive'
 }
 
 export type ContextUsage = {

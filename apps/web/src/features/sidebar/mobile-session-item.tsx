@@ -1,4 +1,6 @@
 import {
+  AlarmClockIcon,
+  AlarmClockOffIcon,
   Delete02Icon,
   MaximizeIcon,
   MinimizeIcon,
@@ -80,10 +82,6 @@ export function MobileSessionItem(props: {
   const busy = props.activity?.running === true || backgroundRunning
   const done = !waiting && !working && props.unseen
   const recede = !props.selected && !waiting && !done
-  const swipeable =
-    props.saved &&
-    !props.slim &&
-    (session.status === 'active' || session.status === 'pinned')
 
   function makeInactive() {
     void deactivateSession(session.machine, session.id, props.scope)
@@ -110,9 +108,71 @@ export function MobileSessionItem(props: {
     }
     swiped.current = true
     if (event.clientX - start.x > event.currentTarget.offsetWidth * 0.4) {
-      void deactivate()
+      if (session.status === 'inactive') {
+        void editSession(session.machine, session.id, { status: 'active' })
+      } else {
+        void deactivate()
+      }
     }
   }
+
+  const swipeHandlers = {
+    onClick: () => {
+      if (swiped.current) {
+        swiped.current = false
+        return
+      }
+      props.onSelect()
+    },
+    onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!props.saved || event.pointerType !== 'touch') {
+        return
+      }
+      swiped.current = false
+      swipe.current = {
+        x: event.clientX,
+        y: event.clientY,
+        swiping: false,
+      }
+    },
+    onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
+      const start = swipe.current
+      if (start === null) {
+        return
+      }
+      const dx = event.clientX - start.x
+      const dy = event.clientY - start.y
+      if (!start.swiping && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+        return
+      }
+      if (!start.swiping && dx <= Math.abs(dy)) {
+        swipe.current = null
+        return
+      }
+      start.swiping = true
+      setOffset(Math.max(0, dx))
+    },
+    onPointerUp: release,
+    onPointerCancel: () => {
+      swipe.current = null
+      setOffset(0)
+    },
+  }
+
+  const swipeBackground = offset > 0 && (
+    <div
+      className={cn(
+        'absolute inset-x-0 flex items-center rounded-md px-4 text-white',
+        props.slim ? 'inset-y-0' : 'inset-y-0.5',
+        session.status === 'inactive' ? 'bg-success' : 'bg-destructive'
+      )}
+    >
+      <HugeiconsIcon
+        icon={session.status === 'inactive' ? PlugZapIcon : Plug01Icon}
+        className="size-6"
+      />
+    </div>
+  )
 
   const stopDialog = (
     <AlertDialog
@@ -155,34 +215,6 @@ export function MobileSessionItem(props: {
         field.current.select()
       }}
     >
-      <ContextMenuItem onSelect={() => setTitle(session.title)}>
-        <HugeiconsIcon icon={PencilIcon} />
-        Rename
-      </ContextMenuItem>
-      <ContextMenuItem
-        onSelect={() =>
-          void editSession(session.machine, session.id, {
-            status: session.status === 'pinned' ? 'active' : 'pinned',
-          })
-        }
-      >
-        <HugeiconsIcon
-          icon={session.status === 'pinned' ? PinOffIcon : PinIcon}
-        />
-        {session.status === 'pinned' ? 'Unpin' : 'Pin'}
-      </ContextMenuItem>
-      <ContextMenuItem
-        onSelect={() =>
-          void editSession(session.machine, session.id, {
-            status: session.status === 'minimized' ? 'active' : 'minimized',
-          })
-        }
-      >
-        <HugeiconsIcon
-          icon={session.status === 'minimized' ? MaximizeIcon : MinimizeIcon}
-        />
-        {session.status === 'minimized' ? 'Restore' : 'Minimize'}
-      </ContextMenuItem>
       {session.status === 'inactive' ? (
         <ContextMenuItem
           onSelect={() =>
@@ -197,10 +229,52 @@ export function MobileSessionItem(props: {
       ) : (
         <ContextMenuItem onSelect={() => void deactivate()}>
           <HugeiconsIcon icon={Plug01Icon} />
-          Make inactive
+          Inactive
         </ContextMenuItem>
       )}
+      <ContextMenuItem
+        onSelect={() =>
+          void editSession(session.machine, session.id, {
+            status: session.status === 'snoozed' ? 'active' : 'snoozed',
+          })
+        }
+      >
+        <HugeiconsIcon
+          icon={
+            session.status === 'snoozed' ? AlarmClockOffIcon : AlarmClockIcon
+          }
+        />
+        {session.status === 'snoozed' ? 'Unsnooze' : 'Snooze'}
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() =>
+          void editSession(session.machine, session.id, {
+            status: session.status === 'minimized' ? 'active' : 'minimized',
+          })
+        }
+      >
+        <HugeiconsIcon
+          icon={session.status === 'minimized' ? MaximizeIcon : MinimizeIcon}
+        />
+        {session.status === 'minimized' ? 'Restore' : 'Minimize'}
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() =>
+          void editSession(session.machine, session.id, {
+            status: session.status === 'pinned' ? 'active' : 'pinned',
+          })
+        }
+      >
+        <HugeiconsIcon
+          icon={session.status === 'pinned' ? PinOffIcon : PinIcon}
+        />
+        {session.status === 'pinned' ? 'Unpin' : 'Pin'}
+      </ContextMenuItem>
       <ContextMenuSeparator />
+      <ContextMenuItem onSelect={() => setTitle(session.title)}>
+        <HugeiconsIcon icon={PencilIcon} />
+        Rename
+      </ContextMenuItem>
       <ContextMenuItem
         variant="destructive"
         title={`Also removes it from ${providerNames[session.provider]}`}
@@ -268,7 +342,8 @@ export function MobileSessionItem(props: {
 
   if (props.slim) {
     return (
-      <li className="list-none">
+      <li className="relative list-none">
+        {swipeBackground}
         <ContextMenu onOpenChange={() => setConfirming(false)}>
           <ContextMenuTrigger asChild disabled={!props.saved}>
             <div
@@ -277,9 +352,15 @@ export function MobileSessionItem(props: {
               className={cn(
                 surface,
                 rowState,
-                'flex h-9 items-center gap-2.5 px-2.5'
+                'flex h-9 items-center gap-2.5 px-2.5',
+                offset > 0 && 'bg-sidebar'
               )}
-              onClick={props.onSelect}
+              style={
+                offset > 0
+                  ? { transform: `translateX(${offset}px)` }
+                  : undefined
+              }
+              {...swipeHandlers}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   props.onSelect()
@@ -307,11 +388,7 @@ export function MobileSessionItem(props: {
 
   return (
     <li className="relative list-none py-0.5">
-      {offset > 0 && (
-        <div className="bg-destructive absolute inset-x-0 inset-y-0.5 flex items-center rounded-md px-4 text-white">
-          <HugeiconsIcon icon={Plug01Icon} className="size-6" />
-        </div>
-      )}
+      {swipeBackground}
       <ContextMenu onOpenChange={() => setConfirming(false)}>
         <ContextMenuTrigger asChild disabled={!props.saved}>
           <div
@@ -326,46 +403,7 @@ export function MobileSessionItem(props: {
             style={
               offset > 0 ? { transform: `translateX(${offset}px)` } : undefined
             }
-            onClick={() => {
-              if (swiped.current) {
-                swiped.current = false
-                return
-              }
-              props.onSelect()
-            }}
-            onPointerDown={(event) => {
-              if (!swipeable || event.pointerType !== 'touch') {
-                return
-              }
-              swiped.current = false
-              swipe.current = {
-                x: event.clientX,
-                y: event.clientY,
-                swiping: false,
-              }
-            }}
-            onPointerMove={(event) => {
-              const start = swipe.current
-              if (start === null) {
-                return
-              }
-              const dx = event.clientX - start.x
-              const dy = event.clientY - start.y
-              if (!start.swiping && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-                return
-              }
-              if (!start.swiping && dx <= Math.abs(dy)) {
-                swipe.current = null
-                return
-              }
-              start.swiping = true
-              setOffset(Math.max(0, dx))
-            }}
-            onPointerUp={release}
-            onPointerCancel={() => {
-              swipe.current = null
-              setOffset(0)
-            }}
+            {...swipeHandlers}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 props.onSelect()
@@ -407,6 +445,12 @@ export function MobileSessionItem(props: {
                     </span>
                   )}
                 </span>
+                {session.status === 'snoozed' && (
+                  <HugeiconsIcon
+                    icon={AlarmClockIcon}
+                    className="size-3 shrink-0"
+                  />
+                )}
                 <span className="shrink-0 tabular-nums">
                   {timeAgo(session.updatedAt)}
                 </span>

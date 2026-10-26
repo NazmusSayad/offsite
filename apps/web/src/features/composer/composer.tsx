@@ -420,8 +420,8 @@ export function Composer() {
           </div>
           <div
             className={cn(
-              'flex min-w-0 items-center justify-between gap-2 px-3 sm:px-4',
-              hero ? 'pb-3 sm:pb-4' : 'pb-2.5 sm:pb-3.5'
+              'flex min-w-0 items-center justify-between gap-2 px-3 sm:px-3.5',
+              hero ? 'pb-2.5 sm:pb-3.5' : 'pb-2 sm:pb-3'
             )}
           >
             <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-1 overflow-x-auto p-1 ps-3 sm:ps-4">

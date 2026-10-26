@@ -1,4 +1,6 @@
 import {
+  AlarmClockIcon,
+  AlarmClockOffIcon,
   Delete02Icon,
   EllipsisIcon,
   MaximizeIcon,
@@ -148,34 +150,6 @@ export function DesktopSessionItem(props: {
           field.current.select()
         }}
       >
-        <DropdownMenuItem onSelect={() => setTitle(session.title)}>
-          <HugeiconsIcon icon={PencilIcon} />
-          Rename
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() =>
-            void editSession(session.machine, session.id, {
-              status: session.status === 'pinned' ? 'active' : 'pinned',
-            })
-          }
-        >
-          <HugeiconsIcon
-            icon={session.status === 'pinned' ? PinOffIcon : PinIcon}
-          />
-          {session.status === 'pinned' ? 'Unpin' : 'Pin'}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() =>
-            void editSession(session.machine, session.id, {
-              status: session.status === 'minimized' ? 'active' : 'minimized',
-            })
-          }
-        >
-          <HugeiconsIcon
-            icon={session.status === 'minimized' ? MaximizeIcon : MinimizeIcon}
-          />
-          {session.status === 'minimized' ? 'Restore' : 'Minimize'}
-        </DropdownMenuItem>
         {session.status === 'inactive' ? (
           <DropdownMenuItem
             onSelect={() =>
@@ -190,10 +164,52 @@ export function DesktopSessionItem(props: {
         ) : (
           <DropdownMenuItem onSelect={() => void deactivate()}>
             <HugeiconsIcon icon={Plug01Icon} />
-            Make inactive
+            Inactive
           </DropdownMenuItem>
         )}
+        <DropdownMenuItem
+          onSelect={() =>
+            void editSession(session.machine, session.id, {
+              status: session.status === 'snoozed' ? 'active' : 'snoozed',
+            })
+          }
+        >
+          <HugeiconsIcon
+            icon={
+              session.status === 'snoozed' ? AlarmClockOffIcon : AlarmClockIcon
+            }
+          />
+          {session.status === 'snoozed' ? 'Unsnooze' : 'Snooze'}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() =>
+            void editSession(session.machine, session.id, {
+              status: session.status === 'minimized' ? 'active' : 'minimized',
+            })
+          }
+        >
+          <HugeiconsIcon
+            icon={session.status === 'minimized' ? MaximizeIcon : MinimizeIcon}
+          />
+          {session.status === 'minimized' ? 'Restore' : 'Minimize'}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() =>
+            void editSession(session.machine, session.id, {
+              status: session.status === 'pinned' ? 'active' : 'pinned',
+            })
+          }
+        >
+          <HugeiconsIcon
+            icon={session.status === 'pinned' ? PinOffIcon : PinIcon}
+          />
+          {session.status === 'pinned' ? 'Unpin' : 'Pin'}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => setTitle(session.title)}>
+          <HugeiconsIcon icon={PencilIcon} />
+          Rename
+        </DropdownMenuItem>
         <DropdownMenuItem
           variant="destructive"
           title={`Also removes it from ${providerNames[session.provider]}`}
@@ -357,6 +373,12 @@ export function DesktopSessionItem(props: {
                 </span>
               )}
             </span>
+            {session.status === 'snoozed' && (
+              <HugeiconsIcon
+                icon={AlarmClockIcon}
+                className="size-3 shrink-0"
+              />
+            )}
             <span className="shrink-0 tabular-nums">
               {timeAgo(session.updatedAt)}
             </span>

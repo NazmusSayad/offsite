@@ -1,4 +1,5 @@
 import {
+  AlarmClockIcon,
   Menu01Icon,
   MinimizeIcon,
   Plug01Icon,
@@ -18,7 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { showSettings } from '@/lib/store'
 
-export type ThreadFilter = 'active' | 'minimized' | 'inactive'
+export type ThreadFilter = 'active' | 'snoozed' | 'minimized' | 'inactive'
 
 export function MobileMenu(props: {
   className: string
@@ -38,6 +39,7 @@ export function MobileMenu(props: {
           {(
             [
               ['active', PlugZapIcon],
+              ['snoozed', AlarmClockIcon],
               ['minimized', MinimizeIcon],
               ['inactive', Plug01Icon],
             ] as const

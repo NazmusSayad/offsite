@@ -11,7 +11,9 @@ export const projects = snakeCase.table('projects', {
 export const sessions = snakeCase.table('sessions', {
   sessionId: text().primaryKey(),
   interactedAt: integer(),
-  status: text({ enum: ['active', 'pinned', 'minimized'] }).notNull(),
+  status: text({
+    enum: ['active', 'pinned', 'snoozed', 'minimized'],
+  }).notNull(),
 })
 
 export const pairingCodes = snakeCase.table('pairing_codes', {

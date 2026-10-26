@@ -137,7 +137,8 @@ function withStatus(items: Found[]): Session[] {
       updatedAt,
       status:
         record === undefined ||
-        (record.status === 'active' && Date.now() - updatedAt > day)
+        ((record.status === 'active' || record.status === 'snoozed') &&
+          Date.now() - updatedAt > day)
           ? 'inactive'
           : record.status,
     }
@@ -180,7 +181,7 @@ export function recordInteraction(id: string) {
       target: sessionsTable.sessionId,
       set: {
         interactedAt: Date.now(),
-        status: sql`CASE ${sessionsTable.status} WHEN 'pinned' THEN 'pinned' WHEN 'minimized' THEN 'minimized' ELSE 'active' END`,
+        status: sql`CASE ${sessionsTable.status} WHEN 'pinned' THEN 'pinned' WHEN 'snoozed' THEN 'snoozed' WHEN 'minimized' THEN 'minimized' ELSE 'active' END`,
       },
     })
     .run()
@@ -374,7 +375,7 @@ export async function updateSession(id: string, patch: SessionPatch) {
     }
   } else if (patch.status !== undefined) {
     const set =
-      patch.status === 'active'
+      patch.status === 'active' || patch.status === 'snoozed'
         ? { status: patch.status, interactedAt: Date.now() }
         : { status: patch.status }
     db.insert(sessionsTable)
