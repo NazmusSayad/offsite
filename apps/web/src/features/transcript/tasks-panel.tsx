@@ -467,7 +467,7 @@ function AgentView(props: {
               compacting={false}
               fork={false}
               expanded={expanded.includes(row.key)}
-              onToggle={() => toggle(row.key)}
+              onToggle={toggle}
               onOpenTask={props.onSelect}
               rewind={false}
               cwd={props.cwd}

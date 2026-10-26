@@ -1,6 +1,7 @@
 import type { Project } from '@offsite/core/projects'
 import type { ServerEvent } from '@offsite/core/protocol'
 import type { Session } from '@offsite/core/sessions'
+import { isEqual } from 'es-toolkit'
 import { showToast } from '@/components/toast'
 import { getDraftSettings, saveDraftSettings } from '@/features/composer/drafts'
 import {
@@ -244,7 +245,16 @@ function receive(machine: string, event: ServerEvent) {
         'finished'
       )
       notify(machine, waiting, 'needs your input')
-      setMachine(machine, { activity: event.activity })
+      setMachine(machine, {
+        activity: Object.fromEntries(
+          Object.entries(event.activity).map((entry) => [
+            entry[0],
+            isEqual(previous[entry[0]], entry[1])
+              ? previous[entry[0]]
+              : entry[1],
+          ])
+        ),
+      })
       update({
         partial: running || !selected ? state.partial : '',
         unseen: [

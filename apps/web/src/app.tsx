@@ -3,6 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useSearch } from '@tanstack/react-router'
 import {
   Fragment,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -122,6 +123,10 @@ function DesktopLayout() {
   })
   const lastPanel = useRef<Panel>('diff')
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
+  const openTask = useCallback((id: string) => {
+    setSelectedTask(id)
+    setPanel('tasks')
+  }, [])
   const [panelWidth, setPanelWidth] = useLocalStorage('panelWidth', 540)
   const [terminalHeight, setTerminalHeight] = useState(280)
   const terminal = useSyncExternalStore(
@@ -372,12 +377,7 @@ function DesktopLayout() {
                 <Fragment
                   key={`${selection.machine} ${selection.sessionId ?? selection.projectId}`}
                 >
-                  <Transcript
-                    onOpenTask={(id) => {
-                      setSelectedTask(id)
-                      setPanel('tasks')
-                    }}
-                  />
+                  <Transcript onOpenTask={openTask} />
                   <Composer />
                 </Fragment>
               )}

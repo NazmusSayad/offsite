@@ -4,7 +4,16 @@ import {
   Minimize02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { isEqual, omit } from 'es-toolkit'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -32,7 +41,7 @@ import { cn } from '@/lib/utils'
 
 const PAGE = 30
 
-export function Transcript(props: { onOpenTask: (id: string) => void }) {
+function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   const selection = useStore((state) => state.selection)
   const loaded = useStore((state) => state.loaded)
   const items = useStore((state) => state.items)
@@ -87,7 +96,10 @@ export function Transcript(props: { onOpenTask: (id: string) => void }) {
     }
   }, [items, partial, requests, running])
 
-  const found = threadTasks([...earlier, ...items], activity)
+  const found = useMemo(
+    () => threadTasks([...earlier, ...items], activity),
+    [earlier, items, activity]
+  )
   const olderRows = mainRows(earlier, false, '')
   const rows = [...olderRows, ...mainRows(items, running, partial)]
   const topIndex = rows.findIndex((row) => row.key === top?.key)
@@ -125,13 +137,13 @@ export function Transcript(props: { onOpenTask: (id: string) => void }) {
     setTop({ key: rows[start].key, above: PAGE })
   }
 
-  function toggle(key: string) {
-    setExpanded(
-      expanded.includes(key)
-        ? expanded.filter((item) => item !== key)
-        : [...expanded, key]
+  const toggle = useCallback((key: string) => {
+    setExpanded((current) =>
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key]
     )
-  }
+  }, [])
 
   return (
     <div
@@ -204,7 +216,7 @@ export function Transcript(props: { onOpenTask: (id: string) => void }) {
                   compacting={activity?.compacting === true}
                   fork={!older}
                   expanded={expanded.includes(row.key)}
-                  onToggle={() => toggle(row.key)}
+                  onToggle={toggle}
                   onOpenTask={props.onOpenTask}
                   rewind={!older}
                   cwd={cwd}
@@ -218,7 +230,9 @@ export function Transcript(props: { onOpenTask: (id: string) => void }) {
   )
 }
 
-export function RowView(props: {
+export const Transcript = memo(TranscriptView)
+
+function RowContent(props: {
   row: Row
   agents: ReturnType<typeof threadTasks>['agents']
   tasks: ReturnType<typeof threadTasks>['tasks']
@@ -227,7 +241,7 @@ export function RowView(props: {
   compacting: boolean
   fork: boolean
   expanded: boolean
-  onToggle: () => void
+  onToggle: (key: string) => void
   onOpenTask: (id: string) => void
   rewind: boolean
 }) {
@@ -258,7 +272,7 @@ export function RowView(props: {
           cwd={props.cwd}
           live={row.live}
           open={props.expanded}
-          onToggle={props.onToggle}
+          onToggle={() => props.onToggle(row.key)}
         />
       )
     case 'agent':
@@ -330,6 +344,15 @@ export function RowView(props: {
       return <QuestionCard item={row.item} />
   }
 }
+
+export const RowView = memo(RowContent, (previous, next) =>
+  next.row.kind === 'agent'
+    ? isEqual(previous, next)
+    : isEqual(
+        omit(previous, ['agents', 'tasks']),
+        omit(next, ['agents', 'tasks'])
+      )
+)
 
 function ForkButton(props: { uuid: string }) {
   const [busy, setBusy] = useState(false)
