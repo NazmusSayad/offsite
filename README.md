@@ -27,12 +27,3 @@ The `show` skill teaches agents this syntax. Add it with:
 ```sh
 npx skills add NazmusSayad/offsite --skill show
 ```
-
-## Development
-
-```sh
-pnpm install
-pnpm dev
-```
-
-The web app runs at [http://localhost:5173](http://localhost:5173). The server runs on port 47842 and keeps its data in `~/.offsite-dev`, apart from your main instance.

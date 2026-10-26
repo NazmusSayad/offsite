@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "dev": "pnpm -r --parallel dev",
+    "dev": "OFFSITE_CONNECT=http://127.0.0.1:47842 pnpm -r --parallel dev",
     "build": "pnpm --filter web build && pnpm --filter server build",
     "start": "node apps/server/dist/main.mjs",
     "typecheck": "tsc -p tsconfig.json && pnpm -r typecheck",
