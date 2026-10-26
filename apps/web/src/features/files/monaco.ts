@@ -7,7 +7,6 @@ import {
   MenuId,
   MenuRegistry,
 } from 'monaco-editor/platform/actions/common/actions'
-import { ContextKeyExpr } from 'monaco-editor/platform/contextkey/common/contextkey'
 import {
   bundledLanguagesInfo,
   bundledThemesInfo,
@@ -23,16 +22,72 @@ self.MonacoEnvironment = {
   },
 }
 
-MenuRegistry.appendMenuItem(MenuId.DiffEditorHunkToolbar, {
-  command: {
-    id: 'offsite.stageBlock',
-    title: 'Stage Block',
-    icon: { id: 'add' },
-  },
-  when: ContextKeyExpr.has('diffEditorModifiedWritable'),
-  group: 'primary',
-  order: 10,
-})
+export type Block = {
+  mapping: {
+    innerChanges: {
+      originalRange: monaco.IRange
+      modifiedRange: monaco.IRange
+    }[]
+  }
+  originalWithModifiedChanges: string
+}
+
+export function registerBlockAction(
+  kind: 'stage' | 'unstage',
+  run: (block: Block) => void
+) {
+  const command = monaco.editor.registerCommand(
+    'offsite.block',
+    (accessor, block) => run(block)
+  )
+  const label = kind === 'stage' ? 'Stage' : 'Unstage'
+  const icon = { id: kind === 'stage' ? 'add' : 'remove' }
+  const items = [
+    MenuRegistry.appendMenuItem(MenuId.DiffEditorHunkToolbar, {
+      command: { id: 'offsite.block', title: `${label} Block`, icon },
+      group: 'primary',
+      order: 10,
+    }),
+    MenuRegistry.appendMenuItem(MenuId.DiffEditorSelectionToolbar, {
+      command: { id: 'offsite.block', title: `${label} Selection`, icon },
+      group: 'primary',
+      order: 10,
+    }),
+  ]
+  return () => {
+    command.dispose()
+    for (const item of items) {
+      item.dispose()
+    }
+  }
+}
+
+export function revertBlock(
+  original: monaco.editor.ITextModel,
+  modified: monaco.editor.ITextModel,
+  mapping: Block['mapping']
+) {
+  let text = modified.getValue()
+  for (const change of mapping.innerChanges.slice().reverse()) {
+    const range = change.modifiedRange
+    text =
+      text.slice(
+        0,
+        modified.getOffsetAt({
+          lineNumber: range.startLineNumber,
+          column: range.startColumn,
+        })
+      ) +
+      original.getValueInRange(change.originalRange) +
+      text.slice(
+        modified.getOffsetAt({
+          lineNumber: range.endLineNumber,
+          column: range.endColumn,
+        })
+      )
+  }
+  return text
+}
 
 const highlighter = createHighlighter({ themes: [], langs: [] })
 

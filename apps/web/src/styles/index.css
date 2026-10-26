@@ -636,3 +636,48 @@
   overflow: clip;
   background: var(--code-background);
 }
+
+.monaco-diff-editor {
+  --vscode-editorGutter-itemBackground:
+    linear-gradient(var(--vscode-list-inactiveSelectionBackground) 0 0),
+    var(--vscode-editor-background);
+  --vscode-editorGutter-itemGlyphForeground: var(--vscode-editor-foreground);
+}
+
+.monaco-diff-editor
+  .gutter
+  .gutterItem
+  .buttons
+  .monaco-toolbar
+  .monaco-action-bar.vertical
+  .actions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.monaco-diff-editor
+  .gutter
+  .gutterItem
+  .buttons
+  .monaco-toolbar
+  .monaco-action-bar.vertical
+  .actions-container
+  .action-item {
+  border-radius: 4px;
+}
+
+.monaco-diff-editor
+  .gutter
+  .gutterItem
+  .buttons
+  .monaco-toolbar
+  .monaco-action-bar.vertical
+  .actions-container
+  .action-item
+  .action-label {
+  box-sizing: content-box;
+  padding: 3px 2px;
+}

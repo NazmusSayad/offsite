@@ -1,5 +1,8 @@
 declare module 'monaco-editor/platform/actions/common/actions' {
-  export const MenuId: { DiffEditorHunkToolbar: object }
+  export const MenuId: {
+    DiffEditorHunkToolbar: object
+    DiffEditorSelectionToolbar: object
+  }
   export const MenuRegistry: {
     appendMenuItem(
       menu: object,

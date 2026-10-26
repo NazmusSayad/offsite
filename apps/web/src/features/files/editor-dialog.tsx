@@ -28,6 +28,7 @@ import {
 } from '@/features/files/monaco'
 import { SavePrompt } from '@/features/files/save-prompt'
 import { StatusBar } from '@/features/files/status-bar'
+import { useBlockStaging } from '@/features/files/use-block-staging'
 import { useTabs } from '@/features/files/use-tabs'
 import { ViewSwitcher } from '@/features/files/view-switcher'
 import { BranchDialog } from '@/features/git/branch-picker'
@@ -173,6 +174,7 @@ export function EditorDialog(props: {
     }
     const target = original === null ? editor : diff.getModifiedEditor()
     target.updateOptions({ readOnly: !editable })
+    diff.updateOptions({ readOnly: !editable })
     target.restoreViewState(views.get(active) ?? null)
     target.focus()
     shown.current = { id: active, editor: target }
@@ -182,27 +184,14 @@ export function EditorDialog(props: {
 
   useEffect(() => refreshActive(), [active])
 
-  const stageBlock = useEffectEvent((content: string) => {
-    const left = current?.spec.left
-    if (current === undefined || left?.kind !== 'git') {
-      throw new Error('Only working tree changes can be staged')
-    }
-    void perform(() =>
-      call(props.machine, 'git.run', {
-        projectId: props.projectId,
-        repo: current.spec.repo,
-        action: { kind: 'stageContent', path: left.path, content },
-      })
-    )
+  useBlockStaging({
+    machine: props.machine,
+    projectId: props.projectId,
+    spec: current?.spec,
+    original,
+    modified,
+    onPerform: perform,
   })
-
-  useEffect(() => {
-    const command = monaco.editor.registerCommand(
-      'offsite.stageBlock',
-      (accessor, arg) => stageBlock(arg.originalWithModifiedChanges)
-    )
-    return () => command.dispose()
-  }, [])
 
   function open(spec: TabSpec) {
     if (window.innerWidth < 640) {
