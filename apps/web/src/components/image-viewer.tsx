@@ -11,7 +11,11 @@ export function ImageViewer(props: {
     <PreviewDialog open onClose={props.onClose}>
       <PreviewHeader title={props.name} />
       <div className="min-h-0 flex-1">
-        <ZoomableImage src={props.src} alt={props.alt} />
+        <ZoomableImage
+          src={props.src}
+          alt={props.alt}
+          onClose={props.onClose}
+        />
       </div>
     </PreviewDialog>
   )
