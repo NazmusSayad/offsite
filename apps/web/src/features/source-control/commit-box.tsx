@@ -4,9 +4,9 @@ import {
   ArrowUp02Icon,
   CheckIcon,
   CloudUploadIcon,
-  Loading03Icon,
   RefreshIcon,
   SparklesIcon,
+  StopCircleIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SourceControlRepo } from '@offsite/core/git'
@@ -40,6 +40,7 @@ export function CommitBox(props: {
   nested: boolean
   onMessage: (message: string) => void
   onGenerate: () => void
+  onCancel: () => void
   onCommit: (options: CommitOptions) => void
   onRemote: (method: 'git.push' | 'git.sync') => void
 }) {
@@ -75,15 +76,14 @@ export function CommitBox(props: {
         />
         <button
           type="button"
-          title="Generate Commit Message"
-          aria-label="Generate Commit Message"
-          disabled={props.generating}
+          title={props.generating ? 'Cancel' : 'Generate Commit Message'}
+          aria-label={props.generating ? 'Cancel' : 'Generate Commit Message'}
           className="text-muted-foreground hover:text-foreground hover:bg-accent absolute top-[3px] right-[3px] grid size-5 cursor-pointer place-items-center rounded-sm"
-          onClick={props.onGenerate}
+          onClick={props.generating ? props.onCancel : props.onGenerate}
         >
           <HugeiconsIcon
-            icon={props.generating ? Loading03Icon : SparklesIcon}
-            className={cn('size-3.5', props.generating && 'animate-spin')}
+            icon={props.generating ? StopCircleIcon : SparklesIcon}
+            className="size-3.5"
           />
         </button>
       </div>

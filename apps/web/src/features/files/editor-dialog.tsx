@@ -13,6 +13,7 @@ import {
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { EditorErrors } from '@/features/files/editor-errors'
 import {
   type EditorSettings,
   loadEditorState,
@@ -456,6 +457,7 @@ export function EditorDialog(props: {
             />
           )}
         </StatusBar>
+        <EditorErrors />
         <SavePrompt
           open={documents.closing !== null}
           paths={documents.closingTabs.map((tab) => tab.spec.path)}

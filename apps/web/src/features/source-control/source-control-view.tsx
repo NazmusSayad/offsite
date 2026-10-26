@@ -10,7 +10,7 @@ import type {
   GitResource,
   SourceControlRepo,
 } from '@offsite/core/git'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import {
   AlertDialog,
@@ -60,6 +60,7 @@ export function SourceControlView(props: {
   onCheckout: (repo: SourceControlRepo) => void
 }) {
   const [generating, setGenerating] = useState<string[]>([])
+  const requests = useRef(new Map<string, object>())
   const [prompt, setPrompt] = useState<{
     repo: SourceControlRepo
     options: CommitOptions
@@ -129,21 +130,32 @@ export function SourceControlView(props: {
   }
 
   async function generate(repo: SourceControlRepo) {
+    const request = {}
+    requests.current.set(repo.path, request)
     setGenerating((current) => [...current, repo.path])
     try {
-      props.onMessage(
-        repo.path,
-        await call(props.machine, 'git.message', {
-          projectId: props.projectId,
-          repo: repo.path,
-          staged: repo.staged.length > 0,
-        })
-      )
+      const text = await call(props.machine, 'git.message', {
+        projectId: props.projectId,
+        repo: repo.path,
+        staged: repo.staged.length > 0,
+      })
+      if (requests.current.get(repo.path) === request) {
+        props.onMessage(repo.path, text)
+      }
     } catch (caught) {
-      showError(caught)
+      if (requests.current.get(repo.path) === request) {
+        showError(caught)
+      }
     } finally {
-      setGenerating((current) => current.filter((item) => item !== repo.path))
+      if (requests.current.get(repo.path) === request) {
+        cancel(repo)
+      }
     }
+  }
+
+  function cancel(repo: SourceControlRepo) {
+    requests.current.delete(repo.path)
+    setGenerating((current) => current.filter((item) => item !== repo.path))
   }
 
   function undo(repo: SourceControlRepo) {
@@ -235,8 +247,10 @@ export function SourceControlView(props: {
           <HugeiconsIcon icon={RefreshCwIcon} className="size-4" />
         </Button>
         {single !== null && moreActions(single)}
-        {props.busy && (
-          <span className="bg-primary absolute inset-x-0 -bottom-px h-0.5 animate-pulse" />
+        {(props.busy || generating.length > 0) && (
+          <span className="absolute inset-x-0 -bottom-px h-0.5 overflow-hidden">
+            <span className="bg-primary block h-full w-[2%] animate-[progress_4s_linear_infinite]" />
+          </span>
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto pb-2">
@@ -280,6 +294,7 @@ export function SourceControlView(props: {
               nested={single === null}
               onMessage={(text) => props.onMessage(repo.path, text)}
               onGenerate={() => void generate(repo)}
+              onCancel={() => cancel(repo)}
               onCommit={(options) => void commit(repo, options)}
               onRemote={(method) => void remote(repo, method)}
             />

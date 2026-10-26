@@ -275,6 +275,18 @@
     var(--app-scrollbar-width) 100%;
 }
 
+@keyframes progress {
+  from {
+    transform: translateX(0%) scaleX(1);
+  }
+  50% {
+    transform: translateX(2500%) scaleX(3);
+  }
+  to {
+    transform: translateX(4900%) scaleX(1);
+  }
+}
+
 @keyframes text-shimmer {
   from {
     background-position:
