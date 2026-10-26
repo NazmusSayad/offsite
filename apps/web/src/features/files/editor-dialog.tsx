@@ -226,15 +226,7 @@ export function EditorDialog(props: {
   const header = (
     <>
       {toggle}
-      <ViewSwitcher
-        view={settings.view}
-        label={
-          settings.view === 'explorer'
-            ? (project?.name ?? '')
-            : 'Source Control'
-        }
-        onView={(view) => change({ view })}
-      />
+      <ViewSwitcher view={settings.view} onView={(view) => change({ view })} />
     </>
   )
 

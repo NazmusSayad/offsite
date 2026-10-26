@@ -2,7 +2,7 @@ import {
   BrowserIcon,
   GitCompareIcon,
   MoreVerticalIcon,
-  SourceCodeIcon,
+  VisualStudioCodeIcon,
   SquareTerminalIcon,
   TaskDaily01Icon,
 } from '@hugeicons/core-free-icons'
@@ -234,17 +234,6 @@ function usePanelOptions(
       onSelect: () => props.onPanel(props.panel === 'tasks' ? null : 'tasks'),
     },
     {
-      id: 'editor',
-      label: 'Editor',
-      title: 'Editor',
-      icon: SourceCodeIcon,
-      pressed: false,
-      attention: false,
-      badge: null,
-      detail: null,
-      onSelect: onEditor,
-    },
-    {
       id: 'browser',
       label: 'Browser',
       title: 'Browser',
@@ -255,6 +244,17 @@ function usePanelOptions(
       detail: null,
       onSelect: () =>
         props.onPanel(props.panel === 'browser' ? null : 'browser'),
+    },
+    {
+      id: 'editor',
+      label: 'Editor',
+      title: 'Editor',
+      icon: VisualStudioCodeIcon,
+      pressed: false,
+      attention: false,
+      badge: null,
+      detail: null,
+      onSelect: onEditor,
     },
   ]
 }
