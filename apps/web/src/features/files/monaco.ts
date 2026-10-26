@@ -96,3 +96,16 @@ export async function applyTheme() {
   shikiToMonaco(instance, monaco)
   monaco.editor.setTheme(scheme.codeTheme)
 }
+
+export function editorOptions() {
+  return {
+    automaticLayout: true,
+    fontFamily: getComputedStyle(document.documentElement).getPropertyValue(
+      '--font-mono'
+    ),
+    fontSize: 13,
+    lineHeight: 20,
+    minimap: { enabled: false },
+    stickyScroll: { enabled: false },
+  }
+}

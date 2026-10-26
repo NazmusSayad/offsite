@@ -1,8 +1,8 @@
 import {
   BrowserIcon,
-  Folder01Icon,
   GitCompareIcon,
   MoreVerticalIcon,
+  SourceCodeIcon,
   SquareTerminalIcon,
   TaskDaily01Icon,
 } from '@hugeicons/core-free-icons'
@@ -62,8 +62,8 @@ type ToggleProps = {
 }
 
 export function PanelToggles(props: ToggleProps) {
-  const [editing, setEditing] = useState(false)
-  const options = usePanelOptions(props, () => setEditing(true))
+  const [editor, setEditor] = useState(false)
+  const options = usePanelOptions(props, () => setEditor(true))
 
   return (
     <>
@@ -80,12 +80,12 @@ export function PanelToggles(props: ToggleProps) {
           {option.badge}
         </button>
       ))}
-      {editing && (
+      {editor && (
         <Suspense>
           <EditorDialog
             machine={props.selection.machine}
             projectId={props.selection.projectId}
-            onClose={() => setEditing(false)}
+            onClose={() => setEditor(false)}
           />
         </Suspense>
       )}
@@ -100,8 +100,8 @@ export function PanelMenu(
     children: ReactNode
   }
 ) {
-  const [editing, setEditing] = useState(false)
-  const options = usePanelOptions(props, () => setEditing(true))
+  const [editor, setEditor] = useState(false)
+  const options = usePanelOptions(props, () => setEditor(true))
 
   return (
     <div className="flex shrink-0 items-center gap-1">
@@ -129,12 +129,12 @@ export function PanelMenu(
           {props.children}
         </DropdownMenuContent>
       </DropdownMenu>
-      {editing && (
+      {editor && (
         <Suspense>
           <EditorDialog
             machine={props.selection.machine}
             projectId={props.selection.projectId}
-            onClose={() => setEditing(false)}
+            onClose={() => setEditor(false)}
           />
         </Suspense>
       )}
@@ -144,7 +144,7 @@ export function PanelMenu(
 
 function usePanelOptions(
   props: ToggleProps,
-  onFiles: () => void
+  onEditor: () => void
 ): [MenuOption, ...MenuOption[]] {
   const terminalAlert = useSyncExternalStore(
     subscribeTerminal,
@@ -234,15 +234,15 @@ function usePanelOptions(
       onSelect: () => props.onPanel(props.panel === 'tasks' ? null : 'tasks'),
     },
     {
-      id: 'files',
-      label: 'Files',
-      title: 'Files',
-      icon: Folder01Icon,
+      id: 'editor',
+      label: 'Editor',
+      title: 'Editor',
+      icon: SourceCodeIcon,
       pressed: false,
       attention: false,
       badge: null,
       detail: null,
-      onSelect: onFiles,
+      onSelect: onEditor,
     },
     {
       id: 'browser',
@@ -292,7 +292,6 @@ export function PanelView(props: {
           sessionId={props.selection.sessionId}
           selected={props.selectedTask}
           onSelect={props.onSelectTask}
-          onOpenDiff={() => props.onPanel('diff')}
           onClose={() => props.onPanel(null)}
         />
       )}

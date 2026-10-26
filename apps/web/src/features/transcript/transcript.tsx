@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Wrapper } from '@/components/wrapper'
 import { AgentLine } from '@/features/transcript/agent-pill'
-import { ChangedFilesCard } from '@/features/transcript/changed-files'
 import { PlanCard } from '@/features/transcript/plan-card'
 import { QuestionCard } from '@/features/transcript/question-card'
 import { threadTasks } from '@/features/transcript/tasks'
@@ -33,10 +32,7 @@ import { cn } from '@/lib/utils'
 
 const PAGE = 30
 
-export function Transcript(props: {
-  onOpenDiff: () => void
-  onOpenTask: (id: string) => void
-}) {
+export function Transcript(props: { onOpenTask: (id: string) => void }) {
   const selection = useStore((state) => state.selection)
   const loaded = useStore((state) => state.loaded)
   const items = useStore((state) => state.items)
@@ -92,8 +88,8 @@ export function Transcript(props: {
   }, [items, partial, requests, running])
 
   const found = threadTasks([...earlier, ...items], activity)
-  const olderRows = mainRows(earlier, cwd, false, '')
-  const rows = [...olderRows, ...mainRows(items, cwd, running, partial)]
+  const olderRows = mainRows(earlier, false, '')
+  const rows = [...olderRows, ...mainRows(items, running, partial)]
   const topIndex = rows.findIndex((row) => row.key === top?.key)
   const start = Math.max(
     0,
@@ -211,7 +207,6 @@ export function Transcript(props: {
                   onToggle={() => toggle(row.key)}
                   onOpenTask={props.onOpenTask}
                   rewind={!older}
-                  onOpenDiff={props.onOpenDiff}
                   cwd={cwd}
                 />
               </div>
@@ -235,7 +230,6 @@ export function RowView(props: {
   onToggle: () => void
   onOpenTask: (id: string) => void
   rewind: boolean
-  onOpenDiff: () => void
 }) {
   const row = props.row
   switch (row.kind) {
@@ -280,22 +274,12 @@ export function RowView(props: {
     case 'assistant':
       return (
         <>
-          <div className="relative min-w-0">
-            <Markdown
-              text={
-                row.text === '' && !row.streaming
-                  ? '(empty response)'
-                  : row.text
-              }
-              streaming={row.streaming}
-            />
-            {row.changed.size > 0 && (
-              <ChangedFilesCard
-                files={row.changed}
-                onOpenDiff={props.onOpenDiff}
-              />
-            )}
-          </div>
+          <Markdown
+            text={
+              row.text === '' && !row.streaming ? '(empty response)' : row.text
+            }
+            streaming={row.streaming}
+          />
           {row.meta && (
             <div className="mt-1.5 flex items-center gap-2 text-xs tabular-nums opacity-0 transition-opacity duration-200 group-hover/assistant:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
               <MessageCopyButton text={row.text} />

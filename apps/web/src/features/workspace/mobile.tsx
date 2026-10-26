@@ -210,7 +210,6 @@ function MobileChat(props: { selection: Selection }) {
           key={`${props.selection.machine} ${props.selection.sessionId ?? props.selection.projectId}`}
         >
           <Transcript
-            onOpenDiff={() => showPanel('diff')}
             onOpenTask={(id) => {
               showPanel('tasks')
               setSelectedTask(id)

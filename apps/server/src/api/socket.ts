@@ -31,6 +31,7 @@ import {
 } from '../services/files.ts'
 import {
   commit,
+  commitMessage,
   createPullRequest,
   fetchProject,
   gitRepos,
@@ -42,6 +43,7 @@ import {
   switchBranch,
   sync,
 } from '../services/git.ts'
+import { logoFiles } from '../services/logos.ts'
 import {
   addProject,
   directories,
@@ -69,6 +71,14 @@ import {
   updateSession,
   watchSessions,
 } from '../services/sessions.ts'
+import {
+  commitFiles,
+  history,
+  runAction,
+  showFile,
+  sourceControl,
+  undoCommit,
+} from '../services/source-control.ts'
 import { savePastedImage } from '../services/terminal/paste.ts'
 import { listShells } from '../services/terminal/process.ts'
 import {
@@ -141,6 +151,7 @@ const handlers: Handlers = {
     return null
   },
   'projects.reorder': (params) => reorderProjects(params.ids),
+  'projects.logoFiles': (params) => logoFiles(projectPath(params.id)),
   'directories.list': (params) => directories(params.path),
   'sessions.update': async (params) => {
     try {
@@ -287,6 +298,38 @@ const handlers: Handlers = {
       params.message,
       params.push
     ),
+  'git.changes': (params) => sourceControl(projectPath(params.projectId)),
+  'git.show': (params) =>
+    showFile(
+      path.join(projectPath(params.projectId), params.repo),
+      params.ref,
+      params.path
+    ),
+  'git.history': (params) =>
+    history(
+      path.join(projectPath(params.projectId), params.repo),
+      params.limit
+    ),
+  'git.commitFiles': (params) =>
+    commitFiles(
+      path.join(projectPath(params.projectId), params.repo),
+      params.hash,
+      params.parent
+    ),
+  'git.message': (params) =>
+    commitMessage(
+      path.join(projectPath(params.projectId), params.repo),
+      params.staged
+    ),
+  'git.undoCommit': (params) =>
+    undoCommit(path.join(projectPath(params.projectId), params.repo)),
+  'git.run': async (params) => {
+    await runAction(
+      path.join(projectPath(params.projectId), params.repo),
+      params.action
+    )
+    return null
+  },
   'git.push': async (params) => {
     await push(path.join(projectPath(params.projectId), params.repo))
     return null

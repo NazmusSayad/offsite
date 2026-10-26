@@ -53,9 +53,8 @@ type Editing =
 export function Explorer(props: {
   machine: string
   projectId: string
-  name: string
   root: string
-  toggle: ReactNode
+  header: ReactNode
   expanded: string[]
   onExpanded: Dispatch<SetStateAction<string[]>>
   active: string | null
@@ -284,10 +283,7 @@ export function Explorer(props: {
   return (
     <div className="bg-sidebar flex h-full min-h-0 flex-col">
       <div className="text-sidebar-foreground border-sidebar-border flex h-9 shrink-0 items-center gap-0.5 border-b px-1.5">
-        {props.toggle}
-        <span className="ml-1.5 min-w-0 flex-1 truncate text-[11px] font-bold tracking-wide uppercase">
-          {props.name}
-        </span>
+        {props.header}
         <Button
           size="icon-micro"
           variant="ghost"

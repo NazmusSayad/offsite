@@ -5,7 +5,15 @@ import type {
   PromptDelivery,
   SessionSettings,
 } from './config.ts'
-import type { GitRepo, PullRequestBranches, PullRequestDraft } from './git.ts'
+import type {
+  GitAction,
+  GitCommit,
+  GitRepo,
+  GitResource,
+  PullRequestBranches,
+  PullRequestDraft,
+  SourceControlRepo,
+} from './git.ts'
 import type {
   PermissionDecision,
   ImageAttachment,
@@ -67,6 +75,7 @@ export type RpcMethods = {
   }
   'projects.remove': { params: { id: string }; result: null }
   'projects.reorder': { params: { ids: string[] }; result: null }
+  'projects.logoFiles': { params: { id: string }; result: string[] }
   'directories.list': { params: { path: string }; result: DirectoryListing }
   'sessions.update': {
     params: { id: string; patch: SessionPatch }
@@ -199,6 +208,36 @@ export type RpcMethods = {
   'git.commit': {
     params: { projectId: string; repo: string; message: string; push: boolean }
     result: { message: string }
+  }
+  'git.changes': { params: { projectId: string }; result: SourceControlRepo[] }
+  'git.show': {
+    params: { projectId: string; repo: string; ref: string; path: string }
+    result: string | null
+  }
+  'git.history': {
+    params: { projectId: string; repo: string; limit: number }
+    result: GitCommit[]
+  }
+  'git.commitFiles': {
+    params: {
+      projectId: string
+      repo: string
+      hash: string
+      parent: string | null
+    }
+    result: GitResource[]
+  }
+  'git.message': {
+    params: { projectId: string; repo: string; staged: boolean }
+    result: string
+  }
+  'git.undoCommit': {
+    params: { projectId: string; repo: string }
+    result: string
+  }
+  'git.run': {
+    params: { projectId: string; repo: string; action: GitAction }
+    result: null
   }
   'git.push': { params: { projectId: string; repo: string }; result: null }
   'git.sync': { params: { projectId: string; repo: string }; result: null }

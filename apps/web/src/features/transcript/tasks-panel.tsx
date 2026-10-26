@@ -31,7 +31,6 @@ export function TasksPanel(props: {
   sessionId: string | null
   selected: string | null
   onSelect: (id: string | null) => void
-  onOpenDiff: () => void
   onClose: () => void
 }) {
   const items = useStore((state) => state.items)
@@ -232,7 +231,6 @@ export function TasksPanel(props: {
           found={found}
           cwd={props.cwd}
           onSelect={props.onSelect}
-          onOpenDiff={props.onOpenDiff}
         />
       )}
       {task !== undefined && props.sessionId !== null && (
@@ -381,7 +379,6 @@ function AgentView(props: {
   found: Found
   cwd: string
   onSelect: (id: string) => void
-  onOpenDiff: () => void
 }) {
   const scroller = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
@@ -419,7 +416,6 @@ function AgentView(props: {
       first: false,
       items: prompt === null ? agentItems : agentItems.slice(1),
     },
-    props.cwd,
     props.running ? { partial: '' } : null
   )
 
@@ -474,7 +470,6 @@ function AgentView(props: {
               onToggle={() => toggle(row.key)}
               onOpenTask={props.onSelect}
               rewind={false}
-              onOpenDiff={props.onOpenDiff}
               cwd={props.cwd}
             />
           </div>

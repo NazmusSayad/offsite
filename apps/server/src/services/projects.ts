@@ -11,17 +11,7 @@ import { eq, max } from 'drizzle-orm'
 import { broadcast } from '../lib/hub.ts'
 import { db } from '../storage/db.ts'
 import { projects as projectsTable } from '../storage/schema.ts'
-import { findLogo, LOGO_LIMIT } from './logos.ts'
-
-const LOGO_TYPES = [
-  'image/png',
-  'image/jpeg',
-  'image/gif',
-  'image/webp',
-  'image/svg+xml',
-  'image/x-icon',
-  'image/vnd.microsoft.icon',
-]
+import { findLogo, prepareLogo } from './logos.ts'
 
 export function projects(): Project[] {
   return db
@@ -76,7 +66,7 @@ export async function addProject(input: string) {
   return project
 }
 
-export function updateProject(id: string, patch: ProjectPatch) {
+export async function updateProject(id: string, patch: ProjectPatch) {
   if (patch.name !== undefined) {
     const name = patch.name.trim()
     if (name === '') {
@@ -85,11 +75,10 @@ export function updateProject(id: string, patch: ProjectPatch) {
     db.update(projectsTable).set({ name }).where(eq(projectsTable.id, id)).run()
   }
   if (patch.logo !== undefined) {
-    if (patch.logo !== null) {
-      checkLogo(patch.logo)
-    }
     db.update(projectsTable)
-      .set({ logo: patch.logo })
+      .set({
+        logo: patch.logo === null ? null : await prepareLogo(patch.logo),
+      })
       .where(eq(projectsTable.id, id))
       .run()
   }
@@ -142,16 +131,6 @@ export async function directories(input: string): Promise<DirectoryListing> {
 
 function publish() {
   broadcast({ type: 'projects', projects: projects() })
-}
-
-function checkLogo(logo: string) {
-  const type = /^data:([^;,]+);base64,/.exec(logo)?.[1]
-  if (type === undefined || !LOGO_TYPES.includes(type)) {
-    throw new Error('Use a PNG, JPEG, GIF, WebP, SVG or ICO image')
-  }
-  if (logo.length > LOGO_LIMIT) {
-    throw new Error('Use an image smaller than 384 KB')
-  }
 }
 
 function expandHome(input: string) {

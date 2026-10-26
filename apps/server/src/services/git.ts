@@ -62,7 +62,7 @@ export async function gitRepos(cwd: string) {
 }
 
 export async function commit(cwd: string, message: string, andPush: boolean) {
-  const text = message.trim() === '' ? await commitMessage(cwd) : message
+  const text = message.trim() === '' ? await commitMessage(cwd, false) : message
   await git(cwd, ['add', '--all'])
   await git(cwd, ['commit', '--message', text])
   if (andPush) {
@@ -295,8 +295,13 @@ export async function createPullRequest(
   return { url }
 }
 
-async function commitMessage(cwd: string) {
-  const diff = (await repoDiff(cwd, '')).slice(0, DIFF_LIMIT)
+export async function commitMessage(cwd: string, staged: boolean) {
+  const diff = (
+    staged
+      ? (await git(cwd, ['diff', '--cached', '--no-color', '--no-ext-diff']))
+          .stdout
+      : await repoDiff(cwd, '')
+  ).slice(0, DIFF_LIMIT)
   if (diff === '') {
     throw new Error('There is nothing to commit')
   }
@@ -417,7 +422,7 @@ async function rebaseOnUpstream(cwd: string) {
   }
 }
 
-function gitError(error: unknown) {
+export function gitError(error: unknown) {
   return new Error(
     (error instanceof Error ? error.message : String(error))
       .split('\n')
@@ -464,7 +469,7 @@ async function repoDiff(repo: string, prefix: string) {
   return [tracked.stdout, ...added].join('')
 }
 
-async function diffBase(repo: string) {
+export async function diffBase(repo: string) {
   try {
     await git(repo, ['rev-parse', '--verify', '--quiet', 'HEAD'])
     return 'HEAD'

@@ -1,16 +1,16 @@
 import { XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { FileTypeIcon } from '@/components/file-icon'
-import { baseName, parentOf } from '@/features/files/explorer'
+import { parentOf } from '@/features/files/explorer'
 import { cn } from '@/lib/utils'
 
 export function EditorTabs(props: {
-  tabs: { path: string; pinned: boolean }[]
+  tabs: { id: string; path: string; label: string; pinned: boolean }[]
   active: string | null
   dirty: string[]
-  onSelect: (path: string) => void
-  onPin: (path: string) => void
-  onClose: (path: string) => void
+  onSelect: (id: string) => void
+  onPin: (id: string) => void
+  onClose: (id: string) => void
 }) {
   return (
     <div
@@ -18,12 +18,11 @@ export function EditorTabs(props: {
       className="flex h-full min-w-0 flex-1 [scrollbar-width:thin] overflow-x-auto"
     >
       {props.tabs.map((tab) => {
-        const name = baseName(tab.path)
-        const selected = tab.path === props.active
-        const changed = props.dirty.includes(tab.path)
+        const selected = tab.id === props.active
+        const changed = props.dirty.includes(tab.id)
         return (
           <div
-            key={tab.path}
+            key={tab.id}
             role="tab"
             tabIndex={0}
             aria-selected={selected}
@@ -33,16 +32,16 @@ export function EditorTabs(props: {
               selected && 'bg-background text-foreground',
               !selected && 'text-muted-foreground hover:bg-background/50'
             )}
-            onClick={() => props.onSelect(tab.path)}
-            onDoubleClick={() => props.onPin(tab.path)}
+            onClick={() => props.onSelect(tab.id)}
+            onDoubleClick={() => props.onPin(tab.id)}
             onAuxClick={(event) => {
               if (event.button === 1) {
-                props.onClose(tab.path)
+                props.onClose(tab.id)
               }
             }}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
-                props.onSelect(tab.path)
+                props.onSelect(tab.id)
               }
             }}
           >
@@ -51,10 +50,10 @@ export function EditorTabs(props: {
             )}
             <FileTypeIcon path={tab.path} />
             <span className={cn('max-w-48 truncate', !tab.pinned && 'italic')}>
-              {name}
+              {tab.label}
             </span>
             {props.tabs.some(
-              (item) => item !== tab && baseName(item.path) === name
+              (item) => item !== tab && item.label === tab.label
             ) && (
               <span className="text-muted-foreground max-w-40 truncate text-xs">
                 {parentOf(tab.path)}
@@ -63,14 +62,14 @@ export function EditorTabs(props: {
             <button
               type="button"
               title="Close"
-              aria-label={`Close ${name}`}
+              aria-label={`Close ${tab.label}`}
               className={cn(
                 'group/close hover:bg-accent flex size-5 cursor-pointer items-center justify-center rounded opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100',
                 (selected || changed) && 'opacity-100'
               )}
               onClick={(event) => {
                 event.stopPropagation()
-                props.onClose(tab.path)
+                props.onClose(tab.id)
               }}
             >
               {changed && (

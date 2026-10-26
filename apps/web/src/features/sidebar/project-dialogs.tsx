@@ -261,7 +261,7 @@ export function EditProjectDialog(props: {
             try {
               await updateProject(props.project.machine, props.project.id, {
                 name,
-                logo,
+                logo: logo === props.project.logo ? undefined : logo,
               })
               props.onClose()
             } catch (failure) {
@@ -283,11 +283,23 @@ export function EditProjectDialog(props: {
             <div className="grid gap-2.5">
               <Label>Icon</Label>
               <div className="flex items-center gap-4">
-                <ProjectBadge
-                  name={name.trim() === '' ? projectName(path) : name}
-                  logo={logo}
-                  className="ring-foreground/10 size-16 rounded-2xl ring-1 [&>img]:rounded-2xl [&>svg]:rounded-2xl"
-                />
+                <div className="relative flex-none">
+                  <ProjectBadge
+                    name={name.trim() === '' ? projectName(path) : name}
+                    logo={logo}
+                    className="ring-foreground/10 size-16 rounded-2xl ring-1 [&>img]:rounded-2xl [&>svg]:rounded-2xl"
+                  />
+                  {logo !== null && (
+                    <button
+                      type="button"
+                      className="bg-popover text-muted-foreground hover:text-foreground absolute -top-1.5 -right-1.5 grid size-5 cursor-pointer place-items-center rounded-full border shadow-xs"
+                      title="Remove icon"
+                      onClick={() => setLogo(null)}
+                    >
+                      <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
+                    </button>
+                  )}
+                </div>
                 <div className="grid gap-2">
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -310,26 +322,16 @@ export function EditProjectDialog(props: {
                       <HugeiconsIcon icon={Folder01Icon} />
                       Choose from project
                     </Button>
-                    {logo !== null && (
-                      <Button
-                        type="button"
-                        variant="ghost-muted"
-                        size="sm"
-                        onClick={() => setLogo(null)}
-                      >
-                        Remove
-                      </Button>
-                    )}
                   </div>
                   <p className="text-muted-foreground text-xs">
-                    PNG, JPG, GIF, WebP, SVG or ICO, up to 384 KB
+                    PNG, JPG, WebP, SVG or ICO. SVG and ICO up to 384 KB
                   </p>
                 </div>
               </div>
               <input
                 ref={picker}
                 type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon"
                 hidden
                 onChange={async (event) => {
                   const file = event.target.files?.[0]

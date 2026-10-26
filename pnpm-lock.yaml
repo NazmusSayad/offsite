@@ -132,6 +132,9 @@ importers:
       http-proxy-3:
         specifier: ^2.0.1
         version: 2.0.1(supports-color@7.2.0)
+      sharp:
+        specifier: ^0.35.5
+        version: 0.35.5(@types/node@26.6.5)
       web-push:
         specifier: ^3.6.7
         version: 3.6.7(supports-color@7.2.0)
@@ -202,6 +205,9 @@ importers:
       fast-png:
         specifier: ^8.0.0
         version: 8.0.0
+      fzf:
+        specifier: ^0.5.2
+        version: 0.5.2
       hast-util-to-jsx-runtime:
         specifier: ^2.3.6
         version: 2.3.6(supports-color@7.2.0)
@@ -5067,6 +5073,9 @@ packages:
 
   fuzzysort@3.1.0:
     resolution: {integrity: sha512-sR9BNCjBg6LNgwvxlBd0sBABvQitkLzoVY9MYYROQVX/FvfJ4Mai9LsGhDgd8qYdds0bY77VzYd5iuB+v5rwQQ==}
+
+  fzf@0.5.2:
+    resolution: {integrity: sha512-Tt4kuxLXFKHy8KT40zwsUPUkg1CrsgY25FxA2U/j/0WgEDCk3ddc/zLTCCcbSHX9FcKtLuVaDGtGE/STWC+j3Q==}
 
   generate-differences@0.1.1:
     resolution: {integrity: sha512-XZ4yI95KUy1xcB5xNOYtDwrCOkemwQcOuwlqTlLUBq0Zzvnfll1i+jHXYw0ut7NQDmJF5XPD1vSoV6Gjh0rpOw==}
@@ -12295,6 +12304,8 @@ snapshots:
   functions-have-names@1.2.3: {}
 
   fuzzysort@3.1.0: {}
+
+  fzf@0.5.2: {}
 
   generate-differences@0.1.1: {}
 

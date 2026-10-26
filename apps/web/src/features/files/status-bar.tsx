@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { monaco } from '@/features/files/monaco'
 
 export function StatusBar(props: {
   editor: monaco.editor.IStandaloneCodeEditor | null
   language: string | null
+  children?: ReactNode
 }) {
   const [status, setStatus] = useState<ReturnType<typeof readStatus>>(null)
 
@@ -27,6 +28,7 @@ export function StatusBar(props: {
 
   return (
     <div className="bg-sidebar border-sidebar-border text-muted-foreground flex h-[22px] shrink-0 items-center justify-end gap-4 border-t px-3 text-xs whitespace-nowrap">
+      {props.children}
       {props.language !== null && status !== null && (
         <>
           <span>

@@ -3,7 +3,6 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
 import { FileTypeIcon } from '@/components/file-icon'
 import { Markdown } from '@/components/markdown/markdown'
-import { DiffStatLabel } from '@/features/transcript/changed-files'
 import {
   editStats,
   type FileChangeItem,
@@ -16,6 +15,7 @@ import {
 } from '@/features/transcript/tool-details'
 import { Disclosure, Shimmer, ToolRow } from '@/features/transcript/tool-row'
 import { MessageCopyButton } from '@/features/transcript/user-message'
+import { compact } from '@/lib/format'
 
 export type ToolItem = Exclude<WorkItem, { kind: 'reasoning' }>
 
@@ -323,12 +323,18 @@ function FileChange(props: {
             />
           </span>
         </span>
-        <DiffStatLabel
-          added={added}
-          removed={removed}
-          layout="inline"
-          className="text-xs"
-        />
+        <span
+          role="group"
+          aria-label={`${added} additions, ${removed} deletions`}
+          className="inline-flex items-center gap-1 align-middle font-mono text-xs tabular-nums"
+        >
+          <span aria-hidden className="text-diff-addition">
+            +{compact(added)}
+          </span>
+          <span aria-hidden className="text-diff-deletion">
+            -{compact(removed)}
+          </span>
+        </span>
         <Disclosure open={open} />
       </button>
       {open && (

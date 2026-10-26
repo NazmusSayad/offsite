@@ -1,52 +1,43 @@
 import { PanelLeftIcon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import type { SourceControlRepo } from '@offsite/core/git'
 import {
   lazy,
   Suspense,
   useCallback,
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
 } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { loadEditorState, saveEditorState } from '@/features/files/editor-state'
+import {
+  type EditorSettings,
+  loadEditorState,
+  saveEditorState,
+} from '@/features/files/editor-state'
 import { EditorTabs } from '@/features/files/editor-tabs'
 import { Explorer } from '@/features/files/explorer'
-import { applyTheme, loadLanguage, monaco } from '@/features/files/monaco'
+import { applyTheme, editorOptions, monaco } from '@/features/files/monaco'
 import { SavePrompt } from '@/features/files/save-prompt'
 import { StatusBar } from '@/features/files/status-bar'
+import { useTabs } from '@/features/files/use-tabs'
+import { ViewSwitcher } from '@/features/files/view-switcher'
+import { BranchDialog } from '@/features/git/branch-picker'
+import { fileTab, type TabSpec } from '@/features/source-control/changes'
+import { DiffToolbar } from '@/features/source-control/diff-toolbar'
+import { GitStatus } from '@/features/source-control/git-status'
+import { SourceControlView } from '@/features/source-control/source-control-view'
+import { useRepos } from '@/features/source-control/use-repos'
 import { projectOf, showError, useStore } from '@/lib/store'
 import { useCodeTheme } from '@/lib/theme'
-import { cn, drag, errorMessage } from '@/lib/utils'
+import { cn, drag } from '@/lib/utils'
 
 const ZoomableImage = lazy(async () => ({
   default: (await import('@/components/zoomable-image')).ZoomableImage,
 }))
-
-type Document =
-  | { status: 'loading' }
-  | {
-      status: 'text'
-      model: monaco.editor.ITextModel
-      language: string
-      saved: number
-      dirty: boolean
-    }
-  | { status: 'image'; src: string }
-  | { status: 'large'; size: number; limit: number }
-  | { status: 'binary'; size: number }
-  | { status: 'error'; message: string }
-
-type Tab = { path: string; pinned: boolean; document: Document }
-
-type Closing = { kind: 'tab'; path: string } | { kind: 'dialog' }
-
-const viewStates = new WeakMap<
-  monaco.editor.ITextModel,
-  monaco.editor.ICodeEditorViewState | null
->()
 
 export function EditorDialog(props: {
   machine: string
@@ -60,303 +51,162 @@ export function EditorDialog(props: {
   const [saved] = useState(() =>
     loadEditorState(props.machine, props.projectId)
   )
-  const [tabs, setTabs] = useState<Tab[]>(() =>
-    (saved?.tabs ?? []).map((tab) => ({
-      path: tab.path,
-      pinned: tab.pinned,
-      document: { status: 'loading' },
-    }))
+  const [views] = useState(
+    () => new Map(saved.tabs.map((tab) => [tab.spec.id, tab.view]))
   )
-  const [active, setActive] = useState(saved?.active ?? null)
-  const [expanded, setExpanded] = useState(saved?.expanded ?? [])
-  const [sidebar, setSidebar] = useState(saved?.sidebar ?? true)
-  const [width, setWidth] = useState(() =>
-    Math.min(saved?.width ?? 260, window.innerWidth * 0.6)
-  )
-  const [closing, setClosing] = useState<Closing | null>(null)
+  const [settings, setSettings] = useState(() => ({
+    ...saved.settings,
+    width: Math.min(saved.settings.width, window.innerWidth * 0.6),
+  }))
+  const [expanded, setExpanded] = useState(saved.expanded)
+  const [version, setVersion] = useState(0)
+  const [busy, setBusy] = useState(0)
+  const [checkout, setCheckout] = useState<SourceControlRepo | null>(null)
   const [editor, setEditor] =
     useState<monaco.editor.IStandaloneCodeEditor | null>(null)
-  const host = useCallback((element: HTMLDivElement | null) => {
+  const [diff, setDiff] = useState<monaco.editor.IStandaloneDiffEditor | null>(
+    null
+  )
+  const shown = useRef<{
+    id: string
+    editor: monaco.editor.IStandaloneCodeEditor
+  } | null>(null)
+  const codeHost = useCallback((element: HTMLDivElement | null) => {
     if (element === null) {
       return
     }
     const instance = monaco.editor.create(element, {
-      automaticLayout: true,
-      fontFamily: getComputedStyle(document.documentElement).getPropertyValue(
-        '--font-mono'
-      ),
-      fontSize: 13,
-      lineHeight: 20,
-      minimap: { enabled: false },
+      ...editorOptions(),
       model: null,
     })
     setEditor(instance)
-    return () => {
-      instance.dispose()
-      for (const item of monaco.editor.getModels()) {
-        item.dispose()
-      }
-    }
+    return () => instance.dispose()
   }, [])
+  const diffHost = useCallback((element: HTMLDivElement | null) => {
+    if (element === null) {
+      return
+    }
+    const instance = monaco.editor.createDiffEditor(element, {
+      ...editorOptions(),
+      originalEditable: false,
+      useInlineViewWhenSpaceIsLimited: true,
+    })
+    setDiff(instance)
+    return () => instance.dispose()
+  }, [])
+  const refresh = useCallback(() => setVersion((count) => count + 1), [])
+  const documents = useTabs({
+    machine: props.machine,
+    projectId: props.projectId,
+    saved,
+    onSaved: refresh,
+    onClose: () => {
+      persist()
+      props.onClose()
+    },
+  })
 
-  const current = tabs.find((tab) => tab.path === active)
-  const model =
-    current?.document.status === 'text' ? current.document.model : null
-  const dirty = tabs
-    .filter((tab) => tab.document.status === 'text' && tab.document.dirty)
-    .map((tab) => tab.path)
-  const closingPaths = closing?.kind === 'tab' ? [closing.path] : dirty
+  const active = documents.active
+
+  function reloadActive() {
+    if (active !== null) {
+      void documents.reload(active)
+    }
+  }
+
+  const status = useRepos({
+    machine: props.machine,
+    projectId: props.projectId,
+    version,
+    onLoaded: reloadActive,
+  })
+  const repos = status.repos
+  const current = documents.tabs.find((tab) => tab.spec.id === active)
+  const text = current?.document.status === 'text' ? current.document : null
+  const original = text?.original ?? null
+  const modified = text?.modified ?? null
+  const editable = current?.spec.right.kind === 'worktree'
+  const repo =
+    repos?.find((item) => item.path === current?.spec.repo) ??
+    repos?.at(0) ??
+    null
 
   useEffect(() => {
     applyTheme().catch(showError)
   }, [codeTheme])
 
   useEffect(() => {
-    if (editor === null) {
-      return
-    }
-    const previous = editor.getModel()
-    if (previous !== null) {
-      viewStates.set(previous, editor.saveViewState())
-    }
-    editor.setModel(model)
-    if (model !== null) {
-      editor.restoreViewState(viewStates.get(model) ?? null)
-      editor.focus()
-    }
-  }, [editor, model])
+    diff?.updateOptions({
+      renderSideBySide: !settings.inline,
+      ignoreTrimWhitespace: !settings.whitespace,
+      hideUnchangedRegions: { enabled: settings.collapse },
+    })
+  }, [diff, settings.inline, settings.whitespace, settings.collapse])
 
   useEffect(() => {
-    const models = new Set(
-      tabs.flatMap((tab) =>
-        tab.document.status === 'text' ? [tab.document.model] : []
-      )
-    )
-    for (const item of monaco.editor.getModels()) {
-      if (!models.has(item)) {
-        item.dispose()
-      }
-    }
-  }, [tabs])
-
-  async function read(path: string): Promise<Document> {
-    try {
-      const result = await call(props.machine, 'files.read', {
-        projectId: props.projectId,
-        path,
-      })
-      if (result.kind === 'image') {
-        return {
-          status: 'image',
-          src: `data:${result.mediaType};base64,${result.data}`,
-        }
-      }
-      if (result.kind === 'large') {
-        return { status: 'large', size: result.size, limit: result.limit }
-      }
-      if (result.kind === 'binary') {
-        return { status: 'binary', size: result.size }
-      }
-      const language = await loadLanguage(path)
-      const created = monaco.editor.createModel(result.content, language.id)
-      created.onDidChangeContent(() =>
-        setTabs((items) => {
-          const tab = items.find(
-            (item) =>
-              item.document.status === 'text' && item.document.model === created
-          )
-          if (tab === undefined || tab.document.status !== 'text') {
-            return items
-          }
-          const changed =
-            created.getAlternativeVersionId() !== tab.document.saved
-          if (tab.document.dirty === changed && tab.pinned) {
-            return items
-          }
-          return items.map((item) =>
-            item === tab
-              ? {
-                  ...tab,
-                  pinned: true,
-                  document: { ...tab.document, dirty: changed },
-                }
-              : item
-          )
-        })
-      )
-      return {
-        status: 'text',
-        model: created,
-        language: language.name,
-        saved: created.getAlternativeVersionId(),
-        dirty: false,
-      }
-    } catch (caught) {
-      return { status: 'error', message: errorMessage(caught) }
-    }
-  }
-
-  async function open(path: string, pinned: boolean) {
-    if (window.innerWidth < 640) {
-      setSidebar(false)
-    }
-    setActive(path)
-    if (tabs.some((tab) => tab.path === path)) {
-      if (pinned) {
-        setTabs(
-          tabs.map((tab) => (tab.path === path ? { ...tab, pinned } : tab))
-        )
-      }
+    if (editor === null || diff === null) {
       return
     }
-    const preview = tabs.find((tab) => !tab.pinned)
-    const tab: Tab = { path, pinned, document: { status: 'loading' } }
-    setTabs(
-      preview === undefined || pinned
-        ? [...tabs, tab]
-        : tabs.map((item) => (item === preview ? tab : item))
+    if (shown.current !== null) {
+      views.set(shown.current.id, shown.current.editor.saveViewState())
+    }
+    shown.current = null
+    editor.setModel(original === null ? modified : null)
+    diff.setModel(
+      original === null || modified === null ? null : { original, modified }
     )
-    await load(path, null)
+    if (modified === null || active === null) {
+      return
+    }
+    const target = original === null ? editor : diff.getModifiedEditor()
+    target.updateOptions({ readOnly: !editable })
+    target.restoreViewState(views.get(active) ?? null)
+    target.focus()
+    shown.current = { id: active, editor: target }
+  }, [editor, diff, original, modified, active, editable, views])
+
+  const refreshActive = useEffectEvent(reloadActive)
+
+  useEffect(() => refreshActive(), [active])
+
+  function open(spec: TabSpec, pinned: boolean) {
+    if (window.innerWidth < 640) {
+      change({ sidebar: false })
+    }
+    void documents.open(spec, pinned)
   }
 
-  async function load(
-    path: string,
-    view: monaco.editor.ICodeEditorViewState | null
-  ) {
-    const loaded = await read(path)
-    if (loaded.status === 'text') {
-      viewStates.set(loaded.model, view)
-    }
-    setTabs((items) =>
-      items.map((item) =>
-        item.path === path && item.document.status === 'loading'
-          ? { ...item, document: loaded }
-          : item
-      )
-    )
-  }
-
-  async function save(path: string) {
-    const tab = tabs.find((item) => item.path === path)
-    if (tab === undefined || tab.document.status !== 'text') {
-      return true
-    }
-    const saving = tab.document.model
-    const version = saving.getAlternativeVersionId()
+  async function perform(task: () => Promise<unknown>) {
+    setBusy((count) => count + 1)
     try {
-      await call(props.machine, 'files.write', {
-        projectId: props.projectId,
-        path,
-        content: saving.getValue(),
-      })
+      await task()
     } catch (caught) {
       showError(caught)
-      return false
-    }
-    setTabs((items) =>
-      items.map((item) =>
-        item.document.status === 'text' && item.document.model === saving
-          ? {
-              ...item,
-              document: {
-                ...item.document,
-                saved: version,
-                dirty: saving.getAlternativeVersionId() !== version,
-              },
-            }
-          : item
-      )
-    )
-    return true
-  }
-
-  function removeTabs(match: (path: string) => boolean) {
-    const next = tabs.filter((tab) => !match(tab.path))
-    setTabs(next)
-    if (active !== null && match(active)) {
-      const index = tabs.findIndex((tab) => tab.path === active)
-      setActive(next.at(Math.min(index, next.length - 1))?.path ?? null)
+    } finally {
+      setBusy((count) => count - 1)
+      refresh()
     }
   }
 
-  function close(path: string) {
-    const tab = tabs.find((item) => item.path === path)
-    if (tab?.document.status === 'text' && tab.document.dirty) {
-      setClosing({ kind: 'tab', path })
-      return
-    }
-    removeTabs((item) => item === path)
-  }
-
-  function requestClose() {
-    if (dirty.length > 0) {
-      setClosing({ kind: 'dialog' })
-      return
-    }
-    persist()
-    props.onClose()
-  }
-
-  async function finish(saving: boolean) {
-    if (closing === null) {
-      return
-    }
-    setClosing(null)
-    if (saving && (await Promise.all(closingPaths.map(save))).includes(false)) {
-      return
-    }
-    if (closing.kind === 'tab') {
-      removeTabs((item) => item === closing.path)
-    }
-    if (closing.kind === 'dialog') {
-      persist()
-      props.onClose()
-    }
-  }
-
-  function renamed(from: string, to: string) {
-    function rename(path: string) {
-      if (path === from) {
-        return to
-      }
-      if (path.startsWith(`${from}/`)) {
-        return `${to}${path.slice(from.length)}`
-      }
-      return path
-    }
-    setTabs(tabs.map((tab) => ({ ...tab, path: rename(tab.path) })))
-    if (active !== null) {
-      setActive(rename(active))
-    }
+  function change(update: Partial<EditorSettings>) {
+    setSettings((value) => ({ ...value, ...update }))
   }
 
   function persist() {
-    if (editor !== null && model !== null) {
-      viewStates.set(model, editor.saveViewState())
+    if (shown.current !== null) {
+      views.set(shown.current.id, shown.current.editor.saveViewState())
     }
     saveEditorState(props.machine, props.projectId, {
-      tabs: tabs.map((tab) => ({
-        path: tab.path,
+      tabs: documents.tabs.map((tab) => ({
+        spec: tab.spec,
         pinned: tab.pinned,
-        view:
-          tab.document.status === 'text'
-            ? (viewStates.get(tab.document.model) ?? null)
-            : null,
+        view: views.get(tab.spec.id) ?? null,
       })),
       active,
       expanded,
-      sidebar,
-      width,
+      settings,
     })
   }
-
-  const restore = useEffectEvent(() => {
-    for (const tab of saved?.tabs ?? []) {
-      void load(tab.path, tab.view)
-    }
-  })
-
-  useEffect(() => restore(), [])
 
   useEffect(persist)
 
@@ -364,17 +214,32 @@ export function EditorDialog(props: {
     <Button
       size="icon-micro"
       variant="ghost"
-      title="Toggle Explorer"
-      aria-label="Toggle Explorer"
-      aria-pressed={sidebar}
-      onClick={() => setSidebar(!sidebar)}
+      title="Toggle Primary Side Bar"
+      aria-label="Toggle Primary Side Bar"
+      aria-pressed={settings.sidebar}
+      onClick={() => change({ sidebar: !settings.sidebar })}
     >
       <HugeiconsIcon icon={PanelLeftIcon} className="size-4" />
     </Button>
   )
 
+  const header = (
+    <>
+      {toggle}
+      <ViewSwitcher
+        view={settings.view}
+        label={
+          settings.view === 'explorer'
+            ? (project?.name ?? '')
+            : 'Source Control'
+        }
+        onView={(view) => change({ view })}
+      />
+    </>
+  )
+
   return (
-    <Dialog open onOpenChange={() => requestClose()}>
+    <Dialog open onOpenChange={() => documents.requestClose()}>
       <DialogContent
         aria-describedby={undefined}
         showCloseButton={false}
@@ -384,7 +249,7 @@ export function EditorDialog(props: {
           if ((event.metaKey || event.ctrlKey) && event.key === 's') {
             event.preventDefault()
             if (active !== null) {
-              void save(active)
+              void documents.save(active)
             }
           }
         }}
@@ -393,83 +258,138 @@ export function EditorDialog(props: {
           <div
             className={cn(
               'border-sidebar-border relative shrink-0 border-r',
-              !sidebar && 'hidden'
+              !settings.sidebar && 'hidden'
             )}
-            style={{ width }}
+            style={{ width: settings.width }}
           >
-            <Explorer
-              machine={props.machine}
-              projectId={props.projectId}
-              name={project?.name ?? ''}
-              root={project?.path ?? ''}
-              toggle={toggle}
-              expanded={expanded}
-              onExpanded={setExpanded}
-              active={active}
-              onOpen={(path, pinned) => void open(path, pinned)}
-              onRenamed={renamed}
-              onDeleted={(path) =>
-                removeTabs(
-                  (item) => item === path || item.startsWith(`${path}/`)
-                )
-              }
-            />
+            {settings.view === 'explorer' && (
+              <Explorer
+                machine={props.machine}
+                projectId={props.projectId}
+                root={project?.path ?? ''}
+                header={header}
+                expanded={expanded}
+                onExpanded={setExpanded}
+                active={current?.spec.path ?? null}
+                onOpen={(path, pinned) => open(fileTab('', path), pinned)}
+                onRenamed={documents.renamed}
+                onDeleted={documents.deleted}
+              />
+            )}
+            {settings.view === 'scm' && (
+              <SourceControlView
+                machine={props.machine}
+                projectId={props.projectId}
+                name={project?.name ?? ''}
+                root={project?.path ?? ''}
+                header={header}
+                repos={repos}
+                error={status.error}
+                busy={busy > 0}
+                settings={settings}
+                onSettings={change}
+                onMessage={(path, message) =>
+                  setSettings((value) => ({
+                    ...value,
+                    messages: { ...value.messages, [path]: message },
+                  }))
+                }
+                active={active}
+                onOpen={open}
+                onRefresh={refresh}
+                onPerform={perform}
+                onCheckout={setCheckout}
+              />
+            )}
             <div
               role="separator"
               aria-orientation="vertical"
               className="hover:bg-primary absolute inset-y-0 -right-0.5 z-10 w-1 cursor-col-resize touch-none transition-colors delay-100"
               onPointerDown={(event) =>
                 drag(event, (move) =>
-                  setWidth(
-                    Math.min(
-                      Math.max(move.clientX, 160),
+                  change({
+                    width: Math.min(
+                      Math.max(move.clientX, 200),
                       window.innerWidth - 240
-                    )
-                  )
+                    ),
+                  })
                 )
               }
             />
           </div>
           <div className="flex min-w-0 flex-1 flex-col">
             <div className="bg-sidebar flex h-9 shrink-0 items-center shadow-[inset_0_-1px_0_var(--sidebar-border)]">
-              {!sidebar && <div className="shrink-0 px-1.5">{toggle}</div>}
-              <DialogTitle className="sr-only">
-                {project?.name ?? ''}
-              </DialogTitle>
+              {!settings.sidebar && (
+                <div className="shrink-0 px-1.5">{toggle}</div>
+              )}
+              <DialogTitle className="sr-only">Editor</DialogTitle>
               <EditorTabs
-                tabs={tabs}
+                tabs={documents.tabs.map((tab) => ({
+                  id: tab.spec.id,
+                  path: tab.spec.path,
+                  label: tab.spec.label,
+                  pinned: tab.pinned,
+                }))}
                 active={active}
-                dirty={dirty}
-                onSelect={setActive}
-                onPin={(path) => void open(path, true)}
-                onClose={close}
+                dirty={documents.dirty.map((tab) => tab.spec.id)}
+                onSelect={documents.setActive}
+                onPin={(id) => {
+                  const tab = documents.tabs.find((item) => item.spec.id === id)
+                  if (tab !== undefined) {
+                    open(tab.spec, true)
+                  }
+                }}
+                onClose={documents.close}
               />
+              {current !== undefined && original !== null && (
+                <DiffToolbar
+                  settings={settings}
+                  onSettings={change}
+                  onOpenFile={() =>
+                    open(fileTab(current.spec.repo, current.spec.path), true)
+                  }
+                  onPrevious={() => diff?.goToDiff('previous')}
+                  onNext={() => diff?.goToDiff('next')}
+                />
+              )}
               <Button
                 size="icon-micro"
                 variant="ghost"
                 className="mx-1.5 shrink-0"
                 title="Close"
                 aria-label="Close"
-                onClick={requestClose}
+                onClick={documents.requestClose}
               >
                 <HugeiconsIcon icon={XIcon} className="size-4" />
               </Button>
             </div>
             <div className="relative min-h-0 flex-1">
               <div
-                ref={host}
-                className={cn('absolute inset-0', model === null && 'hidden')}
+                ref={codeHost}
+                className={cn(
+                  'absolute inset-0',
+                  (modified === null || original !== null) && 'hidden'
+                )}
+              />
+              <div
+                ref={diffHost}
+                className={cn(
+                  'absolute inset-0',
+                  (modified === null || original === null) && 'hidden'
+                )}
               />
               {current === undefined && (
                 <p className="text-muted-foreground grid size-full place-items-center p-6 text-center text-sm">
-                  Open a file from the explorer to start editing.
+                  {settings.view === 'explorer'
+                    ? 'Open a file from the explorer to start editing.'
+                    : 'Select a change to see its diff.'}
                 </p>
               )}
               {current?.document.status === 'image' && (
                 <Suspense>
                   <ZoomableImage
                     src={current.document.src}
-                    alt={current.path}
+                    alt={current.spec.path}
                   />
                 </Suspense>
               )}
@@ -482,7 +402,8 @@ export function EditorDialog(props: {
               )}
               {current?.document.status === 'binary' && (
                 <p className="text-muted-foreground grid size-full place-items-center p-6 text-center text-sm">
-                  The file is not displayed in the editor because it is binary.
+                  The file is not displayed in the text editor because it is
+                  either binary or uses an unsupported text encoding.
                 </p>
               )}
               {current?.document.status === 'error' && (
@@ -494,19 +415,60 @@ export function EditorDialog(props: {
           </div>
         </div>
         <StatusBar
-          editor={editor}
-          language={
-            current?.document.status === 'text'
-              ? current.document.language
-              : null
+          editor={
+            modified === null
+              ? null
+              : original === null
+                ? editor
+                : (diff?.getModifiedEditor() ?? null)
           }
-        />
+          language={text?.language ?? null}
+        >
+          {repo !== null && (
+            <GitStatus
+              repo={repo}
+              busy={busy > 0}
+              onCheckout={() => setCheckout(repo)}
+              onSync={() =>
+                void perform(() =>
+                  call(props.machine, 'git.sync', {
+                    projectId: props.projectId,
+                    repo: repo.path,
+                  })
+                )
+              }
+              onPublish={() =>
+                void perform(() =>
+                  call(props.machine, 'git.push', {
+                    projectId: props.projectId,
+                    repo: repo.path,
+                  })
+                )
+              }
+            />
+          )}
+        </StatusBar>
         <SavePrompt
-          open={closing !== null}
-          paths={closingPaths}
-          onCancel={() => setClosing(null)}
-          onFinish={(saving) => void finish(saving)}
+          open={documents.closing !== null}
+          paths={documents.closingTabs.map((tab) => tab.spec.path)}
+          onCancel={() => documents.setClosing(null)}
+          onFinish={(saving) => void documents.finish(saving)}
         />
+        {checkout !== null && (
+          <BranchDialog
+            machine={props.machine}
+            projectId={props.projectId}
+            repo={{
+              ...checkout,
+              changed:
+                checkout.merge.length +
+                checkout.staged.length +
+                checkout.changes.length,
+            }}
+            onRefresh={refresh}
+            onClose={() => setCheckout(null)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )
