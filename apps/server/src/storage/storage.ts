@@ -10,6 +10,7 @@ import {
 import os from 'node:os'
 import path from 'node:path'
 import { consola } from 'consola'
+import { z } from 'zod'
 import { args } from '../args.ts'
 
 export const home = args.dir
@@ -82,6 +83,73 @@ export function readJson(name: string): unknown {
     }
     throw error
   }
+}
+
+export function readSettings<T>(
+  name: string,
+  schema: z.ZodType<T>,
+  defaults: T
+) {
+  const file = path.join(home, name)
+  let value: unknown
+  try {
+    value = readJson(name)
+  } catch (error) {
+    console.warn(`invalid ${file}, using the defaults: ${error}`)
+    return structuredClone(defaults)
+  }
+  if (value === null) {
+    return structuredClone(defaults)
+  }
+  let result = schema.safeParse(value)
+  if (result.success) {
+    return result.data
+  }
+  while (!result.success) {
+    const issue = result.error.issues[0]
+    const targets =
+      issue.code === 'unrecognized_keys'
+        ? issue.keys.map((key) => [...issue.path, key])
+        : [issue.path]
+    for (const target of targets) {
+      const discarded = discard(value, target)
+      if (discarded === null) {
+        console.warn(
+          `invalid ${file}, using the defaults:\n${z.prettifyError(result.error)}`
+        )
+        return structuredClone(defaults)
+      }
+      console.warn(
+        `${file}: discarded ${discarded.map(String).join('.')} (${issue.message} at ${target.map(String).join('.')})`
+      )
+    }
+    result = schema.safeParse(value)
+  }
+  writeJson(name, result.data)
+  return result.data
+}
+
+function discard(value: unknown, target: PropertyKey[]): PropertyKey[] | null {
+  const key = target.at(0)
+  if (
+    key === undefined ||
+    typeof value !== 'object' ||
+    value === null ||
+    !Object.hasOwn(value, key)
+  ) {
+    return null
+  }
+  const inner =
+    target.length > 1 ? discard(Reflect.get(value, key), target.slice(1)) : null
+  if (inner !== null) {
+    return [key, ...inner]
+  }
+  if (Array.isArray(value)) {
+    value.splice(Number(key), 1)
+  } else {
+    Reflect.deleteProperty(value, key)
+  }
+  return [key]
 }
 
 export function writeJson(name: string, value: unknown) {

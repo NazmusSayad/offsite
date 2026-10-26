@@ -20,7 +20,6 @@ export type Account = {
   color: string | null
   configDir: string | null
   enabled: boolean
-  hiddenModels: Record<string, boolean>
   email: string | null
   plan: string | null
   error: string | null

@@ -10,6 +10,7 @@ import type { Account } from '@offsite/core/providers'
 import { shellIntegrationIssue } from '@offsite/core/shell-check'
 import { useState } from 'react'
 import { updateConfig } from '@/api/machine-config'
+import { ProviderIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -21,6 +22,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Tooltip } from '@/components/ui/tooltip'
 import { platforms } from '@/features/terminal/config'
+import { providerNames } from '@/lib/format'
 import { AgentsSection } from './agents'
 import { Row, Section, TextInput } from './controls'
 import { GitSection } from './git'
@@ -37,6 +39,7 @@ export function MachinePage(props: {
   onRestore: () => void
 }) {
   const workingDir = props.config.workingDir[props.platform] ?? ''
+  const newThreads = props.config.newThreads
 
   return (
     <>
@@ -57,6 +60,72 @@ export function MachinePage(props: {
               })
             }
           />
+        </Row>
+      </Section>
+      <Section title="New threads">
+        <Row label="Account">
+          <Select
+            value={
+              newThreads.provider === 'opencode'
+                ? 'opencode'
+                : (newThreads.accountId ?? undefined)
+            }
+            onValueChange={(value) => {
+              if (value === 'opencode') {
+                updateConfig(props.machine, {
+                  ...props.config,
+                  newThreads: {
+                    ...newThreads,
+                    provider: 'opencode',
+                    accountId: null,
+                  },
+                })
+                return
+              }
+              const account = [
+                ...props.claudeAccounts,
+                ...props.codexAccounts,
+              ].find((item) => item.id === value)
+              if (account === undefined) {
+                throw new Error('That account was removed')
+              }
+              updateConfig(props.machine, {
+                ...props.config,
+                newThreads: {
+                  ...newThreads,
+                  provider: account.provider,
+                  accountId: account.id,
+                },
+              })
+            }}
+          >
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="First available" />
+            </SelectTrigger>
+            <SelectContent>
+              {[...props.claudeAccounts, ...props.codexAccounts].map(
+                (account) => (
+                  <SelectItem
+                    key={account.id}
+                    value={account.id}
+                    disabled={!account.valid}
+                  >
+                    <ProviderIcon
+                      provider={account.provider}
+                      className="size-4"
+                    />
+                    {`${providerNames[account.provider]} · ${account.name}`}
+                  </SelectItem>
+                )
+              )}
+              {props.openCode.available && (
+                <SelectItem value="opencode">
+                  <ProviderIcon provider="opencode" className="size-4" />
+                  {providerNames.opencode}
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
         </Row>
       </Section>
       <ShellSection

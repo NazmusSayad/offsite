@@ -7,6 +7,7 @@ import {
   activityOf,
   draftKey,
   getState,
+  type Machine,
   machineOf,
   setMachine,
   showError,
@@ -29,6 +30,19 @@ export function providerSettings(
     return { ...emptySettings, provider }
   }
   return { provider, ...composer[provider] }
+}
+
+export function newThreadSettings(machine: Machine): SessionSettings {
+  if (machine.config === null) {
+    return emptySettings
+  }
+  const newThreads = machine.config.newThreads
+  return {
+    ...providerSettings(machine.composer, newThreads.provider),
+    accountId: newThreads.accountId,
+    model: newThreads.models[newThreads.provider],
+    effort: null,
+  }
 }
 
 export function changeSettings(patch: Partial<SessionSettings>) {
@@ -107,16 +121,44 @@ export function setAccounts(machine: string, received: Accounts) {
   if (same !== undefined) {
     changeSettings({ accountId: same.accountId })
   } else if (other !== undefined) {
+    const known = machineOf(getState(), machine)
     changeSettings({
-      ...providerSettings(
-        machineOf(getState(), machine).composer,
-        other.provider
-      ),
+      ...providerSettings(known.composer, other.provider),
       accountId: other.accountId,
+      model:
+        known.config === null
+          ? null
+          : known.config.newThreads.models[other.provider],
+      effort: null,
     })
   } else if (settings.accountId !== null) {
     changeSettings({ accountId: null })
   }
+}
+
+export function resetNewThread(machine: string) {
+  const selection = getState().selection
+  if (selection?.machine !== machine || selection.sessionId !== null) {
+    return
+  }
+  update({ settings: newThreadSettings(machineOf(getState(), machine)) })
+  refreshSettings(machine)
+}
+
+export function refreshSettings(machine: string) {
+  const known = machineOf(getState(), machine)
+  if (
+    known.claudeAccounts.length > 0 ||
+    known.codexAccounts.length > 0 ||
+    known.openCode.available
+  ) {
+    setAccounts(machine, {
+      claudeAccounts: known.claudeAccounts,
+      codexAccounts: known.codexAccounts,
+      openCode: known.openCode,
+    })
+  }
+  void refreshCapabilities()
 }
 
 export async function refreshAccounts(machine: string) {

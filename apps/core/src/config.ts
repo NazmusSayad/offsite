@@ -28,7 +28,6 @@ export type AccountConfig = {
   color: string | null
   configDir: Record<Platform, string | null>
   enabled: boolean
-  hiddenModels: Record<string, boolean>
 }
 
 export type ComposerSettings = { provider: Provider } & Record<
@@ -42,6 +41,11 @@ export type Config = {
   claudeAccounts: AccountConfig[]
   codexAccounts: AccountConfig[]
   enabledProviders: Record<Provider, boolean>
+  newThreads: {
+    provider: Provider
+    accountId: string | null
+    models: Record<Provider, string | null>
+  }
   commitMessage: {
     provider: Provider | null
     accountId: string | null

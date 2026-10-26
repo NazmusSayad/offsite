@@ -328,13 +328,11 @@ export function SettingsContent(props: { view: SettingsView }) {
         {props.view.provider !== null &&
           machine !== null &&
           config !== null &&
-          machine.composer !== null &&
           system !== null && (
             <ProviderPage
               key={props.view.provider}
               machine={machine.id}
               config={config}
-              composer={machine.composer}
               platform={system.platform}
               defaultClaudeBaseDir={system.defaultClaudeBaseDir}
               provider={props.view.provider}

@@ -1,10 +1,7 @@
-import path from 'node:path'
 import type { ComposerSettings } from '@offsite/core/config'
 import { z } from 'zod'
 import { broadcast } from '../lib/hub.ts'
-import { home, readJson, writeJson } from './storage.ts'
-
-const stateFile = path.join(home, 'state.json')
+import { readSettings, writeJson } from './storage.ts'
 
 const stateSchema: z.ZodType<{ composer: ComposerSettings }> = z.strictObject({
   composer: z
@@ -60,24 +57,7 @@ const stateSchema: z.ZodType<{ composer: ComposerSettings }> = z.strictObject({
 const defaults = stateSchema.parse({})
 
 export function readComposer() {
-  let user: unknown
-  try {
-    user = readJson('state.json')
-  } catch (error) {
-    console.warn(`invalid ${stateFile}, using the default state: ${error}`)
-    return structuredClone(defaults.composer)
-  }
-  if (user === null) {
-    return structuredClone(defaults.composer)
-  }
-  const result = stateSchema.safeParse(user)
-  if (!result.success) {
-    console.warn(
-      `invalid ${stateFile}, using the default state:\n${z.prettifyError(result.error)}`
-    )
-    return structuredClone(defaults.composer)
-  }
-  return result.data.composer
+  return readSettings('state.json', stateSchema, defaults).composer
 }
 
 export function saveComposer(value: unknown) {

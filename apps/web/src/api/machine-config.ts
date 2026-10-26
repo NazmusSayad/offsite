@@ -1,10 +1,16 @@
 import type { ComposerSettings, Config } from '@offsite/core/config'
+import { isEqual } from 'es-toolkit'
 import { getDraftSettings } from '@/features/composer/drafts'
-import { providerSettings, refreshCapabilities } from '@/lib/accounts'
+import {
+  providerSettings,
+  refreshCapabilities,
+  resetNewThread,
+} from '@/lib/accounts'
 import {
   activityOf,
   draftKey,
   getState,
+  machineOf,
   setMachine,
   showError,
   update,
@@ -91,7 +97,7 @@ function syncedValue<T>(handlers: {
 }
 
 const config = syncedValue<Config>({
-  set: (machine, value) => setMachine(machine, { config: value }),
+  set: applyConfig,
   save: async (machine, value) => {
     try {
       const saved = await call(machine, 'config.save', value)
@@ -104,7 +110,7 @@ const config = syncedValue<Config>({
   },
   load: async (machine) =>
     (await call(machine, 'config.get', undefined)).config,
-  apply: (machine, value) => setMachine(machine, { config: value }),
+  apply: applyConfig,
 })
 
 const composer = syncedValue<ComposerSettings>({
@@ -126,10 +132,25 @@ export const receiveConfig = config.receive
 export const updateComposer = composer.update
 export const receiveComposer = composer.receive
 
+function applyConfig(machine: string, value: Config) {
+  const previous = machineOf(getState(), machine).config
+  setMachine(machine, { config: value })
+  if (previous === null || !isEqual(previous.newThreads, value.newThreads)) {
+    resetNewThread(machine)
+  }
+}
+
 function applyComposer(machine: string, value: ComposerSettings) {
+  const previous = machineOf(getState(), machine).composer
   setMachine(machine, { composer: value })
   const selection = getState().selection
   if (selection === null || selection.machine !== machine) {
+    return
+  }
+  if (selection.sessionId === null) {
+    if (previous === null) {
+      resetNewThread(machine)
+    }
     return
   }
   const live =
@@ -138,15 +159,8 @@ function applyComposer(machine: string, value: ComposerSettings) {
     return
   }
   const settings =
-    (selection.sessionId === null
-      ? null
-      : getDraftSettings(draftKey(selection))) ??
-    providerSettings(
-      value,
-      selection.sessionId === null
-        ? value.provider
-        : getState().settings.provider
-    )
+    getDraftSettings(draftKey(selection)) ??
+    providerSettings(value, getState().settings.provider)
   const accountChanged =
     settings.provider !== getState().settings.provider ||
     settings.accountId !== getState().settings.accountId

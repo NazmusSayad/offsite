@@ -3,9 +3,7 @@ import path from 'node:path'
 import type { Config, ConfigWithDefaults, Platform } from '@offsite/core/config'
 import { z } from 'zod'
 import { broadcast } from '../lib/hub.ts'
-import { home, readJson, writeJson } from './storage.ts'
-
-const configFile = path.join(home, 'config.json')
+import { readSettings, writeJson } from './storage.ts'
 
 const modelSetting = z.strictObject({
   hidden: z.boolean(),
@@ -56,7 +54,6 @@ function accountSchema(provider: 'claude' | 'codex') {
       .default(null),
     configDir: platformDirs,
     enabled: z.boolean().default(true),
-    hiddenModels: z.record(z.string(), z.boolean()).default({}),
   })
 }
 
@@ -76,6 +73,19 @@ const configSchema: z.ZodType<Config> = z.strictObject({
       claude: z.boolean().default(true),
       codex: z.boolean().default(true),
       opencode: z.boolean().default(true),
+    })
+    .prefault({}),
+  newThreads: z
+    .strictObject({
+      provider: z.enum(['claude', 'codex', 'opencode']).default('claude'),
+      accountId: z.string().nullable().default(null),
+      models: z
+        .strictObject({
+          claude: z.string().nullable().default(null),
+          codex: z.string().nullable().default(null),
+          opencode: z.string().nullable().default(null),
+        })
+        .prefault({}),
     })
     .prefault({}),
   commitMessage: z
@@ -164,24 +174,7 @@ export function configInfo(): ConfigWithDefaults {
 }
 
 export function readConfig() {
-  let user: unknown
-  try {
-    user = readJson('config.json')
-  } catch (error) {
-    console.warn(`invalid ${configFile}, using the default config: ${error}`)
-    return structuredClone(defaults)
-  }
-  if (user === null) {
-    return structuredClone(defaults)
-  }
-  const result = configSchema.safeParse(user)
-  if (!result.success) {
-    console.warn(
-      `invalid ${configFile}, using the default config:\n${z.prettifyError(result.error)}`
-    )
-    return structuredClone(defaults)
-  }
-  return result.data
+  return readSettings('config.json', configSchema, defaults)
 }
 
 export function saveConfig(value: unknown) {

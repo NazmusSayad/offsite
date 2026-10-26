@@ -1,11 +1,6 @@
 import { Add01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type {
-  ComposerSettings,
-  Config,
-  ModelSetting,
-  Platform,
-} from '@offsite/core/config'
+import type { Config, ModelSetting, Platform } from '@offsite/core/config'
 import type {
   Account,
   Capabilities,
@@ -14,7 +9,7 @@ import type {
 } from '@offsite/core/providers'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
-import { updateComposer, updateConfig } from '@/api/machine-config'
+import { updateConfig } from '@/api/machine-config'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -35,7 +30,6 @@ import { Row, Section, TextInput } from './controls'
 export function ProviderPage(props: {
   machine: string
   config: Config
-  composer: ComposerSettings
   platform: Platform
   defaultClaudeBaseDir: string
   provider: Provider
@@ -71,13 +65,7 @@ export function ProviderPage(props: {
         </p>
       )
     }
-    return (
-      <AccountPage
-        machine={props.machine}
-        settings={config.models[props.provider]}
-        account={selected}
-      />
-    )
+    return <AccountPage machine={props.machine} account={selected} />
   }
 
   return (
@@ -117,7 +105,6 @@ export function ProviderPage(props: {
             <ProviderModels
               machine={props.machine}
               config={config}
-              composer={props.composer}
               provider={props.provider}
               accountId={null}
             />
@@ -126,7 +113,6 @@ export function ProviderPage(props: {
           <ProviderModels
             machine={props.machine}
             config={config}
-            composer={props.composer}
             provider={props.provider}
             accountId={account.id}
           />
@@ -139,7 +125,6 @@ export function ProviderPage(props: {
 function ProviderModels(props: {
   machine: string
   config: Config
-  composer: ComposerSettings
   provider: Provider
   accountId: string | null
 }) {
@@ -147,9 +132,9 @@ function ProviderModels(props: {
   const [error, setError] = useState<string | null>(null)
   const settings = props.config.models[props.provider]
   const models = capabilities === null ? null : capabilities.models
-  const composer = props.composer[props.provider]
   const defaultModel =
-    composer.model ?? (capabilities === null ? null : capabilities.defaultModel)
+    props.config.newThreads.models[props.provider] ??
+    (capabilities === null ? null : capabilities.defaultModel)
 
   useEffect(() => {
     let current = true
@@ -192,18 +177,18 @@ function ProviderModels(props: {
         <Row label="Default model">
           <Select
             value={defaultModel ?? undefined}
-            onValueChange={(value) => {
-              const effort =
-                models?.find((model) => model.value === value)?.effort ?? null
-              updateComposer(props.machine, {
-                ...props.composer,
-                [props.provider]: {
-                  ...composer,
-                  model: value,
-                  ...(effort === null ? {} : { effort }),
+            onValueChange={(value) =>
+              void updateConfig(props.machine, {
+                ...props.config,
+                newThreads: {
+                  ...props.config.newThreads,
+                  models: {
+                    ...props.config.newThreads.models,
+                    [props.provider]: value,
+                  },
                 },
               })
-            }}
+            }
           >
             <SelectTrigger className="w-56">
               <SelectValue placeholder="Choose a model" />
@@ -367,7 +352,6 @@ function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
                   color: account.color,
                   configDir: account.configDir,
                   enabled,
-                  hiddenModels: account.hiddenModels,
                 })
               )
             }

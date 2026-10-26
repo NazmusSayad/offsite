@@ -4,7 +4,11 @@ import type { SessionPatch } from '@offsite/core/sessions'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { deleteDraft, getDraftSettings } from '@/features/composer/drafts'
-import { providerSettings, refreshCapabilities, setAccounts } from './accounts'
+import {
+  newThreadSettings,
+  providerSettings,
+  refreshSettings,
+} from './accounts'
 import { router } from './router'
 import {
   draftKey,
@@ -18,6 +22,7 @@ import {
 import { syncUrl, terminalPage } from './url'
 export function openSession(selection: Selection) {
   const machine = machineOf(getState(), selection.machine)
+  const previous = getState().selection
   localStorage.setItem(
     'lastProject',
     JSON.stringify({
@@ -35,19 +40,21 @@ export function openSession(selection: Selection) {
     requests: [],
     queue: [],
     settings:
-      (selection.sessionId === null
-        ? null
-        : getDraftSettings(draftKey(selection))) ??
-      providerSettings(
-        machine.composer,
-        getState().sessions.find(
-          (item) =>
-            item.machine === selection.machine &&
-            item.id === selection.sessionId
-        )?.provider ??
-          machine.composer?.provider ??
-          'claude'
-      ),
+      selection.sessionId === null
+        ? previous?.sessionId === null && previous.machine === selection.machine
+          ? getState().settings
+          : newThreadSettings(machine)
+        : (getDraftSettings(draftKey(selection)) ??
+          providerSettings(
+            machine.composer,
+            getState().sessions.find(
+              (item) =>
+                item.machine === selection.machine &&
+                item.id === selection.sessionId
+            )?.provider ??
+              machine.composer?.provider ??
+              'claude'
+          )),
     context: null,
     paletteOpen: false,
     unseen: getState().unseen.filter(
@@ -57,18 +64,7 @@ export function openSession(selection: Selection) {
     ),
   })
   syncUrl()
-  if (
-    machine.claudeAccounts.length > 0 ||
-    machine.codexAccounts.length > 0 ||
-    machine.openCode.available
-  ) {
-    setAccounts(selection.machine, {
-      claudeAccounts: machine.claudeAccounts,
-      codexAccounts: machine.codexAccounts,
-      openCode: machine.openCode,
-    })
-  }
-  void refreshCapabilities()
+  refreshSettings(selection.machine)
   if (selection.sessionId !== null && machine.status === 'online') {
     loadSession(selection.machine, selection.projectId, selection.sessionId)
   }

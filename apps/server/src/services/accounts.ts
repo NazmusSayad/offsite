@@ -40,7 +40,6 @@ export type StoredAccount = {
   color: string | null
   configDir: string | null
   enabled: boolean
-  hiddenModels: Record<string, boolean>
 }
 
 const providerNames: Record<Provider, string> = {
@@ -187,10 +186,6 @@ export async function capabilities(
   const result = await providerCapabilities(provider, accountId, cwd)
   const config = readConfig()
   const settings = config.models[provider]
-  const overrides =
-    provider === 'opencode'
-      ? {}
-      : storedAccount(provider, accountId).hiddenModels
   return {
     ...result,
     defaultModel: defaultModels[provider],
@@ -210,7 +205,7 @@ export async function capabilities(
       return {
         ...model,
         deprecated,
-        hidden: overrides[model.value] ?? setting.hidden,
+        hidden: setting.hidden,
         effort: setting.effort ?? effort,
       }
     }),
@@ -256,7 +251,6 @@ export function addAccount(
         color: null,
         configDir: { [platform()]: account.configDir },
         enabled: true,
-        hiddenModels: {},
       },
     ],
   })
@@ -280,7 +274,6 @@ export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
             color: update.color,
             configDir: { ...item.configDir, [platform()]: account.configDir },
             enabled: update.enabled,
-            hiddenModels: update.hiddenModels,
           }
         : item
     ),
