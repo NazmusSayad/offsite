@@ -31,7 +31,7 @@ export function MachineSwitcher(props: { machine: string; className: string }) {
           />
           <span className="truncate">{current.name}</span>
           {current.terminals > 0 && (
-            <span className="text-foreground shrink-0 grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+            <span className="text-foreground grid h-4 min-w-4 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
               {current.terminals}
             </span>
           )}
