@@ -116,6 +116,31 @@ export async function runAction(cwd: string, action: GitAction) {
     await git(cwd, ['--literal-pathspecs', 'add', '-A', '--', ...action.paths])
     return
   }
+  if (action.kind === 'stageContent') {
+    const entry = await git(cwd, [
+      '--literal-pathspecs',
+      'ls-files',
+      '--stage',
+      '--',
+      action.path,
+    ])
+    if (entry.stdout === '') {
+      throw new Error(`${action.path} is not in the index`)
+    }
+    const hashing = run(
+      'git',
+      ['hash-object', '-w', '--stdin', `--path=${action.path}`],
+      { cwd }
+    )
+    hashing.child.stdin?.end(action.content)
+    const hash = (await hashing).stdout.trim()
+    await git(cwd, [
+      'update-index',
+      '--cacheinfo',
+      `${entry.stdout.split(' ')[0]},${hash},${action.path}`,
+    ])
+    return
+  }
   if (action.kind === 'unstage') {
     await git(cwd, [
       '--literal-pathspecs',

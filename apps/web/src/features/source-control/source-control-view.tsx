@@ -54,7 +54,7 @@ export function SourceControlView(props: {
   onSettings: (change: Partial<EditorSettings>) => void
   onMessage: (repo: string, message: string) => void
   active: string | null
-  onOpen: (spec: TabSpec, pinned: boolean) => void
+  onOpen: (spec: TabSpec) => void
   onRefresh: () => void
   onPerform: (task: () => Promise<unknown>) => Promise<void>
   onCheckout: (repo: SourceControlRepo) => void

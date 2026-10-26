@@ -25,7 +25,7 @@ type Document =
   | { status: 'binary' }
   | { status: 'error'; message: string }
 
-type Tab = { spec: TabSpec; pinned: boolean; document: Document }
+type Tab = { spec: TabSpec; document: Document }
 
 type Closing = { kind: 'tab'; id: string } | { kind: 'dialog' }
 
@@ -41,7 +41,6 @@ export function useTabs(props: {
   const [tabs, setTabs] = useState<Tab[]>(() =>
     props.saved.tabs.map((tab) => ({
       spec: tab.spec,
-      pinned: tab.pinned,
       document: { status: 'loading' },
     }))
   )
@@ -166,16 +165,12 @@ export function useTabs(props: {
           return items
         }
         const changed = right.getAlternativeVersionId() !== tab.document.saved
-        if (tab.document.dirty === changed && tab.pinned) {
+        if (tab.document.dirty === changed) {
           return items
         }
         return items.map((item) =>
           item === tab
-            ? {
-                ...tab,
-                pinned: true,
-                document: { ...tab.document, dirty: changed },
-              }
+            ? { ...tab, document: { ...tab.document, dirty: changed } }
             : item
         )
       })
@@ -231,25 +226,12 @@ export function useTabs(props: {
     }
   }
 
-  async function open(spec: TabSpec, pinned: boolean) {
+  async function open(spec: TabSpec) {
     setActive(spec.id)
     if (tabs.some((tab) => tab.spec.id === spec.id)) {
-      if (pinned) {
-        setTabs(
-          tabs.map((tab) =>
-            tab.spec.id === spec.id ? { ...tab, pinned } : tab
-          )
-        )
-      }
       return
     }
-    const preview = tabs.find((tab) => !tab.pinned)
-    const tab: Tab = { spec, pinned, document: { status: 'loading' } }
-    setTabs(
-      preview === undefined || pinned
-        ? [...tabs, tab]
-        : tabs.map((item) => (item === preview ? tab : item))
-    )
+    setTabs([...tabs, { spec, document: { status: 'loading' } }])
     await load(spec)
   }
 

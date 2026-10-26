@@ -1,6 +1,7 @@
 import os from 'node:os'
 import path from 'node:path'
 import type { RpcCall, RpcMethod, RpcMethods } from '@offsite/core/protocol'
+import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import type { WebSocket } from 'ws'
 import { agentMessages, earlier, image } from '../lib/claude/index.ts'
 import { codexAgent } from '../lib/codex/index.ts'
@@ -110,6 +111,7 @@ const handlers: Handlers = {
       sessions: sessions(),
       providers: providerStatuses(),
       activity: activity(),
+      terminals: terminalCount(GLOBAL_TERMINALS),
     }
   },
   'config.get': () => configInfo(),

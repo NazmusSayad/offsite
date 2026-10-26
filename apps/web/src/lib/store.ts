@@ -73,6 +73,7 @@ export type Machine = {
   notifier: boolean
   activity: Record<string, SessionActivity>
   providers: ProviderStatus[]
+  terminals: number
 }
 
 export type MachineProject = Project & { machine: string }

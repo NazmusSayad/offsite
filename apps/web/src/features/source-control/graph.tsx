@@ -58,7 +58,7 @@ export function Graph(props: {
   active: string | null
   onToggle: () => void
   onHeight: (height: number) => void
-  onOpen: (spec: TabSpec, pinned: boolean) => void
+  onOpen: (spec: TabSpec) => void
   onFetch: (repo: SourceControlRepo) => void
 }) {
   const [selected, setSelected] = useState<string | null>(null)
@@ -273,11 +273,10 @@ export function Graph(props: {
                             'hover:bg-sidebar-row-hover flex h-[22px] cursor-pointer items-center gap-1.5 pr-2 text-[13px] outline-none select-none',
                             spec.id === props.active && 'bg-sidebar-row-active'
                           )}
-                          onClick={() => props.onOpen(spec, false)}
-                          onDoubleClick={() => props.onOpen(spec, true)}
+                          onClick={() => props.onOpen(spec)}
                           onKeyDown={(event) => {
                             if (event.key === 'Enter') {
-                              props.onOpen(spec, true)
+                              props.onOpen(spec)
                             }
                           }}
                         >

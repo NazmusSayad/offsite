@@ -47,7 +47,7 @@ export function ResourceGroups(props: {
   sort: Sort
   depth: number
   active: string | null
-  onOpen: (spec: TabSpec, pinned: boolean) => void
+  onOpen: (spec: TabSpec) => void
   onStage: (resources: GitResource[]) => void
   onUnstage: (resources: GitResource[]) => void
   onDiscard: (resources: GitResource[]) => void
@@ -83,8 +83,7 @@ export function ResourceGroups(props: {
             icon={FileExportIcon}
             onClick={() =>
               props.onOpen(
-                fileTab(repo.path, projectFile(repo.path, resources[0].path)),
-                true
+                fileTab(repo.path, projectFile(repo.path, resources[0].path))
               )
             }
           />
@@ -133,11 +132,10 @@ export function ResourceGroups(props: {
           spec.id === props.active && 'bg-sidebar-row-active'
         )}
         style={{ paddingLeft: 20 + depth * 8 }}
-        onClick={() => props.onOpen(spec, false)}
-        onDoubleClick={() => props.onOpen(spec, true)}
+        onClick={() => props.onOpen(spec)}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
-            props.onOpen(spec, true)
+            props.onOpen(spec)
           }
         }}
         onContextMenu={() => setMenu({ group, resource })}
@@ -270,10 +268,7 @@ export function ResourceGroups(props: {
         <ContextMenuContent className="min-w-52">
           <ContextMenuItem
             onSelect={() =>
-              props.onOpen(
-                changeTab(repo.path, menu.group, menu.resource),
-                true
-              )
+              props.onOpen(changeTab(repo.path, menu.group, menu.resource))
             }
           >
             Open Changes
@@ -282,11 +277,7 @@ export function ResourceGroups(props: {
             <ContextMenuItem
               onSelect={() =>
                 props.onOpen(
-                  fileTab(
-                    repo.path,
-                    projectFile(repo.path, menu.resource.path)
-                  ),
-                  true
+                  fileTab(repo.path, projectFile(repo.path, menu.resource.path))
                 )
               }
             >
@@ -295,9 +286,7 @@ export function ResourceGroups(props: {
           )}
           {menu.resource.status !== 'U' && menu.resource.status !== 'A' && (
             <ContextMenuItem
-              onSelect={() =>
-                props.onOpen(headTab(repo.path, menu.resource), true)
-              }
+              onSelect={() => props.onOpen(headTab(repo.path, menu.resource))}
             >
               Open File (HEAD)
             </ContextMenuItem>
@@ -374,7 +363,6 @@ export function RowAction(props: {
         event.stopPropagation()
         props.onClick()
       }}
-      onDoubleClick={(event) => event.stopPropagation()}
     >
       <HugeiconsIcon icon={props.icon} className="size-4" />
     </button>

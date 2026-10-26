@@ -182,11 +182,33 @@ export function EditorDialog(props: {
 
   useEffect(() => refreshActive(), [active])
 
-  function open(spec: TabSpec, pinned: boolean) {
+  const stageBlock = useEffectEvent((content: string) => {
+    const left = current?.spec.left
+    if (current === undefined || left?.kind !== 'git') {
+      throw new Error('Only working tree changes can be staged')
+    }
+    void perform(() =>
+      call(props.machine, 'git.run', {
+        projectId: props.projectId,
+        repo: current.spec.repo,
+        action: { kind: 'stageContent', path: left.path, content },
+      })
+    )
+  })
+
+  useEffect(() => {
+    const command = monaco.editor.registerCommand(
+      'offsite.stageBlock',
+      (accessor, arg) => stageBlock(arg.originalWithModifiedChanges)
+    )
+    return () => command.dispose()
+  }, [])
+
+  function open(spec: TabSpec) {
     if (window.innerWidth < 640) {
       change({ sidebar: false })
     }
-    void documents.open(spec, pinned || !prefs.preview)
+    void documents.open(spec)
   }
 
   async function perform(task: () => Promise<unknown>) {
@@ -212,7 +234,6 @@ export function EditorDialog(props: {
     saveEditorState(props.machine, props.projectId, {
       tabs: documents.tabs.map((tab) => ({
         spec: tab.spec,
-        pinned: tab.pinned,
         view: views.get(tab.spec.id) ?? null,
       })),
       active,
@@ -276,7 +297,7 @@ export function EditorDialog(props: {
                 expanded={expanded}
                 onExpanded={setExpanded}
                 active={current?.spec.path ?? null}
-                onOpen={(path, pinned) => open(fileTab('', path), pinned)}
+                onOpen={(path) => open(fileTab('', path))}
                 onRenamed={documents.renamed}
                 onDeleted={documents.deleted}
               />
@@ -333,17 +354,10 @@ export function EditorDialog(props: {
                   id: tab.spec.id,
                   path: tab.spec.path,
                   label: tab.spec.label,
-                  pinned: tab.pinned,
                 }))}
                 active={active}
                 dirty={documents.dirty.map((tab) => tab.spec.id)}
                 onSelect={documents.setActive}
-                onPin={(id) => {
-                  const tab = documents.tabs.find((item) => item.spec.id === id)
-                  if (tab !== undefined) {
-                    open(tab.spec, true)
-                  }
-                }}
                 onClose={documents.close}
               />
               {current !== undefined && original !== null && (
@@ -351,7 +365,7 @@ export function EditorDialog(props: {
                   settings={settings}
                   onSettings={change}
                   onOpenFile={() =>
-                    open(fileTab(current.spec.repo, current.spec.path), true)
+                    open(fileTab(current.spec.repo, current.spec.path))
                   }
                   onPrevious={() => diff?.goToDiff('previous')}
                   onNext={() => diff?.goToDiff('next')}

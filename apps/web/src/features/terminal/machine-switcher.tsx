@@ -30,6 +30,11 @@ export function MachineSwitcher(props: { machine: string; className: string }) {
             className="size-3.5 shrink-0"
           />
           <span className="truncate">{current.name}</span>
+          {current.terminals > 0 && (
+            <span className="text-foreground shrink-0 grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+              {current.terminals}
+            </span>
+          )}
           {machines.length > 1 && (
             <HugeiconsIcon icon={ChevronDownIcon} className="size-3 shrink-0" />
           )}
@@ -45,6 +50,11 @@ export function MachineSwitcher(props: { machine: string; className: string }) {
             >
               <HugeiconsIcon icon={machineIcons[machine.icon]} />
               <span className="max-w-60 truncate">{machine.name}</span>
+              {machine.terminals > 0 && (
+                <span className="text-foreground ml-auto grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+                  {machine.terminals}
+                </span>
+              )}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

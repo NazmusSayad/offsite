@@ -59,6 +59,7 @@ export type SyncSnapshot = ConfigWithDefaults & {
   sessions: Session[]
   providers: ProviderStatus[]
   activity: Record<string, SessionActivity>
+  terminals: number
 }
 
 export type RpcMethods = {
@@ -329,4 +330,5 @@ export type ServerEvent =
   | { type: 'context'; sessionId: string; context: ContextUsage | null }
   | { type: 'notification'; sessionId: string; message: string }
   | { type: 'notifier'; active: boolean }
+  | { type: 'terminals'; count: number }
   | { type: 'open'; path: string }

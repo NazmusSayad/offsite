@@ -4,6 +4,11 @@ import 'monaco-editor/basic-languages/monaco.contribution'
 import * as monaco from 'monaco-editor/editor/editor.api'
 import 'monaco-editor/features/register.all'
 import {
+  MenuId,
+  MenuRegistry,
+} from 'monaco-editor/platform/actions/common/actions'
+import { ContextKeyExpr } from 'monaco-editor/platform/contextkey/common/contextkey'
+import {
   bundledLanguagesInfo,
   bundledThemesInfo,
   createHighlighter,
@@ -17,6 +22,17 @@ self.MonacoEnvironment = {
     return new loaded.default()
   },
 }
+
+MenuRegistry.appendMenuItem(MenuId.DiffEditorHunkToolbar, {
+  command: {
+    id: 'offsite.stageBlock',
+    title: 'Stage Block',
+    icon: { id: 'add' },
+  },
+  when: ContextKeyExpr.has('diffEditorModifiedWritable'),
+  group: 'primary',
+  order: 10,
+})
 
 const highlighter = createHighlighter({ themes: [], langs: [] })
 

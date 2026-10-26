@@ -19,7 +19,6 @@ export type EditorSettings = {
 export type EditorState = {
   tabs: {
     spec: TabSpec
-    pinned: boolean
     view: monaco.editor.ICodeEditorViewState | null
   }[]
   active: string | null

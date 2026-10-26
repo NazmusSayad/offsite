@@ -16,7 +16,7 @@ import {
   type TerminalRequest,
   type TerminalTab,
 } from '@offsite/core/terminal'
-import type { Client } from '../../lib/hub.ts'
+import { broadcast, type Client } from '../../lib/hub.ts'
 import { workingDirectory } from '../../storage/config.ts'
 import { projectPath } from '../projects.ts'
 import { notifierClient, pushActive, sendPush } from '../push.ts'
@@ -485,6 +485,7 @@ function publish() {
   for (const connection of connections.values()) {
     send(connection, event)
   }
+  broadcast({ type: 'terminals', count: terminalCount(GLOBAL_TERMINALS) })
 }
 
 function forward(

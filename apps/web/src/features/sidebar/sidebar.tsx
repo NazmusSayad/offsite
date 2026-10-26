@@ -75,6 +75,10 @@ export function Sidebar(
   const [inactiveOpen, setInactiveOpen] = useState(false)
   const [filter, setFilter] = useState<ThreadFilter>('active')
   const [width, setWidth] = useLocalStorage('sidebarWidth', 240)
+  const terminals = machines.reduce(
+    (total, machine) => total + machine.terminals,
+    0
+  )
   const shown = sessions
     .filter(
       (session) =>
@@ -406,6 +410,11 @@ export function Sidebar(
               >
                 <HugeiconsIcon icon={SquareTerminalIcon} />
                 Terminal
+                {terminals > 0 && (
+                  <span className="text-foreground ml-auto grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+                    {terminals}
+                  </span>
+                )}
               </button>
             )}
             <div className="flex items-center gap-1">

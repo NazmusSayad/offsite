@@ -154,6 +154,7 @@ async function resync(machine: string) {
       },
       activity: snapshot.activity,
       providers: snapshot.providers,
+      terminals: snapshot.terminals,
     })
     setProjects(machine, snapshot.projects)
     setSessions(machine, snapshot.sessions)
@@ -314,6 +315,9 @@ function receive(machine: string, event: ServerEvent) {
       return
     case 'notifier':
       setMachine(machine, { notifier: event.active })
+      return
+    case 'terminals':
+      setMachine(machine, { terminals: event.count })
       return
     case 'open':
       if (selected) {

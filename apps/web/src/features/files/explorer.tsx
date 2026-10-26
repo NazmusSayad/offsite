@@ -58,7 +58,7 @@ export function Explorer(props: {
   expanded: string[]
   onExpanded: Dispatch<SetStateAction<string[]>>
   active: string | null
-  onOpen: (path: string, pinned: boolean) => void
+  onOpen: (path: string) => void
   onRenamed: (from: string, to: string) => void
   onDeleted: (path: string) => void
 }) {
@@ -136,7 +136,7 @@ export function Explorer(props: {
           props.onExpanded((current) => [...current, path])
         }
         if (!editing.folder) {
-          props.onOpen(path, true)
+          props.onOpen(path)
         }
       }
       if (editing.kind === 'rename' && name !== baseName(editing.path)) {
@@ -218,12 +218,7 @@ export function Explorer(props: {
             return
           }
           setSelected(null)
-          props.onOpen(path, false)
-        }}
-        onDoubleClick={() => {
-          if (!folder) {
-            props.onOpen(path, true)
-          }
+          props.onOpen(path)
         }}
       >
         {Array.from({ length: depth }, (_, level) => (

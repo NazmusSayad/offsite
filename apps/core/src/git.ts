@@ -56,6 +56,7 @@ export type GitCommit = {
 
 export type GitAction =
   | { kind: 'stage'; paths: string[] }
+  | { kind: 'stageContent'; path: string; content: string }
   | { kind: 'unstage'; paths: string[] }
   | { kind: 'discard'; tracked: string[]; untracked: string[] }
   | { kind: 'ignore'; paths: string[] }

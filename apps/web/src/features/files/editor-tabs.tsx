@@ -5,11 +5,10 @@ import { parentOf } from '@/features/files/explorer'
 import { cn } from '@/lib/utils'
 
 export function EditorTabs(props: {
-  tabs: { id: string; path: string; label: string; pinned: boolean }[]
+  tabs: { id: string; path: string; label: string }[]
   active: string | null
   dirty: string[]
   onSelect: (id: string) => void
-  onPin: (id: string) => void
   onClose: (id: string) => void
 }) {
   return (
@@ -33,7 +32,6 @@ export function EditorTabs(props: {
               !selected && 'text-muted-foreground hover:bg-background/50'
             )}
             onClick={() => props.onSelect(tab.id)}
-            onDoubleClick={() => props.onPin(tab.id)}
             onAuxClick={(event) => {
               if (event.button === 1) {
                 props.onClose(tab.id)
@@ -49,9 +47,7 @@ export function EditorTabs(props: {
               <span className="bg-primary absolute inset-x-0 top-0 h-px" />
             )}
             <FileTypeIcon path={tab.path} />
-            <span className={cn('max-w-48 truncate', !tab.pinned && 'italic')}>
-              {tab.label}
-            </span>
+            <span className="max-w-48 truncate">{tab.label}</span>
             {props.tabs.some(
               (item) => item !== tab && item.label === tab.label
             ) && (

@@ -131,14 +131,6 @@ export function EditorPage(props: { prefs: Prefs }) {
           />
         </Row>
       </Section>
-      <Section title="Tabs">
-        <Row label="Open files in preview tabs">
-          <Switch
-            checked={editor.preview}
-            onCheckedChange={(preview) => commit({ ...editor, preview })}
-          />
-        </Row>
-      </Section>
     </>
   )
 }
