@@ -8,7 +8,15 @@ import {
   RefreshCwIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { call } from '@/api/connection'
 import { FileTypeIcon } from '@/components/file-icon'
 import {
@@ -48,6 +56,8 @@ export function Explorer(props: {
   name: string
   root: string
   toggle: ReactNode
+  expanded: string[]
+  onExpanded: Dispatch<SetStateAction<string[]>>
   active: string | null
   onOpen: (path: string, pinned: boolean) => void
   onRenamed: (from: string, to: string) => void
@@ -59,7 +69,6 @@ export function Explorer(props: {
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
-  const [expanded, setExpanded] = useState<string[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [menu, setMenu] = useState<Entry>({ path: '', folder: true })
   const [editing, setEditing] = useState<Editing | null>(null)
@@ -98,9 +107,9 @@ export function Explorer(props: {
 
   function startCreate(parent: string, folder: boolean) {
     const parts = parent === '' ? [] : parent.split('/')
-    setExpanded([
+    props.onExpanded([
       ...new Set([
-        ...expanded,
+        ...props.expanded,
         ...parts.map((_, index) => parts.slice(0, index + 1).join('/')),
       ]),
     ])
@@ -125,7 +134,7 @@ export function Explorer(props: {
           folder: editing.folder,
         })
         if (editing.folder) {
-          setExpanded((current) => [...current, path])
+          props.onExpanded((current) => [...current, path])
         }
         if (!editing.folder) {
           props.onOpen(path, true)
@@ -202,10 +211,10 @@ export function Explorer(props: {
         onClick={() => {
           if (folder) {
             setSelected(path)
-            setExpanded(
+            props.onExpanded(
               open
-                ? expanded.filter((item) => item !== path)
-                : [...expanded, path]
+                ? props.expanded.filter((item) => item !== path)
+                : [...props.expanded, path]
             )
             return
           }
@@ -258,7 +267,7 @@ export function Explorer(props: {
         .sort((left, right) => left[0].localeCompare(right[0]))
         .map((entry) => {
           const path = parent === '' ? entry[0] : `${parent}/${entry[0]}`
-          const open = expanded.includes(path)
+          const open = props.expanded.includes(path)
           return (
             <div key={`dir:${path}`}>
               {row(path, depth, true, open)}
@@ -311,7 +320,7 @@ export function Explorer(props: {
           variant="ghost"
           title="Collapse Folders in Explorer"
           aria-label="Collapse Folders in Explorer"
-          onClick={() => setExpanded([])}
+          onClick={() => props.onExpanded([])}
         >
           <HugeiconsIcon icon={ChevronsDownUpIcon} className="size-4" />
         </Button>

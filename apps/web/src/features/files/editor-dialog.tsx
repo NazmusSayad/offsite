@@ -1,22 +1,21 @@
 import { PanelLeftIcon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
-import { call } from '@/api/connection'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useState,
+} from 'react'
+import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { loadEditorState, saveEditorState } from '@/features/files/editor-state'
 import { EditorTabs } from '@/features/files/editor-tabs'
-import { baseName, Explorer } from '@/features/files/explorer'
+import { Explorer } from '@/features/files/explorer'
 import { applyTheme, loadLanguage, monaco } from '@/features/files/monaco'
+import { SavePrompt } from '@/features/files/save-prompt'
 import { StatusBar } from '@/features/files/status-bar'
 import { projectOf, showError, useStore } from '@/lib/store'
 import { useCodeTheme } from '@/lib/theme'
@@ -58,11 +57,21 @@ export function EditorDialog(props: {
     projectOf(state, props.machine, props.projectId)
   )
   const codeTheme = useCodeTheme()
-  const [tabs, setTabs] = useState<Tab[]>([])
-  const [active, setActive] = useState<string | null>(null)
-  const [sidebar, setSidebar] = useState(true)
+  const [saved] = useState(() =>
+    loadEditorState(props.machine, props.projectId)
+  )
+  const [tabs, setTabs] = useState<Tab[]>(() =>
+    (saved?.tabs ?? []).map((tab) => ({
+      path: tab.path,
+      pinned: tab.pinned,
+      document: { status: 'loading' },
+    }))
+  )
+  const [active, setActive] = useState(saved?.active ?? null)
+  const [expanded, setExpanded] = useState(saved?.expanded ?? [])
+  const [sidebar, setSidebar] = useState(saved?.sidebar ?? true)
   const [width, setWidth] = useState(() =>
-    Math.min(260, window.innerWidth * 0.6)
+    Math.min(saved?.width ?? 260, window.innerWidth * 0.6)
   )
   const [closing, setClosing] = useState<Closing | null>(null)
   const [editor, setEditor] =
@@ -207,7 +216,17 @@ export function EditorDialog(props: {
         ? [...tabs, tab]
         : tabs.map((item) => (item === preview ? tab : item))
     )
+    await load(path, null)
+  }
+
+  async function load(
+    path: string,
+    view: monaco.editor.ICodeEditorViewState | null
+  ) {
     const loaded = await read(path)
+    if (loaded.status === 'text') {
+      viewStates.set(loaded.model, view)
+    }
     setTabs((items) =>
       items.map((item) =>
         item.path === path && item.document.status === 'loading'
@@ -274,6 +293,7 @@ export function EditorDialog(props: {
       setClosing({ kind: 'dialog' })
       return
     }
+    persist()
     props.onClose()
   }
 
@@ -289,6 +309,7 @@ export function EditorDialog(props: {
       removeTabs((item) => item === closing.path)
     }
     if (closing.kind === 'dialog') {
+      persist()
       props.onClose()
     }
   }
@@ -308,6 +329,36 @@ export function EditorDialog(props: {
       setActive(rename(active))
     }
   }
+
+  function persist() {
+    if (editor !== null && model !== null) {
+      viewStates.set(model, editor.saveViewState())
+    }
+    saveEditorState(props.machine, props.projectId, {
+      tabs: tabs.map((tab) => ({
+        path: tab.path,
+        pinned: tab.pinned,
+        view:
+          tab.document.status === 'text'
+            ? (viewStates.get(tab.document.model) ?? null)
+            : null,
+      })),
+      active,
+      expanded,
+      sidebar,
+      width,
+    })
+  }
+
+  const restore = useEffectEvent(() => {
+    for (const tab of saved?.tabs ?? []) {
+      void load(tab.path, tab.view)
+    }
+  })
+
+  useEffect(() => restore(), [])
+
+  useEffect(persist)
 
   const toggle = (
     <Button
@@ -352,6 +403,8 @@ export function EditorDialog(props: {
               name={project?.name ?? ''}
               root={project?.path ?? ''}
               toggle={toggle}
+              expanded={expanded}
+              onExpanded={setExpanded}
               active={active}
               onOpen={(path, pinned) => void open(path, pinned)}
               onRenamed={renamed}
@@ -448,41 +501,12 @@ export function EditorDialog(props: {
               : null
           }
         />
-        <AlertDialog
+        <SavePrompt
           open={closing !== null}
-          onOpenChange={(open) => {
-            if (!open) {
-              setClosing(null)
-            }
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {closingPaths.length === 1
-                  ? `Do you want to save the changes you made to ${baseName(closingPaths[0])}?`
-                  : `Do you want to save the changes to the following ${closingPaths.length} files?`}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {closingPaths.length > 1 &&
-                  `${closingPaths.map(baseName).join(', ')}. `}
-                {"Your changes will be lost if you don't save them."}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                variant="outline"
-                onClick={() => void finish(false)}
-              >
-                {"Don't Save"}
-              </AlertDialogAction>
-              <AlertDialogAction onClick={() => void finish(true)}>
-                {closingPaths.length === 1 ? 'Save' : 'Save All'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          paths={closingPaths}
+          onCancel={() => setClosing(null)}
+          onFinish={(saving) => void finish(saving)}
+        />
       </DialogContent>
     </Dialog>
   )
