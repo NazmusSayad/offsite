@@ -63,7 +63,7 @@ export function ZoomableImage(props: {
               src={props.src}
               alt={props.alt}
               draggable={false}
-              className="max-h-full max-w-full object-contain select-none"
+              className="pointer-events-auto! max-h-full max-w-full object-contain select-none"
             />
           </TransformComponent>
           <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-full bg-black/60 p-1 text-white backdrop-blur-sm">
