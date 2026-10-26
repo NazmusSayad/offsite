@@ -12,10 +12,7 @@ const searchSchema = z.object({
   machine: z.string().optional().catch(undefined),
   project: z.string().optional().catch(undefined),
   session: z.string().optional().catch(undefined),
-  panel: z
-    .enum(['diff', 'tasks', 'files', 'browser'])
-    .optional()
-    .catch(undefined),
+  panel: z.enum(['diff', 'tasks', 'browser']).optional().catch(undefined),
   browse: z.string().optional().catch(undefined),
   bottom: z.literal('terminal').optional().catch(undefined),
   terminal: z.string().optional().catch(undefined),

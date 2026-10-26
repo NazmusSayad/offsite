@@ -18,12 +18,16 @@ import {
 } from '../services/accounts.ts'
 import {
   browseToken,
-  linkProjectDownload,
+  createProjectEntry,
+  deleteProjectEntry,
   linkProjectMedia,
+  listEntries,
   listFiles,
   readProjectFile,
+  renameProjectEntry,
   saveUpload,
   taskOutput,
+  writeProjectFile,
 } from '../services/files.ts'
 import {
   commit,
@@ -245,12 +249,31 @@ const handlers: Handlers = {
       params.projectId === null ? os.homedir() : projectPath(params.projectId)
     ),
   'files.list': (params) => listFiles(projectPath(params.projectId)),
+  'files.entries': (params) => listEntries(projectPath(params.projectId)),
   'files.read': (params) =>
     readProjectFile(projectPath(params.projectId), params.path),
+  'files.write': (params) => {
+    writeProjectFile(projectPath(params.projectId), params.path, params.content)
+    return null
+  },
+  'files.create': (params) => {
+    createProjectEntry(
+      projectPath(params.projectId),
+      params.path,
+      params.folder
+    )
+    return null
+  },
+  'files.rename': (params) => {
+    renameProjectEntry(projectPath(params.projectId), params.path, params.to)
+    return null
+  },
+  'files.delete': (params) => {
+    deleteProjectEntry(projectPath(params.projectId), params.path)
+    return null
+  },
   'files.media': (params) =>
     linkProjectMedia(projectPath(params.projectId), params.path),
-  'files.download': (params) =>
-    linkProjectDownload(projectPath(params.projectId), params.path),
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
   'files.browse': () => browseToken,

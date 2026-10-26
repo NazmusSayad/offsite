@@ -165,15 +165,28 @@ export type RpcMethods = {
     result: Capabilities
   }
   'files.list': { params: { projectId: string }; result: string[] }
+  'files.entries': {
+    params: { projectId: string }
+    result: { files: string[]; folders: string[] }
+  }
   'files.read': {
     params: { projectId: string; path: string }
     result: FilePreview
   }
-  'files.media': { params: { projectId: string; path: string }; result: string }
-  'files.download': {
-    params: { projectId: string; path: string }
-    result: string
+  'files.write': {
+    params: { projectId: string; path: string; content: string }
+    result: null
   }
+  'files.create': {
+    params: { projectId: string; path: string; folder: boolean }
+    result: null
+  }
+  'files.rename': {
+    params: { projectId: string; path: string; to: string }
+    result: null
+  }
+  'files.delete': { params: { projectId: string; path: string }; result: null }
+  'files.media': { params: { projectId: string; path: string }; result: string }
   'files.upload': { params: { name: string; data: string }; result: string }
   'files.browse': { params: void; result: string }
   'browser.proxy': { params: { origin: string }; result: number }

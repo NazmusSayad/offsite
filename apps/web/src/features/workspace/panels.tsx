@@ -7,7 +7,13 @@ import {
   TaskDaily01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
-import { type ReactNode, useSyncExternalStore } from 'react'
+import {
+  lazy,
+  type ReactNode,
+  Suspense,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +21,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { BrowserPanel } from '@/features/browser/browser-panel'
-import { FilesPanel } from '@/features/files/files-panel'
 import { DiffPanel } from '@/features/git/diff-panel'
 import {
   getState as terminalState,
@@ -26,7 +31,11 @@ import { TasksPanel } from '@/features/transcript/tasks-panel'
 import { selectedActivity, type Selection, useStore } from '@/lib/store'
 import { cn, mod } from '@/lib/utils'
 
-export type Panel = 'diff' | 'tasks' | 'files' | 'browser'
+export type Panel = 'diff' | 'tasks' | 'browser'
+
+const EditorDialog = lazy(async () => ({
+  default: (await import('@/features/files/editor-dialog')).EditorDialog,
+}))
 
 type MenuOption = {
   id: string
@@ -53,21 +62,35 @@ type ToggleProps = {
 }
 
 export function PanelToggles(props: ToggleProps) {
-  const options = usePanelOptions(props)
+  const [editing, setEditing] = useState(false)
+  const options = usePanelOptions(props, () => setEditing(true))
 
-  return options.map((option) => (
-    <button
-      key={option.id}
-      className={toggle}
-      data-pressed={option.pressed}
-      aria-label={option.label}
-      title={option.title}
-      onClick={option.onSelect}
-    >
-      <HugeiconsIcon icon={option.icon} />
-      {option.badge}
-    </button>
-  ))
+  return (
+    <>
+      {options.map((option) => (
+        <button
+          key={option.id}
+          className={toggle}
+          data-pressed={option.pressed}
+          aria-label={option.label}
+          title={option.title}
+          onClick={option.onSelect}
+        >
+          <HugeiconsIcon icon={option.icon} />
+          {option.badge}
+        </button>
+      ))}
+      {editing && (
+        <Suspense>
+          <EditorDialog
+            machine={props.selection.machine}
+            projectId={props.selection.projectId}
+            onClose={() => setEditing(false)}
+          />
+        </Suspense>
+      )}
+    </>
+  )
 }
 
 export function PanelMenu(
@@ -77,7 +100,8 @@ export function PanelMenu(
     children: ReactNode
   }
 ) {
-  const options = usePanelOptions(props)
+  const [editing, setEditing] = useState(false)
+  const options = usePanelOptions(props, () => setEditing(true))
 
   return (
     <div className="flex shrink-0 items-center gap-1">
@@ -105,11 +129,23 @@ export function PanelMenu(
           {props.children}
         </DropdownMenuContent>
       </DropdownMenu>
+      {editing && (
+        <Suspense>
+          <EditorDialog
+            machine={props.selection.machine}
+            projectId={props.selection.projectId}
+            onClose={() => setEditing(false)}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }
 
-function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
+function usePanelOptions(
+  props: ToggleProps,
+  onFiles: () => void
+): [MenuOption, ...MenuOption[]] {
   const terminalAlert = useSyncExternalStore(
     subscribeTerminal,
     () => terminalState().alerts.length > 0
@@ -202,11 +238,11 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       label: 'Files',
       title: 'Files',
       icon: Folder01Icon,
-      pressed: props.panel === 'files',
+      pressed: false,
       attention: false,
       badge: null,
       detail: null,
-      onSelect: () => props.onPanel(props.panel === 'files' ? null : 'files'),
+      onSelect: onFiles,
     },
     {
       id: 'browser',
@@ -234,13 +270,6 @@ export function PanelView(props: {
 }) {
   return (
     <>
-      {props.panel === 'files' && (
-        <FilesPanel
-          machine={props.selection.machine}
-          projectId={props.selection.projectId}
-          onClose={() => props.onPanel(null)}
-        />
-      )}
       {props.panel === 'browser' && (
         <BrowserPanel
           machine={props.selection.machine}
