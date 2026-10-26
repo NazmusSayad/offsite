@@ -43,15 +43,15 @@ export function loadEditorState(
       view: 'explorer',
       sidebar: true,
       width: 300,
-      tree: false,
+      tree: true,
       sort: 'path',
       messages: {},
       graph: true,
       graphHeight: 240,
       inline: false,
-      whitespace: false,
+      whitespace: true,
       collapse: false,
-      smartCommit: false,
+      smartCommit: true,
     },
   }
 }

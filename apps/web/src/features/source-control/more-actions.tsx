@@ -62,7 +62,7 @@ export function MoreActions(props: {
           <HugeiconsIcon icon={MoreHorizontalIcon} className="size-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="bg-popover! w-56">
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>View & Sort</DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-44">

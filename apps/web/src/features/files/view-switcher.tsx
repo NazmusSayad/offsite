@@ -21,7 +21,7 @@ export function ViewSwitcher(props: {
         </span>
         <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5 shrink-0" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-44">
+      <DropdownMenuContent align="start" className="bg-popover! w-44">
         <DropdownMenuRadioGroup
           value={props.view}
           onValueChange={(value) => {

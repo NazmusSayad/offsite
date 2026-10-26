@@ -95,6 +95,7 @@ export function EditorDialog(props: {
     const instance = monaco.editor.createDiffEditor(element, {
       automaticLayout: true,
       originalEditable: false,
+      experimental: { showMoves: true },
       useInlineViewWhenSpaceIsLimited: true,
     })
     setDiff(instance)
@@ -185,7 +186,7 @@ export function EditorDialog(props: {
     if (window.innerWidth < 640) {
       change({ sidebar: false })
     }
-    void documents.open(spec, pinned)
+    void documents.open(spec, pinned || !prefs.preview)
   }
 
   async function perform(task: () => Promise<unknown>) {

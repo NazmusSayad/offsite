@@ -50,14 +50,13 @@ const prefsSchema = z.strictObject({
     .strictObject({
       font: z
         .strictObject({
-          family: z
+          family: z.string().default('FiraCode Nerd Font'),
+          size: z.number().default(15.3),
+          lineHeight: z.number().default(1.8),
+          ligatures: z.boolean().default(true),
+          features: z
             .string()
-            .default(
-              "ui-monospace, 'SF Mono', 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace"
-            ),
-          size: z.number().default(13),
-          lineHeight: z.number().default(1.5),
-          ligatures: z.boolean().default(false),
+            .default("'zero', 'ss02', 'ss06', 'cv02', 'cv14', 'cv26'"),
         })
         .prefault({}),
       cursor: z
@@ -66,7 +65,9 @@ const prefsSchema = z.strictObject({
           blink: z.boolean().default(true),
         })
         .prefault({}),
-      wordWrap: z.boolean().default(false),
+      tabSize: z.number().default(2),
+      wordWrap: z.boolean().default(true),
+      preview: z.boolean().default(false),
     })
     .prefault({}),
   diff: z

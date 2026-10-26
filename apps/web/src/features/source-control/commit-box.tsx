@@ -60,11 +60,11 @@ export function CommitBox(props: {
     >
       <div className="bg-input/40 border-input focus-within:border-primary relative rounded-sm border">
         <textarea
-          rows={1}
+          rows={7}
           aria-label="Source Control Input"
           value={props.message}
           placeholder={`Message (${mod === '⌘' ? '⌘Enter' : 'Ctrl+Enter'} to commit on "${repo.branch ?? (repo.head === null ? 'HEAD' : shortHash(repo.head))}")`}
-          className="placeholder:text-muted-foreground block [field-sizing:content] max-h-50 min-h-[26px] w-full resize-none bg-transparent py-1 pr-7 pl-2 text-[13px] leading-[18px] outline-none"
+          className="placeholder:text-muted-foreground block w-full resize-none bg-transparent py-1 pr-7 pl-2 text-[13px] leading-[18px] outline-none"
           onChange={(event) => props.onMessage(event.target.value)}
           onKeyDown={(event) => {
             if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
@@ -144,7 +144,7 @@ export function CommitBox(props: {
                 <HugeiconsIcon icon={ArrowDown01Icon} />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="bg-popover! w-48">
               <DropdownMenuItem onSelect={() => props.onCommit(commitDefaults)}>
                 Commit
               </DropdownMenuItem>

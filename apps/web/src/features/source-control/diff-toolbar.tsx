@@ -61,7 +61,7 @@ export function DiffToolbar(props: {
             <HugeiconsIcon icon={MoreHorizontalIcon} className="size-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuContent align="end" className="bg-popover! w-80">
           <DropdownMenuCheckboxItem
             checked={props.settings.inline}
             onCheckedChange={(checked) => props.onSettings({ inline: checked })}

@@ -8,26 +8,21 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { builtinFonts } from '@/features/terminal/config'
-import { defaultPrefs, type EditorPrefs, type Prefs } from '@/lib/prefs'
+import type { EditorPrefs, Prefs } from '@/lib/prefs'
 import { updatePrefs } from '@/lib/store'
 import { NumberInput, Row, Section, TextInput } from './controls'
-
-const fonts = [
-  { family: defaultPrefs.editor.font.family, label: 'System' },
-  ...builtinFonts,
-]
 
 export function EditorPage(props: { prefs: Prefs }) {
   const editor = props.prefs.editor
   const [customFont, setCustomFont] = useState(
-    !fonts.some((font) => font.family === editor.font.family)
+    !builtinFonts.some((font) => font.family === editor.font.family)
   )
 
   function commit(next: EditorPrefs) {
     updatePrefs({ ...props.prefs, editor: next })
   }
 
-  function update<Key extends Exclude<keyof EditorPrefs, 'wordWrap'>>(
+  function update<Key extends 'font' | 'cursor'>(
     key: Key,
     value: Partial<EditorPrefs[Key]>
   ) {
@@ -51,7 +46,7 @@ export function EditorPage(props: { prefs: Prefs }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {fonts.map((font) => (
+              {builtinFonts.map((font) => (
                 <SelectItem key={font.family} value={font.family}>
                   {font.label}
                 </SelectItem>
@@ -89,6 +84,13 @@ export function EditorPage(props: { prefs: Prefs }) {
             onCheckedChange={(ligatures) => update('font', { ligatures })}
           />
         </Row>
+        <Row label="Font features">
+          <TextInput
+            placeholder="'ss01', 'zero'"
+            value={editor.font.features}
+            onCommit={(features) => update('font', { features })}
+          />
+        </Row>
       </Section>
       <Section title="Cursor">
         <Row label="Style">
@@ -116,10 +118,24 @@ export function EditorPage(props: { prefs: Prefs }) {
         </Row>
       </Section>
       <Section title="Text">
+        <Row label="Tab size">
+          <NumberInput
+            value={editor.tabSize}
+            onCommit={(tabSize) => commit({ ...editor, tabSize })}
+          />
+        </Row>
         <Row label="Word wrap">
           <Switch
             checked={editor.wordWrap}
             onCheckedChange={(wordWrap) => commit({ ...editor, wordWrap })}
+          />
+        </Row>
+      </Section>
+      <Section title="Tabs">
+        <Row label="Open files in preview tabs">
+          <Switch
+            checked={editor.preview}
+            onCheckedChange={(preview) => commit({ ...editor, preview })}
           />
         </Row>
       </Section>

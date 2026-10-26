@@ -100,17 +100,58 @@ export async function applyTheme() {
 
 export function editorOptions(
   prefs: EditorPrefs
-): monaco.editor.IEditorOptions {
+): monaco.editor.IEditorOptions & monaco.editor.IGlobalEditorOptions {
   return {
     fontFamily: prefs.font.family,
     fontSize: prefs.font.size,
     lineHeight: prefs.font.lineHeight,
-    fontLigatures: prefs.font.ligatures,
+    fontLigatures: !prefs.font.ligatures
+      ? false
+      : prefs.font.features === ''
+        ? true
+        : prefs.font.features,
     cursorStyle: prefs.cursor.style === 'bar' ? 'line' : prefs.cursor.style,
-    cursorBlinking: prefs.cursor.blink ? 'blink' : 'solid',
+    cursorBlinking: prefs.cursor.blink ? 'expand' : 'solid',
+    tabSize: prefs.tabSize,
+    insertSpaces: true,
+    detectIndentation: false,
+    trimAutoWhitespace: false,
     wordWrap: prefs.wordWrap ? 'on' : 'off',
+    wrappingStrategy: 'advanced',
     minimap: { enabled: false },
     stickyScroll: { enabled: false },
+    overviewRulerBorder: false,
+    padding: { top: 3, bottom: 48 },
+    cursorSurroundingLines: 2,
+    copyWithSyntaxHighlighting: false,
+    accessibilitySupport: 'off',
+    guides: {
+      bracketPairs: true,
+      bracketPairsHorizontal: false,
+      highlightActiveBracketPair: true,
+      highlightActiveIndentation: true,
+    },
+    dragAndDrop: false,
+    glyphMargin: false,
+    useTabStops: false,
+    selectionHighlight: false,
+    emptySelectionClipboard: false,
+    renderWhitespace: 'selection',
+    smartSelect: { selectLeadingAndTrailingWhitespace: false },
+    scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+    scrollBeyondLastLine: false,
+    smoothScrolling: true,
+    hover: { above: false },
+    find: { cursorMoveOnType: false },
+    acceptSuggestionOnCommitCharacter: false,
+    suggestSelection: 'first',
+    suggest: {
+      localityBonus: true,
+      insertMode: 'replace',
+      snippetsPreventQuickSuggestions: false,
+    },
+    quickSuggestions: { comments: 'on', strings: 'on', other: 'on' },
+    quickSuggestionsDelay: 0,
   }
 }
 
