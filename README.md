@@ -15,7 +15,7 @@ npx offsite
 Give each instance its own port and `--dir`.
 
 ```sh
-npx offsite --port 47850 --dir ~/.offsite-work
+npx offsite --dir ~/.offsite-work
 ```
 
 ## Images, videos and audio
