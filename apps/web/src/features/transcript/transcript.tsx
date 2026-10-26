@@ -148,7 +148,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   return (
     <div
       ref={scroller}
-      className="topbar-scroll-fade min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-8"
+      className="topbar-scroll-fade relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-8"
       onScroll={(event) => {
         const element = event.currentTarget
         pinned.current =
