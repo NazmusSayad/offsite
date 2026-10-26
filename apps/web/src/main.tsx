@@ -46,6 +46,16 @@ if ('serviceWorker' in navigator) {
     )
 }
 
+addEventListener(
+  'keydown',
+  (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'w') {
+      event.preventDefault()
+    }
+  },
+  { capture: true }
+)
+
 await loadDrafts()
 startConnections()
 listen({

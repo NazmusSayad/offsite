@@ -196,7 +196,7 @@ export function Media(props: {
       alt={props.alt}
       name={props.name}
       className="border-border/40 block aspect-[3/2] w-full overflow-hidden rounded-lg border"
-      imageClassName="size-full object-contain"
+      imageClassName="pointer-events-auto size-full object-contain"
       onError={() => setFailed(props.src)}
     />
   )

@@ -268,6 +268,12 @@ export function EditorDialog(props: {
               void documents.save(active)
             }
           }
+          if ((event.metaKey || event.ctrlKey) && event.key === 'w') {
+            event.preventDefault()
+            if (active !== null) {
+              documents.close(active)
+            }
+          }
         }}
       >
         <div className="flex min-h-0 flex-1">
