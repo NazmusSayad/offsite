@@ -32,6 +32,7 @@ import {
   MarkdownTable,
 } from '@/components/markdown/markdown-blocks'
 import { LocalMedia, Media } from '@/components/markdown/markdown-media'
+import { streamingParser } from '@/components/markdown/markdown-stream'
 import { MermaidDiagram, useMermaid } from '@/components/markdown/mermaid'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -295,6 +296,7 @@ function MarkdownView(props: {
   lineBreaks?: boolean
   rawHtml?: boolean
 }) {
+  const [parser] = useState(streamingParser)
   return (
     <div
       className={cn(
@@ -304,11 +306,12 @@ function MarkdownView(props: {
       data-streaming={props.streaming === true ? '' : undefined}
     >
       <ReactMarkdown
-        remarkPlugins={
-          props.lineBreaks === true
-            ? [remarkGfm, remarkGithubAlerts, remarkBreaks]
-            : [remarkGfm, remarkGithubAlerts]
-        }
+        remarkPlugins={[
+          remarkGfm,
+          remarkGithubAlerts,
+          ...(props.lineBreaks === true ? [remarkBreaks] : []),
+          ...(props.streaming === true ? [parser] : []),
+        ]}
         rehypePlugins={
           props.rawHtml === false ? [] : [rehypeRaw, [rehypeSanitize, schema]]
         }
