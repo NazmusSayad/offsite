@@ -8,6 +8,7 @@ import {
   bundledThemesInfo,
   createHighlighter,
 } from 'shiki'
+import type { EditorPrefs } from '@/lib/prefs'
 import { currentScheme } from '@/lib/theme'
 
 self.MonacoEnvironment = {
@@ -97,15 +98,23 @@ export async function applyTheme() {
   monaco.editor.setTheme(scheme.codeTheme)
 }
 
-export function editorOptions() {
+export function editorOptions(
+  prefs: EditorPrefs
+): monaco.editor.IEditorOptions {
   return {
-    automaticLayout: true,
-    fontFamily: getComputedStyle(document.documentElement).getPropertyValue(
-      '--font-mono'
-    ),
-    fontSize: 13,
-    lineHeight: 20,
+    fontFamily: prefs.font.family,
+    fontSize: prefs.font.size,
+    lineHeight: prefs.font.lineHeight,
+    fontLigatures: prefs.font.ligatures,
+    cursorStyle: prefs.cursor.style === 'bar' ? 'line' : prefs.cursor.style,
+    cursorBlinking: prefs.cursor.blink ? 'blink' : 'solid',
+    wordWrap: prefs.wordWrap ? 'on' : 'off',
     minimap: { enabled: false },
     stickyScroll: { enabled: false },
   }
+}
+
+export async function loadEditorFont(prefs: EditorPrefs) {
+  await document.fonts.load(`${prefs.font.size}px ${prefs.font.family}`)
+  monaco.editor.remeasureFonts()
 }

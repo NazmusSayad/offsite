@@ -37,6 +37,7 @@ export type Selection = {
 
 export type SettingsPage =
   | 'General'
+  | 'Editor'
   | 'Terminal'
   | 'Notifications'
   | 'Machine'

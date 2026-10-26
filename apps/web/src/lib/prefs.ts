@@ -46,6 +46,29 @@ const prefsSchema = z.strictObject({
         .prefault({}),
     })
     .prefault({}),
+  editor: z
+    .strictObject({
+      font: z
+        .strictObject({
+          family: z
+            .string()
+            .default(
+              "ui-monospace, 'SF Mono', 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace"
+            ),
+          size: z.number().default(13),
+          lineHeight: z.number().default(1.5),
+          ligatures: z.boolean().default(false),
+        })
+        .prefault({}),
+      cursor: z
+        .strictObject({
+          style: z.enum(['block', 'bar', 'underline']).default('bar'),
+          blink: z.boolean().default(true),
+        })
+        .prefault({}),
+      wordWrap: z.boolean().default(false),
+    })
+    .prefault({}),
   diff: z
     .strictObject({
       split: z.boolean().default(false),
@@ -59,6 +82,8 @@ const prefsSchema = z.strictObject({
 export type Prefs = z.infer<typeof prefsSchema>
 
 export type TerminalPrefs = Prefs['terminal']
+
+export type EditorPrefs = Prefs['editor']
 
 export type RewindMode = Prefs['rewind']
 

@@ -20,7 +20,12 @@ import {
 } from '@/features/files/editor-state'
 import { EditorTabs } from '@/features/files/editor-tabs'
 import { Explorer } from '@/features/files/explorer'
-import { applyTheme, editorOptions, monaco } from '@/features/files/monaco'
+import {
+  applyTheme,
+  editorOptions,
+  loadEditorFont,
+  monaco,
+} from '@/features/files/monaco'
 import { SavePrompt } from '@/features/files/save-prompt'
 import { StatusBar } from '@/features/files/status-bar'
 import { useTabs } from '@/features/files/use-tabs'
@@ -48,6 +53,7 @@ export function EditorDialog(props: {
     projectOf(state, props.machine, props.projectId)
   )
   const codeTheme = useCodeTheme()
+  const prefs = useStore((state) => state.prefs.editor)
   const [saved] = useState(() =>
     loadEditorState(props.machine, props.projectId)
   )
@@ -76,7 +82,7 @@ export function EditorDialog(props: {
       return
     }
     const instance = monaco.editor.create(element, {
-      ...editorOptions(),
+      automaticLayout: true,
       model: null,
     })
     setEditor(instance)
@@ -87,7 +93,7 @@ export function EditorDialog(props: {
       return
     }
     const instance = monaco.editor.createDiffEditor(element, {
-      ...editorOptions(),
+      automaticLayout: true,
       originalEditable: false,
       useInlineViewWhenSpaceIsLimited: true,
     })
@@ -134,6 +140,12 @@ export function EditorDialog(props: {
   useEffect(() => {
     applyTheme().catch(showError)
   }, [codeTheme])
+
+  useEffect(() => {
+    editor?.updateOptions(editorOptions(prefs))
+    diff?.updateOptions(editorOptions(prefs))
+    loadEditorFont(prefs).catch(showError)
+  }, [editor, diff, prefs])
 
   useEffect(() => {
     diff?.updateOptions({
