@@ -6,6 +6,21 @@ export const providerNames: Record<Provider, string> = {
   opencode: 'OpenCode',
 }
 
+const timeFormat = new Intl.DateTimeFormat(undefined, {
+  hour: 'numeric',
+  minute: '2-digit',
+})
+const dayFormat = new Intl.DateTimeFormat(undefined, {
+  month: 'numeric',
+  day: 'numeric',
+})
+const yearDayFormat = new Intl.DateTimeFormat(undefined, {
+  month: 'numeric',
+  day: 'numeric',
+  year: 'numeric',
+})
+const monthFormat = new Intl.DateTimeFormat('en-US', { month: 'long' })
+
 export function projectName(cwd: string) {
   return cwd.split(/[\\/]/).filter(Boolean).at(-1) ?? cwd
 }
@@ -26,10 +41,7 @@ export function timeAgo(time: number) {
 
 export function clock(time: number) {
   const date = new Date(time)
-  const formatted = date.toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  const formatted = timeFormat.format(date)
   const now = new Date()
   const days = Math.round(
     (new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() -
@@ -42,12 +54,9 @@ export function clock(time: number) {
   if (days === 1) {
     return `yesterday at ${formatted}`
   }
-  const day = date.toLocaleDateString(
-    undefined,
-    date.getFullYear() === now.getFullYear()
-      ? { month: 'numeric', day: 'numeric' }
-      : { month: 'numeric', day: 'numeric', year: 'numeric' }
-  )
+  const day = (
+    date.getFullYear() === now.getFullYear() ? dayFormat : yearDayFormat
+  ).format(date)
   return `${day} ${formatted}`
 }
 
@@ -64,11 +73,8 @@ export function fullTime(time: number) {
           : day % 10 === 3
             ? 'rd'
             : 'th'
-  const formatted = date.toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-  const month = date.toLocaleDateString('en-US', { month: 'long' })
+  const formatted = timeFormat.format(date)
+  const month = monthFormat.format(date)
   return `${formatted}, ${day}${suffix} ${month} ${date.getFullYear()}`
 }
 

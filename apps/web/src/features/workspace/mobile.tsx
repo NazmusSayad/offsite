@@ -2,7 +2,7 @@ import { ArrowLeft01Icon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useSearch } from '@tanstack/react-router'
 import { Dialog as DialogPrimitive } from 'radix-ui'
-import { Fragment, useState, useSyncExternalStore } from 'react'
+import { Fragment, useCallback, useState, useSyncExternalStore } from 'react'
 import { useProjectName } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
@@ -127,22 +127,36 @@ function MobileChat(props: { selection: Selection }) {
   const changed = git.repos.some((repo) => repo.changed > 0)
   const open = panel !== null || terminal
 
-  function showOverlay(search: Search) {
-    if (open) {
-      replaceSearch(search)
-      return
-    }
-    pushSearch(search, 'overlay')
-  }
+  const showOverlay = useCallback(
+    (search: Search) => {
+      if (open) {
+        replaceSearch(search)
+        return
+      }
+      pushSearch(search, 'overlay')
+    },
+    [open]
+  )
 
-  function showPanel(next: Panel | null) {
-    setSelectedTask(null)
-    if (next === null) {
-      closeOverlay()
-      return
-    }
-    showOverlay({ panel: next, bottom: undefined })
-  }
+  const showPanel = useCallback(
+    (next: Panel | null) => {
+      setSelectedTask(null)
+      if (next === null) {
+        closeOverlay()
+        return
+      }
+      showOverlay({ panel: next, bottom: undefined })
+    },
+    [showOverlay]
+  )
+
+  const openTask = useCallback(
+    (id: string) => {
+      showPanel('tasks')
+      setSelectedTask(id)
+    },
+    [showPanel]
+  )
 
   function showTerminal(next: boolean) {
     if (!next) {
@@ -209,12 +223,7 @@ function MobileChat(props: { selection: Selection }) {
         <Fragment
           key={`${props.selection.machine} ${props.selection.sessionId ?? props.selection.projectId}`}
         >
-          <Transcript
-            onOpenTask={(id) => {
-              showPanel('tasks')
-              setSelectedTask(id)
-            }}
-          />
+          <Transcript onOpenTask={openTask} />
           <Composer />
         </Fragment>
       </div>
