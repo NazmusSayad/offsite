@@ -70,7 +70,7 @@ export function CommitBox(props: {
           onKeyDown={(event) => {
             if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
               event.preventDefault()
-              props.onCommit(commitDefaults)
+              props.onCommit({ ...commitDefaults, then: 'push' })
             }
           }}
         />
@@ -127,10 +127,10 @@ export function CommitBox(props: {
             size="xs"
             className="flex-1 rounded-sm rounded-r-none"
             disabled={!changed || props.busy}
-            onClick={() => props.onCommit(commitDefaults)}
+            onClick={() => props.onCommit({ ...commitDefaults, then: 'push' })}
           >
             <HugeiconsIcon icon={CheckIcon} />
-            Commit
+            Commit & Push
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
