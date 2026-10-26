@@ -424,7 +424,7 @@ export function Composer() {
               hero ? 'pb-3 sm:pb-4' : 'pb-2.5 sm:pb-3.5'
             )}
           >
-            <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-1 overflow-x-auto p-1 ps-2">
+            <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-1 overflow-x-auto p-1 ps-3 sm:ps-4">
               <Pickers />
             </div>
             <div className="flex shrink-0 items-center justify-end gap-2">
