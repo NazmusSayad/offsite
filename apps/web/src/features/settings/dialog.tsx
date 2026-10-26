@@ -40,6 +40,7 @@ import {
   useStore,
 } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { EditorPage } from './editor'
 import { GeneralPage } from './general'
 import { MachinePage } from './machine'
 import { MachinesPage } from './machines'
@@ -50,6 +51,7 @@ import { TerminalPage } from './terminal'
 
 export const browserPages: SettingsPage[] = [
   'General',
+  'Editor',
   'Terminal',
   'Notifications',
   'Shortcuts',
@@ -323,6 +325,7 @@ export function SettingsContent(props: { view: SettingsView }) {
               {machine.name} is not connected. Its settings show up once it is.
             </p>
           )}
+        {page === 'Editor' && <EditorPage prefs={prefs} />}
         {page === 'Terminal' && <TerminalPage prefs={prefs} />}
         {page === 'Notifications' && <NotificationsPage prefs={prefs} />}
         {props.view.provider !== null &&

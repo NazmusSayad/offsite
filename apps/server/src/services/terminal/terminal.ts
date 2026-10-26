@@ -16,7 +16,7 @@ import {
   type TerminalRequest,
   type TerminalTab,
 } from '@offsite/core/terminal'
-import type { Client } from '../../lib/hub.ts'
+import { broadcast, type Client } from '../../lib/hub.ts'
 import { workingDirectory } from '../../storage/config.ts'
 import { projectPath } from '../projects.ts'
 import { notifierClient, pushActive, sendPush } from '../push.ts'
@@ -204,10 +204,7 @@ async function request(
         tab.minimized = false
         project.activeTab = tab.id
       }
-      if (
-        project.tabs.length === 0 &&
-        message.projectId !== GLOBAL_TERMINALS
-      ) {
+      if (project.tabs.length === 0 && message.projectId !== GLOBAL_TERMINALS) {
         await createTab(message.projectId)
       }
       break
@@ -488,6 +485,7 @@ function publish() {
   for (const connection of connections.values()) {
     send(connection, event)
   }
+  broadcast({ type: 'terminals', count: terminalCount(GLOBAL_TERMINALS) })
 }
 
 function forward(

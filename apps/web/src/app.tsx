@@ -373,7 +373,6 @@ function DesktopLayout() {
                   key={`${selection.machine} ${selection.sessionId ?? selection.projectId}`}
                 >
                   <Transcript
-                    onOpenDiff={() => setPanel('diff')}
                     onOpenTask={(id) => {
                       setSelectedTask(id)
                       setPanel('tasks')

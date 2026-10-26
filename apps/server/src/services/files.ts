@@ -1,9 +1,12 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs'
@@ -23,7 +26,6 @@ const mediaLinks = new Map<
   {
     file: string
     mediaType: string
-    download: string | null
     expiresAt: number
   }
 >()
@@ -39,7 +41,12 @@ const skipped = new Set([
 ])
 
 export async function listFiles(cwd: string) {
+  return (await listEntries(cwd)).files
+}
+
+export async function listEntries(cwd: string) {
   const files: string[] = []
+  const folders: string[] = []
   const pending = ['']
   while (pending.length > 0 && files.length < FILE_LIMIT) {
     const dir = pending.pop() ?? ''
@@ -56,6 +63,7 @@ export async function listFiles(cwd: string) {
       const relative = dir === '' ? entry.name : `${dir}/${entry.name}`
       if (entry.isDirectory()) {
         pending.push(relative)
+        folders.push(relative)
       }
       if (entry.isFile()) {
         files.push(relative)
@@ -68,7 +76,7 @@ export async function listFiles(cwd: string) {
       }
     }
   }
-  return files.slice(0, FILE_LIMIT).sort()
+  return { files: files.slice(0, FILE_LIMIT).sort(), folders: folders.sort() }
 }
 
 export function readProjectFile(cwd: string, file: string): FilePreview {
@@ -96,6 +104,35 @@ export function readProjectFile(cwd: string, file: string): FilePreview {
   return { kind: 'text', size: stats.size, content: data.toString('utf8') }
 }
 
+export function writeProjectFile(cwd: string, file: string, content: string) {
+  const full = resolveProjectFile(cwd, file)
+  if (!statSync(full).isFile()) {
+    throw new Error(`${file} is not a file`)
+  }
+  writeFileSync(full, content)
+}
+
+export function createProjectEntry(cwd: string, file: string, folder: boolean) {
+  const full = resolveNewProjectPath(cwd, file)
+  if (folder) {
+    mkdirSync(full, { recursive: true })
+    return
+  }
+  mkdirSync(path.dirname(full), { recursive: true })
+  writeFileSync(full, '', { flag: 'wx' })
+}
+
+export function renameProjectEntry(cwd: string, file: string, to: string) {
+  const source = resolveProjectEntry(cwd, file)
+  const target = resolveNewProjectPath(cwd, to)
+  mkdirSync(path.dirname(target), { recursive: true })
+  renameSync(source, target)
+}
+
+export function deleteProjectEntry(cwd: string, file: string) {
+  rmSync(resolveProjectEntry(cwd, file), { recursive: true })
+}
+
 export function linkProjectMedia(cwd: string, file: string) {
   const resolved = path.resolve(realpathSync(cwd), file)
   if (!existsSync(resolved)) {
@@ -106,18 +143,10 @@ export function linkProjectMedia(cwd: string, file: string) {
   if (mediaType === undefined) {
     throw new Error(`${file} is not an image, video or audio file`)
   }
-  return addLink(full, mediaType, null)
+  return addLink(full, mediaType)
 }
 
-export function linkProjectDownload(cwd: string, file: string) {
-  return addLink(
-    resolveProjectFile(cwd, file),
-    'application/octet-stream',
-    path.basename(file)
-  )
-}
-
-function addLink(file: string, mediaType: string, download: string | null) {
+function addLink(file: string, mediaType: string) {
   for (const [token, link] of mediaLinks) {
     if (link.expiresAt <= Date.now()) {
       mediaLinks.delete(token)
@@ -127,7 +156,6 @@ function addLink(file: string, mediaType: string, download: string | null) {
   mediaLinks.set(token, {
     file,
     mediaType,
-    download,
     expiresAt: Date.now() + MEDIA_LINK_LIFETIME,
   })
   return token
@@ -197,6 +225,47 @@ function resolveProjectFile(cwd: string, file: string) {
     throw new Error(`${file} does not exist`)
   }
   const full = realpathSync(resolved)
+  checkInProject(root, full, file)
+  return full
+}
+
+function resolveProjectEntry(cwd: string, file: string) {
+  const root = realpathSync(cwd)
+  const resolved = path.resolve(root, file)
+  if (!existsSync(path.dirname(resolved))) {
+    throw new Error(`${file} does not exist`)
+  }
+  const full = path.join(
+    realpathSync(path.dirname(resolved)),
+    path.basename(resolved)
+  )
+  if (full === root) {
+    throw new Error('The project folder itself cannot be changed')
+  }
+  checkInProject(root, full, file)
+  lstatSync(full)
+  return full
+}
+
+function resolveNewProjectPath(cwd: string, file: string) {
+  const root = realpathSync(cwd)
+  const resolved = path.resolve(root, file)
+  if (existsSync(resolved)) {
+    throw new Error(`${file} already exists`)
+  }
+  let existing = path.dirname(resolved)
+  while (!existsSync(existing)) {
+    existing = path.dirname(existing)
+  }
+  const full = path.join(
+    realpathSync(existing),
+    path.relative(existing, resolved)
+  )
+  checkInProject(root, full, file)
+  return full
+}
+
+function checkInProject(root: string, full: string, file: string) {
   const relative = path.relative(root, full)
   if (
     relative === '..' ||
@@ -205,5 +274,4 @@ function resolveProjectFile(cwd: string, file: string) {
   ) {
     throw new Error(`${file} is outside the project`)
   }
-  return full
 }

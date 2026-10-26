@@ -34,6 +34,7 @@ export default defineConfig({
       includeManifestIcons: false,
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,wasm,woff2}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
       manifest: {
         name: 'OffSite',

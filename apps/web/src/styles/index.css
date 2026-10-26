@@ -275,6 +275,18 @@
     var(--app-scrollbar-width) 100%;
 }
 
+@keyframes progress {
+  from {
+    transform: translateX(0%) scaleX(1);
+  }
+  50% {
+    transform: translateX(2500%) scaleX(3);
+  }
+  to {
+    transform: translateX(4900%) scaleX(1);
+  }
+}
+
 @keyframes text-shimmer {
   from {
     background-position:
@@ -635,4 +647,49 @@
   border-radius: 0;
   overflow: clip;
   background: var(--code-background);
+}
+
+.monaco-diff-editor {
+  --vscode-editorGutter-itemBackground:
+    linear-gradient(var(--vscode-list-inactiveSelectionBackground) 0 0),
+    var(--vscode-editor-background);
+  --vscode-editorGutter-itemGlyphForeground: var(--vscode-editor-foreground);
+}
+
+.monaco-diff-editor
+  .gutter
+  .gutterItem
+  .buttons
+  .monaco-toolbar
+  .monaco-action-bar.vertical
+  .actions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.monaco-diff-editor
+  .gutter
+  .gutterItem
+  .buttons
+  .monaco-toolbar
+  .monaco-action-bar.vertical
+  .actions-container
+  .action-item {
+  border-radius: 4px;
+}
+
+.monaco-diff-editor
+  .gutter
+  .gutterItem
+  .buttons
+  .monaco-toolbar
+  .monaco-action-bar.vertical
+  .actions-container
+  .action-item
+  .action-label {
+  box-sizing: content-box;
+  padding: 3px 2px;
 }

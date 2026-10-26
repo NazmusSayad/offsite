@@ -46,6 +46,29 @@ const prefsSchema = z.strictObject({
         .prefault({}),
     })
     .prefault({}),
+  editor: z
+    .strictObject({
+      font: z
+        .strictObject({
+          family: z.string().default('FiraCode Nerd Font'),
+          size: z.number().default(15.3),
+          lineHeight: z.number().default(1.8),
+          ligatures: z.boolean().default(true),
+          features: z
+            .string()
+            .default("'zero', 'ss02', 'ss06', 'cv02', 'cv14', 'cv26'"),
+        })
+        .prefault({}),
+      cursor: z
+        .strictObject({
+          style: z.enum(['block', 'bar', 'underline']).default('bar'),
+          blink: z.boolean().default(true),
+        })
+        .prefault({}),
+      tabSize: z.number().default(2),
+      wordWrap: z.boolean().default(true),
+    })
+    .prefault({}),
   diff: z
     .strictObject({
       split: z.boolean().default(false),
@@ -59,6 +82,8 @@ const prefsSchema = z.strictObject({
 export type Prefs = z.infer<typeof prefsSchema>
 
 export type TerminalPrefs = Prefs['terminal']
+
+export type EditorPrefs = Prefs['editor']
 
 export type RewindMode = Prefs['rewind']
 

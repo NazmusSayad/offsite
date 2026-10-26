@@ -271,12 +271,6 @@ function serveMedia(
   }
   response.setHeader('access-control-allow-origin', '*')
   response.setHeader('content-type', link.mediaType)
-  if (link.download !== null) {
-    response.setHeader(
-      'content-disposition',
-      `attachment; filename*=UTF-8''${encodeURIComponent(link.download)}`
-    )
-  }
   response.setHeader('cache-control', 'private, max-age=3600')
   response.setHeader('content-security-policy', 'sandbox')
   response.setHeader('x-content-type-options', 'nosniff')

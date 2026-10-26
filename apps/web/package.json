@@ -20,6 +20,7 @@
     "diff": "^9.0.0",
     "es-toolkit": "^1.52.0",
     "fast-png": "^8.0.0",
+    "fzf": "^0.5.2",
     "hast-util-to-jsx-runtime": "^2.3.6",
     "idb-keyval": "^6.3.0",
     "media-chrome": "^4.19.3",

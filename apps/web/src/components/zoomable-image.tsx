@@ -4,16 +4,27 @@ import {
   PlusSignIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { useRef } from 'react'
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 
-export function ZoomableImage(props: { src: string; alt: string }) {
+export function ZoomableImage(props: {
+  src: string
+  alt: string
+  onClose?: () => void
+}) {
+  const press = useRef({ x: 0, y: 0 })
+  const image = useRef<HTMLImageElement>(null)
+
   return (
     <TransformWrapper
       minScale={1}
       maxScale={12}
-      wheel={{ wheelDisabled: true }}
+      wheel={{
+        activationKeys: (keys) =>
+          keys.includes('Meta') || keys.includes('Control'),
+      }}
       trackPadPanning={{ disabled: false }}
       doubleClick={{ mode: 'toggle', step: 1.5 }}
       keyboard={{ disabled: false }}
@@ -23,8 +34,32 @@ export function ZoomableImage(props: { src: string; alt: string }) {
           <TransformComponent
             wrapperClass="size-full! outline-none"
             contentClass="size-full! items-center justify-center p-4 sm:p-12"
+            contentProps={{
+              onPointerDown: (event) => {
+                press.current = { x: event.clientX, y: event.clientY }
+              },
+              onClick: (event) => {
+                if (image.current === null) {
+                  return
+                }
+                const box = image.current.getBoundingClientRect()
+                if (
+                  (event.clientX < box.left ||
+                    event.clientX > box.right ||
+                    event.clientY < box.top ||
+                    event.clientY > box.bottom) &&
+                  Math.hypot(
+                    event.clientX - press.current.x,
+                    event.clientY - press.current.y
+                  ) < 4
+                ) {
+                  props.onClose?.()
+                }
+              },
+            }}
           >
             <img
+              ref={image}
               src={props.src}
               alt={props.alt}
               draggable={false}

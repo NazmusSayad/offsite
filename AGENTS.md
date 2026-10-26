@@ -5,3 +5,7 @@ Never alter a provider (Claude Code, Codex, OpenCode) or anything around it: its
 ## Guidelines
 
 Never run the main offsite instance. Never run `offsite`, `npx offsite` or `pnpm start`, and never run the server with the default `--dir ~/.offsite`. Never stop or restart it either.
+
+## Dev Server
+
+Always start the dev server with `pnpm dev` from the repository root, unless the user explicitly asks otherwise.

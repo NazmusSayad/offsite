@@ -1,9 +1,5 @@
 import type { Item } from '@offsite/core/items'
-import {
-  editStats,
-  relative,
-  type WorkItem,
-} from '@/features/transcript/tool-details'
+import type { WorkItem } from '@/features/transcript/tool-details'
 
 export type UserItem = Extract<Item, { kind: 'user' }>
 
@@ -15,8 +11,6 @@ export type AgentItem = Extract<
 export type QuestionItem = Extract<Item, { kind: 'question' }>
 
 export type Turn = { prompt: UserItem | null; first: boolean; items: Item[] }
-
-export type Stat = { added: number; removed: number }
 
 export type Row =
   | { kind: 'user'; key: string; item: UserItem; first: boolean }
@@ -31,7 +25,6 @@ export type Row =
       time: number | null
       streaming: boolean
       meta: boolean
-      changed: Map<string, Stat>
     }
   | { kind: 'error'; key: string; text: string; time: number | null }
   | { kind: 'notice'; key: string; text: string }
@@ -42,11 +35,7 @@ export function isTool(row: Row) {
   return row.kind === 'group' || row.kind === 'agent'
 }
 
-export function turnRows(
-  turn: Turn,
-  cwd: string,
-  live: { partial: string } | null
-): Row[] {
+export function turnRows(turn: Turn, live: { partial: string } | null): Row[] {
   const rows: Row[] = []
   const turnKey = turn.prompt?.id ?? 'start'
 
@@ -82,7 +71,6 @@ export function turnRows(
       time: null,
       streaming: true,
       meta: false,
-      changed: new Map(),
     })
   }
   if (live !== null && live.partial === '') {
@@ -90,30 +78,9 @@ export function turnRows(
   }
 
   if (live === null && last?.kind === 'assistant') {
-    rows[rows.length - 1] = {
-      ...last,
-      meta: true,
-      changed: changes(turn.items, cwd),
-    }
+    rows[rows.length - 1] = { ...last, meta: true }
   }
   return rows
-}
-
-function changes(items: Item[], cwd: string) {
-  const changed = new Map<string, Stat>()
-  for (const item of items) {
-    if (item.kind !== 'file_change' || item.diffs.length === 0) {
-      continue
-    }
-    const stats = editStats(item)
-    const file = relative(item.path, cwd)
-    const current = changed.get(file) ?? { added: 0, removed: 0 }
-    changed.set(file, {
-      added: current.added + stats.added,
-      removed: current.removed + stats.removed,
-    })
-  }
-  return changed
 }
 
 function rowOf(item: Item, live: boolean): Row | null {
@@ -127,7 +94,6 @@ function rowOf(item: Item, live: boolean): Row | null {
         time: item.time,
         streaming: false,
         meta: false,
-        changed: new Map(),
       }
     case 'reasoning':
     case 'file_change':
@@ -168,12 +134,7 @@ function rowOf(item: Item, live: boolean): Row | null {
   }
 }
 
-export function mainRows(
-  items: Item[],
-  cwd: string,
-  running: boolean,
-  partial: string
-) {
+export function mainRows(items: Item[], running: boolean, partial: string) {
   const turns: Turn[] = []
   let answered = false
   for (const item of items) {
@@ -197,11 +158,7 @@ export function mainRows(
     turns[turns.length - 1].items.push(item)
   }
   const rows = turns.flatMap((turn, index) =>
-    turnRows(
-      turn,
-      cwd,
-      running && index === turns.length - 1 ? { partial } : null
-    )
+    turnRows(turn, running && index === turns.length - 1 ? { partial } : null)
   )
   if (running && turns.length === 0) {
     rows.push({ kind: 'working', key: 'working' })

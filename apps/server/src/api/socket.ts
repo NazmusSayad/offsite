@@ -1,6 +1,7 @@
 import os from 'node:os'
 import path from 'node:path'
 import type { RpcCall, RpcMethod, RpcMethods } from '@offsite/core/protocol'
+import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import type { WebSocket } from 'ws'
 import { agentMessages, earlier, image } from '../lib/claude/index.ts'
 import { codexAgent } from '../lib/codex/index.ts'
@@ -18,15 +19,20 @@ import {
 } from '../services/accounts.ts'
 import {
   browseToken,
-  linkProjectDownload,
+  createProjectEntry,
+  deleteProjectEntry,
   linkProjectMedia,
+  listEntries,
   listFiles,
   readProjectFile,
+  renameProjectEntry,
   saveUpload,
   taskOutput,
+  writeProjectFile,
 } from '../services/files.ts'
 import {
   commit,
+  commitMessage,
   createPullRequest,
   fetchProject,
   gitRepos,
@@ -38,6 +44,7 @@ import {
   switchBranch,
   sync,
 } from '../services/git.ts'
+import { logoFiles } from '../services/logos.ts'
 import {
   addProject,
   directories,
@@ -65,6 +72,14 @@ import {
   updateSession,
   watchSessions,
 } from '../services/sessions.ts'
+import {
+  commitFiles,
+  history,
+  runAction,
+  showFile,
+  sourceControl,
+  undoCommit,
+} from '../services/source-control.ts'
 import { savePastedImage } from '../services/terminal/paste.ts'
 import { listShells } from '../services/terminal/process.ts'
 import {
@@ -96,6 +111,7 @@ const handlers: Handlers = {
       sessions: sessions(),
       providers: providerStatuses(),
       activity: activity(),
+      terminals: terminalCount(GLOBAL_TERMINALS),
     }
   },
   'config.get': () => configInfo(),
@@ -137,6 +153,7 @@ const handlers: Handlers = {
     return null
   },
   'projects.reorder': (params) => reorderProjects(params.ids),
+  'projects.logoFiles': (params) => logoFiles(projectPath(params.id)),
   'directories.list': (params) => directories(params.path),
   'sessions.update': async (params) => {
     try {
@@ -245,12 +262,31 @@ const handlers: Handlers = {
       params.projectId === null ? os.homedir() : projectPath(params.projectId)
     ),
   'files.list': (params) => listFiles(projectPath(params.projectId)),
+  'files.entries': (params) => listEntries(projectPath(params.projectId)),
   'files.read': (params) =>
     readProjectFile(projectPath(params.projectId), params.path),
+  'files.write': (params) => {
+    writeProjectFile(projectPath(params.projectId), params.path, params.content)
+    return null
+  },
+  'files.create': (params) => {
+    createProjectEntry(
+      projectPath(params.projectId),
+      params.path,
+      params.folder
+    )
+    return null
+  },
+  'files.rename': (params) => {
+    renameProjectEntry(projectPath(params.projectId), params.path, params.to)
+    return null
+  },
+  'files.delete': (params) => {
+    deleteProjectEntry(projectPath(params.projectId), params.path)
+    return null
+  },
   'files.media': (params) =>
     linkProjectMedia(projectPath(params.projectId), params.path),
-  'files.download': (params) =>
-    linkProjectDownload(projectPath(params.projectId), params.path),
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
   'files.browse': () => browseToken,
@@ -264,6 +300,38 @@ const handlers: Handlers = {
       params.message,
       params.push
     ),
+  'git.changes': (params) => sourceControl(projectPath(params.projectId)),
+  'git.show': (params) =>
+    showFile(
+      path.join(projectPath(params.projectId), params.repo),
+      params.ref,
+      params.path
+    ),
+  'git.history': (params) =>
+    history(
+      path.join(projectPath(params.projectId), params.repo),
+      params.limit
+    ),
+  'git.commitFiles': (params) =>
+    commitFiles(
+      path.join(projectPath(params.projectId), params.repo),
+      params.hash,
+      params.parent
+    ),
+  'git.message': (params) =>
+    commitMessage(
+      path.join(projectPath(params.projectId), params.repo),
+      params.staged
+    ),
+  'git.undoCommit': (params) =>
+    undoCommit(path.join(projectPath(params.projectId), params.repo)),
+  'git.run': async (params) => {
+    await runAction(
+      path.join(projectPath(params.projectId), params.repo),
+      params.action
+    )
+    return null
+  },
   'git.push': async (params) => {
     await push(path.join(projectPath(params.projectId), params.repo))
     return null

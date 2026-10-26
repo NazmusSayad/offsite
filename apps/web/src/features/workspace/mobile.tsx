@@ -210,7 +210,6 @@ function MobileChat(props: { selection: Selection }) {
           key={`${props.selection.machine} ${props.selection.sessionId ?? props.selection.projectId}`}
         >
           <Transcript
-            onOpenDiff={() => showPanel('diff')}
             onOpenTask={(id) => {
               showPanel('tasks')
               setSelectedTask(id)
@@ -228,7 +227,6 @@ function MobileChat(props: { selection: Selection }) {
             <DialogPrimitive.Title className="sr-only">
               {panel === 'diff' && 'Diff'}
               {panel === 'tasks' && 'Tasks'}
-              {panel === 'files' && 'Files'}
               {panel === 'browser' && 'Browser'}
               {panel === null && 'Terminal'}
             </DialogPrimitive.Title>

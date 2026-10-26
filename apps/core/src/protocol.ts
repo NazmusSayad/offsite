@@ -5,7 +5,15 @@ import type {
   PromptDelivery,
   SessionSettings,
 } from './config.ts'
-import type { GitRepo, PullRequestBranches, PullRequestDraft } from './git.ts'
+import type {
+  GitAction,
+  GitCommit,
+  GitRepo,
+  GitResource,
+  PullRequestBranches,
+  PullRequestDraft,
+  SourceControlRepo,
+} from './git.ts'
 import type {
   PermissionDecision,
   ImageAttachment,
@@ -51,6 +59,7 @@ export type SyncSnapshot = ConfigWithDefaults & {
   sessions: Session[]
   providers: ProviderStatus[]
   activity: Record<string, SessionActivity>
+  terminals: number
 }
 
 export type RpcMethods = {
@@ -67,6 +76,7 @@ export type RpcMethods = {
   }
   'projects.remove': { params: { id: string }; result: null }
   'projects.reorder': { params: { ids: string[] }; result: null }
+  'projects.logoFiles': { params: { id: string }; result: string[] }
   'directories.list': { params: { path: string }; result: DirectoryListing }
   'sessions.update': {
     params: { id: string; patch: SessionPatch }
@@ -165,15 +175,28 @@ export type RpcMethods = {
     result: Capabilities
   }
   'files.list': { params: { projectId: string }; result: string[] }
+  'files.entries': {
+    params: { projectId: string }
+    result: { files: string[]; folders: string[] }
+  }
   'files.read': {
     params: { projectId: string; path: string }
     result: FilePreview
   }
-  'files.media': { params: { projectId: string; path: string }; result: string }
-  'files.download': {
-    params: { projectId: string; path: string }
-    result: string
+  'files.write': {
+    params: { projectId: string; path: string; content: string }
+    result: null
   }
+  'files.create': {
+    params: { projectId: string; path: string; folder: boolean }
+    result: null
+  }
+  'files.rename': {
+    params: { projectId: string; path: string; to: string }
+    result: null
+  }
+  'files.delete': { params: { projectId: string; path: string }; result: null }
+  'files.media': { params: { projectId: string; path: string }; result: string }
   'files.upload': { params: { name: string; data: string }; result: string }
   'files.browse': { params: void; result: string }
   'browser.proxy': { params: { origin: string }; result: number }
@@ -186,6 +209,36 @@ export type RpcMethods = {
   'git.commit': {
     params: { projectId: string; repo: string; message: string; push: boolean }
     result: { message: string }
+  }
+  'git.changes': { params: { projectId: string }; result: SourceControlRepo[] }
+  'git.show': {
+    params: { projectId: string; repo: string; ref: string; path: string }
+    result: string | null
+  }
+  'git.history': {
+    params: { projectId: string; repo: string; limit: number }
+    result: GitCommit[]
+  }
+  'git.commitFiles': {
+    params: {
+      projectId: string
+      repo: string
+      hash: string
+      parent: string | null
+    }
+    result: GitResource[]
+  }
+  'git.message': {
+    params: { projectId: string; repo: string; staged: boolean }
+    result: string
+  }
+  'git.undoCommit': {
+    params: { projectId: string; repo: string }
+    result: string
+  }
+  'git.run': {
+    params: { projectId: string; repo: string; action: GitAction }
+    result: null
   }
   'git.push': { params: { projectId: string; repo: string }; result: null }
   'git.sync': { params: { projectId: string; repo: string }; result: null }
@@ -277,4 +330,5 @@ export type ServerEvent =
   | { type: 'context'; sessionId: string; context: ContextUsage | null }
   | { type: 'notification'; sessionId: string; message: string }
   | { type: 'notifier'; active: boolean }
+  | { type: 'terminals'; count: number }
   | { type: 'open'; path: string }
