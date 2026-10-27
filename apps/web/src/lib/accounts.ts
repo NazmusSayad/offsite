@@ -1,5 +1,5 @@
 import type { ComposerSettings, SessionSettings } from '@offsite/core/config'
-import type { Accounts, Provider } from '@offsite/core/providers'
+import type { Accounts, Capabilities, Provider } from '@offsite/core/providers'
 import { call } from '@/api/connection'
 import { updateComposer } from '@/api/machine-config'
 import { saveDraftSettings } from '@/features/composer/drafts'
@@ -13,6 +13,9 @@ import {
   showError,
   update,
 } from './store'
+
+let loading: { key: string; result: Promise<Capabilities> } | null = null
+
 export const emptySettings: SessionSettings = {
   provider: 'claude',
   accountId: null,
@@ -180,11 +183,27 @@ export async function refreshCapabilities() {
     return
   }
   try {
-    const capabilities = await call(selection.machine, 'capabilities', {
+    const key = JSON.stringify([
+      selection.machine,
       provider,
       accountId,
-      projectId: selection.projectId,
-    })
+      selection.projectId,
+    ])
+    if (loading?.key !== key) {
+      const result = call(selection.machine, 'capabilities', {
+        provider,
+        accountId,
+        projectId: selection.projectId,
+      })
+      function done() {
+        if (loading?.result === result) {
+          loading = null
+        }
+      }
+      result.then(done, done)
+      loading = { key, result }
+    }
+    const capabilities = await loading.result
     if (
       getState().selection?.machine !== selection.machine ||
       getState().selection?.projectId !== selection.projectId ||
