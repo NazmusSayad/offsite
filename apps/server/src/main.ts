@@ -14,6 +14,7 @@ import {
   type ServerResponse,
 } from 'node:http'
 import path from 'node:path'
+import { createGzip } from 'node:zlib'
 import { mediaTypes } from '@offsite/core/media'
 import { consola } from 'consola'
 import { type WebSocket, WebSocketServer } from 'ws'
@@ -56,6 +57,8 @@ const contentTypes: Record<string, string> = {
   '.webmanifest': 'application/manifest+json',
   '.woff2': 'font/woff2',
 }
+
+const compressible = new Set(['.js', '.css', '.svg', '.json', '.wasm', '.ttf'])
 
 const browseTypes = new Map([
   ...Object.entries(contentTypes),
@@ -130,7 +133,7 @@ const server = createServer((request, response) => {
     response.end('offsite serve has no web app')
     return
   }
-  serveFile(url.pathname, response)
+  serveFile(url.pathname, request, response)
 })
 
 const sockets = new WebSocketServer({ noServer: true })
@@ -470,7 +473,11 @@ function pairingLinks(code: string | null) {
   }
 }
 
-function serveFile(pathname: string, response: ServerResponse) {
+function serveFile(
+  pathname: string,
+  request: IncomingMessage,
+  response: ServerResponse
+) {
   if (!args.pwa && pathname === '/manifest.webmanifest') {
     response.statusCode = 404
     response.end('offsite runs without --pwa')
@@ -504,6 +511,17 @@ function serveFile(pathname: string, response: ServerResponse) {
     }
     response.end(page)
     return
+  }
+  if (file === requested && pathname.startsWith('/assets/')) {
+    response.setHeader('cache-control', 'public, max-age=31536000, immutable')
+  }
+  if (compressible.has(path.extname(file))) {
+    response.setHeader('vary', 'accept-encoding')
+    if (/\bgzip\b/.test(request.headers['accept-encoding'] ?? '')) {
+      response.setHeader('content-encoding', 'gzip')
+      createReadStream(file).pipe(createGzip()).pipe(response)
+      return
+    }
   }
   createReadStream(file).pipe(response)
 }
