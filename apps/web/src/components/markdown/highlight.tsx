@@ -28,7 +28,7 @@ export function Highlight(props: { code: string; language: string }) {
       .then(({ highlighter, lang }) =>
         highlighter.codeToHast(props.code, {
           lang,
-          themes: { light: codeTheme, dark: codeTheme },
+          themes: { dark: codeTheme },
           defaultColor: false,
           transformers: [
             {
