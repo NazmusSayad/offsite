@@ -13,8 +13,11 @@ import { clock, fullTime } from '@/lib/format'
 import { showError, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
+const IMAGE_LIMIT = 20
 const fade =
   'linear-gradient(to bottom, black calc(100% - 1.75rem), transparent)'
+
+const images = new Map<string, Promise<{ data: string }>>()
 
 export function UserMessage(props: {
   item: UserItem
@@ -165,11 +168,22 @@ function PromptImage(props: {
       return
     }
     let current = true
-    call(machine, 'sessions.image', {
-      sessionId,
-      itemId: props.itemId,
-      index: props.index,
-    })
+    const key = JSON.stringify([machine, sessionId, props.itemId, props.index])
+    let request = images.get(key)
+    if (request === undefined) {
+      request = call(machine, 'sessions.image', {
+        sessionId,
+        itemId: props.itemId,
+        index: props.index,
+      })
+      images.set(key, request)
+      if (images.size > IMAGE_LIMIT) {
+        const [oldest] = images.keys()
+        images.delete(oldest)
+      }
+      request.catch(() => images.delete(key))
+    }
+    request
       .then((result) => {
         if (current) {
           setLoaded(result.data)

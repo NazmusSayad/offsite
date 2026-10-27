@@ -200,22 +200,27 @@ function setSessions(machine: string, sessions: Session[]) {
       item.id === selection?.sessionId &&
       !sessions.some((session) => session.id === item.id)
   )
-  update({
-    sessions: [
-      ...state.sessions.filter((item) => item.machine !== machine),
-      ...sessions.map((session) => ({ ...session, machine })),
-      ...(opened === undefined
-        ? []
-        : [{ ...opened, status: 'inactive' as const }]),
-    ],
-    inactiveVersion:
-      sessions
-        .map((session) => session.id)
-        .sort()
-        .join(' ') === listed
-        ? state.inactiveVersion
-        : state.inactiveVersion + 1,
-  })
+  const next = [
+    ...state.sessions.filter((item) => item.machine !== machine),
+    ...sessions.map((session) => ({ ...session, machine })),
+    ...(opened === undefined
+      ? []
+      : [{ ...opened, status: 'inactive' as const }]),
+  ]
+  const inactiveVersion =
+    sessions
+      .map((session) => session.id)
+      .sort()
+      .join(' ') === listed
+      ? state.inactiveVersion
+      : state.inactiveVersion + 1
+  if (
+    inactiveVersion === state.inactiveVersion &&
+    isEqual(next, state.sessions)
+  ) {
+    return
+  }
+  update({ sessions: next, inactiveVersion })
 }
 
 function reopenThread(machine: string) {
