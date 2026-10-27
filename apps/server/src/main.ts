@@ -136,7 +136,7 @@ const server = createServer((request, response) => {
   serveFile(url.pathname, request, response)
 })
 
-const sockets = new WebSocketServer({ noServer: true })
+const sockets = new WebSocketServer({ noServer: true, perMessageDeflate: true })
 const paired = new Map<WebSocket, string>()
 
 server.on('upgrade', (request, socket, head) => {
