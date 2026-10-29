@@ -12,7 +12,6 @@ import {
   GLOBAL_TERMINALS,
   type TerminalEvent,
   type TerminalLayout,
-  type TerminalProject,
   type TerminalRequest,
   type TerminalTab,
 } from '@offsite/core/terminal'
@@ -44,7 +43,8 @@ const SILENCE_LIMIT = 90_000
 const KILL_DELAY = 3000
 
 const instance = `${Date.now()}-${randomUUID()}`
-const projects = new Map<string, TerminalProject>()
+const tabs: TerminalTab[] = []
+const active = new Map<string, number>()
 const terminals = new Map<number, Terminal>()
 const connections = new Map<Client, Connection>()
 const paused = new Set<IPty>()
@@ -63,11 +63,15 @@ export async function terminalRequest(
     detachTerminal(client)
     return
   }
-  const connection = connections.get(client)
-  if (connection === undefined) {
-    throw new Error('the terminal is not attached')
+  if (message.type === 'resize') {
+    const connection = connections.get(client)
+    if (connection === undefined) {
+      throw new Error('the terminal is not attached')
+    }
+    resize(connection, message)
+    return
   }
-  await request(connection, message)
+  await request(message)
 }
 
 export function terminalInput(client: Client, frame: Buffer) {
@@ -105,19 +109,8 @@ export async function busyTerminal(id: number): Promise<BusyResult> {
   }
 }
 
-export function terminalCount(projectId: string) {
-  return projects.get(projectId)?.tabs.length ?? 0
-}
-
-export function closeProjectTabs(projectId: string) {
-  const project = projects.get(projectId)
-  if (project === undefined) {
-    return
-  }
-  for (const tab of [...project.tabs]) {
-    closeTab(tab.id)
-  }
-  publish()
+export function terminalTabs() {
+  return tabs
 }
 
 function attach(client: Client) {
@@ -129,36 +122,36 @@ function attach(client: Client) {
     layout: layout(),
     instance,
   })
-  for (const project of projects.values()) {
-    for (const tab of project.tabs) {
-      forward(
-        connection,
-        tab.id,
-        true,
-        Buffer.concat(terminals.get(tab.id)?.history ?? [])
-      )
-    }
+  for (const tab of tabs) {
+    forward(
+      connection,
+      tab.id,
+      true,
+      Buffer.concat(terminals.get(tab.id)?.history ?? [])
+    )
   }
 }
 
-async function request(
+function resize(
   connection: Connection,
-  message: Exclude<TerminalRequest, { type: 'attach' | 'detach' }>
+  message: Extract<TerminalRequest, { type: 'resize' }>
+) {
+  const terminal = terminals.get(message.id)
+  if (terminal === undefined) {
+    return
+  }
+  connection.sizes.set(message.id, {
+    cols: message.cols,
+    rows: message.rows,
+  })
+  terminal.owner = connection
+  terminal.pty.resize(message.cols, message.rows)
+}
+
+async function request(
+  message: Exclude<TerminalRequest, { type: 'attach' | 'detach' | 'resize' }>
 ) {
   switch (message.type) {
-    case 'resize': {
-      const terminal = terminals.get(message.id)
-      if (terminal === undefined) {
-        return
-      }
-      connection.sizes.set(message.id, {
-        cols: message.cols,
-        rows: message.rows,
-      })
-      terminal.owner = connection
-      terminal.pty.resize(message.cols, message.rows)
-      return
-    }
     case 'createTab':
       await createTab(message.projectId)
       break
@@ -173,39 +166,33 @@ async function request(
       tab.customName = message.name === '' ? null : message.name
       break
     }
-    case 'minimizeTab': {
-      const project = [...projects.values()].find((item) =>
-        item.tabs.some((tab) => tab.id === message.id)
-      )
-      if (project === undefined) {
+    case 'assignTab': {
+      const tab = findTab(message.id)
+      if (tab === undefined || tab.projectId === message.projectId) {
         return
       }
-      if (
-        !project.tabs.some((tab) => tab.id !== message.id && !tab.minimized)
-      ) {
-        return
+      if (message.projectId !== null) {
+        projectPath(message.projectId)
       }
-      const index = project.tabs.findIndex((tab) => tab.id === message.id)
-      project.tabs[index].minimized = true
-      if (project.activeTab === message.id) {
-        const next = nearestVisible(project.tabs, index)
-        project.activeTab = next === undefined ? null : project.tabs[next].id
+      release(tab)
+      tab.projectId = message.projectId
+      if (!active.has(message.projectId ?? GLOBAL_TERMINALS)) {
+        active.set(message.projectId ?? GLOBAL_TERMINALS, tab.id)
       }
       break
     }
     case 'select': {
-      const project = projects.get(message.projectId) ?? {
-        tabs: [],
-        activeTab: null,
-      }
-      projects.set(message.projectId, project)
-      const tab = project.tabs.find((item) => item.id === message.tabId)
+      const tab = viewTabs(message.view).find(
+        (item) => item.id === message.tabId
+      )
       if (tab !== undefined) {
-        tab.minimized = false
-        project.activeTab = tab.id
+        active.set(message.view, tab.id)
       }
-      if (project.tabs.length === 0 && message.projectId !== GLOBAL_TERMINALS) {
-        await createTab(message.projectId)
+      if (
+        message.view !== GLOBAL_TERMINALS &&
+        viewTabs(message.view).length === 0
+      ) {
+        await createTab(message.view)
       }
       break
     }
@@ -243,23 +230,20 @@ function input(connection: Connection, bytes: Buffer) {
   terminal.pty.write(Buffer.from(frame.data))
 }
 
-async function createTab(projectId: string) {
-  const cwd =
-    projectId === GLOBAL_TERMINALS ? workingDirectory() : projectPath(projectId)
+async function createTab(projectId: string | null) {
+  const cwd = projectId === null ? workingDirectory() : projectPath(projectId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
     console.error(`${cwd} is not a folder, terminal not created`)
     return
   }
-  const project = projects.get(projectId) ?? { tabs: [], activeTab: null }
-  projects.set(projectId, project)
-  const active =
-    project.activeTab === null ? undefined : terminals.get(project.activeTab)
+  const activeId = active.get(projectId ?? GLOBAL_TERMINALS)
+  const current = activeId === undefined ? undefined : terminals.get(activeId)
   let directory = cwd
-  if (active !== undefined) {
+  if (current !== undefined) {
     try {
       directory = await currentDirectory(
-        active.pty.pid,
-        active.scanner.directory
+        current.pty.pid,
+        current.scanner.directory
       )
     } catch (error) {
       console.warn(
@@ -285,8 +269,8 @@ async function createTab(projectId: string) {
     scanner: new Scanner(),
   }
   terminals.set(id, terminal)
-  project.tabs.push({ id, customName: null, minimized: false })
-  project.activeTab = id
+  tabs.push({ id, projectId, customName: null })
+  active.set(projectId ?? GLOBAL_TERMINALS, id)
   pty.onData((data) => output(id, terminal, Buffer.from(data)))
   pty.onExit(() => {
     terminals.delete(id)
@@ -298,24 +282,12 @@ async function createTab(projectId: string) {
 }
 
 function closeTab(id: number) {
-  const project = [...projects.values()].find((item) =>
-    item.tabs.some((tab) => tab.id === id)
-  )
-  if (project === undefined) {
+  const tab = findTab(id)
+  if (tab === undefined) {
     return false
   }
-  const index = project.tabs.findIndex((tab) => tab.id === id)
-  project.tabs.splice(index, 1)
-  if (project.activeTab === id) {
-    let next: number | undefined = nearestVisible(project.tabs, index)
-    if (next === undefined && project.tabs.length > 0) {
-      next = Math.min(index, project.tabs.length - 1)
-    }
-    if (next !== undefined) {
-      project.tabs[next].minimized = false
-    }
-    project.activeTab = next === undefined ? null : project.tabs[next].id
-  }
+  release(tab)
+  tabs.splice(tabs.indexOf(tab), 1)
   const terminal = terminals.get(id)
   if (terminal === undefined) {
     return true
@@ -425,21 +397,18 @@ function push(id: number, alert: Alert, windowTitle: string) {
   if (notifierWatching()) {
     return
   }
-  const entry = [...projects].find(([, project]) =>
-    project.tabs.some((tab) => tab.id === id)
-  )
-  if (entry === undefined) {
+  const tab = findTab(id)
+  if (tab === undefined) {
     return
   }
-  const tab = findTab(id)
   if (title === '') {
-    title = tab?.customName ?? (windowTitle || 'Terminal')
+    title = tab.customName ?? (windowTitle || 'Terminal')
   }
   void sendPush({
     kind: 'terminal',
     title,
     body,
-    projectId: entry[0],
+    projectId: tab.projectId ?? GLOBAL_TERMINALS,
     tabId: id,
   })
 }
@@ -452,32 +421,31 @@ function notifierWatching() {
   return Date.now() - client.heardAt < SILENCE_LIMIT
 }
 
-function findTab(id: number): TerminalTab | undefined {
-  return [...projects.values()]
-    .flatMap((project) => project.tabs)
-    .find((tab) => tab.id === id)
+function findTab(id: number) {
+  return tabs.find((tab) => tab.id === id)
 }
 
-function nearestVisible(tabs: TerminalTab[], index: number) {
-  for (let position = index; position < tabs.length; position++) {
-    if (!tabs[position].minimized) {
-      return position
-    }
+function viewTabs(view: string) {
+  return tabs.filter((tab) => (tab.projectId ?? GLOBAL_TERMINALS) === view)
+}
+
+function release(tab: TerminalTab) {
+  const view = tab.projectId ?? GLOBAL_TERMINALS
+  if (active.get(view) !== tab.id) {
+    return
   }
-  for (
-    let position = Math.min(index, tabs.length) - 1;
-    position >= 0;
-    position--
-  ) {
-    if (!tabs[position].minimized) {
-      return position
-    }
+  const list = viewTabs(view)
+  const index = list.indexOf(tab)
+  const next = list[index + 1] ?? list[index - 1]
+  if (next === undefined) {
+    active.delete(view)
+  } else {
+    active.set(view, next.id)
   }
-  return undefined
 }
 
 function layout(): TerminalLayout {
-  return Object.fromEntries(projects)
+  return { tabs, active: Object.fromEntries(active) }
 }
 
 function publish() {
@@ -485,7 +453,7 @@ function publish() {
   for (const connection of connections.values()) {
     send(connection, event)
   }
-  broadcast({ type: 'terminals', count: terminalCount(GLOBAL_TERMINALS) })
+  broadcast({ type: 'terminals', tabs })
 }
 
 function forward(

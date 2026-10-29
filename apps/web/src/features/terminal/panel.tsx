@@ -2,13 +2,11 @@ import {
   Add01Icon,
   Cancel01Icon,
   Delete02Icon,
-  Layers01Icon,
-  MinusSignIcon,
-  Notification01Icon,
+  Folder01Icon,
   PencilEdit02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { TerminalTab } from '@offsite/core/terminal'
+import { GLOBAL_TERMINALS, type TerminalTab } from '@offsite/core/terminal'
 import {
   type ReactNode,
   useEffect,
@@ -19,20 +17,19 @@ import {
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
-  ContextMenuCheckboxItem,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import type { Progress } from '@/lib/ghostty/terminal'
+import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { toggleQuiet } from './attention'
 import { closeTab } from './close-tab'
 import { CloseDialog, RenameDialog } from './dialogs'
 import { FindBar } from './find-bar'
@@ -43,7 +40,9 @@ import {
   sendInput,
   subscribe,
   tabTitle,
+  terminalMachine,
   toggleCtrl,
+  viewTabs,
 } from './session'
 import { useTerminalShortcuts } from './shortcuts'
 
@@ -57,27 +56,28 @@ const keys = [
 ]
 
 export function TerminalPanel(props: {
-  projectId: string
+  view: string
   leading?: ReactNode
   tabSize?: 'default' | 'lg'
 }) {
   const state = useSyncExternalStore(subscribe, getState)
-  const [renaming, setRenaming] = useState<{
-    id: number
-    name: string
-  } | null>(null)
   const active = state.status === 'active'
-  const project = state.layout[props.projectId]
-  const tabId = project?.activeTab ?? null
-  const visibleTabs = project?.tabs.filter((tab) => !tab.minimized) ?? []
-  const minimizedTabs = project?.tabs.filter((tab) => tab.minimized) ?? []
+  const tabs = viewTabs(state.layout, props.view)
+  const tabId = state.layout.active[props.view] ?? null
   const shortcuts = useTerminalShortcuts()
 
   useEffect(() => {
     if (active) {
-      send({ type: 'select', projectId: props.projectId, tabId: null })
+      send({ type: 'select', view: props.view, tabId: null })
     }
-  }, [props.projectId, active])
+  }, [props.view, active])
+
+  function create() {
+    send({
+      type: 'createTab',
+      projectId: props.view === GLOBAL_TERMINALS ? null : props.view,
+    })
+  }
 
   if (!state.loaded) {
     return (
@@ -95,41 +95,22 @@ export function TerminalPanel(props: {
         className={cn(
           'flex h-9 flex-none select-none',
           props.tabSize === 'lg' && 'h-(--workspace-topbar-height)',
-          visibleTabs.length === 1 ? 'bg-background' : 'bg-sidebar'
+          tabs.length === 1 ? 'bg-background' : 'bg-sidebar'
         )}
       >
         {props.leading !== undefined && (
           <div
             className={cn(
               'flex flex-none items-center gap-2 px-1.5',
-              visibleTabs.length > 1 && 'border-r border-b'
+              tabs.length > 1 && 'border-r border-b'
             )}
           >
             {props.leading}
           </div>
         )}
-        {minimizedTabs.length > 0 && (
-          <MinimizedTabs
-            projectId={props.projectId}
-            tabs={minimizedTabs}
-            alerts={state.alerts}
-            bordered={visibleTabs.length > 1}
-          />
-        )}
         <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
-          {visibleTabs.map((tab) => (
-            <TabMenu
-              key={tab.id}
-              tabId={tab.id}
-              onMinimize={
-                visibleTabs.length > 1
-                  ? () => send({ type: 'minimizeTab', id: tab.id })
-                  : undefined
-              }
-              onRename={() =>
-                setRenaming({ id: tab.id, name: tab.customName ?? '' })
-              }
-            >
+          {tabs.map((tab) => (
+            <TabMenu key={tab.id} tab={tab}>
               <div
                 className={cn(
                   'group/tab text-muted-foreground hover:text-foreground relative flex min-w-28 flex-1 items-center justify-center border-r border-b px-7 text-xs transition-colors last:border-r-0',
@@ -141,7 +122,7 @@ export function TerminalPanel(props: {
                 onClick={() =>
                   send({
                     type: 'select',
-                    projectId: props.projectId,
+                    view: props.view,
                     tabId: tab.id,
                   })
                 }
@@ -172,13 +153,11 @@ export function TerminalPanel(props: {
         <button
           className={cn(
             'text-muted-foreground hover:text-foreground grid w-8 flex-none place-items-center transition-colors',
-            visibleTabs.length > 1 && 'border-b border-l'
+            tabs.length > 1 && 'border-b border-l'
           )}
           aria-label="New tab"
           title="New tab"
-          onClick={() =>
-            send({ type: 'createTab', projectId: props.projectId })
-          }
+          onClick={create}
         >
           <HugeiconsIcon icon={Add01Icon} className="size-4" />
         </button>
@@ -190,12 +169,10 @@ export function TerminalPanel(props: {
         {tabId !== null && state.finding === tabId && (
           <FindBar key={tabId} id={tabId} />
         )}
-        {active && project !== undefined && project.tabs.length === 0 && (
+        {active && tabId === null && (
           <button
             className="text-muted-foreground hover:text-foreground grid size-full cursor-pointer place-items-center text-xs transition-colors"
-            onClick={() =>
-              send({ type: 'createTab', projectId: props.projectId })
-            }
+            onClick={create}
           >
             New terminal
           </button>
@@ -234,14 +211,6 @@ export function TerminalPanel(props: {
           </Button>
         </div>
       )}
-      {renaming !== null && (
-        <RenameDialog
-          key={renaming.id}
-          id={renaming.id}
-          name={renaming.name}
-          onDone={() => setRenaming(null)}
-        />
-      )}
       <CloseDialog />
     </div>
   )
@@ -265,90 +234,66 @@ function TerminalPane(props: { id: number }) {
   )
 }
 
-function TabMenu(props: {
-  tabId: number
-  onRename: () => void
-  onMinimize: (() => void) | undefined
-  children: ReactNode
-}) {
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{props.children}</ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem onSelect={props.onRename}>
-          <HugeiconsIcon icon={PencilEdit02Icon} />
-          Rename
-        </ContextMenuItem>
-        {props.onMinimize && (
-          <ContextMenuItem onSelect={props.onMinimize}>
-            <HugeiconsIcon icon={MinusSignIcon} />
-            Minimize
-          </ContextMenuItem>
-        )}
-        <ContextMenuCheckboxItem
-          checked={getState().quiet.includes(props.tabId)}
-          onCheckedChange={() => toggleQuiet(props.tabId)}
-        >
-          <HugeiconsIcon icon={Notification01Icon} />
-          Notify when quiet for 10s
-        </ContextMenuCheckboxItem>
-        <ContextMenuItem
-          variant="destructive"
-          onSelect={() => void closeTab(props.tabId)}
-        >
-          <HugeiconsIcon icon={Delete02Icon} />
-          Close tab
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+function TabMenu(props: { tab: TerminalTab; children: ReactNode }) {
+  const [renaming, setRenaming] = useState(false)
+  const allProjects = useStore((state) => state.projects)
+  const projects = allProjects.filter(
+    (project) => project.machine === terminalMachine()
   )
-}
+  const tab = props.tab
 
-function MinimizedTabs(props: {
-  projectId: string
-  tabs: TerminalTab[]
-  alerts: number[]
-  bordered: boolean
-}) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          className={cn(
-            'text-muted-foreground hover:text-foreground flex flex-none items-center gap-1 px-2.5 transition-colors',
-            props.bordered && 'border-r border-b'
-          )}
-          aria-label="Minimized tabs"
-          title="Minimized tabs"
-        >
-          <HugeiconsIcon icon={Layers01Icon} className="size-4" />
-          <CountBadge
-            count={props.tabs.length}
-            alert={props.tabs.some((tab) => props.alerts.includes(tab.id))}
-          />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {props.tabs.map((tab) => (
-          <DropdownMenuItem
-            key={tab.id}
-            onSelect={() =>
-              send({
-                type: 'select',
-                projectId: props.projectId,
-                tabId: tab.id,
-              })
-            }
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{props.children}</ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onSelect={() => setRenaming(true)}>
+            <HugeiconsIcon icon={PencilEdit02Icon} />
+            Rename
+          </ContextMenuItem>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              <HugeiconsIcon icon={Folder01Icon} />
+              Move to
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="max-h-80 overflow-y-auto">
+              <ContextMenuRadioGroup
+                value={tab.projectId ?? ''}
+                onValueChange={(value) =>
+                  send({
+                    type: 'assignTab',
+                    id: tab.id,
+                    projectId: value === '' ? null : value,
+                  })
+                }
+              >
+                <ContextMenuRadioItem value="">No project</ContextMenuRadioItem>
+                {projects.length > 0 && <ContextMenuSeparator />}
+                {projects.map((project) => (
+                  <ContextMenuRadioItem key={project.id} value={project.id}>
+                    <span className="max-w-60 truncate">{project.name}</span>
+                  </ContextMenuRadioItem>
+                ))}
+              </ContextMenuRadioGroup>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+          <ContextMenuItem
+            variant="destructive"
+            onSelect={() => void closeTab(tab.id)}
           >
-            <span className="max-w-80 truncate">{tabTitle(tab)}</span>
-            <AttentionDot
-              id={tab.id}
-              className="size-1.5 flex-none rounded-full"
-            />
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+            <HugeiconsIcon icon={Delete02Icon} />
+            Close tab
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+      {renaming && (
+        <RenameDialog
+          id={tab.id}
+          name={tab.customName ?? ''}
+          onDone={() => setRenaming(false)}
+        />
+      )}
+    </>
   )
 }
 
@@ -357,21 +302,6 @@ function AttentionDot(props: { id: number; className: string }) {
     return null
   }
   return <span className={cn('bg-primary', props.className)} />
-}
-
-function CountBadge(props: { count: number; alert: boolean }) {
-  return (
-    <span
-      className={cn(
-        'grid h-3.5 min-w-3.5 place-items-center rounded-full px-1 text-[9px] leading-none font-medium tabular-nums',
-        props.alert
-          ? 'bg-primary text-primary-foreground'
-          : 'text-foreground bg-[color-mix(in_srgb,var(--text)_22%,var(--bg))]'
-      )}
-    >
-      {props.count}
-    </span>
-  )
 }
 
 function TabProgress(props: { progress: Progress | undefined }) {

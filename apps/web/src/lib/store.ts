@@ -22,6 +22,7 @@ import type {
   ContextUsage,
   Session,
 } from '@offsite/core/sessions'
+import type { TerminalTab } from '@offsite/core/terminal'
 import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
 import { machineKey } from '@/api/machines'
 import type { MachineIcon } from '@/components/icons'
@@ -73,7 +74,7 @@ export type Machine = {
   notifier: boolean
   activity: Record<string, SessionActivity>
   providers: ProviderStatus[]
-  terminals: number
+  terminals: TerminalTab[]
 }
 
 export type MachineProject = Project & { machine: string }

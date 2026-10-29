@@ -48,6 +48,7 @@ export function MobileLayout() {
     return (
       <TerminalPage
         machine={page}
+        mobile
         leading={
           <Button
             variant="ghost"
@@ -268,7 +269,7 @@ function MobileChat(props: { selection: Selection }) {
                     </span>
                   </div>
                   <div className="min-h-0 flex-1">
-                    <TerminalPanel projectId={props.selection.projectId} />
+                    <TerminalPanel view={props.selection.projectId} />
                   </div>
                 </>
               )}

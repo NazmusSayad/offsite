@@ -30,7 +30,6 @@ import { sessions as sessionsTable } from '../storage/schema.ts'
 import { providerName } from './accounts.ts'
 import { projectPath, projects } from './projects.ts'
 import { find, type Found, info } from './provider-sessions.ts'
-import { closeProjectTabs } from './terminal/terminal.ts'
 
 const day = 24 * 60 * 60 * 1000
 const LIST_TIMEOUT = 10_000
@@ -356,23 +355,6 @@ export async function updateSession(id: string, patch: SessionPatch) {
       await run.closed
     }
     db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
-    const all = withStatus(allProviders.flatMap((provider) => listed[provider]))
-    const session = all.find((item) => item.id === id)
-    if (
-      session !== undefined &&
-      all.every(
-        (item) =>
-          item.projectId !== session.projectId || item.status === 'inactive'
-      ) &&
-      [...runs.values()].every(
-        (other) =>
-          other.sessionId === id ||
-          other.cwd !== projectPath(session.projectId) ||
-          all.some((item) => item.id === other.sessionId)
-      )
-    ) {
-      closeProjectTabs(session.projectId)
-    }
   } else if (patch.status !== undefined) {
     const set =
       patch.status === 'active' || patch.status === 'snoozed'

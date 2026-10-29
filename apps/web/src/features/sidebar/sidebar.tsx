@@ -76,7 +76,7 @@ export function Sidebar(
   const [filter, setFilter] = useState<ThreadFilter>('active')
   const [width, setWidth] = useLocalStorage('sidebarWidth', 240)
   const terminals = machines.reduce(
-    (total, machine) => total + machine.terminals,
+    (total, machine) => total + machine.terminals.length,
     0
   )
   const shown = sessions

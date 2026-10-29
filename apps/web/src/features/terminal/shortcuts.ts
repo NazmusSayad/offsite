@@ -1,8 +1,9 @@
+import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { isMac } from '@/lib/utils'
 import { closeTab } from './close-tab'
 import {
-  currentProject,
+  currentView,
   getSession,
   getState,
   send,
@@ -15,9 +16,9 @@ const nextTabKey = 'ctrl+tab'
 const previousTabKey = 'ctrl+shift+tab'
 
 export function focusTerminal() {
-  const project = currentProject()?.project
-  if (getState().open && project && project.activeTab !== null) {
-    getSession(project.activeTab).focus()
+  const tabId = currentView()?.tabId ?? null
+  if (getState().open && tabId !== null) {
+    getSession(tabId).focus()
   }
 }
 
@@ -27,20 +28,22 @@ export function useTerminalShortcuts() {
     (event, hotkey) => {
       event.preventDefault()
       event.stopPropagation()
-      const current = currentProject()
+      const current = currentView()
       if (current === null) {
         return
       }
       if (hotkey.hotkey === newTabKey) {
-        send({ type: 'createTab', projectId: current.projectId })
+        send({
+          type: 'createTab',
+          projectId: current.view === GLOBAL_TERMINALS ? null : current.view,
+        })
         return
       }
-      const project = current.project
-      if (project === null || project.activeTab === null) {
+      if (current.tabId === null) {
         return
       }
       if (hotkey.hotkey === closeTabKey) {
-        void closeTab(project.activeTab)
+        void closeTab(current.tabId)
         return
       }
       let offset: number
@@ -51,11 +54,11 @@ export function useTerminalShortcuts() {
       } else {
         throw new Error(`unknown terminal shortcut ${hotkey.hotkey}`)
       }
-      const tabs = project.tabs.filter((tab) => !tab.minimized)
-      const index = tabs.findIndex((tab) => tab.id === project.activeTab)
+      const tabs = current.tabs
+      const index = tabs.findIndex((tab) => tab.id === current.tabId)
       const target = tabs[(index + offset + tabs.length) % tabs.length]
       if (target) {
-        send({ type: 'select', projectId: current.projectId, tabId: target.id })
+        send({ type: 'select', view: current.view, tabId: target.id })
       }
     },
     {

@@ -29,13 +29,7 @@ import {
   terminalPage,
 } from '@/lib/url'
 import { errorMessage, isMac } from '@/lib/utils'
-import {
-  forgetTab,
-  noteMessage,
-  noteOutput,
-  syncQuietTimers,
-  unseenAttention,
-} from './attention'
+import { forgetTab, unseenAttention } from './attention'
 import { applyStyle, terminalOptions } from './config'
 import { createSession } from './create-session'
 
@@ -46,16 +40,16 @@ type State = {
   open: boolean
   instance: string | null
   layout: TerminalLayout
+  pageView: string
   ctrl: boolean
   titles: Record<number, string>
   progress: Record<number, Progress>
   alerts: number[]
   finding: number | null
-  quiet: number[]
 }
 
 function emptyTabState() {
-  return { titles: {}, progress: {}, alerts: [], finding: null, quiet: [] }
+  return { titles: {}, progress: {}, alerts: [], finding: null }
 }
 
 const encoder = new TextEncoder()
@@ -68,7 +62,8 @@ let state: State = {
   loaded: false,
   open: false,
   instance: null,
-  layout: {},
+  layout: { tabs: [], active: {} },
+  pageView: GLOBAL_TERMINALS,
   ctrl: false,
   ...emptyTabState(),
 }
@@ -100,7 +95,6 @@ export async function startTerminal() {
         return
       }
       handle(event)
-      noteMessage()
     },
     frame: (origin, frame) => {
       if (origin === machine) {
@@ -151,14 +145,14 @@ function followSelection() {
     if (machine !== null && attached) {
       send({ type: 'detach' })
     }
-    sync({})
+    sync([])
     awaitingReplay.clear()
     machine = target
     attached = false
     setState({
       status: 'connecting',
       instance: null,
-      layout: {},
+      layout: { tabs: [], active: {} },
       ...emptyTabState(),
     })
   }
@@ -220,7 +214,6 @@ export function getState() {
 export function setState(next: Partial<State>) {
   state = { ...state, ...next }
   state = { ...state, ...unseenAttention((id) => sessions.has(id)) }
-  syncQuietTimers()
   for (const listener of listeners) {
     listener()
   }
@@ -230,22 +223,33 @@ export function terminalConfig() {
   return appState().prefs.terminal
 }
 
-export function currentProject() {
-  const projectId =
-    terminalPage() === null ? appState().selection?.projectId : GLOBAL_TERMINALS
-  if (projectId === undefined) {
+export function currentView() {
+  const view =
+    terminalPage() === null ? appState().selection?.projectId : pageView()
+  if (view === undefined) {
     return null
   }
-  return { projectId, project: state.layout[projectId] ?? null }
+  return {
+    view,
+    tabs: viewTabs(state.layout, view),
+    tabId: state.layout.active[view] ?? null,
+  }
 }
 
-export function findProject(id: number) {
-  for (const [projectId, project] of Object.entries(state.layout)) {
-    if (project.tabs.some((tab) => tab.id === id)) {
-      return { projectId, project }
-    }
-  }
-  return null
+export function pageView() {
+  return viewTabs(state.layout, state.pageView).length > 0
+    ? state.pageView
+    : GLOBAL_TERMINALS
+}
+
+export function viewTabs(layout: TerminalLayout, view: string) {
+  return layout.tabs.filter(
+    (tab) => (tab.projectId ?? GLOBAL_TERMINALS) === view
+  )
+}
+
+export function findTab(id: number) {
+  return state.layout.tabs.find((tab) => tab.id === id)
 }
 
 export function tabTitle(tab: TerminalTab) {
@@ -269,7 +273,7 @@ function followUrl() {
 
 function showTab(target: string, projectId: string, tabId: number) {
   if (projectId === GLOBAL_TERMINALS) {
-    openTerminalPage(target)
+    showGroup(target, GLOBAL_TERMINALS)
   } else {
     const selection = appState().selection
     if (selection?.machine !== target || selection.projectId !== projectId) {
@@ -277,16 +281,28 @@ function showTab(target: string, projectId: string, tabId: number) {
     }
     setOpen(true)
   }
-  send({ type: 'select', projectId, tabId })
+  sendTo(target, { type: 'select', view: projectId, tabId })
 }
 
 export function send(request: TerminalRequest) {
-  if (machine === null || !isConnected(machine)) {
+  if (machine === null) {
     return
   }
-  call(machine, 'terminal', request).catch((error: unknown) =>
+  sendTo(machine, request)
+}
+
+export function sendTo(target: string, request: TerminalRequest) {
+  if (!isConnected(target)) {
+    return
+  }
+  call(target, 'terminal', request).catch((error: unknown) =>
     console.error('terminal request failed', error)
   )
+}
+
+export function showGroup(target: string, view: string) {
+  setState({ pageView: view })
+  openTerminalPage(target)
 }
 
 export function sendInput(id: number, data: string | Uint8Array) {
@@ -349,19 +365,15 @@ function receiveFrame(frame: { kind: number; id: number; data: Uint8Array }) {
   if (awaited && awaitingReplay.size === 0) {
     setState({ status: 'active' })
   }
-  if (!replay) {
-    noteOutput(frame.id)
-  }
-  noteMessage()
 }
 
 function handle(message: TerminalEvent) {
   const restarted =
     message.type === 'active' && message.instance !== state.instance
   if (restarted) {
-    sync({})
+    sync([])
   }
-  sync(message.layout)
+  sync(message.layout.tabs)
   if (message.type === 'active') {
     awaitingReplay.clear()
     sessions.forEach((terminal, id) => {
@@ -388,8 +400,8 @@ function handle(message: TerminalEvent) {
   const projectId = appState().selection?.projectId
   const closedLastTab =
     projectId !== undefined &&
-    (state.layout[projectId]?.tabs.length ?? 0) > 0 &&
-    message.layout[projectId]?.tabs.length === 0
+    viewTabs(state.layout, projectId).length > 0 &&
+    viewTabs(message.layout, projectId).length === 0
   setState({
     status: awaitingReplay.size === 0 ? 'active' : 'connecting',
     layout: message.layout,
@@ -399,12 +411,8 @@ function handle(message: TerminalEvent) {
   }
 }
 
-function sync(layout: TerminalLayout) {
-  const ids = new Set(
-    Object.values(layout).flatMap((project) =>
-      project.tabs.map((tab) => tab.id)
-    )
-  )
+function sync(tabs: TerminalTab[]) {
+  const ids = new Set(tabs.map((tab) => tab.id))
   sessions.forEach((terminal, id) => {
     if (ids.has(id)) {
       return

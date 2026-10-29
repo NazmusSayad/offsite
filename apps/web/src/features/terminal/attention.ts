@@ -1,8 +1,8 @@
-import { checkConnection } from '@/api/connection'
+import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import { showNotification } from '@/lib/notifications'
 import {
-  currentProject,
-  findProject,
+  currentView,
+  findTab,
   getState,
   setState,
   tabTitle,
@@ -11,16 +11,13 @@ import {
 
 const notifiedAt = new Map<number, number>()
 const pendingBells = new Map<number, number>()
-const quietTimers = new Map<number, number>()
-const quietDue = new Set<number>()
 let audio: AudioContext | null = null
 let beepedAt = 0
-let live = false
 
 export function isSeen(id: number) {
   return (
     getState().open &&
-    currentProject()?.project?.activeTab === id &&
+    currentView()?.tabId === id &&
     !document.hidden &&
     document.hasFocus()
   )
@@ -69,14 +66,13 @@ export function notifyFromProgram(id: number, title: string, body: string) {
 }
 
 function notify(id: number, title: string, body: string) {
-  const found = findProject(id)
-  const tab = found?.project.tabs.find((item) => item.id === id)
-  if (!found || !tab) {
+  const tab = findTab(id)
+  if (!tab) {
     return
   }
   showNotification(title || tabTitle(tab), body, {
     machine: terminalMachine(),
-    project: found.projectId,
+    project: tab.projectId ?? GLOBAL_TERMINALS,
     tabId: id,
   }).catch((error: unknown) =>
     console.error('could not show a notification', error)
@@ -105,82 +101,8 @@ export function beep() {
 }
 
 export function unseenAttention(alive: (id: number) => boolean) {
-  const state = getState()
   return {
-    alerts: state.alerts.filter((id) => alive(id) && !isSeen(id)),
-    quiet: state.quiet.filter(alive),
-  }
-}
-
-export function syncQuietTimers() {
-  const state = getState()
-  const active = state.status === 'active'
-  if (active && !live) {
-    for (const id of quietTimers.keys()) {
-      startQuietTimer(id)
-    }
-  }
-  live = active
-}
-
-function startQuietTimer(id: number) {
-  window.clearTimeout(quietTimers.get(id))
-  quietDue.delete(id)
-  const armedAt = Date.now()
-  quietTimers.set(
-    id,
-    window.setTimeout(() => {
-      if (getState().status !== 'active') {
-        return
-      }
-      if (Date.now() - armedAt > 15_000) {
-        startQuietTimer(id)
-        return
-      }
-      quietDue.add(id)
-      void confirmQuiet()
-    }, 10_000)
-  )
-}
-
-async function confirmQuiet() {
-  if (await checkConnection(terminalMachine())) {
-    noteMessage()
-  }
-}
-
-function notifyQuiet(id: number) {
-  quietTimers.delete(id)
-  quietDue.delete(id)
-  if (raiseAlert(id)) {
-    notify(id, '', 'No output for 10 seconds')
-  }
-}
-
-export function noteMessage() {
-  if (getState().status !== 'active') {
-    return
-  }
-  for (const id of quietDue) {
-    notifyQuiet(id)
-  }
-}
-
-export function toggleQuiet(id: number) {
-  const state = getState()
-  if (!state.quiet.includes(id)) {
-    setState({ quiet: [...state.quiet, id] })
-    return
-  }
-  window.clearTimeout(quietTimers.get(id))
-  quietTimers.delete(id)
-  quietDue.delete(id)
-  setState({ quiet: state.quiet.filter((item) => item !== id) })
-}
-
-export function noteOutput(id: number) {
-  if (getState().quiet.includes(id)) {
-    startQuietTimer(id)
+    alerts: getState().alerts.filter((id) => alive(id) && !isSeen(id)),
   }
 }
 
@@ -188,7 +110,4 @@ export function forgetTab(id: number) {
   window.clearTimeout(pendingBells.get(id))
   pendingBells.delete(id)
   notifiedAt.delete(id)
-  window.clearTimeout(quietTimers.get(id))
-  quietTimers.delete(id)
-  quietDue.delete(id)
 }

@@ -1,23 +1,24 @@
 export type TerminalTab = {
   id: number
+  projectId: string | null
   customName: string | null
-  minimized: boolean
 }
 
-export type TerminalProject = { tabs: TerminalTab[]; activeTab: number | null }
-
-export type TerminalLayout = Record<string, TerminalProject>
+export type TerminalLayout = {
+  tabs: TerminalTab[]
+  active: Record<string, number>
+}
 
 export const GLOBAL_TERMINALS = 'global'
 
 export type TerminalRequest =
   | { type: 'attach' }
   | { type: 'detach' }
-  | { type: 'createTab'; projectId: string }
+  | { type: 'createTab'; projectId: string | null }
   | { type: 'closeTab'; id: number }
   | { type: 'renameTab'; id: number; name: string }
-  | { type: 'minimizeTab'; id: number }
-  | { type: 'select'; projectId: string; tabId: number | null }
+  | { type: 'assignTab'; id: number; projectId: string | null }
+  | { type: 'select'; view: string; tabId: number | null }
   | { type: 'resize'; id: number; cols: number; rows: number }
 
 export type TerminalEvent =

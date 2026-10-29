@@ -212,6 +212,7 @@ function DesktopLayout() {
         />
         <TerminalPage
           machine={page}
+          mobile={false}
           leading={
             !sidebar && (
               <Button
@@ -408,7 +409,7 @@ function DesktopLayout() {
                 >
                   <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-x-0 top-0 h-px transition-colors" />
                 </div>
-                <TerminalPanel projectId={selection.projectId} />
+                <TerminalPanel view={selection.projectId} />
               </aside>
             )}
           </div>
