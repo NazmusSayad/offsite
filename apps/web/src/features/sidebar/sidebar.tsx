@@ -76,7 +76,7 @@ export function Sidebar(
   const [filter, setFilter] = useState<ThreadFilter>('active')
   const [width, setWidth] = useLocalStorage('sidebarWidth', 240)
   const terminals = machines.reduce(
-    (total, machine) => total + machine.terminals,
+    (total, machine) => total + machine.terminals.length,
     0
   )
   const shown = sessions
@@ -421,15 +421,20 @@ export function Sidebar(
               <button
                 className={cn(
                   iconButton,
-                  'h-8 flex-1 justify-start gap-2 px-2.5 text-sm'
+                  'h-8 min-w-0 flex-1 justify-start gap-2 px-2.5 text-sm'
                 )}
                 title="Settings"
                 onClick={() => showSettings(true)}
               >
                 <HugeiconsIcon icon={Settings01Icon} />
-                <span className="hidden @min-[15rem]:inline">Settings</span>
+                <span className="truncate">Settings</span>
               </button>
-              <StatusChips hideDone={false} />
+              <StatusChips className="@max-[13rem]:hidden" hideDone={false} />
+              <StatusChips
+                className="hidden @max-[13rem]:flex"
+                hideDone={false}
+                collapsed
+              />
             </div>
           </div>
         )}

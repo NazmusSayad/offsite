@@ -22,7 +22,11 @@ import {
 } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-export function StatusChips(props: { className?: string; hideDone: boolean }) {
+export function StatusChips(props: {
+  className?: string
+  hideDone: boolean
+  collapsed?: boolean
+}) {
   const errors = useStore((state) => state.errors)
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
@@ -53,42 +57,58 @@ export function StatusChips(props: { className?: string; hideDone: boolean }) {
   if (problems === 0 && waiting.length === 0 && !showDone) {
     return null
   }
+  const doneRows = done.map((session) => (
+    <Thread
+      key={machineKey(session.machine, session.id)}
+      session={session}
+      icon={CircleCheckIcon}
+      className="text-success"
+      detail="Done"
+    />
+  ))
+  const waitingRows = waiting.map((session) => (
+    <Thread
+      key={machineKey(session.machine, session.id)}
+      session={session}
+      icon={ShieldQuestionMarkIcon}
+      className="text-question"
+      detail="Waiting for approval"
+    />
+  ))
+  const merged =
+    props.collapsed === true && showDone && waiting.length > 0 && problems > 0
+
   return (
     <div className={cn('flex shrink-0 items-center gap-1', props.className)}>
-      {showDone && (
+      {merged && (
+        <Chip
+          className="bg-question/15 text-question"
+          icon={ShieldQuestionMarkIcon}
+          count={waiting.length + done.length}
+          label={`${waiting.length} waiting for approval, ${done.length} done`}
+        >
+          {waitingRows}
+          {doneRows}
+        </Chip>
+      )}
+      {!merged && showDone && (
         <Chip
           className="bg-success/15 text-success"
           icon={CircleCheckIcon}
           count={done.length}
           label={`${done.length} done`}
         >
-          {done.map((session) => (
-            <Thread
-              key={machineKey(session.machine, session.id)}
-              session={session}
-              icon={CircleCheckIcon}
-              className="text-success"
-              detail="Done"
-            />
-          ))}
+          {doneRows}
         </Chip>
       )}
-      {waiting.length > 0 && (
+      {!merged && waiting.length > 0 && (
         <Chip
           className="bg-question/15 text-question"
           icon={ShieldQuestionMarkIcon}
           count={waiting.length}
           label={`${waiting.length} waiting for approval`}
         >
-          {waiting.map((session) => (
-            <Thread
-              key={machineKey(session.machine, session.id)}
-              session={session}
-              icon={ShieldQuestionMarkIcon}
-              className="text-question"
-              detail="Waiting for approval"
-            />
-          ))}
+          {waitingRows}
         </Chip>
       )}
       {problems > 0 && (

@@ -1,7 +1,6 @@
 import os from 'node:os'
 import path from 'node:path'
 import type { RpcCall, RpcMethod, RpcMethods } from '@offsite/core/protocol'
-import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import type { WebSocket } from 'ws'
 import { agentMessages, earlier, image } from '../lib/claude/index.ts'
 import { codexAgent } from '../lib/codex/index.ts'
@@ -85,9 +84,9 @@ import { listShells } from '../services/terminal/process.ts'
 import {
   busyTerminal,
   detachTerminal,
-  terminalCount,
   terminalInput,
   terminalRequest,
+  terminalTabs,
 } from '../services/terminal/terminal.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
 import { readComposer, saveComposer } from '../storage/state.ts'
@@ -111,7 +110,7 @@ const handlers: Handlers = {
       sessions: sessions(),
       providers: providerStatuses(),
       activity: activity(),
-      terminals: terminalCount(GLOBAL_TERMINALS),
+      terminals: terminalTabs(),
     }
   },
   'config.get': () => configInfo(),
@@ -387,7 +386,6 @@ const handlers: Handlers = {
   },
   'terminal.shells': () => listShells(),
   'terminal.busy': (params) => busyTerminal(params.id),
-  'terminal.count': (params) => terminalCount(params.projectId),
   'terminal.paste': (params) =>
     savePastedImage(params.type, Buffer.from(params.data, 'base64')),
 }

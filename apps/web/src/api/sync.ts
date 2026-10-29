@@ -342,7 +342,7 @@ function receive(machine: string, event: ServerEvent) {
       setMachine(machine, { notifier: event.active })
       return
     case 'terminals':
-      setMachine(machine, { terminals: event.count })
+      setMachine(machine, { terminals: event.tabs })
       return
     case 'open':
       if (selected) {

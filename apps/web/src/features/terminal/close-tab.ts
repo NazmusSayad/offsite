@@ -1,6 +1,6 @@
 import { call } from '@/api/connection'
 import {
-  findProject,
+  findTab,
   send,
   tabTitle,
   terminalConfig,
@@ -44,10 +44,6 @@ function dialogOpen() {
       '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
     ) !== null
   )
-}
-
-function findTab(id: number) {
-  return findProject(id)?.project.tabs.find((item) => item.id === id)
 }
 
 async function busyProgram(id: number) {

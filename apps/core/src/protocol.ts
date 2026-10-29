@@ -50,6 +50,7 @@ import type {
   Shell,
   TerminalEvent,
   TerminalRequest,
+  TerminalTab,
 } from './terminal.ts'
 
 export type SyncSnapshot = ConfigWithDefaults & {
@@ -59,7 +60,7 @@ export type SyncSnapshot = ConfigWithDefaults & {
   sessions: Session[]
   providers: ProviderStatus[]
   activity: Record<string, SessionActivity>
-  terminals: number
+  terminals: TerminalTab[]
 }
 
 export type RpcMethods = {
@@ -280,7 +281,6 @@ export type RpcMethods = {
   terminal: { params: TerminalRequest; result: null }
   'terminal.shells': { params: void; result: Shell[] }
   'terminal.busy': { params: { id: number }; result: BusyResult }
-  'terminal.count': { params: { projectId: string }; result: number }
   'terminal.paste': { params: { type: string; data: string }; result: string }
 }
 
@@ -330,5 +330,5 @@ export type ServerEvent =
   | { type: 'context'; sessionId: string; context: ContextUsage | null }
   | { type: 'notification'; sessionId: string; message: string }
   | { type: 'notifier'; active: boolean }
-  | { type: 'terminals'; count: number }
+  | { type: 'terminals'; tabs: TerminalTab[] }
   | { type: 'open'; path: string }

@@ -152,7 +152,10 @@ function usePanelOptions(
   )
   const terminalTabs = useSyncExternalStore(
     subscribeTerminal,
-    () => terminalState().layout[props.selection.projectId]?.tabs.length ?? 0
+    () =>
+      terminalState().layout.tabs.filter(
+        (tab) => tab.projectId === props.selection.projectId
+      ).length
   )
   const runningTasks = useStore((state) => {
     if (state.selection?.sessionId === null) {

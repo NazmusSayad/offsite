@@ -35,12 +35,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { providerNames, timeAgo } from '@/lib/format'
-import {
-  closingTerminals,
-  deactivateSession,
-  editSession,
-  removeSession,
-} from '@/lib/sessions'
+import { deactivateSession, editSession, removeSession } from '@/lib/sessions'
 import { machineOf, type MachineSession, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { SessionStatus } from './session-status'
@@ -65,11 +60,7 @@ export function DesktopSessionItem(props: {
   )
   const [title, setTitle] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
-  const [warning, setWarning] = useState({
-    open: false,
-    busy: false,
-    terminals: 0,
-  })
+  const [warning, setWarning] = useState(false)
   const field = useRef<HTMLInputElement>(null)
   const waiting = props.activity?.waiting === true
   const backgroundRunning = Object.values(props.activity?.tasks ?? {}).includes(
@@ -85,41 +76,28 @@ export function DesktopSessionItem(props: {
     void deactivateSession(session.machine, session.id, props.scope)
   }
 
-  async function deactivate() {
-    const terminals = await closingTerminals(session.machine, session.id)
-    if (terminals === null) {
-      return
-    }
-    if (busy || terminals > 0) {
-      setWarning({ open: true, busy, terminals })
+  function deactivate() {
+    if (busy) {
+      setWarning(true)
       return
     }
     makeInactive()
   }
 
   const stopDialog = (
-    <AlertDialog
-      open={warning.open}
-      onOpenChange={(open) => setWarning({ ...warning, open })}
-    >
+    <AlertDialog open={warning} onOpenChange={setWarning}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            {warning.busy ? 'Stop running work?' : 'Close terminals?'}
-          </AlertDialogTitle>
+          <AlertDialogTitle>Stop running work?</AlertDialogTitle>
           <AlertDialogDescription>
-            {warning.busy &&
-              'The agent or background tasks are running. Do you really want to stop them? '}
-            {warning.terminals > 0 &&
-              `This is the last active thread in this project, so its ${warning.terminals} terminal${warning.terminals === 1 ? '' : 's'} will also be closed.`}
+            The agent or background tasks are running. Do you really want to
+            stop them?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction variant="destructive" onClick={makeInactive}>
-            {warning.busy
-              ? 'Stop and Make Inactive'
-              : 'Close and Make Inactive'}
+            Stop and Make Inactive
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -162,7 +140,7 @@ export function DesktopSessionItem(props: {
             Make active
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem onSelect={() => void deactivate()}>
+          <DropdownMenuItem onSelect={() => deactivate()}>
             <HugeiconsIcon icon={Plug01Icon} />
             Inactive
           </DropdownMenuItem>
@@ -400,7 +378,7 @@ export function DesktopSessionItem(props: {
                 aria-label="Make inactive"
                 onClick={(event) => {
                   event.stopPropagation()
-                  void deactivate()
+                  deactivate()
                 }}
               >
                 <HugeiconsIcon
