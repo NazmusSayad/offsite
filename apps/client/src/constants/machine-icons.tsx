@@ -15,15 +15,20 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { cloneElement, type ReactElement } from 'react'
+import { BsAmd } from 'react-icons/bs'
 import { FaApple, FaChrome, FaFish, FaUbuntu, FaWindows } from 'react-icons/fa'
 import { FaUbuntu as FaUbuntu6 } from 'react-icons/fa6'
-import { GrAppleAppStore } from 'react-icons/gr'
+import { GrAppleAppStore, GrHpi } from 'react-icons/gr'
 import { ImFinder } from 'react-icons/im'
 import {
+  SiAcer,
   SiAlpinelinux,
   SiArchlinux,
+  SiArm,
+  SiAsus,
   SiCentos,
   SiDebian,
+  SiDell,
   SiDigitalocean,
   SiDocker,
   SiFedora,
@@ -31,18 +36,29 @@ import {
   SiGarudalinux,
   SiGentoo,
   SiHetzner,
+  SiHp,
+  SiHuawei,
+  SiIntel,
   SiKalilinux,
+  SiLenovo,
   SiLinuxmint,
   SiManjaro,
+  SiMsibusiness,
   SiNixos,
+  SiNvidia,
   SiOpensuse,
   SiPopos,
   SiProxmox,
+  SiQualcomm,
   SiRaspberrypi,
+  SiRazer,
   SiRedhat,
+  SiSamsung,
   SiUbuntu,
+  SiXiaomi,
   SiZsh,
 } from 'react-icons/si'
+import { TfiApple } from 'react-icons/tfi'
 import {
   VscAzure,
   VscTerminal,
@@ -56,7 +72,14 @@ import {
 
 type MachineIcon = {
   icon: ReactElement<{ className?: string }>
-  group: 'Devices' | 'Apple' | 'Windows' | 'Linux & BSD' | 'Hosting' | 'Other'
+  group:
+    | 'Devices'
+    | 'Apple'
+    | 'Windows'
+    | 'Linux & BSD'
+    | 'Hosting'
+    | 'Brands'
+    | 'Other'
 }
 
 export const machineIcons: Record<string, MachineIcon> = {
@@ -106,6 +129,10 @@ export const machineIcons: Record<string, MachineIcon> = {
   },
   applelogo: {
     icon: <FaApple size={24} />,
+    group: 'Apple',
+  },
+  appletfi: {
+    icon: <TfiApple size={24} />,
     group: 'Apple',
   },
   appstore: {
@@ -240,6 +267,70 @@ export const machineIcons: Record<string, MachineIcon> = {
   azure: {
     icon: <VscAzure size={24} />,
     group: 'Hosting',
+  },
+  asus: {
+    icon: <SiAsus size={24} />,
+    group: 'Brands',
+  },
+  dell: {
+    icon: <SiDell size={24} />,
+    group: 'Brands',
+  },
+  hp: {
+    icon: <SiHp size={24} />,
+    group: 'Brands',
+  },
+  hpi: {
+    icon: <GrHpi size={24} />,
+    group: 'Brands',
+  },
+  lenovo: {
+    icon: <SiLenovo size={24} />,
+    group: 'Brands',
+  },
+  acer: {
+    icon: <SiAcer size={24} />,
+    group: 'Brands',
+  },
+  msi: {
+    icon: <SiMsibusiness size={24} />,
+    group: 'Brands',
+  },
+  razer: {
+    icon: <SiRazer size={24} />,
+    group: 'Brands',
+  },
+  samsung: {
+    icon: <SiSamsung size={24} />,
+    group: 'Brands',
+  },
+  huawei: {
+    icon: <SiHuawei size={24} />,
+    group: 'Brands',
+  },
+  xiaomi: {
+    icon: <SiXiaomi size={24} />,
+    group: 'Brands',
+  },
+  intel: {
+    icon: <SiIntel size={24} />,
+    group: 'Brands',
+  },
+  amd: {
+    icon: <BsAmd size={24} />,
+    group: 'Brands',
+  },
+  nvidia: {
+    icon: <SiNvidia size={24} />,
+    group: 'Brands',
+  },
+  arm: {
+    icon: <SiArm size={24} />,
+    group: 'Brands',
+  },
+  qualcomm: {
+    icon: <SiQualcomm size={24} />,
+    group: 'Brands',
   },
   android: {
     icon: <HugeiconsIcon icon={AndroidIcon} />,
