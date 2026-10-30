@@ -53,6 +53,7 @@ export function MobileLayout() {
           <Button
             variant="ghost"
             size="icon-xs"
+            className="h-full w-11 rounded-none"
             aria-label="Back"
             title="Back"
             onClick={() =>

@@ -57,7 +57,6 @@ const keys = [
 
 export function TerminalPanel(props: {
   view: string
-  leading?: ReactNode
   tabSize?: 'default' | 'lg'
 }) {
   const state = useSyncExternalStore(subscribe, getState)
@@ -98,16 +97,6 @@ export function TerminalPanel(props: {
           tabs.length === 1 ? 'bg-background' : 'bg-sidebar'
         )}
       >
-        {props.leading !== undefined && (
-          <div
-            className={cn(
-              'flex flex-none items-center gap-2 px-1.5',
-              tabs.length > 1 && 'border-r border-b'
-            )}
-          >
-            {props.leading}
-          </div>
-        )}
         <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
           {tabs.map((tab) => (
             <TabMenu key={tab.id} tab={tab}>
