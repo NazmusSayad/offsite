@@ -293,7 +293,10 @@ function FileChange(props: {
   pending: boolean
 }) {
   const [open, setOpen] = useState(false)
-  const slash = props.file.lastIndexOf('/')
+  const slash = Math.max(
+    props.file.lastIndexOf('/'),
+    props.file.lastIndexOf('\\')
+  )
   let added = 0
   let removed = 0
   for (const item of props.items) {

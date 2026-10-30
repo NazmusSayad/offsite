@@ -159,5 +159,7 @@ export function text(value: unknown) {
 }
 
 export function relative(file: string, cwd: string) {
-  return file.startsWith(cwd + '/') ? file.slice(cwd.length + 1) : file
+  return file.startsWith(cwd + '/') || file.startsWith(cwd + '\\')
+    ? file.slice(cwd.length + 1)
+    : file
 }
