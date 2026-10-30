@@ -114,6 +114,16 @@ export function CodeBlock(props: { code: string; language: string }) {
                   </DropdownMenuTrigger>
                 </Tooltip>
                 <DropdownMenuContent align="end" className="w-auto">
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      saveBlob(
+                        new Blob([svg], { type: 'image/svg+xml' }),
+                        'mermaid-diagram.svg'
+                      )
+                    }
+                  >
+                    Download as SVG
+                  </DropdownMenuItem>
                   {imageFormats.map((format) => (
                     <DropdownMenuItem
                       key={format.type}
@@ -128,16 +138,6 @@ export function CodeBlock(props: { code: string; language: string }) {
                       Download as {format.label}
                     </DropdownMenuItem>
                   ))}
-                  <DropdownMenuItem
-                    onSelect={() =>
-                      saveBlob(
-                        new Blob([svg], { type: 'image/svg+xml' }),
-                        'mermaid-diagram.svg'
-                      )
-                    }
-                  >
-                    Download as SVG
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <DropdownMenu>
@@ -162,6 +162,9 @@ export function CodeBlock(props: { code: string; language: string }) {
                   >
                     Copy as Code
                   </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => void clipboard.copy(svg)}>
+                    Copy as SVG
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() =>
                       void clipboard.copyImage(
@@ -170,9 +173,6 @@ export function CodeBlock(props: { code: string; language: string }) {
                     }
                   >
                     Copy as PNG
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => void clipboard.copy(svg)}>
-                    Copy as SVG
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

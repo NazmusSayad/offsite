@@ -68,18 +68,6 @@ export function MarkdownTable(props: { children: ReactNode }) {
             </DropdownMenuTrigger>
           </Tooltip>
           <DropdownMenuContent align="end" className="w-auto">
-            {imageFormats.map((format) => (
-              <DropdownMenuItem
-                key={format.type}
-                onSelect={() =>
-                  void downloadImage(table.current, format, 'table').catch(
-                    showError
-                  )
-                }
-              >
-                Download as {format.label}
-              </DropdownMenuItem>
-            ))}
             <DropdownMenuItem
               onSelect={() =>
                 saveBlob(
@@ -104,6 +92,18 @@ export function MarkdownTable(props: { children: ReactNode }) {
             >
               Download as CSV
             </DropdownMenuItem>
+            {imageFormats.map((format) => (
+              <DropdownMenuItem
+                key={format.type}
+                onSelect={() =>
+                  void downloadImage(table.current, format, 'table').catch(
+                    showError
+                  )
+                }
+              >
+                Download as {format.label}
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>
@@ -132,19 +132,19 @@ export function MarkdownTable(props: { children: ReactNode }) {
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() =>
+                void clipboard.copy(tableText(table.current, 'csv'))
+              }
+            >
+              Copy as CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() =>
                 void clipboard.copyImage(
                   elementImage(table.current, 'image/png')
                 )
               }
             >
               Copy as PNG
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() =>
-                void clipboard.copy(tableText(table.current, 'csv'))
-              }
-            >
-              Copy as CSV
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
