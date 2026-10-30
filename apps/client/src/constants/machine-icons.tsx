@@ -68,6 +68,8 @@ import {
 import { TfiApple } from 'react-icons/tfi'
 import {
   VscAzure,
+  VscGithubAlt,
+  VscGithubInverted,
   VscTerminal,
   VscTerminalBash,
   VscTerminalCmd,
@@ -353,6 +355,14 @@ export const machineIcons: Record<string, MachineIcon> = {
   },
   vscode: {
     icon: <VscVscodeOutline size={24} />,
+    group: 'Other',
+  },
+  github: {
+    icon: <VscGithubInverted size={24} />,
+    group: 'Other',
+  },
+  githubalt: {
+    icon: <VscGithubAlt size={24} />,
     group: 'Other',
   },
   terminal: {
