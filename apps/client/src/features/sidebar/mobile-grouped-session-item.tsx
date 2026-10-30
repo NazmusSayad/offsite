@@ -1,12 +1,6 @@
 import {
   AlarmClockIcon,
-  AlarmClockOffIcon,
-  Delete02Icon,
-  MaximizeIcon,
-  MinimizeIcon,
-  PencilIcon,
   PinIcon,
-  PinOffIcon,
   Plug01Icon,
   PlugZapIcon,
   SquarePenIcon,
@@ -27,14 +21,13 @@ import {
 import {
   ContextMenu,
   ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
-import { providerNames, timeAgo } from '@/lib/format'
-import { deactivateSession, editSession, removeSession } from '@/lib/sessions'
+import { timeAgo } from '@/lib/format'
+import { deactivateSession, editSession } from '@/lib/sessions'
 import type { MachineSession } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { SessionMenuItems } from './session-menu-items'
 import { SessionStatus } from './session-status'
 
 const surface =
@@ -50,7 +43,6 @@ export function MobileGroupedSessionItem(props: {
 }) {
   const session = props.session
   const [title, setTitle] = useState<string | null>(null)
-  const [confirming, setConfirming] = useState(false)
   const [warning, setWarning] = useState(false)
   const [offset, setOffset] = useState(0)
   const field = useRef<HTMLInputElement>(null)
@@ -184,81 +176,12 @@ export function MobileGroupedSessionItem(props: {
         field.current.select()
       }}
     >
-      {session.status === 'inactive' ? (
-        <ContextMenuItem
-          onSelect={() =>
-            void editSession(session.machine, session.id, {
-              status: 'active',
-            })
-          }
-        >
-          <HugeiconsIcon icon={PlugZapIcon} />
-          Make active
-        </ContextMenuItem>
-      ) : (
-        <ContextMenuItem onSelect={() => deactivate()}>
-          <HugeiconsIcon icon={Plug01Icon} />
-          Inactive
-        </ContextMenuItem>
-      )}
-      <ContextMenuItem
-        onSelect={() =>
-          void editSession(session.machine, session.id, {
-            status: session.status === 'snoozed' ? 'active' : 'snoozed',
-          })
-        }
-      >
-        <HugeiconsIcon
-          icon={
-            session.status === 'snoozed' ? AlarmClockOffIcon : AlarmClockIcon
-          }
-        />
-        {session.status === 'snoozed' ? 'Unsnooze' : 'Snooze'}
-      </ContextMenuItem>
-      <ContextMenuItem
-        onSelect={() =>
-          void editSession(session.machine, session.id, {
-            status: session.status === 'minimized' ? 'active' : 'minimized',
-          })
-        }
-      >
-        <HugeiconsIcon
-          icon={session.status === 'minimized' ? MaximizeIcon : MinimizeIcon}
-        />
-        {session.status === 'minimized' ? 'Restore' : 'Minimize'}
-      </ContextMenuItem>
-      <ContextMenuItem
-        onSelect={() =>
-          void editSession(session.machine, session.id, {
-            status: session.status === 'pinned' ? 'active' : 'pinned',
-          })
-        }
-      >
-        <HugeiconsIcon
-          icon={session.status === 'pinned' ? PinOffIcon : PinIcon}
-        />
-        {session.status === 'pinned' ? 'Unpin' : 'Pin'}
-      </ContextMenuItem>
-      <ContextMenuSeparator />
-      <ContextMenuItem onSelect={() => setTitle(session.title)}>
-        <HugeiconsIcon icon={PencilIcon} />
-        Rename
-      </ContextMenuItem>
-      <ContextMenuItem
-        variant="destructive"
-        title={`Also removes it from ${providerNames[session.provider]}`}
-        onSelect={(event) => {
-          if (confirming) {
-            void removeSession(session.machine, session.id)
-            return
-          }
-          event.preventDefault()
-          setConfirming(true)
-        }}
-      >
-        <HugeiconsIcon icon={Delete02Icon} />
-        {confirming ? 'Tap again to delete' : 'Delete'}
-      </ContextMenuItem>
+      <SessionMenuItems
+        session={session}
+        mobile={true}
+        onDeactivate={deactivate}
+        onRename={() => setTitle(session.title)}
+      />
     </ContextMenuContent>
   )
 
@@ -312,7 +235,7 @@ export function MobileGroupedSessionItem(props: {
   return (
     <li className="relative list-none">
       {swipeBackground}
-      <ContextMenu onOpenChange={() => setConfirming(false)}>
+      <ContextMenu>
         <ContextMenuTrigger asChild disabled={!props.saved}>
           <div
             role="button"

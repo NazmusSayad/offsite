@@ -1,15 +1,8 @@
 import {
   AlarmClockIcon,
-  AlarmClockOffIcon,
-  Delete02Icon,
   EllipsisIcon,
-  MaximizeIcon,
-  MinimizeIcon,
-  PencilIcon,
   PinIcon,
-  PinOffIcon,
   Plug01Icon,
-  PlugZapIcon,
   SquarePenIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -30,14 +23,13 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { providerNames, timeAgo } from '@/lib/format'
-import { deactivateSession, editSession, removeSession } from '@/lib/sessions'
+import { timeAgo } from '@/lib/format'
+import { deactivateSession, editSession } from '@/lib/sessions'
 import { machineOf, type MachineSession, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { SessionMenuItems } from './session-menu-items'
 import { SessionStatus } from './session-status'
 
 const surface =
@@ -59,7 +51,6 @@ export function DesktopSessionItem(props: {
     (state) => machineIcons[machineOf(state, session.machine).icon]
   )
   const [title, setTitle] = useState<string | null>(null)
-  const [confirming, setConfirming] = useState(false)
   const [warning, setWarning] = useState(false)
   const field = useRef<HTMLInputElement>(null)
   const waiting = props.activity?.waiting === true
@@ -105,7 +96,7 @@ export function DesktopSessionItem(props: {
   )
 
   const menu = props.saved && (
-    <DropdownMenu onOpenChange={() => setConfirming(false)}>
+    <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
@@ -128,81 +119,12 @@ export function DesktopSessionItem(props: {
           field.current.select()
         }}
       >
-        {session.status === 'inactive' ? (
-          <DropdownMenuItem
-            onSelect={() =>
-              void editSession(session.machine, session.id, {
-                status: 'active',
-              })
-            }
-          >
-            <HugeiconsIcon icon={PlugZapIcon} />
-            Make active
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem onSelect={() => deactivate()}>
-            <HugeiconsIcon icon={Plug01Icon} />
-            Inactive
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem
-          onSelect={() =>
-            void editSession(session.machine, session.id, {
-              status: session.status === 'snoozed' ? 'active' : 'snoozed',
-            })
-          }
-        >
-          <HugeiconsIcon
-            icon={
-              session.status === 'snoozed' ? AlarmClockOffIcon : AlarmClockIcon
-            }
-          />
-          {session.status === 'snoozed' ? 'Unsnooze' : 'Snooze'}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() =>
-            void editSession(session.machine, session.id, {
-              status: session.status === 'minimized' ? 'active' : 'minimized',
-            })
-          }
-        >
-          <HugeiconsIcon
-            icon={session.status === 'minimized' ? MaximizeIcon : MinimizeIcon}
-          />
-          {session.status === 'minimized' ? 'Restore' : 'Minimize'}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() =>
-            void editSession(session.machine, session.id, {
-              status: session.status === 'pinned' ? 'active' : 'pinned',
-            })
-          }
-        >
-          <HugeiconsIcon
-            icon={session.status === 'pinned' ? PinOffIcon : PinIcon}
-          />
-          {session.status === 'pinned' ? 'Unpin' : 'Pin'}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => setTitle(session.title)}>
-          <HugeiconsIcon icon={PencilIcon} />
-          Rename
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          variant="destructive"
-          title={`Also removes it from ${providerNames[session.provider]}`}
-          onSelect={(event) => {
-            if (confirming) {
-              void removeSession(session.machine, session.id)
-              return
-            }
-            event.preventDefault()
-            setConfirming(true)
-          }}
-        >
-          <HugeiconsIcon icon={Delete02Icon} />
-          {confirming ? 'Click again to delete' : 'Delete'}
-        </DropdownMenuItem>
+        <SessionMenuItems
+          session={session}
+          mobile={false}
+          onDeactivate={deactivate}
+          onRename={() => setTitle(session.title)}
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   )
