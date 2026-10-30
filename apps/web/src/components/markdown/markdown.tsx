@@ -170,6 +170,7 @@ function MarkdownView(props: {
   streaming?: boolean
   lineBreaks?: boolean
   rawHtml?: boolean
+  components?: Components
 }) {
   const [parser] = useState(streamingParser)
   return (
@@ -191,7 +192,7 @@ function MarkdownView(props: {
         rehypePlugins={
           props.rawHtml === false ? [] : [rehypeRaw, [rehypeSanitize, schema]]
         }
-        components={components}
+        components={{ ...components, ...props.components }}
         urlTransform={(url) =>
           url.startsWith('file:') ? url : defaultUrlTransform(url)
         }

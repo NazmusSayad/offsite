@@ -1,4 +1,4 @@
-import { PanelLeftIcon, XIcon } from '@hugeicons/core-free-icons'
+import { PanelLeftIcon, ViewIcon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SourceControlRepo } from '@offsite/core/git'
 import {
@@ -13,6 +13,7 @@ import {
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { DocumentNotice } from '@/features/files/document-notice'
 import { EditorErrors } from '@/features/files/editor-errors'
 import {
   type EditorSettings,
@@ -21,6 +22,7 @@ import {
 } from '@/features/files/editor-state'
 import { EditorTabs } from '@/features/files/editor-tabs'
 import { Explorer } from '@/features/files/explorer'
+import { MarkdownPreview } from '@/features/files/markdown-preview'
 import {
   applyTheme,
   editorOptions,
@@ -139,6 +141,10 @@ export function EditorDialog(props: {
     repos?.find((item) => item.path === current?.spec.repo) ??
     repos?.at(0) ??
     null
+  const markdown =
+    original === null && modified?.getLanguageId() === 'markdown'
+      ? modified
+      : null
 
   useEffect(() => {
     applyTheme().catch(showError)
@@ -274,6 +280,15 @@ export function EditorDialog(props: {
               documents.close(active)
             }
           }
+          if (
+            (event.metaKey || event.ctrlKey) &&
+            event.shiftKey &&
+            event.key.toLowerCase() === 'v' &&
+            markdown !== null
+          ) {
+            event.preventDefault()
+            change({ preview: !settings.preview })
+          }
         }}
       >
         <div className="flex min-h-0 flex-1">
@@ -367,6 +382,19 @@ export function EditorDialog(props: {
                   onNext={() => diff?.goToDiff('next')}
                 />
               )}
+              {markdown !== null && (
+                <Button
+                  size="icon-micro"
+                  variant="ghost"
+                  className="ml-1.5 shrink-0"
+                  title="Toggle Preview"
+                  aria-label="Toggle Preview"
+                  aria-pressed={settings.preview}
+                  onClick={() => change({ preview: !settings.preview })}
+                >
+                  <HugeiconsIcon icon={ViewIcon} className="size-4" />
+                </Button>
+              )}
               <Button
                 size="icon-micro"
                 variant="ghost"
@@ -378,54 +406,53 @@ export function EditorDialog(props: {
                 <HugeiconsIcon icon={XIcon} className="size-4" />
               </Button>
             </div>
-            <div className="relative min-h-0 flex-1">
+            <div className="flex min-h-0 flex-1">
               <div
-                ref={codeHost}
                 className={cn(
-                  'absolute inset-0',
-                  (modified === null || original !== null) && 'hidden'
+                  'relative min-w-0 flex-1',
+                  markdown !== null && settings.preview && 'max-sm:hidden'
                 )}
-              />
-              <div
-                ref={diffHost}
-                className={cn(
-                  'absolute inset-0',
-                  (modified === null || original === null) && 'hidden'
+              >
+                <div
+                  ref={codeHost}
+                  className={cn(
+                    'absolute inset-0',
+                    (modified === null || original !== null) && 'hidden'
+                  )}
+                />
+                <div
+                  ref={diffHost}
+                  className={cn(
+                    'absolute inset-0',
+                    (modified === null || original === null) && 'hidden'
+                  )}
+                />
+                {current?.document.status === 'image' && (
+                  <Suspense>
+                    <ZoomableImage
+                      src={current.document.src}
+                      alt={current.spec.path}
+                    />
+                  </Suspense>
                 )}
-              />
-              {current === undefined && (
-                <p className="text-muted-foreground grid size-full place-items-center p-6 text-center text-sm">
-                  {settings.view === 'explorer'
-                    ? 'Open a file from the explorer to start editing.'
-                    : 'Select a change to see its diff.'}
-                </p>
-              )}
-              {current?.document.status === 'image' && (
-                <Suspense>
-                  <ZoomableImage
-                    src={current.document.src}
-                    alt={current.spec.path}
+                <DocumentNotice
+                  document={current?.document}
+                  view={settings.view}
+                />
+              </div>
+              {markdown !== null &&
+                settings.preview &&
+                editor !== null &&
+                current !== undefined && (
+                  <MarkdownPreview
+                    machine={props.machine}
+                    projectId={props.projectId}
+                    path={current.spec.path}
+                    model={markdown}
+                    editor={editor}
+                    onOpen={(path) => open(fileTab('', path))}
                   />
-                </Suspense>
-              )}
-              {current?.document.status === 'large' && (
-                <p className="text-muted-foreground grid size-full place-items-center p-6 text-center text-sm">
-                  This file is {formatSize(current.document.size)}, too large to
-                  open in the editor (limit {formatSize(current.document.limit)}
-                  ).
-                </p>
-              )}
-              {current?.document.status === 'binary' && (
-                <p className="text-muted-foreground grid size-full place-items-center p-6 text-center text-sm">
-                  The file is not displayed in the text editor because it is
-                  either binary or uses an unsupported text encoding.
-                </p>
-              )}
-              {current?.document.status === 'error' && (
-                <p className="text-muted-foreground grid size-full place-items-center p-6 text-center text-sm">
-                  {current.document.message}
-                </p>
-              )}
+                )}
             </div>
           </div>
         </div>
@@ -488,14 +515,4 @@ export function EditorDialog(props: {
       </DialogContent>
     </Dialog>
   )
-}
-
-function formatSize(bytes: number) {
-  if (bytes < 1024) {
-    return `${bytes} B`
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`
-  }
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }

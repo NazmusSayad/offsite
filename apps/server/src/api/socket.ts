@@ -20,6 +20,7 @@ import {
   browseToken,
   createProjectEntry,
   deleteProjectEntry,
+  linkProjectDownload,
   linkProjectMedia,
   listEntries,
   listFiles,
@@ -286,6 +287,8 @@ const handlers: Handlers = {
   },
   'files.media': (params) =>
     linkProjectMedia(projectPath(params.projectId), params.path),
+  'files.download': (params) =>
+    linkProjectDownload(projectPath(params.projectId), params.path),
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
   'files.browse': () => browseToken,

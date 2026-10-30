@@ -68,6 +68,7 @@ const prefsSchema = z.strictObject({
         .prefault({}),
       tabSize: z.number().default(2),
       wordWrap: z.boolean().default(true),
+      graph: z.boolean().default(true),
     })
     .prefault({}),
   diff: z

@@ -28,6 +28,18 @@ export async function mediaUrl(
   return `${machineUrl(machine)}/api/media?${new URLSearchParams({ token })}`
 }
 
+export async function downloadProjectFile(
+  machine: string,
+  projectId: string,
+  path: string
+) {
+  const token = await call(machine, 'files.download', { projectId, path })
+  await downloadFile(
+    `${machineUrl(machine)}/api/media?${new URLSearchParams({ token })}`,
+    path
+  )
+}
+
 export async function downloadFile(src: string, path: string) {
   const response = await fetch(src)
   if (!response.ok) {

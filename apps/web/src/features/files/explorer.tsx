@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/context-menu'
 import { NameInput } from '@/features/files/name-input'
 import { useCopy } from '@/lib/clipboard'
+import { downloadProjectFile } from '@/lib/media'
 import { showError } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
@@ -389,6 +390,19 @@ export function Explorer(props: {
               <ContextMenuItem onSelect={() => void clipboard.copy(menu.path)}>
                 Copy Relative Path
               </ContextMenuItem>
+              {!menu.folder && (
+                <ContextMenuItem
+                  onSelect={() =>
+                    void downloadProjectFile(
+                      props.machine,
+                      props.projectId,
+                      menu.path
+                    ).catch(showError)
+                  }
+                >
+                  Download
+                </ContextMenuItem>
+              )}
               <ContextMenuSeparator />
               <ContextMenuItem
                 onSelect={() => {

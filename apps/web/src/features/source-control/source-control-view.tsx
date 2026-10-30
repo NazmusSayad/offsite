@@ -37,7 +37,7 @@ import {
   ResourceGroups,
   RowAction,
 } from '@/features/source-control/resource-groups'
-import { showError } from '@/lib/store'
+import { showError, updatePrefs, useStore } from '@/lib/store'
 
 type Discarding = { repo: SourceControlRepo; resources: GitResource[] }
 
@@ -69,6 +69,7 @@ export function SourceControlView(props: {
   const repos = props.repos ?? []
   const single = repos.length === 1 ? repos[0] : null
   const settings = props.settings
+  const prefs = useStore((state) => state.prefs)
 
   function message(repo: SourceControlRepo) {
     return settings.messages[repo.path] ?? ''
@@ -324,10 +325,15 @@ export function SourceControlView(props: {
           machine={props.machine}
           projectId={props.projectId}
           repos={repos}
-          open={settings.graph}
+          open={prefs.editor.graph}
           height={settings.graphHeight}
           active={props.active}
-          onToggle={() => props.onSettings({ graph: !settings.graph })}
+          onToggle={() =>
+            updatePrefs({
+              ...prefs,
+              editor: { ...prefs.editor, graph: !prefs.editor.graph },
+            })
+          }
           onHeight={(height) => props.onSettings({ graphHeight: height })}
           onOpen={props.onOpen}
           onFetch={(repo) =>

@@ -198,6 +198,10 @@ export type RpcMethods = {
   }
   'files.delete': { params: { projectId: string; path: string }; result: null }
   'files.media': { params: { projectId: string; path: string }; result: string }
+  'files.download': {
+    params: { projectId: string; path: string }
+    result: string
+  }
   'files.upload': { params: { name: string; data: string }; result: string }
   'files.browse': { params: void; result: string }
   'browser.proxy': { params: { origin: string }; result: number }

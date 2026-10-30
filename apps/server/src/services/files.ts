@@ -146,6 +146,14 @@ export function linkProjectMedia(cwd: string, file: string) {
   return addLink(full, mediaType)
 }
 
+export function linkProjectDownload(cwd: string, file: string) {
+  const full = resolveProjectFile(cwd, file)
+  if (!statSync(full).isFile()) {
+    throw new Error(`${file} is not a file`)
+  }
+  return addLink(full, 'application/octet-stream')
+}
+
 function addLink(file: string, mediaType: string) {
   for (const [token, link] of mediaLinks) {
     if (link.expiresAt <= Date.now()) {

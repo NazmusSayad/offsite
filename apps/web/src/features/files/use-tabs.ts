@@ -10,7 +10,7 @@ import {
 import { showError } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 
-type Document =
+export type Document =
   | { status: 'loading' }
   | {
       status: 'text'
