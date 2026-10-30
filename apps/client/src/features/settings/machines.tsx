@@ -225,22 +225,33 @@ function EditMachinePage(props: { machine: Machine }) {
         </Row>
         <div className="flex min-h-13 items-start justify-between gap-x-4 gap-y-2 px-4 py-2.5 @max-lg:flex-col">
           <span className="text-sm font-medium">Icon</span>
-          <div className="grid w-full max-w-sm min-w-0 grid-cols-[repeat(auto-fill,minmax(2rem,1fr))] gap-1 @max-lg:max-w-none">
-            {Object.keys(machineIcons).map((icon) => (
-              <Button
-                key={icon}
-                title={icon}
-                size="icon-sm"
-                className="aspect-square h-auto! w-full!"
-                aria-pressed={icon === machine.icon}
-                variant={icon === machine.icon ? 'default' : 'ghost'}
-                onClick={() => editMachine(machine.id, { icon })}
-              >
-                <MachineLogo
-                  icon={icon}
-                  className="block aspect-square! h-auto! w-[66%]! min-w-0! shrink-0!"
-                />
-              </Button>
+          <div className="flex w-full max-w-sm min-w-0 flex-col gap-3 @max-lg:max-w-none">
+            {[
+              ...new Set(Object.values(machineIcons).map((item) => item.group)),
+            ].map((group) => (
+              <div key={group} className="flex flex-col gap-1">
+                <span className="text-muted-foreground text-xs">{group}</span>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(2rem,1fr))] gap-1">
+                  {Object.keys(machineIcons)
+                    .filter((icon) => machineIcons[icon].group === group)
+                    .map((icon) => (
+                      <Button
+                        key={icon}
+                        title={icon}
+                        size="icon-sm"
+                        className="aspect-square h-auto! w-full!"
+                        aria-pressed={icon === machine.icon}
+                        variant={icon === machine.icon ? 'default' : 'ghost'}
+                        onClick={() => editMachine(machine.id, { icon })}
+                      >
+                        <MachineLogo
+                          icon={icon}
+                          className="block aspect-square! h-auto! w-[66%]! min-w-0! shrink-0!"
+                        />
+                      </Button>
+                    ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
