@@ -16,7 +16,6 @@ import {
   DesktopDraftRow,
   DesktopSessionItem,
 } from '@/features/sidebar/desktop-session-item'
-import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
 import { MobileMenu, type ThreadFilter } from '@/features/sidebar/mobile-menu'
 import {
   MobileDraftRow,
@@ -41,6 +40,7 @@ import {
   showError,
   showPalette,
   showSettings,
+  showSettingsPage,
   update,
   useStore,
 } from '@/lib/store'
@@ -67,8 +67,7 @@ export function Sidebar(
     machine: string
     projectId: string
   } | null>('sidebarScope', null)
-  const [adding, setAdding] = useState(false)
-  const [addingMachine, setAddingMachine] = useState(false)
+  const [adding, setAdding] = useState<string | null>(null)
   const [editing, setEditing] = useState<MachineProject | null>(null)
   const [snoozedOpen, setSnoozedOpen] = useState(false)
   const [minimizedOpen, setMinimizedOpen] = useState(false)
@@ -163,9 +162,6 @@ export function Sidebar(
     }
   }, [showInactive, scopeMachine, scopeProject, inactiveVersion])
 
-  const folderMachine =
-    scope?.machine ?? selection?.machine ?? machines.at(0)?.id
-
   function select(
     machine: string,
     projectId: string,
@@ -176,10 +172,12 @@ export function Sidebar(
 
   function startThread() {
     const target = scope ?? selection ?? lastProject()
-    if (target === null) {
-      setAdding(true)
-    } else {
+    if (target !== null) {
       select(target.machine, target.projectId, null)
+    } else if (machines.length > 0) {
+      setAdding(machines[0].id)
+    } else {
+      showSettingsPage('Machines')
     }
   }
 
@@ -310,8 +308,7 @@ export function Sidebar(
             scope={scope}
             onScope={setScope}
             onEdit={setEditing}
-            onAddProject={() => setAdding(true)}
-            onAddMachine={() => setAddingMachine(true)}
+            onAddProject={setAdding}
           />
           {props.mobile && <StatusChips hideDone />}
           <button
@@ -449,21 +446,15 @@ export function Sidebar(
           </div>
         )}
       </div>
-      {adding && folderMachine === undefined && (
-        <AddMachineDialog onClose={() => setAdding(false)} />
-      )}
-      {adding && folderMachine !== undefined && (
+      {adding !== null && (
         <FolderDialog
-          machine={folderMachine}
-          onClose={() => setAdding(false)}
+          machine={adding}
+          onClose={() => setAdding(null)}
           onAdd={(project) => {
-            setAdding(false)
+            setAdding(null)
             select(project.machine, project.id, null)
           }}
         />
-      )}
-      {addingMachine && (
-        <AddMachineDialog onClose={() => setAddingMachine(false)} />
       )}
       {editing !== null && (
         <EditProjectDialog

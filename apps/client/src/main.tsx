@@ -4,6 +4,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { listen, startConnections } from '@/api/connection'
 import { start } from '@/api/sync'
+import { App } from '@/app'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { loadDrafts } from '@/features/composer/drafts'
 import { startTerminal } from '@/features/terminal/session'
@@ -67,6 +68,7 @@ listen({
 })
 start()
 void startTerminal()
+router.routeTree.update({ component: App })
 createRoot(root).render(
   <StrictMode>
     <ErrorBoundary>

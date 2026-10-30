@@ -1,7 +1,6 @@
 import {
   Add01Icon,
   ChevronDownIcon,
-  ComputerIcon,
   InboxIcon,
   Settings01Icon,
 } from '@hugeicons/core-free-icons'
@@ -32,8 +31,7 @@ export function ScopeMenu(props: {
   scope: { machine: string; projectId: string } | null
   onScope: (scope: { machine: string; projectId: string } | null) => void
   onEdit: (project: MachineProject) => void
-  onAddProject: () => void
-  onAddMachine: () => void
+  onAddProject: (machine: string) => void
 }) {
   const machines = useStore((state) => state.machines)
   const registered = useStore((state) => state.projects)
@@ -55,7 +53,7 @@ export function ScopeMenu(props: {
             : 0
         ),
     }))
-    .filter((group) => group.projects.length > 0)
+    .filter((group) => machines.length > 1 || group.projects.length > 0)
   const attention = sessions.filter((session) => {
     const activity = activityOf(machines, session.machine, session.id)
     return (
@@ -144,13 +142,24 @@ export function ScopeMenu(props: {
             <Fragment key={machine.id}>
               {index > 0 && <DropdownMenuSeparator />}
               {machines.length > 1 && (
-                <DropdownMenuLabel className="text-2xs flex items-center gap-1 pl-5">
-                  <HugeiconsIcon
-                    icon={machineIcons[machine.icon]}
-                    className="size-3 shrink-0"
-                  />
-                  <span className="truncate">{machineLabel(machine)}</span>
-                </DropdownMenuLabel>
+                <div className="flex items-center">
+                  <DropdownMenuLabel className="flex min-w-0 flex-1 items-center gap-2 pl-2.5">
+                    <HugeiconsIcon
+                      icon={machineIcons[machine.icon]}
+                      className="size-3.5 shrink-0"
+                    />
+                    <span className="truncate">{machineLabel(machine)}</span>
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem
+                    className="text-muted-foreground grid size-7 shrink-0 place-items-center p-0"
+                    title={`Add project to ${machine.name}`}
+                    aria-label={`Add project to ${machine.name}`}
+                    disabled={machine.status !== 'online'}
+                    onSelect={() => props.onAddProject(machine.id)}
+                  >
+                    <HugeiconsIcon icon={Add01Icon} />
+                  </DropdownMenuItem>
+                </div>
               )}
               <Reorder.Group
                 as="div"
@@ -241,15 +250,18 @@ export function ScopeMenu(props: {
             </Fragment>
           ))}
         </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="pl-8" onSelect={props.onAddProject}>
-          <HugeiconsIcon icon={Add01Icon} />
-          Add project…
-        </DropdownMenuItem>
-        <DropdownMenuItem className="pl-8" onSelect={props.onAddMachine}>
-          <HugeiconsIcon icon={ComputerIcon} />
-          Add machine…
-        </DropdownMenuItem>
+        {machines.length === 1 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="pl-8"
+              onSelect={() => props.onAddProject(machines[0].id)}
+            >
+              <HugeiconsIcon icon={Add01Icon} />
+              Add project…
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

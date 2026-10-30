@@ -5,7 +5,6 @@ import {
   redirect,
 } from '@tanstack/react-router'
 import { z } from 'zod'
-import { App } from '@/app'
 import { lastTerminalMachine } from '@/lib/sessions'
 
 const searchSchema = z.object({
@@ -22,7 +21,6 @@ export type Search = z.infer<typeof searchSchema>
 
 const rootRoute = createRootRoute({
   validateSearch: searchSchema,
-  component: App,
 })
 
 const indexRoute = createRoute({
