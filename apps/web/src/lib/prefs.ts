@@ -41,6 +41,7 @@ const prefsSchema = z.strictObject({
           bellSound: z.boolean().default(true),
           clickToMoveCursor: z.boolean().default(true),
           optionAsMeta: z.enum(['off', 'left', 'right', 'both']).default('off'),
+          windowsCopyPaste: z.boolean().default(true),
           confirmCloseBusyTab: z.boolean().default(true),
         })
         .prefault({}),

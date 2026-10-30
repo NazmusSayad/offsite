@@ -11,7 +11,7 @@ import { imagePasteKeys } from '@/features/terminal/clipboard'
 import { builtinFonts } from '@/features/terminal/config'
 import type { Prefs, TerminalPrefs } from '@/lib/prefs'
 import { updatePrefs } from '@/lib/store'
-import { isMac } from '@/lib/utils'
+import { isMac, isWindows } from '@/lib/utils'
 import { NumberInput, Row, Section, TextInput } from './controls'
 
 type Behavior = TerminalPrefs['behavior']
@@ -129,6 +129,10 @@ export function TerminalPage(props: { prefs: Prefs }) {
         behavior={terminal.behavior}
         onChange={(value) => update('behavior', value)}
       />
+      <WindowsKeysSection
+        behavior={terminal.behavior}
+        onChange={(value) => update('behavior', value)}
+      />
       <Section title="Layout">
         {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
           <Row key={side} label={`Padding ${side}`}>
@@ -231,6 +235,30 @@ function MacKeysSection(props: {
             <SelectItem value="both">Both Options</SelectItem>
           </SelectContent>
         </Select>
+      </Row>
+    </Section>
+  )
+}
+
+function WindowsKeysSection(props: {
+  behavior: Behavior
+  onChange: (value: Partial<Behavior>) => void
+}) {
+  if (!isWindows) {
+    return null
+  }
+  return (
+    <Section
+      title="Windows keys"
+      note="Ctrl+C sends an interrupt when nothing is selected. Ctrl+Shift+C and Ctrl+Shift+V always copy and paste"
+    >
+      <Row label="Ctrl+C copies the selection and Ctrl+V pastes">
+        <Switch
+          checked={props.behavior.windowsCopyPaste}
+          onCheckedChange={(windowsCopyPaste) =>
+            props.onChange({ windowsCopyPaste })
+          }
+        />
       </Row>
     </Section>
   )

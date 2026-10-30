@@ -58,6 +58,7 @@ export function terminalOptions(
     version: terminalVersion(identity),
     clickToMoveCursor: config.behavior.clickToMoveCursor,
     optionAsMeta: config.behavior.optionAsMeta,
+    windowsCopyPaste: config.behavior.windowsCopyPaste,
   }
 }
 

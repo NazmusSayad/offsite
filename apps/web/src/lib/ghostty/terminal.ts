@@ -45,6 +45,7 @@ export type TerminalOptions = {
   version: string
   clickToMoveCursor: boolean
   optionAsMeta: OptionAsMeta
+  windowsCopyPaste: boolean
 }
 
 export type OptionAsMeta = 'off' | 'left' | 'right' | 'both'
@@ -74,6 +75,7 @@ export type ClipboardQuery = {
 type Chunk = { data: Uint8Array; replay: boolean }
 
 const isMac = navigator.userAgent.includes('Mac')
+const isWindows = navigator.userAgent.includes('Windows')
 const BLINK_INTERVAL = 600
 const SYNC_TIMEOUT = 1000
 const IMAGE_TIMEOUT = 10_000
@@ -823,6 +825,21 @@ export class Terminal {
       return
     }
     const key = event.key.toLowerCase()
+    const windowsCtrl =
+      isWindows &&
+      this.options.windowsCopyPaste &&
+      event.ctrlKey &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !event.metaKey
+    if (windowsCtrl && key === 'c' && this.core.selectionText().length > 0) {
+      this.copySelection()
+      this.core.clearSelection()
+      this.redraw()
+      event.preventDefault()
+      this.suppressedKeys.add(event.code)
+      return
+    }
     const copy = isMac
       ? event.metaKey && key === 'c'
       : (event.ctrlKey && event.shiftKey && key === 'c') ||
@@ -836,7 +853,8 @@ export class Terminal {
     const paste = isMac
       ? event.metaKey && key === 'v'
       : (event.ctrlKey && event.shiftKey && key === 'v') ||
-        (event.shiftKey && !event.ctrlKey && key === 'insert')
+        (event.shiftKey && !event.ctrlKey && key === 'insert') ||
+        (windowsCtrl && key === 'v')
     if (paste || (isMac && event.metaKey && key === 'q')) {
       this.suppressedKeys.add(event.code)
       return

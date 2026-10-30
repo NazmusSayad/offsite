@@ -1,6 +1,7 @@
 import { Terminal } from '@/lib/ghostty/terminal'
 import { getState as appState, machineOf } from '@/lib/store'
 import { openBrowser } from '@/lib/url'
+import { isWindows } from '@/lib/utils'
 import { beep, isSeen, notifyFromProgram, ringBell } from './attention'
 import {
   imagePasteKeys,
@@ -110,7 +111,8 @@ export function createSession(id: number) {
         getState().status === 'active' &&
         config.behavior.pasteBrowserImages &&
         window.isSecureContext &&
-        isImagePasteKey(event, platform)
+        isImagePasteKey(event, platform) &&
+        !(isWindows && config.behavior.windowsCopyPaste && event.ctrlKey)
       ) {
         event.preventDefault()
         const data = imagePasteKeys[platform].data

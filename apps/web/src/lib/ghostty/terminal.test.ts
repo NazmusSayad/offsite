@@ -26,6 +26,7 @@ const options = {
   version: 'offsite 0.0.0',
   clickToMoveCursor: true,
   optionAsMeta: 'off' as const,
+  windowsCopyPaste: true,
 }
 
 function open() {
