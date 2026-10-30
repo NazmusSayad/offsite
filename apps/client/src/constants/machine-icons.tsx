@@ -15,7 +15,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { cloneElement, type ReactElement } from 'react'
-import { FaApple, FaChrome, FaUbuntu, FaWindows } from 'react-icons/fa'
+import { FaApple, FaChrome, FaFish, FaUbuntu, FaWindows } from 'react-icons/fa'
 import { FaUbuntu as FaUbuntu6 } from 'react-icons/fa6'
 import { GrAppleAppStore } from 'react-icons/gr'
 import { ImFinder } from 'react-icons/im'
@@ -41,8 +41,18 @@ import {
   SiRaspberrypi,
   SiRedhat,
   SiUbuntu,
+  SiZsh,
 } from 'react-icons/si'
-import { VscTerminalLinux } from 'react-icons/vsc'
+import {
+  VscAzure,
+  VscTerminal,
+  VscTerminalBash,
+  VscTerminalCmd,
+  VscTerminalGitBash,
+  VscTerminalLinux,
+  VscTerminalPowershell,
+  VscVscodeOutline,
+} from 'react-icons/vsc'
 
 type MachineIcon = {
   icon: ReactElement<{ className?: string }>
@@ -125,6 +135,14 @@ export const machineIcons: Record<string, MachineIcon> = {
         </g>
       </svg>
     ),
+    group: 'Windows',
+  },
+  powershell: {
+    icon: <VscTerminalPowershell size={24} />,
+    group: 'Windows',
+  },
+  cmd: {
+    icon: <VscTerminalCmd size={24} />,
     group: 'Windows',
   },
   linux: {
@@ -219,12 +237,40 @@ export const machineIcons: Record<string, MachineIcon> = {
     icon: <SiHetzner size={24} />,
     group: 'Hosting',
   },
+  azure: {
+    icon: <VscAzure size={24} />,
+    group: 'Hosting',
+  },
   android: {
     icon: <HugeiconsIcon icon={AndroidIcon} />,
     group: 'Other',
   },
   chrome: {
     icon: <FaChrome size={24} />,
+    group: 'Other',
+  },
+  vscode: {
+    icon: <VscVscodeOutline size={24} />,
+    group: 'Other',
+  },
+  terminal: {
+    icon: <VscTerminal size={24} />,
+    group: 'Other',
+  },
+  bash: {
+    icon: <VscTerminalBash size={24} />,
+    group: 'Other',
+  },
+  gitbash: {
+    icon: <VscTerminalGitBash size={24} />,
+    group: 'Other',
+  },
+  zsh: {
+    icon: <SiZsh size={24} />,
+    group: 'Other',
+  },
+  fish: {
+    icon: <FaFish size={24} />,
     group: 'Other',
   },
 }
