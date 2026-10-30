@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc",
-    "dev": "node --watch-path=src src/main.ts --port 47842 --dir $HOME/.offsite-dev --no-auth",
+    "dev": "node --watch-path=src src/main.ts --port 37842 --dir $HOME/.offsite-dev --no-auth",
     "build": "tsdown --config ./tsdown.config.ts",
     "db:generate": "drizzle-kit generate"
   },
