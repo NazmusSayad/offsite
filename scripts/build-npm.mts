@@ -26,7 +26,7 @@ for (const folder of [
   ['apps', 'server', 'drizzle'],
   ['apps', 'server', 'src', 'services', 'terminal', 'shell-integration'],
   ['apps', 'server', 'src', 'services', 'open'],
-  ['apps', 'web', 'dist'],
+  ['apps', 'client', 'dist'],
 ]) {
   cpSync(path.join(root, ...folder), path.join(output, ...folder), {
     recursive: true,

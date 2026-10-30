@@ -10,7 +10,7 @@ const folder = path.join(
   import.meta.dirname,
   '..',
   'apps',
-  'web',
+  'client',
   'src',
   'lib',
   'ghostty'

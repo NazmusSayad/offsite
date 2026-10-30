@@ -101,7 +101,7 @@ export default defineConfig({
       env: { node: true },
     },
     {
-      files: ['apps/web/src/sw.js'],
+      files: ['apps/client/src/sw.js'],
       env: { serviceworker: true },
     },
     {
@@ -189,7 +189,7 @@ export default defineConfig({
       },
     },
     {
-      files: ['apps/web/src/lib/ghostty/**'],
+      files: ['apps/client/src/lib/ghostty/**'],
       rules: {
         'max-lines': 'off',
       },

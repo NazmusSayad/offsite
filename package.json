@@ -1,13 +1,14 @@
 {
   "private": true,
   "scripts": {
-    "dev": "OFFSITE_CONNECT=http://127.0.0.1:37842 pnpm -r --parallel dev",
-    "build": "pnpm --filter web build && pnpm --filter server build",
+    "dev": "OFFSITE_CONNECT=http://127.0.0.1:37842 pnpm --filter server --filter client --parallel dev",
+    "web": "pnpm --filter web dev",
+    "build": "pnpm --filter client build && pnpm --filter server build",
     "start": "node apps/server/dist/main.mjs",
     "typecheck": "tsc -p tsconfig.json && pnpm -r typecheck",
     "lint": "pnpm typecheck && oxlint .",
     "lint:fix": "oxlint . --fix && oxfmt",
-    "test": "pnpm --filter web test",
+    "test": "pnpm --filter client test",
     "prepare": "husky"
   },
   "devDependencies": {

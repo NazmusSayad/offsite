@@ -6,7 +6,7 @@ const apps = path.join(import.meta.dirname, '..', 'apps')
 const source = path.join(apps, 'core', 'logo.svg')
 const svg = readFileSync(source)
 
-for (const app of ['web', 'landing']) {
+for (const app of ['client', 'web']) {
   copyFileSync(source, path.join(apps, app, 'public', 'icon.svg'))
 }
 
@@ -19,5 +19,5 @@ for (const [file, size] of [
   await sharp(svg, { density: 300 })
     .resize(size, size)
     .png()
-    .toFile(path.join(apps, 'web', 'public', file))
+    .toFile(path.join(apps, 'client', 'public', file))
 }

@@ -1,4 +1,4 @@
-<img src="apps/web/public/icon-512.png" width="96" alt="OffSite logo">
+<img src="apps/client/public/icon-512.png" width="96" alt="OffSite logo">
 
 # OffSite
 

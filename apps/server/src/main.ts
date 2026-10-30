@@ -106,7 +106,7 @@ if (findClaude() === null) {
   process.exit(1)
 }
 
-const publicDir = path.join(import.meta.dirname, '..', '..', 'web', 'dist')
+const publicDir = path.join(import.meta.dirname, '..', '..', 'client', 'dist')
 const code = args.auth && args.pair && !hasDevices() ? addCode(null) : null
 const tickets = new Map<string, { device: string; expiresAt: number }>()
 
