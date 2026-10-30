@@ -4,7 +4,6 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc",
     "test": "vitest run"
   },
   "dependencies": {

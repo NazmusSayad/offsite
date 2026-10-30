@@ -5,7 +5,7 @@
     "web": "pnpm --filter web dev",
     "build": "pnpm --filter client build && pnpm --filter server build",
     "start": "node apps/server/dist/main.mjs",
-    "typecheck": "tsc -p tsconfig.json && pnpm -r typecheck",
+    "typecheck": "tsc -p tsconfig.json && pnpm -r exec tsc",
     "lint": "pnpm typecheck && oxlint .",
     "lint:fix": "oxlint . --fix && oxfmt",
     "test": "pnpm --filter client test",

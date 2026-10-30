@@ -4,9 +4,6 @@
   "exports": {
     "./*": "./src/*.ts"
   },
-  "scripts": {
-    "typecheck": "tsc"
-  },
   "devDependencies": {
     "typescript": "^7.0.2"
   }

@@ -3,8 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
-    "typecheck": "tsc"
+    "build": "astro build"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
