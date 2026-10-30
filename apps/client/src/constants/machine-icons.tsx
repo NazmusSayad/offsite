@@ -144,11 +144,11 @@ export const machineIcons: Record<string, MachineIcon> = {
     group: 'Apple',
   },
   applelogo: {
-    icon: <FaApple size={24} />,
+    icon: <FaApple size={24} viewBox="-52 12 489 489" />,
     group: 'Apple',
   },
   appletfi: {
-    icon: <TfiApple size={24} />,
+    icon: <TfiApple size={24} viewBox="-0.77 -0.77 18.54 18.54" />,
     group: 'Apple',
   },
   appstore: {
