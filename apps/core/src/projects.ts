@@ -3,9 +3,14 @@ export type Project = {
   path: string
   name: string
   logo: string | null
+  hidden: boolean
 }
 
-export type ProjectPatch = { name?: string; logo?: string | null }
+export type ProjectPatch = {
+  name?: string
+  logo?: string | null
+  hidden?: boolean
+}
 
 export type DirectoryListing = {
   path: string

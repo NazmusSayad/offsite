@@ -20,6 +20,7 @@ export function projects(): Project[] {
       path: projectsTable.path,
       name: projectsTable.name,
       logo: projectsTable.logo,
+      hidden: projectsTable.hidden,
     })
     .from(projectsTable)
     .orderBy(projectsTable.position)
@@ -79,6 +80,12 @@ export async function updateProject(id: string, patch: ProjectPatch) {
       .set({
         logo: patch.logo === null ? null : await prepareLogo(patch.logo),
       })
+      .where(eq(projectsTable.id, id))
+      .run()
+  }
+  if (patch.hidden !== undefined) {
+    db.update(projectsTable)
+      .set({ hidden: patch.hidden })
       .where(eq(projectsTable.id, id))
       .run()
   }

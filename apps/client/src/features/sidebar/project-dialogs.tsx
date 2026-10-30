@@ -26,13 +26,6 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { IconPickerDialog } from '@/features/sidebar/icon-picker-dialog'
 import { projectName } from '@/lib/format'
 import { type Machine, type MachineProject, useStore } from '@/lib/store'
@@ -44,7 +37,6 @@ export function FolderDialog(props: {
   onAdd: (project: MachineProject) => void
 }) {
   const machines = useStore((state) => state.machines)
-  const [machine, setMachine] = useState(props.machine)
   const [loaded, setLoaded] = useState<{
     path: string
     listing: DirectoryListing
@@ -72,7 +64,7 @@ export function FolderDialog(props: {
     let cancelled = false
     const timer = setTimeout(async () => {
       try {
-        const next = await call(machine, 'directories.list', { path })
+        const next = await call(props.machine, 'directories.list', { path })
         if (cancelled) {
           return
         }
@@ -90,7 +82,7 @@ export function FolderDialog(props: {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [machine, path])
+  }, [props.machine, path])
 
   return (
     <Dialog open onOpenChange={() => props.onClose()}>
@@ -174,31 +166,6 @@ export function FolderDialog(props: {
           </p>
         )}
         <DialogFooter className="border-t p-3">
-          {machines.length > 1 && (
-            <Select
-              value={machine}
-              onValueChange={(next) => {
-                setMachine(next)
-                setLoaded(null)
-                open(workingDir(machines.find((item) => item.id === next)))
-              }}
-            >
-              <SelectTrigger className="sm:mr-auto sm:w-56">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {machines.map((item) => (
-                  <SelectItem
-                    key={item.id}
-                    value={item.id}
-                    disabled={item.status !== 'online'}
-                  >
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
           <Button
             disabled={loaded?.path !== path || adding}
             onClick={async () => {
@@ -208,8 +175,8 @@ export function FolderDialog(props: {
               setAdding(true)
               try {
                 props.onAdd({
-                  ...(await addProject(machine, loaded.listing.path)),
-                  machine,
+                  ...(await addProject(props.machine, loaded.listing.path)),
+                  machine: props.machine,
                 })
               } catch (failure) {
                 setError(errorMessage(failure))

@@ -6,6 +6,7 @@ export const projects = snakeCase.table('projects', {
   name: text().notNull(),
   logo: text(),
   position: integer().notNull().default(0),
+  hidden: integer({ mode: 'boolean' }).notNull().default(false),
 })
 
 export const sessions = snakeCase.table('sessions', {
