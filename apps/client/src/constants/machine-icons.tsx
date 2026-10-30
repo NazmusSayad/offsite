@@ -50,28 +50,70 @@ type MachineIcon = {
 }
 
 export const machineIcons: Record<string, MachineIcon> = {
-  computer: { icon: <HugeiconsIcon icon={ComputerIcon} />, group: 'Devices' },
-  laptop: { icon: <HugeiconsIcon icon={LaptopIcon} />, group: 'Devices' },
+  computer: {
+    icon: <HugeiconsIcon icon={ComputerIcon} />,
+    group: 'Devices',
+  },
+  laptop: {
+    icon: <HugeiconsIcon icon={LaptopIcon} />,
+    group: 'Devices',
+  },
   server: {
     icon: <HugeiconsIcon icon={ServerStack01Icon} />,
     group: 'Devices',
   },
-  cloud: { icon: <HugeiconsIcon icon={CloudServerIcon} />, group: 'Devices' },
-  home: { icon: <HugeiconsIcon icon={Home01Icon} />, group: 'Devices' },
-  office: { icon: <HugeiconsIcon icon={Building03Icon} />, group: 'Devices' },
-  drive: { icon: <HugeiconsIcon icon={HardDriveIcon} />, group: 'Devices' },
-  raspberrypi: { icon: <SiRaspberrypi size={24} />, group: 'Devices' },
-  macos: { icon: <HugeiconsIcon icon={AppleFinderIcon} />, group: 'Apple' },
-  finder: { icon: <ImFinder size={24} />, group: 'Apple' },
-  apple: { icon: <HugeiconsIcon icon={AppleIcon} />, group: 'Apple' },
-  applelogo: { icon: <FaApple size={24} />, group: 'Apple' },
-  appstore: { icon: <GrAppleAppStore size={24} />, group: 'Apple' },
+  cloud: {
+    icon: <HugeiconsIcon icon={CloudServerIcon} />,
+    group: 'Devices',
+  },
+  home: {
+    icon: <HugeiconsIcon icon={Home01Icon} />,
+    group: 'Devices',
+  },
+  office: {
+    icon: <HugeiconsIcon icon={Building03Icon} />,
+    group: 'Devices',
+  },
+  drive: {
+    icon: <HugeiconsIcon icon={HardDriveIcon} />,
+    group: 'Devices',
+  },
+  raspberrypi: {
+    icon: <SiRaspberrypi size={24} />,
+    group: 'Devices',
+  },
+  macos: {
+    icon: <HugeiconsIcon icon={AppleFinderIcon} />,
+    group: 'Apple',
+  },
+  finder: {
+    icon: <ImFinder size={24} />,
+    group: 'Apple',
+  },
+  apple: {
+    icon: <HugeiconsIcon icon={AppleIcon} />,
+    group: 'Apple',
+  },
+  applelogo: {
+    icon: <FaApple size={24} />,
+    group: 'Apple',
+  },
+  appstore: {
+    icon: <GrAppleAppStore size={24} />,
+    group: 'Apple',
+  },
   appstoreoutline: {
     icon: <HugeiconsIcon icon={AppStoreIcon} />,
     group: 'Apple',
   },
-  windows: { icon: <HugeiconsIcon icon={MicrosoftIcon} />, group: 'Windows' },
-  windowslogo: { icon: <FaWindows size={24} />, group: 'Windows' },
+  windows: {
+    icon: <HugeiconsIcon icon={MicrosoftIcon} />,
+    group: 'Windows',
+  },
+  windowslogo: {
+    icon: <FaWindows size={24} />,
+    group: 'Windows',
+  },
   wsl: {
     icon: (
       <svg viewBox="0 0 380 380" width={24} height={24} fill="currentColor">
@@ -85,31 +127,106 @@ export const machineIcons: Record<string, MachineIcon> = {
     ),
     group: 'Windows',
   },
-  linux: { icon: <VscTerminalLinux size={24} />, group: 'Linux & BSD' },
-  ubuntu: { icon: <SiUbuntu size={24} />, group: 'Linux & BSD' },
-  ubuntufa: { icon: <FaUbuntu size={24} />, group: 'Linux & BSD' },
-  ubuntufa6: { icon: <FaUbuntu6 size={24} />, group: 'Linux & BSD' },
-  linuxmint: { icon: <SiLinuxmint size={24} />, group: 'Linux & BSD' },
-  archlinux: { icon: <SiArchlinux size={24} />, group: 'Linux & BSD' },
-  garuda: { icon: <SiGarudalinux size={24} />, group: 'Linux & BSD' },
-  kali: { icon: <SiKalilinux size={24} />, group: 'Linux & BSD' },
-  debian: { icon: <SiDebian size={24} />, group: 'Linux & BSD' },
-  fedora: { icon: <SiFedora size={24} />, group: 'Linux & BSD' },
-  centos: { icon: <SiCentos size={24} />, group: 'Linux & BSD' },
-  redhat: { icon: <SiRedhat size={24} />, group: 'Linux & BSD' },
-  opensuse: { icon: <SiOpensuse size={24} />, group: 'Linux & BSD' },
-  manjaro: { icon: <SiManjaro size={24} />, group: 'Linux & BSD' },
-  nixos: { icon: <SiNixos size={24} />, group: 'Linux & BSD' },
-  popos: { icon: <SiPopos size={24} />, group: 'Linux & BSD' },
-  alpine: { icon: <SiAlpinelinux size={24} />, group: 'Linux & BSD' },
-  gentoo: { icon: <SiGentoo size={24} />, group: 'Linux & BSD' },
-  freebsd: { icon: <SiFreebsd size={24} />, group: 'Linux & BSD' },
-  docker: { icon: <SiDocker size={24} />, group: 'Hosting' },
-  proxmox: { icon: <SiProxmox size={24} />, group: 'Hosting' },
-  digitalocean: { icon: <SiDigitalocean size={24} />, group: 'Hosting' },
-  hetzner: { icon: <SiHetzner size={24} />, group: 'Hosting' },
-  android: { icon: <HugeiconsIcon icon={AndroidIcon} />, group: 'Other' },
-  chrome: { icon: <FaChrome size={24} />, group: 'Other' },
+  linux: {
+    icon: <VscTerminalLinux size={24} />,
+    group: 'Linux & BSD',
+  },
+  ubuntu: {
+    icon: <SiUbuntu size={24} />,
+    group: 'Linux & BSD',
+  },
+  ubuntufa: {
+    icon: <FaUbuntu size={24} />,
+    group: 'Linux & BSD',
+  },
+  ubuntufa6: {
+    icon: <FaUbuntu6 size={24} />,
+    group: 'Linux & BSD',
+  },
+  linuxmint: {
+    icon: <SiLinuxmint size={24} />,
+    group: 'Linux & BSD',
+  },
+  archlinux: {
+    icon: <SiArchlinux size={24} />,
+    group: 'Linux & BSD',
+  },
+  garuda: {
+    icon: <SiGarudalinux size={24} />,
+    group: 'Linux & BSD',
+  },
+  kali: {
+    icon: <SiKalilinux size={24} />,
+    group: 'Linux & BSD',
+  },
+  debian: {
+    icon: <SiDebian size={24} />,
+    group: 'Linux & BSD',
+  },
+  fedora: {
+    icon: <SiFedora size={24} />,
+    group: 'Linux & BSD',
+  },
+  centos: {
+    icon: <SiCentos size={24} />,
+    group: 'Linux & BSD',
+  },
+  redhat: {
+    icon: <SiRedhat size={24} />,
+    group: 'Linux & BSD',
+  },
+  opensuse: {
+    icon: <SiOpensuse size={24} />,
+    group: 'Linux & BSD',
+  },
+  manjaro: {
+    icon: <SiManjaro size={24} />,
+    group: 'Linux & BSD',
+  },
+  nixos: {
+    icon: <SiNixos size={24} />,
+    group: 'Linux & BSD',
+  },
+  popos: {
+    icon: <SiPopos size={24} />,
+    group: 'Linux & BSD',
+  },
+  alpine: {
+    icon: <SiAlpinelinux size={24} />,
+    group: 'Linux & BSD',
+  },
+  gentoo: {
+    icon: <SiGentoo size={24} />,
+    group: 'Linux & BSD',
+  },
+  freebsd: {
+    icon: <SiFreebsd size={24} />,
+    group: 'Linux & BSD',
+  },
+  docker: {
+    icon: <SiDocker size={24} />,
+    group: 'Hosting',
+  },
+  proxmox: {
+    icon: <SiProxmox size={24} />,
+    group: 'Hosting',
+  },
+  digitalocean: {
+    icon: <SiDigitalocean size={24} />,
+    group: 'Hosting',
+  },
+  hetzner: {
+    icon: <SiHetzner size={24} />,
+    group: 'Hosting',
+  },
+  android: {
+    icon: <HugeiconsIcon icon={AndroidIcon} />,
+    group: 'Other',
+  },
+  chrome: {
+    icon: <FaChrome size={24} />,
+    group: 'Other',
+  },
 }
 
 export function MachineLogo(props: {
