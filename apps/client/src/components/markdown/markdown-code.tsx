@@ -117,6 +117,18 @@ export function CodeBlock(props: { code: string; language: string }) {
                   <DropdownMenuItem
                     onSelect={() =>
                       saveBlob(
+                        new Blob([props.code], {
+                          type: 'text/plain;charset=utf-8',
+                        }),
+                        'mermaid-diagram.mmd'
+                      )
+                    }
+                  >
+                    Download as Code
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      saveBlob(
                         new Blob([svg], { type: 'image/svg+xml' }),
                         'mermaid-diagram.svg'
                       )
