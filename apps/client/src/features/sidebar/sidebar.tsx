@@ -25,6 +25,7 @@ import {
   EditProjectDialog,
   FolderDialog,
 } from '@/features/sidebar/project-dialogs'
+import { ProjectGroup } from '@/features/sidebar/project-group'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
 import { StatusChips } from '@/features/sidebar/status-chips'
 import {
@@ -63,6 +64,9 @@ export function Sidebar(
   const loaded = useStore((state) => state.loaded)
   const inactive = useStore((state) => state.inactive)
   const inactiveVersion = useStore((state) => state.inactiveVersion)
+  const groupActiveByProject = useStore(
+    (state) => state.prefs.groupActiveByProject
+  )
   const [scope, setScope] = useLocalStorage<{
     machine: string
     projectId: string
@@ -128,6 +132,18 @@ export function Sidebar(
           status: 'active' as const,
         }
       : null
+  const draft =
+    selection !== null && selection.sessionId === null ? selection : null
+  const listed = started === null ? active : [started, ...active]
+  const grouped = groupActiveByProject && scope === null
+  const groups = [
+    ...new Map(
+      [...(draft === null ? [] : [draft]), ...listed].map((item) => [
+        machineKey(item.machine, item.projectId),
+        item,
+      ])
+    ),
+  ]
 
   const Draft = props.mobile ? MobileDraftRow : DesktopDraftRow
 
@@ -343,17 +359,34 @@ export function Sidebar(
             )}
             {(!props.mobile || filter === 'active') && (
               <>
-                {selection !== null && selection.sessionId === null && (
-                  <Draft
-                    machine={selection.machine}
-                    projectId={selection.projectId}
-                    onSelect={() =>
-                      select(selection.machine, selection.projectId, null)
-                    }
-                  />
+                {grouped ? (
+                  groups.map(([key, group]) => (
+                    <ProjectGroup
+                      key={key}
+                      machine={group.machine}
+                      projectId={group.projectId}
+                      sessions={listed.filter(
+                        (session) =>
+                          machineKey(session.machine, session.projectId) === key
+                      )}
+                      started={started}
+                      mobile={props.mobile}
+                    />
+                  ))
+                ) : (
+                  <>
+                    {draft !== null && (
+                      <Draft
+                        machine={draft.machine}
+                        projectId={draft.projectId}
+                        onSelect={() =>
+                          select(draft.machine, draft.projectId, null)
+                        }
+                      />
+                    )}
+                    {listed.map((session) => row(session, false))}
+                  </>
                 )}
-                {started !== null && row(started, false)}
-                {active.map((session) => row(session, false))}
                 {active.length === 0 &&
                   started === null &&
                   selection?.sessionId !== null && (

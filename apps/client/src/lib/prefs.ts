@@ -79,6 +79,7 @@ const prefsSchema = z.strictObject({
     })
     .prefault({}),
   rewind: z.enum(['all', 'chat', 'code']).default('chat'),
+  groupActiveByProject: z.boolean().default(false),
 })
 
 export type Prefs = z.infer<typeof prefsSchema>

@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import type { Prefs } from '@/lib/prefs'
 import { updatePrefs } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
@@ -35,6 +36,16 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
               ))}
             </SelectContent>
           </Select>
+        </Row>
+      </Section>
+      <Section title="Sidebar">
+        <Row label="Group active sessions by project in Inbox">
+          <Switch
+            checked={prefs.groupActiveByProject}
+            onCheckedChange={(groupActiveByProject) =>
+              updatePrefs({ ...prefs, groupActiveByProject })
+            }
+          />
         </Row>
       </Section>
       <UpdateSection />
