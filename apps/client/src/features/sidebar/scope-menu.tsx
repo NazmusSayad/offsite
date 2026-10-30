@@ -1,10 +1,10 @@
 import {
   Add01Icon,
+  ArchiveIcon,
   ChevronDownIcon,
+  EyeClosedIcon,
   InboxIcon,
-  MoreHorizontalIcon,
   Settings01Icon,
-  ViewOffSlashIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Reorder } from 'motion/react'
@@ -81,6 +81,50 @@ export function ScopeMenu(props: {
   function projectAt(machine: string, projectId: string) {
     return registered.find(
       (project) => project.machine === machine && project.id === projectId
+    )
+  }
+
+  function hiddenMenu(hidden: MachineProject[]) {
+    return (
+      hidden.length > 0 && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger
+            className="text-muted-foreground grid size-5 min-h-0 shrink-0 place-items-center rounded-sm p-0 [&>svg:last-child]:hidden"
+            title="Archived projects"
+            aria-label="Archived projects"
+          >
+            <HugeiconsIcon icon={ArchiveIcon} className="size-3.5" />
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent className="max-h-(--radix-dropdown-menu-content-available-height) w-56 overflow-y-auto">
+              {hidden.map((project) => (
+                <DropdownMenuItem
+                  key={project.id}
+                  title={project.path}
+                  onSelect={() => {
+                    updateProject(project.machine, project.id, {
+                      hidden: false,
+                    }).catch(showError)
+                    props.onScope({
+                      machine: project.machine,
+                      projectId: project.id,
+                    })
+                  }}
+                >
+                  <ProjectIcon
+                    machine={project.machine}
+                    projectId={project.id}
+                    className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
+                  />
+                  <span className="min-w-0 flex-1 truncate">
+                    {project.name}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+      )
     )
   }
 
@@ -164,15 +208,18 @@ export function ScopeMenu(props: {
                     />
                     <span className="truncate">{machineLabel(machine)}</span>
                   </DropdownMenuLabel>
-                  <DropdownMenuItem
-                    className="text-muted-foreground grid size-7 shrink-0 place-items-center p-0"
-                    title={`Add project to ${machine.name}`}
-                    aria-label={`Add project to ${machine.name}`}
-                    disabled={machine.status !== 'online'}
-                    onSelect={() => props.onAddProject(machine.id)}
-                  >
-                    <HugeiconsIcon icon={Add01Icon} />
-                  </DropdownMenuItem>
+                  <div className="flex shrink-0 items-center gap-0.5 pr-1">
+                    {hiddenMenu(hidden)}
+                    <DropdownMenuItem
+                      className="text-muted-foreground grid size-5 min-h-0 shrink-0 place-items-center rounded-sm p-0"
+                      title={`Add project to ${machine.name}`}
+                      aria-label={`Add project to ${machine.name}`}
+                      disabled={machine.status !== 'online'}
+                      onSelect={() => props.onAddProject(machine.id)}
+                    >
+                      <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
+                    </DropdownMenuItem>
+                  </div>
                 </div>
               )}
               <Reorder.Group
@@ -250,8 +297,8 @@ export function ScopeMenu(props: {
                         <div className="-my-0.5 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-data-highlighted/project:opacity-100 pointer-coarse:opacity-100">
                           <button
                             className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 grid size-5 cursor-pointer place-items-center rounded-sm [&_svg]:size-3.5"
-                            title="Hide project"
-                            aria-label={`Hide ${project.name}`}
+                            title="Archive project"
+                            aria-label={`Archive ${project.name}`}
                             onClick={(event) => {
                               event.stopPropagation()
                               updateProject(project.machine, project.id, {
@@ -259,7 +306,7 @@ export function ScopeMenu(props: {
                               }).catch(showError)
                             }}
                           >
-                            <HugeiconsIcon icon={ViewOffSlashIcon} />
+                            <HugeiconsIcon icon={EyeClosedIcon} />
                           </button>
                           <button
                             className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 grid size-5 cursor-pointer place-items-center rounded-sm [&_svg]:size-3.5"
@@ -279,58 +326,24 @@ export function ScopeMenu(props: {
                   )
                 })}
               </Reorder.Group>
-              {hidden.length > 0 && (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="pl-8">
-                    <HugeiconsIcon
-                      icon={MoreHorizontalIcon}
-                      className="size-5"
-                    />
-                    More
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent className="max-h-(--radix-dropdown-menu-content-available-height) w-56 overflow-y-auto">
-                      {hidden.map((project) => (
-                        <DropdownMenuItem
-                          key={project.id}
-                          title={project.path}
-                          onSelect={() => {
-                            updateProject(project.machine, project.id, {
-                              hidden: false,
-                            }).catch(showError)
-                            props.onScope({
-                              machine: project.machine,
-                              projectId: project.id,
-                            })
-                          }}
-                        >
-                          <ProjectIcon
-                            machine={project.machine}
-                            projectId={project.id}
-                            className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
-                          />
-                          <span className="min-w-0 flex-1 truncate">
-                            {project.name}
-                          </span>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
-              )}
             </Fragment>
           ))}
         </DropdownMenuRadioGroup>
         {machines.length === 1 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="pl-8"
-              onSelect={() => props.onAddProject(machines[0].id)}
-            >
-              <HugeiconsIcon icon={Add01Icon} />
-              Add project…
-            </DropdownMenuItem>
+            <div className="flex items-center">
+              <DropdownMenuItem
+                className="flex-1 pl-8"
+                onSelect={() => props.onAddProject(machines[0].id)}
+              >
+                <HugeiconsIcon icon={Add01Icon} />
+                Add project…
+              </DropdownMenuItem>
+              <div className="flex shrink-0 items-center pr-1">
+                {hiddenMenu(registered.filter((project) => project.hidden))}
+              </div>
+            </div>
           </>
         )}
       </DropdownMenuContent>
