@@ -10,10 +10,7 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "types": ["vite/client", "node"],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "types": ["astro/client"]
   },
-  "include": ["src"]
+  "include": ["src", "astro.config.ts"]
 }
