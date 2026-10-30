@@ -10,7 +10,7 @@ export function Highlight(props: { code: string; language: string }) {
   useEffect(() => {
     let current = true
     import('@pierre/diffs')
-      .then(({ getSharedHighlighter }) =>
+      .then(({ getSharedHighlighter, renderTokenLines }) =>
         getSharedHighlighter({
           themes: [codeTheme],
           langs: [props.language],
@@ -24,26 +24,39 @@ export function Highlight(props: { code: string; language: string }) {
               preferredHighlighter: 'shiki-wasm',
             }).then((highlighter) => ({ highlighter, lang: 'text' }))
           )
+          .then(({ highlighter, lang }) => {
+            const result = highlighter.codeToTokens(props.code, {
+              lang,
+              themes: { dark: codeTheme },
+              defaultColor: false,
+            })
+            return renderTokenLines(result.tokens, {}).flatMap((line, index) =>
+              index === 0
+                ? [line]
+                : [{ type: 'text' as const, value: '\n' }, line]
+            )
+          })
       )
-      .then(({ highlighter, lang }) =>
-        highlighter.codeToHast(props.code, {
-          lang,
-          themes: { dark: codeTheme },
-          defaultColor: false,
-          transformers: [
-            {
-              pre(element) {
-                delete element.properties.style
-              },
-            },
-          ],
-        })
-      )
-      .then((tree) => {
+      .then((lines) => {
         if (current) {
           setNode(
             <div className="chat-markdown-shiki">
-              {toJsxRuntime(tree, { Fragment, jsx, jsxs })}
+              {toJsxRuntime(
+                {
+                  type: 'element',
+                  tagName: 'pre',
+                  properties: { className: ['shiki'] },
+                  children: [
+                    {
+                      type: 'element',
+                      tagName: 'code',
+                      properties: {},
+                      children: lines,
+                    },
+                  ],
+                },
+                { Fragment, jsx, jsxs }
+              )}
             </div>
           )
         }

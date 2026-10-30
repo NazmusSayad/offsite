@@ -12,7 +12,7 @@ import {
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocalStorage } from 'usehooks-ts'
 import { useProjectName } from '@/api/projects'
-import { machineIcons, ProjectIcon } from '@/components/icons'
+import { ProjectIcon } from '@/components/icons'
 import { Toast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,6 +20,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { MachineLogo } from '@/constants/machine-icons'
 import { Composer } from '@/features/composer/composer'
 import {
   GitActions,
@@ -263,8 +264,8 @@ function DesktopLayout() {
             <nav className="min-w-0 flex-1">
               <ol className="flex min-w-0 items-center gap-3 text-sm">
                 <li className="text-icon-muted flex shrink-0 items-center gap-1.5">
-                  <HugeiconsIcon
-                    icon={machineIcons[machine.icon]}
+                  <MachineLogo
+                    icon={machine.icon}
                     className="size-3.5 shrink-0"
                   />
                   <span className="max-w-40 truncate">{machine.name}</span>

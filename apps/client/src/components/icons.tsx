@@ -1,31 +1,8 @@
-import {
-  Building03Icon,
-  ChatGptIcon,
-  CloudServerIcon,
-  ComputerIcon,
-  ComputerTerminal01Icon,
-  CpuIcon,
-  Home01Icon,
-  LaptopIcon,
-  ServerStack01Icon,
-} from '@hugeicons/core-free-icons'
+import { ChatGptIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Provider } from '@offsite/core/providers'
 import { projectOf, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
-
-export const machineIcons = {
-  computer: ComputerIcon,
-  laptop: LaptopIcon,
-  server: ServerStack01Icon,
-  cloud: CloudServerIcon,
-  terminal: ComputerTerminal01Icon,
-  cpu: CpuIcon,
-  home: Home01Icon,
-  office: Building03Icon,
-}
-
-export type MachineIcon = keyof typeof machineIcons
 
 const colors = [
   'text-gray-600 dark:text-gray-400',

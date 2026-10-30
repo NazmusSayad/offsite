@@ -11,7 +11,7 @@ import { Reorder } from 'motion/react'
 import { Fragment, useRef, useState } from 'react'
 import { machineKey } from '@/api/machines'
 import { reorderProjects, updateProject } from '@/api/projects'
-import { machineIcons, ProjectIcon } from '@/components/icons'
+import { ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { MachineLogo } from '@/constants/machine-icons'
 import {
   activityOf,
   type MachineProject,
@@ -202,8 +203,8 @@ export function ScopeMenu(props: {
               {machines.length > 1 && (
                 <div className="flex items-center">
                   <DropdownMenuLabel className="flex min-w-0 flex-1 items-center gap-2 pl-[0.52rem]!">
-                    <HugeiconsIcon
-                      icon={machineIcons[machine.icon]}
+                    <MachineLogo
+                      icon={machine.icon}
                       className="size-3.5 shrink-0"
                     />
                     <span className="truncate">{machineLabel(machine)}</span>

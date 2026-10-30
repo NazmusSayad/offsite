@@ -18,7 +18,6 @@ import {
   removeMachine,
   reorderMachines,
 } from '@/api/machines'
-import { type MachineIcon, machineIcons } from '@/components/icons'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +31,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { MachineLogo, machineIcons } from '@/constants/machine-icons'
 import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
 import { fullTime, providerNames } from '@/lib/format'
 import { type Machine, update, useStore } from '@/lib/store'
@@ -87,8 +87,8 @@ export function MachinesPage() {
                 setOrder(null)
               }}
             >
-              <HugeiconsIcon
-                icon={machineIcons[machine.icon]}
+              <MachineLogo
+                icon={machine.icon}
                 className="text-muted-foreground size-5 shrink-0"
               />
               <div className="min-w-0 flex-1">
@@ -223,21 +223,23 @@ function EditMachinePage(props: { machine: Machine }) {
             }
           />
         </Row>
-        <div className="flex min-h-13 items-center justify-between gap-4 px-4 py-2.5">
+        <div className="flex min-h-13 items-start justify-between gap-x-4 gap-y-2 px-4 py-2.5 @max-lg:flex-col">
           <span className="text-sm font-medium">Icon</span>
-          <div className="flex flex-wrap justify-end gap-1">
-            {Object.entries(machineIcons).map((entry) => (
+          <div className="grid w-full max-w-sm min-w-0 grid-cols-[repeat(auto-fill,minmax(2rem,1fr))] gap-1 @max-lg:max-w-none">
+            {Object.keys(machineIcons).map((icon) => (
               <Button
-                key={entry[0]}
+                key={icon}
+                title={icon}
                 size="icon-sm"
-                variant={entry[0] === machine.icon ? 'default' : 'ghost'}
-                title={entry[0]}
-                aria-pressed={entry[0] === machine.icon}
-                onClick={() =>
-                  editMachine(machine.id, { icon: entry[0] as MachineIcon })
-                }
+                className="aspect-square h-auto! w-full!"
+                aria-pressed={icon === machine.icon}
+                variant={icon === machine.icon ? 'default' : 'ghost'}
+                onClick={() => editMachine(machine.id, { icon })}
               >
-                <HugeiconsIcon icon={entry[1]} />
+                <MachineLogo
+                  icon={icon}
+                  className="block aspect-square! h-auto! w-[66%]! min-w-0! shrink-0!"
+                />
               </Button>
             ))}
           </div>

@@ -3,7 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import type { Provider } from '@offsite/core/providers'
 import { useState } from 'react'
 import { updateConfig } from '@/api/machine-config'
-import { machineIcons, ProviderIcon } from '@/components/icons'
+import { ProviderIcon } from '@/components/icons'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { MachineLogo } from '@/constants/machine-icons'
 import { defaultPrefs } from '@/lib/prefs'
 import {
   machineOf,
@@ -155,7 +156,7 @@ export function SettingsDialog() {
                 <SelectContent>
                   {view.machines.map((item) => (
                     <SelectItem key={item.id} value={item.id}>
-                      <HugeiconsIcon icon={machineIcons[item.icon]} />
+                      <MachineLogo icon={item.icon} />
                       {item.name}
                     </SelectItem>
                   ))}
@@ -164,7 +165,7 @@ export function SettingsDialog() {
             )}
             {machine !== null && view.machines.length === 1 && (
               <p className="text-muted-foreground flex h-9 items-center gap-1.5 px-2 text-xs font-medium [&_svg]:size-4">
-                <HugeiconsIcon icon={machineIcons[machine.icon]} />
+                <MachineLogo icon={machine.icon} />
                 <span className="truncate">{machine.name}</span>
               </p>
             )}

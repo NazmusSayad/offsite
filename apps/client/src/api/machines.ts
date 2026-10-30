@@ -1,5 +1,4 @@
 import type { Project } from '@offsite/core/projects'
-import type { MachineIcon } from '@/components/icons'
 import { router } from '@/lib/router'
 import {
   getState,
@@ -17,8 +16,8 @@ export type StoredMachine = {
   id: string
   addresses: string[]
   name: string
+  icon: string | null
   label: string | null
-  icon: MachineIcon
   pairedAt: number | null
   projects: Project[]
 }

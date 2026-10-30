@@ -7,7 +7,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { machineIcons, ProjectIcon } from '@/components/icons'
+import { ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +19,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
+import { MachineLogo } from '@/constants/machine-icons'
 import { type Machine, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { TerminalPanel } from './panel'
@@ -108,7 +109,7 @@ export function TerminalPage(props: {
             key={machine.id}
             onSelect={() => create(machine.id, null)}
           >
-            <HugeiconsIcon icon={machineIcons[machine.icon]} />
+            <MachineLogo icon={machine.icon} />
             <span className="max-w-60 truncate">{machine.name}</span>
           </DropdownMenuItem>,
           ...projects
@@ -274,8 +275,8 @@ function DeviceNewTerminal(props: {
 function GroupIcon(props: { group: Group }) {
   if (props.group.view === GLOBAL_TERMINALS) {
     return (
-      <HugeiconsIcon
-        icon={machineIcons[props.group.machine.icon]}
+      <MachineLogo
+        icon={props.group.machine.icon}
         className="size-4 shrink-0"
       />
     )

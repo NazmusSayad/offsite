@@ -1,7 +1,6 @@
-import { HugeiconsIcon } from '@hugeicons/react'
 import { Fragment } from 'react'
 import { machineKey } from '@/api/machines'
-import { machineIcons, ProjectIcon } from '@/components/icons'
+import { ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { MachineLogo } from '@/constants/machine-icons'
 import { openSession } from '@/lib/sessions'
 import { projectOf, useStore } from '@/lib/store'
 
@@ -63,8 +63,8 @@ export function ProjectHeading(props: {
                       {index > 0 && <DropdownMenuSeparator />}
                       {machines.length > 1 && (
                         <DropdownMenuLabel className="text-2xs flex items-center gap-1">
-                          <HugeiconsIcon
-                            icon={machineIcons[machine.icon]}
+                          <MachineLogo
+                            icon={machine.icon}
                             className="size-3 shrink-0"
                           />
                           <span className="truncate">{machine.name}</span>

@@ -1,7 +1,6 @@
 import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
-import { machineIcons } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -10,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { MachineLogo } from '@/constants/machine-icons'
 import {
   type SettingsPage,
   showSettings,
@@ -110,7 +110,7 @@ export function MobileSettings() {
                           <SelectContent>
                             {view.machines.map((item) => (
                               <SelectItem key={item.id} value={item.id}>
-                                <HugeiconsIcon icon={machineIcons[item.icon]} />
+                                <MachineLogo icon={item.icon} />
                                 {item.name}
                               </SelectItem>
                             ))}
@@ -119,7 +119,7 @@ export function MobileSettings() {
                       )}
                       {view.machines.length === 1 && (
                         <span className="text-muted-foreground flex items-center gap-1.5 text-sm [&_svg]:size-4">
-                          <HugeiconsIcon icon={machineIcons[machine.icon]} />
+                          <MachineLogo icon={machine.icon} />
                           {machine.name}
                         </span>
                       )}

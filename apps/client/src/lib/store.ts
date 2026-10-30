@@ -25,7 +25,6 @@ import type {
 import type { TerminalTab } from '@offsite/core/terminal'
 import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
 import { machineKey } from '@/api/machines'
-import type { MachineIcon } from '@/components/icons'
 import { errorMessage } from '@/lib/utils'
 import { type Prefs, savePrefs } from './prefs'
 import { applyTheme } from './theme'
@@ -61,8 +60,8 @@ export type Machine = {
   status: 'connecting' | 'online' | 'offline' | 'unpaired'
   name: string
   hostname: string
+  icon: string | null
   label: string | null
-  icon: MachineIcon
   pairedAt: number | null
   config: Config | null
   composer: ComposerSettings | null

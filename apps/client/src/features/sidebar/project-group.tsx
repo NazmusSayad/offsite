@@ -2,7 +2,8 @@ import { Add01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { machineKey } from '@/api/machines'
 import { useProjectName } from '@/api/projects'
-import { machineIcons, ProjectIcon } from '@/components/icons'
+import { ProjectIcon } from '@/components/icons'
+import { MachineLogo } from '@/constants/machine-icons'
 import {
   DesktopGroupedDraftRow,
   DesktopGroupedSessionItem,
@@ -27,9 +28,7 @@ export function ProjectGroup(props: {
   mobile: boolean
 }) {
   const name = useProjectName(props.machine, props.projectId)
-  const machineIcon = useStore(
-    (state) => machineIcons[machineOf(state, props.machine).icon]
-  )
+  const machineIcon = useStore((state) => machineOf(state, props.machine).icon)
   const selection = useStore((state) => state.selection)
   const machines = useStore((state) => state.machines)
   const unseen = useStore((state) => state.unseen)
@@ -54,7 +53,7 @@ export function ProjectGroup(props: {
   return (
     <>
       <li className="text-sidebar-muted-foreground/60 mx-0.5 mt-2 flex h-7 items-center gap-2 pl-2 text-xs font-medium first:mt-0">
-        <HugeiconsIcon icon={machineIcon} className="size-3.5 shrink-0" />
+        <MachineLogo icon={machineIcon} className="size-3.5 shrink-0" />
         <span className="bg-sidebar-border/60 h-px min-w-2 flex-1" />
         <ProjectIcon
           machine={props.machine}
