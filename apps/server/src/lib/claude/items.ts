@@ -250,6 +250,7 @@ function toolItem(
   const base = { id: tool.id, parent, time }
   switch (tool.name) {
     case 'Bash':
+    case 'PowerShell':
       return {
         ...base,
         kind: 'command',
