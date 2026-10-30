@@ -31,12 +31,13 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { MachineLogo, machineIcons } from '@/constants/machine-icons'
+import { MachineLogo } from '@/constants/machine-icons'
 import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
 import { fullTime, providerNames } from '@/lib/format'
 import { type Machine, update, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 import { Row, Section, TextInput } from './controls'
+import { MachineIconPicker } from './machine-icon-picker'
 
 const statuses = {
   connecting: 'Connecting…',
@@ -223,38 +224,7 @@ function EditMachinePage(props: { machine: Machine }) {
             }
           />
         </Row>
-        <div className="flex min-h-13 items-start justify-between gap-x-4 gap-y-2 px-4 py-2.5 @max-lg:flex-col">
-          <span className="text-sm font-medium">Icon</span>
-          <div className="flex w-full max-w-sm min-w-0 flex-col gap-3 @max-lg:max-w-none">
-            {[
-              ...new Set(Object.values(machineIcons).map((item) => item.group)),
-            ].map((group) => (
-              <div key={group} className="flex flex-col gap-1">
-                <span className="text-muted-foreground text-xs">{group}</span>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(2rem,1fr))] gap-1">
-                  {Object.keys(machineIcons)
-                    .filter((icon) => machineIcons[icon].group === group)
-                    .map((icon) => (
-                      <Button
-                        key={icon}
-                        title={icon}
-                        size="icon-sm"
-                        className="aspect-square h-auto! w-full!"
-                        aria-pressed={icon === machine.icon}
-                        variant={icon === machine.icon ? 'default' : 'ghost'}
-                        onClick={() => editMachine(machine.id, { icon })}
-                      >
-                        <MachineLogo
-                          icon={icon}
-                          className="block aspect-square! h-auto! w-[66%]! min-w-0! shrink-0!"
-                        />
-                      </Button>
-                    ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <MachineIconPicker machine={machine} />
       </Section>
       {!locked && (
         <Section title="Pairing">

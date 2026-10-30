@@ -366,6 +366,8 @@ export const machineIcons: Record<string, MachineIcon> = {
   },
 }
 
+export const quickMachineIcons = ['macos', 'windows', 'linux']
+
 export function MachineLogo(props: {
   icon: string | null
   className?: string
