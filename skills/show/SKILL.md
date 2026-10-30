@@ -1,6 +1,6 @@
 ---
 name: show
-description: Shows images, videos, audio and Mermaid diagrams inline in the offsite chat. Use whenever the user should see images, videos, audio and Mermaid diagrams.
+description: Use when need to show images, videos, audio or Mermaid diagrams in the chat.
 ---
 
 ### Images, videos and audio
