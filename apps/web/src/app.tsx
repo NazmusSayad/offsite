@@ -167,7 +167,7 @@ function DesktopLayout() {
     }
   )
   useHotkeys(
-    'mod+j',
+    ['mod+j', 'mod+shift+b'],
     (event) => {
       event.stopPropagation()
       setPanel(currentSearch().panel === undefined ? lastPanel.current : null)
@@ -183,7 +183,7 @@ function DesktopLayout() {
       lastPanel.current = panel
     }
   }, [panel])
-  useHotkeys('mod+b', () => setSidebar((open) => !open), {
+  useHotkeys(['mod+b', 'mod+shift+j'], () => setSidebar((open) => !open), {
     enableOnFormTags: true,
     preventDefault: true,
   })
