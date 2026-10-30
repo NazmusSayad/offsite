@@ -625,14 +625,7 @@
   border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
 
-.chat-markdown-table-container[data-expanded='false'] :is(th, td) {
-  overflow: hidden;
-  max-width: 24rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chat-markdown-table-container[data-expanded='true'] td {
+.chat-markdown td {
   max-width: 24rem;
   overflow-wrap: anywhere;
 }

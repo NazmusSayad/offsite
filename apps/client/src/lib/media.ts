@@ -45,7 +45,11 @@ export async function downloadFile(src: string, path: string) {
   if (!response.ok) {
     throw new Error(await response.text())
   }
-  const url = URL.createObjectURL(await response.blob())
+  saveBlob(await response.blob(), path)
+}
+
+export function saveBlob(blob: Blob, path: string) {
+  const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = path.slice(path.lastIndexOf('/') + 1)

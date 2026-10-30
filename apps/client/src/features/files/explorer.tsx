@@ -8,6 +8,7 @@ import {
   RefreshCwIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { getFiletypeFromFileName } from '@pierre/diffs'
 import {
   type Dispatch,
   type ReactNode,
@@ -60,6 +61,7 @@ export function Explorer(props: {
   onExpanded: Dispatch<SetStateAction<string[]>>
   active: string | null
   onOpen: (path: string) => void
+  onPreview: (path: string) => void
   onRenamed: (from: string, to: string) => void
   onDeleted: (path: string) => void
 }) {
@@ -356,6 +358,15 @@ export function Explorer(props: {
             pending.current = null
           }}
         >
+          {!menu.folder &&
+            getFiletypeFromFileName(menu.path) === 'markdown' && (
+              <>
+                <ContextMenuItem onSelect={() => props.onPreview(menu.path)}>
+                  Open Preview
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+              </>
+            )}
           <ContextMenuItem
             onSelect={() => {
               pending.current = () =>

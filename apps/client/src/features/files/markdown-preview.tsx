@@ -11,13 +11,14 @@ import type { Components } from 'react-markdown'
 import { Markdown } from '@/components/markdown/markdown'
 import { monaco } from '@/features/files/monaco'
 import { mediaUrl } from '@/lib/media'
+import { cn } from '@/lib/utils'
 
 export function MarkdownPreview(props: {
   machine: string
   projectId: string
   path: string
   model: monaco.editor.ITextModel
-  editor: monaco.editor.ICodeEditor
+  editor: monaco.editor.ICodeEditor | null
   onOpen: (path: string) => void
 }) {
   const model = props.model
@@ -56,6 +57,9 @@ export function MarkdownPreview(props: {
   )
 
   useEffect(() => {
+    if (editor === null) {
+      return
+    }
     const listener = editor.onDidScrollChange((event) => {
       const element = scroller.current
       if (
@@ -76,10 +80,13 @@ export function MarkdownPreview(props: {
   return (
     <div
       ref={scroller}
-      className="border-sidebar-border bg-background min-w-0 flex-1 overflow-y-auto border-l p-6"
+      className={cn(
+        'border-sidebar-border bg-background min-w-0 flex-1 overflow-y-auto p-6',
+        editor !== null && 'border-l'
+      )}
       onScroll={(event) => {
         const element = event.currentTarget
-        if (!element.matches(':hover')) {
+        if (editor === null || !element.matches(':hover')) {
           return
         }
         editor.setScrollTop(

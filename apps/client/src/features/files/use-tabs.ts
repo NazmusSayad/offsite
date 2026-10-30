@@ -4,6 +4,7 @@ import type { EditorState } from '@/features/files/editor-state'
 import { loadLanguage, monaco } from '@/features/files/monaco'
 import {
   fileTab,
+  previewTab,
   type Side,
   type TabSpec,
 } from '@/features/source-control/changes'
@@ -248,7 +249,11 @@ export function useTabs(props: {
 
   async function save(id: string) {
     const tab = tabs.find((item) => item.spec.id === id)
-    if (tab?.document.status !== 'text' || tab.spec.right.kind !== 'worktree') {
+    if (
+      tab?.document.status !== 'text' ||
+      tab.spec.right.kind !== 'worktree' ||
+      tab.spec.preview === true
+    ) {
       return true
     }
     const saving = tab.document.modified
@@ -300,11 +305,18 @@ export function useTabs(props: {
       }
       return path
     }
-    const next = tabs.map((tab) =>
-      tab.spec.id === fileTab(tab.spec.repo, tab.spec.path).id
-        ? { ...tab, spec: fileTab(tab.spec.repo, rename(tab.spec.path)) }
-        : tab
-    )
+    const next = tabs.map((tab) => {
+      if (tab.spec.id === fileTab(tab.spec.repo, tab.spec.path).id) {
+        return { ...tab, spec: fileTab(tab.spec.repo, rename(tab.spec.path)) }
+      }
+      if (tab.spec.id === previewTab(tab.spec.repo, tab.spec.path).id) {
+        return {
+          ...tab,
+          spec: previewTab(tab.spec.repo, rename(tab.spec.path)),
+        }
+      }
+      return tab
+    })
     setTabs(next)
     const index = tabs.findIndex((tab) => tab.spec.id === active)
     if (index !== -1) {

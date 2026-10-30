@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, type Ref, Suspense, useEffect, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { currentScheme } from '@/lib/theme'
 
@@ -79,24 +79,29 @@ export function useMermaid(code: string | null) {
   return code === null ? null : svg
 }
 
-export function MermaidDiagram(props: { svg: string }) {
-  const [open, setOpen] = useState(false)
+export function MermaidDiagram(props: {
+  ref: Ref<HTMLButtonElement>
+  svg: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   return (
     <>
       <button
+        ref={props.ref}
         type="button"
         aria-label="View diagram"
         className="focus-visible:ring-ring flex w-full cursor-zoom-in justify-center rounded-lg px-3 pt-2 pb-3 outline-none [--mermaid-surface:color-mix(in_srgb,var(--text)_3.2%,var(--bg))] focus-visible:ring-2 [&>svg]:h-auto"
-        onClick={() => setOpen(true)}
+        onClick={() => props.onOpenChange(true)}
         dangerouslySetInnerHTML={{ __html: props.svg }}
       />
-      {open && (
+      {props.open && (
         <Suspense>
           <ImageViewer
             src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(props.svg)}`}
             alt="Diagram"
             name="Mermaid diagram"
-            onClose={() => setOpen(false)}
+            onClose={() => props.onOpenChange(false)}
           />
         </Suspense>
       )}

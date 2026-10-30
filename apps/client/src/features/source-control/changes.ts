@@ -13,6 +13,7 @@ export type TabSpec = {
   label: string
   left: Side | null
   right: Side
+  preview?: boolean
 }
 
 export type Group = 'merge' | 'staged' | 'changes'
@@ -118,6 +119,15 @@ export function fileTab(repo: string, path: string): TabSpec {
     label: baseName(path),
     left: null,
     right: { kind: 'worktree' },
+  }
+}
+
+export function previewTab(repo: string, path: string): TabSpec {
+  return {
+    ...fileTab(repo, path),
+    id: `Preview:${path}`,
+    label: `${baseName(path)} (Preview)`,
+    preview: true,
   }
 }
 

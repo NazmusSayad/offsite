@@ -4,12 +4,12 @@ import { showError } from '@/lib/store'
 export function useCopy() {
   const [copied, setCopied] = useState(false)
 
-  async function copy(text: string) {
+  async function write(task: () => Promise<void>) {
     try {
       if (!window.isSecureContext) {
         throw new Error('Copying needs https or localhost')
       }
-      await navigator.clipboard.writeText(text)
+      await task()
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch (error) {
@@ -17,5 +17,12 @@ export function useCopy() {
     }
   }
 
-  return { copied, copy }
+  return {
+    copied,
+    copy: (text: string) => write(() => navigator.clipboard.writeText(text)),
+    copyImage: (image: Promise<Blob>) =>
+      write(() =>
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': image })])
+      ),
+  }
 }

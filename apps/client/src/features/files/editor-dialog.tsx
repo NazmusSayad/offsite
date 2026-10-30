@@ -32,10 +32,15 @@ import {
 import { SavePrompt } from '@/features/files/save-prompt'
 import { StatusBar } from '@/features/files/status-bar'
 import { useBlockStaging } from '@/features/files/use-block-staging'
+import { useEditorHosts } from '@/features/files/use-editor-hosts'
 import { useTabs } from '@/features/files/use-tabs'
 import { ViewSwitcher } from '@/features/files/view-switcher'
 import { BranchDialog } from '@/features/git/branch-picker'
-import { fileTab, type TabSpec } from '@/features/source-control/changes'
+import {
+  fileTab,
+  previewTab,
+  type TabSpec,
+} from '@/features/source-control/changes'
 import { DiffToolbar } from '@/features/source-control/diff-toolbar'
 import { GitStatus } from '@/features/source-control/git-status'
 import { SourceControlView } from '@/features/source-control/source-control-view'
@@ -72,39 +77,13 @@ export function EditorDialog(props: {
   const [version, setVersion] = useState(0)
   const [busy, setBusy] = useState(0)
   const [checkout, setCheckout] = useState<SourceControlRepo | null>(null)
-  const [editor, setEditor] =
-    useState<monaco.editor.IStandaloneCodeEditor | null>(null)
-  const [diff, setDiff] = useState<monaco.editor.IStandaloneDiffEditor | null>(
-    null
-  )
+  const hosts = useEditorHosts()
+  const editor = hosts.editor
+  const diff = hosts.diff
   const shown = useRef<{
     id: string
     editor: monaco.editor.IStandaloneCodeEditor
   } | null>(null)
-  const codeHost = useCallback((element: HTMLDivElement | null) => {
-    if (element === null) {
-      return
-    }
-    const instance = monaco.editor.create(element, {
-      automaticLayout: true,
-      model: null,
-    })
-    setEditor(instance)
-    return () => instance.dispose()
-  }, [])
-  const diffHost = useCallback((element: HTMLDivElement | null) => {
-    if (element === null) {
-      return
-    }
-    const instance = monaco.editor.createDiffEditor(element, {
-      automaticLayout: true,
-      originalEditable: false,
-      experimental: { showMoves: true },
-      useInlineViewWhenSpaceIsLimited: true,
-    })
-    setDiff(instance)
-    return () => instance.dispose()
-  }, [])
   const refresh = useCallback(() => setVersion((count) => count + 1), [])
   const documents = useTabs({
     machine: props.machine,
@@ -133,7 +112,14 @@ export function EditorDialog(props: {
   })
   const repos = status.repos
   const current = documents.tabs.find((tab) => tab.spec.id === active)
-  const text = current?.document.status === 'text' ? current.document : null
+  const text =
+    current?.document.status === 'text' && current.spec.preview !== true
+      ? current.document
+      : null
+  const previewed =
+    current?.document.status === 'text' && current.spec.preview === true
+      ? current.document.modified
+      : null
   const original = text?.original ?? null
   const modified = text?.modified ?? null
   const editable = current?.spec.right.kind === 'worktree'
@@ -309,6 +295,7 @@ export function EditorDialog(props: {
                 onExpanded={setExpanded}
                 active={current?.spec.path ?? null}
                 onOpen={(path) => open(fileTab('', path))}
+                onPreview={(path) => open(previewTab('', path))}
                 onRenamed={documents.renamed}
                 onDeleted={documents.deleted}
               />
@@ -410,18 +397,19 @@ export function EditorDialog(props: {
               <div
                 className={cn(
                   'relative min-w-0 flex-1',
-                  markdown !== null && settings.preview && 'max-sm:hidden'
+                  markdown !== null && settings.preview && 'max-sm:hidden',
+                  previewed !== null && 'hidden'
                 )}
               >
                 <div
-                  ref={codeHost}
+                  ref={hosts.codeHost}
                   className={cn(
                     'absolute inset-0',
                     (modified === null || original !== null) && 'hidden'
                   )}
                 />
                 <div
-                  ref={diffHost}
+                  ref={hosts.diffHost}
                   className={cn(
                     'absolute inset-0',
                     (modified === null || original === null) && 'hidden'
@@ -453,6 +441,17 @@ export function EditorDialog(props: {
                     onOpen={(path) => open(fileTab('', path))}
                   />
                 )}
+              {previewed !== null && current !== undefined && (
+                <MarkdownPreview
+                  key={current.spec.id}
+                  machine={props.machine}
+                  projectId={props.projectId}
+                  path={current.spec.path}
+                  model={previewed}
+                  editor={null}
+                  onOpen={(path) => open(fileTab('', path))}
+                />
+              )}
             </div>
           </div>
         </div>

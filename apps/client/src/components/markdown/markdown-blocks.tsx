@@ -2,8 +2,8 @@ import {
   CheckIcon,
   ChevronRightIcon,
   CopyIcon,
-  Maximize02Icon,
-  Minimize02Icon,
+  Download01Icon,
+  FullScreenIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
@@ -13,6 +13,12 @@ import {
   useRef,
   useState,
 } from 'react'
+import {
+  downloadImage,
+  elementImage,
+  imageFormats,
+} from '@/components/markdown/export-image'
+import { PreviewDialog, PreviewHeader } from '@/components/preview-dialog'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -22,83 +28,84 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useCopy } from '@/lib/clipboard'
+import { saveBlob } from '@/lib/media'
+import { showError } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 export function MarkdownTable(props: { children: ReactNode }) {
   const table = useRef<HTMLTableElement>(null)
-  const [expanded, setExpanded] = useState(true)
+  const [fullscreen, setFullscreen] = useState(false)
   const clipboard = useCopy()
-  const expandLabel = expanded ? 'Collapse table cells' : 'Expand table cells'
   const copyLabel = clipboard.copied ? 'Copied' : 'Copy table'
-  function copy(format: 'markdown' | 'csv') {
-    const element = table.current
-    if (element === null) {
-      return
-    }
-    const rows = [...element.rows].map((row) =>
-      [...row.cells].map((cell) => (cell.textContent ?? '').trim())
-    )
-    const text =
-      format === 'markdown'
-        ? rows
-            .flatMap((row, index) => {
-              const line = `| ${row.map((cell) => cell.replaceAll('|', '\\|')).join(' | ')} |`
-              return index === 0
-                ? [line, `| ${row.map(() => '---').join(' | ')} |`]
-                : [line]
-            })
-            .join('\n')
-        : rows
-            .map((row) =>
-              row
-                .map((cell) =>
-                  /[",\n]/.test(cell) ? `"${cell.replaceAll('"', '""')}"` : cell
-                )
-                .join(',')
-            )
-            .join('\n')
-    void clipboard.copy(text)
-  }
   return (
-    <div className="chat-markdown-table-container" data-expanded={expanded}>
+    <div className="chat-markdown-table-container">
       <div className="chat-markdown-table-scroll">
         <table ref={table}>{props.children}</table>
       </div>
-      <div className="mt-0.5 flex items-center justify-between select-none">
-        <Tooltip label={expandLabel}>
+      <div className="mt-0.5 flex items-center justify-end gap-0.5 select-none">
+        <Tooltip label="Fullscreen">
           <Button
             type="button"
-            variant={expanded ? 'secondary' : 'ghost-muted'}
+            variant="ghost-muted"
             size="icon-xs"
-            aria-pressed={expanded}
-            aria-label={expandLabel}
-            onClick={() => {
-              const element = table.current
-              if (element !== null && !expanded) {
-                const widths: number[] = []
-                for (const row of element.rows) {
-                  ;[...row.cells].forEach((cell, index) => {
-                    widths[index] = Math.max(
-                      widths[index] ?? 0,
-                      cell.getBoundingClientRect().width
-                    )
-                  })
-                }
-                ;[...(element.tHead?.rows[0]?.cells ?? [])].forEach(
-                  (cell, index) => {
-                    cell.style.minWidth = `${widths[index]}px`
-                  }
-                )
-              }
-              setExpanded(!expanded)
-            }}
+            aria-label="Fullscreen"
+            onClick={() => setFullscreen(true)}
           >
-            <HugeiconsIcon
-              icon={expanded ? Minimize02Icon : Maximize02Icon}
-              className="size-3"
-            />
+            <HugeiconsIcon icon={FullScreenIcon} className="size-3" />
           </Button>
         </Tooltip>
+        <DropdownMenu>
+          <Tooltip label="Download table">
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost-muted"
+                size="icon-xs"
+                aria-label="Download table"
+              >
+                <HugeiconsIcon icon={Download01Icon} className="size-3" />
+              </Button>
+            </DropdownMenuTrigger>
+          </Tooltip>
+          <DropdownMenuContent align="end" className="w-auto">
+            {imageFormats.map((format) => (
+              <DropdownMenuItem
+                key={format.type}
+                onSelect={() =>
+                  void downloadImage(table.current, format, 'table').catch(
+                    showError
+                  )
+                }
+              >
+                Download as {format.label}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuItem
+              onSelect={() =>
+                saveBlob(
+                  new Blob([tableText(table.current, 'markdown')], {
+                    type: 'text/markdown;charset=utf-8',
+                  }),
+                  'table.md'
+                )
+              }
+            >
+              Download as Markdown
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() =>
+                saveBlob(
+                  new Blob([tableText(table.current, 'csv')], {
+                    type: 'text/csv;charset=utf-8',
+                  }),
+                  'table.csv'
+                )
+              }
+            >
+              Download as CSV
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <DropdownMenu>
           <Tooltip label={copyLabel}>
             <DropdownMenuTrigger asChild>
@@ -115,18 +122,75 @@ export function MarkdownTable(props: { children: ReactNode }) {
               </Button>
             </DropdownMenuTrigger>
           </Tooltip>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => copy('markdown')}>
+          <DropdownMenuContent align="end" className="w-auto">
+            <DropdownMenuItem
+              onSelect={() =>
+                void clipboard.copy(tableText(table.current, 'markdown'))
+              }
+            >
               Copy as Markdown
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => copy('csv')}>
+            <DropdownMenuItem
+              onSelect={() =>
+                void clipboard.copyImage(
+                  elementImage(table.current, 'image/png')
+                )
+              }
+            >
+              Copy as PNG
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() =>
+                void clipboard.copy(tableText(table.current, 'csv'))
+              }
+            >
               Copy as CSV
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <PreviewDialog open={fullscreen} onClose={() => setFullscreen(false)}>
+        <PreviewHeader title="Table" />
+        <div className="chat-markdown min-h-0 flex-1 overflow-auto p-4 leading-relaxed">
+          <table>{props.children}</table>
+        </div>
+      </PreviewDialog>
     </div>
   )
+}
+
+function tableText(
+  element: HTMLTableElement | null,
+  format: 'markdown' | 'csv'
+) {
+  if (element === null) {
+    throw new Error('Nothing to export')
+  }
+  const rows = [...element.rows].map((row) =>
+    [...row.cells].map((cell) => (cell.textContent ?? '').trim())
+  )
+  if (format === 'markdown') {
+    return rows
+      .flatMap((row, index) => {
+        const line = `| ${row.map((cell) => cell.replaceAll('|', '\\|')).join(' | ')} |`
+        return index === 0
+          ? [line, `| ${row.map(() => '---').join(' | ')} |`]
+          : [line]
+      })
+      .join('\n')
+  }
+  if (format === 'csv') {
+    return rows
+      .map((row) =>
+        row
+          .map((cell) =>
+            /[",\n]/.test(cell) ? `"${cell.replaceAll('"', '""')}"` : cell
+          )
+          .join(',')
+      )
+      .join('\n')
+  }
+  throw new Error(`Unknown table format: ${format}`)
 }
 
 export function MarkdownDetails(props: { open: boolean; children: ReactNode }) {
