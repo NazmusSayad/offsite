@@ -15,7 +15,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { cloneElement, type ReactElement } from 'react'
-import { FaApple, FaUbuntu, FaWindows } from 'react-icons/fa'
+import { FaApple, FaChrome, FaUbuntu, FaWindows } from 'react-icons/fa'
 import { FaUbuntu as FaUbuntu6 } from 'react-icons/fa6'
 import { GrAppleAppStore } from 'react-icons/gr'
 import { ImFinder } from 'react-icons/im'
@@ -96,6 +96,7 @@ export const machineIcons: Record<string, MachineIcon> = {
   digitalocean: <SiDigitalocean size={24} />,
   hetzner: <SiHetzner size={24} />,
   android: <HugeiconsIcon icon={AndroidIcon} />,
+  chrome: <FaChrome size={24} />,
   drive: <HugeiconsIcon icon={HardDriveIcon} />,
 }
 
