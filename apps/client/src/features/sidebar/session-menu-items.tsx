@@ -1,4 +1,5 @@
 import {
+  AiContentGenerator02Icon,
   AlarmClockIcon,
   AlarmClockOffIcon,
   Delete02Icon,
@@ -9,7 +10,6 @@ import {
   PinOffIcon,
   Plug01Icon,
   PlugZapIcon,
-  SparklesIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
@@ -102,7 +102,7 @@ export function SessionMenuItems(props: {
         disabled={generatingTitle}
         onSelect={() => void regenerateTitle(session)}
       >
-        <HugeiconsIcon icon={SparklesIcon} />
+        <HugeiconsIcon icon={AiContentGenerator02Icon} />
         Regenerate title
       </Item>
       <Item onSelect={props.onRename}>

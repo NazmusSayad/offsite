@@ -4,6 +4,7 @@ import {
   deleteSession,
   forkSession,
   getSessionMessages,
+  type Query,
   renameSession,
 } from '@anthropic-ai/claude-agent-sdk'
 import type { Provider, ProviderStatus } from '@offsite/core/providers'
@@ -336,9 +337,19 @@ export async function updateSession(id: string, patch: SessionPatch) {
   if (patch.title !== undefined) {
     titleJobs.delete(id)
     switch (providerOf(id)) {
-      case 'claude':
-        await renameSession(id, patch.title)
+      case 'claude': {
+        const run = runs.get(id)
+        if (run?.provider === 'claude') {
+          await (
+            run.query as Query & {
+              renameSession(title: string, sessionId: string): Promise<void>
+            }
+          ).renameSession(patch.title, id)
+        } else {
+          await renameSession(id, patch.title)
+        }
         break
+      }
       case 'codex':
         await renameThread(id, patch.title)
         break
