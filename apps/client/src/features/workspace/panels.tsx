@@ -21,7 +21,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { BrowserPanel } from '@/features/browser/browser-panel'
-import { DiffPanel } from '@/features/git/diff-panel'
 import {
   getState as terminalState,
   subscribe as subscribeTerminal,
@@ -35,6 +34,10 @@ export type Panel = 'diff' | 'tasks' | 'browser'
 
 const EditorDialog = lazy(async () => ({
   default: (await import('@/features/files/editor-dialog')).EditorDialog,
+}))
+
+const DiffPanel = lazy(async () => ({
+  default: (await import('@/features/git/diff-panel')).DiffPanel,
 }))
 
 type MenuOption = {
@@ -280,13 +283,15 @@ export function PanelView(props: {
         />
       )}
       {props.panel === 'diff' && (
-        <DiffPanel
-          key={`${props.selection.machine} ${props.selection.projectId}`}
-          machine={props.selection.machine}
-          projectId={props.selection.projectId}
-          running={props.running}
-          onClose={() => props.onPanel(null)}
-        />
+        <Suspense>
+          <DiffPanel
+            key={`${props.selection.machine} ${props.selection.projectId}`}
+            machine={props.selection.machine}
+            projectId={props.selection.projectId}
+            running={props.running}
+            onClose={() => props.onPanel(null)}
+          />
+        </Suspense>
       )}
       {props.panel === 'tasks' && (
         <TasksPanel

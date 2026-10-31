@@ -1,4 +1,3 @@
-import { toCanvas } from 'html-to-image'
 import { saveBlob } from '@/lib/media'
 
 export const imageFormats = [
@@ -11,6 +10,7 @@ export async function elementImage(element: HTMLElement | null, type: string) {
   if (element === null) {
     throw new Error('Nothing to export')
   }
+  const { toCanvas } = await import('html-to-image')
   const canvas = await toCanvas(element, {
     pixelRatio: 2,
     backgroundColor: getComputedStyle(document.body).backgroundColor,
