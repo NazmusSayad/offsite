@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
+import { timeAgo } from '@/lib/format'
 import { openSession } from '@/lib/sessions'
 import {
   getState,
@@ -40,6 +41,8 @@ type Item = {
   labelRanges: SearchRange[]
   detail: string
   detailRanges: SearchRange[]
+  branch: string
+  updatedAt: number | null
   place: { machine: string; projectId: string } | null
   run: () => void
 }
@@ -161,6 +164,8 @@ function PaletteContent() {
       section: 'Actions',
       labelRanges: [],
       detailRanges: [],
+      branch: '',
+      updatedAt: null,
     }
     if (text.trim() === '') {
       return [base]
@@ -185,8 +190,10 @@ function PaletteContent() {
           section: text.trim() === '' ? 'Recent' : 'Threads',
           label: session.title,
           labelRanges: entry.ranges,
-          detail: `${threadDetail(session, projects)}${branch}`,
+          detail: threadDetail(session, projects),
           detailRanges: [],
+          branch,
+          updatedAt: session.updatedAt,
           place: { machine: session.machine, projectId: session.projectId },
           run: () =>
             openSession(
@@ -228,6 +235,8 @@ function PaletteContent() {
               labelRanges: [],
               detail,
               detailRanges: messageRanges(text, detail),
+              branch: '',
+              updatedAt: session.updatedAt,
               place: {
                 machine: session.machine,
                 projectId: session.projectId,
@@ -397,7 +406,15 @@ function PaletteContent() {
                       text={item.detail}
                       ranges={item.detailRanges}
                     />
+                    <span className="text-muted-foreground/40">
+                      {item.branch}
+                    </span>
                   </span>
+                  {item.updatedAt !== null && (
+                    <span className="ml-auto shrink-0 pl-2 tabular-nums">
+                      {timeAgo(item.updatedAt)}
+                    </span>
+                  )}
                 </span>
               )}
             </button>
@@ -420,14 +437,11 @@ function PaletteContent() {
 
 function MachineTag(props: {
   id: string
-  machines: { id: string; name: string; icon: string | null }[]
+  machines: { id: string; icon: string | null }[]
 }) {
   const machine = props.machines.find((item) => item.id === props.id)
   return (
-    <>
-      <MachineLogo icon={machine?.icon ?? null} className="size-3 shrink-0" />
-      <span className="shrink-0">{machine?.name} ·</span>
-    </>
+    <MachineLogo icon={machine?.icon ?? null} className="size-3 shrink-0" />
   )
 }
 
