@@ -247,7 +247,7 @@ function GroupCount(props: {
         'ml-auto grid h-4 min-w-4 shrink-0 place-items-center rounded-full px-1 text-[10px] leading-none font-medium tabular-nums',
         props.alert
           ? 'bg-primary text-primary-foreground'
-          : 'text-foreground bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))]',
+          : 'text-foreground/75 bg-[color-mix(in_srgb,var(--foreground)_8%,var(--background))]',
         props.className
       )}
     >

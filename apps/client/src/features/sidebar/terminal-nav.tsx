@@ -55,7 +55,7 @@ export function TerminalNav(props: { buttonClassName: string }) {
               {terminals > 0 && (
                 <span
                   className={cn(
-                    'text-foreground ml-auto grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums',
+                    'text-foreground/75 ml-auto grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_8%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums',
                     online &&
                       'group-hover/terminal:invisible group-has-[[data-state=open]]/terminal:invisible',
                     active && 'pointer-coarse:invisible'
