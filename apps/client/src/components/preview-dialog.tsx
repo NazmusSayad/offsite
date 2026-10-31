@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { FileTypeIcon } from '@/components/file-icon'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { useCloseOnBack } from '@/lib/url'
 
 export function PreviewDialog(props: {
   open: boolean
@@ -8,6 +9,8 @@ export function PreviewDialog(props: {
   onCloseAutoFocus?: (event: Event) => void
   children: ReactNode
 }) {
+  useCloseOnBack(props.open, props.onClose)
+
   return (
     <Dialog open={props.open} onOpenChange={() => props.onClose()}>
       <DialogContent

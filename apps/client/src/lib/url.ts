@@ -1,5 +1,6 @@
 import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import { useParams, useSearch } from '@tanstack/react-router'
+import { useEffect, useEffectEvent } from 'react'
 import { router, type Search } from './router'
 import { getState, projectOf, type Selection, useStore } from './store'
 
@@ -104,6 +105,36 @@ export function leaveLayer(layer: 'chat' | 'overlay', fallback: () => void) {
     return
   }
   fallback()
+}
+
+export function useCloseOnBack(open: boolean, onClose: () => void) {
+  const close = useEffectEvent(onClose)
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    let leave: (() => void) | undefined
+    const timer = setTimeout(() => {
+      router.history.push(router.history.location.href)
+      const entry = router.history.location.state.__TSR_index
+      const stop = router.history.subscribe(() => {
+        if (router.history.location.state.__TSR_index < entry) {
+          close()
+        }
+      })
+      leave = () => {
+        stop()
+        if (router.history.location.state.__TSR_index === entry) {
+          router.history.back()
+        }
+      }
+    })
+    return () => {
+      clearTimeout(timer)
+      leave?.()
+    }
+  }, [open])
 }
 
 export function syncUrl() {
