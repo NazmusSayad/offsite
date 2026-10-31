@@ -1,7 +1,7 @@
 import type { Platform } from '@offsite/core/config'
+import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { readBase64 } from '@/api/upload'
-import { showToast } from '@/components/toast'
 import type { Terminal } from '@/lib/ghostty/terminal'
 
 const READ_LIMIT = 1024 * 1024
@@ -13,14 +13,14 @@ export function writeClipboard(text: string) {
   }
   navigator.clipboard.writeText(text).catch((error: unknown) => {
     console.warn('could not copy to the clipboard', error)
-    showToast('Could not copy to the clipboard')
+    toast('Could not copy to the clipboard')
   })
 }
 
 export async function readClipboard(reply: (text: string) => void) {
   if (!window.isSecureContext) {
     console.warn('programs can read the clipboard only over https or localhost')
-    showToast('Programs can read the clipboard only over https or localhost')
+    toast('Programs can read the clipboard only over https or localhost')
     return
   }
   let text: string
@@ -28,12 +28,12 @@ export async function readClipboard(reply: (text: string) => void) {
     text = await navigator.clipboard.readText()
   } catch (error) {
     console.warn('could not read the clipboard', error)
-    showToast('Could not read the clipboard')
+    toast('Could not read the clipboard')
     return
   }
   if (new TextEncoder().encode(text).length > READ_LIMIT) {
     console.warn('the clipboard is over 1 MiB, not replying')
-    showToast('The clipboard is too large to share (over 1 MiB)')
+    toast('The clipboard is too large to share (over 1 MiB)')
     return
   }
   reply(text)
@@ -71,7 +71,7 @@ export async function pasteClipboardImages(
     }
   }
   if (images.length === 0) {
-    showToast('No image in the clipboard')
+    toast('No image in the clipboard')
     return false
   }
   await pasteImages(machine, terminal, images)
@@ -96,5 +96,5 @@ export async function pasteImages(
 
 export function reportPasteError(error: unknown) {
   console.error('could not paste image', error)
-  showToast('Could not paste the image')
+  toast('Could not paste the image')
 }

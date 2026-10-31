@@ -2,7 +2,7 @@ import type { Project } from '@offsite/core/projects'
 import type { ServerEvent } from '@offsite/core/protocol'
 import type { Session } from '@offsite/core/sessions'
 import { isEqual } from 'es-toolkit'
-import { showToast } from '@/components/toast'
+import { toast } from 'sonner'
 import { getDraftSettings, saveDraftSettings } from '@/features/composer/drafts'
 import {
   emptySettings,
@@ -350,7 +350,7 @@ function receive(machine: string, event: ServerEvent) {
         openBrowser(event.path)
         return
       }
-      showToast(`${known.name} opened ${event.path}`)
+      toast(`${known.name} opened ${event.path}`)
       return
   }
   if (current === null || event.sessionId !== current) {

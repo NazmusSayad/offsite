@@ -5,7 +5,8 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useState, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
+import { toast as sonner } from 'sonner'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,7 +25,7 @@ const stateIcons = {
 }
 
 type Toast = {
-  id: number
+  id: string
   state: 'working' | 'done' | 'failed'
   label: string
   error: string
@@ -36,18 +37,28 @@ type Target = { machine: string; projectId: string; onRefresh: () => void }
 const listeners = new Set<() => void>()
 let toast: Toast | null = null
 let lastId = 0
+let viewing = { open: false, label: '', error: '' }
 
-function set(next: Toast | null) {
+function set(next: Toast) {
+  if (toast !== null && toast.id !== next.id) {
+    sonner.dismiss(toast.id)
+  }
   toast = next
+  sonner.custom(() => <GitToastCard toast={next} />, {
+    id: next.id,
+    duration: next.state === 'done' ? 5000 : Infinity,
+    onDismiss: () => {
+      if (toast?.id === next.id) {
+        toast = null
+      }
+    },
+  })
+}
+
+function setViewing(next: typeof viewing) {
+  viewing = next
   for (const listener of listeners) {
     listener()
-  }
-  if (next?.state === 'done') {
-    setTimeout(() => {
-      if (toast?.id === next.id) {
-        set(null)
-      }
-    }, 5000)
   }
 }
 
@@ -63,10 +74,11 @@ export function showGitToast(
   outcome: { url: string } | { error: string }
 ) {
   lastId += 1
+  const id = `git-${lastId}`
   set(
     'url' in outcome
-      ? { id: lastId, state: 'done', label, error: '', url: outcome.url }
-      : { id: lastId, state: 'failed', label, error: outcome.error, url: null }
+      ? { id, state: 'done', label, error: '', url: outcome.url }
+      : { id, state: 'failed', label, error: outcome.error, url: null }
   )
 }
 
@@ -76,7 +88,7 @@ export async function startGitToast(options: {
   onRefresh: () => void
 }) {
   lastId += 1
-  const id = lastId
+  const id = `git-${lastId}`
   set({
     id,
     state: 'working',
@@ -153,39 +165,40 @@ export function startPullRequest(target: Target, repo: string, draft: Draft) {
   })
 }
 
-export function GitToast() {
-  const current = useSyncExternalStore(subscribe, () => toast)
-  const [viewing, setViewing] = useState(false)
-  if (current === null) {
-    return null
-  }
+function GitToastCard(props: { toast: Toast }) {
   return (
-    <div className="bg-popover text-popover-foreground flex max-w-80 items-center gap-3 rounded-md border py-2 pr-2 pl-3 shadow-md">
+    <div className="flex items-center gap-3">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <HugeiconsIcon
-          icon={stateIcons[current.state]}
+          icon={stateIcons[props.toast.state]}
           className={cn(
             'size-4 shrink-0',
-            current.state === 'working' && 'animate-spin',
-            current.state === 'done' && 'text-success',
-            current.state === 'failed' && 'text-destructive'
+            props.toast.state === 'working' && 'animate-spin',
+            props.toast.state === 'done' && 'text-success',
+            props.toast.state === 'failed' && 'text-destructive'
           )}
         />
-        <span className="truncate">{current.label}</span>
+        <span className="truncate">{props.toast.label}</span>
       </div>
-      {current.url !== null && (
+      {props.toast.url !== null && (
         <Button asChild size="xs" variant="outline">
-          <a href={current.url} target="_blank" rel="noopener noreferrer">
+          <a href={props.toast.url} target="_blank" rel="noopener noreferrer">
             Open
           </a>
         </Button>
       )}
-      {current.state === 'failed' && (
+      {props.toast.state === 'failed' && (
         <Button
           type="button"
           size="xs"
           variant="outline"
-          onClick={() => setViewing(true)}
+          onClick={() =>
+            setViewing({
+              open: true,
+              label: props.toast.label,
+              error: props.toast.error,
+            })
+          }
         >
           View
         </Button>
@@ -195,26 +208,29 @@ export function GitToast() {
         size="icon-micro"
         variant="ghost-muted"
         aria-label="Dismiss"
-        onClick={() => {
-          setViewing(false)
-          set(null)
-        }}
+        onClick={() => sonner.dismiss(props.toast.id)}
       >
         <HugeiconsIcon icon={XIcon} className="size-3.5" />
       </Button>
-      <Dialog
-        open={viewing && current.state === 'failed'}
-        onOpenChange={setViewing}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{current.label}</DialogTitle>
-          </DialogHeader>
-          <pre className="bg-muted/50 max-h-[60vh] overflow-y-auto rounded-lg border p-3 font-mono text-xs break-words whitespace-pre-wrap">
-            {current.error}
-          </pre>
-        </DialogContent>
-      </Dialog>
     </div>
+  )
+}
+
+export function GitErrorDialog() {
+  const current = useSyncExternalStore(subscribe, () => viewing)
+  return (
+    <Dialog
+      open={current.open}
+      onOpenChange={(open) => setViewing({ ...current, open })}
+    >
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{current.label}</DialogTitle>
+        </DialogHeader>
+        <pre className="bg-muted/50 max-h-[60vh] overflow-y-auto rounded-lg border p-3 font-mono text-xs break-words whitespace-pre-wrap">
+          {current.error}
+        </pre>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -13,13 +13,13 @@ import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocalStorage } from 'usehooks-ts'
 import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
-import { Toast } from '@/components/toast'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Toaster } from '@/components/ui/sonner'
 import { MachineLogo } from '@/constants/machine-icons'
 import { Composer } from '@/features/composer/composer'
 import {
@@ -29,7 +29,7 @@ import {
   useGitCommands,
   useGitStatus,
 } from '@/features/git/git-menu'
-import { GitToast } from '@/features/git/git-toast'
+import { GitErrorDialog } from '@/features/git/git-toast'
 import { SettingsDialog } from '@/features/settings/dialog'
 import { MobileSettings } from '@/features/settings/mobile'
 import { ConnectMachine } from '@/features/sidebar/connect-machine'
@@ -82,17 +82,13 @@ export function App() {
       {desktop ? <DesktopLayout /> : <MobileLayout />}
       <Palette />
       {desktop ? <SettingsDialog /> : <MobileSettings />}
-      <div
-        className={cn(
-          'fixed z-50 flex flex-col gap-2',
-          desktop
-            ? 'right-4 bottom-4 items-end'
-            : 'inset-x-4 top-[calc(env(safe-area-inset-top)+0.5rem)] items-center'
-        )}
-      >
-        <GitToast />
-        <Toast />
-      </div>
+      <GitErrorDialog />
+      <Toaster
+        position={desktop ? 'bottom-right' : 'top-center'}
+        swipeDirections={
+          desktop ? ['right', 'bottom'] : ['left', 'right', 'top']
+        }
+      />
     </div>
   )
 }
