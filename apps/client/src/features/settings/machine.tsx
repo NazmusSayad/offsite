@@ -25,7 +25,7 @@ import { platforms } from '@/features/terminal/config'
 import { providerNames } from '@/lib/format'
 import { AgentsSection } from './agents'
 import { Row, Section, TextInput } from './controls'
-import { GitSection } from './git'
+import { GenerationModelSection } from './generation-model'
 import { ShellInput } from './shell-input'
 
 export function MachinePage(props: {
@@ -136,8 +136,20 @@ export function MachinePage(props: {
         defaultShell={props.defaultShell}
       />
       <AgentsSection machine={props.machine} config={props.config} />
-      <GitSection
+      <GenerationModelSection
         key={`git-${props.machine}`}
+        title="Commit messages and pull requests"
+        setting="commitMessage"
+        machine={props.machine}
+        config={props.config}
+        claudeAccounts={props.claudeAccounts}
+        codexAccounts={props.codexAccounts}
+        openCode={props.openCode}
+      />
+      <GenerationModelSection
+        key={`titles-${props.machine}`}
+        title="Session titles"
+        setting="titleGeneration"
         machine={props.machine}
         config={props.config}
         claudeAccounts={props.claudeAccounts}

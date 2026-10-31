@@ -95,6 +95,7 @@ export type State = {
   settingsListing: boolean
   settingsMachine: string | null
   unseen: string[]
+  generatingTitles: string[]
   selection: Selection | null
   loaded: boolean
   items: Item[]

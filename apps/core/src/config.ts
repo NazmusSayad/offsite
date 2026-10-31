@@ -35,6 +35,12 @@ export type ComposerSettings = { provider: Provider } & Record<
   ProviderSettings
 >
 
+export type GenerationModel = {
+  provider: Provider | null
+  accountId: string | null
+  model: string | null
+}
+
 export type Config = {
   claudeBaseDir: Record<Platform, string | null>
   workingDir: Record<Platform, string | null>
@@ -46,11 +52,8 @@ export type Config = {
     accountId: string | null
     models: Record<Provider, string | null>
   }
-  commitMessage: {
-    provider: Provider | null
-    accountId: string | null
-    model: string | null
-  }
+  commitMessage: GenerationModel
+  titleGeneration: GenerationModel
   models: Record<Provider, Record<string, ModelSetting>>
   delivery: PromptDelivery
   autoSkipQuestionTimeout: number | null

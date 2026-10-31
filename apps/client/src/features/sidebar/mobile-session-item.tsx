@@ -32,6 +32,7 @@ import { machineOf, type MachineSession, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { SessionMenuItems } from './session-menu-items'
 import { SessionStatus } from './session-status'
+import { SessionTitle } from './session-title'
 
 const surface =
   'relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none touch-pan-y [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
@@ -205,7 +206,7 @@ export function MobileSessionItem(props: {
           !recede && !props.unseen && !waiting && 'text-foreground/90'
         )}
       >
-        {session.title}
+        <SessionTitle session={session} />
       </span>
     ) : (
       <form

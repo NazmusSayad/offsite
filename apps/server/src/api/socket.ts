@@ -57,6 +57,7 @@ import {
 import { proxyPort } from '../services/proxy.ts'
 import { claimNotifier, subscribe, unsubscribe } from '../services/push.ts'
 import { open, rewind, send } from '../services/runs.ts'
+import { generateSessionTitle } from '../services/session-title.ts'
 import {
   findSession,
   fork,
@@ -161,6 +162,10 @@ const handlers: Handlers = {
     } finally {
       publishSessions()
     }
+    return null
+  },
+  'sessions.generateTitle': async (params) => {
+    await generateSessionTitle(params.id, params.projectId)
     return null
   },
   'sessions.remove': async (params) => {

@@ -64,6 +64,7 @@ export function start() {
     settingsListing: true,
     settingsMachine: stored.at(0)?.id ?? null,
     unseen: [],
+    generatingTitles: [],
     selection,
     loaded: selection?.sessionId === null,
     items: [],

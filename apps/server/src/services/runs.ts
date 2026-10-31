@@ -31,7 +31,7 @@ export function stopAll() {
   stopAppServers()
 }
 
-function sessionHistory(sessionId: string, cwd: string) {
+export function sessionHistory(sessionId: string, cwd: string) {
   switch (providerOf(sessionId)) {
     case 'claude':
       return history(sessionId, cwd)

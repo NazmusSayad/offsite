@@ -17,7 +17,7 @@ import {
   renameThread,
 } from '../lib/codex/index.ts'
 import { broadcast } from '../lib/hub.ts'
-import { runs } from '../lib/live.ts'
+import { runs, titleJobs } from '../lib/live.ts'
 import {
   forkOpenCode,
   openCodeInstalled,
@@ -209,7 +209,7 @@ export function refreshSessions(provider: Provider) {
   )
 }
 
-async function refresh(provider: Provider) {
+export async function refresh(provider: Provider) {
   const current = refreshing.get(provider)
   if (current !== undefined) {
     current.again = true
@@ -334,6 +334,7 @@ export function watchSessions() {
 
 export async function updateSession(id: string, patch: SessionPatch) {
   if (patch.title !== undefined) {
+    titleJobs.delete(id)
     switch (providerOf(id)) {
       case 'claude':
         await renameSession(id, patch.title)

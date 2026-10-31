@@ -1,4 +1,4 @@
-import type { Config } from '@offsite/core/config'
+import type { Config, GenerationModel } from '@offsite/core/config'
 import type { Account, Model } from '@offsite/core/providers'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
@@ -15,14 +15,16 @@ import { providerNames } from '@/lib/format'
 import { errorMessage } from '@/lib/utils'
 import { Row, Section } from './controls'
 
-export function GitSection(props: {
+export function GenerationModelSection(props: {
+  title: string
+  setting: 'commitMessage' | 'titleGeneration'
   machine: string
   config: Config
   claudeAccounts: Account[]
   codexAccounts: Account[]
   openCode: { available: boolean }
 }) {
-  const settings = props.config.commitMessage
+  const settings = props.config[props.setting]
   const [models, setModels] = useState<Model[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,8 +56,11 @@ export function GitSection(props: {
     }
   }, [props.machine, settings.provider, settings.accountId])
 
-  function save(commitMessage: Config['commitMessage']) {
-    void updateConfig(props.machine, { ...props.config, commitMessage })
+  function save(value: GenerationModel) {
+    void updateConfig(props.machine, {
+      ...props.config,
+      [props.setting]: value,
+    })
   }
 
   function choose(value: string) {
@@ -77,7 +82,7 @@ export function GitSection(props: {
   }
 
   return (
-    <Section title="Commit messages and pull requests">
+    <Section title={props.title}>
       <Row label="Account">
         <Select
           value={

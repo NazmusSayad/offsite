@@ -8,13 +8,8 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { query } from '@anthropic-ai/claude-agent-sdk'
 import type { GitRepo, PullRequestDraft } from '@offsite/core/git'
-import { claudeOptions } from '../lib/claude/index.ts'
-import { codexText } from '../lib/codex/index.ts'
-import { openCodeText } from '../lib/opencode/index.ts'
-import { readConfig } from '../storage/config.ts'
-import { assertEnabled } from './accounts.ts'
+import { generateText } from './generate-text.ts'
 
 const DIFF_LIMIT = 80_000
 const UNTRACKED_LIMIT = 100
@@ -239,6 +234,7 @@ export async function preparePullRequest(
   ).stdout.slice(0, DIFF_LIMIT)
   const lines = (
     await generateText(
+      'commitMessage',
       cwd,
       PULL_REQUEST_INSTRUCTIONS,
       `Commits between base and head:\n${commits}\n\n${diff}\n\nGenerate the pull request Markdown document from the above.`
@@ -306,51 +302,11 @@ export async function commitMessage(cwd: string, staged: boolean) {
     throw new Error('There is nothing to commit')
   }
   return generateText(
+    'commitMessage',
     cwd,
     'You write concise git commit messages.',
     `Write a git commit message for this diff. Reply with only the message: a short summary line, optionally followed by a blank line and a brief body.\n\n${diff}`
   )
-}
-
-async function generateText(cwd: string, instructions: string, prompt: string) {
-  const settings = readConfig().commitMessage
-  const provider = settings.provider
-  const accountId = settings.accountId
-  const model = settings.model
-  if (provider === null || model === null) {
-    throw new Error('Choose a model in Settings → Git')
-  }
-  assertEnabled(provider, accountId)
-  if (provider === 'codex') {
-    return codexText(accountId, cwd, model, instructions, prompt)
-  }
-  if (provider === 'opencode') {
-    return openCodeText(cwd, model, `${instructions}\n\n${prompt}`)
-  }
-  const conversation = query({
-    prompt,
-    options: {
-      ...claudeOptions(accountId, cwd),
-      systemPrompt: instructions,
-      tools: [],
-      model,
-      maxTurns: 1,
-      persistSession: false,
-    },
-  })
-  for await (const message of conversation) {
-    if (message.type !== 'result') {
-      continue
-    }
-    if (message.subtype !== 'success') {
-      throw new Error(message.errors.join('\n'))
-    }
-    if (message.is_error) {
-      throw new Error(message.result)
-    }
-    return message.result.trim()
-  }
-  throw new Error('Claude did not reply')
 }
 
 export async function projectDiff(cwd: string) {

@@ -83,6 +83,10 @@ export type RpcMethods = {
     params: { id: string; patch: SessionPatch }
     result: null
   }
+  'sessions.generateTitle': {
+    params: { id: string; projectId: string }
+    result: null
+  }
   'sessions.remove': { params: { id: string }; result: null }
   'sessions.open': {
     params: { sessionId: string; projectId: string }

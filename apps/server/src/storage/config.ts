@@ -10,6 +10,14 @@ const modelSetting = z.strictObject({
   effort: z.string().nullable(),
 })
 
+const generationModel = z
+  .strictObject({
+    provider: z.enum(['claude', 'codex', 'opencode']).nullable().default(null),
+    accountId: z.string().nullable().default(null),
+    model: z.string().nullable().default(null),
+  })
+  .prefault({})
+
 const posixDir = z
   .string()
   .refine((value) => path.posix.isAbsolute(value), 'must be an absolute path')
@@ -88,16 +96,8 @@ const configSchema: z.ZodType<Config> = z.strictObject({
         .prefault({}),
     })
     .prefault({}),
-  commitMessage: z
-    .strictObject({
-      provider: z
-        .enum(['claude', 'codex', 'opencode'])
-        .nullable()
-        .default(null),
-      accountId: z.string().nullable().default(null),
-      model: z.string().nullable().default(null),
-    })
-    .prefault({}),
+  commitMessage: generationModel,
+  titleGeneration: generationModel,
   models: z
     .strictObject({
       claude: z.record(z.string(), modelSetting).default({}),

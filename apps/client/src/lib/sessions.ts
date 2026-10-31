@@ -304,6 +304,25 @@ export async function editSession(
   }
 }
 
+export async function regenerateTitle(session: MachineSession) {
+  const key = machineKey(session.machine, session.id)
+  update({ generatingTitles: [...getState().generatingTitles, key] })
+  try {
+    await call(session.machine, 'sessions.generateTitle', {
+      id: session.id,
+      projectId: session.projectId,
+    })
+  } catch (error) {
+    showError(error)
+  } finally {
+    update({
+      generatingTitles: getState().generatingTitles.filter(
+        (item) => item !== key
+      ),
+    })
+  }
+}
+
 export async function deactivateSession(
   machine: string,
   id: string,

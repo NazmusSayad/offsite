@@ -7,6 +7,7 @@ import { broadcast } from './hub.ts'
 import type { OpenCodeRun } from './opencode/index.ts'
 
 export const runs = new Map<string, Run | CodexRun | OpenCodeRun>()
+export const titleJobs = new Set<string>()
 
 export function activity() {
   const result: Record<string, SessionActivity> = {}

@@ -9,9 +9,11 @@ import {
   PinOffIcon,
   Plug01Icon,
   PlugZapIcon,
+  SparklesIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
+import { machineKey } from '@/api/machines'
 import {
   ContextMenuItem,
   ContextMenuSeparator,
@@ -21,8 +23,8 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { providerNames } from '@/lib/format'
-import { editSession, removeSession } from '@/lib/sessions'
-import type { MachineSession } from '@/lib/store'
+import { editSession, regenerateTitle, removeSession } from '@/lib/sessions'
+import { type MachineSession, useStore } from '@/lib/store'
 
 export function SessionMenuItems(props: {
   session: MachineSession
@@ -32,6 +34,9 @@ export function SessionMenuItems(props: {
 }) {
   const session = props.session
   const [confirming, setConfirming] = useState(false)
+  const generatingTitle = useStore((state) =>
+    state.generatingTitles.includes(machineKey(session.machine, session.id))
+  )
   const Item = props.mobile ? ContextMenuItem : DropdownMenuItem
   const Separator = props.mobile ? ContextMenuSeparator : DropdownMenuSeparator
 
@@ -93,6 +98,13 @@ export function SessionMenuItems(props: {
         {session.status === 'pinned' ? 'Unpin' : 'Pin'}
       </Item>
       <Separator />
+      <Item
+        disabled={generatingTitle}
+        onSelect={() => void regenerateTitle(session)}
+      >
+        <HugeiconsIcon icon={SparklesIcon} />
+        Regenerate title
+      </Item>
       <Item onSelect={props.onRename}>
         <HugeiconsIcon icon={PencilEdit02Icon} />
         Rename
