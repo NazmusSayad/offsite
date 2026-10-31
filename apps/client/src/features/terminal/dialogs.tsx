@@ -18,7 +18,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { dismissClosing, getClosing, subscribeClosing } from './close-tab'
+import {
+  dismissClosing,
+  dismissClosingAll,
+  getClosing,
+  getClosingAll,
+  sendCloseTabs,
+  subscribeClosing,
+} from './close-tab'
 import { send } from './session'
 import { focusTerminal } from './shortcuts'
 
@@ -108,6 +115,48 @@ export function CloseDialog() {
             onClick={() => send({ type: 'closeTab', id: closing.id })}
           >
             Close
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+export function CloseAllDialog() {
+  const dialog = useSyncExternalStore(subscribeClosing, getClosingAll)
+  if (dialog === null) {
+    return null
+  }
+  const closing = dialog.closing
+
+  return (
+    <AlertDialog
+      open={dialog.open}
+      onOpenChange={(open) => {
+        if (!open) {
+          dismissClosingAll()
+        }
+      }}
+    >
+      <AlertDialogContent onCloseAutoFocus={restoreFocus}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Close {closing.tabs.length}{' '}
+            {closing.tabs.length === 1 ? 'terminal' : 'terminals'}?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {closing.programs.length === 0
+              ? 'OffSite couldn’t check whether programs are still running.'
+              : `Still running: ${closing.programs.join(', ')}.`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={() => sendCloseTabs(closing.tabs)}
+          >
+            Close all
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

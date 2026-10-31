@@ -1,8 +1,14 @@
-import { Add01Icon } from '@hugeicons/core-free-icons'
+import { Add01Icon, Delete02Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import { type ReactNode, useEffect, useSyncExternalStore } from 'react'
 import { ProjectIcon } from '@/components/icons'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,10 +19,11 @@ import { MachineLogo } from '@/constants/machine-icons'
 import { type Machine, useStore } from '@/lib/store'
 import { useTerminalPage, useTerminalView } from '@/lib/url'
 import { cn } from '@/lib/utils'
+import { closeTabs } from './close-tab'
 import { NewTerminalItems } from './new-terminal-button'
 import { createTab, showGroup } from './page'
 import { TerminalPanel } from './panel'
-import { getState, subscribe } from './session'
+import { getState, subscribe, tabView } from './session'
 
 type Group = {
   machine: Machine
@@ -124,48 +131,98 @@ export function TerminalGroups() {
   return (
     <div className="flex max-h-52 flex-col gap-px overflow-y-auto">
       {groups.map((group) => (
-        <div
-          key={`${group.machine.id}:${group.view}`}
-          className={cn(
-            'group/row text-sidebar-muted-foreground/80 hover:bg-sidebar-row-hover hover:text-sidebar-foreground relative shrink-0 rounded-[var(--control-radius)]',
-            group.machine.id === page &&
-              group.view === view &&
-              'bg-sidebar-row-hover text-sidebar-foreground'
-          )}
-        >
-          <button
-            className={cn(
-              'flex h-7 w-full cursor-pointer items-center gap-2 rounded-[var(--control-radius)] pr-2.5 pl-7 text-left text-[13px]',
-              group.view !== GLOBAL_TERMINALS && 'pl-11'
+        <ContextMenu key={`${group.machine.id}:${group.view}`}>
+          <ContextMenuTrigger asChild>
+            <div
+              className={cn(
+                'group/row text-sidebar-muted-foreground/80 hover:bg-sidebar-row-hover hover:text-sidebar-foreground data-[state=open]:bg-sidebar-row-hover relative shrink-0 rounded-[var(--control-radius)]',
+                group.machine.id === page &&
+                  group.view === view &&
+                  'bg-sidebar-row-hover text-sidebar-foreground'
+              )}
+            >
+              <button
+                className={cn(
+                  'flex h-7 w-full cursor-pointer items-center gap-2 rounded-[var(--control-radius)] pr-2.5 pl-7 text-left text-[13px]',
+                  group.view !== GLOBAL_TERMINALS && 'pl-11'
+                )}
+                onClick={() =>
+                  group.count === 0
+                    ? void createTab(group.machine.id, null)
+                    : showGroup(group.machine.id, group.view)
+                }
+              >
+                <GroupIcon group={group} />
+                <span className="truncate">{group.name}</span>
+                <GroupCount
+                  count={group.count}
+                  alert={alerted(group, page)}
+                  className="group-hover/row:invisible"
+                />
+              </button>
+              <button
+                className="text-muted-foreground hover:text-foreground absolute top-0.5 right-1 grid size-6 cursor-pointer place-items-center rounded-md opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden"
+                aria-label="New terminal"
+                title="New terminal"
+                onClick={() =>
+                  void createTab(
+                    group.machine.id,
+                    group.view === GLOBAL_TERMINALS ? null : group.view
+                  )
+                }
+              >
+                <HugeiconsIcon icon={Add01Icon} className="size-4" />
+              </button>
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent
+            onCloseAutoFocus={(event) => event.preventDefault()}
+          >
+            <ContextMenuItem
+              onSelect={() =>
+                void createTab(
+                  group.machine.id,
+                  group.view === GLOBAL_TERMINALS ? null : group.view
+                )
+              }
+            >
+              <HugeiconsIcon icon={Add01Icon} />
+              New terminal
+            </ContextMenuItem>
+            {group.view === GLOBAL_TERMINALS && (
+              <ContextMenuItem
+                variant="destructive"
+                onSelect={() =>
+                  void closeTabs(
+                    group.machine.terminals.map((tab) => ({
+                      machine: group.machine.id,
+                      id: tab.id,
+                    }))
+                  )
+                }
+              >
+                <HugeiconsIcon icon={Delete02Icon} />
+                Close All
+              </ContextMenuItem>
             )}
-            onClick={() =>
-              group.count === 0
-                ? void createTab(group.machine.id, null)
-                : showGroup(group.machine.id, group.view)
-            }
-          >
-            <GroupIcon group={group} />
-            <span className="truncate">{group.name}</span>
-            <GroupCount
-              count={group.count}
-              alert={alerted(group, page)}
-              className="group-hover/row:invisible"
-            />
-          </button>
-          <button
-            className="text-muted-foreground hover:text-foreground absolute top-0.5 right-1 grid size-6 cursor-pointer place-items-center rounded-md opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden"
-            aria-label="New terminal"
-            title="New terminal"
-            onClick={() =>
-              void createTab(
-                group.machine.id,
-                group.view === GLOBAL_TERMINALS ? null : group.view
-              )
-            }
-          >
-            <HugeiconsIcon icon={Add01Icon} className="size-4" />
-          </button>
-        </div>
+            <ContextMenuItem
+              variant="destructive"
+              disabled={group.count === 0}
+              onSelect={() =>
+                void closeTabs(
+                  group.machine.terminals
+                    .filter((tab) => tabView(tab) === group.view)
+                    .map((tab) => ({ machine: group.machine.id, id: tab.id }))
+                )
+              }
+            >
+              <HugeiconsIcon icon={Delete02Icon} />
+              {group.view === GLOBAL_TERMINALS
+                ? 'Close All Except Projects'
+                : 'Close All'}
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
       ))}
     </div>
   )

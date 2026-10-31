@@ -1,6 +1,7 @@
 import { Add01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { ProjectIcon } from '@/components/icons'
+import { ContextMenuItem } from '@/components/ui/context-menu'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,24 +49,22 @@ export function NewTerminalButton() {
   )
 }
 
-export function NewTerminalItems() {
+export function NewTerminalItems(props: { contextMenu?: boolean }) {
   const machines = useStore((store) => store.machines)
   const projects = useStore((store) => store.projects)
+  const Item = props.contextMenu ? ContextMenuItem : DropdownMenuItem
 
   return machines
     .filter((machine) => machine.status === 'online')
     .flatMap((machine) => [
-      <DropdownMenuItem
-        key={machine.id}
-        onSelect={() => void createTab(machine.id, null)}
-      >
+      <Item key={machine.id} onSelect={() => void createTab(machine.id, null)}>
         <MachineLogo icon={machine.icon} />
         <span className="max-w-60 truncate">{machine.name}</span>
-      </DropdownMenuItem>,
+      </Item>,
       ...projects
         .filter((project) => project.machine === machine.id)
         .map((project) => (
-          <DropdownMenuItem
+          <Item
             key={`${machine.id}:${project.id}`}
             className="pl-7"
             onSelect={() => void createTab(machine.id, project.id)}
@@ -76,7 +75,7 @@ export function NewTerminalItems() {
               className="size-4"
             />
             <span className="max-w-60 truncate">{project.name}</span>
-          </DropdownMenuItem>
+          </Item>
         )),
     ])
 }
