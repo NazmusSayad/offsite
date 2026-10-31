@@ -25,9 +25,10 @@ import { find, type Found, timeLimit } from './provider-sessions.ts'
 
 const READ_LIMIT = 30
 const CODEX_READ_LIMIT = 10
+const RG_TIME_LIMIT = 5000
 
 const generatedText =
-  /^(?:This session is being continued from a previous conversation|<command-|<local-command-)/
+  /^(?:This session is being continued from a previous conversation|<command-|<local-command-|<bash-|<task-notification|<cross-session-message|Another Claude session sent a message:|\[Request interrupted by user)/
 
 const run = promisify(execFile)
 
@@ -166,7 +167,7 @@ async function sessionsWith(word: string) {
       word,
       path.join(claudeBaseDir(), 'projects'),
     ],
-    { maxBuffer: 16 * 1024 * 1024 }
+    { maxBuffer: 16 * 1024 * 1024, timeout: RG_TIME_LIMIT }
   ).catch((error: { code?: number | string }) => {
     if (error.code === 1) {
       return { stdout: '' }
