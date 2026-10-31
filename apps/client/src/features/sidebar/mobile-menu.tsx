@@ -29,11 +29,17 @@ export function MobileMenu(props: { buttonClassName: string }) {
         aria-label="Menu"
         className="flex w-56 flex-col gap-px p-1"
       >
-        <TerminalNav buttonClassName={props.buttonClassName} mobile />
+        <TerminalNav
+          buttonClassName={cn(
+            props.buttonClassName,
+            'text-popover-foreground [&>svg]:text-popover-foreground'
+          )}
+          mobile
+        />
         <button
           className={cn(
             props.buttonClassName,
-            'h-8 w-full justify-start gap-2 px-2.5 text-sm'
+            'text-popover-foreground [&>svg]:text-popover-foreground h-8 w-full justify-start gap-2 px-2.5 text-sm'
           )}
           onClick={() => {
             setOpen(false)

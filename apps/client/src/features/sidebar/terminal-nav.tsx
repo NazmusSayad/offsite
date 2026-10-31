@@ -166,7 +166,7 @@ export function TerminalNav(props: {
         inert={!expanded && !props.mobile}
       >
         <div className="min-h-0 overflow-hidden">
-          <TerminalGroups />
+          <TerminalGroups mobile={props.mobile} />
         </div>
       </div>
       <CloseAllDialog />

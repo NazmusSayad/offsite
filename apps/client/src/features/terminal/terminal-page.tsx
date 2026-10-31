@@ -119,7 +119,7 @@ export function TerminalPage(props: {
   )
 }
 
-export function TerminalGroups() {
+export function TerminalGroups(props: { mobile: boolean }) {
   useSyncExternalStore(subscribe, getState)
   const page = useTerminalPage()
   const view = useTerminalView()
@@ -137,6 +137,7 @@ export function TerminalGroups() {
             <div
               className={cn(
                 'group/row text-sidebar-muted-foreground/80 hover:bg-sidebar-row-hover hover:text-sidebar-foreground data-[state=open]:bg-sidebar-row-hover relative shrink-0 rounded-[var(--control-radius)]',
+                props.mobile && 'text-popover-foreground',
                 group.machine.id === page &&
                   group.view === view &&
                   'bg-sidebar-row-hover text-sidebar-foreground'
