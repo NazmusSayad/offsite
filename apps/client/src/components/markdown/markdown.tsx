@@ -127,7 +127,9 @@ const components: Components = {
       )
     }
     return (
-      <span className={cn('block', mediaKind(src) !== 'audio' && 'w-1/2')}>
+      <span
+        className={cn('block', mediaKind(src) !== 'audio' && 'w-full max-w-sm')}
+      >
         <Media
           src={src}
           alt={alt ?? ''}

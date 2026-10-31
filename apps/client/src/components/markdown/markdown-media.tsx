@@ -87,7 +87,7 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
       className={cn(
         'border-border bg-muted/50 flex flex-col gap-1 rounded-xl border p-1',
         mediaKind(props.path) === 'audio' && 'w-fit max-w-[min(100%,36rem)]',
-        mediaKind(props.path) !== 'audio' && 'w-1/2'
+        mediaKind(props.path) !== 'audio' && 'w-full max-w-sm'
       )}
     >
       <span className="text-muted-foreground flex items-center gap-1.5 pl-1.5 [contain:inline-size]">
