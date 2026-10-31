@@ -13,7 +13,7 @@ import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { createTab } from './page'
 
-export function NewTerminalButton() {
+export function NewTerminalButton(props: { mobile: boolean }) {
   const machines = useStore((store) => store.machines)
   const online = machines.filter((machine) => machine.status === 'online')
   const active = online.some((machine) => machine.terminals.length > 0)
@@ -39,7 +39,7 @@ export function NewTerminalButton() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        side="right"
+        side={props.mobile ? 'bottom' : 'right'}
         align="end"
         className="max-h-80 w-auto min-w-40 overflow-y-auto"
         onCloseAutoFocus={(event) => event.preventDefault()}

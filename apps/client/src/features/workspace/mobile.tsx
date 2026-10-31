@@ -6,6 +6,7 @@ import { Fragment, useCallback, useState, useSyncExternalStore } from 'react'
 import { useProjectName } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
+import { MachineLogo } from '@/constants/machine-icons'
 import { Composer } from '@/features/composer/composer'
 import {
   GitCommandDialog,
@@ -188,8 +189,11 @@ function MobileChat(props: { selection: Selection }) {
             {session?.title ?? 'New thread'}
           </div>
           {machine.status === 'online' && (
-            <div className="text-muted-foreground truncate text-xs">
-              {machine.name} / {projectTitle}
+            <div className="text-muted-foreground flex items-center gap-1 text-xs">
+              <MachineLogo icon={machine.icon} className="size-3.5 shrink-0" />
+              <span className="truncate">
+                {machine.name} / {projectTitle}
+              </span>
             </div>
           )}
           {machine.status !== 'online' && (

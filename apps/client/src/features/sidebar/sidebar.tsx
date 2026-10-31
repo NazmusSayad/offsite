@@ -285,7 +285,7 @@ export function Sidebar(
       >
         <div className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 px-3">
           {props.mobile ? (
-            <MobileMenu className={cn(iconButton, 'size-7')} />
+            <MobileMenu buttonClassName={iconButton} />
           ) : (
             <button
               className={cn(iconButton, 'size-7')}
@@ -381,14 +381,9 @@ export function Sidebar(
             )}
           </ul>
         </nav>
-        {props.mobile && (
-          <div className="border-sidebar-border flex shrink-0 flex-col gap-px border-t p-(--sidebar-content-inset)">
-            <TerminalNav buttonClassName={iconButton} />
-          </div>
-        )}
         {!props.mobile && (
           <div className="border-sidebar-border @container flex shrink-0 flex-col gap-px border-t p-(--sidebar-content-inset)">
-            <TerminalNav buttonClassName={iconButton} />
+            <TerminalNav buttonClassName={iconButton} mobile={false} />
             <div className="relative">
               <button
                 className={cn(

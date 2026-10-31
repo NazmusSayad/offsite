@@ -81,11 +81,15 @@ export function TerminalPage(props: {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="center" className="w-auto">
-              {groups.map((group) => (
+              {groups.filter(hasTerminals).map((group) => (
                 <DropdownMenuItem
                   key={`${group.machine.id}:${group.view}`}
                   className={cn(group.view !== GLOBAL_TERMINALS && 'pl-7')}
-                  onSelect={() => showGroup(group.machine.id, group.view)}
+                  onSelect={() =>
+                    group.count === 0
+                      ? void createTab(group.machine.id, null)
+                      : showGroup(group.machine.id, group.view)
+                  }
                 >
                   <GroupIcon group={group} />
                   <span className="max-w-60 truncate">{group.name}</span>
@@ -119,10 +123,7 @@ export function TerminalGroups() {
   useSyncExternalStore(subscribe, getState)
   const page = useTerminalPage()
   const view = useTerminalView()
-  const groups = useGroups().filter(
-    (group) =>
-      group.machine.status === 'online' && group.machine.terminals.length > 0
-  )
+  const groups = useGroups().filter(hasTerminals)
 
   if (groups.length === 0) {
     return null
@@ -258,6 +259,10 @@ function useGroups(): Group[] {
       })),
     ]
   })
+}
+
+function hasTerminals(group: Group) {
+  return group.machine.status === 'online' && group.machine.terminals.length > 0
 }
 
 function alerted(group: Group, machine: string | null) {

@@ -1,27 +1,49 @@
 import { Menu01Icon, Settings01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { useState } from 'react'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { TerminalNav } from '@/features/sidebar/terminal-nav'
 import { showSettings } from '@/lib/store'
+import { cn } from '@/lib/utils'
 
-export function MobileMenu(props: { className: string }) {
+export function MobileMenu(props: { buttonClassName: string }) {
+  const [open, setOpen] = useState(false)
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className={props.className} title="Menu" aria-label="Menu">
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(props.buttonClassName, 'size-7')}
+          title="Menu"
+          aria-label="Menu"
+        >
           <HugeiconsIcon icon={Menu01Icon} />
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
-        <DropdownMenuItem onSelect={() => showSettings(true)}>
+      </PopoverTrigger>
+      <PopoverContent
+        role="group"
+        aria-label="Menu"
+        className="flex w-56 flex-col gap-px p-1"
+      >
+        <TerminalNav buttonClassName={props.buttonClassName} mobile />
+        <button
+          className={cn(
+            props.buttonClassName,
+            'h-8 w-full justify-start gap-2 px-2.5 text-sm'
+          )}
+          onClick={() => {
+            setOpen(false)
+            showSettings(true)
+          }}
+        >
           <HugeiconsIcon icon={Settings01Icon} />
           Settings
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </button>
+      </PopoverContent>
+    </Popover>
   )
 }

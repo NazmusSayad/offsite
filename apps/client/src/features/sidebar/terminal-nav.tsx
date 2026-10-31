@@ -30,7 +30,10 @@ import { TerminalGroups } from '@/features/terminal/terminal-page'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-export function TerminalNav(props: { buttonClassName: string }) {
+export function TerminalNav(props: {
+  buttonClassName: string
+  mobile: boolean
+}) {
   const machines = useStore((state) => state.machines)
   const [expanded, setExpanded] = useLocalStorage(
     'terminalGroupsExpanded',
@@ -44,6 +47,7 @@ export function TerminalNav(props: { buttonClassName: string }) {
     (machine) => machine.status === 'online' && machine.terminals.length > 0
   )
   const online = machines.some((machine) => machine.status === 'online')
+  const collapsible = active && !props.mobile
 
   if (machines.length === 0) {
     return null
@@ -54,11 +58,11 @@ export function TerminalNav(props: { buttonClassName: string }) {
       className={cn(
         props.buttonClassName,
         'group-hover/terminal:text-sidebar-foreground group-hover/terminal:[&>svg]:text-sidebar-foreground group-has-[[data-state=open]]/terminal:text-sidebar-foreground group-has-[[data-state=open]]/terminal:[&>svg]:text-sidebar-foreground h-8 w-full justify-start gap-2 px-2.5 text-sm',
-        active &&
+        collapsible &&
           'group-hover/terminal:[&>svg]:opacity-0 pointer-coarse:[&>svg]:opacity-0'
       )}
       title="Terminal"
-      onClick={active ? () => setExpanded(!expanded) : undefined}
+      onClick={collapsible ? () => setExpanded(!expanded) : undefined}
     >
       <HugeiconsIcon icon={SquareTerminalIcon} />
       Terminal
@@ -82,7 +86,7 @@ export function TerminalNav(props: { buttonClassName: string }) {
       <ContextMenu>
         <ContextMenuTrigger asChild disabled={!online}>
           <div className="group/terminal hover:bg-sidebar-row-hover has-[[data-state=open]]:bg-sidebar-row-hover data-[state=open]:bg-sidebar-row-hover relative rounded-[var(--control-radius)]">
-            {active ? (
+            {collapsible ? (
               button
             ) : (
               <DropdownMenu>
@@ -99,7 +103,7 @@ export function TerminalNav(props: { buttonClassName: string }) {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {active && (
+            {collapsible && (
               <button
                 className="text-muted-foreground hover:text-foreground absolute top-1 left-1.5 grid size-6 cursor-pointer place-items-center rounded-md opacity-0 group-hover/terminal:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
                 aria-label={
@@ -118,7 +122,7 @@ export function TerminalNav(props: { buttonClassName: string }) {
                 />
               </button>
             )}
-            <NewTerminalButton />
+            <NewTerminalButton mobile={props.mobile} />
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent
@@ -157,9 +161,9 @@ export function TerminalNav(props: { buttonClassName: string }) {
       <div
         className={cn(
           'grid transition-[grid-template-rows] duration-200',
-          expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+          expanded || props.mobile ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
         )}
-        inert={!expanded}
+        inert={!expanded && !props.mobile}
       >
         <div className="min-h-0 overflow-hidden">
           <TerminalGroups />
