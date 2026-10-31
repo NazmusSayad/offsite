@@ -16,7 +16,7 @@ import {
   Terminal,
 } from '@/lib/ghostty/terminal'
 import { router } from '@/lib/router'
-import { openSession, openTerminalPage } from '@/lib/sessions'
+import { openSession } from '@/lib/sessions'
 import {
   getState as appState,
   machineOf,
@@ -27,11 +27,13 @@ import {
   leaveLayer,
   replaceSearch,
   terminalPage,
+  terminalView,
 } from '@/lib/url'
 import { errorMessage, isMac } from '@/lib/utils'
 import { forgetTab, unseenAttention } from './attention'
 import { applyStyle, terminalOptions } from './config'
 import { createSession } from './create-session'
+import { keepPageOpen, showGroup } from './page'
 
 type State = {
   status: 'connecting' | 'active'
@@ -40,7 +42,6 @@ type State = {
   open: boolean
   instance: string | null
   layout: TerminalLayout
-  pageView: string
   ctrl: boolean
   titles: Record<number, string>
   progress: Record<number, Progress>
@@ -63,7 +64,6 @@ let state: State = {
   open: false,
   instance: null,
   layout: { tabs: [], active: {} },
-  pageView: GLOBAL_TERMINALS,
   ctrl: false,
   ...emptyTabState(),
 }
@@ -104,6 +104,7 @@ export async function startTerminal() {
   })
   followSelection()
   router.history.subscribe(followSelection)
+  router.history.subscribe(keepPageOpen)
   document.addEventListener('visibilitychange', () => setState({}))
   window.addEventListener('focus', () => {
     setState({})
@@ -225,7 +226,7 @@ export function terminalConfig() {
 
 export function currentView() {
   const view =
-    terminalPage() === null ? appState().selection?.projectId : pageView()
+    terminalPage() === null ? appState().selection?.projectId : terminalView()
   if (view === undefined) {
     return null
   }
@@ -236,16 +237,12 @@ export function currentView() {
   }
 }
 
-export function pageView() {
-  return viewTabs(state.layout, state.pageView).length > 0
-    ? state.pageView
-    : GLOBAL_TERMINALS
+export function viewTabs(layout: TerminalLayout, view: string) {
+  return layout.tabs.filter((tab) => tabView(tab) === view)
 }
 
-export function viewTabs(layout: TerminalLayout, view: string) {
-  return layout.tabs.filter(
-    (tab) => (tab.projectId ?? GLOBAL_TERMINALS) === view
-  )
+export function tabView(tab: TerminalTab) {
+  return tab.projectId ?? GLOBAL_TERMINALS
 }
 
 export function findTab(id: number) {
@@ -298,11 +295,6 @@ export function sendTo(target: string, request: TerminalRequest) {
   call(target, 'terminal', request).catch((error: unknown) =>
     console.error('terminal request failed', error)
   )
-}
-
-export function showGroup(target: string, view: string) {
-  setState({ pageView: view })
-  openTerminalPage(target)
 }
 
 export function sendInput(id: number, data: string | Uint8Array) {
@@ -390,6 +382,7 @@ function handle(message: TerminalEvent) {
       status: awaitingReplay.size === 0 ? 'active' : 'connecting',
       layout: message.layout,
     })
+    keepPageOpen()
     return
   }
   for (const id of awaitingReplay) {
@@ -409,6 +402,7 @@ function handle(message: TerminalEvent) {
   if (closedLastTab && state.open) {
     setOpen(false)
   }
+  keepPageOpen()
 }
 
 function sync(tabs: TerminalTab[]) {

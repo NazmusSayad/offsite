@@ -1,6 +1,7 @@
 import type { PromptDelivery } from '@offsite/core/config'
 import type { PermissionDecision, Prompt } from '@offsite/core/items'
 import type { SessionPatch } from '@offsite/core/sessions'
+import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { deleteDraft, getDraftSettings } from '@/features/composer/drafts'
@@ -19,7 +20,7 @@ import {
   showError,
   update,
 } from './store'
-import { syncUrl, terminalPage } from './url'
+import { syncUrl, terminalPage, terminalView } from './url'
 export function openSession(selection: Selection) {
   const machine = machineOf(getState(), selection.machine)
   const previous = getState().selection
@@ -114,15 +115,15 @@ export function lastTerminalMachine() {
   return machines.at(0)?.id ?? null
 }
 
-export function openTerminalPage(machine: string) {
+export function openTerminalPage(machine: string, view: string) {
   const current = terminalPage()
-  if (current === machine) {
+  if (current === machine && terminalView() === view) {
     return
   }
   void router.navigate({
     to: '/terminal/$machine',
     params: { machine },
-    search: {},
+    search: { project: view === GLOBAL_TERMINALS ? undefined : view },
     replace: current !== null,
     state: { layer: 'chat' },
     resetScroll: false,

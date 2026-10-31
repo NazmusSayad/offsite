@@ -57,7 +57,9 @@ const keys = [
 
 export function TerminalPanel(props: {
   view: string
+  page?: boolean
   tabSize?: 'default' | 'lg'
+  leading?: ReactNode
 }) {
   const state = useSyncExternalStore(subscribe, getState)
   const active = state.status === 'active'
@@ -66,10 +68,10 @@ export function TerminalPanel(props: {
   const shortcuts = useTerminalShortcuts()
 
   useEffect(() => {
-    if (active) {
+    if (active && !props.page) {
       send({ type: 'select', view: props.view, tabId: null })
     }
-  }, [props.view, active])
+  }, [props.view, active, props.page])
 
   function create() {
     send({
@@ -97,6 +99,11 @@ export function TerminalPanel(props: {
           tabs.length === 1 ? 'bg-background' : 'bg-sidebar'
         )}
       >
+        {props.leading && (
+          <div className="flex flex-none items-center border-b px-1.5">
+            {props.leading}
+          </div>
+        )}
         <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
           {tabs.map((tab) => (
             <TabMenu key={tab.id} tab={tab}>
@@ -158,7 +165,7 @@ export function TerminalPanel(props: {
         {tabId !== null && state.finding === tabId && (
           <FindBar key={tabId} id={tabId} />
         )}
-        {active && tabId === null && (
+        {active && tabId === null && !props.page && (
           <button
             className="text-muted-foreground hover:text-foreground grid size-full cursor-pointer place-items-center text-xs transition-colors"
             onClick={create}

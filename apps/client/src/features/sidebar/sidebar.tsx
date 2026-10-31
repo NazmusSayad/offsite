@@ -4,7 +4,6 @@ import {
   SearchIcon,
   Settings01Icon,
   SquarePenIcon,
-  SquareTerminalIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useState } from 'react'
@@ -28,11 +27,9 @@ import {
 import { ProjectGroup } from '@/features/sidebar/project-group'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
 import { StatusChips } from '@/features/sidebar/status-chips'
-import {
-  lastTerminalMachine,
-  openSession,
-  openTerminalPage,
-} from '@/lib/sessions'
+import { TerminalNav } from '@/features/sidebar/terminal-nav'
+import { openTerminal } from '@/features/terminal/page'
+import { openSession } from '@/lib/sessions'
 import {
   activityOf,
   getState,
@@ -78,10 +75,6 @@ export function Sidebar(
   const [inactiveOpen, setInactiveOpen] = useState(false)
   const [filter, setFilter] = useState<ThreadFilter>('active')
   const [width, setWidth] = useLocalStorage('sidebarWidth', 240)
-  const terminals = machines.reduce(
-    (total, machine) => total + machine.terminals.length,
-    0
-  )
   const shown = sessions
     .filter(
       (session) =>
@@ -213,14 +206,6 @@ export function Sidebar(
       return null
     }
     return { machine: project.machine, projectId: project.id }
-  }
-
-  function openTerminal() {
-    const machine = lastTerminalMachine()
-    if (machine === null) {
-      throw new Error('there is no machine to open a terminal on')
-    }
-    openTerminalPage(machine)
   }
 
   useHotkeys(['mod+n', 'mod+t'], startThread, {
@@ -429,24 +414,7 @@ export function Sidebar(
         </nav>
         {!props.mobile && (
           <div className="border-sidebar-border @container flex shrink-0 flex-col gap-px border-t p-(--sidebar-content-inset)">
-            {machines.length > 0 && (
-              <button
-                className={cn(
-                  iconButton,
-                  'h-8 justify-start gap-2 px-2.5 text-sm'
-                )}
-                title="Terminal"
-                onClick={openTerminal}
-              >
-                <HugeiconsIcon icon={SquareTerminalIcon} />
-                Terminal
-                {terminals > 0 && (
-                  <span className="text-foreground ml-auto grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
-                    {terminals}
-                  </span>
-                )}
-              </button>
-            )}
+            <TerminalNav buttonClassName={iconButton} />
             <div className="flex items-center gap-1">
               <button
                 className={cn(

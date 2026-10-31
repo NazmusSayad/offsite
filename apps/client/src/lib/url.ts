@@ -1,4 +1,5 @@
-import { useParams } from '@tanstack/react-router'
+import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
+import { useParams, useSearch } from '@tanstack/react-router'
 import { router, type Search } from './router'
 import { getState, projectOf, type Selection, useStore } from './store'
 
@@ -25,6 +26,17 @@ export function useTerminalPage() {
   return useStore((state) =>
     state.machines.some((item) => item.id === machine) ? machine : null
   )
+}
+
+export function terminalView() {
+  return currentSearch().project ?? GLOBAL_TERMINALS
+}
+
+export function useTerminalView() {
+  return useSearch({
+    strict: false,
+    select: (search) => search.project ?? GLOBAL_TERMINALS,
+  })
 }
 
 export function selectionFromUrl(machines: string[]): Selection | null {
@@ -97,7 +109,13 @@ export function leaveLayer(layer: 'chat' | 'overlay', fallback: () => void) {
 export function syncUrl() {
   const selection = getState().selection
   if (selection === null) {
-    navigate({}, true, router.history.location.state.layer)
+    navigate(
+      {
+        project: terminalPage() === null ? undefined : currentSearch().project,
+      },
+      true,
+      router.history.location.state.layer
+    )
     return
   }
   const next = {
