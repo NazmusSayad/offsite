@@ -3,7 +3,6 @@ import {
   ArchiveIcon,
   ChevronDownIcon,
   EyeClosedIcon,
-  InboxIcon,
   Settings01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -150,12 +149,7 @@ export function ScopeMenu(props: {
               : projectAt(props.scope.machine, props.scope.projectId)?.path
           }
         >
-          {props.scope === null ? (
-            <HugeiconsIcon
-              icon={InboxIcon}
-              className="size-4 shrink-0 text-(--sidebar-icon-color)"
-            />
-          ) : (
+          {props.scope !== null && (
             <ProjectIcon
               machine={props.scope.machine}
               projectId={props.scope.projectId}
@@ -186,7 +180,6 @@ export function ScopeMenu(props: {
             className="pr-9 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
             onSelect={() => props.onScope(null)}
           >
-            <HugeiconsIcon icon={InboxIcon} />
             <span className="min-w-0 flex-1 truncate">Inbox</span>
             {attention.length > 0 && (
               <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">

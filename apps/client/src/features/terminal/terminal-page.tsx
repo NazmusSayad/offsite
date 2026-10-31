@@ -124,25 +124,48 @@ export function TerminalGroups() {
   return (
     <div className="flex max-h-52 flex-col gap-px overflow-y-auto">
       {groups.map((group) => (
-        <button
+        <div
           key={`${group.machine.id}:${group.view}`}
           className={cn(
-            'text-sidebar-muted-foreground/80 hover:bg-sidebar-row-hover hover:text-sidebar-foreground flex h-7 w-full shrink-0 cursor-pointer items-center gap-2 rounded-[var(--control-radius)] pr-2.5 pl-7 text-left text-[13px]',
-            group.view !== GLOBAL_TERMINALS && 'pl-11',
+            'group/row text-sidebar-muted-foreground/80 hover:bg-sidebar-row-hover hover:text-sidebar-foreground relative shrink-0 rounded-[var(--control-radius)]',
             group.machine.id === page &&
               group.view === view &&
               'bg-sidebar-row-hover text-sidebar-foreground'
           )}
-          onClick={() =>
-            group.count === 0
-              ? void createTab(group.machine.id, null)
-              : showGroup(group.machine.id, group.view)
-          }
         >
-          <GroupIcon group={group} />
-          <span className="truncate">{group.name}</span>
-          <GroupCount count={group.count} alert={alerted(group, page)} />
-        </button>
+          <button
+            className={cn(
+              'flex h-7 w-full cursor-pointer items-center gap-2 rounded-[var(--control-radius)] pr-2.5 pl-7 text-left text-[13px]',
+              group.view !== GLOBAL_TERMINALS && 'pl-11'
+            )}
+            onClick={() =>
+              group.count === 0
+                ? void createTab(group.machine.id, null)
+                : showGroup(group.machine.id, group.view)
+            }
+          >
+            <GroupIcon group={group} />
+            <span className="truncate">{group.name}</span>
+            <GroupCount
+              count={group.count}
+              alert={alerted(group, page)}
+              className="group-hover/row:invisible"
+            />
+          </button>
+          <button
+            className="text-muted-foreground hover:text-foreground absolute top-0.5 right-1 grid size-6 cursor-pointer place-items-center rounded-md opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden"
+            aria-label="New terminal"
+            title="New terminal"
+            onClick={() =>
+              void createTab(
+                group.machine.id,
+                group.view === GLOBAL_TERMINALS ? null : group.view
+              )
+            }
+          >
+            <HugeiconsIcon icon={Add01Icon} className="size-4" />
+          </button>
+        </div>
       ))}
     </div>
   )
@@ -210,7 +233,11 @@ function GroupIcon(props: { group: Group }) {
   )
 }
 
-function GroupCount(props: { count: number; alert: boolean }) {
+function GroupCount(props: {
+  count: number
+  alert: boolean
+  className?: string
+}) {
   if (props.count === 0) {
     return null
   }
@@ -220,7 +247,8 @@ function GroupCount(props: { count: number; alert: boolean }) {
         'ml-auto grid h-4 min-w-4 shrink-0 place-items-center rounded-full px-1 text-[10px] leading-none font-medium tabular-nums',
         props.alert
           ? 'bg-primary text-primary-foreground'
-          : 'text-foreground bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))]'
+          : 'text-foreground bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))]',
+        props.className
       )}
     >
       {props.count}
