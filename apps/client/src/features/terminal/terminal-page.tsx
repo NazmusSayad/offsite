@@ -14,7 +14,7 @@ import { type Machine, useStore } from '@/lib/store'
 import { useTerminalPage, useTerminalView } from '@/lib/url'
 import { cn } from '@/lib/utils'
 import { NewTerminalItems } from './new-terminal-button'
-import { showGroup, showMachine } from './page'
+import { createTab, showGroup } from './page'
 import { TerminalPanel } from './panel'
 import { getState, subscribe } from './session'
 
@@ -135,7 +135,7 @@ export function TerminalGroups() {
           )}
           onClick={() =>
             group.count === 0
-              ? showMachine(group.machine)
+              ? void createTab(group.machine.id, null)
               : showGroup(group.machine.id, group.view)
           }
         >

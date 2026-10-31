@@ -44,14 +44,23 @@ export function TerminalNav(props: { buttonClassName: string }) {
             <button
               className={cn(
                 props.buttonClassName,
-                'group-hover/terminal:text-sidebar-foreground group-hover/terminal:[&>svg]:text-sidebar-foreground group-has-[[data-state=open]]/terminal:text-sidebar-foreground group-has-[[data-state=open]]/terminal:[&>svg]:text-sidebar-foreground h-8 w-full justify-start gap-2 px-2.5 text-sm'
+                'group-hover/terminal:text-sidebar-foreground group-hover/terminal:[&>svg]:text-sidebar-foreground group-has-[[data-state=open]]/terminal:text-sidebar-foreground group-has-[[data-state=open]]/terminal:[&>svg]:text-sidebar-foreground h-8 w-full justify-start gap-2 px-2.5 text-sm',
+                active &&
+                  '[&>svg]:transition-opacity [&>svg]:delay-200 group-hover/terminal:[&>svg]:opacity-0 group-hover/terminal:[&>svg]:delay-0 pointer-coarse:[&>svg]:opacity-0'
               )}
               title="Terminal"
             >
               <HugeiconsIcon icon={SquareTerminalIcon} />
               Terminal
               {terminals > 0 && (
-                <span className="text-foreground ml-auto grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+                <span
+                  className={cn(
+                    'text-foreground ml-auto grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums',
+                    online &&
+                      'group-hover/terminal:invisible group-has-[[data-state=open]]/terminal:invisible',
+                    active && 'pointer-coarse:invisible'
+                  )}
+                >
                   {terminals}
                 </span>
               )}
@@ -68,7 +77,7 @@ export function TerminalNav(props: { buttonClassName: string }) {
         </DropdownMenu>
         {active && (
           <button
-            className="bg-sidebar-row-hover text-muted-foreground hover:text-foreground absolute top-1 left-1.5 grid size-6 cursor-pointer place-items-center rounded-md opacity-0 transition-opacity delay-200 group-hover/terminal:opacity-100 group-hover/terminal:delay-0 focus-visible:opacity-100 pointer-coarse:opacity-100"
+            className="text-muted-foreground hover:text-foreground absolute top-1 left-1.5 grid size-6 cursor-pointer place-items-center rounded-md opacity-0 transition-opacity delay-200 group-hover/terminal:opacity-100 group-hover/terminal:delay-0 focus-visible:opacity-100 pointer-coarse:opacity-100"
             aria-label={expanded ? 'Collapse terminals' : 'Expand terminals'}
             aria-expanded={expanded}
             onClick={() => setExpanded(!expanded)}

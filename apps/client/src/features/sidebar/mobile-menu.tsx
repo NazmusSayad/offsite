@@ -5,21 +5,18 @@ import {
   Plug01Icon,
   PlugZapIcon,
   Settings01Icon,
-  SquareTerminalIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { NewTerminalItems } from '@/features/terminal/new-terminal-button'
-import { showSettings, useStore } from '@/lib/store'
+import { showSettings } from '@/lib/store'
 
 export type ThreadFilter = 'active' | 'snoozed' | 'minimized' | 'inactive'
 
@@ -27,14 +24,7 @@ export function MobileMenu(props: {
   className: string
   filter: ThreadFilter
   onFilter: (filter: ThreadFilter) => void
-  onTerminal: () => void
 }) {
-  const active = useStore((state) =>
-    state.machines.some(
-      (machine) => machine.status === 'online' && machine.terminals.length > 0
-    )
-  )
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -64,18 +54,6 @@ export function MobileMenu(props: {
           ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
-        {active ? (
-          <DropdownMenuItem onSelect={props.onTerminal}>
-            <HugeiconsIcon icon={SquareTerminalIcon} />
-            Terminal
-          </DropdownMenuItem>
-        ) : (
-          <>
-            <DropdownMenuLabel>Terminal</DropdownMenuLabel>
-            <NewTerminalItems />
-            <DropdownMenuSeparator />
-          </>
-        )}
         <DropdownMenuItem onSelect={() => showSettings(true)}>
           <HugeiconsIcon icon={Settings01Icon} />
           Settings

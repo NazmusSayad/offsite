@@ -28,7 +28,6 @@ import { ProjectGroup } from '@/features/sidebar/project-group'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
 import { StatusChips } from '@/features/sidebar/status-chips'
 import { TerminalNav } from '@/features/sidebar/terminal-nav'
-import { openTerminal } from '@/features/terminal/page'
 import { openSession } from '@/lib/sessions'
 import {
   activityOf,
@@ -293,7 +292,6 @@ export function Sidebar(
               className={cn(iconButton, 'size-7')}
               filter={filter}
               onFilter={setFilter}
-              onTerminal={openTerminal}
             />
           ) : (
             <button
@@ -412,6 +410,11 @@ export function Sidebar(
             )}
           </ul>
         </nav>
+        {props.mobile && (
+          <div className="border-sidebar-border flex shrink-0 flex-col gap-px border-t p-(--sidebar-content-inset)">
+            <TerminalNav buttonClassName={iconButton} />
+          </div>
+        )}
         {!props.mobile && (
           <div className="border-sidebar-border @container flex shrink-0 flex-col gap-px border-t p-(--sidebar-content-inset)">
             <TerminalNav buttonClassName={iconButton} />
