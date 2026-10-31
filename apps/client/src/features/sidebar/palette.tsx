@@ -1,35 +1,26 @@
-import { SearchIcon } from '@hugeicons/core-free-icons'
+import { ChevronDownIcon, SearchIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Provider } from '@offsite/core/providers'
 import {
   matchAction,
-  type MessageMatch,
   rankMessages,
   rankThreads,
   recentUse,
-  type SearchSession,
   type ThreadSubject,
 } from '@offsite/core/search'
-import {
-  hasSearchableWord,
-  messageRanges,
-  type SearchRange,
-} from '@offsite/core/search-match'
-import {
-  Fragment,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { messageRanges, type SearchRange } from '@offsite/core/search-match'
+import { Fragment, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useDebounceValue } from 'usehooks-ts'
-import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { ProjectIcon } from '@/components/icons'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
-import { providerNames } from '@/lib/format'
 import { openSession } from '@/lib/sessions'
 import {
   getState,
@@ -40,6 +31,7 @@ import {
   useStore,
 } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { type MachineSearchSession, usePaletteResults } from './palette-results'
 
 type Item = {
   key: string
@@ -51,10 +43,6 @@ type Item = {
   place: { machine: string; projectId: string } | null
   run: () => void
 }
-
-type MachineSearchSession = SearchSession & { machine: string }
-
-type MachineMessageMatch = MessageMatch & { machine: string }
 
 const THREAD_LIMIT = 20
 const RECENT_LIMIT = 12
@@ -82,98 +70,28 @@ function PaletteContent() {
   const projects = useStore((state) => state.projects)
   const [query, setQuery] = useState('')
   const [search] = useDebounceValue(query, 300)
-  const [threads, setThreads] = useState<MachineSearchSession[]>([])
-  const [threadFailures, setThreadFailures] = useState<string[]>([])
-  const [messages, setMessages] = useState<MachineMessageMatch[]>([])
-  const [messageFailures, setMessageFailures] = useState<string[]>([])
-  const [searched, setSearched] = useState('')
-  const [active, setActive] = useState(0)
+  const [scope, setScope] = useState('all')
+  const [activeKey, setActiveKey] = useState<string | null>(null)
   const [now] = useState(() => Date.now())
   const list = useRef<HTMLDivElement>(null)
+  const input = useRef<HTMLInputElement>(null)
   const actionsOnly = query.startsWith('>')
   const text = actionsOnly ? query.slice(1) : query
-  const searchesMessages = !actionsOnly && hasSearchableWord(query)
-
-  useEffect(() => {
-    let current = true
-    for (const machine of getState().machines.filter(
-      (item) => item.status === 'online'
-    )) {
-      call(machine.id, 'sessions.searchable', undefined)
-        .then((result) => {
-          if (!current) {
-            return
-          }
-          setThreads((previous) => [
-            ...previous,
-            ...result.sessions.map((session) => ({
-              ...session,
-              machine: machine.id,
-            })),
-          ])
-          setThreadFailures((previous) => [
-            ...previous,
-            ...providerFailures(result.failed),
-          ])
-        })
-        .catch(() => {
-          if (current) {
-            setThreadFailures((previous) => [...previous, machine.name])
-          }
-        })
-    }
-    return () => {
-      current = false
-    }
-  }, [])
-
-  useEffect(() => {
-    if (search.startsWith('>') || !hasSearchableWord(search)) {
-      return
-    }
-    let current = true
-    const online = getState().machines.filter(
-      (item) => item.status === 'online'
-    )
-    const matches: MachineMessageMatch[] = []
-    const failures: string[] = []
-    let waiting = online.length
-    for (const machine of online) {
-      call(machine.id, 'sessions.searchMessages', { query: search })
-        .then((result) => {
-          matches.push(
-            ...result.matches.map((match) => ({
-              ...match,
-              machine: machine.id,
-            }))
-          )
-          failures.push(...providerFailures(result.failed))
-        })
-        .catch(() => failures.push(machine.name))
-        .finally(() => {
-          if (!current) {
-            return
-          }
-          waiting -= 1
-          setMessages([...matches])
-          setMessageFailures([...failures])
-          if (waiting === 0) {
-            setSearched(search)
-          }
-        })
-    }
-    return () => {
-      current = false
-    }
-  }, [search])
+  const results = usePaletteResults(query, search, scope)
+  const threadResults = results.threadResults
+  const reachable = results.reachable
+  const picked = machines.find((item) => item.id === scope)
 
   const entries = useMemo(
     () =>
-      threads.map((thread) => ({
-        thread,
-        subject: threadSubject(thread, machines, projects),
-      })),
-    [threads, machines, projects]
+      threadResults
+        .filter((result) => reachable.split(' ').includes(result.machine))
+        .flatMap((result) => result.sessions)
+        .map((thread) => ({
+          thread,
+          subject: threadSubject(thread, machines, projects),
+        })),
+    [threadResults, reachable, machines, projects]
   )
   const subjects = new Map(
     entries.map((entry) => [
@@ -281,10 +199,10 @@ function PaletteContent() {
             ),
         }
       })
-  const messageItems: Item[] = !searchesMessages
+  const messageItems: Item[] = actionsOnly
     ? []
     : rankMessages(
-        messages.filter(
+        results.messages.filter(
           (match) => !shownKeys.has(machineKey(match.machine, match.sessionId))
         ),
         (match) => subjects.get(machineKey(match.machine, match.sessionId)),
@@ -293,10 +211,11 @@ function PaletteContent() {
       )
         .slice(0, MESSAGE_LIMIT)
         .flatMap((match) => {
-          const session = threads.find(
-            (item) =>
-              item.machine === match.machine && item.id === match.sessionId
-          )
+          const session = entries.find(
+            (entry) =>
+              entry.thread.machine === match.machine &&
+              entry.thread.id === match.sessionId
+          )?.thread
           if (session === undefined) {
             return []
           }
@@ -326,14 +245,13 @@ function PaletteContent() {
           ]
         })
   const items = [...actionItems, ...threadItems, ...messageItems]
-  const activeIndex = Math.min(active, items.length - 1)
-  const failures = [
-    ...new Set([
-      ...threadFailures,
-      ...(searchesMessages ? messageFailures : []),
-    ]),
-  ]
-  const searching = searchesMessages && searched !== query
+  const activeIndex = Math.min(
+    Math.max(
+      0,
+      items.findIndex((item) => item.key === activeKey)
+    ),
+    items.length - 1
+  )
 
   useLayoutEffect(() => {
     list.current
@@ -348,34 +266,95 @@ function PaletteContent() {
 
   return (
     <>
-      <label className="flex items-center gap-2 border-b px-4">
-        <HugeiconsIcon
-          icon={SearchIcon}
-          className="text-muted-foreground size-4 shrink-0"
-        />
-        <input
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value)
-            setActive(0)
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-              event.preventDefault()
-              const step = event.key === 'ArrowDown' ? 1 : -1
-              setActive((activeIndex + step + items.length) % items.length)
-            }
-            if (event.key === 'Enter' && activeIndex >= 0) {
-              event.preventDefault()
-              pick(items[activeIndex])
-            }
-          }}
-          placeholder="Search threads and actions…"
-          className="placeholder:text-placeholder/75 h-11 w-full bg-transparent text-sm outline-none"
-        />
-      </label>
+      <div className="flex items-center gap-2 border-b pr-2.5">
+        <label className="flex min-w-0 flex-1 items-center gap-2 pl-4">
+          <HugeiconsIcon
+            icon={SearchIcon}
+            className="text-muted-foreground size-4 shrink-0"
+          />
+          <input
+            ref={input}
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setActiveKey(null)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault()
+                const step = event.key === 'ArrowDown' ? 1 : -1
+                if (items.length > 0) {
+                  setActiveKey(
+                    items[(activeIndex + step + items.length) % items.length]
+                      .key
+                  )
+                }
+              }
+              if (event.key === 'Enter' && activeIndex >= 0) {
+                event.preventDefault()
+                pick(items[activeIndex])
+              }
+            }}
+            placeholder="Search threads and actions…"
+            className="placeholder:text-placeholder/75 h-11 w-full bg-transparent text-sm outline-none"
+          />
+        </label>
+        {machines.length > 1 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="text-secondary-label hover:bg-accent data-[state=open]:bg-accent flex h-7 max-w-40 shrink-0 cursor-pointer items-center gap-1.5 rounded-[var(--control-radius)] px-1.5 text-xs">
+                {picked !== undefined && (
+                  <MachineLogo icon={picked.icon} className="size-3 shrink-0" />
+                )}
+                <span className="truncate">
+                  {picked?.name ?? 'All machines'}
+                </span>
+                <HugeiconsIcon
+                  icon={ChevronDownIcon}
+                  className="size-3 shrink-0"
+                />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-56"
+              onCloseAutoFocus={(event) => {
+                event.preventDefault()
+                input.current?.focus()
+              }}
+            >
+              <DropdownMenuRadioGroup
+                value={scope}
+                onValueChange={(value) => {
+                  setScope(value)
+                  setActiveKey(null)
+                }}
+              >
+                <DropdownMenuRadioItem value="all">
+                  All machines
+                </DropdownMenuRadioItem>
+                {machines.map((machine) => (
+                  <DropdownMenuRadioItem
+                    key={machine.id}
+                    value={machine.id}
+                    disabled={machine.status !== 'online'}
+                  >
+                    <MachineLogo
+                      icon={machine.icon}
+                      className="size-3.5 shrink-0"
+                    />
+                    <span className="min-w-0 truncate">
+                      {machineLabel(machine)}
+                    </span>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
       <div ref={list} className="max-h-96 overflow-y-auto p-1">
-        {items.length === 0 && !searching && (
+        {items.length === 0 && !results.searching && (
           <p className="text-muted-foreground px-3 py-6 text-center text-xs">
             Nothing matches.
           </p>
@@ -393,7 +372,7 @@ function PaletteContent() {
                 'flex w-full cursor-pointer flex-col rounded-lg px-2.5 py-1.5 text-left',
                 index === activeIndex && 'bg-accent'
               )}
-              onMouseMove={() => setActive(index)}
+              onMouseMove={() => setActiveKey(item.key)}
               onClick={() => pick(item)}
             >
               <span className="flex min-w-0 items-center gap-2 text-sm">
@@ -401,7 +380,7 @@ function PaletteContent() {
                   <ProjectIcon
                     machine={item.place.machine}
                     projectId={item.place.projectId}
-                    className="size-3.5 shrink-0"
+                    className="size-3.5 shrink-0 grayscale"
                   />
                 )}
                 <span className="min-w-0 truncate">
@@ -424,15 +403,15 @@ function PaletteContent() {
             </button>
           </div>
         ))}
-        {searching && (
+        {results.searching && (
           <p className="text-muted-foreground px-2.5 py-2 text-xs">
             Searching messages…
           </p>
         )}
       </div>
-      {failures.length > 0 && (
+      {results.failures.length > 0 && (
         <p className="text-muted-foreground border-t px-4 py-2 text-xs">
-          Couldn&apos;t search {failures.join(', ')}
+          Couldn&apos;t search {results.failures.join(', ')}
         </p>
       )}
     </>
@@ -468,8 +447,14 @@ function Highlighted(props: { text: string; ranges: SearchRange[] }) {
   )
 }
 
-function providerFailures(failed: Provider[]) {
-  return failed.map((provider) => providerNames[provider])
+function machineLabel(machine: { name: string; status: string }) {
+  if (machine.status === 'online') {
+    return machine.name
+  }
+  if (machine.status === 'unpaired') {
+    return `${machine.name} · needs pairing`
+  }
+  return `${machine.name} · offline`
 }
 
 function threadSubject(
