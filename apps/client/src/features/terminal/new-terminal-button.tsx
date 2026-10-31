@@ -28,8 +28,9 @@ export function NewTerminalButton() {
         <button
           className={cn(
             'text-muted-foreground hover:text-foreground absolute top-1 right-1 grid size-6 cursor-pointer place-items-center rounded-md opacity-0 transition-opacity group-hover/terminal:opacity-100 group-has-[[data-state=open]]/terminal:opacity-100 focus-visible:opacity-100',
-            active && 'pointer-coarse:opacity-100',
-            'pointer-coarse:pointer-events-none'
+            active
+              ? 'pointer-coarse:opacity-100'
+              : 'pointer-coarse:pointer-events-none'
           )}
           aria-label="New terminal"
           title="New terminal"

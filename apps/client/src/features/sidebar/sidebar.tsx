@@ -15,7 +15,7 @@ import {
   DesktopDraftRow,
   DesktopSessionItem,
 } from '@/features/sidebar/desktop-session-item'
-import { MobileMenu, type ThreadFilter } from '@/features/sidebar/mobile-menu'
+import { MobileMenu } from '@/features/sidebar/mobile-menu'
 import {
   MobileDraftRow,
   MobileSessionItem,
@@ -72,7 +72,6 @@ export function Sidebar(
   const [snoozedOpen, setSnoozedOpen] = useState(false)
   const [minimizedOpen, setMinimizedOpen] = useState(false)
   const [inactiveOpen, setInactiveOpen] = useState(false)
-  const [filter, setFilter] = useState<ThreadFilter>('active')
   const [width, setWidth] = useLocalStorage('sidebarWidth', 240)
   const shown = sessions
     .filter(
@@ -100,8 +99,6 @@ export function Sidebar(
     ),
   ]
   const minimized = shown.filter((session) => session.status === 'minimized')
-  const lists = { snoozed, minimized, inactive }
-  const showInactive = props.mobile ? filter === 'inactive' : inactiveOpen
   const scopeMachine = scope?.machine ?? null
   const scopeProject = scope?.projectId ?? null
   const started =
@@ -140,7 +137,7 @@ export function Sidebar(
   const Draft = props.mobile ? MobileDraftRow : DesktopDraftRow
 
   useEffect(() => {
-    if (!showInactive) {
+    if (!inactiveOpen) {
       return
     }
     let current = true
@@ -168,7 +165,7 @@ export function Sidebar(
     return () => {
       current = false
     }
-  }, [showInactive, scopeMachine, scopeProject, inactiveVersion])
+  }, [inactiveOpen, scopeMachine, scopeProject, inactiveVersion])
 
   function select(
     machine: string,
@@ -288,11 +285,7 @@ export function Sidebar(
       >
         <div className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 px-3">
           {props.mobile ? (
-            <MobileMenu
-              className={cn(iconButton, 'size-7')}
-              filter={filter}
-              onFilter={setFilter}
-            />
+            <MobileMenu className={cn(iconButton, 'size-7')} />
           ) : (
             <button
               className={cn(iconButton, 'size-7')}
@@ -328,85 +321,63 @@ export function Sidebar(
         </div>
         <nav className="flex min-h-0 flex-1 [scrollbar-width:none] flex-col overflow-y-auto px-(--sidebar-content-inset) pb-(--sidebar-content-inset)">
           <ul className="flex flex-1 flex-col gap-px">
-            {props.mobile && filter !== 'active' && (
+            {grouped ? (
+              groups.map(([key, group]) => (
+                <ProjectGroup
+                  key={key}
+                  machine={group.machine}
+                  projectId={group.projectId}
+                  sessions={listed.filter(
+                    (session) =>
+                      machineKey(session.machine, session.projectId) === key
+                  )}
+                  started={started}
+                  mobile={props.mobile}
+                />
+              ))
+            ) : (
               <>
-                {lists[filter].map((session) =>
-                  row(session, filter === 'inactive')
+                {draft !== null && (
+                  <Draft
+                    machine={draft.machine}
+                    projectId={draft.projectId}
+                    onSelect={() =>
+                      select(draft.machine, draft.projectId, null)
+                    }
+                  />
                 )}
-                {lists[filter].length === 0 && (
-                  <li className="text-sidebar-muted-foreground/60 px-2.5 py-6 text-center text-xs">
-                    No {filter} threads
-                  </li>
-                )}
+                {listed.map((session) => row(session, false))}
               </>
             )}
-            {(!props.mobile || filter === 'active') && (
-              <>
-                {grouped ? (
-                  groups.map(([key, group]) => (
-                    <ProjectGroup
-                      key={key}
-                      machine={group.machine}
-                      projectId={group.projectId}
-                      sessions={listed.filter(
-                        (session) =>
-                          machineKey(session.machine, session.projectId) === key
-                      )}
-                      started={started}
-                      mobile={props.mobile}
-                    />
-                  ))
-                ) : (
-                  <>
-                    {draft !== null && (
-                      <Draft
-                        machine={draft.machine}
-                        projectId={draft.projectId}
-                        onSelect={() =>
-                          select(draft.machine, draft.projectId, null)
-                        }
-                      />
-                    )}
-                    {listed.map((session) => row(session, false))}
-                  </>
-                )}
-                {active.length === 0 &&
-                  started === null &&
-                  selection?.sessionId !== null && (
-                    <li className="text-sidebar-muted-foreground/60 px-2.5 py-6 text-center text-xs">
-                      No threads yet
-                    </li>
-                  )}
-              </>
-            )}
-            {!props.mobile && (
-              <>
-                {snoozed.length > 0 &&
-                  section(
-                    snoozedOpen ? 'Snoozed' : `Snoozed (${snoozed.length})`,
-                    snoozed,
-                    snoozedOpen,
-                    () => setSnoozedOpen(!snoozedOpen),
-                    true
-                  )}
-                {minimized.length > 0 &&
-                  section(
-                    minimizedOpen
-                      ? 'Minimized'
-                      : `Minimized (${minimized.length})`,
-                    minimized,
-                    minimizedOpen,
-                    () => setMinimizedOpen(!minimizedOpen),
-                    snoozed.length === 0
-                  )}
-                {section(
-                  'Inactive',
-                  inactive,
-                  inactiveOpen,
-                  () => setInactiveOpen(!inactiveOpen),
-                  snoozed.length === 0 && minimized.length === 0
-                )}
-              </>
+            {active.length === 0 &&
+              started === null &&
+              selection?.sessionId !== null && (
+                <li className="text-sidebar-muted-foreground/60 px-2.5 py-6 text-center text-xs">
+                  No threads yet
+                </li>
+              )}
+            {snoozed.length > 0 &&
+              section(
+                snoozedOpen ? 'Snoozed' : `Snoozed (${snoozed.length})`,
+                snoozed,
+                snoozedOpen,
+                () => setSnoozedOpen(!snoozedOpen),
+                true
+              )}
+            {minimized.length > 0 &&
+              section(
+                minimizedOpen ? 'Minimized' : `Minimized (${minimized.length})`,
+                minimized,
+                minimizedOpen,
+                () => setMinimizedOpen(!minimizedOpen),
+                snoozed.length === 0
+              )}
+            {section(
+              'Inactive',
+              inactive,
+              inactiveOpen,
+              () => setInactiveOpen(!inactiveOpen),
+              snoozed.length === 0 && minimized.length === 0
             )}
           </ul>
         </nav>
