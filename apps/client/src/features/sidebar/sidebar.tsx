@@ -418,11 +418,11 @@ export function Sidebar(
         {!props.mobile && (
           <div className="border-sidebar-border @container flex shrink-0 flex-col gap-px border-t p-(--sidebar-content-inset)">
             <TerminalNav buttonClassName={iconButton} />
-            <div className="flex items-center gap-1">
+            <div className="relative">
               <button
                 className={cn(
                   iconButton,
-                  'h-8 min-w-0 flex-1 justify-start gap-2 px-2.5 text-sm'
+                  'h-8 w-full justify-start gap-2 px-2.5 text-sm'
                 )}
                 title="Settings"
                 onClick={() => showSettings(true)}
@@ -430,12 +430,14 @@ export function Sidebar(
                 <HugeiconsIcon icon={Settings01Icon} />
                 <span className="truncate">Settings</span>
               </button>
-              <StatusChips className="@max-[13rem]:hidden" hideDone={false} />
-              <StatusChips
-                className="hidden @max-[13rem]:flex"
-                hideDone={false}
-                collapsed
-              />
+              <div className="absolute top-1.5 right-1.5">
+                <StatusChips className="@max-[13rem]:hidden" hideDone={false} />
+                <StatusChips
+                  className="hidden @max-[13rem]:flex"
+                  hideDone={false}
+                  collapsed
+                />
+              </div>
             </div>
           </div>
         )}
