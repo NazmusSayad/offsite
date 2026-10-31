@@ -1,4 +1,5 @@
-import { integer, snakeCase, text } from 'drizzle-orm/sqlite-core'
+import type { SessionPick } from '@offsite/core/search'
+import { integer, real, snakeCase, text } from 'drizzle-orm/sqlite-core'
 
 export const projects = snakeCase.table('projects', {
   id: text().primaryKey(),
@@ -15,6 +16,13 @@ export const sessions = snakeCase.table('sessions', {
   status: text({
     enum: ['active', 'pinned', 'snoozed', 'minimized'],
   }).notNull(),
+})
+
+export const sessionOpens = snakeCase.table('session_opens', {
+  sessionId: text().primaryKey(),
+  score: real().notNull(),
+  openedAt: integer().notNull(),
+  picks: text({ mode: 'json' }).$type<SessionPick[]>().notNull(),
 })
 
 export const pairingCodes = snakeCase.table('pairing_codes', {

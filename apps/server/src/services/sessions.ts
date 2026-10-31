@@ -8,6 +8,7 @@ import {
   renameSession,
 } from '@anthropic-ai/claude-agent-sdk'
 import type { Provider, ProviderStatus } from '@offsite/core/providers'
+import { nextOpens } from '@offsite/core/search'
 import type { Session, SessionPatch } from '@offsite/core/sessions'
 import { eq, sql } from 'drizzle-orm'
 import {
@@ -27,13 +28,15 @@ import {
 } from '../lib/opencode/index.ts'
 import { claudeBaseDir, readConfig } from '../storage/config.ts'
 import { db } from '../storage/db.ts'
-import { sessions as sessionsTable } from '../storage/schema.ts'
+import {
+  sessionOpens as sessionOpensTable,
+  sessions as sessionsTable,
+} from '../storage/schema.ts'
 import { providerName } from './accounts.ts'
 import { projectPath, projects } from './projects.ts'
-import { find, type Found, info } from './provider-sessions.ts'
+import { find, type Found, info, timeLimit } from './provider-sessions.ts'
 
 const day = 24 * 60 * 60 * 1000
-const LIST_TIMEOUT = 10_000
 const REFRESH_DELAY = 1000
 
 const allProviders: Provider[] = ['claude', 'codex', 'opencode']
@@ -71,20 +74,40 @@ export async function inactiveSessions(projectId: string | null) {
     .sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
-export async function searchSessions(query: string) {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-  const folders = new Map(
-    projects().map((project) => [project.id, project.path])
-  )
-  const found = await everything(projectPaths())
-  return found
-    .filter((session) => {
-      const text =
-        `${session.title} ${folders.get(session.projectId) ?? ''}`.toLowerCase()
-      return words.every((word) => text.includes(word))
+export async function searchableSessions() {
+  const paths = projectPaths()
+  const lists = await Promise.all(
+    enabledProviders().map(async (provider) => {
+      try {
+        const items = await timeLimit(
+          find(provider, new Map(paths)),
+          `${providerName(provider)} did not list its sessions in time`
+        )
+        return { provider, items: items ?? [], failed: false }
+      } catch (error) {
+        console.warn(`could not search ${providerName(provider)}: ${error}`)
+        return { provider, items: [], failed: true }
+      }
     })
-    .sort((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, 50)
+  )
+  const found = lists.flatMap((list) => list.items)
+  for (const item of found) {
+    providers.set(item.id, item.provider)
+  }
+  const opens = new Map(
+    db
+      .select()
+      .from(sessionOpensTable)
+      .all()
+      .map((record) => [record.sessionId, record])
+  )
+  return {
+    sessions: withStatus(found).map((session) => ({
+      ...session,
+      opens: opens.get(session.id) ?? null,
+    })),
+    failed: lists.filter((list) => list.failed).map((list) => list.provider),
+  }
 }
 
 export async function findSession(id: string) {
@@ -110,9 +133,7 @@ export async function findSession(id: string) {
 async function everything(paths: [string, string][]) {
   const found = (
     await Promise.all(
-      allProviders
-        .filter((provider) => readConfig().enabledProviders[provider])
-        .map((provider) => find(provider, new Map(paths)))
+      enabledProviders().map((provider) => find(provider, new Map(paths)))
     )
   ).flatMap((items) => items ?? [])
   for (const item of found) {
@@ -143,6 +164,12 @@ function withStatus(items: Found[]): Session[] {
           : record.status,
     }
   })
+}
+
+function enabledProviders() {
+  return allProviders.filter(
+    (provider) => readConfig().enabledProviders[provider]
+  )
 }
 
 function projectPaths() {
@@ -187,6 +214,19 @@ export function recordInteraction(id: string) {
     .run()
 }
 
+export function recordOpen(id: string, query: string | null) {
+  const previous = db
+    .select()
+    .from(sessionOpensTable)
+    .where(eq(sessionOpensTable.sessionId, id))
+    .get()
+  const opens = nextOpens(previous ?? null, Date.now(), query)
+  db.insert(sessionOpensTable)
+    .values({ sessionId: id, ...opens })
+    .onConflictDoUpdate({ target: sessionOpensTable.sessionId, set: opens })
+    .run()
+}
+
 export function publishSessions() {
   broadcast({ type: 'sessions', sessions: sessions() })
 }
@@ -228,27 +268,16 @@ export async function refresh(provider: Provider) {
 async function list(provider: Provider) {
   const paths = new Map(projectPaths())
   const before = statuses[provider]
-  let timer: NodeJS.Timeout | undefined
   try {
     if (!readConfig().enabledProviders[provider]) {
       listed[provider] = []
       statuses[provider] = { provider, state: 'disabled', error: null }
       return
     }
-    const found = await Promise.race([
+    const found = await timeLimit(
       tracked(provider, paths),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () =>
-            reject(
-              new Error(
-                `${providerName(provider)} did not list its sessions within ${LIST_TIMEOUT / 1000} seconds`
-              )
-            ),
-          LIST_TIMEOUT
-        )
-      }),
-    ])
+      `${providerName(provider)} did not list its sessions in time`
+    )
     if (found === null) {
       listed[provider] = []
       statuses[provider] = { provider, state: 'missing', error: null }
@@ -266,7 +295,6 @@ async function list(provider: Provider) {
     )
     statuses[provider] = { provider, state: 'error', error: message }
   } finally {
-    clearTimeout(timer)
     publishSessions()
     if (JSON.stringify(statuses[provider]) !== JSON.stringify(before)) {
       broadcast({ type: 'providers', providers: providerStatuses() })
@@ -404,6 +432,7 @@ export async function removeSession(id: string) {
       await removeOpenCode(id)
   }
   db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
+  db.delete(sessionOpensTable).where(eq(sessionOpensTable.sessionId, id)).run()
   listed[provider] = listed[provider].filter((item) => item.id !== id)
 }
 

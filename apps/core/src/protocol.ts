@@ -37,6 +37,7 @@ import type {
   RateLimit,
 } from './providers.ts'
 import type { PushRegistration } from './push.ts'
+import type { MessageMatch, SearchSession } from './search.ts'
 import type {
   SessionActivity,
   ContextUsage,
@@ -89,14 +90,26 @@ export type RpcMethods = {
   }
   'sessions.remove': { params: { id: string }; result: null }
   'sessions.open': {
-    params: { sessionId: string; projectId: string }
+    params: {
+      sessionId: string
+      projectId: string
+      opened: boolean
+      query: string | null
+    }
     result: Session | null
   }
   'sessions.inactive': {
     params: { projectId: string | null }
     result: Session[]
   }
-  'sessions.search': { params: { query: string }; result: Session[] }
+  'sessions.searchable': {
+    params: void
+    result: { sessions: SearchSession[]; failed: Provider[] }
+  }
+  'sessions.searchMessages': {
+    params: { query: string }
+    result: { matches: MessageMatch[]; failed: Provider[] }
+  }
   'sessions.earlier': {
     params: { sessionId: string; before: number }
     result: { items: Item[]; before: number | null }
