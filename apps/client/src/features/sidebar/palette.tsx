@@ -26,7 +26,9 @@ import {
 import { useDebounceValue } from 'usehooks-ts'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
+import { ProjectIcon } from '@/components/icons'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { MachineLogo } from '@/constants/machine-icons'
 import { providerNames } from '@/lib/format'
 import { openSession } from '@/lib/sessions'
 import {
@@ -46,6 +48,7 @@ type Item = {
   labelRanges: SearchRange[]
   detail: string
   detailRanges: SearchRange[]
+  place: { machine: string; projectId: string } | null
   run: () => void
 }
 
@@ -207,12 +210,15 @@ function PaletteContent() {
           {
             key: 'new',
             label: 'New thread',
-            detail:
-              projects.find(
-                (project) =>
-                  project.machine === selection.machine &&
-                  project.id === selection.projectId
-              )?.path ?? '',
+            place: {
+              machine: selection.machine,
+              projectId: selection.projectId,
+            },
+            detail: projectName(
+              selection.machine,
+              selection.projectId,
+              projects
+            ),
             run: () => openSession({ ...selection, sessionId: null }),
           },
         ]),
@@ -220,12 +226,14 @@ function PaletteContent() {
       key: 'accounts',
       label: 'Manage accounts',
       detail: '',
+      place: null,
       run: () => showSettingsPage(providerPages[getState().settings.provider]),
     },
     {
       key: 'settings',
       label: 'Settings',
       detail: 'Theme, notifications, keyboard shortcuts',
+      place: null,
       run: () => showSettings(true),
     },
   ]
@@ -252,15 +260,16 @@ function PaletteContent() {
         const session = entry.item
         const branch =
           text.trim() !== '' && session.branch !== null
-            ? ` · ${session.branch}`
+            ? ` | ${session.branch}`
             : ''
         return {
           key: machineKey(session.machine, session.id),
           section: text.trim() === '' ? 'Recent' : 'Threads',
           label: session.title,
           labelRanges: entry.ranges,
-          detail: `${threadDetail(session, machines, projects)}${branch}`,
+          detail: `${threadDetail(session, projects)}${branch}`,
           detailRanges: [],
+          place: { machine: session.machine, projectId: session.projectId },
           run: () =>
             openSession(
               {
@@ -300,6 +309,10 @@ function PaletteContent() {
               labelRanges: [],
               detail,
               detailRanges: messageRanges(text, detail),
+              place: {
+                machine: session.machine,
+                projectId: session.projectId,
+              },
               run: () =>
                 openSession(
                   {
@@ -383,12 +396,29 @@ function PaletteContent() {
               onMouseMove={() => setActive(index)}
               onClick={() => pick(item)}
             >
-              <span className="truncate text-sm">
-                <Highlighted text={item.label} ranges={item.labelRanges} />
+              <span className="flex min-w-0 items-center gap-2 text-sm">
+                {item.place !== null && (
+                  <ProjectIcon
+                    machine={item.place.machine}
+                    projectId={item.place.projectId}
+                    className="size-3.5 shrink-0"
+                  />
+                )}
+                <span className="min-w-0 truncate">
+                  <Highlighted text={item.label} ranges={item.labelRanges} />
+                </span>
               </span>
               {item.detail !== '' && (
-                <span className="text-secondary-label truncate text-xs">
-                  <Highlighted text={item.detail} ranges={item.detailRanges} />
+                <span className="text-secondary-label flex min-w-0 items-center gap-1.5 text-xs">
+                  {item.place !== null && machines.length > 1 && (
+                    <MachineTag id={item.place.machine} machines={machines} />
+                  )}
+                  <span className="min-w-0 truncate">
+                    <Highlighted
+                      text={item.detail}
+                      ranges={item.detailRanges}
+                    />
+                  </span>
                 </span>
               )}
             </button>
@@ -405,6 +435,19 @@ function PaletteContent() {
           Couldn&apos;t search {failures.join(', ')}
         </p>
       )}
+    </>
+  )
+}
+
+function MachineTag(props: {
+  id: string
+  machines: { id: string; name: string; icon: string | null }[]
+}) {
+  const machine = props.machines.find((item) => item.id === props.id)
+  return (
+    <>
+      <MachineLogo icon={machine?.icon ?? null} className="size-3 shrink-0" />
+      <span className="shrink-0">{machine?.name} ·</span>
     </>
   )
 }
@@ -454,18 +497,19 @@ function threadSubject(
 
 function threadDetail(
   thread: MachineSearchSession,
-  machines: { id: string; name: string }[],
-  projects: { machine: string; id: string; path: string }[]
+  projects: { machine: string; id: string; name: string }[]
 ) {
   const minimized = thread.status === 'minimized' ? 'Minimized · ' : ''
-  const machine =
-    machines.length > 1
-      ? `${machines.find((item) => item.id === thread.machine)?.name ?? ''}:`
-      : ''
-  const folder =
-    projects.find(
-      (project) =>
-        project.machine === thread.machine && project.id === thread.projectId
-    )?.path ?? ''
-  return `${minimized}${machine}${folder}`
+  return `${minimized}${projectName(thread.machine, thread.projectId, projects)}`
+}
+
+function projectName(
+  machine: string,
+  projectId: string,
+  projects: { machine: string; id: string; name: string }[]
+) {
+  return (
+    projects.find((item) => item.machine === machine && item.id === projectId)
+      ?.name ?? ''
+  )
 }
