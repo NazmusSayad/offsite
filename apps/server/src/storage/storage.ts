@@ -16,8 +16,17 @@ import { args } from '../args.ts'
 export const home = args.dir
 
 const lockFile = path.join(home, 'server.pid')
+const savedServer = z.object({ port: z.number() }).nullable()
 
 mkdirSync(home, { recursive: true })
+
+export function listenPort() {
+  if (args.command !== 'pair' || args.portGiven) {
+    return args.port
+  }
+  const saved = readSettings('server.json', savedServer, null)
+  return saved === null ? args.port : saved.port
+}
 
 export function lockHome() {
   lock()

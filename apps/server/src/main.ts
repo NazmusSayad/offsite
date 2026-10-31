@@ -39,7 +39,7 @@ import {
   removeDevices,
 } from './storage/auth.ts'
 import { claudeBaseDir } from './storage/config.ts'
-import { lockHome } from './storage/storage.ts'
+import { listenPort, lockHome, writeJson } from './storage/storage.ts'
 
 const UNPAIR_CHECK = 5000
 const TICKET_LIFETIME = 60_000
@@ -74,7 +74,7 @@ const browseTypes = new Map([
   ['.otf', 'font/otf'],
 ])
 
-const port = Number(args.port)
+const port = Number(listenPort())
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   console.error(`invalid port ${args.port}`)
   process.exit(1)
@@ -173,6 +173,7 @@ if (args.auth) {
 }
 
 server.listen(port, args.host, () => {
+  writeJson('server.json', { port })
   startPush(`${args.host}:${port}`)
   if (args.connect === null && args.pair && (code !== null || !args.auth)) {
     const links = pairingLinks(code)

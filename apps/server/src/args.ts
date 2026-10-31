@@ -88,6 +88,7 @@ export const args = {
   command,
   name,
   connect,
+  portGiven: program.getOptionValueSource('port') === 'cli',
 }
 
 export const serverDir = path.join(import.meta.dirname, '..')
