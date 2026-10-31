@@ -227,7 +227,7 @@ function setSessions(machine: string, sessions: Session[]) {
 function reopenThread(machine: string) {
   const selection = getState().selection
   if (selection?.machine === machine && selection.sessionId !== null) {
-    loadSession(machine, selection.projectId, selection.sessionId)
+    loadSession(machine, selection.projectId, selection.sessionId, false, null)
   }
 }
 

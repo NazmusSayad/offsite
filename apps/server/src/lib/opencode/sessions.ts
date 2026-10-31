@@ -2,6 +2,7 @@ import type { SessionSettings } from '@offsite/core/config'
 import type { Item } from '@offsite/core/items'
 import type { ServerEvent } from '@offsite/core/protocol'
 import type { ProviderCapabilities } from '@offsite/core/providers'
+import type { SearchMessage } from '@offsite/core/search'
 import type {
   ContextUsage,
   RewindRequest,
@@ -116,6 +117,26 @@ export async function openCodeHistory(
     before: null,
     partial: run?.partial ?? '',
   }
+}
+
+export async function openCodeMessages(sessionId: string) {
+  const messages = await allMessages(await openCode(), sessionId)
+  return messages.flatMap((message): SearchMessage[] => {
+    if (message.type === 'user') {
+      return [{ author: 'user', text: message.text }]
+    }
+    if (message.type !== 'assistant') {
+      return []
+    }
+    return [
+      {
+        author: 'assistant',
+        text: message.content
+          .flatMap((part) => (part.type === 'text' ? [part.text] : []))
+          .join('\n'),
+      },
+    ]
+  })
 }
 
 export async function openCodeAgent(

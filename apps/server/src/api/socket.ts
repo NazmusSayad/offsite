@@ -45,6 +45,7 @@ import {
   sync,
 } from '../services/git.ts'
 import { logoFiles } from '../services/logos.ts'
+import { searchMessages } from '../services/message-search.ts'
 import {
   addProject,
   directories,
@@ -66,9 +67,10 @@ import {
   providerStatuses,
   publishSessions,
   recordInteraction,
+  recordOpen,
   refreshAll,
   removeSession,
-  searchSessions,
+  searchableSessions,
   sessions,
   updateSession,
   watchSessions,
@@ -179,10 +181,14 @@ const handlers: Handlers = {
   'sessions.open': async (params, client) => {
     const session = await findSession(params.sessionId)
     await open(client, params.sessionId, params.projectId)
+    if (params.opened && session !== null) {
+      recordOpen(params.sessionId, params.query)
+    }
     return session
   },
   'sessions.inactive': (params) => inactiveSessions(params.projectId),
-  'sessions.search': (params) => searchSessions(params.query),
+  'sessions.searchable': () => searchableSessions(),
+  'sessions.searchMessages': (params) => searchMessages(params.query),
   'sessions.earlier': (params) => earlier(params.sessionId, params.before),
   'sessions.image': (params) =>
     image(params.sessionId, params.itemId, params.index),

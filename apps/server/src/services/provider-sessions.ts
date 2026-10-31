@@ -20,6 +20,18 @@ import {
 
 export type Found = Omit<Session, 'status'>
 
+const TIME_LIMIT = 10_000
+
+export function timeLimit<T>(work: Promise<T>, message: string) {
+  let timer: NodeJS.Timeout | undefined
+  return Promise.race([
+    work,
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), TIME_LIMIT)
+    }),
+  ]).finally(() => clearTimeout(timer))
+}
+
 export async function info(
   provider: Provider,
   id: string,

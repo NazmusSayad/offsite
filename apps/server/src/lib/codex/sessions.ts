@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import type { Item } from '@offsite/core/items'
 import type { ServerEvent } from '@offsite/core/protocol'
+import type { SearchMessage } from '@offsite/core/search'
 import { storedAccount } from '../../services/accounts.ts'
 import { runs } from '../live.ts'
 import { appServer, codexBaseDir, findCodex } from './app-server.ts'
@@ -39,6 +40,39 @@ export async function codexThread(threadId: string) {
     { threadId, includeTurns: false }
   )
   return result.thread
+}
+
+export async function codexSearch(term: string) {
+  const result = await appServer(codexBaseDir).request<{
+    data: { thread: Thread; snippet: string }[]
+  }>('thread/search', {
+    searchTerm: term,
+    limit: 50,
+    sortKey: 'updated_at',
+    sourceKinds: ['cli', 'vscode', 'appServer'],
+  })
+  return result.data
+}
+
+export async function codexMessages(threadId: string) {
+  const thread = await readThread(threadId)
+  return thread.turns.flatMap((turn) =>
+    turn.items.flatMap((item): SearchMessage[] => {
+      if (item.type === 'userMessage') {
+        return [
+          {
+            author: 'user',
+            text: item.content
+              .flatMap((part) => (part.type === 'text' ? [part.text] : []))
+              .join('\n'),
+          },
+        ]
+      }
+      return item.type === 'agentMessage'
+        ? [{ author: 'assistant', text: item.text }]
+        : []
+    })
+  )
 }
 
 export async function codexHistory(sessionId: string): Promise<ServerEvent> {

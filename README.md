@@ -27,3 +27,11 @@ The `show` skill teaches agents this syntax. Add it with:
 ```sh
 npx skills add NazmusSayad/offsite --skill show
 ```
+
+## Huge Thanks
+
+- [T3 Code](https://github.com/pingdotgg/t3code)
+- [Ghostty](https://github.com/ghostty-org/ghostty)
+- [xterm.js](https://github.com/xtermjs/xterm.js)
+- [VS Code](https://github.com/microsoft/vscode)
+- [Monaco Editor](https://github.com/microsoft/monaco-editor)

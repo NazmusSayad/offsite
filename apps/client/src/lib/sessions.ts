@@ -21,7 +21,7 @@ import {
   update,
 } from './store'
 import { syncUrl, terminalPage, terminalView } from './url'
-export function openSession(selection: Selection) {
+export function openSession(selection: Selection, query: string | null = null) {
   const machine = machineOf(getState(), selection.machine)
   const previous = getState().selection
   localStorage.setItem(
@@ -67,16 +67,24 @@ export function openSession(selection: Selection) {
   syncUrl()
   refreshSettings(selection.machine)
   if (selection.sessionId !== null && machine.status === 'online') {
-    loadSession(selection.machine, selection.projectId, selection.sessionId)
+    loadSession(
+      selection.machine,
+      selection.projectId,
+      selection.sessionId,
+      true,
+      query
+    )
   }
 }
 
 export function loadSession(
   machine: string,
   projectId: string,
-  sessionId: string
+  sessionId: string,
+  opened: boolean,
+  query: string | null
 ) {
-  call(machine, 'sessions.open', { projectId, sessionId })
+  call(machine, 'sessions.open', { projectId, sessionId, opened, query })
     .then((session) => {
       if (
         session === null ||
