@@ -18,9 +18,9 @@ import {
   updateAccount,
 } from '../services/accounts.ts'
 import {
-  browseToken,
   createProjectEntry,
   deleteProjectEntry,
+  linkBrowse,
   linkProjectDownload,
   linkProjectMedia,
   listEntries,
@@ -296,13 +296,18 @@ const handlers: Handlers = {
     deleteProjectEntry(projectPath(params.projectId), params.path)
     return null
   },
-  'files.media': (params) =>
-    linkProjectMedia(projectPath(params.projectId), params.path),
-  'files.download': (params) =>
-    linkProjectDownload(projectPath(params.projectId), params.path),
+  'files.media': (params, client) =>
+    linkProjectMedia(projectPath(params.projectId), params.path, client.device),
+  'files.download': (params, client) =>
+    linkProjectDownload(
+      projectPath(params.projectId),
+      params.path,
+      client.device
+    ),
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
-  'files.browse': () => browseToken,
+  'files.browse': (_params, client) =>
+    linkBrowse(client.device, client.address),
   'browser.open': (params) => openSite(params.url, params.fromPage),
   'tasks.output': (params) => taskOutput(params.sessionId, params.path),
   'git.status': (params) => gitRepos(projectPath(params.projectId)),
@@ -404,9 +409,15 @@ const handlers: Handlers = {
     savePastedImage(params.type, Buffer.from(params.data, 'base64')),
 }
 
-export function connectClient(socket: WebSocket) {
+export function connectClient(
+  socket: WebSocket,
+  device: string | null,
+  address: string
+) {
   const client: Client = {
     socket,
+    device,
+    address,
     heardAt: Date.now(),
     opening: null,
     sessionId: null,

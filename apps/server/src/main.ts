@@ -1,5 +1,12 @@
 import { randomBytes } from 'node:crypto'
-import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
+import {
+  accessSync,
+  constants,
+  createReadStream,
+  existsSync,
+  readFileSync,
+  statSync,
+} from 'node:fs'
 import {
   createServer,
   type IncomingMessage,
@@ -17,10 +24,11 @@ import { findClaude } from './lib/claude/index.ts'
 import { broadcast, clients } from './lib/hub.ts'
 import { proxySocket, serveProxy } from './lib/proxy/proxy.ts'
 import {
-  browseToken,
+  canBrowse,
   findMediaLink,
   setBrowseHeaders,
   sniffType,
+  streamFile,
 } from './services/files.ts'
 import { installOpen, openSecret } from './services/open/open.ts'
 import { startPush } from './services/push.ts'
@@ -108,7 +116,26 @@ const code = args.auth && args.pair && !hasDevices() ? addCode(null) : null
 const tickets = new Map<string, { device: string; expiresAt: number }>()
 
 const server = createServer((request, response) => {
-  const url = new URL(request.url ?? '/', 'http://localhost')
+  try {
+    answerRequest(request, response)
+  } catch (error) {
+    console.warn(`a request failed: ${error}`)
+    if (response.headersSent) {
+      response.destroy()
+      return
+    }
+    response.statusCode = 500
+    response.end('request failed')
+  }
+})
+
+function answerRequest(request: IncomingMessage, response: ServerResponse) {
+  const url = URL.parse(request.url ?? '/', 'http://localhost')
+  if (url === null) {
+    response.statusCode = 400
+    response.end('bad url')
+    return
+  }
   if (url.pathname === '/api/media') {
     serveMedia(url.searchParams.get('token'), request, response)
     return
@@ -135,24 +162,33 @@ const server = createServer((request, response) => {
     return
   }
   serveFile(url.pathname, request, response)
-})
+}
 
 const sockets = new WebSocketServer({ noServer: true, perMessageDeflate: true })
 const paired = new Map<WebSocket, string>()
 
 server.on('upgrade', (request, socket, head) => {
-  const url = new URL(request.url ?? '/', 'http://localhost')
+  const url = URL.parse(request.url ?? '/', 'http://localhost')
+  if (url === null) {
+    socket.destroy()
+    return
+  }
   if (url.pathname.startsWith('/api/proxy/')) {
     proxySocket(request, socket, head)
     return
   }
   const device = args.auth ? redeemTicket(url.searchParams.get('ticket')) : null
-  if (url.pathname !== '/ws' || (args.auth && device === null)) {
+  const remoteAddress = request.socket.remoteAddress
+  if (
+    url.pathname !== '/ws' ||
+    remoteAddress === undefined ||
+    (args.auth && device === null)
+  ) {
     socket.destroy()
     return
   }
   sockets.handleUpgrade(request, socket, head, (client) => {
-    connectClient(client)
+    connectClient(client, device, remoteAddress)
     if (device === null) {
       return
     }
@@ -298,7 +334,10 @@ function serveBrowse(
   }
   const rest = pathname.slice('/api/browse/'.length)
   const slash = rest.indexOf('/')
-  if (slash === -1 || rest.slice(0, slash) !== browseToken) {
+  if (
+    slash === -1 ||
+    !canBrowse(rest.slice(0, slash), request.socket.remoteAddress)
+  ) {
     response.statusCode = 404
     response.end('This browser link expired')
     return
@@ -313,16 +352,24 @@ function serveBrowse(
     response.end('bad path')
     return
   }
-  const stats = statSync(file, { throwIfNoEntry: false })
-  if (stats === undefined || !stats.isFile()) {
-    response.statusCode = 404
-    response.end(`${file} is not a file`)
+  let stats
+  let contentType
+  try {
+    stats = statSync(file, { throwIfNoEntry: false })
+    if (stats === undefined || !stats.isFile()) {
+      response.statusCode = 404
+      response.end(`${file} is not a file`)
+      return
+    }
+    accessSync(file, constants.R_OK)
+    contentType =
+      browseTypes.get(path.extname(file).toLowerCase()) ?? sniffType(file)
+  } catch (error) {
+    response.statusCode = 500
+    response.end(`Could not read ${file}: ${error}`)
     return
   }
-  setBrowseHeaders(
-    response,
-    browseTypes.get(path.extname(file).toLowerCase()) ?? sniffType(file)
-  )
+  setBrowseHeaders(response, contentType)
   streamFile(file, stats.size, request, response)
 }
 
@@ -352,57 +399,6 @@ async function answerOpen(request: IncomingMessage, response: ServerResponse) {
   broadcast({ type: 'open', path: parsed.path })
   response.statusCode = 204
   response.end()
-}
-
-function streamFile(
-  file: string,
-  size: number,
-  request: IncomingMessage,
-  response: ServerResponse
-) {
-  response.setHeader('accept-ranges', 'bytes')
-  if (request.headers.range === undefined) {
-    response.setHeader('content-length', size)
-    createReadStream(file)
-      .on('error', () => response.destroy())
-      .pipe(response)
-    return
-  }
-  const range = byteRange(request.headers.range, size)
-  if (range === null) {
-    response.statusCode = 416
-    response.setHeader('content-range', `bytes */${size}`)
-    response.end()
-    return
-  }
-  response.statusCode = 206
-  response.setHeader(
-    'content-range',
-    `bytes ${range.start}-${range.end}/${size}`
-  )
-  response.setHeader('content-length', range.end - range.start + 1)
-  createReadStream(file, range)
-    .on('error', () => response.destroy())
-    .pipe(response)
-}
-
-function byteRange(header: string, size: number) {
-  const match = /^bytes=(?:(\d+)-(\d*)|-(\d+))$/.exec(header)
-  if (match === null) {
-    return null
-  }
-  if (match[3] !== undefined) {
-    if (size === 0 || Number(match[3]) === 0) {
-      return null
-    }
-    return { start: Math.max(size - Number(match[3]), 0), end: size - 1 }
-  }
-  const start = Number(match[1])
-  const end = match[2] === '' ? size - 1 : Math.min(Number(match[2]), size - 1)
-  if (start > end) {
-    return null
-  }
-  return { start, end }
 }
 
 function answerJson(response: ServerResponse, body: unknown) {

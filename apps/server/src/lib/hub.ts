@@ -3,6 +3,8 @@ import type { WebSocket } from 'ws'
 
 export type Client = {
   socket: WebSocket
+  device: string | null
+  address: string
   heardAt: number
   opening: string | null
   sessionId: string | null

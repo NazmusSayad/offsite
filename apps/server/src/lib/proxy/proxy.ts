@@ -3,7 +3,6 @@ import http, { type IncomingMessage, type ServerResponse } from 'node:http'
 import https from 'node:https'
 import { isIP, type Socket } from 'node:net'
 import type { Duplex } from 'node:stream'
-import { buffer } from 'node:stream/consumers'
 import { pipeline } from 'node:stream/promises'
 import zlib from 'node:zlib'
 import { z } from 'zod'
@@ -27,6 +26,7 @@ const SANDBOX =
   'sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-presentation allow-pointer-lock'
 const UPSTREAM_TIMEOUT = 60_000
 const MAX_BODY = 8 * 1024 * 1024
+const MAX_PAGE = 32 * 1024 * 1024
 const MAX_HEADERS = 256 * 1024
 const REQUEST_HEADERS_DROPPED = new Set([
   'accept-encoding',
@@ -76,6 +76,7 @@ const RESPONSE_HEADERS_DROPPED = new Set([
   'service-worker-allowed',
   'set-cookie',
   'strict-transport-security',
+  'trailer',
   'transfer-encoding',
   'x-frame-options',
 ])
@@ -197,11 +198,15 @@ async function forward(
   request.pipe(upstream)
   const incoming = (await answer)[0]
   upstream.setTimeout(0)
+  const status = incoming.statusCode
+  if (status === undefined || status < 200 || status > 999) {
+    throw new Error(`${target.origin} sent an invalid status`)
+  }
   for (const cookie of incoming.headers['set-cookie'] ?? []) {
     await site.jar.setCookie(cookie, target.href, { ignoreError: true })
   }
   const kind = rewriteKind(incoming, request)
-  response.statusCode = incoming.statusCode ?? 502
+  response.statusCode = status
   copyHeaders(incoming, response, kind !== null)
   const location = incoming.headers.location
   if (location !== undefined) {
@@ -212,6 +217,7 @@ async function forward(
     response.setHeader('location', proxiedPath(site.key, next))
   }
   if (kind === null) {
+    response.flushHeaders()
     await pipeline(incoming, response)
     return
   }
@@ -394,18 +400,40 @@ function copyHeaders(
 async function readBody(incoming: IncomingMessage) {
   const encoding = incoming.headers['content-encoding']
   if (encoding === undefined || encoding === 'identity') {
-    return buffer(incoming)
+    return readLimited(incoming, MAX_PAGE)
   }
+  const decoder = createDecoder(encoding)
+  const results = await Promise.all([
+    readLimited(decoder, MAX_PAGE),
+    pipeline(incoming, decoder),
+  ])
+  return results[0]
+}
+
+function createDecoder(encoding: string) {
   if (encoding === 'gzip') {
-    return buffer(incoming.pipe(zlib.createGunzip()))
+    return zlib.createGunzip()
   }
   if (encoding === 'deflate') {
-    return buffer(incoming.pipe(zlib.createInflate()))
+    return zlib.createInflate()
   }
   if (encoding === 'br') {
-    return buffer(incoming.pipe(zlib.createBrotliDecompress()))
+    return zlib.createBrotliDecompress()
   }
   throw new Error(`the site sent unknown compression: ${encoding}`)
+}
+
+async function readLimited(source: AsyncIterable<Buffer>, limit: number) {
+  const chunks: Buffer[] = []
+  let size = 0
+  for await (const chunk of source) {
+    size += chunk.length
+    if (size > limit) {
+      throw new Error('This page is too large')
+    }
+    chunks.push(chunk)
+  }
+  return Buffer.concat(chunks)
 }
 
 function decodeBody(body: Buffer, incoming: IncomingMessage) {
@@ -448,11 +476,7 @@ async function savePageData(
     fail(response, 405, 'use POST')
     return
   }
-  const body = await buffer(request)
-  if (body.length > MAX_BODY) {
-    fail(response, 413, 'too much page data')
-    return
-  }
+  const body = await readLimited(request, MAX_BODY)
   const data: unknown = JSON.parse(body.toString())
   if (kind === 'cookie') {
     const write = pageWrite.parse(data)

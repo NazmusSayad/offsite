@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import {
   closeSync,
+  createReadStream,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -14,10 +15,11 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { lstat, open, readdir, stat } from 'node:fs/promises'
-import type { ServerResponse } from 'node:http'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import path from 'node:path'
 import { mediaTypes } from '@offsite/core/media'
 import type { FilePreview } from '@offsite/core/projects'
+import { isPaired } from '../storage/auth.ts'
 import { hasCode, home } from '../storage/storage.ts'
 
 const FILE_LIMIT = 20_000
@@ -25,12 +27,21 @@ const SNIFF_LENGTH = 8000
 const OUTPUT_LIMIT = 256 * 1024
 const READ_LIMIT = 1024 * 1024
 const MEDIA_LINK_LIFETIME = 60 * 60_000
-export const browseToken = randomBytes(32).toString('base64url')
+const BROWSE_LINK_LIFETIME = 60 * 60_000
 const mediaLinks = new Map<
   string,
   {
     file: string
     mediaType: string
+    device: string | null
+    expiresAt: number
+  }
+>()
+const browseLinks = new Map<
+  string,
+  {
+    device: string | null
+    address: string
     expiresAt: number
   }
 >()
@@ -138,7 +149,11 @@ export function deleteProjectEntry(cwd: string, file: string) {
   rmSync(resolveProjectEntry(cwd, file), { recursive: true })
 }
 
-export function linkProjectMedia(cwd: string, file: string) {
+export function linkProjectMedia(
+  cwd: string,
+  file: string,
+  device: string | null
+) {
   const resolved = path.resolve(realpathSync(cwd), file)
   if (!existsSync(resolved)) {
     throw new Error(`${file} does not exist`)
@@ -148,15 +163,46 @@ export function linkProjectMedia(cwd: string, file: string) {
   if (mediaType === undefined) {
     throw new Error(`${file} is not an image, video or audio file`)
   }
-  return addLink(full, mediaType)
+  return addLink(full, mediaType, device)
 }
 
-export function linkProjectDownload(cwd: string, file: string) {
+export function linkProjectDownload(
+  cwd: string,
+  file: string,
+  device: string | null
+) {
   const full = resolveProjectFile(cwd, file)
   if (!statSync(full).isFile()) {
     throw new Error(`${file} is not a file`)
   }
-  return addLink(full, 'application/octet-stream')
+  return addLink(full, 'application/octet-stream', device)
+}
+
+export function linkBrowse(device: string | null, address: string) {
+  for (const [token, link] of browseLinks) {
+    if (link.expiresAt <= Date.now()) {
+      browseLinks.delete(token)
+    }
+  }
+  const token = randomBytes(32).toString('base64url')
+  browseLinks.set(token, {
+    device,
+    address,
+    expiresAt: Date.now() + BROWSE_LINK_LIFETIME,
+  })
+  return token
+}
+
+export function canBrowse(token: string, address: string | undefined) {
+  const link = browseLinks.get(token)
+  if (
+    link === undefined ||
+    link.expiresAt <= Date.now() ||
+    link.address !== address
+  ) {
+    return false
+  }
+  return link.device === null || isPaired(link.device)
 }
 
 export function setBrowseHeaders(
@@ -183,7 +229,58 @@ export function sniffType(file: string) {
     : 'text/plain; charset=utf-8'
 }
 
-function addLink(file: string, mediaType: string) {
+export function streamFile(
+  file: string,
+  size: number,
+  request: IncomingMessage,
+  response: ServerResponse
+) {
+  response.setHeader('accept-ranges', 'bytes')
+  if (request.headers.range === undefined) {
+    response.setHeader('content-length', size)
+    createReadStream(file)
+      .on('error', () => response.destroy())
+      .pipe(response)
+    return
+  }
+  const range = byteRange(request.headers.range, size)
+  if (range === null) {
+    response.statusCode = 416
+    response.setHeader('content-range', `bytes */${size}`)
+    response.end()
+    return
+  }
+  response.statusCode = 206
+  response.setHeader(
+    'content-range',
+    `bytes ${range.start}-${range.end}/${size}`
+  )
+  response.setHeader('content-length', range.end - range.start + 1)
+  createReadStream(file, range)
+    .on('error', () => response.destroy())
+    .pipe(response)
+}
+
+function byteRange(header: string, size: number) {
+  const match = /^bytes=(?:(\d+)-(\d*)|-(\d+))$/.exec(header)
+  if (match === null) {
+    return null
+  }
+  if (match[3] !== undefined) {
+    if (size === 0 || Number(match[3]) === 0) {
+      return null
+    }
+    return { start: Math.max(size - Number(match[3]), 0), end: size - 1 }
+  }
+  const start = Number(match[1])
+  const end = match[2] === '' ? size - 1 : Math.min(Number(match[2]), size - 1)
+  if (start > end) {
+    return null
+  }
+  return { start, end }
+}
+
+function addLink(file: string, mediaType: string, device: string | null) {
   for (const [token, link] of mediaLinks) {
     if (link.expiresAt <= Date.now()) {
       mediaLinks.delete(token)
@@ -193,6 +290,7 @@ function addLink(file: string, mediaType: string) {
   mediaLinks.set(token, {
     file,
     mediaType,
+    device,
     expiresAt: Date.now() + MEDIA_LINK_LIFETIME,
   })
   return token
@@ -204,6 +302,9 @@ export function findMediaLink(token: string | null) {
   }
   const link = mediaLinks.get(token)
   if (link === undefined || link.expiresAt <= Date.now()) {
+    return null
+  }
+  if (link.device !== null && !isPaired(link.device)) {
     return null
   }
   return link
