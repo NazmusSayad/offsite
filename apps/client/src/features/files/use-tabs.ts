@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import type { EditorState } from '@/features/files/editor-state'
 import { loadLanguage, monaco } from '@/features/files/monaco'
@@ -28,6 +28,8 @@ export type Document =
 
 type Tab = { spec: TabSpec; document: Document }
 
+type TabsState = { tabs: Tab[]; active: string | null }
+
 type Closing = { kind: 'tab'; id: string } | { kind: 'dialog' }
 
 const syncing = new WeakSet<monaco.editor.ITextModel>()
@@ -39,13 +41,18 @@ export function useTabs(props: {
   onSaved: () => void
   onClose: () => void
 }) {
-  const [tabs, setTabs] = useState<Tab[]>(() =>
-    props.saved.tabs.map((tab) => ({
+  const [state, setState] = useState<TabsState>(() => ({
+    tabs: props.saved.tabs.map((tab) => ({
       spec: tab.spec,
       document: { status: 'loading' },
-    }))
-  )
-  const [active, setActive] = useState(props.saved.active)
+    })),
+    active: props.saved.active,
+  }))
+  const latest = useRef(state)
+  const mounted = useRef(true)
+  const held = useRef(new Set<monaco.editor.ITextModel>())
+  const tabs = state.tabs
+  const active = state.active
   const [closing, setClosing] = useState<Closing | null>(null)
   const dirty = tabs.filter(
     (tab) => tab.document.status === 'text' && tab.document.dirty
@@ -56,28 +63,42 @@ export function useTabs(props: {
       : dirty
 
   useEffect(() => {
-    const models = new Set(
-      tabs.flatMap((tab) =>
-        tab.document.status === 'text'
-          ? [tab.document.modified, tab.document.original]
-          : []
-      )
-    )
-    for (const item of monaco.editor.getModels()) {
-      if (!models.has(item)) {
-        item.dispose()
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      queueMicrotask(() => {
+        if (mounted.current) {
+          return
+        }
+        const models = new Set([
+          ...held.current,
+          ...latest.current.tabs.flatMap((tab) => documentModels(tab.document)),
+        ])
+        for (const model of models) {
+          model.dispose()
+        }
+      })
+    }
+  }, [])
+
+  function commit(update: Partial<TabsState>) {
+    latest.current = { ...latest.current, ...update }
+    setState(latest.current)
+  }
+
+  function setActive(id: string) {
+    commit({ active: id })
+  }
+
+  function releaseModels() {
+    const current = new Set(tabs.flatMap((tab) => documentModels(tab.document)))
+    for (const model of held.current) {
+      if (!current.has(model)) {
+        model.dispose()
       }
     }
-  }, [tabs])
-
-  useEffect(
-    () => () => {
-      for (const item of monaco.editor.getModels()) {
-        item.dispose()
-      }
-    },
-    []
-  )
+    held.current = current
+  }
 
   async function readSide(spec: TabSpec, side: Side) {
     if (side.kind === 'empty') {
@@ -106,9 +127,11 @@ export function useTabs(props: {
   }
 
   function update(id: string, document: Document) {
-    setTabs((items) =>
-      items.map((item) => (item.spec.id === id ? { ...item, document } : item))
-    )
+    commit({
+      tabs: latest.current.tabs.map((item) =>
+        item.spec.id === id ? { ...item, document } : item
+      ),
+    })
   }
 
   async function read(spec: TabSpec): Promise<Document> {
@@ -157,23 +180,24 @@ export function useTabs(props: {
       if (syncing.has(right)) {
         return
       }
-      setTabs((items) => {
-        const tab = items.find(
-          (item) =>
-            item.document.status === 'text' && item.document.modified === right
-        )
-        if (tab === undefined || tab.document.status !== 'text') {
-          return items
-        }
-        const changed = right.getAlternativeVersionId() !== tab.document.saved
-        if (tab.document.dirty === changed) {
-          return items
-        }
-        return items.map((item) =>
+      const items = latest.current.tabs
+      const tab = items.find(
+        (item) =>
+          item.document.status === 'text' && item.document.modified === right
+      )
+      if (tab === undefined || tab.document.status !== 'text') {
+        return
+      }
+      const changed = right.getAlternativeVersionId() !== tab.document.saved
+      if (tab.document.dirty === changed) {
+        return
+      }
+      commit({
+        tabs: items.map((item) =>
           item === tab
             ? { ...tab, document: { ...tab.document, dirty: changed } }
             : item
-        )
+        ),
       })
     })
     return {
@@ -187,7 +211,7 @@ export function useTabs(props: {
   }
 
   async function reload(id: string) {
-    const tab = tabs.find((item) => item.spec.id === id)
+    const tab = latest.current.tabs.find((item) => item.spec.id === id)
     if (tab?.document.status !== 'text' || tab.document.dirty) {
       return
     }
@@ -213,14 +237,14 @@ export function useTabs(props: {
       syncing.delete(loaded.modified)
       const version = loaded.modified.getAlternativeVersionId()
       if (version !== before) {
-        setTabs((items) =>
-          items.map((item) =>
+        commit({
+          tabs: latest.current.tabs.map((item) =>
             item.document.status === 'text' &&
             item.document.modified === loaded.modified
               ? { ...item, document: { ...item.document, saved: version } }
               : item
-          )
-        )
+          ),
+        })
       }
     } catch (caught) {
       update(id, { status: 'error', message: errorMessage(caught) })
@@ -228,27 +252,32 @@ export function useTabs(props: {
   }
 
   async function open(spec: TabSpec) {
-    setActive(spec.id)
-    if (tabs.some((tab) => tab.spec.id === spec.id)) {
+    commit({ active: spec.id })
+    if (latest.current.tabs.some((tab) => tab.spec.id === spec.id)) {
       return
     }
-    setTabs([...tabs, { spec, document: { status: 'loading' } }])
+    commit({
+      tabs: [...latest.current.tabs, { spec, document: { status: 'loading' } }],
+    })
     await load(spec)
   }
 
   async function load(spec: TabSpec) {
     const loaded = await read(spec)
-    setTabs((items) =>
-      items.map((item) =>
-        item.spec.id === spec.id && item.document.status === 'loading'
-          ? { ...item, document: loaded }
-          : item
-      )
+    const waiting = latest.current.tabs.some(
+      (item) => item.spec.id === spec.id && item.document.status === 'loading'
     )
+    if (!mounted.current || !waiting) {
+      for (const model of documentModels(loaded)) {
+        model.dispose()
+      }
+      return
+    }
+    update(spec.id, loaded)
   }
 
   async function save(id: string) {
-    const tab = tabs.find((item) => item.spec.id === id)
+    const tab = latest.current.tabs.find((item) => item.spec.id === id)
     if (
       tab?.document.status !== 'text' ||
       tab.spec.right.kind !== 'worktree' ||
@@ -268,8 +297,8 @@ export function useTabs(props: {
       showError(caught)
       return false
     }
-    setTabs((items) =>
-      items.map((item) =>
+    commit({
+      tabs: latest.current.tabs.map((item) =>
         item.document.status === 'text' && item.document.modified === saving
           ? {
               ...item,
@@ -280,19 +309,25 @@ export function useTabs(props: {
               },
             }
           : item
-      )
-    )
+      ),
+    })
     props.onSaved()
     return true
   }
 
   function removeTabs(match: (spec: TabSpec) => boolean) {
-    const next = tabs.filter((tab) => !match(tab.spec))
-    setTabs(next)
-    const index = tabs.findIndex((tab) => tab.spec.id === active)
-    if (index !== -1 && match(tabs[index].spec)) {
-      setActive(next.at(Math.min(index, next.length - 1))?.spec.id ?? null)
-    }
+    const current = latest.current
+    const next = current.tabs.filter((tab) => !match(tab.spec))
+    const index = current.tabs.findIndex(
+      (tab) => tab.spec.id === current.active
+    )
+    commit({
+      tabs: next,
+      active:
+        index !== -1 && match(current.tabs[index].spec)
+          ? (next.at(Math.min(index, next.length - 1))?.spec.id ?? null)
+          : current.active,
+    })
   }
 
   function renamed(from: string, to: string) {
@@ -305,7 +340,8 @@ export function useTabs(props: {
       }
       return path
     }
-    const next = tabs.map((tab) => {
+    const current = latest.current
+    const next = current.tabs.map((tab) => {
       if (tab.spec.id === fileTab(tab.spec.repo, tab.spec.path).id) {
         return { ...tab, spec: fileTab(tab.spec.repo, rename(tab.spec.path)) }
       }
@@ -317,11 +353,13 @@ export function useTabs(props: {
       }
       return tab
     })
-    setTabs(next)
-    const index = tabs.findIndex((tab) => tab.spec.id === active)
-    if (index !== -1) {
-      setActive(next[index].spec.id)
-    }
+    const index = current.tabs.findIndex(
+      (tab) => tab.spec.id === current.active
+    )
+    commit({
+      tabs: next,
+      active: index === -1 ? current.active : next[index].spec.id,
+    })
   }
 
   function deleted(path: string) {
@@ -393,7 +431,17 @@ export function useTabs(props: {
     deleted,
     requestClose,
     finish,
+    releaseModels,
   }
+}
+
+function documentModels(document: Document) {
+  if (document.status !== 'text') {
+    return []
+  }
+  return document.original === null
+    ? [document.modified]
+    : [document.original, document.modified]
 }
 
 function replaceText(model: monaco.editor.ITextModel, text: string) {

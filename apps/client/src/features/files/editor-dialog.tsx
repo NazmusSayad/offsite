@@ -173,6 +173,8 @@ export function EditorDialog(props: {
     shown.current = { id: active, editor: target }
   }, [editor, diff, original, modified, active, editable, views])
 
+  useEffect(() => documents.releaseModels())
+
   const refreshActive = useEffectEvent(reloadActive)
 
   useEffect(() => refreshActive(), [active])
