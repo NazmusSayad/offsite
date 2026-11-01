@@ -48,6 +48,7 @@ const active = new Map<string, number>()
 const terminals = new Map<number, Terminal>()
 const connections = new Map<Client, Connection>()
 const paused = new Set<IPty>()
+const held = new Set<IPty>()
 let nextTab = 0
 let draining: NodeJS.Timeout | null = null
 
@@ -130,6 +131,10 @@ function attach(client: Client) {
       Buffer.concat(terminals.get(tab.id)?.history ?? [])
     )
   }
+  for (const pty of held) {
+    pty.resume()
+  }
+  held.clear()
 }
 
 function resize(
@@ -272,9 +277,14 @@ async function createTab(projectId: string | null) {
   tabs.push({ id, projectId, customName: null })
   active.set(projectId ?? GLOBAL_TERMINALS, id)
   pty.onData((data) => output(id, terminal, Buffer.from(data)))
+  if (connections.size === 0) {
+    pty.pause()
+    held.add(pty)
+  }
   pty.onExit(() => {
     terminals.delete(id)
     paused.delete(pty)
+    held.delete(pty)
     if (closeTab(id)) {
       publish()
     }
