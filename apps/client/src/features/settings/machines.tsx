@@ -388,7 +388,7 @@ function EditMachinePage(props: { machine: Machine }) {
   )
 }
 
-function ReorderRow(props: {
+export function ReorderRow(props: {
   value: string
   disabled: boolean
   className?: string
