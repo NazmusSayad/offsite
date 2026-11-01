@@ -1,9 +1,12 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import {
+  closeSync,
   existsSync,
   lstatSync,
   mkdirSync,
+  openSync,
   readFileSync,
+  readSync,
   realpathSync,
   renameSync,
   rmSync,
@@ -11,12 +14,14 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { lstat, open, readdir, stat } from 'node:fs/promises'
+import type { ServerResponse } from 'node:http'
 import path from 'node:path'
 import { mediaTypes } from '@offsite/core/media'
 import type { FilePreview } from '@offsite/core/projects'
 import { hasCode, home } from '../storage/storage.ts'
 
 const FILE_LIMIT = 20_000
+const SNIFF_LENGTH = 8000
 const OUTPUT_LIMIT = 256 * 1024
 const READ_LIMIT = 1024 * 1024
 const MEDIA_LINK_LIFETIME = 60 * 60_000
@@ -152,6 +157,30 @@ export function linkProjectDownload(cwd: string, file: string) {
     throw new Error(`${file} is not a file`)
   }
   return addLink(full, 'application/octet-stream')
+}
+
+export function setBrowseHeaders(
+  response: ServerResponse,
+  contentType: string
+) {
+  response.setHeader('content-type', contentType)
+  response.setHeader('cache-control', 'no-cache')
+  if (/^(text\/html|image\/svg|application\/xml)/.test(contentType)) {
+    response.setHeader(
+      'content-security-policy',
+      'sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads'
+    )
+  }
+}
+
+export function sniffType(file: string) {
+  const head = Buffer.alloc(SNIFF_LENGTH)
+  const handle = openSync(file, 'r')
+  const read = readSync(handle, head, 0, SNIFF_LENGTH, 0)
+  closeSync(handle)
+  return head.subarray(0, read).includes(0)
+    ? 'application/octet-stream'
+    : 'text/plain; charset=utf-8'
 }
 
 function addLink(file: string, mediaType: string) {

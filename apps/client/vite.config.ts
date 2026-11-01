@@ -64,9 +64,10 @@ export default defineConfig({
     },
   },
   server: {
+    cors: false,
     proxy: {
       '/ws': { target: 'ws://127.0.0.1:37842', ws: true },
-      '/api': 'http://127.0.0.1:37842',
+      '/api': { target: 'http://127.0.0.1:37842', ws: true },
     },
   },
 })

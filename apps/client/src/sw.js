@@ -17,7 +17,11 @@ if (
 ) {
   precacheAndRoute(self.__WB_MANIFEST)
   cleanupOutdatedCaches()
-  registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html')))
+  registerRoute(
+    new NavigationRoute(createHandlerBoundToURL('/index.html'), {
+      denylist: [/^\/api\//],
+    })
+  )
 }
 
 self.addEventListener('push', (event) => {

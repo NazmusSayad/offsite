@@ -7,6 +7,7 @@ import { codexAgent } from '../lib/codex/index.ts'
 import { type Client, clients } from '../lib/hub.ts'
 import { activity, runs } from '../lib/live.ts'
 import { openCodeAgent } from '../lib/opencode/index.ts'
+import { openSite } from '../lib/proxy/sites.ts'
 import {
   accounts,
   addAccount,
@@ -55,7 +56,6 @@ import {
   reorderProjects,
   updateProject,
 } from '../services/projects.ts'
-import { proxyPort } from '../services/proxy.ts'
 import { claimNotifier, subscribe, unsubscribe } from '../services/push.ts'
 import { open, rewind, send } from '../services/runs.ts'
 import { generateSessionTitle } from '../services/session-title.ts'
@@ -303,7 +303,7 @@ const handlers: Handlers = {
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
   'files.browse': () => browseToken,
-  'browser.proxy': (params) => proxyPort(params.origin),
+  'browser.open': (params) => openSite(params.url, params.fromPage),
   'tasks.output': (params) => taskOutput(params.sessionId, params.path),
   'git.status': (params) => gitRepos(projectPath(params.projectId)),
   'git.diff': (params) => projectDiff(projectPath(params.projectId)),

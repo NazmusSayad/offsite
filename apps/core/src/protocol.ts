@@ -221,7 +221,10 @@ export type RpcMethods = {
   }
   'files.upload': { params: { name: string; data: string }; result: string }
   'files.browse': { params: void; result: string }
-  'browser.proxy': { params: { origin: string }; result: number }
+  'browser.open': {
+    params: { url: string; fromPage: boolean }
+    result: string
+  }
   'tasks.output': {
     params: { sessionId: string; path: string }
     result: { text: string; truncated: boolean } | null

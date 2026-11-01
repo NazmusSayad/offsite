@@ -1,13 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import {
-  closeSync,
-  createReadStream,
-  existsSync,
-  openSync,
-  readFileSync,
-  readSync,
-  statSync,
-} from 'node:fs'
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
 import {
   createServer,
   type IncomingMessage,
@@ -23,7 +15,13 @@ import { connectClient } from './api/socket.ts'
 import { args } from './args.ts'
 import { findClaude } from './lib/claude/index.ts'
 import { broadcast, clients } from './lib/hub.ts'
-import { browseToken, findMediaLink } from './services/files.ts'
+import { proxySocket, serveProxy } from './lib/proxy/proxy.ts'
+import {
+  browseToken,
+  findMediaLink,
+  setBrowseHeaders,
+  sniffType,
+} from './services/files.ts'
 import { installOpen, openSecret } from './services/open/open.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
@@ -43,7 +41,6 @@ import { listenPort, lockHome, writeJson } from './storage/storage.ts'
 
 const UNPAIR_CHECK = 5000
 const TICKET_LIFETIME = 60_000
-const SNIFF_LENGTH = 8000
 const openBody = z.object({ path: z.string() })
 
 const contentTypes: Record<string, string> = {
@@ -120,6 +117,10 @@ const server = createServer((request, response) => {
     serveBrowse(url.pathname, request, response)
     return
   }
+  if (url.pathname.startsWith('/api/proxy/')) {
+    serveProxy(request, response)
+    return
+  }
   if (url.pathname === `/api/open/${openSecret}`) {
     void answerOpen(request, response)
     return
@@ -141,6 +142,10 @@ const paired = new Map<WebSocket, string>()
 
 server.on('upgrade', (request, socket, head) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
+  if (url.pathname.startsWith('/api/proxy/')) {
+    proxySocket(request, socket, head)
+    return
+  }
   const device = args.auth ? redeemTicket(url.searchParams.get('ticket')) : null
   if (url.pathname !== '/ws' || (args.auth && device === null)) {
     socket.destroy()
@@ -314,23 +319,11 @@ function serveBrowse(
     response.end(`${file} is not a file`)
     return
   }
-  response.setHeader('content-type', browseType(file))
-  response.setHeader('cache-control', 'no-cache')
+  setBrowseHeaders(
+    response,
+    browseTypes.get(path.extname(file).toLowerCase()) ?? sniffType(file)
+  )
   streamFile(file, stats.size, request, response)
-}
-
-function browseType(file: string) {
-  const known = browseTypes.get(path.extname(file).toLowerCase())
-  if (known !== undefined) {
-    return known
-  }
-  const head = Buffer.alloc(SNIFF_LENGTH)
-  const handle = openSync(file, 'r')
-  const read = readSync(handle, head, 0, SNIFF_LENGTH, 0)
-  closeSync(handle)
-  return head.subarray(0, read).includes(0)
-    ? 'application/octet-stream'
-    : 'text/plain; charset=utf-8'
 }
 
 async function answerOpen(request: IncomingMessage, response: ServerResponse) {

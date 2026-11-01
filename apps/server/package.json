@@ -16,8 +16,11 @@
     "drizzle-orm": "1.0.0-rc.4",
     "effect": "4.0.1",
     "es-toolkit": "^1.52.0",
-    "http-proxy-3": "^2.0.1",
+    "magic-string": "^1.4.5",
+    "oxc-parser": "^0.156.0",
+    "parse5": "^8.0.1",
     "sharp": "^0.35.5",
+    "tough-cookie": "^6.0.2",
     "web-push": "^3.6.7",
     "ws": "^8.22.0",
     "zod": "^4.6.7"

@@ -12,7 +12,7 @@ import { z } from 'zod'
 import { call, machineUrl } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { machineOf, useStore } from '@/lib/store'
+import { machineOf, showError, useStore } from '@/lib/store'
 import { openBrowser, replaceSearch } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
 
@@ -21,11 +21,14 @@ const pageMessage = z.discriminatedUnion('event', [
     offsite: z.literal('browser'),
     event: z.literal('location'),
     url: z.string(),
-    proxied: z.string(),
-    back: z.boolean(),
-    forward: z.boolean(),
+    replaced: z.boolean(),
   }),
-  z.object({ offsite: z.literal('browser'), event: z.literal('navigate') }),
+  z.object({
+    offsite: z.literal('browser'),
+    event: z.literal('open'),
+    url: z.string(),
+  }),
+  z.object({ offsite: z.literal('browser'), event: z.literal('loading') }),
 ])
 
 export function BrowserPanel(props: { machine: string; onClose: () => void }) {
@@ -36,7 +39,6 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
   const [loaded, setLoaded] = useState<{
     target: string
     src: string | null
-    href: string | null
     error: string | null
   } | null>(null)
   const [version, setVersion] = useState(0)
@@ -45,10 +47,13 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
   const [page, setPage] = useState<{
     back: boolean
     forward: boolean
-    proxied: string
   } | null>(null)
   const frame = useRef<HTMLIFrameElement>(null)
-  const followed = useRef<string | null>(null)
+  const opened = useRef<string | null>(null)
+  const trail = useRef<{ entries: string[]; index: number }>({
+    entries: [],
+    index: -1,
+  })
   const online = useStore(
     (state) => machineOf(state, props.machine).status === 'online'
   )
@@ -57,15 +62,17 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
     if (target === null || !online) {
       return
     }
-    if (followed.current === target) {
-      followed.current = null
+    const request = `${props.machine} ${version} ${target}`
+    if (opened.current === request) {
       return
     }
     let current = true
     browserSource(props.machine, target).then(
       (src) => {
         if (current) {
-          setLoaded({ target, src, href: src, error: null })
+          opened.current = request
+          trail.current = { entries: [], index: -1 }
+          setLoaded({ target, src, error: null })
           setFrameKey((key) => key + 1)
           setPage(null)
           setLoading(true)
@@ -73,12 +80,7 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
       },
       (caught: unknown) => {
         if (current) {
-          setLoaded({
-            target,
-            src: null,
-            href: null,
-            error: errorMessage(caught),
-          })
+          setLoaded({ target, src: null, error: errorMessage(caught) })
           setPage(null)
           setLoading(false)
         }
@@ -101,33 +103,46 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
       if (!message.success) {
         return
       }
-      if (message.data.event === 'navigate') {
+      if (message.data.event === 'loading') {
         setPage(null)
         setLoading(true)
         return
       }
-      setPage({
-        back: message.data.back,
-        forward: message.data.forward,
-        proxied: message.data.proxied,
-      })
       if (target === null || loaded === null) {
         throw new Error('a page reported its location outside the browser')
       }
       const next = message.data.url
+      if (message.data.event === 'open') {
+        call(props.machine, 'browser.open', { url: next, fromPage: true }).then(
+          (path) => {
+            opened.current = `${props.machine} ${version} ${next}`
+            setLoaded({
+              target: next,
+              src: `${machineUrl(props.machine)}${path}`,
+              error: null,
+            })
+            setLoading(true)
+            replaceSearch({ browse: next })
+          },
+          showError
+        )
+        return
+      }
+      setPage(followTrail(trail.current, next, message.data.replaced))
       if (next === target) {
         return
       }
-      followed.current = next
-      setLoaded({ ...loaded, target: next, href: message.data.proxied })
+      opened.current = `${props.machine} ${version} ${next}`
+      setLoaded({ ...loaded, target: next })
       replaceSearch({ browse: next })
     }
     window.addEventListener('message', listen)
     return () => window.removeEventListener('message', listen)
-  }, [target, loaded])
+  }, [props.machine, version, target, loaded])
 
+  const web = target !== null && /^https?:\/\//i.test(target)
   const src = target === null ? null : (loaded?.src ?? null)
-  const href = loaded?.target === target ? loaded.href : null
+  const href = !web && loaded?.target === target ? loaded.src : null
   const error = loaded?.target === target ? loaded.error : null
   const busy =
     target !== null && online && (loaded?.target !== target || loading)
@@ -138,7 +153,7 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
     }
     frame.current?.contentWindow?.postMessage(
       { offsite: 'browser', command: name },
-      new URL(page.proxied).origin
+      '*'
     )
   }
 
@@ -245,6 +260,11 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
           key={frameKey}
           ref={frame}
           src={src}
+          sandbox={
+            web
+              ? 'allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-presentation allow-pointer-lock'
+              : undefined
+          }
           title={target ?? ''}
           className="min-h-0 w-full flex-1 bg-white"
           onLoad={() => setLoading(false)}
@@ -256,15 +276,35 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
 
 async function browserSource(machine: string, target: string) {
   if (/^https?:\/\//i.test(target)) {
-    const address = new URL(target)
-    const proxy = new URL(machineUrl(machine))
-    proxy.port = String(
-      await call(machine, 'browser.proxy', { origin: address.origin })
-    )
-    return `${proxy.origin}${address.pathname}${address.search}${address.hash}`
+    const path = await call(machine, 'browser.open', {
+      url: target,
+      fromPage: false,
+    })
+    return `${machineUrl(machine)}${path}`
   }
   const token = await call(machine, 'files.browse', undefined)
   return `${machineUrl(machine)}/api/browse/${token}${browsePath(target)}`
+}
+
+function followTrail(
+  trail: { entries: string[]; index: number },
+  url: string,
+  replaced: boolean
+) {
+  if (replaced && trail.index >= 0) {
+    trail.entries[trail.index] = url
+  } else if (trail.entries[trail.index - 1] === url) {
+    trail.index -= 1
+  } else if (trail.entries[trail.index + 1] === url) {
+    trail.index += 1
+  } else if (trail.entries[trail.index] !== url) {
+    trail.entries = [...trail.entries.slice(0, trail.index + 1), url]
+    trail.index += 1
+  }
+  return {
+    back: trail.index > 0,
+    forward: trail.index < trail.entries.length - 1,
+  }
 }
 
 function browserAddress(value: string) {
