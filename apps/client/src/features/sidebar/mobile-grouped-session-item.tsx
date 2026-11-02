@@ -27,6 +27,7 @@ import { timeAgo } from '@/lib/format'
 import { deactivateSession, editSession } from '@/lib/sessions'
 import type { MachineSession } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { secondarySwipe } from './mobile-session-item'
 import { SessionMenuItems } from './session-menu-items'
 import { SessionStatus } from './session-status'
 import { SessionTitle } from './session-title'
@@ -86,6 +87,11 @@ export function MobileGroupedSessionItem(props: {
         deactivate()
       }
     }
+    if (event.clientX - start.x < -event.currentTarget.offsetWidth * 0.4) {
+      void editSession(session.machine, session.id, {
+        status: secondarySwipe[session.status].status,
+      })
+    }
   }
 
   const swipeHandlers = {
@@ -117,12 +123,12 @@ export function MobileGroupedSessionItem(props: {
       if (!start.swiping && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
         return
       }
-      if (!start.swiping && dx <= Math.abs(dy)) {
+      if (!start.swiping && Math.abs(dx) <= Math.abs(dy)) {
         swipe.current = null
         return
       }
       start.swiping = true
-      setOffset(Math.max(0, dx))
+      setOffset(dx)
     },
     onPointerUp: release,
     onPointerCancel: () => {
@@ -131,15 +137,23 @@ export function MobileGroupedSessionItem(props: {
     },
   }
 
-  const swipeBackground = offset > 0 && (
+  const swipeBackground = offset !== 0 && (
     <div
       className={cn(
         'absolute inset-0 flex items-center rounded-md px-4 text-white',
-        session.status === 'inactive' ? 'bg-success' : 'bg-destructive'
+        offset > 0 && session.status === 'inactive' && 'bg-success',
+        offset > 0 && session.status !== 'inactive' && 'bg-destructive',
+        offset < 0 && 'bg-info justify-end'
       )}
     >
       <HugeiconsIcon
-        icon={session.status === 'inactive' ? PowerIcon : TickDouble01Icon}
+        icon={
+          offset < 0
+            ? secondarySwipe[session.status].icon
+            : session.status === 'inactive'
+              ? PowerIcon
+              : TickDouble01Icon
+        }
         className="size-6"
       />
     </div>
@@ -247,10 +261,12 @@ export function MobileGroupedSessionItem(props: {
               rowState,
               'flex h-9 items-center gap-2 px-2.5',
               working && !props.selected && offset === 0 && 'opacity-70',
-              offset > 0 && 'bg-sidebar'
+              offset !== 0 && 'bg-sidebar'
             )}
             style={
-              offset > 0 ? { transform: `translateX(${offset}px)` } : undefined
+              offset !== 0
+                ? { transform: `translateX(${offset}px)` }
+                : undefined
             }
             {...swipeHandlers}
             onKeyDown={(event) => {

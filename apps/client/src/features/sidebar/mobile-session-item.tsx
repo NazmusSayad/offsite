@@ -1,11 +1,13 @@
 import {
+  MinimizeIcon,
   PinIcon,
+  PinOffIcon,
   PowerIcon,
   SquarePenIcon,
   TickDouble01Icon,
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { useRef, useState } from 'react'
 import { useProjectName } from '@/api/projects'
@@ -36,6 +38,17 @@ import { SessionTitle } from './session-title'
 
 const surface =
   'relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none touch-pan-y [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
+
+export const secondarySwipe = {
+  active: { status: 'snoozed', icon: ZzzIcon },
+  snoozed: { status: 'active', icon: PowerIcon },
+  minimized: { status: 'active', icon: PowerIcon },
+  inactive: { status: 'minimized', icon: MinimizeIcon },
+  pinned: { status: 'active', icon: PinOffIcon },
+} as const satisfies Record<
+  MachineSession['status'],
+  { status: MachineSession['status']; icon: IconSvgElement }
+>
 
 export function MobileSessionItem(props: {
   session: MachineSession
@@ -95,6 +108,11 @@ export function MobileSessionItem(props: {
         deactivate()
       }
     }
+    if (event.clientX - start.x < -event.currentTarget.offsetWidth * 0.4) {
+      void editSession(session.machine, session.id, {
+        status: secondarySwipe[session.status].status,
+      })
+    }
   }
 
   const swipeHandlers = {
@@ -126,12 +144,12 @@ export function MobileSessionItem(props: {
       if (!start.swiping && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
         return
       }
-      if (!start.swiping && dx <= Math.abs(dy)) {
+      if (!start.swiping && Math.abs(dx) <= Math.abs(dy)) {
         swipe.current = null
         return
       }
       start.swiping = true
-      setOffset(Math.max(0, dx))
+      setOffset(dx)
     },
     onPointerUp: release,
     onPointerCancel: () => {
@@ -140,16 +158,24 @@ export function MobileSessionItem(props: {
     },
   }
 
-  const swipeBackground = offset > 0 && (
+  const swipeBackground = offset !== 0 && (
     <div
       className={cn(
         'absolute inset-x-0 flex items-center rounded-md px-4 text-white',
         props.slim ? 'inset-y-0' : 'inset-y-0.5',
-        session.status === 'inactive' ? 'bg-success' : 'bg-destructive'
+        offset > 0 && session.status === 'inactive' && 'bg-success',
+        offset > 0 && session.status !== 'inactive' && 'bg-destructive',
+        offset < 0 && 'bg-info justify-end'
       )}
     >
       <HugeiconsIcon
-        icon={session.status === 'inactive' ? PowerIcon : TickDouble01Icon}
+        icon={
+          offset < 0
+            ? secondarySwipe[session.status].icon
+            : session.status === 'inactive'
+              ? PowerIcon
+              : TickDouble01Icon
+        }
         className="size-6"
       />
     </div>
@@ -257,10 +283,10 @@ export function MobileSessionItem(props: {
                 surface,
                 rowState,
                 'flex h-9 items-center gap-2.5 px-2.5',
-                offset > 0 && 'bg-sidebar'
+                offset !== 0 && 'bg-sidebar'
               )}
               style={
-                offset > 0
+                offset !== 0
                   ? { transform: `translateX(${offset}px)` }
                   : undefined
               }
@@ -302,10 +328,12 @@ export function MobileSessionItem(props: {
               surface,
               rowState,
               working && !props.selected && offset === 0 && 'opacity-70',
-              offset > 0 && 'bg-sidebar'
+              offset !== 0 && 'bg-sidebar'
             )}
             style={
-              offset > 0 ? { transform: `translateX(${offset}px)` } : undefined
+              offset !== 0
+                ? { transform: `translateX(${offset}px)` }
+                : undefined
             }
             {...swipeHandlers}
             onKeyDown={(event) => {
