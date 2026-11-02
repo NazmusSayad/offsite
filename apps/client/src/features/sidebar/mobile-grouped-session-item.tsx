@@ -141,9 +141,14 @@ export function MobileGroupedSessionItem(props: {
     <div
       className={cn(
         'absolute inset-0 flex items-center rounded-md px-4 text-white',
-        offset > 0 && session.status === 'inactive' && 'bg-success',
-        offset > 0 && session.status !== 'inactive' && 'bg-destructive',
-        offset < 0 && 'bg-info justify-end'
+        offset > 0 && session.status !== 'inactive' && 'bg-success',
+        offset > 0 && session.status === 'inactive' && 'bg-[#56b6c2]',
+        offset < 0 && session.status === 'active' && 'bg-[#c678dd]',
+        offset < 0 && session.status === 'snoozed' && 'bg-[#d19a66]',
+        offset < 0 && session.status === 'minimized' && 'bg-info',
+        offset < 0 && session.status === 'inactive' && 'bg-[#5c6370]',
+        offset < 0 && session.status === 'pinned' && 'bg-[#e06c75]',
+        offset < 0 && 'justify-end'
       )}
     >
       <HugeiconsIcon
