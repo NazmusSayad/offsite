@@ -91,7 +91,7 @@ export type Item = {
       summary: string
       status: ItemStatus
     }
-  | { kind: 'compaction' }
+  | { kind: 'compaction'; summary: string | null }
   | { kind: 'notice'; text: string }
   | { kind: 'error'; text: string }
 )

@@ -28,6 +28,12 @@ export type Row =
     }
   | { kind: 'error'; key: string; text: string; time: number | null }
   | { kind: 'notice'; key: string; text: string }
+  | {
+      kind: 'compaction'
+      key: string
+      summary: string | null
+      time: number | null
+    }
   | { kind: 'plan'; key: string; plan: string }
   | { kind: 'question'; key: string; item: QuestionItem }
 
@@ -125,7 +131,12 @@ function rowOf(item: Item, live: boolean): Row | null {
     case 'notice':
       return { kind: 'notice', key: item.id, text: item.text }
     case 'compaction':
-      return { kind: 'notice', key: item.id, text: 'Conversation compacted' }
+      return {
+        kind: 'compaction',
+        key: item.id,
+        summary: item.summary,
+        time: item.time,
+      }
     case 'error':
       return { kind: 'error', key: item.id, text: item.text, time: item.time }
     case 'user':
@@ -145,11 +156,7 @@ export function mainRows(items: Item[], running: boolean, partial: string) {
       turns.push({ prompt: item, first: !answered, items: [] })
       continue
     }
-    if (
-      item.kind !== 'notice' &&
-      item.kind !== 'error' &&
-      item.kind !== 'compaction'
-    ) {
+    if (item.kind !== 'notice' && item.kind !== 'error') {
       answered = true
     }
     if (turns.length === 0) {

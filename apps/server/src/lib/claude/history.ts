@@ -132,6 +132,13 @@ function parseLine(line: string): Record<string, unknown> | null {
 function mainMessages(disk: SessionMessage[], entries: SessionStoreEntry[]) {
   const times = messageTimes(entries)
   const outputs = toolOutputs(entries)
+  const summaries = new Set(
+    entries.flatMap((entry) =>
+      entry.isCompactSummary === true && typeof entry.uuid === 'string'
+        ? [entry.uuid]
+        : []
+    )
+  )
   return disk.flatMap((item): Message[] => {
     if (item.type === 'system' || item.parent_tool_use_id !== null) {
       return []
@@ -141,6 +148,19 @@ function mainMessages(disk: SessionMessage[], entries: SessionStoreEntry[]) {
       { ...item, tool_use_result: outputs.get(item.uuid) },
       times.get(item.uuid) ?? null
     )
+    if (summaries.has(item.uuid)) {
+      return [
+        {
+          type: 'compaction',
+          uuid: item.uuid,
+          time: message.time,
+          summary: message.content
+            .flatMap((block) => (block.type === 'text' ? [block.text] : []))
+            .join('\n')
+            .replace(/<system-reminder>[\s\S]*?<\/system-reminder>\s*/g, ''),
+        },
+      ]
+    }
     return [
       {
         ...message,
@@ -226,10 +246,9 @@ export async function earlier(sessionId: string, before: number) {
   if (index < 0) {
     throw new Error(`no messages before entry ${before}`)
   }
-  const items = toItems([
-    ...mainMessages(session.pages[index].disk, session.entries),
-    { type: 'compaction', uuid: `compacted:${before}`, time: null },
-  ])
+  const items = toItems(
+    mainMessages(session.pages[index].disk, session.entries)
+  )
   return { items, before: session.pages[index + 1]?.before ?? null }
 }
 

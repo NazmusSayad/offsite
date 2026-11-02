@@ -386,6 +386,7 @@ export class Run {
               type: 'compaction',
               uuid: message.uuid,
               time: Date.now(),
+              summary: null,
             })
             return
           }

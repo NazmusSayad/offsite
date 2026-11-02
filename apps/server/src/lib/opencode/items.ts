@@ -85,7 +85,7 @@ export function messageItems(
         case 'running':
           return []
         case 'completed':
-          return [{ ...base, kind: 'compaction' }]
+          return [{ ...base, kind: 'compaction', summary: null }]
         case 'failed':
           return [{ ...errorItem(message.id, message.error.message), parent }]
       }

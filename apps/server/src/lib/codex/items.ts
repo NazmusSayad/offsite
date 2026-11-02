@@ -182,7 +182,7 @@ export function toItems(
         },
       ]
     case 'contextCompaction':
-      return [{ ...base, kind: 'compaction' }]
+      return [{ ...base, kind: 'compaction', summary: null }]
     case 'hookPrompt':
     case 'functionCallOutput':
     case 'subAgentActivity':

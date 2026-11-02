@@ -39,7 +39,12 @@ export type Message =
       text: string
       isError: boolean
     }
-  | { type: 'compaction'; uuid: string; time: number | null }
+  | {
+      type: 'compaction'
+      uuid: string
+      time: number | null
+      summary: string | null
+    }
 
 export function toMessage(
   type: 'user' | 'assistant',

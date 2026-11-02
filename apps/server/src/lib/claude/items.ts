@@ -40,7 +40,12 @@ export function toItems(messages: Message[]): Item[] {
   for (const message of messages) {
     const base = { parent: null, time: message.time }
     if (message.type === 'compaction') {
-      items.push({ ...base, id: message.uuid, kind: 'compaction' })
+      items.push({
+        ...base,
+        id: message.uuid,
+        kind: 'compaction',
+        summary: message.summary,
+      })
       continue
     }
     if (message.type === 'notice') {
