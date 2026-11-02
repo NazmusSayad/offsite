@@ -154,6 +154,7 @@ export function mainRows(items: Item[], running: boolean, partial: string) {
     }
     if (item.kind === 'user') {
       turns.push({ prompt: item, first: !answered, items: [] })
+      answered = true
       continue
     }
     if (item.kind !== 'notice' && item.kind !== 'error') {

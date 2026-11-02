@@ -49,3 +49,7 @@ export type SessionActivity = {
   backgroundAgent: boolean
   tasks: Record<string, TaskStatus>
 }
+
+export const exportDetails = ['messages', 'steps', 'details', 'full'] as const
+
+export type ExportDetail = (typeof exportDetails)[number]

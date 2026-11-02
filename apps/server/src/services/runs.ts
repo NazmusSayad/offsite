@@ -223,7 +223,16 @@ async function runFor(
   }
   switch (settings.provider) {
     case 'claude':
-      return new Run({ sessionId, cwd, resume: true, resumeAt: null, settings })
+      return new Run({
+        sessionId,
+        cwd,
+        resume: true,
+        resumeAt:
+          run?.provider === 'claude' && run.messages.length === 0
+            ? run.resumeAt
+            : null,
+        settings,
+      })
     case 'codex':
       return CodexRun.resume(sessionId, cwd, settings)
     case 'opencode':

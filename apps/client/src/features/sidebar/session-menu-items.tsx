@@ -1,6 +1,7 @@
 import {
   AiContentGenerator02Icon,
   Delete02Icon,
+  FileExportIcon,
   MinimizeIcon,
   PencilEdit02Icon,
   PinIcon,
@@ -22,7 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { providerNames } from '@/lib/format'
 import { editSession, regenerateTitle, removeSession } from '@/lib/sessions'
-import { type MachineSession, useStore } from '@/lib/store'
+import { type MachineSession, showExport, useStore } from '@/lib/store'
 
 export function SessionMenuItems(props: {
   session: MachineSession
@@ -108,6 +109,10 @@ export function SessionMenuItems(props: {
       <Item onSelect={props.onRename}>
         <HugeiconsIcon icon={PencilEdit02Icon} />
         Rename
+      </Item>
+      <Item onSelect={() => showExport(session)}>
+        <HugeiconsIcon icon={FileExportIcon} />
+        Export
       </Item>
       <Item
         variant="destructive"

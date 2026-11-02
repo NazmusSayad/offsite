@@ -17,6 +17,7 @@ import {
   stopProvider,
   updateAccount,
 } from '../services/accounts.ts'
+import { exportSession } from '../services/export.ts'
 import {
   createProjectEntry,
   deleteProjectEntry,
@@ -190,6 +191,8 @@ const handlers: Handlers = {
   'sessions.searchable': () => searchableSessions(),
   'sessions.searchMessages': (params) => searchMessages(params.query),
   'sessions.earlier': (params) => earlier(params.sessionId, params.before),
+  'sessions.export': (params) =>
+    exportSession(params.sessionId, params.projectId),
   'sessions.image': (params) =>
     image(params.sessionId, params.itemId, params.index),
   'sessions.agent': (params) => {

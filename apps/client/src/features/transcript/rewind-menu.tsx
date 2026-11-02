@@ -9,6 +9,7 @@ import type { ItemImage } from '@offsite/core/items'
 import type { Provider } from '@offsite/core/providers'
 import type { RewindResult } from '@offsite/core/sessions'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import {
   AlertDialog,
@@ -108,11 +109,12 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
   const cwd = useStore((state) =>
     machine === null ? '' : (projectOf(state, machine, projectId)?.path ?? '')
   )
+  const checking = open || confirming !== null
 
   useEffect(() => {
     setPreview(null)
     setCodeError(null)
-    if (!open || machine === null || sessionId === null) {
+    if (!checking || machine === null || sessionId === null) {
       return
     }
     let current = true
@@ -139,7 +141,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
     return () => {
       current = false
     }
-  }, [open, messageId, machine, sessionId, projectId])
+  }, [checking, messageId, machine, sessionId, projectId])
 
   async function apply(next: RewindMode) {
     if (machine === null || sessionId === null) {
@@ -183,6 +185,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
       updatePrefs({ ...getState().prefs, rewind: next })
       setOpen(false)
     } catch (caught) {
+      toast(errorMessage(caught))
       showError(caught)
     } finally {
       setBusy(false)
@@ -286,12 +289,18 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
               <AlertDialogTitle>{modes[confirming].label}?</AlertDialogTitle>
               <AlertDialogDescription>
                 {modes[confirming].description} Do you really want to continue?
+                {modes[confirming].code && codeError !== null && (
+                  <span className="text-destructive mt-2 block">
+                    {`Code can't be restored: ${codeError}`}
+                  </span>
+                )}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 variant="destructive"
+                disabled={modes[confirming].code && !codeReady}
                 onClick={() => void apply(confirming)}
               >
                 {modes[confirming].label}

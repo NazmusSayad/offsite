@@ -41,6 +41,7 @@ import type { MessageMatch, SearchSession } from './search.ts'
 import type {
   SessionActivity,
   ContextUsage,
+  ExportDetail,
   RewindRequest,
   RewindResult,
   Session,
@@ -113,6 +114,10 @@ export type RpcMethods = {
   'sessions.earlier': {
     params: { sessionId: string; before: number }
     result: { items: Item[]; before: number | null }
+  }
+  'sessions.export': {
+    params: { sessionId: string; projectId: string }
+    result: Record<ExportDetail, string>
   }
   'sessions.image': {
     params: { sessionId: string; itemId: string; index: number }

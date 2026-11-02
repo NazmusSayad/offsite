@@ -35,6 +35,7 @@ import { GitErrorDialog } from '@/features/git/git-toast'
 import { SettingsDialog } from '@/features/settings/dialog'
 import { MobileSettings } from '@/features/settings/mobile'
 import { ConnectMachine } from '@/features/sidebar/connect-machine'
+import { ExportDialog } from '@/features/sidebar/export-dialog'
 import { Palette } from '@/features/sidebar/palette'
 import { Sidebar } from '@/features/sidebar/sidebar'
 import { StatusChips } from '@/features/sidebar/status-chips'
@@ -80,6 +81,7 @@ function subscribeWide(listener: () => void) {
 export function App() {
   const desktop = useSyncExternalStore(subscribeWide, () => wide.matches)
   const editor = useStore((state) => state.editor)
+  const exporting = useStore((state) => state.exporting)
   useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
     enableOnFormTags: true,
     preventDefault: true,
@@ -99,6 +101,7 @@ export function App() {
           />
         </Suspense>
       )}
+      {exporting !== null && <ExportDialog session={exporting} />}
       <GitErrorDialog />
       <Toaster
         position={desktop ? 'bottom-right' : 'top-center'}

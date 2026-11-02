@@ -65,6 +65,7 @@ export function start() {
     settingsOpen: false,
     settingsPage: 'General',
     editor: null,
+    exporting: null,
     settingsAccount: null,
     settingsEditedMachine: null,
     settingsListing: true,

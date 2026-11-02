@@ -90,6 +90,7 @@ export type State = {
   prefs: Prefs
   paletteOpen: boolean
   editor: { machine: string; projectId: string } | null
+  exporting: MachineSession | null
   settingsOpen: boolean
   settingsPage: SettingsPage
   settingsAccount: string | null
@@ -202,6 +203,10 @@ export function showPalette(paletteOpen: boolean) {
 
 export function showEditor(editor: State['editor']) {
   update({ editor })
+}
+
+export function showExport(exporting: MachineSession | null) {
+  update({ exporting })
 }
 
 export function showSettings(settingsOpen: boolean) {
