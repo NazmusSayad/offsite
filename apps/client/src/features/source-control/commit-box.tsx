@@ -125,7 +125,7 @@ export function CommitBox(props: {
         <div className="flex">
           <Button
             size="xs"
-            className="flex-1 rounded-sm rounded-r-none"
+            className="flex-1 rounded-sm rounded-r-none [&:active:not([aria-haspopup])]:scale-100"
             disabled={!changed || props.busy}
             onClick={() => props.onCommit({ ...commitDefaults, then: 'push' })}
           >
