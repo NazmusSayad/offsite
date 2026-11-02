@@ -160,7 +160,9 @@ export function Sidebar(
     )
       .then((lists) => {
         if (current) {
-          update({ inactive: lists.flat() })
+          update({
+            inactive: lists.flat().sort((a, b) => b.updatedAt - a.updatedAt),
+          })
         }
       })
       .catch(showError)
