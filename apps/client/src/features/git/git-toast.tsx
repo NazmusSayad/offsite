@@ -210,7 +210,7 @@ function GitToastCard(props: { toast: Toast }) {
         aria-label="Dismiss"
         onClick={() => sonner.dismiss(props.toast.id)}
       >
-        <HugeiconsIcon icon={XIcon} className="size-3.5" />
+        <HugeiconsIcon icon={XIcon} className="size-4" />
       </Button>
     </div>
   )

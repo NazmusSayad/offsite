@@ -47,11 +47,11 @@ export function MarkdownTable(props: { children: ReactNode }) {
           <Button
             type="button"
             variant="ghost-muted"
-            size="icon-xs"
+            size="icon-micro"
             aria-label="Fullscreen"
             onClick={() => setFullscreen(true)}
           >
-            <HugeiconsIcon icon={FullScreenIcon} className="size-3" />
+            <HugeiconsIcon icon={FullScreenIcon} className="size-4" />
           </Button>
         </Tooltip>
         <DropdownMenu>
@@ -60,10 +60,10 @@ export function MarkdownTable(props: { children: ReactNode }) {
               <Button
                 type="button"
                 variant="ghost-muted"
-                size="icon-xs"
+                size="icon-micro"
                 aria-label="Download table"
               >
-                <HugeiconsIcon icon={Download01Icon} className="size-3" />
+                <HugeiconsIcon icon={Download01Icon} className="size-4" />
               </Button>
             </DropdownMenuTrigger>
           </Tooltip>
@@ -112,12 +112,12 @@ export function MarkdownTable(props: { children: ReactNode }) {
               <Button
                 type="button"
                 variant="ghost-muted"
-                size="icon-xs"
+                size="icon-micro"
                 aria-label={copyLabel}
               >
                 <HugeiconsIcon
                   icon={clipboard.copied ? CheckIcon : CopyIcon}
-                  className="size-3"
+                  className="size-4"
                 />
               </Button>
             </DropdownMenuTrigger>

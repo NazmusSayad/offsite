@@ -167,7 +167,7 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
           aria-label="Close"
           onClick={props.onClose}
         >
-          <HugeiconsIcon icon={XIcon} className="size-3.5" />
+          <HugeiconsIcon icon={XIcon} className="size-4" />
         </Button>
         <div className="flex shrink-0 items-center gap-1">
           <Button
@@ -178,7 +178,7 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
             disabled={page?.back !== true}
             onClick={() => command('back')}
           >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" />
+            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
           </Button>
           <Button
             size="icon-sm"
@@ -188,7 +188,7 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
             disabled={page?.forward !== true}
             onClick={() => command('forward')}
           >
-            <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
+            <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
           </Button>
           <Button
             size="icon-sm"
@@ -205,7 +205,7 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
           >
             <HugeiconsIcon
               icon={RefreshCwIcon}
-              className={cn('size-3.5', busy && 'animate-spin')}
+              className={cn('size-4', busy && 'animate-spin')}
             />
           </Button>
         </div>
@@ -242,7 +242,7 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
               title="Open in a new tab"
               aria-label="Open in a new tab"
             >
-              <HugeiconsIcon icon={LinkSquare02Icon} className="size-3.5" />
+              <HugeiconsIcon icon={LinkSquare02Icon} className="size-4" />
             </a>
           </Button>
         )}

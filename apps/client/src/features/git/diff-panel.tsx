@@ -120,7 +120,7 @@ export function DiffPanel(props: {
             aria-label="Close"
             onClick={props.onClose}
           >
-            <HugeiconsIcon icon={XIcon} className="size-3.5" />
+            <HugeiconsIcon icon={XIcon} className="size-4" />
           </Button>
           <span className="text-foreground min-w-0 truncate text-xs font-medium">
             Uncommitted changes
@@ -140,7 +140,7 @@ export function DiffPanel(props: {
             aria-label="Refresh diff"
             onClick={() => setVersion(version + 1)}
           >
-            <HugeiconsIcon icon={RefreshCwIcon} className="size-3.5" />
+            <HugeiconsIcon icon={RefreshCwIcon} className="size-4" />
           </Button>
           {list.length > 0 && (
             <Button
@@ -154,7 +154,7 @@ export function DiffPanel(props: {
             >
               <HugeiconsIcon
                 icon={diff.collapsed ? UnfoldMoreIcon : ChevronsDownUpIcon}
-                className="size-3.5"
+                className="size-4"
               />
             </Button>
           )}

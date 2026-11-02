@@ -302,7 +302,7 @@ function MobileChat(props: { selection: Selection }) {
                       aria-label="Close"
                       onClick={() => showTerminal(false)}
                     >
-                      <HugeiconsIcon icon={XIcon} className="size-3.5" />
+                      <HugeiconsIcon icon={XIcon} className="size-4" />
                     </Button>
                     <span className="text-foreground min-w-0 truncate text-xs font-medium">
                       Terminal

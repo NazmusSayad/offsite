@@ -106,13 +106,13 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
           <Button
             type="button"
             variant="ghost-muted"
-            size="icon-xs"
+            size="icon-micro"
             aria-label="Copy path"
             onClick={() => void clipboard.copy(props.path)}
           >
             <HugeiconsIcon
               icon={clipboard.copied ? CheckIcon : CopyIcon}
-              className="size-3"
+              className="size-4"
             />
           </Button>
         </Tooltip>
@@ -120,7 +120,7 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
           <Button
             type="button"
             variant="ghost-muted"
-            size="icon-xs"
+            size="icon-micro"
             aria-label="Download"
             disabled={loaded === null}
             onClick={() => {
@@ -130,7 +130,7 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
               void downloadFile(loaded.src, props.path).catch(showError)
             }}
           >
-            <HugeiconsIcon icon={Download01Icon} className="size-3" />
+            <HugeiconsIcon icon={Download01Icon} className="size-4" />
           </Button>
         </Tooltip>
       </span>

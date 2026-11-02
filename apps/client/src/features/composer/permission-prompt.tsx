@@ -270,13 +270,13 @@ function QuestionPrompt(props: {
               {question.question}
             </p>
             <Button
-              size="icon-xs"
+              size="icon-micro"
               variant="ghost"
               aria-label="Skip questions"
               title="Skip questions"
               onClick={() => respond(props.request.id, 'deny', null)}
             >
-              <HugeiconsIcon icon={XIcon} />
+              <HugeiconsIcon icon={XIcon} className="size-4" />
             </Button>
           </div>
           <div

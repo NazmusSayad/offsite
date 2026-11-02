@@ -54,7 +54,7 @@ export function TasksPanel(props: {
           aria-label="Close"
           onClick={props.onClose}
         >
-          <HugeiconsIcon icon={XIcon} className="size-3.5" />
+          <HugeiconsIcon icon={XIcon} className="size-4" />
         </Button>
         {agent === undefined && task === undefined && (
           <span className="text-foreground min-w-0 truncate text-xs font-medium">
@@ -70,7 +70,7 @@ export function TasksPanel(props: {
               aria-label="Back to tasks"
               onClick={() => props.onSelect(null)}
             >
-              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" />
+              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
             </Button>
             {agent !== undefined && info !== null && (
               <>

@@ -25,19 +25,19 @@ export function QueuedMessages() {
           </span>
           <Button
             variant="ghost-muted"
-            size="icon-xs"
+            size="icon-micro"
             title="Send now"
             onClick={() => steer(item.id)}
           >
-            <HugeiconsIcon icon={ArrowUp02Icon} />
+            <HugeiconsIcon icon={ArrowUp02Icon} className="size-4" />
           </Button>
           <Button
             variant="ghost-muted"
-            size="icon-xs"
+            size="icon-micro"
             title="Remove from queue"
             onClick={() => unqueue(item.id)}
           >
-            <HugeiconsIcon icon={XIcon} />
+            <HugeiconsIcon icon={XIcon} className="size-4" />
           </Button>
         </div>
       ))}

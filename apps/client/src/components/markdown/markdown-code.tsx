@@ -64,12 +64,12 @@ export function CodeBlock(props: { code: string; language: string }) {
               <Button
                 type="button"
                 variant={source ? 'secondary' : 'ghost-muted'}
-                size="icon-xs"
+                size="icon-micro"
                 aria-pressed={source}
                 aria-label={sourceLabel}
                 onClick={() => setSource(!source)}
               >
-                <HugeiconsIcon icon={SourceCodeIcon} className="size-3" />
+                <HugeiconsIcon icon={SourceCodeIcon} className="size-4" />
               </Button>
             </Tooltip>
           )}
@@ -78,12 +78,12 @@ export function CodeBlock(props: { code: string; language: string }) {
               <Button
                 type="button"
                 variant={wrap ? 'secondary' : 'ghost-muted'}
-                size="icon-xs"
+                size="icon-micro"
                 aria-pressed={wrap}
                 aria-label={wrapLabel}
                 onClick={() => setWrap(!wrap)}
               >
-                <HugeiconsIcon icon={TextWrapIcon} className="size-3" />
+                <HugeiconsIcon icon={TextWrapIcon} className="size-4" />
               </Button>
             </Tooltip>
           )}
@@ -93,11 +93,11 @@ export function CodeBlock(props: { code: string; language: string }) {
                 <Button
                   type="button"
                   variant="ghost-muted"
-                  size="icon-xs"
+                  size="icon-micro"
                   aria-label="Fullscreen"
                   onClick={() => setFullscreen(true)}
                 >
-                  <HugeiconsIcon icon={FullScreenIcon} className="size-3" />
+                  <HugeiconsIcon icon={FullScreenIcon} className="size-4" />
                 </Button>
               </Tooltip>
               <DropdownMenu>
@@ -106,10 +106,10 @@ export function CodeBlock(props: { code: string; language: string }) {
                     <Button
                       type="button"
                       variant="ghost-muted"
-                      size="icon-xs"
+                      size="icon-micro"
                       aria-label="Download diagram"
                     >
-                      <HugeiconsIcon icon={Download01Icon} className="size-3" />
+                      <HugeiconsIcon icon={Download01Icon} className="size-4" />
                     </Button>
                   </DropdownMenuTrigger>
                 </Tooltip>
@@ -158,12 +158,12 @@ export function CodeBlock(props: { code: string; language: string }) {
                     <Button
                       type="button"
                       variant="ghost-muted"
-                      size="icon-xs"
+                      size="icon-micro"
                       aria-label={copyDiagramLabel}
                     >
                       <HugeiconsIcon
                         icon={clipboard.copied ? CheckIcon : CopyIcon}
-                        className="size-3"
+                        className="size-4"
                       />
                     </Button>
                   </DropdownMenuTrigger>
@@ -194,13 +194,13 @@ export function CodeBlock(props: { code: string; language: string }) {
               <Button
                 type="button"
                 variant="ghost-muted"
-                size="icon-xs"
+                size="icon-micro"
                 aria-label={copyLabel}
                 onClick={() => void clipboard.copy(props.code)}
               >
                 <HugeiconsIcon
                   icon={clipboard.copied ? CheckIcon : CopyIcon}
-                  className="size-3"
+                  className="size-4"
                 />
               </Button>
             </Tooltip>
