@@ -1,11 +1,19 @@
-import { ArrowLeft01Icon, XIcon } from '@hugeicons/core-free-icons'
+import {
+  AiContentGenerator02Icon,
+  ArrowLeft01Icon,
+  XIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useSearch } from '@tanstack/react-router'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import { Fragment, useCallback, useState, useSyncExternalStore } from 'react'
+import { machineKey } from '@/api/machines'
 import { useProjectName } from '@/api/projects'
 import { Button } from '@/components/ui/button'
-import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
 import { Composer } from '@/features/composer/composer'
 import {
@@ -25,7 +33,7 @@ import { TerminalPage } from '@/features/terminal/terminal-page'
 import { Transcript } from '@/features/transcript/transcript'
 import { type Panel, PanelMenu, PanelView } from '@/features/workspace/panels'
 import { router, type Search } from '@/lib/router'
-import { closeSession } from '@/lib/sessions'
+import { closeSession, regenerateTitle } from '@/lib/sessions'
 import {
   machineOf,
   projectOf,
@@ -96,6 +104,11 @@ function MobileChat(props: { selection: Selection }) {
         item.machine === props.selection.machine &&
         item.id === props.selection.sessionId
     )
+  )
+  const generatingTitle = useStore(
+    (state) =>
+      session !== undefined &&
+      state.generatingTitles.includes(machineKey(session.machine, session.id))
   )
   const cwd = useStore(
     (state) =>
@@ -220,6 +233,18 @@ function MobileChat(props: { selection: Selection }) {
             <>
               <DropdownMenuSeparator />
               <GitMenuItems git={commands} collapsed />
+            </>
+          )}
+          {session !== undefined && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={generatingTitle}
+                onSelect={() => void regenerateTitle(session)}
+              >
+                <HugeiconsIcon icon={AiContentGenerator02Icon} />
+                Refresh title
+              </DropdownMenuItem>
             </>
           )}
         </PanelMenu>
