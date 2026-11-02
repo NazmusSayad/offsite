@@ -1,11 +1,13 @@
 import {
   ChevronDownIcon,
+  MinimizeIcon,
   PanelLeftOpenIcon,
   SearchIcon,
   Settings01Icon,
   SquarePenIcon,
+  ZzzIcon,
 } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import { useEffect, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocalStorage } from 'usehooks-ts'
@@ -237,34 +239,42 @@ export function Sidebar(
     )
   }
 
-  function section(
-    label: string,
-    items: MachineSession[],
-    open: boolean,
-    onToggle: () => void,
+  function section(options: {
+    icon: IconSvgElement | null
+    label: string
+    items: MachineSession[]
+    open: boolean
+    onToggle: () => void
     first: boolean
-  ) {
+  }) {
     return (
       <>
-        <li className={cn('mx-0.5 h-9 pt-2', first && 'mt-auto')}>
+        <li className={cn('mx-0.5 h-9 pt-2', options.first && 'mt-auto')}>
           <button
-            aria-expanded={open}
+            aria-expanded={options.open}
             className="text-sidebar-muted-foreground/60 flex h-9 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs font-medium"
-            onClick={onToggle}
+            onClick={options.onToggle}
           >
-            <span className="shrink-0">{label}</span>
+            {options.icon !== null && (
+              <HugeiconsIcon icon={options.icon} className="size-3 shrink-0" />
+            )}
+            <span className={cn('shrink-0', options.icon !== null && '-ms-1')}>
+              {options.label}
+            </span>
             <span className="bg-sidebar-border/60 h-px min-w-2 flex-1" />
             <HugeiconsIcon
               icon={ChevronDownIcon}
               className={cn(
                 'size-3 shrink-0 transition-transform',
-                !open && 'rotate-180'
+                !options.open && 'rotate-180'
               )}
             />
           </button>
         </li>
-        {open &&
-          items.map((session) => row(session, session.status === 'inactive'))}
+        {options.open &&
+          options.items.map((session) =>
+            row(session, session.status === 'inactive')
+          )}
       </>
     )
   }
@@ -357,28 +367,33 @@ export function Sidebar(
                 </li>
               )}
             {snoozed.length > 0 &&
-              section(
-                snoozedOpen ? 'Snoozed' : `Snoozed (${snoozed.length})`,
-                snoozed,
-                snoozedOpen,
-                () => setSnoozedOpen(!snoozedOpen),
-                true
-              )}
+              section({
+                icon: ZzzIcon,
+                label: snoozedOpen ? 'Snoozed' : `Snoozed (${snoozed.length})`,
+                items: snoozed,
+                open: snoozedOpen,
+                onToggle: () => setSnoozedOpen(!snoozedOpen),
+                first: true,
+              })}
             {minimized.length > 0 &&
-              section(
-                minimizedOpen ? 'Minimized' : `Minimized (${minimized.length})`,
-                minimized,
-                minimizedOpen,
-                () => setMinimizedOpen(!minimizedOpen),
-                snoozed.length === 0
-              )}
-            {section(
-              'Done',
-              inactive,
-              inactiveOpen,
-              () => setInactiveOpen(!inactiveOpen),
-              snoozed.length === 0 && minimized.length === 0
-            )}
+              section({
+                icon: MinimizeIcon,
+                label: minimizedOpen
+                  ? 'Minimized'
+                  : `Minimized (${minimized.length})`,
+                items: minimized,
+                open: minimizedOpen,
+                onToggle: () => setMinimizedOpen(!minimizedOpen),
+                first: snoozed.length === 0,
+              })}
+            {section({
+              icon: null,
+              label: 'Done',
+              items: inactive,
+              open: inactiveOpen,
+              onToggle: () => setInactiveOpen(!inactiveOpen),
+              first: snoozed.length === 0 && minimized.length === 0,
+            })}
           </ul>
         </nav>
         {!props.mobile && (

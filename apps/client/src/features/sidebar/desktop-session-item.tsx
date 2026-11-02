@@ -300,13 +300,6 @@ export function DesktopSessionItem(props: {
                   className="size-5"
                 />
                 {titleText}
-                {session.status === 'pinned' && (
-                  <HugeiconsIcon
-                    icon={PinIcon}
-                    className="text-muted-foreground/65 size-3 shrink-0"
-                  />
-                )}
-
                 <SessionStatus
                   activity={props.activity}
                   backgroundRunning={backgroundRunning}
@@ -328,6 +321,9 @@ export function DesktopSessionItem(props: {
                     </span>
                   )}
                 </span>
+                {session.status === 'pinned' && (
+                  <HugeiconsIcon icon={PinIcon} className="size-3 shrink-0" />
+                )}
                 {session.status === 'snoozed' && (
                   <HugeiconsIcon icon={ZzzIcon} className="size-3 shrink-0" />
                 )}
