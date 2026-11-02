@@ -346,8 +346,8 @@ export function DesktopSessionItem(props: {
                   >
                     <HugeiconsIcon
                       icon={CheckmarkSquare01Icon}
-                      strokeWidth={1.2}
-                      className="size-5 scale-120"
+                      strokeWidth={1.25}
+                      className="size-5 scale-110"
                     />
                   </button>
                 </div>
