@@ -25,6 +25,7 @@ import {
 import {
   currentSearch,
   leaveLayer,
+  rememberTerminal,
   replaceSearch,
   terminalPage,
   terminalView,
@@ -262,6 +263,7 @@ export function setOpen(open: boolean) {
 }
 
 function followUrl() {
+  rememberTerminal()
   const open = currentSearch().bottom === 'terminal' || terminalPage() !== null
   if (open !== state.open) {
     setState({ open })

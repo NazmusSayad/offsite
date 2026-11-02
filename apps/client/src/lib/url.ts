@@ -137,6 +137,29 @@ export function useCloseOnBack(open: boolean, onClose: () => void) {
   }, [open])
 }
 
+const terminalProjectsKey = 'terminalProjects'
+
+function terminalProjects(): string[] {
+  return JSON.parse(localStorage.getItem(terminalProjectsKey) ?? '[]')
+}
+
+export function rememberTerminal() {
+  const search = currentSearch()
+  if (
+    terminalPage() !== null ||
+    search.machine === undefined ||
+    search.project === undefined
+  ) {
+    return
+  }
+  const key = `${search.machine} ${search.project}`
+  const others = terminalProjects().filter((item) => item !== key)
+  localStorage.setItem(
+    terminalProjectsKey,
+    JSON.stringify(search.bottom === 'terminal' ? [...others, key] : others)
+  )
+}
+
 export function syncUrl() {
   const selection = getState().selection
   if (selection === null) {
@@ -149,10 +172,16 @@ export function syncUrl() {
     )
     return
   }
+  rememberTerminal()
   const next = {
     machine: selection.machine,
     project: selection.projectId,
     session: selection.sessionId ?? undefined,
+    bottom: terminalProjects().includes(
+      `${selection.machine} ${selection.projectId}`
+    )
+      ? ('terminal' as const)
+      : undefined,
   }
   if (terminalPage() !== null) {
     void router.navigate({
