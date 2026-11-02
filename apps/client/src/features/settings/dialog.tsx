@@ -46,6 +46,7 @@ import { GeneralPage } from './general'
 import { MachinePage } from './machine'
 import { MachinesPage } from './machines'
 import { NotificationsPage } from './notifications'
+import { ProjectsPage } from './projects'
 import { ProviderPage } from './provider'
 import { ShortcutsPage } from './shortcuts'
 import { TerminalPage } from './terminal'
@@ -60,6 +61,7 @@ export const browserPages: SettingsPage[] = [
 ]
 export const machinePages: SettingsPage[] = [
   'Machine',
+  'Projects',
   'Claude',
   'Codex',
   'OpenCode',
@@ -314,6 +316,9 @@ export function SettingsContent(props: { view: SettingsView }) {
               onRestore={() => setConfirming('machine')}
             />
           )}
+        {page === 'Projects' && machine !== null && system !== null && (
+          <ProjectsPage machine={machine.id} homeDir={system.homeDir} />
+        )}
         {machinePage && machine === null && (
           <p className="text-muted-foreground text-sm">
             Add a machine to see its settings.

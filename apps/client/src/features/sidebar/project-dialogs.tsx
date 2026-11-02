@@ -5,22 +5,15 @@ import {
   Folder01Icon,
   Home07Icon,
   Search01Icon,
-  Settings01Icon,
   Upload04Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { DirectoryListing } from '@offsite/core/projects'
-import { Reorder } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
-import {
-  addProject,
-  removeProject,
-  reorderProjects,
-  updateProject,
-} from '@/api/projects'
+import { addProject, removeProject, updateProject } from '@/api/projects'
 import { readBase64 } from '@/api/upload'
-import { ProjectBadge, ProjectIcon } from '@/components/icons'
+import { ProjectBadge } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -33,16 +26,9 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { ReorderRow } from '@/features/settings/machines'
 import { IconPickerDialog } from '@/features/sidebar/icon-picker-dialog'
 import { projectName } from '@/lib/format'
-import {
-  type Machine,
-  type MachineProject,
-  showError,
-  useStore,
-} from '@/lib/store'
+import { type Machine, type MachineProject, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
 export function FolderDialog(props: {
@@ -215,121 +201,6 @@ function workingDir(machine: Machine | undefined) {
     return '~'
   }
   return machine.config.workingDir[machine.system.platform] ?? '~'
-}
-
-function homePath(path: string, machine: Machine | undefined) {
-  if (machine === undefined || machine.system === null) {
-    return path
-  }
-  const home = machine.system.homeDir
-  if (path === home) {
-    return '~'
-  }
-  if (path.startsWith(`${home}/`) || path.startsWith(`${home}\\`)) {
-    return `~${path.slice(home.length)}`
-  }
-  return path
-}
-
-export function ManageProjectsDialog(props: {
-  machine: string
-  onClose: () => void
-  onEdit: (project: MachineProject) => void
-}) {
-  const machine = useStore((state) =>
-    state.machines.find((item) => item.id === props.machine)
-  )
-  const registered = useStore((state) => state.projects)
-  const [order, setOrder] = useState<string[] | null>(null)
-  const projects = registered
-    .filter((project) => project.machine === props.machine)
-    .sort((a, b) =>
-      order === null ? 0 : order.indexOf(a.id) - order.indexOf(b.id)
-    )
-
-  return (
-    <Dialog open onOpenChange={() => props.onClose()}>
-      <DialogContent
-        className="gap-0 overflow-hidden p-0 sm:max-w-md"
-        aria-describedby={undefined}
-      >
-        <DialogHeader className="border-b px-6 py-4 pr-12">
-          <DialogTitle>{machine?.name} projects</DialogTitle>
-        </DialogHeader>
-        {projects.length === 0 && (
-          <p className="text-muted-foreground px-6 py-8 text-center text-sm">
-            No projects yet
-          </p>
-        )}
-        <Reorder.Group
-          as="div"
-          axis="y"
-          layoutScroll
-          className="max-h-96 divide-y overflow-y-auto"
-          values={projects.map((project) => project.id)}
-          onReorder={setOrder}
-        >
-          {projects.map((project) => (
-            <ReorderRow
-              key={project.id}
-              value={project.id}
-              disabled={false}
-              className="outline-none"
-              onDragEnd={async () => {
-                if (order === null) {
-                  return
-                }
-                try {
-                  await reorderProjects(props.machine, order)
-                } catch (error) {
-                  showError(error)
-                }
-                setOrder(null)
-              }}
-            >
-              <ProjectIcon
-                machine={project.machine}
-                projectId={project.id}
-                className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
-              />
-              <span className="min-w-0 flex-1" title={project.path}>
-                <span
-                  className={cn(
-                    'block truncate text-sm',
-                    project.hidden && 'text-muted-foreground'
-                  )}
-                >
-                  {project.name}
-                </span>
-                <span className="text-muted-foreground block truncate font-mono text-xs">
-                  {homePath(project.path, machine)}
-                </span>
-              </span>
-              <Button
-                size="icon-sm"
-                variant="ghost-muted"
-                title="Configure project"
-                aria-label={`Configure ${project.name}`}
-                onClick={() => props.onEdit(project)}
-              >
-                <HugeiconsIcon icon={Settings01Icon} />
-              </Button>
-              <Switch
-                size="sm"
-                checked={!project.hidden}
-                onCheckedChange={(shown) =>
-                  updateProject(project.machine, project.id, {
-                    hidden: !shown,
-                  }).catch(showError)
-                }
-                aria-label={`Show ${project.name}`}
-              />
-            </ReorderRow>
-          ))}
-        </Reorder.Group>
-      </DialogContent>
-    </Dialog>
-  )
 }
 
 export function EditProjectDialog(props: {

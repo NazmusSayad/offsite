@@ -23,7 +23,6 @@ import {
 import {
   EditProjectDialog,
   FolderDialog,
-  ManageProjectsDialog,
 } from '@/features/sidebar/project-dialogs'
 import { ProjectGroup } from '@/features/sidebar/project-group'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
@@ -69,7 +68,6 @@ export function Sidebar(
     projectId: string
   } | null>('sidebarScope', null)
   const [adding, setAdding] = useState<string | null>(null)
-  const [managing, setManaging] = useState<string | null>(null)
   const [editing, setEditing] = useState<MachineProject | null>(null)
   const [snoozedOpen, setSnoozedOpen] = useState(false)
   const [minimizedOpen, setMinimizedOpen] = useState(false)
@@ -303,7 +301,6 @@ export function Sidebar(
             onScope={setScope}
             onEdit={setEditing}
             onAddProject={setAdding}
-            onManageProjects={setManaging}
           />
           {props.mobile && <StatusChips hideDone />}
           <button
@@ -429,13 +426,6 @@ export function Sidebar(
             setAdding(null)
             select(project.machine, project.id, null)
           }}
-        />
-      )}
-      {managing !== null && (
-        <ManageProjectsDialog
-          machine={managing}
-          onClose={() => setManaging(null)}
-          onEdit={setEditing}
         />
       )}
       {editing !== null && (

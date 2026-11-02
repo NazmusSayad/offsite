@@ -19,14 +19,19 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
-import { activityOf, type MachineProject, useStore } from '@/lib/store'
+import {
+  activityOf,
+  type MachineProject,
+  showSettingsPage,
+  update,
+  useStore,
+} from '@/lib/store'
 
 export function ScopeMenu(props: {
   scope: { machine: string; projectId: string } | null
   onScope: (scope: { machine: string; projectId: string } | null) => void
   onEdit: (project: MachineProject) => void
   onAddProject: (machine: string) => void
-  onManageProjects: (machine: string) => void
 }) {
   const machines = useStore((state) => state.machines)
   const registered = useStore((state) => state.projects)
@@ -64,7 +69,10 @@ export function ScopeMenu(props: {
         title={`Manage projects on ${machine.name}`}
         aria-label={`Manage projects on ${machine.name}`}
         disabled={machine.status !== 'online'}
-        onSelect={() => props.onManageProjects(machine.id)}
+        onSelect={() => {
+          showSettingsPage('Projects')
+          update({ settingsMachine: machine.id })
+        }}
       >
         <HugeiconsIcon icon={SlidersHorizontalIcon} className="size-3.5" />
       </DropdownMenuItem>

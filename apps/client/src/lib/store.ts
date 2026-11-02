@@ -41,6 +41,7 @@ export type SettingsPage =
   | 'Terminal'
   | 'Notifications'
   | 'Machine'
+  | 'Projects'
   | 'Claude'
   | 'Codex'
   | 'OpenCode'

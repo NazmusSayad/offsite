@@ -45,6 +45,7 @@ export function DesktopGroupedSessionItem(props: {
   const session = props.session
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const field = useRef<HTMLInputElement>(null)
   const waiting = props.activity?.waiting === true
   const backgroundRunning = Object.values(props.activity?.tasks ?? {}).includes(
@@ -89,7 +90,7 @@ export function DesktopGroupedSessionItem(props: {
   )
 
   const menu = props.saved && (
-    <DropdownMenu>
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       <DropdownMenuTrigger asChild>
         <button
           className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
@@ -185,6 +186,13 @@ export function DesktopGroupedSessionItem(props: {
             !props.selected &&
             'opacity-70 transition-opacity focus-within:opacity-100 hover:opacity-100'
         )}
+        onContextMenu={(event) => {
+          if (!props.saved) {
+            return
+          }
+          event.preventDefault()
+          setMenuOpen(true)
+        }}
         onClick={props.onSelect}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
