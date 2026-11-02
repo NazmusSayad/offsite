@@ -1,13 +1,10 @@
 import {
   AiContentGenerator02Icon,
   AlarmClockIcon,
-  AlarmClockOffIcon,
   Delete02Icon,
-  MaximizeIcon,
   MinimizeIcon,
   PencilEdit02Icon,
   PinIcon,
-  PinOffIcon,
   Plug01Icon,
   PlugZapIcon,
 } from '@hugeicons/core-free-icons'
@@ -42,7 +39,7 @@ export function SessionMenuItems(props: {
 
   return (
     <>
-      {session.status === 'inactive' ? (
+      {session.status !== 'active' && (
         <Item
           onSelect={() =>
             void editSession(session.machine, session.id, {
@@ -51,52 +48,51 @@ export function SessionMenuItems(props: {
           }
         >
           <HugeiconsIcon icon={PlugZapIcon} />
-          Make active
-        </Item>
-      ) : (
-        <Item onSelect={props.onDeactivate}>
-          <HugeiconsIcon icon={Plug01Icon} />
-          Inactive
+          Activate
         </Item>
       )}
-      <Item
-        onSelect={() =>
-          void editSession(session.machine, session.id, {
-            status: session.status === 'snoozed' ? 'active' : 'snoozed',
-          })
-        }
-      >
-        <HugeiconsIcon
-          icon={
-            session.status === 'snoozed' ? AlarmClockOffIcon : AlarmClockIcon
+      {session.status !== 'inactive' && (
+        <Item onSelect={props.onDeactivate}>
+          <HugeiconsIcon icon={Plug01Icon} />
+          Done
+        </Item>
+      )}
+      {session.status !== 'snoozed' && (
+        <Item
+          onSelect={() =>
+            void editSession(session.machine, session.id, {
+              status: 'snoozed',
+            })
           }
-        />
-        {session.status === 'snoozed' ? 'Unsnooze' : 'Snooze'}
-      </Item>
-      <Item
-        onSelect={() =>
-          void editSession(session.machine, session.id, {
-            status: session.status === 'minimized' ? 'active' : 'minimized',
-          })
-        }
-      >
-        <HugeiconsIcon
-          icon={session.status === 'minimized' ? MaximizeIcon : MinimizeIcon}
-        />
-        {session.status === 'minimized' ? 'Restore' : 'Minimize'}
-      </Item>
-      <Item
-        onSelect={() =>
-          void editSession(session.machine, session.id, {
-            status: session.status === 'pinned' ? 'active' : 'pinned',
-          })
-        }
-      >
-        <HugeiconsIcon
-          icon={session.status === 'pinned' ? PinOffIcon : PinIcon}
-        />
-        {session.status === 'pinned' ? 'Unpin' : 'Pin'}
-      </Item>
+        >
+          <HugeiconsIcon icon={AlarmClockIcon} />
+          Snooze
+        </Item>
+      )}
+      {session.status !== 'minimized' && (
+        <Item
+          onSelect={() =>
+            void editSession(session.machine, session.id, {
+              status: 'minimized',
+            })
+          }
+        >
+          <HugeiconsIcon icon={MinimizeIcon} />
+          Minimize
+        </Item>
+      )}
+      {session.status !== 'pinned' && (
+        <Item
+          onSelect={() =>
+            void editSession(session.machine, session.id, {
+              status: 'pinned',
+            })
+          }
+        >
+          <HugeiconsIcon icon={PinIcon} />
+          Pin
+        </Item>
+      )}
       <Separator />
       <Item
         disabled={generatingTitle}

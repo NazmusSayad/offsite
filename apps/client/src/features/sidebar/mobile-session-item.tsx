@@ -168,7 +168,7 @@ export function MobileSessionItem(props: {
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction variant="destructive" onClick={makeInactive}>
-            Stop and Make Inactive
+            Stop and Mark Done
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -300,7 +300,7 @@ export function MobileSessionItem(props: {
             className={cn(
               surface,
               rowState,
-              working && !props.selected && 'opacity-70',
+              working && !props.selected && offset === 0 && 'opacity-70',
               offset > 0 && 'bg-sidebar'
             )}
             style={

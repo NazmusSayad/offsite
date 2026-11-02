@@ -376,7 +376,7 @@ export function Sidebar(
                 snoozed.length === 0
               )}
             {section(
-              'Inactive',
+              'Done',
               inactive,
               inactiveOpen,
               () => setInactiveOpen(!inactiveOpen),

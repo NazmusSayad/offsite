@@ -81,7 +81,7 @@ export function DesktopGroupedSessionItem(props: {
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction variant="destructive" onClick={makeInactive}>
-            Stop and Make Inactive
+            Stop and Mark Done
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -225,8 +225,8 @@ export function DesktopGroupedSessionItem(props: {
             {menu}
             <button
               className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
-              title="Make inactive"
-              aria-label="Make inactive"
+              title="Done"
+              aria-label="Done"
               onClick={(event) => {
                 event.stopPropagation()
                 deactivate()

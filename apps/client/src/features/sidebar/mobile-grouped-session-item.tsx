@@ -158,7 +158,7 @@ export function MobileGroupedSessionItem(props: {
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction variant="destructive" onClick={makeInactive}>
-            Stop and Make Inactive
+            Stop and Mark Done
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -245,7 +245,7 @@ export function MobileGroupedSessionItem(props: {
               surface,
               rowState,
               'flex h-9 items-center gap-2 px-2.5',
-              working && !props.selected && 'opacity-70',
+              working && !props.selected && offset === 0 && 'opacity-70',
               offset > 0 && 'bg-sidebar'
             )}
             style={
