@@ -1,5 +1,6 @@
 import {
   EllipsisIcon,
+  InboxIcon,
   PinIcon,
   SquarePenIcon,
   TickDouble01Icon,
@@ -210,8 +211,30 @@ export function DesktopSessionItem(props: {
             <span className="text-secondary-label group-any-hover/sidebar-row:opacity-0 inline-flex justify-end text-xs tabular-nums transition-opacity">
               {timeAgo(session.updatedAt)}
             </span>
-            <span className="group-any-hover/sidebar-row:opacity-100 absolute inset-y-0 right-0 -mr-1 flex items-center opacity-0 transition-opacity has-[[data-state=open]]:opacity-100">
+            <span
+              className={cn(
+                'group-any-hover/sidebar-row:opacity-100 absolute inset-y-0 right-0 -mr-1 flex items-center bg-linear-to-l from-60% to-transparent pl-6 opacity-0 transition-opacity has-[[data-state=open]]:opacity-100',
+                props.selected
+                  ? 'from-sidebar-row-active'
+                  : 'from-sidebar-row-hover'
+              )}
+            >
               {menu}
+              {props.saved && (
+                <button
+                  className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
+                  title="Activate"
+                  aria-label="Activate"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    void editSession(session.machine, session.id, {
+                      status: 'active',
+                    })
+                  }}
+                >
+                  <HugeiconsIcon icon={InboxIcon} className="size-3.5" />
+                </button>
+              )}
             </span>
           </span>
         </div>
@@ -276,10 +299,7 @@ export function DesktopSessionItem(props: {
               )}
             </span>
             {session.status === 'snoozed' && (
-              <HugeiconsIcon
-                icon={ZzzIcon}
-                className="size-3 shrink-0"
-              />
+              <HugeiconsIcon icon={ZzzIcon} className="size-3 shrink-0" />
             )}
             <span className="shrink-0 tabular-nums">
               {timeAgo(session.updatedAt)}
