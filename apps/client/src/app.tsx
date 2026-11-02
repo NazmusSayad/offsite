@@ -13,6 +13,7 @@ import {
 } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocalStorage } from 'usehooks-ts'
+import { machineKey } from '@/api/machines'
 import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -166,6 +167,11 @@ function DesktopLayout() {
     (item) =>
       item.machine === selection?.machine && item.id === selection.sessionId
   )
+  const generatingTitle = useStore(
+    (state) =>
+      session !== undefined &&
+      state.generatingTitles.includes(machineKey(session.machine, session.id))
+  )
 
   const projectTitle = useProjectName(
     selection?.machine ?? '',
@@ -309,7 +315,9 @@ function DesktopLayout() {
                     sidebar && 'flex-1'
                   )}
                 >
-                  {session?.title ?? 'New thread'}
+                  <span className={cn(generatingTitle && 'text-shimmer')}>
+                    {session?.title ?? 'New thread'}
+                  </span>
                 </li>
                 {!sidebar && (
                   <li className="shrink-0">

@@ -47,6 +47,7 @@ import {
   replaceSearch,
   useTerminalPage,
 } from '@/lib/url'
+import { cn } from '@/lib/utils'
 
 export function MobileLayout() {
   const selection = useStore((state) => state.selection)
@@ -199,7 +200,9 @@ function MobileChat(props: { selection: Selection }) {
         </Button>
         <div className="min-w-0 flex-1">
           <div className="text-foreground truncate font-medium">
-            {session?.title ?? 'New thread'}
+            <span className={cn(generatingTitle && 'text-shimmer')}>
+              {session?.title ?? 'New thread'}
+            </span>
           </div>
           {machine.status === 'online' && (
             <div className="text-muted-foreground flex items-center gap-1 text-xs">

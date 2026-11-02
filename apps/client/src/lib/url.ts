@@ -196,7 +196,7 @@ export function syncUrl() {
     search.machine === next.machine &&
     search.project === next.project &&
     (search.session === undefined || search.session === next.session)
-  if (sameSession) {
+  if (sameSession || next.session === undefined) {
     replaceSearch(next)
     return
   }
