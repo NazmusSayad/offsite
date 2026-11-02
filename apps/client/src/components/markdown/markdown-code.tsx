@@ -7,7 +7,7 @@ import {
   TextWrapIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useRef, useState } from 'react'
+import { memo, useRef, useState } from 'react'
 import { bundledLanguagesInfo } from 'shiki/langs'
 import {
   downloadImage,
@@ -29,7 +29,9 @@ import { useCopy } from '@/lib/clipboard'
 import { saveBlob } from '@/lib/media'
 import { showError } from '@/lib/store'
 
-export function CodeBlock(props: { code: string; language: string }) {
+export const CodeBlock = memo(CodeBlockView)
+
+function CodeBlockView(props: { code: string; language: string }) {
   const [wrap, setWrap] = useState(true)
   const [source, setSource] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)

@@ -260,7 +260,9 @@ function externalHost(href: string | undefined) {
   }
 }
 
-function ExternalLinkText(props: { host: string; text: string }) {
+const ExternalLinkText = memo(ExternalLinkTextView)
+
+function ExternalLinkTextView(props: { host: string; text: string }) {
   const leading =
     /^https?:\/\//i.exec(props.text)?.[0].length ??
     Math.min(props.text.length, 1)
