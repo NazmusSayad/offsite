@@ -12,6 +12,7 @@ import {
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import type { PromptDelivery } from '@offsite/core/config'
 import type { Capabilities, Provider } from '@offsite/core/providers'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -78,9 +79,10 @@ export function MoreMenu(props: {
   const modes = providerModes(settings.provider, capabilities)
   const mode = modes.find((item) => item.value === settings.mode)
   const title = settings.provider === 'opencode' ? 'Agent' : 'Permission mode'
+  const [open, setOpen] = useState(false)
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
@@ -144,14 +146,15 @@ export function MoreMenu(props: {
             <Button
               variant="outline"
               size="xs"
-              onClick={() =>
+              onClick={() => {
+                setOpen(false)
                 sendPrompt(
                   { text: '/compact', images: [] },
                   'queue',
                   getState().selection,
                   getState().settings
                 ).catch(showError)
-              }
+              }}
             >
               Compact
             </Button>
