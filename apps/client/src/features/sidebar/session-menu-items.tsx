@@ -1,10 +1,10 @@
 import {
   AiContentGenerator02Icon,
   Delete02Icon,
-  InboxIcon,
   MinimizeIcon,
   PencilEdit02Icon,
   PinIcon,
+  PowerIcon,
   TickDouble01Icon,
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
@@ -47,7 +47,7 @@ export function SessionMenuItems(props: {
             })
           }
         >
-          <HugeiconsIcon icon={InboxIcon} />
+          <HugeiconsIcon icon={PowerIcon} />
           Activate
         </Item>
       )}

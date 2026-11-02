@@ -1,6 +1,6 @@
 import {
-  InboxIcon,
   PinIcon,
+  PowerIcon,
   SquarePenIcon,
   TickDouble01Icon,
   ZzzIcon,
@@ -139,7 +139,7 @@ export function MobileGroupedSessionItem(props: {
       )}
     >
       <HugeiconsIcon
-        icon={session.status === 'inactive' ? InboxIcon : TickDouble01Icon}
+        icon={session.status === 'inactive' ? PowerIcon : TickDouble01Icon}
         className="size-6"
       />
     </div>

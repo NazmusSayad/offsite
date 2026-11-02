@@ -1,7 +1,7 @@
 import {
   EllipsisIcon,
-  InboxIcon,
   PinIcon,
+  PowerIcon,
   SquarePenIcon,
   TickDouble01Icon,
   ZzzIcon,
@@ -206,19 +206,14 @@ export function DesktopSessionItem(props: {
               projectId={session.projectId}
             />
           </span>
-          {titleText}
+          <span className="group-any-hover/sidebar-row:mask-r-from-[calc(100%-2rem)] group-any-hover/sidebar-row:mask-r-to-[calc(100%-0.5rem)] flex min-w-0 flex-1 group-has-[[data-state=open]]/sidebar-row:mask-r-from-[calc(100%-2rem)] group-has-[[data-state=open]]/sidebar-row:mask-r-to-[calc(100%-0.5rem)]">
+            {titleText}
+          </span>
           <span className="relative ml-auto flex h-6 min-w-8 shrink-0 items-center justify-end">
             <span className="text-secondary-label group-any-hover/sidebar-row:opacity-0 inline-flex justify-end text-xs tabular-nums transition-opacity">
               {timeAgo(session.updatedAt)}
             </span>
-            <span
-              className={cn(
-                'group-any-hover/sidebar-row:opacity-100 absolute inset-y-0 right-0 -mr-1 flex items-center bg-linear-to-l from-60% to-transparent pl-6 opacity-0 transition-opacity has-[[data-state=open]]:opacity-100',
-                props.selected
-                  ? 'from-sidebar-row-active'
-                  : 'from-sidebar-row-hover'
-              )}
-            >
+            <span className="group-any-hover/sidebar-row:opacity-100 absolute inset-y-0 right-0 -mr-1 flex items-center opacity-0 transition-opacity has-[[data-state=open]]:opacity-100">
               {menu}
               {props.saved && (
                 <button
@@ -232,7 +227,7 @@ export function DesktopSessionItem(props: {
                     })
                   }}
                 >
-                  <HugeiconsIcon icon={InboxIcon} className="size-3.5" />
+                  <HugeiconsIcon icon={PowerIcon} className="size-3.5" />
                 </button>
               )}
             </span>
@@ -262,7 +257,7 @@ export function DesktopSessionItem(props: {
           }
         }}
       >
-        <div className="px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
+        <div className="group-any-hover/sidebar-row:mask-r-from-[calc(100%-4.5rem)] group-any-hover/sidebar-row:mask-r-to-[calc(100%-2.5rem)] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset) group-has-[[data-state=open]]/sidebar-row:mask-r-from-[calc(100%-4.5rem)] group-has-[[data-state=open]]/sidebar-row:mask-r-to-[calc(100%-2.5rem)]">
           <div className="flex h-6 min-w-0 items-center gap-2">
             <ProjectIcon
               machine={session.machine}
@@ -307,14 +302,7 @@ export function DesktopSessionItem(props: {
           </div>
         </div>
         {props.saved && (
-          <div
-            className={cn(
-              'group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex w-20 flex-col items-end bg-linear-to-l from-50% to-transparent py-(--sidebar-content-inset) pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100',
-              props.selected
-                ? 'from-sidebar-row-active'
-                : 'from-sidebar-row-hover'
-            )}
-          >
+          <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex w-20 flex-col items-end py-(--sidebar-content-inset) pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
             <div className="flex h-6 items-center">
               <button
                 className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"

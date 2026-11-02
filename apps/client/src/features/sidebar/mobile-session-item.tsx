@@ -1,6 +1,6 @@
 import {
-  InboxIcon,
   PinIcon,
+  PowerIcon,
   SquarePenIcon,
   TickDouble01Icon,
   ZzzIcon,
@@ -149,7 +149,7 @@ export function MobileSessionItem(props: {
       )}
     >
       <HugeiconsIcon
-        icon={session.status === 'inactive' ? InboxIcon : TickDouble01Icon}
+        icon={session.status === 'inactive' ? PowerIcon : TickDouble01Icon}
         className="size-6"
       />
     </div>
@@ -349,10 +349,7 @@ export function MobileSessionItem(props: {
                   )}
                 </span>
                 {session.status === 'snoozed' && (
-                  <HugeiconsIcon
-                    icon={ZzzIcon}
-                    className="size-3 shrink-0"
-                  />
+                  <HugeiconsIcon icon={ZzzIcon} className="size-3 shrink-0" />
                 )}
                 <span className="shrink-0 tabular-nums">
                   {timeAgo(session.updatedAt)}

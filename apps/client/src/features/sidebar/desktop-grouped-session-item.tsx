@@ -192,36 +192,31 @@ export function DesktopGroupedSessionItem(props: {
           }
         }}
       >
-        {titleText}
-        {session.status === 'pinned' && (
-          <HugeiconsIcon
-            icon={PinIcon}
-            className="text-muted-foreground/65 size-3 shrink-0"
+        <span className="group-any-hover/sidebar-row:mask-r-from-[calc(100%-5rem)] group-any-hover/sidebar-row:mask-r-to-[calc(100%-3rem)] flex min-w-0 flex-1 items-center gap-2 group-has-[[data-state=open]]/sidebar-row:mask-r-from-[calc(100%-5rem)] group-has-[[data-state=open]]/sidebar-row:mask-r-to-[calc(100%-3rem)]">
+          {titleText}
+          {session.status === 'pinned' && (
+            <HugeiconsIcon
+              icon={PinIcon}
+              className="text-muted-foreground/65 size-3 shrink-0"
+            />
+          )}
+          {session.status === 'snoozed' && (
+            <HugeiconsIcon
+              icon={ZzzIcon}
+              className="text-secondary-label size-3 shrink-0"
+            />
+          )}
+          <SessionStatus
+            activity={props.activity}
+            backgroundRunning={backgroundRunning}
+            done={done}
           />
-        )}
-        {session.status === 'snoozed' && (
-          <HugeiconsIcon
-            icon={ZzzIcon}
-            className="text-secondary-label size-3 shrink-0"
-          />
-        )}
-        <SessionStatus
-          activity={props.activity}
-          backgroundRunning={backgroundRunning}
-          done={done}
-        />
-        <span className="text-secondary-label shrink-0 text-xs tabular-nums">
-          {timeAgo(session.updatedAt)}
+          <span className="text-secondary-label shrink-0 text-xs tabular-nums">
+            {timeAgo(session.updatedAt)}
+          </span>
         </span>
         {props.saved && (
-          <div
-            className={cn(
-              'group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex items-center bg-linear-to-l from-60% to-transparent pr-1.5 pl-6 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100',
-              props.selected
-                ? 'from-sidebar-row-active'
-                : 'from-sidebar-row-hover'
-            )}
-          >
+          <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
             {menu}
             <button
               className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
