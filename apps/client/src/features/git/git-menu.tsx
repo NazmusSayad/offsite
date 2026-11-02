@@ -18,7 +18,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { showError } from '@/lib/store'
@@ -228,24 +227,25 @@ export function GitMenuItems(props: { git: GitCommands; collapsed: boolean }) {
             onSelect={() => git.setBranchRepo(repo.path)}
           >
             <HugeiconsIcon icon={GitBranchIcon} />
-            <span className="min-w-0 flex-1 truncate">
-              {repo.path === ''
-                ? (repo.branch ?? 'detached')
-                : `${repo.path}: ${repo.branch ?? 'detached'}`}
+            <span className="flex min-w-0 flex-1">
+              <span className="text-muted-foreground truncate rounded-md border px-1.5 py-0.5 font-mono text-xs">
+                {repo.path === ''
+                  ? (repo.branch ?? 'detached')
+                  : `${repo.path}: ${repo.branch ?? 'detached'}`}
+              </span>
             </span>
             <span className="text-muted-foreground flex gap-1 text-xs">
               <SyncCounts behind={repo.behind} ahead={repo.ahead} />
             </span>
           </DropdownMenuItem>
         ))}
-      {props.collapsed && <DropdownMenuSeparator />}
       {props.collapsed && (
         <DropdownMenuItem
           disabled={git.committable.length === 0}
           onSelect={() => git.setAction('commit')}
         >
           <HugeiconsIcon icon={GitCommitHorizontalIcon} />
-          Commit…
+          Commit
         </DropdownMenuItem>
       )}
       <DropdownMenuItem
@@ -259,7 +259,7 @@ export function GitMenuItems(props: { git: GitCommands; collapsed: boolean }) {
         }}
       >
         <HugeiconsIcon icon={CloudUploadIcon} />
-        {git.pushable.length > 1 ? 'Just Push…' : 'Just Push'}
+        Just Push
         {unpushed > 0 && (
           <span className="text-muted-foreground ml-auto text-xs tabular-nums">
             ↑{unpushed}
@@ -279,13 +279,12 @@ export function GitMenuItems(props: { git: GitCommands; collapsed: boolean }) {
         />
         {git.committing ? 'Committing…' : 'Yolo Commit'}
       </DropdownMenuItem>
-      <DropdownMenuSeparator />
       <DropdownMenuItem
         disabled={eligible(repos, 'pullRequest').length === 0}
         onSelect={() => git.setAction('pullRequest')}
       >
         <HugeiconsIcon icon={GitPullRequestIcon} />
-        Create pull request…
+        Create pull request
       </DropdownMenuItem>
     </>
   )

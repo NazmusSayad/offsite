@@ -99,7 +99,7 @@ export function SessionMenuItems(props: {
         onSelect={() => void regenerateTitle(session)}
       >
         <HugeiconsIcon icon={AiContentGenerator02Icon} />
-        Regenerate title
+        Refresh title
       </Item>
       <Item onSelect={props.onRename}>
         <HugeiconsIcon icon={PencilEdit02Icon} />
