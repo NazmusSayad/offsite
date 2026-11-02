@@ -208,12 +208,12 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
-                size="icon-xs"
+                size="icon-micro"
                 variant="ghost-muted"
                 aria-label="Restore options"
                 disabled={props.disabled}
               >
-                <HugeiconsIcon icon={MoreHorizontalIcon} className="size-3.5" />
+                <HugeiconsIcon icon={MoreHorizontalIcon} className="size-4" />
               </Button>
             </DropdownMenuTrigger>
           </Tooltip>
@@ -266,13 +266,13 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
       <Tooltip label={modes[mode].label}>
         <Button
           type="button"
-          size="icon-xs"
+          size="icon-micro"
           variant="ghost-muted"
           aria-label={modes[mode].label}
           disabled={props.disabled || busy}
           onClick={() => setConfirming(mode)}
         >
-          <HugeiconsIcon icon={modes[mode].icon} className="size-3.5" />
+          <HugeiconsIcon icon={modes[mode].icon} className="size-4" />
         </Button>
       </Tooltip>
       <AlertDialog

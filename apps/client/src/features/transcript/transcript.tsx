@@ -406,7 +406,7 @@ function ForkButton(props: { uuid: string }) {
     <Tooltip label="Fork from this response">
       <Button
         type="button"
-        size="icon-xs"
+        size="icon-micro"
         variant="ghost-muted"
         disabled={busy}
         aria-label="Fork from this response"
@@ -417,7 +417,7 @@ function ForkButton(props: { uuid: string }) {
       >
         <HugeiconsIcon
           icon={GitForkIcon}
-          className={cn('size-3.5', busy && 'animate-pulse')}
+          className={cn('size-4', busy && 'animate-pulse')}
         />
       </Button>
     </Tooltip>

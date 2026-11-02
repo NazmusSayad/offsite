@@ -137,7 +137,7 @@ export function MessageCopyButton(props: { text: string }) {
     <Tooltip label="Copy message">
       <Button
         type="button"
-        size="icon-xs"
+        size="icon-micro"
         variant="ghost-muted"
         aria-label="Copy message"
         disabled={clipboard.copied}
@@ -145,7 +145,7 @@ export function MessageCopyButton(props: { text: string }) {
       >
         <HugeiconsIcon
           icon={clipboard.copied ? CheckIcon : CopyIcon}
-          className={cn('size-3.5', clipboard.copied && 'text-primary')}
+          className={cn('size-4', clipboard.copied && 'text-primary')}
         />
       </Button>
     </Tooltip>
