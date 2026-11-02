@@ -178,6 +178,7 @@ export function Composer() {
       if (delivery === null) {
         throw new Error('This machine is not connected')
       }
+      const settings = getState().settings
       let prompt = text.trim()
       for (const file of attachedFiles) {
         const saved = await loadDraftFile(file.id)
@@ -195,7 +196,9 @@ export function Composer() {
             data: image.data,
           })),
         },
-        swap ? (delivery === 'queue' ? 'steer' : 'queue') : delivery
+        swap ? (delivery === 'queue' ? 'steer' : 'queue') : delivery,
+        selection,
+        settings
       )
       editDraft(key, (current) => ({
         ...current,

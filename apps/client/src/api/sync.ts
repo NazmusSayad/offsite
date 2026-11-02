@@ -59,6 +59,7 @@ export function start() {
     paletteOpen: false,
     settingsOpen: false,
     settingsPage: 'General',
+    editor: null,
     settingsAccount: null,
     settingsEditedMachine: null,
     settingsListing: true,

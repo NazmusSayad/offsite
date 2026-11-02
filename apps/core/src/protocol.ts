@@ -202,8 +202,13 @@ export type RpcMethods = {
     result: FilePreview
   }
   'files.write': {
-    params: { projectId: string; path: string; content: string }
-    result: null
+    params: {
+      projectId: string
+      path: string
+      content: string
+      base: string | null
+    }
+    result: boolean
   }
   'files.create': {
     params: { projectId: string; path: string; folder: boolean }

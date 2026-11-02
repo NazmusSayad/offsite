@@ -82,7 +82,7 @@ export async function openCodeSessions(paths: string[]) {
         const page = await client.session.list(
           cursor === null
             ? { directory, parentID: null, limit: PAGE }
-            : { cursor }
+            : { limit: PAGE, cursor }
         )
         found.push(...page.data)
         cursor = page.data.length === PAGE ? (page.cursor.next ?? null) : null
@@ -283,7 +283,7 @@ async function allMessages(client: OpenCodeClient, sessionId: string) {
     const page = await client.message.list(
       cursor === null
         ? { sessionID: sessionId, limit: PAGE, order: 'asc' }
-        : { sessionID: sessionId, cursor }
+        : { sessionID: sessionId, limit: PAGE, cursor }
     )
     messages.push(...page.data)
     cursor = page.data.length === PAGE ? (page.cursor.next ?? null) : null

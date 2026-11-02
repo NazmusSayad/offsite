@@ -208,6 +208,11 @@ async function forward(
   const kind = rewriteKind(incoming, request)
   response.statusCode = status
   copyHeaders(incoming, response, kind !== null)
+  if (kind === 'html') {
+    response.removeHeader('last-modified')
+    response.removeHeader('expires')
+    response.setHeader('cache-control', 'no-store, no-transform')
+  }
   const location = incoming.headers.location
   if (location !== undefined) {
     const next = URL.parse(location, target)

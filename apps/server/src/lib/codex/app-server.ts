@@ -6,7 +6,7 @@ import readline from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
 import { openEnv } from '../../services/open/open.ts'
 import { publishCodexLimits } from './accounts.ts'
-import type { RateLimitSnapshot } from './types.ts'
+import type { RateLimitSnapshot, ThreadItem } from './types.ts'
 
 const IDLE_LIMIT = 30 * 60 * 1000
 const START_TIMEOUT = 15_000
@@ -67,6 +67,7 @@ export function findCodex() {
 export class AppServer {
   readonly home: string
   readonly threads = new Map<string, ThreadListener>()
+  private readonly agents = new Map<string, string>()
   private readonly child: ChildProcessByStdio<Writable, Readable, null>
   private readonly waiting = new Map<
     number,
@@ -199,12 +200,21 @@ export class AppServer {
       typeof params.threadId === 'string'
         ? this.threads.get(params.threadId)
         : undefined
+    const root = this.rootOf(params.threadId)
+    const owner = root === undefined ? undefined : this.threads.get(root)
+    if (root !== undefined) {
+      this.linkAgents(root, params.item as ThreadItem | undefined)
+    }
     if (message.id !== undefined) {
-      if (listener === undefined) {
+      if (owner === undefined) {
         this.replyError(message.id, `offsite does not handle ${message.method}`)
       } else {
-        listener.request(message.id, message.method, params)
+        owner.request(message.id, message.method, params)
       }
+      return
+    }
+    if (message.method === 'serverRequest/resolved') {
+      owner?.notify(message.method, params)
       return
     }
     if (message.method === 'account/rateLimits/updated') {
@@ -212,6 +222,24 @@ export class AppServer {
       return
     }
     listener?.notify(message.method, params)
+  }
+
+  private rootOf(threadId: unknown) {
+    if (typeof threadId !== 'string') {
+      return undefined
+    }
+    return this.threads.has(threadId) ? threadId : this.agents.get(threadId)
+  }
+
+  private linkAgents(root: string, item: ThreadItem | undefined) {
+    if (item?.type === 'subAgentActivity') {
+      this.agents.set(item.agentThreadId, root)
+    }
+    if (item?.type === 'collabAgentToolCall') {
+      for (const agent of item.receiverThreadIds) {
+        this.agents.set(agent, root)
+      }
+    }
   }
 
   private armIdleTimer() {

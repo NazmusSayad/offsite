@@ -9,6 +9,7 @@ import {
   type TabSpec,
 } from '@/features/source-control/changes'
 import { showError } from '@/lib/store'
+import { useCloseOnBack } from '@/lib/url'
 import { errorMessage } from '@/lib/utils'
 
 export type Document =
@@ -20,6 +21,7 @@ export type Document =
       language: string
       saved: number
       dirty: boolean
+      base: string
     }
   | { status: 'image'; src: string }
   | { status: 'large'; size: number; limit: number }
@@ -51,9 +53,11 @@ export function useTabs(props: {
   const latest = useRef(state)
   const mounted = useRef(true)
   const held = useRef(new Set<monaco.editor.ITextModel>())
+  const writes = useRef<Promise<unknown>>(Promise.resolve())
   const tabs = state.tabs
   const active = state.active
   const [closing, setClosing] = useState<Closing | null>(null)
+  const [conflict, setConflict] = useState<TabSpec | null>(null)
   const dirty = tabs.filter(
     (tab) => tab.document.status === 'text' && tab.document.dirty
   )
@@ -61,6 +65,18 @@ export function useTabs(props: {
     closing?.kind === 'tab'
       ? tabs.filter((tab) => tab.spec.id === closing.id)
       : dirty
+  const unsaved = dirty.length > 0
+
+  useEffect(() => {
+    if (!unsaved) {
+      return
+    }
+    function warn(event: BeforeUnloadEvent) {
+      event.preventDefault()
+    }
+    addEventListener('beforeunload', warn)
+    return () => removeEventListener('beforeunload', warn)
+  }, [unsaved])
 
   useEffect(() => {
     mounted.current = true
@@ -207,6 +223,7 @@ export function useTabs(props: {
       language: language.name,
       saved: right.getAlternativeVersionId(),
       dirty: false,
+      base: modified,
     }
   }
 
@@ -225,7 +242,8 @@ export function useTabs(props: {
       ) {
         return
       }
-      if (sides[0] === null || sides[1] === null) {
+      const disk = sides[1]
+      if (sides[0] === null || disk === null) {
         update(id, { status: 'binary' })
         return
       }
@@ -233,15 +251,22 @@ export function useTabs(props: {
         replaceText(loaded.original, sides[0])
       }
       syncing.add(loaded.modified)
-      replaceText(loaded.modified, sides[1])
+      replaceText(loaded.modified, disk)
       syncing.delete(loaded.modified)
       const version = loaded.modified.getAlternativeVersionId()
-      if (version !== before) {
+      if (version !== before || disk !== loaded.base) {
         commit({
           tabs: latest.current.tabs.map((item) =>
             item.document.status === 'text' &&
             item.document.modified === loaded.modified
-              ? { ...item, document: { ...item.document, saved: version } }
+              ? {
+                  ...item,
+                  document: {
+                    ...item.document,
+                    saved: version,
+                    base: disk,
+                  },
+                }
               : item
           ),
         })
@@ -276,10 +301,18 @@ export function useTabs(props: {
     update(spec.id, loaded)
   }
 
-  async function save(id: string) {
+  function save(id: string, overwrite: boolean) {
+    const result = writes.current.then(() => write(id, overwrite))
+    writes.current = result
+    return result
+  }
+
+  async function write(id: string, overwrite: boolean) {
     const tab = latest.current.tabs.find((item) => item.spec.id === id)
     if (
       tab?.document.status !== 'text' ||
+      !tab.document.dirty ||
+      tab.document.modified.isDisposed() ||
       tab.spec.right.kind !== 'worktree' ||
       tab.spec.preview === true
     ) {
@@ -287,12 +320,18 @@ export function useTabs(props: {
     }
     const saving = tab.document.modified
     const version = saving.getAlternativeVersionId()
+    const content = saving.getValue()
     try {
-      await call(props.machine, 'files.write', {
+      const written = await call(props.machine, 'files.write', {
         projectId: props.projectId,
         path: tab.spec.path,
-        content: saving.getValue(),
+        content,
+        base: overwrite ? null : tab.document.base,
       })
+      if (!written) {
+        setConflict(tab.spec)
+        return false
+      }
     } catch (caught) {
       showError(caught)
       return false
@@ -306,6 +345,7 @@ export function useTabs(props: {
                 ...item.document,
                 saved: version,
                 dirty: saving.getAlternativeVersionId() !== version,
+                base: content,
               },
             }
           : item
@@ -393,9 +433,9 @@ export function useTabs(props: {
     setClosing(null)
     if (
       saving &&
-      (await Promise.all(closingTabs.map((tab) => save(tab.spec.id)))).includes(
-        false
-      )
+      (
+        await Promise.all(closingTabs.map((tab) => save(tab.spec.id, false)))
+      ).includes(false)
     ) {
       return
     }
@@ -406,6 +446,15 @@ export function useTabs(props: {
       props.onClose()
     }
   }
+
+  function overwrite() {
+    if (conflict !== null) {
+      void save(conflict.id, true)
+    }
+    setConflict(null)
+  }
+
+  useCloseOnBack(closing?.kind !== 'dialog', requestClose)
 
   const restore = useEffectEvent(() => {
     for (const tab of props.saved.tabs) {
@@ -423,6 +472,11 @@ export function useTabs(props: {
     closing,
     setClosing,
     closingTabs,
+    conflict: {
+      path: conflict?.path ?? null,
+      onCancel: () => setConflict(null),
+      onOverwrite: overwrite,
+    },
     open,
     reload,
     save,

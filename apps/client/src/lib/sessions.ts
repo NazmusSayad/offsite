@@ -1,4 +1,4 @@
-import type { PromptDelivery } from '@offsite/core/config'
+import type { PromptDelivery, SessionSettings } from '@offsite/core/config'
 import type { PermissionDecision, Prompt } from '@offsite/core/items'
 import type { SessionPatch } from '@offsite/core/sessions'
 import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
@@ -139,8 +139,12 @@ export function openTerminalPage(machine: string, view: string) {
   closeSession()
 }
 
-export async function sendPrompt(prompt: Prompt, delivery: PromptDelivery) {
-  const selection = getState().selection
+export async function sendPrompt(
+  prompt: Prompt,
+  delivery: PromptDelivery,
+  selection: Selection | null,
+  settings: SessionSettings
+) {
   if (selection === null) {
     throw new Error('no session selected')
   }
@@ -152,7 +156,7 @@ export async function sendPrompt(prompt: Prompt, delivery: PromptDelivery) {
     sessionId: selection.sessionId,
     projectId: selection.projectId,
     prompt,
-    settings: getState().settings,
+    settings,
     delivery,
   })
 }

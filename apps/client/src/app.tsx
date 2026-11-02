@@ -3,6 +3,8 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useSearch } from '@tanstack/react-router'
 import {
   Fragment,
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useRef,
@@ -55,12 +57,17 @@ import {
   getState,
   machineOf,
   projectOf,
+  showEditor,
   showPalette,
   selectedRunning,
   useStore,
 } from '@/lib/store'
 import { currentSearch, replaceSearch, useTerminalPage } from '@/lib/url'
 import { cn, drag, mod } from '@/lib/utils'
+
+const EditorDialog = lazy(async () => ({
+  default: (await import('@/features/files/editor-dialog')).EditorDialog,
+}))
 
 const wide = window.matchMedia('(min-width: 768px)')
 const compactWidth = 800
@@ -72,6 +79,7 @@ function subscribeWide(listener: () => void) {
 
 export function App() {
   const desktop = useSyncExternalStore(subscribeWide, () => wide.matches)
+  const editor = useStore((state) => state.editor)
   useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
     enableOnFormTags: true,
     preventDefault: true,
@@ -82,6 +90,15 @@ export function App() {
       {desktop ? <DesktopLayout /> : <MobileLayout />}
       <Palette />
       {desktop ? <SettingsDialog /> : <MobileSettings />}
+      {editor !== null && (
+        <Suspense>
+          <EditorDialog
+            machine={editor.machine}
+            projectId={editor.projectId}
+            onClose={() => showEditor(null)}
+          />
+        </Suspense>
+      )}
       <GitErrorDialog />
       <Toaster
         position={desktop ? 'bottom-right' : 'top-center'}

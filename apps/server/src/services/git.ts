@@ -58,7 +58,7 @@ export async function gitRepos(cwd: string) {
 
 export async function commit(cwd: string, message: string, andPush: boolean) {
   const text = message.trim() === '' ? await commitMessage(cwd, false) : message
-  await git(cwd, ['add', '--all'])
+  await git(cwd, ['add', '--all', '--', '.'])
   await git(cwd, ['commit', '--message', text])
   if (andPush) {
     try {
@@ -336,6 +336,8 @@ async function gitStatus(cwd: string) {
     'status',
     '--porcelain=v2',
     '--branch',
+    '--',
+    '.',
   ])
   const remotes = await git(cwd, ['remote'])
   const status: Omit<GitRepo, 'path'> = {
@@ -409,6 +411,7 @@ async function repoDiff(repo: string, prefix: string) {
     await diffBase(repo),
     '--no-color',
     '--no-ext-diff',
+    '--relative',
     `--src-prefix=a/${prefix}`,
     `--dst-prefix=b/${prefix}`,
   ])
@@ -416,9 +419,10 @@ async function repoDiff(repo: string, prefix: string) {
     'ls-files',
     '--others',
     '--exclude-standard',
+    '-z',
   ])
   const added = untracked.stdout
-    .split('\n')
+    .split('\0')
     .filter(Boolean)
     .slice(0, UNTRACKED_LIMIT)
     .map((file) => newFilePatch(repo, file, prefix))

@@ -67,11 +67,14 @@ export type ThreadItem = { id: string } & (
       type:
         | 'hookPrompt'
         | 'functionCallOutput'
-        | 'subAgentActivity'
         | 'sleep'
         | 'imageGeneration'
         | 'enteredReviewMode'
         | 'exitedReviewMode'
+    }
+  | {
+      type: 'subAgentActivity'
+      agentThreadId: string
     }
 )
 

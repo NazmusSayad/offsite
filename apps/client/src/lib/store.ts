@@ -88,6 +88,7 @@ export type State = {
   projects: MachineProject[]
   prefs: Prefs
   paletteOpen: boolean
+  editor: { machine: string; projectId: string } | null
   settingsOpen: boolean
   settingsPage: SettingsPage
   settingsAccount: string | null
@@ -196,6 +197,10 @@ export function setDraft(draft: Prompt | null) {
 
 export function showPalette(paletteOpen: boolean) {
   update({ paletteOpen })
+}
+
+export function showEditor(editor: State['editor']) {
+  update({ editor })
 }
 
 export function showSettings(settingsOpen: boolean) {

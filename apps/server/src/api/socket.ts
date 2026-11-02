@@ -276,10 +276,13 @@ const handlers: Handlers = {
   'files.entries': (params) => listEntries(projectPath(params.projectId)),
   'files.read': (params) =>
     readProjectFile(projectPath(params.projectId), params.path),
-  'files.write': (params) => {
-    writeProjectFile(projectPath(params.projectId), params.path, params.content)
-    return null
-  },
+  'files.write': (params) =>
+    writeProjectFile(
+      projectPath(params.projectId),
+      params.path,
+      params.content,
+      params.base
+    ),
   'files.create': (params) => {
     createProjectEntry(
       projectPath(params.projectId),

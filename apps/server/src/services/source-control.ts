@@ -25,7 +25,7 @@ export async function sourceControl(cwd: string) {
 }
 
 export async function showFile(cwd: string, ref: string, file: string) {
-  const output = await git(cwd, ['cat-file', 'blob', `${ref}:${file}`])
+  const output = await git(cwd, ['cat-file', 'blob', `${ref}:./${file}`])
   if (output.stdout.length > SHOW_LIMIT || output.stdout.includes('\0')) {
     return null
   }
@@ -78,6 +78,7 @@ export async function commitFiles(
     '--name-status',
     '-M',
     '-z',
+    '--relative',
     base,
     hash,
   ])
@@ -137,7 +138,7 @@ export async function runAction(cwd: string, action: GitAction) {
     await git(cwd, [
       'update-index',
       '--cacheinfo',
-      `${entry.stdout.split(' ')[0]},${hash},${action.path}`,
+      `${entry.stdout.split(' ')[0]},${hash},${await repoPrefix(cwd)}${action.path}`,
     ])
     return
   }
@@ -185,7 +186,7 @@ export async function runAction(cwd: string, action: GitAction) {
   }
   if (action.kind === 'commit') {
     if (action.all) {
-      await git(cwd, ['add', '--all'])
+      await git(cwd, ['add', '--all', '--', '.'])
     }
     await git(cwd, [
       'commit',
@@ -239,6 +240,10 @@ async function network(cwd: string, args: string[]) {
   }
 }
 
+async function repoPrefix(cwd: string) {
+  return (await git(cwd, ['rev-parse', '--show-prefix'])).stdout.trim()
+}
+
 async function repoChanges(cwd: string) {
   const output = await git(cwd, [
     '--no-optional-locks',
@@ -247,7 +252,10 @@ async function repoChanges(cwd: string) {
     '--branch',
     '--untracked-files=all',
     '-z',
+    '--',
+    '.',
   ])
+  const prefix = await repoPrefix(cwd)
   const remotes = await git(cwd, ['remote'])
   const repo: Omit<SourceControlRepo, 'path'> = {
     head: null,
@@ -278,22 +286,25 @@ async function repoChanges(cwd: string) {
     }
     if (fields[0] === '?') {
       repo.changes.push({
-        path: tokens[index].slice(2),
+        path: tokens[index].slice(2 + prefix.length),
         from: null,
         status: 'U',
       })
     }
     if (fields[0] === 'u') {
       repo.merge.push({
-        path: fields.slice(10).join(' '),
+        path: fields.slice(10).join(' ').slice(prefix.length),
         from: null,
         status: '!',
       })
     }
     if (fields[0] === '1' || fields[0] === '2') {
       const renamed = fields[0] === '2'
-      const file = fields.slice(renamed ? 9 : 8).join(' ')
-      const from = renamed ? tokens[index + 1] : null
+      const file = fields
+        .slice(renamed ? 9 : 8)
+        .join(' ')
+        .slice(prefix.length)
+      const from = renamed ? tokens[index + 1].slice(prefix.length) : null
       if (fields[1][0] !== '.') {
         repo.staged.push({ path: file, from, status: letter(fields[1][0]) })
       }

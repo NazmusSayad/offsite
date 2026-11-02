@@ -29,7 +29,7 @@ import {
   loadEditorFont,
   monaco,
 } from '@/features/files/monaco'
-import { SavePrompt } from '@/features/files/save-prompt'
+import { ConflictPrompt, SavePrompt } from '@/features/files/save-prompt'
 import { StatusBar } from '@/features/files/status-bar'
 import { useBlockStaging } from '@/features/files/use-block-staging'
 import { useEditorHosts } from '@/features/files/use-editor-hosts'
@@ -259,7 +259,7 @@ export function EditorDialog(props: {
           if ((event.metaKey || event.ctrlKey) && event.key === 's') {
             event.preventDefault()
             if (active !== null) {
-              void documents.save(active)
+              void documents.save(active, false)
             }
           }
           if ((event.metaKey || event.ctrlKey) && event.key === 'w') {
@@ -498,6 +498,7 @@ export function EditorDialog(props: {
           onCancel={() => documents.setClosing(null)}
           onFinish={(saving) => void documents.finish(saving)}
         />
+        <ConflictPrompt {...documents.conflict} />
         {checkout !== null && (
           <BranchDialog
             machine={props.machine}

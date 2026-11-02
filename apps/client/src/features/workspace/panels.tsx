@@ -7,13 +7,7 @@ import {
   TaskDaily01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
-import {
-  lazy,
-  type ReactNode,
-  Suspense,
-  useState,
-  useSyncExternalStore,
-} from 'react'
+import { lazy, type ReactNode, Suspense, useSyncExternalStore } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,14 +21,15 @@ import {
 } from '@/features/terminal/session'
 import { threadTasks } from '@/features/transcript/tasks'
 import { TasksPanel } from '@/features/transcript/tasks-panel'
-import { selectedActivity, type Selection, useStore } from '@/lib/store'
+import {
+  selectedActivity,
+  type Selection,
+  showEditor,
+  useStore,
+} from '@/lib/store'
 import { cn, mod } from '@/lib/utils'
 
 export type Panel = 'diff' | 'tasks' | 'browser'
-
-const EditorDialog = lazy(async () => ({
-  default: (await import('@/features/files/editor-dialog')).EditorDialog,
-}))
 
 const DiffPanel = lazy(async () => ({
   default: (await import('@/features/git/diff-panel')).DiffPanel,
@@ -65,8 +60,7 @@ type ToggleProps = {
 }
 
 export function PanelToggles(props: ToggleProps) {
-  const [editor, setEditor] = useState(false)
-  const options = usePanelOptions(props, () => setEditor(true))
+  const options = usePanelOptions(props)
 
   return (
     <>
@@ -83,15 +77,6 @@ export function PanelToggles(props: ToggleProps) {
           {option.badge}
         </button>
       ))}
-      {editor && (
-        <Suspense>
-          <EditorDialog
-            machine={props.selection.machine}
-            projectId={props.selection.projectId}
-            onClose={() => setEditor(false)}
-          />
-        </Suspense>
-      )}
     </>
   )
 }
@@ -103,8 +88,7 @@ export function PanelMenu(
     children: ReactNode
   }
 ) {
-  const [editor, setEditor] = useState(false)
-  const options = usePanelOptions(props, () => setEditor(true))
+  const options = usePanelOptions(props)
 
   return (
     <div className="flex shrink-0 items-center gap-1">
@@ -132,23 +116,11 @@ export function PanelMenu(
           {props.children}
         </DropdownMenuContent>
       </DropdownMenu>
-      {editor && (
-        <Suspense>
-          <EditorDialog
-            machine={props.selection.machine}
-            projectId={props.selection.projectId}
-            onClose={() => setEditor(false)}
-          />
-        </Suspense>
-      )}
     </div>
   )
 }
 
-function usePanelOptions(
-  props: ToggleProps,
-  onEditor: () => void
-): [MenuOption, ...MenuOption[]] {
+function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
   const terminalAlert = useSyncExternalStore(
     subscribeTerminal,
     () => terminalState().alerts.length > 0
@@ -260,7 +232,11 @@ function usePanelOptions(
       attention: false,
       badge: null,
       detail: null,
-      onSelect: onEditor,
+      onSelect: () =>
+        showEditor({
+          machine: props.selection.machine,
+          projectId: props.selection.projectId,
+        }),
     },
   ]
 }

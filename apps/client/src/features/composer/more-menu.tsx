@@ -31,7 +31,7 @@ import {
 import { changeSettings } from '@/lib/accounts'
 import { compact } from '@/lib/format'
 import { sendPrompt } from '@/lib/sessions'
-import { showError, useStore } from '@/lib/store'
+import { getState, showError, useStore } from '@/lib/store'
 import { mod } from '@/lib/utils'
 
 const fixedModes: Record<
@@ -145,9 +145,12 @@ export function MoreMenu(props: {
               variant="outline"
               size="xs"
               onClick={() =>
-                sendPrompt({ text: '/compact', images: [] }, 'queue').catch(
-                  showError
-                )
+                sendPrompt(
+                  { text: '/compact', images: [] },
+                  'queue',
+                  getState().selection,
+                  getState().settings
+                ).catch(showError)
               }
             >
               Compact

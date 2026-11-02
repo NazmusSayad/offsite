@@ -10,6 +10,41 @@ import {
 } from '@/components/ui/alert-dialog'
 import { baseName } from '@/features/files/explorer'
 
+export function ConflictPrompt(props: {
+  path: string | null
+  onCancel: () => void
+  onOverwrite: () => void
+}) {
+  return (
+    <AlertDialog
+      open={props.path !== null}
+      onOpenChange={(open) => {
+        if (!open) {
+          props.onCancel()
+        }
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {`${baseName(props.path ?? '')} changed on disk`}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Something else changed this file after you opened it. Overwriting
+            replaces that version with yours.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={props.onOverwrite}>
+            Overwrite
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
 export function SavePrompt(props: {
   open: boolean
   paths: string[]

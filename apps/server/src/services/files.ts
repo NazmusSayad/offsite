@@ -120,12 +120,21 @@ export function readProjectFile(cwd: string, file: string): FilePreview {
   return { kind: 'text', size: stats.size, content: data.toString('utf8') }
 }
 
-export function writeProjectFile(cwd: string, file: string, content: string) {
+export function writeProjectFile(
+  cwd: string,
+  file: string,
+  content: string,
+  base: string | null
+) {
   const full = resolveProjectFile(cwd, file)
   if (!statSync(full).isFile()) {
     throw new Error(`${file} is not a file`)
   }
+  if (base !== null && readFileSync(full, 'utf8') !== base) {
+    return false
+  }
   writeFileSync(full, content)
+  return true
 }
 
 export function createProjectEntry(cwd: string, file: string, folder: boolean) {
