@@ -1,9 +1,11 @@
 import {
+  ArrowExpandDiagonal01Icon,
   MinimizeIcon,
   PinIcon,
   PinOffIcon,
   PowerIcon,
   SquarePenIcon,
+  SunriseIcon,
   TickDouble01Icon,
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
@@ -41,8 +43,8 @@ const surface =
 
 export const secondarySwipe = {
   active: { status: 'snoozed', icon: ZzzIcon },
-  snoozed: { status: 'active', icon: PowerIcon },
-  minimized: { status: 'active', icon: PowerIcon },
+  snoozed: { status: 'active', icon: SunriseIcon },
+  minimized: { status: 'active', icon: ArrowExpandDiagonal01Icon },
   inactive: { status: 'minimized', icon: MinimizeIcon },
   pinned: { status: 'active', icon: PinOffIcon },
 } as const satisfies Record<

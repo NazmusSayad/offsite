@@ -258,6 +258,9 @@ export function Sidebar(
             {options.icon !== null && (
               <HugeiconsIcon icon={options.icon} className="size-3 shrink-0" />
             )}
+            {options.icon === null && (
+              <span className="bg-sidebar-border/60 h-px w-2 shrink-0" />
+            )}
             <span className={cn('shrink-0', options.icon !== null && '-ms-1')}>
               {options.label}
             </span>

@@ -1,6 +1,6 @@
 import {
   ArrowTurnBackwardIcon,
-  BubbleChatEditIcon,
+  MessageEdit01Icon,
   MoreHorizontalIcon,
   SourceCodeIcon,
 } from '@hugeicons/core-free-icons'
@@ -63,7 +63,7 @@ const modes = {
     label: 'Restore chat',
     description:
       'This will remove this message and everything after it from the chat. Files will not change.',
-    icon: BubbleChatEditIcon,
+    icon: MessageEdit01Icon,
     code: false,
     conversation: true,
   },
