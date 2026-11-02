@@ -170,6 +170,7 @@ export function configInfo(): ConfigWithDefaults {
     platform: platform(),
     defaultShell: defaultShell(),
     defaultClaudeBaseDir: path.join(os.homedir(), '.claude'),
+    homeDir: os.homedir(),
   }
 }
 

@@ -159,6 +159,7 @@ async function resync(machine: string) {
         platform: snapshot.platform,
         defaultShell: snapshot.defaultShell,
         defaultClaudeBaseDir: snapshot.defaultClaudeBaseDir,
+        homeDir: snapshot.homeDir,
       },
       activity: snapshot.activity,
       providers: snapshot.providers,

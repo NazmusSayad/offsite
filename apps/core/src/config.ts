@@ -68,6 +68,7 @@ export type ConfigWithDefaults = {
   platform: Platform
   defaultShell: string
   defaultClaudeBaseDir: string
+  homeDir: string
 }
 
 export type PromptDelivery = 'queue' | 'steer'

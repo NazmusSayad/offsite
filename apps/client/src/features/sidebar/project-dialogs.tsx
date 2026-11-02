@@ -217,6 +217,20 @@ function workingDir(machine: Machine | undefined) {
   return machine.config.workingDir[machine.system.platform] ?? '~'
 }
 
+function homePath(path: string, machine: Machine | undefined) {
+  if (machine === undefined || machine.system === null) {
+    return path
+  }
+  const home = machine.system.homeDir
+  if (path === home) {
+    return '~'
+  }
+  if (path.startsWith(`${home}/`) || path.startsWith(`${home}\\`)) {
+    return `~${path.slice(home.length)}`
+  }
+  return path
+}
+
 export function ManageProjectsDialog(props: {
   machine: string
   onClose: () => void
@@ -278,14 +292,18 @@ export function ManageProjectsDialog(props: {
                 projectId={project.id}
                 className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
               />
-              <span
-                className={cn(
-                  'min-w-0 flex-1 truncate text-sm',
-                  project.hidden && 'text-muted-foreground'
-                )}
-                title={project.path}
-              >
-                {project.name}
+              <span className="min-w-0 flex-1" title={project.path}>
+                <span
+                  className={cn(
+                    'block truncate text-sm',
+                    project.hidden && 'text-muted-foreground'
+                  )}
+                >
+                  {project.name}
+                </span>
+                <span className="text-muted-foreground block truncate font-mono text-xs">
+                  {homePath(project.path, machine)}
+                </span>
               </span>
               <Button
                 size="icon-sm"
