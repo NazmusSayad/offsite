@@ -96,3 +96,19 @@ export function restoredDraft(prompt: Prompt) {
     images,
   }
 }
+
+export function largePaste(text: string, files: { number: number }[]) {
+  if (new Blob([text]).size < 32 * 1024) {
+    return null
+  }
+  const number = Math.max(0, ...files.map((file) => file.number)) + 1
+  return new File([text], `pasted-text-${number}.txt`, { type: 'text/plain' })
+}
+
+export function isPasteInline(event: KeyboardEvent) {
+  return (
+    (event.metaKey || event.ctrlKey) &&
+    event.shiftKey &&
+    event.key.toLowerCase() === 'v'
+  )
+}

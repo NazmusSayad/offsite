@@ -15,17 +15,21 @@ import {
   useRef,
   useState,
 } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Wrapper } from '@/components/wrapper'
 import { AgentLine } from '@/features/transcript/agent-pill'
+import { ThreadFindBar } from '@/features/transcript/find-bar'
 import { PlanCard } from '@/features/transcript/plan-card'
 import { QuestionCard } from '@/features/transcript/question-card'
+import { QuoteButton } from '@/features/transcript/quote-button'
 import { threadTasks } from '@/features/transcript/tasks'
 import { isTool, mainRows, type Row } from '@/features/transcript/timeline'
 import { ContextGroup } from '@/features/transcript/tool-group'
 import { Shimmer } from '@/features/transcript/tool-row'
+import { scrollToRow, TurnJumper } from '@/features/transcript/turn-jumper'
 import {
   MessageCopyButton,
   UserMessage,
@@ -58,6 +62,8 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   const [loadingEarlier, setLoadingEarlier] = useState(false)
   const [expanded, setExpanded] = useState<string[]>([])
   const [top, setTop] = useState<{ key: string; above: number } | null>(null)
+  const [finding, setFinding] = useState(false)
+  const jumpTo = useRef<string | null>(null)
   const cwd = useStore((state) =>
     selection === null
       ? ''
@@ -103,11 +109,14 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   )
   const olderRows = mainRows(earlier, false, '')
   const rows = [...olderRows, ...mainRows(items, running, partial)]
+  const turns = rows.flatMap((row) => (row.kind === 'user' ? [row] : []))
   const topIndex = rows.findIndex((row) => row.key === top?.key)
-  const start = Math.max(
-    0,
-    topIndex === -1 ? rows.length - PAGE : topIndex - (top?.above ?? 0)
-  )
+  const start = finding
+    ? 0
+    : Math.max(
+        0,
+        topIndex === -1 ? rows.length - PAGE : topIndex - (top?.above ?? 0)
+      )
 
   useLayoutEffect(() => {
     const element = scroller.current
@@ -116,6 +125,34 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     }
     fromBottom.current = null
   }, [earlier, start])
+
+  useLayoutEffect(() => {
+    if (jumpTo.current !== null) {
+      scrollToRow(scroller.current, jumpTo.current)
+      jumpTo.current = null
+    }
+  }, [start])
+
+  useHotkeys(
+    'mod+f',
+    (event) => {
+      const target = event.target
+      if (
+        event.defaultPrevented ||
+        (target instanceof Element &&
+          target !== document.body &&
+          target.closest('[data-composer], [data-transcript]') === null)
+      ) {
+        return
+      }
+      event.preventDefault()
+      setFinding(true)
+      requestAnimationFrame(() =>
+        document.querySelector<HTMLInputElement>('[data-thread-find]')?.select()
+      )
+    },
+    { enableOnFormTags: true }
+  )
 
   // oxlint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
@@ -138,6 +175,19 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     setTop({ key: rows[start].key, above: PAGE })
   }
 
+  function jump(key: string) {
+    const index = rows.findIndex((row) => row.key === key)
+    if (index === -1) {
+      throw new Error('that message is not loaded')
+    }
+    if (index >= start) {
+      scrollToRow(scroller.current, key)
+      return
+    }
+    jumpTo.current = key
+    setTop({ key, above: 1 })
+  }
+
   const toggle = useCallback((key: string) => {
     setExpanded((current) =>
       current.includes(key)
@@ -147,87 +197,109 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   }, [])
 
   return (
-    <div
-      ref={scroller}
-      className="topbar-scroll-fade relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-8"
-      onScroll={(event) => {
-        const element = event.currentTarget
-        pinned.current =
-          element.scrollHeight - element.scrollTop - element.clientHeight < 40
-        showMore(element)
-      }}
-    >
-      <div ref={content}>
-        <Wrapper width="chat" className="pt-3">
-          {!loaded && (
-            <p className="text-muted-foreground py-6 text-center text-xs">
-              Loading…
-            </p>
-          )}
-          {before !== null && start === 0 && (
-            <div className="flex justify-center pb-4">
-              <Button
-                type="button"
-                size="xs"
-                variant="ghost-muted"
-                disabled={loadingEarlier}
-                onClick={async () => {
-                  const element = scroller.current
-                  if (element !== null) {
-                    fromBottom.current =
-                      element.scrollHeight - element.scrollTop
-                  }
-                  setTop({ key: rows[0].key, above: PAGE })
-                  setLoadingEarlier(true)
-                  await loadEarlier()
-                  setLoadingEarlier(false)
-                }}
-              >
-                {loadingEarlier ? 'Loading…' : 'Load earlier conversation'}
-              </Button>
-            </div>
-          )}
-          {rows.slice(start).map((row, offset) => {
-            const index = start + offset
-            const previous = rows[index - 1]
-            const older = index < olderRows.length
-            return (
-              <div
-                key={row.key}
-                className={cn(
-                  previous === undefined
-                    ? undefined
-                    : row.kind === 'user'
-                      ? 'pt-6'
-                      : row.kind === 'working'
-                        ? undefined
-                        : isTool(row) && isTool(previous)
-                          ? 'pt-2'
-                          : isTool(row) || isTool(previous)
-                            ? 'pt-3'
-                            : 'pt-4',
-                  row.kind === 'assistant' && 'group/assistant'
-                )}
-              >
-                <RowView
-                  row={row}
-                  agents={found.agents}
-                  tasks={found.tasks}
-                  running={running}
-                  compacting={activity?.compacting === true}
-                  fork={!older}
-                  expanded={expanded.includes(row.key)}
-                  onToggle={toggle}
-                  onOpenTask={props.onOpenTask}
-                  rewind={!older}
-                  cwd={cwd}
-                />
+    <>
+      {finding && (
+        <ThreadFindBar
+          content={content}
+          scroller={scroller}
+          onClose={() => {
+            setFinding(false)
+            if (rows.length > 0) {
+              setTop({ key: rows[0].key, above: 0 })
+            }
+            document.querySelector<HTMLElement>('[data-composer]')?.focus()
+          }}
+        />
+      )}
+      {turns.length > 1 && (
+        <TurnJumper turns={turns} scroller={scroller} onJump={jump} />
+      )}
+      <div
+        ref={scroller}
+        data-transcript
+        className="topbar-scroll-fade relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-8"
+        onScroll={(event) => {
+          const element = event.currentTarget
+          pinned.current =
+            element.scrollHeight - element.scrollTop - element.clientHeight < 40
+          showMore(element)
+        }}
+      >
+        <div ref={content}>
+          <Wrapper width="chat" className="pt-3">
+            {!loaded && (
+              <p className="text-muted-foreground py-6 text-center text-xs">
+                Loading…
+              </p>
+            )}
+            {before !== null && start === 0 && (
+              <div className="flex justify-center pb-4">
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="ghost-muted"
+                  disabled={loadingEarlier}
+                  onClick={async () => {
+                    const element = scroller.current
+                    if (element !== null) {
+                      fromBottom.current =
+                        element.scrollHeight - element.scrollTop
+                    }
+                    setTop({ key: rows[0].key, above: PAGE })
+                    setLoadingEarlier(true)
+                    await loadEarlier()
+                    setLoadingEarlier(false)
+                  }}
+                >
+                  {loadingEarlier ? 'Loading…' : 'Load earlier conversation'}
+                </Button>
               </div>
-            )
-          })}
-        </Wrapper>
+            )}
+            {rows.slice(start).map((row, offset) => {
+              const index = start + offset
+              const previous = rows[index - 1]
+              const older = index < olderRows.length
+              return (
+                <div
+                  key={row.key}
+                  data-row={row.key}
+                  data-kind={row.kind}
+                  className={cn(
+                    previous === undefined
+                      ? undefined
+                      : row.kind === 'user'
+                        ? 'pt-6'
+                        : row.kind === 'working'
+                          ? undefined
+                          : isTool(row) && isTool(previous)
+                            ? 'pt-2'
+                            : isTool(row) || isTool(previous)
+                              ? 'pt-3'
+                              : 'pt-4',
+                    row.kind === 'assistant' && 'group/assistant'
+                  )}
+                >
+                  <RowView
+                    row={row}
+                    agents={found.agents}
+                    tasks={found.tasks}
+                    running={running}
+                    compacting={activity?.compacting === true}
+                    fork={!older}
+                    expanded={expanded.includes(row.key)}
+                    onToggle={toggle}
+                    onOpenTask={props.onOpenTask}
+                    rewind={!older}
+                    cwd={cwd}
+                  />
+                </div>
+              )
+            })}
+          </Wrapper>
+        </div>
+        <QuoteButton scroller={scroller} />
       </div>
-    </div>
+    </>
   )
 }
 
@@ -289,12 +361,16 @@ function RowContent(props: {
     case 'assistant':
       return (
         <>
-          <Markdown
-            text={
-              row.text === '' && !row.streaming ? '(empty response)' : row.text
-            }
-            streaming={row.streaming}
-          />
+          <div data-quotable>
+            <Markdown
+              text={
+                row.text === '' && !row.streaming
+                  ? '(empty response)'
+                  : row.text
+              }
+              streaming={row.streaming}
+            />
+          </div>
           {row.meta && (
             <div className="mt-1.5 flex items-center gap-2 text-xs tabular-nums opacity-0 transition-opacity duration-200 group-hover/assistant:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
               <MessageCopyButton text={row.text} />
@@ -382,7 +458,7 @@ function RowContent(props: {
       )
     case 'plan':
       return (
-        <div className="min-w-0">
+        <div className="min-w-0" data-quotable>
           <PlanCard plan={row.plan} />
         </div>
       )

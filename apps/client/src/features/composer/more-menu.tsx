@@ -1,4 +1,7 @@
 import {
+  ArchiveArrowDownIcon,
+  Archive02Icon,
+  Cancel01Icon,
   ChartRingIcon,
   FilePenIcon,
   ListTodoIcon,
@@ -30,10 +33,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { changeSettings } from '@/lib/accounts'
-import { compact } from '@/lib/format'
+import { compact, timeAgo } from '@/lib/format'
 import { sendPrompt } from '@/lib/sessions'
-import { getState, showError, useStore } from '@/lib/store'
+import { draftKey, getState, showError, useStore } from '@/lib/store'
 import { mod } from '@/lib/utils'
+import { deleteStash, hasPrompt, useDraft, useStash } from './drafts'
+import { restorePrompt, stashPrompt } from './stash'
 
 const fixedModes: Record<
   Exclude<Provider, 'opencode'>,
@@ -80,6 +85,11 @@ export function MoreMenu(props: {
   const mode = modes.find((item) => item.value === settings.mode)
   const title = settings.provider === 'opencode' ? 'Agent' : 'Permission mode'
   const [open, setOpen] = useState(false)
+  const stash = useStash()
+  const key = useStore((state) =>
+    state.selection === null ? '' : draftKey(state.selection)
+  )
+  const draft = useDraft(key)
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -159,6 +169,74 @@ export function MoreMenu(props: {
               Compact
             </Button>
           </div>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={!hasPrompt(draft)}
+          onSelect={() => stashPrompt(key)}
+        >
+          <HugeiconsIcon icon={ArchiveArrowDownIcon} />
+          <span className="flex-1">Stash prompt</span>
+          <span className="text-muted-foreground text-xs">{mod}+S</span>
+        </DropdownMenuItem>
+        {stash.length > 0 && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <HugeiconsIcon icon={Archive02Icon} />
+              <span className="flex-1">Stashed prompts</span>
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {stash.length}
+              </span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent className="max-h-80 w-72 overflow-y-auto">
+                {stash.map((item) => {
+                  const attachments = item.images.length + item.files.length
+                  const firstLine = item.text.trim().split('\n')[0]
+                  return (
+                    <DropdownMenuItem
+                      key={item.id}
+                      className="items-start"
+                      onSelect={() => restorePrompt(key, item.id)}
+                      onKeyDown={(event) => {
+                        if (
+                          event.key === 'Delete' ||
+                          event.key === 'Backspace'
+                        ) {
+                          event.preventDefault()
+                          deleteStash(item.id)
+                        }
+                      }}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate">
+                          {firstLine === '' ? 'Attachments' : firstLine}
+                        </span>
+                        <span className="text-muted-foreground block text-xs">
+                          {timeAgo(item.createdAt)}
+                          {attachments > 0 &&
+                            ` · ${attachments} attachment${attachments === 1 ? '' : 's'}`}
+                        </span>
+                      </span>
+                      <Button
+                        variant="ghost-muted"
+                        size="icon-micro"
+                        aria-label="Delete stashed prompt"
+                        title="Delete"
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          deleteStash(item.id)
+                        }}
+                      >
+                        <HugeiconsIcon icon={Cancel01Icon} />
+                      </Button>
+                    </DropdownMenuItem>
+                  )
+                })}
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
         )}
         {props.delivery !== null && (
           <>

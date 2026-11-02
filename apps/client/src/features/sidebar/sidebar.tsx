@@ -213,6 +213,39 @@ export function Sidebar(
     preventDefault: true,
   })
 
+  useHotkeys(
+    [
+      'mod+1',
+      'mod+2',
+      'mod+3',
+      'mod+4',
+      'mod+5',
+      'mod+6',
+      'mod+7',
+      'mod+8',
+      'mod+9',
+    ],
+    (event) => {
+      const ordered = grouped
+        ? groups.flatMap((group) =>
+            listed.filter(
+              (session) =>
+                machineKey(session.machine, session.projectId) === group[0]
+            )
+          )
+        : listed
+      const digit = /^(?:Digit|Numpad)([1-9])$/.exec(event.code)
+      if (digit === null) {
+        throw new Error(`unexpected session shortcut key ${event.code}`)
+      }
+      const session = ordered[Number(digit[1]) - 1]
+      if (session !== undefined) {
+        select(session.machine, session.projectId, session.id)
+      }
+    },
+    { enableOnFormTags: true, preventDefault: true, enabled: !props.mobile }
+  )
+
   function resize(event: React.PointerEvent<HTMLDivElement>) {
     const start = event.clientX - width
     drag(event, (next) => {

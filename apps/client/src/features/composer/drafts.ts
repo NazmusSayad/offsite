@@ -15,7 +15,8 @@ type Draft = {
   files: { number: number; id: string; name: string }[]
   settings: SessionSettings | null
 }
-type Drafts = { drafts: Record<string, Draft> }
+type Stash = Omit<Draft, 'settings'> & { id: string; createdAt: number }
+type Drafts = { drafts: Record<string, Draft>; stash: Stash[] }
 
 const storageKey = 'composerDrafts'
 const empty: Draft = { text: '', images: [], files: [], settings: null }
@@ -33,13 +34,15 @@ const storage: PersistStorage<Drafts> = {
   removeItem: (name) => del(name, database),
 }
 
+const initial: Drafts = { drafts: {}, stash: [] }
+
 const useDrafts = create<Drafts>()(
-  persist(() => ({ drafts: {} }), {
+  persist(() => initial, {
     name: storageKey,
     storage,
     skipHydration: true,
     version: 1,
-    migrate: () => ({ drafts: {} }),
+    migrate: () => initial,
   })
 )
 
@@ -56,8 +59,12 @@ export function useDraft(key: string) {
 export function editDraft(key: string, change: (draft: Draft) => Draft) {
   const current = getDraft(key)
   const draft = change(current)
+  const stash = useDrafts.getState().stash
   for (const file of current.files) {
-    if (!draft.files.some((other) => other.id === file.id)) {
+    if (
+      !draft.files.some((other) => other.id === file.id) &&
+      !stash.some((item) => item.files.some((other) => other.id === file.id))
+    ) {
       void del(file.id, fileDatabase)
     }
   }
@@ -102,4 +109,79 @@ export function saveDraftSettings(
   settings: SessionSettings | null
 ) {
   editDraft(key, (current) => ({ ...current, settings }))
+}
+
+export function useStash() {
+  return useDrafts((state) => state.stash)
+}
+
+export function getStash() {
+  return useDrafts.getState().stash
+}
+
+export function hasPrompt(draft: Omit<Draft, 'settings'>) {
+  return (
+    draft.text.trim() !== '' ||
+    draft.images.length > 0 ||
+    draft.files.length > 0
+  )
+}
+
+export function stashDraft(key: string) {
+  const draft = getDraft(key)
+  useDrafts.setState((state) => ({
+    stash: [
+      {
+        id: crypto.randomUUID(),
+        createdAt: Date.now(),
+        text: draft.text,
+        images: draft.images,
+        files: draft.files,
+      },
+      ...state.stash,
+    ],
+  }))
+  editDraft(key, (current) => ({ ...current, text: '', images: [], files: [] }))
+}
+
+export function restoreStash(key: string, id: string, lastImage: number) {
+  const item = useDrafts.getState().stash.find((stashed) => stashed.id === id)
+  if (item === undefined) {
+    throw new Error('This stashed prompt no longer exists')
+  }
+  if (hasPrompt(getDraft(key))) {
+    stashDraft(key)
+  }
+  useDrafts.setState((state) => ({
+    stash: state.stash.filter((stashed) => stashed.id !== id),
+  }))
+  const text = item.text.replace(/\[Image #(\d+)\]/g, (marker, number) => {
+    const index = item.images.findIndex(
+      (image) => image.number === Number(number)
+    )
+    return index === -1 ? marker : `[Image #${lastImage + index + 1}]`
+  })
+  editDraft(key, (current) => ({
+    ...current,
+    text,
+    images: item.images.map((image, index) => ({
+      ...image,
+      number: lastImage + index + 1,
+    })),
+    files: item.files,
+  }))
+  return text
+}
+
+export function deleteStash(id: string) {
+  const item = useDrafts.getState().stash.find((stashed) => stashed.id === id)
+  if (item === undefined) {
+    return
+  }
+  useDrafts.setState((state) => ({
+    stash: state.stash.filter((stashed) => stashed.id !== id),
+  }))
+  for (const file of item.files) {
+    void del(file.id, fileDatabase)
+  }
 }
