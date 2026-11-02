@@ -1,12 +1,12 @@
 import {
   AiContentGenerator02Icon,
-  AlarmClockIcon,
   Delete02Icon,
+  InboxIcon,
   MinimizeIcon,
   PencilEdit02Icon,
   PinIcon,
-  Plug01Icon,
-  PlugZapIcon,
+  TickDouble01Icon,
+  ZzzIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
@@ -47,13 +47,13 @@ export function SessionMenuItems(props: {
             })
           }
         >
-          <HugeiconsIcon icon={PlugZapIcon} />
+          <HugeiconsIcon icon={InboxIcon} />
           Activate
         </Item>
       )}
       {session.status !== 'inactive' && (
         <Item onSelect={props.onDeactivate}>
-          <HugeiconsIcon icon={Plug01Icon} />
+          <HugeiconsIcon icon={TickDouble01Icon} />
           Done
         </Item>
       )}
@@ -65,7 +65,7 @@ export function SessionMenuItems(props: {
             })
           }
         >
-          <HugeiconsIcon icon={AlarmClockIcon} />
+          <HugeiconsIcon icon={ZzzIcon} />
           Snooze
         </Item>
       )}

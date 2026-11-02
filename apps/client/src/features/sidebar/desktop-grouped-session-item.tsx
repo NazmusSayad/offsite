@@ -1,9 +1,9 @@
 import {
-  AlarmClockIcon,
   EllipsisIcon,
   PinIcon,
-  Plug01Icon,
   SquarePenIcon,
+  TickDouble01Icon,
+  ZzzIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
@@ -201,7 +201,7 @@ export function DesktopGroupedSessionItem(props: {
         )}
         {session.status === 'snoozed' && (
           <HugeiconsIcon
-            icon={AlarmClockIcon}
+            icon={ZzzIcon}
             className="text-secondary-label size-3 shrink-0"
           />
         )}
@@ -232,7 +232,10 @@ export function DesktopGroupedSessionItem(props: {
                 deactivate()
               }}
             >
-              <HugeiconsIcon icon={Plug01Icon} className="size-3.5 scale-160" />
+              <HugeiconsIcon
+                icon={TickDouble01Icon}
+                className="size-3.5 scale-160"
+              />
             </button>
           </div>
         )}

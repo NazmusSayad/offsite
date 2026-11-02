@@ -1,9 +1,9 @@
 import {
-  AlarmClockIcon,
+  InboxIcon,
   PinIcon,
-  Plug01Icon,
-  PlugZapIcon,
   SquarePenIcon,
+  TickDouble01Icon,
+  ZzzIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
@@ -139,7 +139,7 @@ export function MobileGroupedSessionItem(props: {
       )}
     >
       <HugeiconsIcon
-        icon={session.status === 'inactive' ? PlugZapIcon : Plug01Icon}
+        icon={session.status === 'inactive' ? InboxIcon : TickDouble01Icon}
         className="size-6"
       />
     </div>
@@ -267,7 +267,7 @@ export function MobileGroupedSessionItem(props: {
             )}
             {session.status === 'snoozed' && (
               <HugeiconsIcon
-                icon={AlarmClockIcon}
+                icon={ZzzIcon}
                 className="text-secondary-label size-3 shrink-0"
               />
             )}
