@@ -73,8 +73,14 @@ let machine: string | null = null
 let attached = false
 
 export async function startTerminal() {
+  rememberTerminal()
   followUrl()
-  router.history.subscribe(followUrl)
+  router.history.subscribe(({ action }) => {
+    if (action.type === 'PUSH' || action.type === 'REPLACE') {
+      rememberTerminal()
+    }
+    followUrl()
+  })
   try {
     await Promise.all([loadGhostty(), applyStyle(terminalConfig())])
     setState({ loaded: true })
@@ -263,7 +269,6 @@ export function setOpen(open: boolean) {
 }
 
 function followUrl() {
-  rememberTerminal()
   const open = currentSearch().bottom === 'terminal' || terminalPage() !== null
   if (open !== state.open) {
     setState({ open })

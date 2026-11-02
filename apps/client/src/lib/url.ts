@@ -172,7 +172,6 @@ export function syncUrl() {
     )
     return
   }
-  rememberTerminal()
   const next = {
     machine: selection.machine,
     project: selection.projectId,
@@ -192,11 +191,16 @@ export function syncUrl() {
     })
     return
   }
-  if (currentSearch().machine === undefined) {
-    pushSearch(next, 'chat')
+  const search = currentSearch()
+  const sameSession =
+    search.machine === next.machine &&
+    search.project === next.project &&
+    (search.session === undefined || search.session === next.session)
+  if (sameSession) {
+    replaceSearch(next)
     return
   }
-  replaceSearch(next)
+  pushSearch(next, 'chat')
 }
 
 function navigate(

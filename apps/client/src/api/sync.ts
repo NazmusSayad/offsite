@@ -25,7 +25,12 @@ import {
   update,
 } from '@/lib/store'
 import { applyTheme } from '@/lib/theme'
-import { openBrowser, selectionFromUrl, syncUrl } from '@/lib/url'
+import {
+  openBrowser,
+  rememberTerminal,
+  selectionFromUrl,
+  syncUrl,
+} from '@/lib/url'
 import { call, connectMachine, listen } from './connection'
 import { receiveComposer, receiveConfig } from './machine-config'
 import {
@@ -116,10 +121,17 @@ export function start() {
       closeSession()
       return
     }
-    if (getState().selection === null) {
+    const current = getState().selection
+    if (
+      current === null ||
+      current.machine !== next.machine ||
+      current.projectId !== next.projectId ||
+      current.sessionId !== next.sessionId
+    ) {
       openSession(next)
       return
     }
+    rememberTerminal()
     syncUrl()
   })
   for (const machine of stored) {
