@@ -315,7 +315,14 @@ function DesktopLayout() {
                     sidebar && 'flex-1'
                   )}
                 >
-                  <span className={cn(generatingTitle && 'text-shimmer')}>
+                  <span
+                    className={cn(
+                      (generatingTitle ||
+                        (selection.sessionId !== null &&
+                          session === undefined)) &&
+                        'text-shimmer'
+                    )}
+                  >
                     {session?.title ?? 'New thread'}
                   </span>
                 </li>

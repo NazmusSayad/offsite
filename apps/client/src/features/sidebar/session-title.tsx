@@ -2,7 +2,10 @@ import { machineKey } from '@/api/machines'
 import { type MachineSession, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-export function SessionTitle(props: { session: MachineSession }) {
+export function SessionTitle(props: {
+  session: MachineSession
+  awaitingTitle: boolean
+}) {
   const generating = useStore((state) =>
     state.generatingTitles.includes(
       machineKey(props.session.machine, props.session.id)
@@ -10,7 +13,7 @@ export function SessionTitle(props: { session: MachineSession }) {
   )
 
   return (
-    <span className={cn(generating && 'text-shimmer')}>
+    <span className={cn((generating || props.awaitingTitle) && 'text-shimmer')}>
       {props.session.title}
     </span>
   )

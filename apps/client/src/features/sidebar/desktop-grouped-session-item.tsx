@@ -160,7 +160,7 @@ export function DesktopGroupedSessionItem(props: {
           !recede && !props.unseen && !waiting && 'text-foreground/90'
         )}
       >
-        <SessionTitle session={session} />
+        <SessionTitle session={session} awaitingTitle={!props.saved} />
       </span>
     ) : (
       <form

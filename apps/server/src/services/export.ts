@@ -25,10 +25,13 @@ export async function exportSession(sessionId: string, projectId: string) {
     before = page.before
   }
   return {
-    messages: markdown(session, items, 0),
-    steps: markdown(session, items, 1),
-    details: markdown(session, items, 2),
-    full: markdown(session, items, 3),
+    markdown: {
+      messages: markdown(session, items, 0),
+      steps: markdown(session, items, 1),
+      details: markdown(session, items, 2),
+      full: markdown(session, items, 3),
+    },
+    context: event.context,
   }
 }
 

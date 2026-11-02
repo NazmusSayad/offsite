@@ -117,7 +117,10 @@ export type RpcMethods = {
   }
   'sessions.export': {
     params: { sessionId: string; projectId: string }
-    result: Record<ExportDetail, string>
+    result: {
+      markdown: Record<ExportDetail, string>
+      context: ContextUsage | null
+    }
   }
   'sessions.image': {
     params: { sessionId: string; itemId: string; index: number }

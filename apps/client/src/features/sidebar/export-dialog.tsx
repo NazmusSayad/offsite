@@ -1,4 +1,14 @@
-import { type ExportDetail, exportDetails } from '@offsite/core/sessions'
+import {
+  FileExportIcon,
+  MinusSignIcon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
+import {
+  type ContextUsage,
+  type ExportDetail,
+  exportDetails,
+} from '@offsite/core/sessions'
 import { Slider } from 'radix-ui'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
@@ -6,7 +16,6 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -16,34 +25,89 @@ import { saveBlob } from '@/lib/media'
 import { type MachineSession, showError, showExport } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-const levels: Record<ExportDetail, { label: string; description: string }> = {
-  messages: {
-    label: 'Messages',
-    description:
-      'Only your messages and the agent’s replies, plans and answers.',
-  },
-  steps: {
-    label: 'Steps',
-    description:
-      'Adds one line for each command, edit and tool the agent used.',
-  },
-  details: {
-    label: 'Details',
-    description: 'Adds thinking, full commands, diffs and tool inputs.',
-  },
-  full: {
-    label: 'Everything',
-    description:
-      'Adds the output of every command and tool. The file can get large.',
-  },
+const levels: Record<ExportDetail, string> = {
+  messages: 'Messages',
+  steps: 'Steps',
+  details: 'Details',
+  full: 'Everything',
 }
+
+const contents: {
+  label: string
+  how: Record<ExportDetail, string | null>
+}[] = [
+  {
+    label: 'Messages, plans and answers',
+    how: {
+      messages: 'Full text',
+      steps: 'Full text',
+      details: 'Full text',
+      full: 'Full text',
+    },
+  },
+  {
+    label: 'Commands',
+    how: {
+      messages: null,
+      steps: 'One line each',
+      details: 'Full command',
+      full: 'Command and output',
+    },
+  },
+  {
+    label: 'File edits',
+    how: {
+      messages: null,
+      steps: 'File path',
+      details: 'Path and diff',
+      full: 'Diff and output',
+    },
+  },
+  {
+    label: 'Tools, skills and web searches',
+    how: {
+      messages: null,
+      steps: 'Name only',
+      details: 'Inputs and search results',
+      full: 'Inputs and outputs',
+    },
+  },
+  {
+    label: 'Subagents and notices',
+    how: {
+      messages: null,
+      steps: 'One line each',
+      details: 'With compaction summaries',
+      full: 'With compaction summaries',
+    },
+  },
+  {
+    label: 'Thinking',
+    how: {
+      messages: null,
+      steps: null,
+      details: 'Full text',
+      full: 'Full text',
+    },
+  },
+  {
+    label: 'Todo lists',
+    how: {
+      messages: null,
+      steps: null,
+      details: 'Every step',
+      full: 'Every step',
+    },
+  },
+]
 
 export function ExportDialog(props: { session: MachineSession }) {
   const session = props.session
   const [detail, setDetail] = useState<ExportDetail>('steps')
-  const [exports, setExports] = useState<Record<ExportDetail, string> | null>(
-    null
-  )
+  const [exports, setExports] = useState<{
+    markdown: Record<ExportDetail, string>
+    context: ContextUsage | null
+  } | null>(null)
 
   useEffect(() => {
     call(session.machine, 'sessions.export', {
@@ -71,12 +135,19 @@ export function ExportDialog(props: { session: MachineSession }) {
 
   return (
     <Dialog open onOpenChange={() => showExport(null)}>
-      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+      <DialogContent
+        className="gap-0 overflow-hidden p-0 sm:max-w-md"
+        aria-describedby={undefined}
+      >
         <DialogHeader className="gap-1 px-6 pt-4 pr-12">
-          <DialogTitle className="text-base">Export to Markdown</DialogTitle>
-          <DialogDescription className="truncate">
-            {props.session.title}
-          </DialogDescription>
+          <div className="flex items-center gap-2">
+            <DialogTitle className="text-base">Export to Markdown</DialogTitle>
+            {exports !== null && exports.context !== null && (
+              <span className="text-muted-foreground rounded-full border px-2 py-0.5 text-xs tabular-nums">
+                {compact(exports.context.tokens)}
+              </span>
+            )}
+          </div>
         </DialogHeader>
         <div className="flex flex-col gap-3 px-6 pt-5 pb-6">
           <div className="flex items-baseline justify-between gap-3">
@@ -84,7 +155,7 @@ export function ExportDialog(props: { session: MachineSession }) {
             <span className="text-muted-foreground text-xs tabular-nums">
               {exports === null
                 ? 'Counting tokens…'
-                : `About ${tokens(exports[detail]).toLocaleString()} tokens`}
+                : `About ${tokens(exports.markdown[detail]).toLocaleString()} tokens`}
             </span>
           </div>
           <Slider.Root
@@ -126,18 +197,42 @@ export function ExportDialog(props: { session: MachineSession }) {
                 }
                 onClick={() => setDetail(item)}
               >
-                <span>{levels[item].label}</span>
+                <span>{levels[item]}</span>
                 <span className="text-muted-foreground/70 font-normal tabular-nums">
                   {exports === null
                     ? '…'
-                    : `~${compact(tokens(exports[item]))}`}
+                    : `~${compact(tokens(exports.markdown[item]))}`}
                 </span>
               </button>
             ))}
           </div>
-          <p className="text-muted-foreground min-h-10">
-            {levels[detail].description}
-          </p>
+          <ul className="mt-1 flex flex-col gap-1.5">
+            {contents.map((row) => (
+              <li key={row.label} className="flex items-center gap-2">
+                <HugeiconsIcon
+                  icon={row.how[detail] === null ? MinusSignIcon : Tick02Icon}
+                  className={cn(
+                    'size-4 shrink-0',
+                    row.how[detail] === null && 'text-muted-foreground/50',
+                    row.how[detail] !== null && 'text-primary'
+                  )}
+                  strokeWidth={2}
+                />
+                <span
+                  className={cn(
+                    'min-w-0 flex-1 truncate',
+                    row.how[detail] === null && 'text-muted-foreground/60',
+                    row.how[detail] !== null && 'text-foreground'
+                  )}
+                >
+                  {row.label}
+                </span>
+                <span className="text-muted-foreground shrink-0 text-xs">
+                  {row.how[detail] ?? 'Not included'}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
         <DialogFooter className="bg-muted/40 border-t px-6 py-4">
           <Button
@@ -152,10 +247,11 @@ export function ExportDialog(props: { session: MachineSession }) {
             disabled={exports === null}
             onClick={() => {
               if (exports !== null) {
-                save(exports[detail])
+                save(exports.markdown[detail])
               }
             }}
           >
+            <HugeiconsIcon icon={FileExportIcon} />
             Export
           </Button>
         </DialogFooter>

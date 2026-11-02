@@ -200,7 +200,14 @@ function MobileChat(props: { selection: Selection }) {
         </Button>
         <div className="min-w-0 flex-1">
           <div className="text-foreground truncate font-medium">
-            <span className={cn(generatingTitle && 'text-shimmer')}>
+            <span
+              className={cn(
+                (generatingTitle ||
+                  (props.selection.sessionId !== null &&
+                    session === undefined)) &&
+                  'text-shimmer'
+              )}
+            >
               {session?.title ?? 'New thread'}
             </span>
           </div>
