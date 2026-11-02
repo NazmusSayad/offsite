@@ -110,6 +110,25 @@ const components: Components = {
   details({ open, children }) {
     return <MarkdownDetails open={open === true}>{children}</MarkdownDetails>
   },
+  p({ node, children }) {
+    // Drops the image margin at the message edges so it adds no extra space there
+    const first = node?.children.at(0)
+    const last = node?.children.at(-1)
+    return (
+      <p
+        className={cn(
+          first?.type === 'element' &&
+            first.tagName === 'img' &&
+            'first:[&>:first-child]:mt-0',
+          last?.type === 'element' &&
+            last.tagName === 'img' &&
+            'last:[&>:last-child]:mb-0'
+        )}
+      >
+        {children}
+      </p>
+    )
+  },
   img({ src, alt }) {
     if (typeof src !== 'string') {
       return null
