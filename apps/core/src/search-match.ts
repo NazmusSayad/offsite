@@ -56,7 +56,16 @@ function fold(text: string) {
     .toLowerCase()
 }
 
+export function exactPhrase(query: string) {
+  const phrase = /^"([^"]+)"$/.exec(query.trim())?.[1].trim()
+  return phrase === undefined || phrase === '' ? null : phrase
+}
+
 export function searchWords(query: string) {
+  const phrase = exactPhrase(query)
+  if (phrase !== null) {
+    return [fold(phrase)]
+  }
   return fold(query)
     .replace(/^["'`]+|["'`]+$/g, '')
     .split(/\s+/)
@@ -259,6 +268,33 @@ function mergeRanges(ranges: SearchRange[]) {
   return merged
 }
 
+function exactRanges(folded: string, phrase: string) {
+  const ranges: SearchRange[] = []
+  for (
+    let index = folded.indexOf(phrase);
+    index !== -1;
+    index = folded.indexOf(phrase, index + 1)
+  ) {
+    const end = index + phrase.length
+    const joinedBefore =
+      alphanumeric.test(phrase[0]) && alphanumeric.test(folded[index - 1] ?? '')
+    const joinedAfter =
+      alphanumeric.test(phrase[phrase.length - 1]) &&
+      alphanumeric.test(folded[end] ?? '')
+    if (!joinedBefore && !joinedAfter) {
+      ranges.push({ start: index, end })
+    }
+  }
+  return mergeRanges(ranges)
+}
+
+function matchExact(field: PreparedField, phrase: string): Token | null {
+  const ranges = exactRanges(field.folded, phrase)
+  return ranges.length === 0
+    ? null
+    : { score: WHOLE_WORD, ...ranges[0], pieces: ranges }
+}
+
 export function matchFields(
   query: string,
   fields: Field[],
@@ -268,6 +304,7 @@ export function matchFields(
   if (words.length === 0) {
     return null
   }
+  const exact = exactPhrase(query) !== null
   const prepared = fields
     .filter((field) => field.value !== '')
     .map((field) => ({
@@ -284,7 +321,9 @@ export function matchFields(
     let best = 0
     let wordStrong = false
     for (const [index, field] of prepared.entries()) {
-      const match = matchWord(field, word, { primary: index === 0, typos })
+      const match = exact
+        ? matchExact(field, word)
+        : matchWord(field, word, { primary: index === 0, typos })
       if (match === null) {
         continue
       }
@@ -348,6 +387,12 @@ export function matchMessage(query: string, text: string) {
     return null
   }
   const folded = fold(text)
+  if (exactPhrase(query) !== null) {
+    const range = exactRanges(folded, words[0]).at(0)
+    return range === undefined
+      ? null
+      : { quality: WHOLE_WORD, offset: range.start }
+  }
   let quality = WHOLE_WORD
   let offset = text.length
   for (const word of words) {
@@ -385,6 +430,9 @@ export function messageSnippet(text: string, offset: number) {
 
 export function messageRanges(query: string, text: string) {
   const folded = fold(text)
+  if (exactPhrase(query) !== null) {
+    return exactRanges(folded, searchWords(query)[0])
+  }
   return mergeRanges(
     searchWords(query)
       .filter((word) => word.length >= SEARCH_WORD_LENGTH)

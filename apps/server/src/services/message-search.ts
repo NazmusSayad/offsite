@@ -9,6 +9,7 @@ import {
   type SearchMessage,
 } from '@offsite/core/search'
 import {
+  exactPhrase,
   hasSearchableWord,
   matchMessage,
   messageSnippet,
@@ -133,9 +134,13 @@ async function claudeMessages(
 }
 
 async function claudeCandidates(query: string) {
-  const words = searchWords(query).filter(
-    (word) => word.length >= SEARCH_WORD_LENGTH && !/["\\]/.test(word)
-  )
+  const phrase = exactPhrase(query)
+  const words =
+    phrase !== null
+      ? [JSON.stringify(phrase).slice(1, -1)]
+      : searchWords(query).filter(
+          (word) => word.length >= SEARCH_WORD_LENGTH && !/["\\]/.test(word)
+        )
   if (words.length === 0) {
     return null
   }
@@ -181,7 +186,9 @@ async function sessionsWith(word: string) {
 }
 
 async function searchCodex(query: string, sessions: Found[]) {
-  const longest = [...searchWords(query)].sort((a, b) => b.length - a.length)[0]
+  const longest =
+    exactPhrase(query) ??
+    [...searchWords(query)].sort((a, b) => b.length - a.length)[0]
   const known = new Map(sessions.map((session) => [session.id, session]))
   const found = (await codexSearch(longest))
     .filter((result) => known.has(result.thread.id))
