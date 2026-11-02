@@ -176,10 +176,10 @@ export function DesktopSessionItem(props: {
   const rowState = cn(
     props.selected && 'bg-sidebar-row-active text-sidebar-foreground',
     recede &&
-      'text-sidebar-muted-foreground/75 hover:bg-sidebar-row-hover hover:text-sidebar-foreground',
+      'text-sidebar-muted-foreground/75 hover:bg-sidebar-row-hover hover:text-sidebar-foreground has-[[data-state=open]]:bg-sidebar-row-hover has-[[data-state=open]]:text-sidebar-foreground',
     !props.selected &&
       !recede &&
-      'text-sidebar-foreground hover:bg-sidebar-row-hover bg-transparent'
+      'text-sidebar-foreground hover:bg-sidebar-row-hover has-[[data-state=open]]:bg-sidebar-row-hover bg-transparent'
   )
 
   if (props.slim) {
