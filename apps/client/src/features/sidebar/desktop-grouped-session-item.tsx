@@ -1,8 +1,8 @@
 import {
+  CheckmarkSquare01Icon,
   EllipsisIcon,
   PinIcon,
   SquarePenIcon,
-  TickDouble01Icon,
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -249,7 +249,7 @@ export function DesktopGroupedSessionItem(props: {
               <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
                 {menu}
                 <button
-                  className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
+                  className="text-muted-foreground hover:text-foreground ms-0.5 me-0.5 inline-flex size-5 cursor-pointer items-center justify-center transition-colors"
                   title="Done"
                   aria-label="Done"
                   onClick={(event) => {
@@ -258,8 +258,9 @@ export function DesktopGroupedSessionItem(props: {
                   }}
                 >
                   <HugeiconsIcon
-                    icon={TickDouble01Icon}
-                    className="size-3.5 scale-160"
+                    icon={CheckmarkSquare01Icon}
+                    strokeWidth={1.35}
+                    className="size-5 scale-110"
                   />
                 </button>
               </div>

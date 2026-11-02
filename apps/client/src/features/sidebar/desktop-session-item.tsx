@@ -1,9 +1,9 @@
 import {
+  CheckmarkSquare01Icon,
   EllipsisIcon,
   PinIcon,
   PowerIcon,
   SquarePenIcon,
-  TickDouble01Icon,
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -336,7 +336,7 @@ export function DesktopSessionItem(props: {
               <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex flex-col items-end py-(--sidebar-content-inset) pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
                 <div className="flex h-6 items-center">
                   <button
-                    className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
+                    className="text-muted-foreground hover:text-foreground me-0.75 inline-flex size-5 cursor-pointer items-center justify-center transition-colors"
                     title="Done"
                     aria-label="Done"
                     onClick={(event) => {
@@ -345,8 +345,9 @@ export function DesktopSessionItem(props: {
                     }}
                   >
                     <HugeiconsIcon
-                      icon={TickDouble01Icon}
-                      className="size-3.5 scale-160"
+                      icon={CheckmarkSquare01Icon}
+                      strokeWidth={1.25}
+                      className="size-5 scale-125"
                     />
                   </button>
                 </div>
