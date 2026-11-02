@@ -25,6 +25,7 @@ import { type MachineSession, useStore } from '@/lib/store'
 
 export function SessionMenuItems(props: {
   session: MachineSession
+  context: boolean
   mobile: boolean
   onDeactivate: () => void
   onRename: () => void
@@ -34,8 +35,8 @@ export function SessionMenuItems(props: {
   const generatingTitle = useStore((state) =>
     state.generatingTitles.includes(machineKey(session.machine, session.id))
   )
-  const Item = props.mobile ? ContextMenuItem : DropdownMenuItem
-  const Separator = props.mobile ? ContextMenuSeparator : DropdownMenuSeparator
+  const Item = props.context ? ContextMenuItem : DropdownMenuItem
+  const Separator = props.context ? ContextMenuSeparator : DropdownMenuSeparator
 
   return (
     <>

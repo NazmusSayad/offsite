@@ -19,6 +19,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
@@ -45,7 +50,6 @@ export function DesktopGroupedSessionItem(props: {
   const session = props.session
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
   const field = useRef<HTMLInputElement>(null)
   const waiting = props.activity?.waiting === true
   const backgroundRunning = Object.values(props.activity?.tasks ?? {}).includes(
@@ -90,7 +94,7 @@ export function DesktopGroupedSessionItem(props: {
   )
 
   const menu = props.saved && (
-    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+    <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
@@ -115,12 +119,35 @@ export function DesktopGroupedSessionItem(props: {
       >
         <SessionMenuItems
           session={session}
+          context={false}
           mobile={false}
           onDeactivate={deactivate}
           onRename={() => setTitle(session.title)}
         />
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+
+  const contextMenu = (
+    <ContextMenuContent
+      className="w-44"
+      onCloseAutoFocus={(event) => {
+        if (field.current === null) {
+          return
+        }
+        event.preventDefault()
+        field.current.focus()
+        field.current.select()
+      }}
+    >
+      <SessionMenuItems
+        session={session}
+        context={true}
+        mobile={false}
+        onDeactivate={deactivate}
+        onRename={() => setTitle(session.title)}
+      />
+    </ContextMenuContent>
   )
 
   const titleText =
@@ -175,74 +202,72 @@ export function DesktopGroupedSessionItem(props: {
 
   return (
     <li className="list-none">
-      <div
-        role="button"
-        tabIndex={0}
-        className={cn(
-          surface,
-          rowState,
-          'flex h-9 items-center gap-2 px-2.5',
-          working &&
-            !props.selected &&
-            'opacity-70 transition-opacity focus-within:opacity-100 hover:opacity-100'
-        )}
-        onContextMenu={(event) => {
-          if (!props.saved) {
-            return
-          }
-          event.preventDefault()
-          setMenuOpen(true)
-        }}
-        onClick={props.onSelect}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            props.onSelect()
-          }
-        }}
-      >
-        <span className="group-any-hover/sidebar-row:mask-r-from-[calc(100%-5rem)] group-any-hover/sidebar-row:mask-r-to-[calc(100%-3rem)] flex min-w-0 flex-1 items-center gap-2 group-has-[[data-state=open]]/sidebar-row:mask-r-from-[calc(100%-5rem)] group-has-[[data-state=open]]/sidebar-row:mask-r-to-[calc(100%-3rem)]">
-          {titleText}
-          {session.status === 'pinned' && (
-            <HugeiconsIcon
-              icon={PinIcon}
-              className="text-muted-foreground/65 size-3 shrink-0"
-            />
-          )}
-          {session.status === 'snoozed' && (
-            <HugeiconsIcon
-              icon={ZzzIcon}
-              className="text-secondary-label size-3 shrink-0"
-            />
-          )}
-          <SessionStatus
-            activity={props.activity}
-            backgroundRunning={backgroundRunning}
-            done={done}
-          />
-          <span className="text-secondary-label shrink-0 text-xs tabular-nums">
-            {timeAgo(session.updatedAt)}
-          </span>
-        </span>
-        {props.saved && (
-          <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
-            {menu}
-            <button
-              className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
-              title="Done"
-              aria-label="Done"
-              onClick={(event) => {
-                event.stopPropagation()
-                deactivate()
-              }}
-            >
-              <HugeiconsIcon
-                icon={TickDouble01Icon}
-                className="size-3.5 scale-160"
+      <ContextMenu>
+        <ContextMenuTrigger asChild disabled={!props.saved}>
+          <div
+            role="button"
+            tabIndex={0}
+            className={cn(
+              surface,
+              rowState,
+              'flex h-9 items-center gap-2 px-2.5',
+              working &&
+                !props.selected &&
+                'opacity-70 transition-opacity focus-within:opacity-100 hover:opacity-100'
+            )}
+            onClick={props.onSelect}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                props.onSelect()
+              }
+            }}
+          >
+            <span className="group-any-hover/sidebar-row:mask-r-from-[calc(100%-5rem)] group-any-hover/sidebar-row:mask-r-to-[calc(100%-3rem)] flex min-w-0 flex-1 items-center gap-2 group-has-[[data-state=open]]/sidebar-row:mask-r-from-[calc(100%-5rem)] group-has-[[data-state=open]]/sidebar-row:mask-r-to-[calc(100%-3rem)]">
+              {titleText}
+              {session.status === 'pinned' && (
+                <HugeiconsIcon
+                  icon={PinIcon}
+                  className="text-muted-foreground/65 size-3 shrink-0"
+                />
+              )}
+              {session.status === 'snoozed' && (
+                <HugeiconsIcon
+                  icon={ZzzIcon}
+                  className="text-secondary-label size-3 shrink-0"
+                />
+              )}
+              <SessionStatus
+                activity={props.activity}
+                backgroundRunning={backgroundRunning}
+                done={done}
               />
-            </button>
+              <span className="text-secondary-label shrink-0 text-xs tabular-nums">
+                {timeAgo(session.updatedAt)}
+              </span>
+            </span>
+            {props.saved && (
+              <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
+                {menu}
+                <button
+                  className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
+                  title="Done"
+                  aria-label="Done"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    deactivate()
+                  }}
+                >
+                  <HugeiconsIcon
+                    icon={TickDouble01Icon}
+                    className="size-3.5 scale-160"
+                  />
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </ContextMenuTrigger>
+        {contextMenu}
+      </ContextMenu>
       {stopDialog}
     </li>
   )

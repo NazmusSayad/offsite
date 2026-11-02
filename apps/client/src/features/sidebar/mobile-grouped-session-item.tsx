@@ -179,6 +179,7 @@ export function MobileGroupedSessionItem(props: {
     >
       <SessionMenuItems
         session={session}
+        context={true}
         mobile={true}
         onDeactivate={deactivate}
         onRename={() => setTitle(session.title)}
