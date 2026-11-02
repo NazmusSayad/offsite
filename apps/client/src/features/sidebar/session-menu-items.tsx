@@ -4,6 +4,7 @@ import {
   MinimizeIcon,
   PencilEdit02Icon,
   PinIcon,
+  PinOffIcon,
   PowerIcon,
   TickDouble01Icon,
   ZzzIcon,
@@ -40,6 +41,12 @@ export function SessionMenuItems(props: {
 
   return (
     <>
+      {session.status !== 'inactive' && (
+        <Item onSelect={props.onDeactivate}>
+          <HugeiconsIcon icon={TickDouble01Icon} />
+          Done
+        </Item>
+      )}
       {session.status !== 'active' && (
         <Item
           onSelect={() =>
@@ -48,14 +55,10 @@ export function SessionMenuItems(props: {
             })
           }
         >
-          <HugeiconsIcon icon={PowerIcon} />
-          Activate
-        </Item>
-      )}
-      {session.status !== 'inactive' && (
-        <Item onSelect={props.onDeactivate}>
-          <HugeiconsIcon icon={TickDouble01Icon} />
-          Done
+          <HugeiconsIcon
+            icon={session.status === 'pinned' ? PinOffIcon : PowerIcon}
+          />
+          {session.status === 'pinned' ? 'Unpin' : 'Activate'}
         </Item>
       )}
       {session.status !== 'snoozed' && (
