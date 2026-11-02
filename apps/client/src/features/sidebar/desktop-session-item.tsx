@@ -302,7 +302,7 @@ export function DesktopSessionItem(props: {
           </div>
         </div>
         {props.saved && (
-          <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex w-20 flex-col items-end py-(--sidebar-content-inset) pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
+          <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex flex-col items-end py-(--sidebar-content-inset) pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
             <div className="flex h-6 items-center">
               <button
                 className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
