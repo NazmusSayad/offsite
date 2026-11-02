@@ -200,7 +200,7 @@ export function DesktopSessionItem(props: {
             }
           }}
         >
-          <span className="flex shrink-0 items-center opacity-40 grayscale transition-opacity group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0">
+          <span className="flex shrink-0 items-center opacity-40 grayscale transition-opacity group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0 group-has-[[data-state=open]]/sidebar-row:opacity-100 group-has-[[data-state=open]]/sidebar-row:grayscale-0">
             <ProjectIcon
               machine={session.machine}
               projectId={session.projectId}
@@ -210,7 +210,7 @@ export function DesktopSessionItem(props: {
             {titleText}
           </span>
           <span className="relative ml-auto flex h-6 min-w-8 shrink-0 items-center justify-end">
-            <span className="text-secondary-label group-any-hover/sidebar-row:opacity-0 inline-flex justify-end text-xs tabular-nums transition-opacity">
+            <span className="text-secondary-label group-any-hover/sidebar-row:opacity-0 inline-flex justify-end text-xs tabular-nums transition-opacity group-has-[[data-state=open]]/sidebar-row:opacity-0">
               {timeAgo(session.updatedAt)}
             </span>
             <span className="group-any-hover/sidebar-row:opacity-100 absolute inset-y-0 right-0 -mr-1 flex items-center opacity-0 transition-opacity has-[[data-state=open]]:opacity-100">
