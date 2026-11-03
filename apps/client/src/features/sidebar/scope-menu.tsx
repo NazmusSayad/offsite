@@ -126,7 +126,7 @@ export function ScopeMenu(props: {
             {props.scope === null
               ? 'Inbox'
               : props.scope.projectId === NO_PROJECT
-                ? 'No Project'
+                ? 'Chat'
                 : projectAt(props.scope.machine, props.scope.projectId)?.name}
           </span>
           <HugeiconsIcon
@@ -170,6 +170,31 @@ export function ScopeMenu(props: {
                     />
                     <span className="truncate">{machineLabel(machine)}</span>
                   </DropdownMenuLabel>
+                  {machine.system?.scratchAvailable === true && (
+                    <DropdownMenuRadioItem
+                      value={machineKey(machine.id, NO_PROJECT)}
+                      className="text-muted-foreground data-[state=checked]:bg-foreground/10 data-[state=checked]:text-foreground mr-0.5 h-5 min-h-0 shrink-0 gap-1 px-1.5 py-0 text-xs *:data-[slot=dropdown-menu-radio-item-indicator]:hidden"
+                      title={`Threads on ${machine.name} without a project`}
+                      onSelect={() =>
+                        props.onScope({
+                          machine: machine.id,
+                          projectId: NO_PROJECT,
+                        })
+                      }
+                    >
+                      <ProjectIcon
+                        machine={machine.id}
+                        projectId={NO_PROJECT}
+                        className="size-3.5 shrink-0"
+                      />
+                      Chat
+                      {scratchAttention(machine.id) > 0 && (
+                        <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+                          {scratchAttention(machine.id)}
+                        </span>
+                      )}
+                    </DropdownMenuRadioItem>
+                  )}
                   <div className="flex shrink-0 items-center gap-0.5 pr-1">
                     {manageButton(machine)}
                     <DropdownMenuItem
@@ -184,30 +209,31 @@ export function ScopeMenu(props: {
                   </div>
                 </div>
               )}
-              {machine.system?.scratchAvailable === true && (
-                <DropdownMenuRadioItem
-                  value={machineKey(machine.id, NO_PROJECT)}
-                  className="pr-1 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
-                  onSelect={() =>
-                    props.onScope({
-                      machine: machine.id,
-                      projectId: NO_PROJECT,
-                    })
-                  }
-                >
-                  <ProjectIcon
-                    machine={machine.id}
-                    projectId={NO_PROJECT}
-                    className="size-5 shrink-0"
-                  />
-                  <span className="min-w-0 flex-1 truncate">No Project</span>
-                  {scratchAttention(machine.id) > 0 && (
-                    <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
-                      {scratchAttention(machine.id)}
-                    </span>
-                  )}
-                </DropdownMenuRadioItem>
-              )}
+              {machines.length === 1 &&
+                machine.system?.scratchAvailable === true && (
+                  <DropdownMenuRadioItem
+                    value={machineKey(machine.id, NO_PROJECT)}
+                    className="pr-1 pl-8 *:data-[slot=dropdown-menu-radio-item-indicator]:right-auto *:data-[slot=dropdown-menu-radio-item-indicator]:left-2"
+                    onSelect={() =>
+                      props.onScope({
+                        machine: machine.id,
+                        projectId: NO_PROJECT,
+                      })
+                    }
+                  >
+                    <ProjectIcon
+                      machine={machine.id}
+                      projectId={NO_PROJECT}
+                      className="size-5 shrink-0"
+                    />
+                    <span className="min-w-0 flex-1 truncate">Chat</span>
+                    {scratchAttention(machine.id) > 0 && (
+                      <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+                        {scratchAttention(machine.id)}
+                      </span>
+                    )}
+                  </DropdownMenuRadioItem>
+                )}
               {projects.map((project) => {
                 const count = attention.filter(
                   (session) =>

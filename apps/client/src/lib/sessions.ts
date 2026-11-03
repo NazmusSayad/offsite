@@ -22,8 +22,12 @@ import {
   showError,
   update,
 } from './store'
-import { syncUrl, terminalPage, terminalView } from './url'
-export function openSession(selection: Selection, query: string | null = null) {
+import { onGuard, syncUrl, terminalPage, terminalView } from './url'
+export function openSession(
+  selection: Selection,
+  query: string | null = null,
+  replace = false
+) {
   const machine = machineOf(getState(), selection.machine)
   const previous = getState().selection
   localStorage.setItem(
@@ -66,7 +70,7 @@ export function openSession(selection: Selection, query: string | null = null) {
         key !== machineKey(selection.machine, selection.sessionId)
     ),
   })
-  syncUrl()
+  syncUrl(replace)
   refreshSettings(selection.machine)
   if (selection.sessionId !== null && machine.status === 'online') {
     loadSession(
@@ -125,15 +129,19 @@ export function lastTerminalMachine() {
   return machines.at(0)?.id ?? null
 }
 
-export function startChat(machine: string, projectId: string) {
-  openSession({
-    machine,
-    projectId:
-      projectOf(getState(), machine, projectId)?.scratch === true
-        ? NO_PROJECT
-        : projectId,
-    sessionId: null,
-  })
+export function startChat(machine: string, projectId: string, replace = false) {
+  openSession(
+    {
+      machine,
+      projectId:
+        projectOf(getState(), machine, projectId)?.scratch === true
+          ? NO_PROJECT
+          : projectId,
+      sessionId: null,
+    },
+    null,
+    replace
+  )
 }
 
 export function lastProject() {
@@ -177,7 +185,7 @@ export function openTerminalPage(machine: string, view: string) {
     to: '/terminal/$machine',
     params: { machine },
     search: { project: view === GLOBAL_TERMINALS ? undefined : view },
-    replace: current !== null,
+    replace: current !== null || onGuard(),
     state: { layer: 'chat' },
     resetScroll: false,
   })
@@ -404,13 +412,17 @@ export async function deactivateSession(
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .at(0)
     if (latest === undefined) {
-      startChat(selection.machine, selection.projectId)
+      startChat(selection.machine, selection.projectId, true)
     } else {
-      openSession({
-        machine: latest.machine,
-        projectId: latest.projectId,
-        sessionId: latest.id,
-      })
+      openSession(
+        {
+          machine: latest.machine,
+          projectId: latest.projectId,
+          sessionId: latest.id,
+        },
+        null,
+        true
+      )
     }
   }
   await editSession(machine, id, { status: 'inactive' })
@@ -432,7 +444,7 @@ export async function removeSession(
   deleteDraft(machineKey(machine, id))
   const selection = getState().selection
   if (selection?.machine === machine && selection.sessionId === id) {
-    startChat(machine, selection.projectId)
+    startChat(machine, selection.projectId, true)
   }
   try {
     await call(machine, 'sessions.remove', { id, projectId })

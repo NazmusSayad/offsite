@@ -9,7 +9,6 @@ import {
   type TabSpec,
 } from '@/features/source-control/changes'
 import { showError } from '@/lib/store'
-import { useCloseOnBack } from '@/lib/url'
 import { errorMessage } from '@/lib/utils'
 
 export type Document =
@@ -453,8 +452,6 @@ export function useTabs(props: {
     }
     setConflict(null)
   }
-
-  useCloseOnBack(closing?.kind !== 'dialog', requestClose)
 
   const restore = useEffectEvent(() => {
     for (const tab of props.saved.tabs) {

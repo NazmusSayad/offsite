@@ -1,5 +1,6 @@
 import { AlertDialog as AlertDialogPrimitive } from 'radix-ui'
 import * as React from 'react'
+import { useCloseOnBack } from '@/lib/url'
 import { cn } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
@@ -7,6 +8,9 @@ import { Button } from '@/components/ui/button'
 function AlertDialog({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
+  useCloseOnBack(props.open === true && props.onOpenChange !== undefined, () =>
+    props.onOpenChange?.(false)
+  )
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
 }
 

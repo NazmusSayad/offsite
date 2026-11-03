@@ -91,7 +91,10 @@ function fromClaude(item: SDKSessionInfo, projectId: string): Found {
     provider: 'claude',
     title: item.summary,
     projectId,
-    branch: item.gitBranch ?? null,
+    branch:
+      item.gitBranch === undefined || item.gitBranch === 'HEAD'
+        ? null
+        : item.gitBranch,
     updatedAt: item.lastModified,
   }
 }

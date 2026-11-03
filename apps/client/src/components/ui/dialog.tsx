@@ -2,6 +2,7 @@
 
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import * as React from 'react'
+import { useCloseOnBack } from '@/lib/url'
 import { cn } from '@/lib/utils'
 
 import { XIcon } from '@hugeicons/core-free-icons'
@@ -11,6 +12,9 @@ import { Button } from '@/components/ui/button'
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  useCloseOnBack(props.open === true && props.onOpenChange !== undefined, () =>
+    props.onOpenChange?.(false)
+  )
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 

@@ -76,35 +76,58 @@ export function ProjectHeading(props: {
                     <Fragment key={machine.id}>
                       {index > 0 && <DropdownMenuSeparator />}
                       {machines.length > 1 && (
-                        <DropdownMenuLabel className="text-2xs flex items-center gap-1">
-                          <MachineLogo
-                            icon={machine.icon}
-                            className="size-3 shrink-0"
-                          />
-                          <span className="truncate">{machine.name}</span>
-                        </DropdownMenuLabel>
+                        <div className="flex items-center">
+                          <DropdownMenuLabel className="text-2xs flex min-w-0 flex-1 items-center gap-1">
+                            <MachineLogo
+                              icon={machine.icon}
+                              className="size-3 shrink-0"
+                            />
+                            <span className="truncate">{machine.name}</span>
+                          </DropdownMenuLabel>
+                          {machine.system?.scratchAvailable === true && (
+                            <DropdownMenuRadioItem
+                              value={machineKey(machine.id, NO_PROJECT)}
+                              className="text-muted-foreground data-[state=checked]:bg-foreground/10 data-[state=checked]:text-foreground text-2xs mr-1 h-5 min-h-0 shrink-0 gap-1 px-1.5 py-0 *:data-[slot=dropdown-menu-radio-item-indicator]:hidden"
+                              onSelect={() =>
+                                openSession({
+                                  machine: machine.id,
+                                  projectId: NO_PROJECT,
+                                  sessionId: null,
+                                })
+                              }
+                            >
+                              <ProjectIcon
+                                machine={machine.id}
+                                projectId={NO_PROJECT}
+                                className="size-3 shrink-0"
+                              />
+                              Chat
+                            </DropdownMenuRadioItem>
+                          )}
+                        </div>
                       )}
-                      {machine.system?.scratchAvailable === true && (
-                        <DropdownMenuRadioItem
-                          value={machineKey(machine.id, NO_PROJECT)}
-                          onSelect={() =>
-                            openSession({
-                              machine: machine.id,
-                              projectId: NO_PROJECT,
-                              sessionId: null,
-                            })
-                          }
-                        >
-                          <ProjectIcon
-                            machine={machine.id}
-                            projectId={NO_PROJECT}
-                            className="size-4 shrink-0"
-                          />
-                          <span className="min-w-0 flex-1 truncate">
-                            No Project
-                          </span>
-                        </DropdownMenuRadioItem>
-                      )}
+                      {machines.length === 1 &&
+                        machine.system?.scratchAvailable === true && (
+                          <DropdownMenuRadioItem
+                            value={machineKey(machine.id, NO_PROJECT)}
+                            onSelect={() =>
+                              openSession({
+                                machine: machine.id,
+                                projectId: NO_PROJECT,
+                                sessionId: null,
+                              })
+                            }
+                          >
+                            <ProjectIcon
+                              machine={machine.id}
+                              projectId={NO_PROJECT}
+                              className="size-4 shrink-0"
+                            />
+                            <span className="min-w-0 flex-1 truncate">
+                              Chat
+                            </span>
+                          </DropdownMenuRadioItem>
+                        )}
                       {items.map((item) => (
                         <DropdownMenuRadioItem
                           key={machineKey(item.machine, item.id)}

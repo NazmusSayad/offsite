@@ -107,32 +107,68 @@ export function leaveLayer(layer: 'chat' | 'overlay', fallback: () => void) {
   fallback()
 }
 
-export function useCloseOnBack(open: boolean, onClose: () => void) {
-  const close = useEffectEvent(onClose)
+const layers: Array<() => void> = []
+let leaving = false
+let guarded = false
+let poppedGuard = false
+
+export function onGuard() {
+  return router.history.location.state.guard === true
+}
+
+export function leftGuard() {
+  return poppedGuard
+}
+
+function reconcileGuard() {
+  if (leaving) {
+    return
+  }
+  if (layers.length > 0 && !onGuard()) {
+    router.history.push(router.history.location.href, { guard: true })
+    return
+  }
+  if (layers.length === 0 && onGuard()) {
+    leaving = true
+    router.history.back()
+  }
+}
+
+export function startGuard() {
+  guarded = onGuard()
+  router.history.subscribe(({ action }) => {
+    const was = guarded
+    guarded = onGuard()
+    if (action.type === 'PUSH' || action.type === 'REPLACE') {
+      poppedGuard = false
+      return
+    }
+    poppedGuard = was
+    if (poppedGuard && leaving) {
+      leaving = false
+    } else if (poppedGuard) {
+      layers.at(-1)?.()
+    }
+    setTimeout(reconcileGuard)
+  })
+  setTimeout(reconcileGuard)
+}
+
+export function useCloseOnBack(open: boolean, onBack: () => void) {
+  const back = useEffectEvent(onBack)
 
   useEffect(() => {
     if (!open) {
       return
     }
-    let leave: (() => void) | undefined
-    const timer = setTimeout(() => {
-      router.history.push(router.history.location.href)
-      const entry = router.history.location.state.__TSR_index
-      const stop = router.history.subscribe(() => {
-        if (router.history.location.state.__TSR_index < entry) {
-          close()
-        }
-      })
-      leave = () => {
-        stop()
-        if (router.history.location.state.__TSR_index === entry) {
-          router.history.back()
-        }
-      }
-    })
+    function layer() {
+      back()
+    }
+    layers.push(layer)
+    setTimeout(reconcileGuard)
     return () => {
-      clearTimeout(timer)
-      leave?.()
+      layers.splice(layers.indexOf(layer), 1)
+      setTimeout(reconcileGuard)
     }
   }, [open])
 }
@@ -161,7 +197,7 @@ export function rememberTerminal() {
   )
 }
 
-export function syncUrl() {
+export function syncUrl(replace = false) {
   const selection = getState().selection
   if (selection === null) {
     navigate(
@@ -196,6 +232,7 @@ export function syncUrl() {
     void router.navigate({
       to: '/',
       search: next,
+      replace: replace || onGuard(),
       state: { layer: 'chat' },
       resetScroll: false,
     })
@@ -204,8 +241,12 @@ export function syncUrl() {
   const sameSession =
     search.machine === next.machine &&
     search.project === next.project &&
-    (search.session === undefined || search.session === next.session)
-  if (sameSession || next.session === undefined) {
+    search.session === next.session
+  const draftToDraft =
+    search.machine !== undefined &&
+    search.session === undefined &&
+    next.session === undefined
+  if (replace || sameSession || fromDraft || draftToDraft) {
     replaceSearch(next)
     return
   }
@@ -218,13 +259,15 @@ function navigate(
   layer: 'chat' | 'overlay' | undefined
 ) {
   const machine = terminalPage()
+  const guard = onGuard()
+  const state = replace && guard ? { layer, guard } : { layer }
   if (machine !== null) {
     void router.navigate({
       to: '/terminal/$machine',
       params: { machine },
       search,
-      replace,
-      state: { layer },
+      replace: replace || guard,
+      state,
       resetScroll: false,
     })
     return
@@ -232,8 +275,8 @@ function navigate(
   void router.navigate({
     to: '/',
     search,
-    replace,
-    state: { layer },
+    replace: replace || guard,
+    state,
     resetScroll: false,
   })
 }

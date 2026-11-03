@@ -50,6 +50,27 @@ const terminalRoute = createRoute({
   path: '/terminal/$machine',
 })
 
+const opened = window.history.state as { __TSR_index?: number } | null
+if (
+  opened?.__TSR_index === undefined &&
+  (location.pathname.startsWith('/terminal') ||
+    new URLSearchParams(location.search).has('machine'))
+) {
+  const href = `${location.pathname}${location.search}${location.hash}`
+  const base = Math.random().toString(36).slice(2)
+  const top = Math.random().toString(36).slice(2)
+  window.history.replaceState(
+    { __TSR_index: 0, __TSR_key: base, key: base },
+    '',
+    '/'
+  )
+  window.history.pushState(
+    { __TSR_index: 1, __TSR_key: top, key: top, layer: 'chat' },
+    '',
+    href
+  )
+}
+
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
@@ -77,5 +98,6 @@ declare module '@tanstack/react-router' {
   }
   interface HistoryState {
     layer?: 'chat' | 'overlay'
+    guard?: true
   }
 }

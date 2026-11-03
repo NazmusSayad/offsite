@@ -26,9 +26,11 @@ import {
 } from '@/lib/store'
 import { applyTheme } from '@/lib/theme'
 import {
+  leftGuard,
   openBrowser,
   rememberTerminal,
   selectionFromUrl,
+  startGuard,
   syncUrl,
 } from '@/lib/url'
 import { call, connectMachine, listen } from './connection'
@@ -113,8 +115,13 @@ export function start() {
       receiveMachines()
     }
   })
+  startGuard()
   router.history.subscribe((event) => {
     if (event.action.type === 'PUSH' || event.action.type === 'REPLACE') {
+      return
+    }
+    if (leftGuard()) {
+      syncUrl(true)
       return
     }
     const next = selectionFromUrl(getState().machines.map((item) => item.id))
@@ -354,7 +361,7 @@ function receive(machine: string, event: ServerEvent) {
         requests: [],
         queue: [],
       })
-      syncUrl()
+      syncUrl(true)
       return
     case 'notification':
       push(machine, event.sessionId, event.message)

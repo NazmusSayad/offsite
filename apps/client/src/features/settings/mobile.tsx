@@ -17,6 +17,7 @@ import {
   update,
   useStore,
 } from '@/lib/store'
+import { useCloseOnBack } from '@/lib/url'
 import { Row, Section } from './controls'
 import {
   browserPages,
@@ -32,6 +33,7 @@ export function MobileSettings() {
   const listing = useStore((state) => state.settingsListing)
   const view = useSettingsView()
   const machine = view.machine
+  useCloseOnBack(open, back)
 
   function back() {
     if (listing) {
