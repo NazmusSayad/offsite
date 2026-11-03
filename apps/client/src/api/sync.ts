@@ -178,6 +178,7 @@ async function resync(machine: string) {
       activity: snapshot.activity,
       providers: snapshot.providers,
       terminals: snapshot.terminals,
+      appIcon: snapshot.appIcon,
     })
     setProjects(machine, snapshot.projects)
     setSessions(machine, snapshot.sessions)
@@ -314,6 +315,9 @@ function receive(machine: string, event: ServerEvent) {
       return
     case 'composer':
       receiveComposer(machine, event.composer)
+      return
+    case 'appIcon':
+      setMachine(machine, { appIcon: event.appIcon })
       return
     case 'projects':
       setProjects(machine, event.projects)

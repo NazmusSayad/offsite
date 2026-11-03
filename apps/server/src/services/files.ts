@@ -422,3 +422,33 @@ function checkInProject(root: string, full: string, file: string) {
     throw new Error(`${file} is outside the project`)
   }
 }
+
+export function serveMedia(
+  token: string | null,
+  request: IncomingMessage,
+  response: ServerResponse
+) {
+  if (request.method !== 'GET') {
+    response.statusCode = 405
+    response.end('use GET')
+    return
+  }
+  const link = findMediaLink(token)
+  if (link === null) {
+    response.statusCode = 404
+    response.end('This media link expired')
+    return
+  }
+  const stats = statSync(link.file, { throwIfNoEntry: false })
+  if (stats === undefined || !stats.isFile()) {
+    response.statusCode = 404
+    response.end('not found')
+    return
+  }
+  response.setHeader('access-control-allow-origin', '*')
+  response.setHeader('content-type', link.mediaType)
+  response.setHeader('cache-control', 'private, max-age=3600')
+  response.setHeader('content-security-policy', 'sandbox')
+  response.setHeader('x-content-type-options', 'nosniff')
+  streamFile(link.file, stats.size, request, response)
+}

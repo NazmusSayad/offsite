@@ -1,9 +1,13 @@
+import { type AppIconId, appIcons } from '@offsite/core/app-icons'
 import type { ComposerSettings } from '@offsite/core/config'
 import { z } from 'zod'
 import { broadcast } from '../lib/hub.ts'
 import { readSettings, writeJson } from './storage.ts'
 
-const stateSchema: z.ZodType<{ composer: ComposerSettings }> = z.strictObject({
+const stateSchema: z.ZodType<{
+  composer: ComposerSettings
+  appIcon: AppIconId
+}> = z.strictObject({
   composer: z
     .strictObject({
       provider: z.enum(['claude', 'codex', 'opencode']).default('claude'),
@@ -52,20 +56,41 @@ const stateSchema: z.ZodType<{ composer: ComposerSettings }> = z.strictObject({
         .prefault({}),
     })
     .prefault({}),
+  appIcon: z
+    .custom<AppIconId>((value) => appIcons.some((icon) => icon.id === value))
+    .default('original'),
 })
 
 const defaults = stateSchema.parse({})
 
+function readState() {
+  return readSettings('state.json', stateSchema, defaults)
+}
+
 export function readComposer() {
-  return readSettings('state.json', stateSchema, defaults).composer
+  return readState().composer
+}
+
+export function readAppIcon() {
+  return readState().appIcon
 }
 
 export function saveComposer(value: unknown) {
-  const result = stateSchema.safeParse({ composer: value })
+  const result = stateSchema.safeParse({ ...readState(), composer: value })
   if (!result.success) {
     throw new Error(z.prettifyError(result.error))
   }
   writeJson('state.json', result.data)
   broadcast({ type: 'composer', composer: result.data.composer })
   return result.data.composer
+}
+
+export function saveAppIcon(value: unknown) {
+  const result = stateSchema.safeParse({ ...readState(), appIcon: value })
+  if (!result.success) {
+    throw new Error(z.prettifyError(result.error))
+  }
+  writeJson('state.json', result.data)
+  broadcast({ type: 'appIcon', appIcon: result.data.appIcon })
+  return result.data.appIcon
 }

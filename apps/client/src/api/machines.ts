@@ -103,6 +103,7 @@ export function restoreMachine(machine: StoredMachine): Machine {
     pairedAt: machine.pairedAt ?? null,
     config: null,
     composer: null,
+    appIcon: null,
     configError: null,
     system: null,
     claudeAccounts: [],

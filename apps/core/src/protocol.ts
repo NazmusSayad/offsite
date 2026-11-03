@@ -1,3 +1,4 @@
+import type { AppIconId } from './app-icons.ts'
 import type {
   ComposerSettings,
   Config,
@@ -63,6 +64,7 @@ export type SyncSnapshot = ConfigWithDefaults & {
   providers: ProviderStatus[]
   activity: Record<string, SessionActivity>
   terminals: TerminalTab[]
+  appIcon: AppIconId
 }
 
 export type RpcMethods = {
@@ -72,6 +74,7 @@ export type RpcMethods = {
   'config.save': { params: Config; result: Config }
   'composer.get': { params: void; result: ComposerSettings }
   'composer.save': { params: ComposerSettings; result: ComposerSettings }
+  'appIcon.save': { params: AppIconId; result: AppIconId }
   'projects.add': { params: { path: string }; result: Project }
   'projects.update': {
     params: { id: string; patch: ProjectPatch }
@@ -344,6 +347,7 @@ export type ServerEvent =
   | { type: 'limits'; accountId: string; limits: RateLimit[] }
   | { type: 'config'; config: Config }
   | { type: 'composer'; composer: ComposerSettings }
+  | { type: 'appIcon'; appIcon: AppIconId }
   | { type: 'projects'; projects: Project[] }
   | { type: 'sessions'; sessions: Session[] }
   | { type: 'providers'; providers: ProviderStatus[] }

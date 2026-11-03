@@ -11,18 +11,6 @@ import { readToken } from './lib/tokens'
 self.skipWaiting()
 clientsClaim()
 
-registerRoute(
-  ({ url }) =>
-    url.origin === self.location.origin &&
-    ['/icon-192.png', '/icon-512.png', '/icon-maskable-512.png'].includes(
-      url.pathname
-    ),
-  async ({ request, url }) => {
-    const cache = await caches.open('offsite-worker')
-    return (await cache.match(url.pathname)) ?? fetch(request)
-  }
-)
-
 if (
   import.meta.env.PROD &&
   new URL(self.location.href).searchParams.has('pwa')

@@ -1,3 +1,4 @@
+import type { AppIconId } from '@offsite/core/app-icons'
 import type {
   ComposerSettings,
   Config,
@@ -66,6 +67,7 @@ export type Machine = {
   pairedAt: number | null
   config: Config | null
   composer: ComposerSettings | null
+  appIcon: AppIconId | null
   configError: string | null
   system: Omit<ConfigWithDefaults, 'config'> | null
   claudeAccounts: Account[]

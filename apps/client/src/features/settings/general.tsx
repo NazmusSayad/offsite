@@ -11,10 +11,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { appIcon, appIcons, setAppIcon } from '@/lib/app-icon'
 import type { Prefs } from '@/lib/prefs'
 import { updatePrefs } from '@/lib/store'
-import { cn, errorMessage } from '@/lib/utils'
+import { errorMessage } from '@/lib/utils'
 import { Row, Section } from './controls'
 
 export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
@@ -51,72 +50,11 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
           />
         </Row>
       </Section>
-      <AppIconSection />
       <UpdateSection />
       <Button variant="outline" onClick={props.onRestore}>
         Restore browser defaults
       </Button>
     </>
-  )
-}
-
-function AppIconSection() {
-  const [selected, setSelected] = useState(appIcon)
-  const [failure, setFailure] = useState<string | null>(null)
-
-  async function pick(id: string) {
-    setFailure(null)
-    try {
-      await setAppIcon(id)
-      setSelected(id)
-    } catch (error) {
-      console.error('could not change the app icon', error)
-      setFailure(errorMessage(error))
-    }
-  }
-
-  return (
-    <Section
-      title="App icon"
-      note="Chrome uses it when you install OffSite from this browser"
-    >
-      <div className="grid grid-cols-4 gap-2 p-3 @max-lg:grid-cols-2">
-        {appIcons.map((icon) => (
-          <button
-            key={icon.id}
-            type="button"
-            aria-pressed={selected === icon.id}
-            className={cn(
-              'hover:bg-accent flex flex-col items-center gap-2 rounded-lg border p-3 text-xs',
-              selected === icon.id && 'border-primary bg-accent'
-            )}
-            onClick={() => void pick(icon.id)}
-          >
-            <span
-              className={cn(
-                'flex size-12 items-center justify-center',
-                icon.tile?.shape === 'rounded' && 'rounded-[22%]',
-                icon.tile?.shape === 'circle' && 'rounded-full',
-                icon.tile !== null && 'ring-border ring-1'
-              )}
-              style={{ background: icon.tile?.color }}
-            >
-              <img
-                src="/icon.svg"
-                alt=""
-                style={{ width: `${icon.scale * 100}%` }}
-              />
-            </span>
-            {icon.name}
-          </button>
-        ))}
-      </div>
-      {failure !== null && (
-        <p className="text-destructive px-4 py-2.5 text-xs">
-          Could not change the icon: {failure}
-        </p>
-      )}
-    </Section>
   )
 }
 

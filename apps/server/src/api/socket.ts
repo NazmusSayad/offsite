@@ -95,7 +95,12 @@ import {
   terminalTabs,
 } from '../services/terminal/terminal.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
-import { readComposer, saveComposer } from '../storage/state.ts'
+import {
+  readAppIcon,
+  readComposer,
+  saveAppIcon,
+  saveComposer,
+} from '../storage/state.ts'
 
 type Handlers = {
   [M in RpcMethod]: (
@@ -117,11 +122,13 @@ const handlers: Handlers = {
       providers: providerStatuses(),
       activity: activity(),
       terminals: terminalTabs(),
+      appIcon: readAppIcon(),
     }
   },
   'config.get': () => configInfo(),
   'composer.get': () => readComposer(),
   'composer.save': (params) => saveComposer(params),
+  'appIcon.save': (params) => saveAppIcon(params),
   'config.save': async (params) => {
     const before = readConfig()
     const saved = saveConfig(params)
