@@ -494,6 +494,7 @@ function serveFile(
     contentTypes[path.extname(file)] ?? 'application/octet-stream'
   )
   if (path.basename(file) === 'index.html') {
+    response.setHeader('cache-control', 'no-cache')
     let page = readFileSync(file, 'utf8')
     if (!args.pwa) {
       page = page.replace(/<link rel="manifest"[^>]*>/, '')
@@ -509,6 +510,9 @@ function serveFile(
   }
   if (file === requested && pathname.startsWith('/assets/')) {
     response.setHeader('cache-control', 'public, max-age=31536000, immutable')
+  }
+  if (pathname === '/sw.js') {
+    response.setHeader('cache-control', 'no-cache')
   }
   if (compressible.has(path.extname(file))) {
     response.setHeader('vary', 'accept-encoding')
