@@ -65,7 +65,7 @@ function iconSvg(logo: string, maskable: boolean) {
   if (icon === undefined) {
     throw new Error(`unknown app icon ${id}`)
   }
-  const size = 512 * (maskable ? Math.min(icon.scale, 0.56) : icon.scale)
+  const size = 512 * (maskable ? 0.72 : icon.scale)
   const offset = (512 - size) / 2
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${tile(icon, maskable)}${logo.replace('<svg ', `<svg x="${offset}" y="${offset}" width="${size}" height="${size}" `)}</svg>`
 }

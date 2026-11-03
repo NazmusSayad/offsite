@@ -109,7 +109,6 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   )
   const olderRows = mainRows(earlier, false, '')
   const rows = [...olderRows, ...mainRows(items, running, partial)]
-  const turns = rows.flatMap((row) => (row.kind === 'user' ? [row] : []))
   const topIndex = rows.findIndex((row) => row.key === top?.key)
   const start = finding
     ? 0
@@ -211,9 +210,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
           }}
         />
       )}
-      {turns.length > 1 && (
-        <TurnJumper turns={turns} scroller={scroller} onJump={jump} />
-      )}
+      <TurnJumper rows={rows} scroller={scroller} onJump={jump} />
       <div
         ref={scroller}
         data-transcript

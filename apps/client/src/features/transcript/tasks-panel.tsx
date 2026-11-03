@@ -15,11 +15,17 @@ import {
   agentOf,
   SubagentIcon,
 } from '@/features/transcript/agent-pill'
+import {
+  StopButton,
+  StopIconButton,
+  StopTaskDialog,
+  type Stopping,
+} from '@/features/transcript/stop-task'
 import { taskTitle, threadTasks } from '@/features/transcript/tasks'
 import { isTool, turnRows } from '@/features/transcript/timeline'
 import { ToolRow } from '@/features/transcript/tool-row'
 import { RowView } from '@/features/transcript/transcript'
-import { loadAgent, stopTask } from '@/lib/sessions'
+import { loadAgent } from '@/lib/sessions'
 import { activityOf, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
@@ -38,6 +44,7 @@ export function TasksPanel(props: {
   const activity = useStore((state) =>
     activityOf(state.machines, props.machine, props.sessionId)
   )
+  const [stopping, setStopping] = useState<Stopping | null>(null)
   const allItems = [...earlier, ...items]
   const found = threadTasks(allItems, activity)
   const agent = found.agents.find((item) => item.item.id === props.selected)
@@ -110,7 +117,8 @@ export function TasksPanel(props: {
                 <span
                   className={cn(
                     'text-muted-foreground shrink-0',
-                    task.status === 'Failed' && 'text-destructive'
+                    task.status === 'Failed' && 'text-destructive',
+                    task.status === 'Running' && 'text-shimmer'
                   )}
                 >
                   {task.status}
@@ -145,34 +153,53 @@ export function TasksPanel(props: {
               ...found.agents.filter((item) => item.status !== 'Running'),
             ].map((item) => {
               const itemInfo = agentOf(item.item)
+              const agentId = item.agentId
               return (
-                <button
+                <div
                   key={item.item.id}
-                  type="button"
-                  aria-label={`Open ${itemInfo.name} agent: ${itemInfo.description}`}
-                  className="bg-secondary hover:bg-accent focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] leading-5 tracking-[-0.04px] select-none focus-visible:ring-2 focus-visible:outline-none"
-                  onClick={() => props.onSelect(item.item.id)}
+                  className="bg-secondary hover:bg-accent flex items-center rounded-lg"
                 >
-                  {item.status === 'Running' ? (
-                    <AgentSpinner className={itemInfo.tone} />
-                  ) : (
-                    <SubagentIcon className={itemInfo.tone} />
-                  )}
-                  <span className="text-foreground shrink-0 font-medium">
-                    {itemInfo.name}
-                  </span>
-                  <span className="text-foreground min-w-0 flex-1 truncate">
-                    {itemInfo.description}
-                  </span>
-                  <span
-                    className={cn(
-                      'text-muted-foreground shrink-0 text-xs',
-                      item.status === 'Failed' && 'text-destructive'
-                    )}
+                  <button
+                    type="button"
+                    aria-label={`Open ${itemInfo.name} agent: ${itemInfo.description}`}
+                    className="focus-visible:ring-ring/70 flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] leading-5 tracking-[-0.04px] select-none focus-visible:ring-2 focus-visible:outline-none"
+                    onClick={() => props.onSelect(item.item.id)}
                   >
-                    {item.status}
-                  </span>
-                </button>
+                    {item.status === 'Running' ? (
+                      <AgentSpinner className={itemInfo.tone} />
+                    ) : (
+                      <SubagentIcon className={itemInfo.tone} />
+                    )}
+                    <span className="text-foreground shrink-0 font-medium">
+                      {itemInfo.name}
+                    </span>
+                    <span className="text-foreground min-w-0 flex-1 truncate">
+                      {itemInfo.description}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-muted-foreground shrink-0 text-xs',
+                        item.status === 'Failed' && 'text-destructive',
+                        item.status === 'Running' && 'text-shimmer'
+                      )}
+                    >
+                      {item.status}
+                    </span>
+                  </button>
+                  {item.status === 'Running' &&
+                    agentId !== null &&
+                    props.sessionId !== null && (
+                      <StopIconButton
+                        label={`Stop ${itemInfo.name} agent`}
+                        onClick={() =>
+                          setStopping({
+                            taskId: agentId,
+                            title: `${itemInfo.name} agent`,
+                          })
+                        }
+                      />
+                    )}
+                </div>
               )
             })}
           </div>
@@ -188,36 +215,54 @@ export function TasksPanel(props: {
             {[
               ...found.tasks.filter((item) => item.status === 'Running'),
               ...found.tasks.filter((item) => item.status !== 'Running'),
-            ].map((item) => (
-              <button
-                key={item.item.id}
-                type="button"
-                aria-label={`Open task: ${taskTitle(item.item)}`}
-                className="bg-secondary hover:bg-accent focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] leading-5 tracking-[-0.04px] select-none focus-visible:ring-2 focus-visible:outline-none"
-                onClick={() => props.onSelect(item.item.id)}
-              >
-                <HugeiconsIcon
-                  icon={CommandLineIcon}
-                  className={cn(
-                    'size-4 shrink-0',
-                    item.status === 'Running'
-                      ? 'text-foreground animate-pulse'
-                      : 'text-muted-foreground'
-                  )}
-                />
-                <span className="text-foreground min-w-0 flex-1 truncate">
-                  {taskTitle(item.item)}
-                </span>
-                <span
-                  className={cn(
-                    'text-muted-foreground shrink-0 text-xs',
-                    item.status === 'Failed' && 'text-destructive'
-                  )}
+            ].map((item) => {
+              const taskId = item.taskId
+              return (
+                <div
+                  key={item.item.id}
+                  className="bg-secondary hover:bg-accent flex items-center rounded-lg"
                 >
-                  {item.status}
-                </span>
-              </button>
-            ))}
+                  <button
+                    type="button"
+                    aria-label={`Open task: ${taskTitle(item.item)}`}
+                    className="focus-visible:ring-ring/70 flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] leading-5 tracking-[-0.04px] select-none focus-visible:ring-2 focus-visible:outline-none"
+                    onClick={() => props.onSelect(item.item.id)}
+                  >
+                    <HugeiconsIcon
+                      icon={CommandLineIcon}
+                      className={cn(
+                        'size-4 shrink-0',
+                        item.status === 'Running'
+                          ? 'text-foreground animate-pulse'
+                          : 'text-muted-foreground'
+                      )}
+                    />
+                    <span className="text-foreground min-w-0 flex-1 truncate">
+                      {taskTitle(item.item)}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-muted-foreground shrink-0 text-xs',
+                        item.status === 'Failed' && 'text-destructive',
+                        item.status === 'Running' && 'text-shimmer'
+                      )}
+                    >
+                      {item.status}
+                    </span>
+                  </button>
+                  {item.status === 'Running' &&
+                    taskId !== null &&
+                    props.sessionId !== null && (
+                      <StopIconButton
+                        label={`Stop task: ${taskTitle(item.item)}`}
+                        onClick={() =>
+                          setStopping({ taskId, title: taskTitle(item.item) })
+                        }
+                      />
+                    )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -244,24 +289,13 @@ export function TasksPanel(props: {
           running={task.status === 'Running'}
         />
       )}
+      <StopTaskDialog
+        machine={props.machine}
+        sessionId={props.sessionId}
+        stopping={stopping}
+        onClose={() => setStopping(null)}
+      />
     </div>
-  )
-}
-
-function StopButton(props: {
-  machine: string
-  sessionId: string
-  taskId: string
-}) {
-  return (
-    <Button
-      size="xs"
-      variant="outline"
-      className="shrink-0"
-      onClick={() => stopTask(props.machine, props.sessionId, props.taskId)}
-    >
-      Stop
-    </Button>
   )
 }
 
