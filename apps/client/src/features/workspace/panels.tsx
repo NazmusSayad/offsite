@@ -200,7 +200,10 @@ export function PanelMenu(
             )}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56" align="end">
+        <DropdownMenuContent
+          className="w-56 [&>[data-slot=dropdown-menu-separator]:first-child]:hidden"
+          align="end"
+        >
           {options.map((option) => (
             <DropdownMenuItem key={option.id} onSelect={option.onSelect}>
               <HugeiconsIcon icon={option.icon} />
