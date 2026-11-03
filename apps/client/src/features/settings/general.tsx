@@ -1,7 +1,10 @@
 import { RefreshIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { appIcons } from '@offsite/core/app-icons'
 import { schemes } from '@offsite/core/schemes'
 import { useState } from 'react'
+import { call } from '@/api/connection'
+import { connectAddresses } from '@/api/machines'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -12,8 +15,8 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import type { Prefs } from '@/lib/prefs'
-import { updatePrefs } from '@/lib/store'
-import { errorMessage } from '@/lib/utils'
+import { showError, updatePrefs, useStore } from '@/lib/store'
+import { cn, errorMessage } from '@/lib/utils'
 import { Row, Section } from './controls'
 
 export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
@@ -50,6 +53,7 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
           />
         </Row>
       </Section>
+      <AppIconSection />
       <UpdateSection />
       <Button variant="outline" onClick={props.onRestore}>
         Restore browser defaults
@@ -131,4 +135,56 @@ async function activated(worker: ServiceWorker) {
     worker.addEventListener('statechange', settle)
     settle()
   })
+}
+
+function AppIconSection() {
+  const host = useStore((state) =>
+    state.machines.find((machine) =>
+      machine.addresses.some((address) =>
+        (connectAddresses ?? [location.origin]).includes(address)
+      )
+    )
+  )
+  if (host === undefined || host.appIcon === null) {
+    return null
+  }
+  const selected = host.appIcon
+
+  return (
+    <Section title="App icon">
+      <div className="grid grid-cols-4 gap-2 p-3 @max-lg:grid-cols-2">
+        {appIcons.map((icon) => (
+          <button
+            key={icon.id}
+            type="button"
+            aria-pressed={selected === icon.id}
+            className={cn(
+              'hover:bg-accent flex flex-col items-center gap-2 rounded-lg border p-3 text-xs',
+              selected === icon.id && 'border-primary bg-accent'
+            )}
+            onClick={() =>
+              call(host.id, 'appIcon.save', icon.id).catch(showError)
+            }
+          >
+            <span
+              className={cn(
+                'flex size-12 items-center justify-center',
+                icon.tile?.shape === 'rounded' && 'rounded-[22%]',
+                icon.tile?.shape === 'circle' && 'rounded-full',
+                icon.tile !== null && 'ring-border ring-1'
+              )}
+              style={{ background: icon.tile?.color }}
+            >
+              <img
+                src="/icon.svg"
+                alt=""
+                style={{ width: `${icon.scale * 100}%` }}
+              />
+            </span>
+            {icon.name}
+          </button>
+        ))}
+      </div>
+    </Section>
+  )
 }

@@ -1,6 +1,5 @@
 import { InformationCircleIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { type AppIconId, appIcons } from '@offsite/core/app-icons'
 import type {
   Config,
   Platform,
@@ -10,7 +9,6 @@ import type {
 import type { Account } from '@offsite/core/providers'
 import { shellIntegrationIssue } from '@offsite/core/shell-check'
 import { useState } from 'react'
-import { call } from '@/api/connection'
 import { updateConfig } from '@/api/machine-config'
 import { ProviderIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -25,8 +23,6 @@ import { Switch } from '@/components/ui/switch'
 import { Tooltip } from '@/components/ui/tooltip'
 import { platforms } from '@/features/terminal/config'
 import { providerNames } from '@/lib/format'
-import { showError } from '@/lib/store'
-import { cn } from '@/lib/utils'
 import { AgentsSection } from './agents'
 import { Row, Section, TextInput } from './controls'
 import { GenerationModelSection } from './generation-model'
@@ -40,7 +36,6 @@ export function MachinePage(props: {
   claudeAccounts: Account[]
   codexAccounts: Account[]
   openCode: { available: boolean }
-  appIcon: AppIconId | null
   onRestore: () => void
 }) {
   const workingDir = props.config.workingDir[props.platform] ?? ''
@@ -161,7 +156,6 @@ export function MachinePage(props: {
         codexAccounts={props.codexAccounts}
         openCode={props.openCode}
       />
-      <AppIconSection machine={props.machine} appIcon={props.appIcon} />
       <Button variant="outline" onClick={props.onRestore}>
         Restore machine defaults
       </Button>
@@ -301,45 +295,5 @@ function IdentityRow(props: {
         </SelectContent>
       </Select>
     </Row>
-  )
-}
-
-function AppIconSection(props: { machine: string; appIcon: AppIconId | null }) {
-  return (
-    <Section title="App icon">
-      <div className="grid grid-cols-4 gap-2 p-3 @max-lg:grid-cols-2">
-        {appIcons.map((icon) => (
-          <button
-            key={icon.id}
-            type="button"
-            aria-pressed={props.appIcon === icon.id}
-            className={cn(
-              'hover:bg-accent flex flex-col items-center gap-2 rounded-lg border p-3 text-xs',
-              props.appIcon === icon.id && 'border-primary bg-accent'
-            )}
-            onClick={() =>
-              call(props.machine, 'appIcon.save', icon.id).catch(showError)
-            }
-          >
-            <span
-              className={cn(
-                'flex size-12 items-center justify-center',
-                icon.tile?.shape === 'rounded' && 'rounded-[22%]',
-                icon.tile?.shape === 'circle' && 'rounded-full',
-                icon.tile !== null && 'ring-border ring-1'
-              )}
-              style={{ background: icon.tile?.color }}
-            >
-              <img
-                src="/icon.svg"
-                alt=""
-                style={{ width: `${icon.scale * 100}%` }}
-              />
-            </span>
-            {icon.name}
-          </button>
-        ))}
-      </div>
-    </Section>
   )
 }
