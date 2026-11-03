@@ -80,6 +80,9 @@ const prefsSchema = z.strictObject({
     .prefault({}),
   rewind: z.enum(['all', 'chat', 'code']).default('chat'),
   groupActiveByProject: z.boolean().default(false),
+  toolbar: z
+    .array(z.enum(['diff', 'terminal', 'tasks', 'browser', 'editor']))
+    .default(['diff', 'terminal', 'editor']),
 })
 
 export type Prefs = z.infer<typeof prefsSchema>

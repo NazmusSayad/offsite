@@ -1,4 +1,4 @@
-import { MoreVerticalIcon, PanelLeftIcon } from '@hugeicons/core-free-icons'
+import { PanelLeftIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useSearch } from '@tanstack/react-router'
 import {
@@ -17,11 +17,7 @@ import { machineKey } from '@/api/machines'
 import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Toaster } from '@/components/ui/sonner'
 import { MachineLogo } from '@/constants/machine-icons'
 import { Composer } from '@/features/composer/composer'
@@ -51,6 +47,7 @@ import { Transcript } from '@/features/transcript/transcript'
 import { MobileLayout } from '@/features/workspace/mobile'
 import {
   type Panel,
+  PanelMenu,
   PanelToggles,
   PanelView,
 } from '@/features/workspace/panels'
@@ -357,27 +354,9 @@ function DesktopLayout() {
                   onRefresh={git.refresh}
                 />
               )}
-              {compact && git.repos.length > 0 && (
-                <DropdownMenu
-                  open={commands.menuOpen}
-                  onOpenChange={commands.setMenuOpen}
-                >
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Git actions"
-                      title="Git actions"
-                    >
-                      <HugeiconsIcon icon={MoreVerticalIcon} />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end">
-                    <GitMenuItems git={commands} collapsed />
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              {!compact && git.repos.length > 0 && (
+                <span className="bg-foreground/15 mr-1 ml-2.5 h-4 w-px" />
               )}
-              <span className="bg-foreground/15 mr-1 ml-2.5 h-4 w-px" />
               <PanelToggles
                 selection={selection}
                 panel={panel}
@@ -388,7 +367,30 @@ function DesktopLayout() {
                   setPanel(next)
                 }}
                 onTerminal={setTerminal}
-              />
+              >
+                <PanelMenu
+                  selection={selection}
+                  mobile={false}
+                  session={session}
+                  panel={panel}
+                  terminal={terminal}
+                  changed={git.repos.some((repo) => repo.changed > 0)}
+                  open={commands.menuOpen}
+                  onOpenChange={commands.setMenuOpen}
+                  onPanel={(next) => {
+                    setSelectedTask(null)
+                    setPanel(next)
+                  }}
+                  onTerminal={setTerminal}
+                >
+                  {compact && git.repos.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <GitMenuItems git={commands} collapsed />
+                    </>
+                  )}
+                </PanelMenu>
+              </PanelToggles>
             </div>
           )}
         </header>

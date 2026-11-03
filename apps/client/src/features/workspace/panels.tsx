@@ -1,30 +1,69 @@
 import {
   BrowserIcon,
   GitCompareIcon,
-  MoreVerticalIcon,
+  MoreHorizontalIcon,
   VisualStudioCodeIcon,
   SquareTerminalIcon,
   TaskDaily01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
-import { lazy, type ReactNode, Suspense, useSyncExternalStore } from 'react'
+import {
+  lazy,
+  type ReactNode,
+  Suspense,
+  useState,
+  useSyncExternalStore,
+} from 'react'
+import { useReadLocalStorage } from 'usehooks-ts'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuCheckboxItem,
+  ContextMenuContent,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
 import { BrowserPanel } from '@/features/browser/browser-panel'
+import { SessionMenuItems } from '@/features/sidebar/session-menu-items'
 import {
   getState as terminalState,
   subscribe as subscribeTerminal,
 } from '@/features/terminal/session'
 import { threadTasks } from '@/features/transcript/tasks'
 import { TasksPanel } from '@/features/transcript/tasks-panel'
+import type { Prefs } from '@/lib/prefs'
+import { deactivateSession, editSession } from '@/lib/sessions'
 import {
+  activityOf,
+  type MachineSession,
   selectedActivity,
   type Selection,
   showEditor,
+  updatePrefs,
   useStore,
 } from '@/lib/store'
 import { cn, mod } from '@/lib/utils'
@@ -36,7 +75,7 @@ const DiffPanel = lazy(async () => ({
 }))
 
 type MenuOption = {
-  id: string
+  id: Prefs['toolbar'][number]
   label: string
   title: string
   icon: IconSvgElement
@@ -59,36 +98,92 @@ type ToggleProps = {
   onTerminal: (open: boolean) => void
 }
 
-export function PanelToggles(props: ToggleProps) {
+export function PanelToggles(props: ToggleProps & { children: ReactNode }) {
   const options = usePanelOptions(props)
+  const prefs = useStore((state) => state.prefs)
 
   return (
-    <>
-      {options.map((option) => (
-        <button
-          key={option.id}
-          className={toggle}
-          data-pressed={option.pressed}
-          aria-label={option.label}
-          title={option.title}
-          onClick={option.onSelect}
-        >
-          <HugeiconsIcon icon={option.icon} />
-          {option.badge}
-        </button>
-      ))}
-    </>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div className="flex items-center gap-1">
+          {options
+            .filter((option) => prefs.toolbar.includes(option.id))
+            .map((option) => (
+              <button
+                key={option.id}
+                className={toggle}
+                data-pressed={option.pressed}
+                aria-label={option.label}
+                title={option.title}
+                onClick={option.onSelect}
+              >
+                <HugeiconsIcon icon={option.icon} />
+                {option.badge}
+              </button>
+            ))}
+          {props.children}
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-44">
+        {options.map((option) => (
+          <ContextMenuCheckboxItem
+            key={option.id}
+            checked={prefs.toolbar.includes(option.id)}
+            onCheckedChange={(checked) =>
+              updatePrefs({
+                ...prefs,
+                toolbar: checked
+                  ? [...prefs.toolbar, option.id]
+                  : prefs.toolbar.filter((id) => id !== option.id),
+              })
+            }
+          >
+            <HugeiconsIcon icon={option.icon} />
+            {option.label}
+          </ContextMenuCheckboxItem>
+        ))}
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
 export function PanelMenu(
   props: ToggleProps & {
+    mobile: boolean
+    session: MachineSession | undefined
     open: boolean
     onOpenChange: (open: boolean) => void
     children: ReactNode
   }
 ) {
-  const options = usePanelOptions(props)
+  const session = props.session
+  const toolbar = useStore((state) => state.prefs.toolbar)
+  const options = usePanelOptions(props).filter(
+    (option) => props.mobile || !toolbar.includes(option.id)
+  )
+  const scope = useReadLocalStorage<{
+    machine: string
+    projectId: string
+  } | null>('sidebarScope')
+  const busy = useStore((state) => {
+    if (session === undefined) {
+      return false
+    }
+    const activity = activityOf(state.machines, session.machine, session.id)
+    return (
+      activity?.running === true ||
+      Object.values(activity?.tasks ?? {}).includes('running')
+    )
+  })
+  const [title, setTitle] = useState<string | null>(null)
+  const [warning, setWarning] = useState(false)
+
+  function makeInactive() {
+    if (session === undefined) {
+      throw new Error('session is missing')
+    }
+    void deactivateSession(session.machine, session.id, scope)
+  }
 
   return (
     <div className="flex shrink-0 items-center gap-1">
@@ -99,7 +194,7 @@ export function PanelMenu(
             aria-label="More"
             title="More"
           >
-            <HugeiconsIcon icon={MoreVerticalIcon} />
+            <HugeiconsIcon icon={MoreHorizontalIcon} />
             {options.some((option) => option.attention) && (
               <span className="bg-muted-foreground ring-background absolute top-0.5 right-0.5 size-1.5 rounded-full ring-2" />
             )}
@@ -114,8 +209,88 @@ export function PanelMenu(
             </DropdownMenuItem>
           ))}
           {props.children}
+          {session !== undefined && (
+            <>
+              <DropdownMenuSeparator />
+              <SessionMenuItems
+                session={session}
+                context={false}
+                mobile={props.mobile}
+                onDeactivate={() => {
+                  if (busy) {
+                    setWarning(true)
+                    return
+                  }
+                  makeInactive()
+                }}
+                onRename={() => setTitle(session.title)}
+              />
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
+      {session !== undefined && title !== null && (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setTitle(null)
+            }
+          }}
+        >
+          <DialogContent>
+            <form
+              className="grid gap-4"
+              onSubmit={(event) => {
+                event.preventDefault()
+                const value = title.trim()
+                setTitle(null)
+                if (value !== '' && value !== session.title) {
+                  void editSession(session.machine, session.id, {
+                    title: value,
+                  })
+                }
+              }}
+            >
+              <DialogHeader>
+                <DialogTitle>Rename thread</DialogTitle>
+              </DialogHeader>
+              <Input
+                aria-label="Title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+              />
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setTitle(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">Rename</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+      <AlertDialog open={warning} onOpenChange={setWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop running work?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The agent or background tasks are running. Do you really want to
+              stop them?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={makeInactive}>
+              Stop and Mark Done
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
