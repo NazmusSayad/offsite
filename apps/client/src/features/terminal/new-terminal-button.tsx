@@ -64,7 +64,12 @@ export function NewTerminalItems(props: { contextMenu?: boolean }) {
         <span className="max-w-60 truncate">{machine.name}</span>
       </Item>,
       ...projects
-        .filter((project) => project.machine === machine.id && !project.scratch)
+        .filter(
+          (project) =>
+            project.machine === machine.id &&
+            !project.hidden &&
+            !project.scratch
+        )
         .map((project) => (
           <Item
             key={`${machine.id}:${project.id}`}

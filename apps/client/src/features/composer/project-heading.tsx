@@ -64,7 +64,10 @@ export function ProjectHeading(props: {
                   .map((machine) => ({
                     machine,
                     items: projects.filter(
-                      (item) => item.machine === machine.id && !item.scratch
+                      (item) =>
+                        item.machine === machine.id &&
+                        !item.hidden &&
+                        !item.scratch
                     ),
                   }))
                   .filter(
