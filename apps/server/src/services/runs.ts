@@ -25,9 +25,15 @@ import {
   projectPath,
   removeScratchProject,
 } from './projects.ts'
-import { listedUpdatedAt, providerOf, recordInteraction } from './sessions.ts'
+import {
+  listedUpdatedAt,
+  providerOf,
+  recordInteraction,
+  updateSession,
+} from './sessions.ts'
 
 const locks = new Map<string, Promise<void>>()
+const emptied = new Set<string>()
 
 export function stopAll() {
   for (const run of runs.values()) {
@@ -72,7 +78,11 @@ async function rewindNow(request: RewindRequest): Promise<RewindResult> {
     }
     await revertThread(sessionId, request.messageId)
     run.items.clear()
-    publish(sessionId, await codexHistory(sessionId))
+    const event = await codexHistory(sessionId)
+    if (event.type === 'history' && event.items.length === 0) {
+      emptied.add(sessionId)
+    }
+    publish(sessionId, event)
     return null
   }
   if (run.provider === 'opencode') {
@@ -216,6 +226,10 @@ async function sendExisting(
   }
   await run.submit(request.prompt, request.delivery)
   recordInteraction(sessionId)
+  if (emptied.has(sessionId) && request.prompt.text.trim() !== '') {
+    emptied.delete(sessionId)
+    await updateSession(sessionId, { title: request.prompt.text.trim() })
+  }
 }
 
 async function locked<T>(sessionId: string, task: () => Promise<T>) {

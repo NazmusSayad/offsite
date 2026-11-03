@@ -102,37 +102,39 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
         >
           {props.path}
         </span>
-        <Tooltip label={clipboard.copied ? 'Copied' : 'Copy path'}>
-          <Button
-            type="button"
-            variant="ghost-muted"
-            size="icon-micro"
-            aria-label="Copy path"
-            onClick={() => void clipboard.copy(props.path)}
-          >
-            <HugeiconsIcon
-              icon={clipboard.copied ? CheckIcon : CopyIcon}
-              className="size-4"
-            />
-          </Button>
-        </Tooltip>
-        <Tooltip label="Download">
-          <Button
-            type="button"
-            variant="ghost-muted"
-            size="icon-micro"
-            aria-label="Download"
-            disabled={loaded === null}
-            onClick={() => {
-              if (loaded === null) {
-                throw new Error('media is still loading')
-              }
-              void downloadFile(loaded.src, props.path).catch(showError)
-            }}
-          >
-            <HugeiconsIcon icon={Download01Icon} className="size-4" />
-          </Button>
-        </Tooltip>
+        <span className="flex items-center gap-0.5">
+          <Tooltip label={clipboard.copied ? 'Copied' : 'Copy path'}>
+            <Button
+              type="button"
+              variant="ghost-muted"
+              size="icon-micro"
+              aria-label="Copy path"
+              onClick={() => void clipboard.copy(props.path)}
+            >
+              <HugeiconsIcon
+                icon={clipboard.copied ? CheckIcon : CopyIcon}
+                className="size-4"
+              />
+            </Button>
+          </Tooltip>
+          <Tooltip label="Download">
+            <Button
+              type="button"
+              variant="ghost-muted"
+              size="icon-micro"
+              aria-label="Download"
+              disabled={loaded === null}
+              onClick={() => {
+                if (loaded === null) {
+                  throw new Error('media is still loading')
+                }
+                void downloadFile(loaded.src, props.path).catch(showError)
+              }}
+            >
+              <HugeiconsIcon icon={Download01Icon} className="size-4" />
+            </Button>
+          </Tooltip>
+        </span>
       </span>
       {loaded !== null && (
         <Media

@@ -370,8 +370,10 @@ function RowContent(props: {
           </div>
           {row.meta && (
             <div className="mt-1.5 flex items-center gap-2 text-xs tabular-nums opacity-0 transition-opacity duration-200 group-hover/assistant:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
-              <MessageCopyButton text={row.text} />
-              {props.fork && <ForkButton uuid={row.message} />}
+              <div className="flex items-center gap-0.5">
+                <MessageCopyButton text={row.text} />
+                {props.fork && <ForkButton uuid={row.message} />}
+              </div>
               {row.time !== null && (
                 <Tooltip label={fullTime(row.time)}>
                   <p className="text-muted-foreground text-xs tabular-nums">
