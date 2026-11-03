@@ -51,7 +51,7 @@ export function QueuedMessages() {
   )
 }
 
-export function LimitBanner() {
+export function UsageResetBanner() {
   const limit = useStore((state) => {
     if (!selectedRunning(state)) {
       return undefined
