@@ -6,6 +6,7 @@ import { listen, startConnections } from '@/api/connection'
 import { start } from '@/api/sync'
 import { App } from '@/app'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { warmHighlighter } from '@/components/markdown/warm-highlighter'
 import { loadDrafts } from '@/features/composer/drafts'
 import { startTerminal } from '@/features/terminal/session'
 import { refreshPushSubscription } from '@/lib/notifications'
@@ -75,4 +76,7 @@ createRoot(root).render(
       <RouterProvider router={router} />
     </ErrorBoundary>
   </StrictMode>
+)
+warmHighlighter().catch((error: unknown) =>
+  console.error('could not prepare code highlighting', error)
 )
