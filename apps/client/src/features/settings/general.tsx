@@ -1,3 +1,5 @@
+import { RefreshIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { schemes } from '@offsite/core/schemes'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -57,13 +59,11 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
 }
 
 function UpdateSection() {
-  const [status, setStatus] = useState<
-    'idle' | 'checking' | 'updating' | 'current'
-  >('idle')
+  const [updating, setUpdating] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
 
-  async function check() {
-    setStatus('checking')
+  async function update() {
+    setUpdating(true)
     setFailure(null)
     try {
       const registration =
@@ -71,19 +71,24 @@ function UpdateSection() {
           ? await navigator.serviceWorker.getRegistration()
           : undefined
       if (registration === undefined) {
-        location.reload()
-        return
+        const response = await fetch(`/?update=${Date.now()}`, {
+          cache: 'no-store',
+        })
+        if (!response.ok) {
+          throw new Error(`the server answered ${response.status}`)
+        }
+      } else {
+        await registration.update()
+        const worker = registration.installing ?? registration.waiting
+        if (worker !== null) {
+          await activated(worker)
+        }
       }
-      await registration.update()
-      setStatus(
-        registration.installing === null && registration.waiting === null
-          ? 'current'
-          : 'updating'
-      )
+      location.reload()
     } catch (error) {
-      console.error('could not check for updates', error)
+      console.error('could not update', error)
       setFailure(errorMessage(error))
-      setStatus('idle')
+      setUpdating(false)
     }
   }
 
@@ -92,28 +97,38 @@ function UpdateSection() {
       <Row label="Load the newest version of OffSite in this browser">
         <div className="flex items-center gap-3">
           {failure !== null && (
-            <span className="text-muted-foreground text-xs">
-              Could not check: {failure}
-            </span>
-          )}
-          {status === 'current' && (
-            <span className="text-muted-foreground text-xs">Up to date</span>
-          )}
-          {status === 'updating' && (
-            <span className="text-muted-foreground text-xs">
-              Updating, the page reloads when it&apos;s ready
+            <span className="text-destructive text-xs">
+              Could not update: {failure}
             </span>
           )}
           <Button
             size="sm"
             variant="outline"
-            disabled={status === 'checking' || status === 'updating'}
-            onClick={() => void check()}
+            disabled={updating}
+            onClick={() => void update()}
           >
-            Check for updates
+            {updating && (
+              <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
+            )}
+            {updating ? 'Updating…' : 'Update'}
           </Button>
         </div>
       </Row>
     </Section>
   )
+}
+
+async function activated(worker: ServiceWorker) {
+  await new Promise<void>((resolve, reject) => {
+    function settle() {
+      if (worker.state === 'activated') {
+        resolve()
+      }
+      if (worker.state === 'redundant') {
+        reject(new Error('the new version failed to install'))
+      }
+    }
+    worker.addEventListener('statechange', settle)
+    settle()
+  })
 }

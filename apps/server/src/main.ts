@@ -479,6 +479,11 @@ function serveFile(
     statSync(requested, { throwIfNoEntry: false })?.isFile()
       ? requested
       : path.join(publicDir, 'index.html')
+  if (file !== requested && pathname.startsWith('/assets/')) {
+    response.statusCode = 404
+    response.end('not found')
+    return
+  }
   if (!existsSync(file)) {
     response.statusCode = 404
     response.end('web app not built; run pnpm build')
