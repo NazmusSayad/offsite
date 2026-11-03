@@ -5,6 +5,7 @@ import {
   SearchIcon,
   Settings01Icon,
   SquarePenIcon,
+  Tick01Icon,
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
@@ -286,7 +287,7 @@ export function Sidebar(
   }
 
   function section(options: {
-    icon: IconSvgElement | null
+    icon: IconSvgElement
     label: string
     items: MachineSession[]
     open: boolean
@@ -301,15 +302,8 @@ export function Sidebar(
             className="text-sidebar-muted-foreground/60 flex h-9 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs font-medium"
             onClick={options.onToggle}
           >
-            {options.icon !== null && (
-              <HugeiconsIcon icon={options.icon} className="size-3 shrink-0" />
-            )}
-            {options.icon === null && (
-              <span className="bg-sidebar-border/60 h-px w-2 shrink-0" />
-            )}
-            <span className={cn('shrink-0', options.icon !== null && '-ms-1')}>
-              {options.label}
-            </span>
+            <HugeiconsIcon icon={options.icon} className="size-3 shrink-0" />
+            <span className="-ms-1 shrink-0">{options.label}</span>
             <span className="bg-sidebar-border/60 h-px min-w-2 flex-1" />
             <HugeiconsIcon
               icon={ChevronDownIcon}
@@ -436,7 +430,7 @@ export function Sidebar(
                 first: snoozed.length === 0,
               })}
             {section({
-              icon: null,
+              icon: Tick01Icon,
               label: 'Done',
               items: inactive,
               open: inactiveOpen,

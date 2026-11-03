@@ -1,9 +1,9 @@
 import {
-  CheckmarkSquare01Icon,
   EllipsisIcon,
   PinIcon,
   PowerIcon,
   SquarePenIcon,
+  TickDouble01Icon,
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -345,7 +345,7 @@ export function DesktopSessionItem(props: {
                     }}
                   >
                     <HugeiconsIcon
-                      icon={CheckmarkSquare01Icon}
+                      icon={TickDouble01Icon}
                       strokeWidth={1.25}
                       className="size-5 scale-110"
                     />
