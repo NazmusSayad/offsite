@@ -7,6 +7,7 @@ import {
   type Query,
   renameSession,
 } from '@anthropic-ai/claude-agent-sdk'
+import { NO_PROJECT } from '@offsite/core/projects'
 import type { Provider, ProviderStatus } from '@offsite/core/providers'
 import { nextOpens } from '@offsite/core/search'
 import type { Session, SessionPatch } from '@offsite/core/sessions'
@@ -67,7 +68,14 @@ export function sessions(): Session[] {
 
 export async function inactiveSessions(projectId: string | null) {
   const found = await everything(
-    projectPaths().filter(([, id]) => projectId === null || id === projectId)
+    projects()
+      .filter(
+        (project) =>
+          projectId === null ||
+          project.id === projectId ||
+          (projectId === NO_PROJECT && project.scratch)
+      )
+      .map((project): [string, string] => [project.path, project.id])
   )
   return found
     .filter((session) => session.status === 'inactive')

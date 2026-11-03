@@ -1,4 +1,4 @@
-import { BubbleChatIcon, ChatGptIcon } from '@hugeicons/core-free-icons'
+import { ChatGptIcon, DashedLine02Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { Provider } from '@offsite/core/providers'
@@ -43,7 +43,7 @@ export function ProjectIcon(props: {
           props.className
         )}
       >
-        <HugeiconsIcon icon={BubbleChatIcon} className="size-full" />
+        <HugeiconsIcon icon={DashedLine02Icon} className="size-full" />
       </span>
     )
   }

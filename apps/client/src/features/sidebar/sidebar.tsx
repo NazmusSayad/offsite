@@ -82,7 +82,7 @@ export function Sidebar(
       (session) =>
         scope === null ||
         (session.machine === scope.machine &&
-          session.projectId === scope.projectId)
+          groupProject(session.machine, session.projectId) === scope.projectId)
     )
     .sort((a, b) => b.updatedAt - a.updatedAt)
   const snoozed = shown.filter((session) => {

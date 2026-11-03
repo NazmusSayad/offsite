@@ -396,7 +396,10 @@ export async function deactivateSession(
           !(item.machine === machine && item.id === id) &&
           (scope === null ||
             (item.machine === scope.machine &&
-              item.projectId === scope.projectId))
+              (item.projectId === scope.projectId ||
+                (scope.projectId === NO_PROJECT &&
+                  projectOf(getState(), item.machine, item.projectId)
+                    ?.scratch === true))))
       )
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .at(0)

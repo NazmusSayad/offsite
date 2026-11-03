@@ -509,7 +509,7 @@ function projectName(
   projects: { machine: string; id: string; name: string }[]
 ) {
   return projectId === NO_PROJECT
-    ? 'No project'
+    ? 'No Project'
     : (projects.find(
         (item) => item.machine === machine && item.id === projectId
       )?.name ?? '')

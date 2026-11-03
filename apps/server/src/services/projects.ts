@@ -97,7 +97,7 @@ export async function addScratchProject(text: string) {
     }
     const id = randomUUID()
     db.insert(projectsTable)
-      .values({ id, path: folder, name: 'No project', scratch: true })
+      .values({ id, path: folder, name: 'No Project', scratch: true })
       .run()
     publish()
     return { id, path: folder }

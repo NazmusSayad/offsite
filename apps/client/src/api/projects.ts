@@ -5,7 +5,7 @@ import { call } from './connection'
 export function useProjectName(machine: string, projectId: string) {
   return useStore((state) =>
     projectId === NO_PROJECT
-      ? 'No project'
+      ? 'No Project'
       : (projectOf(state, machine, projectId)?.name ?? '')
   )
 }
