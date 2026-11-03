@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `scratch` integer DEFAULT false NOT NULL;

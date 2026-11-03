@@ -234,7 +234,7 @@ function TabMenu(props: { tab: TerminalTab; children: ReactNode }) {
   const [renaming, setRenaming] = useState(false)
   const allProjects = useStore((state) => state.projects)
   const projects = allProjects.filter(
-    (project) => project.machine === terminalMachine()
+    (project) => project.machine === terminalMachine() && !project.scratch
   )
   const tab = props.tab
 

@@ -1,5 +1,6 @@
 import { PanelLeftIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { NO_PROJECT } from '@offsite/core/projects'
 import { useSearch } from '@tanstack/react-router'
 import {
   Fragment,
@@ -151,9 +152,12 @@ function DesktopLayout() {
     () => terminalState().open
   )
   const running = useStore(selectedRunning)
+  const projectless = selection?.projectId === NO_PROJECT
   const git = useGitStatus(
     selection?.machine ?? '',
-    machine?.status === 'online' ? (selection?.projectId ?? null) : null,
+    machine?.status === 'online' && !projectless
+      ? (selection?.projectId ?? null)
+      : null,
     running
   )
   const commands = useGitCommands({
@@ -344,7 +348,7 @@ function DesktopLayout() {
               {machine.status === 'unpaired' && `${machine.name} needs pairing`}
             </span>
           )}
-          {selection !== null && (
+          {selection !== null && !projectless && (
             <div className="ml-auto flex shrink-0 items-center gap-1">
               {!compact && git.repos.length > 0 && (
                 <GitActions
@@ -419,7 +423,7 @@ function DesktopLayout() {
                 </Fragment>
               )}
             </div>
-            {selection !== null && terminal && (
+            {selection !== null && terminal && !projectless && (
               <aside
                 className="border-border/80 bg-background relative shrink-0 overflow-hidden border-t"
                 style={{ height: terminalHeight }}
@@ -449,7 +453,7 @@ function DesktopLayout() {
               </aside>
             )}
           </div>
-          {selection !== null && panel !== null && (
+          {selection !== null && panel !== null && !projectless && (
             <div
               className="relative flex shrink-0"
               style={{ width: panelWidth }}

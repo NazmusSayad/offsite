@@ -33,7 +33,7 @@ import {
   sessions as sessionsTable,
 } from '../storage/schema.ts'
 import { providerName } from './accounts.ts'
-import { projectPath, projects } from './projects.ts'
+import { projectPath, projects, removeProject } from './projects.ts'
 import { find, type Found, info, timeLimit } from './provider-sessions.ts'
 
 const day = 24 * 60 * 60 * 1000
@@ -320,15 +320,34 @@ async function tracked(
       .map((record) => {
         const owner = ownerOf(record.sessionId)
         if (owner === provider) {
-          return info(provider, record.sessionId, paths)
+          return lookup(provider, record.sessionId, paths)
         }
         if (owner === undefined) {
-          return info(provider, record.sessionId, paths).catch(() => null)
+          return lookup(provider, record.sessionId, paths).catch(() => null)
         }
         return null
       })
   )
   return found.filter((item) => item !== null)
+}
+
+async function lookup(
+  provider: Provider,
+  sessionId: string,
+  paths: Map<string, string>
+) {
+  const known = listed[provider].find((item) => item.id === sessionId)
+  const knownPath =
+    known === undefined
+      ? undefined
+      : [...paths].find((entry) => entry[1] === known.projectId)
+  if (knownPath === undefined) {
+    return info(provider, sessionId, paths)
+  }
+  return (
+    (await info(provider, sessionId, new Map([knownPath]))) ??
+    info(provider, sessionId, paths)
+  )
 }
 
 export function watchSessions() {
@@ -414,7 +433,7 @@ export async function updateSession(id: string, patch: SessionPatch) {
   }
 }
 
-export async function removeSession(id: string) {
+export async function removeSession(id: string, projectId: string) {
   const provider = providerOf(id)
   const run = runs.get(id)
   if (run !== undefined) {
@@ -434,6 +453,20 @@ export async function removeSession(id: string) {
   db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
   db.delete(sessionOpensTable).where(eq(sessionOpensTable.sessionId, id)).run()
   listed[provider] = listed[provider].filter((item) => item.id !== id)
+  const project = projects().find((item) => item.id === projectId)
+  if (project === undefined || !project.scratch) {
+    return
+  }
+  try {
+    const others = (await everything([[project.path, project.id]])).filter(
+      (item) => item.id !== id
+    )
+    if (others.length === 0) {
+      removeProject(project.id)
+    }
+  } catch (error) {
+    console.warn(`could not check other chats in ${project.path}: ${error}`)
+  }
 }
 
 export async function fork(

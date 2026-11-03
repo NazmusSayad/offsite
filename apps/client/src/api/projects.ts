@@ -1,9 +1,13 @@
-import type { ProjectPatch } from '@offsite/core/projects'
+import { NO_PROJECT, type ProjectPatch } from '@offsite/core/projects'
 import { projectOf, useStore } from '@/lib/store'
 import { call } from './connection'
 
 export function useProjectName(machine: string, projectId: string) {
-  return useStore((state) => projectOf(state, machine, projectId)?.name ?? '')
+  return useStore((state) =>
+    projectId === NO_PROJECT
+      ? 'No project'
+      : (projectOf(state, machine, projectId)?.name ?? '')
+  )
 }
 
 export async function addProject(machine: string, path: string) {

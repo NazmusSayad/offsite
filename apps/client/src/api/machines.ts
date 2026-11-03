@@ -311,6 +311,7 @@ export function persistMachines() {
         name: project.name,
         logo: project.logo,
         hidden: project.hidden,
+        scratch: project.scratch,
       })),
   }))
   saveMachines(machines)

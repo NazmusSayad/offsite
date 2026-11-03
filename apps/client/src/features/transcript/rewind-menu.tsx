@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip } from '@/components/ui/tooltip'
 import type { RewindMode } from '@/lib/prefs'
-import { openSession } from '@/lib/sessions'
+import { startChat } from '@/lib/sessions'
 import {
   getState,
   projectOf,
@@ -177,7 +177,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
         })
       }
       if (conversation && target.first && provider !== 'opencode') {
-        openSession({ machine, projectId, sessionId: null })
+        startChat(machine, projectId)
       }
       if (conversation) {
         setDraft({ text: target.text, images })

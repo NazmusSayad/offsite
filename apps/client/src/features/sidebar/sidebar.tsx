@@ -9,6 +9,7 @@ import {
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
+import { NO_PROJECT } from '@offsite/core/projects'
 import { useEffect, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocalStorage } from 'usehooks-ts'
@@ -31,7 +32,7 @@ import { ProjectGroup } from '@/features/sidebar/project-group'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
 import { StatusChips } from '@/features/sidebar/status-chips'
 import { TerminalNav } from '@/features/sidebar/terminal-nav'
-import { openSession } from '@/lib/sessions'
+import { lastProject, openSession, startChat } from '@/lib/sessions'
 import {
   activityOf,
   getState,
@@ -130,14 +131,28 @@ export function Sidebar(
   const grouped = groupActiveByProject && scope === null
   const groups = [
     ...new Map(
-      [...(draft === null ? [] : [draft]), ...listed].map((item) => [
-        machineKey(item.machine, item.projectId),
-        item,
-      ])
+      [...(draft === null ? [] : [draft]), ...listed].map((item) => {
+        const projectId = groupProject(item.machine, item.projectId)
+        return [
+          machineKey(item.machine, projectId),
+          { machine: item.machine, projectId },
+        ]
+      })
     ),
   ]
 
   const Draft = props.mobile ? MobileDraftRow : DesktopDraftRow
+
+  function groupProject(machine: string, projectId: string) {
+    return projects.some(
+      (project) =>
+        project.machine === machine &&
+        project.id === projectId &&
+        project.scratch
+    )
+      ? NO_PROJECT
+      : projectId
+  }
 
   useEffect(() => {
     if (!inactiveOpen) {
@@ -194,30 +209,12 @@ export function Sidebar(
   function startThread() {
     const target = scope ?? selection ?? lastProject()
     if (target !== null) {
-      select(target.machine, target.projectId, null)
+      startChat(target.machine, target.projectId)
     } else if (machines.length > 0) {
       setAdding(machines[0].id)
     } else {
       showSettingsPage('Machines')
     }
-  }
-
-  function lastProject() {
-    const raw = localStorage.getItem('lastProject')
-    const last: { machine: string; projectId: string } | null =
-      raw === null ? null : JSON.parse(raw)
-    const registered =
-      last === null
-        ? undefined
-        : projects.find(
-            (project) =>
-              project.machine === last.machine && project.id === last.projectId
-          )
-    const project = registered ?? projects.at(0)
-    if (project === undefined) {
-      return null
-    }
-    return { machine: project.machine, projectId: project.id }
   }
 
   useHotkeys(['mod+n', 'mod+t'], startThread, {
@@ -242,7 +239,10 @@ export function Sidebar(
         ? groups.flatMap((group) =>
             listed.filter(
               (session) =>
-                machineKey(session.machine, session.projectId) === group[0]
+                machineKey(
+                  session.machine,
+                  groupProject(session.machine, session.projectId)
+                ) === group[0]
             )
           )
         : listed
@@ -382,7 +382,10 @@ export function Sidebar(
                   projectId={group.projectId}
                   sessions={listed.filter(
                     (session) =>
-                      machineKey(session.machine, session.projectId) === key
+                      machineKey(
+                        session.machine,
+                        groupProject(session.machine, session.projectId)
+                      ) === key
                   )}
                   started={started}
                   mobile={props.mobile}

@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import {
   mkdirSync,
   readFileSync,
@@ -19,6 +20,10 @@ const lockFile = path.join(home, 'server.pid')
 const savedServer = z.object({ port: z.number() }).nullable()
 
 mkdirSync(home, { recursive: true })
+
+export const scratchAvailable =
+  spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: home })
+    .status !== 0
 
 export function listenPort() {
   if (args.command !== 'pair' || args.portGiven) {
