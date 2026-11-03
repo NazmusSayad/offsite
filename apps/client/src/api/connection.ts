@@ -235,15 +235,26 @@ async function openSocket(
   const timer = window.setTimeout(() => next.close(), CONNECT_TIMEOUT)
   next.onopen = () => {
     window.clearTimeout(timer)
+    if (connection.socket !== next) {
+      next.close()
+      return
+    }
     connection.connected = true
     connection.failures = 0
     for (const listener of listeners) {
       listener.open?.(machine, url)
     }
   }
-  next.onmessage = (event) => receive(machine, connection, event.data)
+  next.onmessage = (event) => {
+    if (connection.socket === next) {
+      receive(machine, connection, event.data)
+    }
+  }
   next.onclose = () => {
     window.clearTimeout(timer)
+    if (connection.socket !== next) {
+      return
+    }
     if (connection.connected) {
       disconnect(machine, connection)
       retry(machine, connection, 0)
@@ -320,7 +331,7 @@ async function pingServer(machine: string, connection: Connection) {
       window.setTimeout(() => resolve(false), PING_TIMEOUT)
     ),
   ])
-  if (alive || connection.socket !== current) {
+  if (alive || connection.socket !== current || !connection.connected) {
     return alive
   }
   current.onclose = null
