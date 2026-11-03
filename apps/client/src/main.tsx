@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@/components/error-boundary'
 import { warmHighlighter } from '@/components/markdown/warm-highlighter'
 import { loadDrafts } from '@/features/composer/drafts'
 import { startTerminal } from '@/features/terminal/session'
+import { showFavicon } from '@/lib/app-icon'
 import { refreshPushSubscription } from '@/lib/notifications'
 import { router } from '@/lib/router'
 import { openSession } from '@/lib/sessions'
@@ -69,6 +70,9 @@ listen({
 })
 start()
 void startTerminal()
+showFavicon().catch((error: unknown) =>
+  console.error('could not show the app icon', error)
+)
 router.routeTree.update({ component: App })
 createRoot(root).render(
   <StrictMode>
