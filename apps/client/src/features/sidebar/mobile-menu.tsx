@@ -14,10 +14,14 @@ export function MobileMenu(props: { buttonClassName: string }) {
   const machines = useStore((state) => state.machines)
   const online = machines.filter((machine) => machine.status === 'online')
   const running = online.filter((machine) => machine.terminals.length > 0)
+  const terminals = running.reduce(
+    (total, machine) => total + machine.terminals.length,
+    0
+  )
   const last = localStorage.getItem('lastTerminal')
   const terminal = (
     <button
-      className={cn(props.buttonClassName, 'size-7 [&>svg]:size-4.5')}
+      className={cn(props.buttonClassName, 'relative size-7 [&>svg]:size-4.5')}
       title="Terminal"
       aria-label="Terminal"
       disabled={online.length === 0}
@@ -31,6 +35,11 @@ export function MobileMenu(props: { buttonClassName: string }) {
       }
     >
       <HugeiconsIcon icon={SquareTerminalIcon} />
+      {terminals > 0 && (
+        <span className="text-foreground/75 border-sidebar pointer-events-none absolute -top-0.5 -right-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full border bg-[color-mix(in_srgb,var(--foreground)_8%,var(--background))] px-0.5 text-[9px] leading-none font-medium tabular-nums">
+          {terminals}
+        </span>
+      )}
     </button>
   )
 

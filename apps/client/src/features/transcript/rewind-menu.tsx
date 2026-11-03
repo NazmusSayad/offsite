@@ -178,7 +178,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
         })
       }
       if (replace) {
-        startChat(machine, projectId)
+        startChat(machine, projectId, true)
         update({ replacing: { machine, projectId, sessionId } })
       }
       if (conversation) {
