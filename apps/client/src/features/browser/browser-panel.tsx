@@ -266,7 +266,7 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
               : undefined
           }
           title={target ?? ''}
-          className="min-h-0 w-full flex-1 bg-white"
+          className="min-h-0 w-full flex-1 bg-white scheme-light"
           onLoad={() => setLoading(false)}
         />
       )}
