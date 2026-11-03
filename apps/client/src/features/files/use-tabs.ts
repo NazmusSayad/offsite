@@ -2,6 +2,7 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import type { EditorState } from '@/features/files/editor-state'
 import { loadLanguage, monaco } from '@/features/files/monaco'
+import { useEditorShortcut } from '@/features/files/use-editor-shortcut'
 import {
   fileTab,
   previewTab,
@@ -56,6 +57,7 @@ export function useTabs(props: {
   const tabs = state.tabs
   const active = state.active
   const [closing, setClosing] = useState<Closing | null>(null)
+  useEditorShortcut(requestClose, true)
   const [conflict, setConflict] = useState<TabSpec | null>(null)
   const dirty = tabs.filter(
     (tab) => tab.document.status === 'text' && tab.document.dirty

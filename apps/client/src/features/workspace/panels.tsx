@@ -48,6 +48,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { BrowserPanel } from '@/features/browser/browser-panel'
+import { useEditorShortcut } from '@/features/files/use-editor-shortcut'
 import { SessionMenuItems } from '@/features/sidebar/session-menu-items'
 import {
   getState as terminalState,
@@ -101,6 +102,15 @@ type ToggleProps = {
 export function PanelToggles(props: ToggleProps & { children: ReactNode }) {
   const options = usePanelOptions(props)
   const prefs = useStore((state) => state.prefs)
+  const editorClosed = useStore((state) => state.editor === null)
+  useEditorShortcut(
+    () =>
+      showEditor({
+        machine: props.selection.machine,
+        projectId: props.selection.projectId,
+      }),
+    editorClosed
+  )
 
   return (
     <ContextMenu>

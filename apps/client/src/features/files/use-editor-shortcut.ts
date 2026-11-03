@@ -1,0 +1,17 @@
+import { useHotkeys } from 'react-hotkeys-hook'
+
+export function useEditorShortcut(onToggle: () => void, enabled: boolean) {
+  useHotkeys(
+    'mod+e',
+    (event) => {
+      event.stopPropagation()
+      onToggle()
+    },
+    {
+      enabled,
+      enableOnFormTags: true,
+      preventDefault: true,
+      eventListenerOptions: { capture: true },
+    }
+  )
+}

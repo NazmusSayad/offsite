@@ -73,6 +73,7 @@ const EditorDialog = lazy(async () => ({
 
 const wide = window.matchMedia('(min-width: 768px)')
 const compactWidth = 800
+const paletteKeys = ['mod+k', 'mod+p', 'mod+shift+p']
 
 function subscribeWide(listener: () => void) {
   wide.addEventListener('change', listener)
@@ -84,7 +85,7 @@ export function App() {
   const editor = useStore((state) => state.editor)
   const exporting = useStore((state) => state.exporting)
   useAttentionBadge()
-  useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
+  useHotkeys(paletteKeys, () => showPalette(!getState().paletteOpen), {
     enableOnFormTags: true,
     preventDefault: true,
   })
