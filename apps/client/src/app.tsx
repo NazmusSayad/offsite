@@ -22,6 +22,7 @@ import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Toaster } from '@/components/ui/sonner'
 import { MachineLogo } from '@/constants/machine-icons'
 import { Composer } from '@/features/composer/composer'
+import { UsageLimitBadge } from '@/features/composer/usage-limit-badge'
 import {
   GitActions,
   GitCommandDialog,
@@ -320,12 +321,13 @@ function DesktopLayout() {
                 </li>
                 <li
                   className={cn(
-                    'text-foreground min-w-10 truncate font-medium',
+                    'text-foreground flex min-w-10 items-center gap-2 font-medium',
                     sidebar && 'flex-1'
                   )}
                 >
                   <span
                     className={cn(
+                      'truncate',
                       (generatingTitle ||
                         (selection.sessionId !== null &&
                           session === undefined)) &&
@@ -334,6 +336,7 @@ function DesktopLayout() {
                   >
                     {session?.title ?? 'New thread'}
                   </span>
+                  <UsageLimitBadge />
                 </li>
                 {!sidebar && (
                   <li className="shrink-0">

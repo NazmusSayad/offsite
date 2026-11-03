@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
 import { Composer } from '@/features/composer/composer'
+import { UsageLimitBadge } from '@/features/composer/usage-limit-badge'
 import {
   GitCommandDialog,
   GitMenuItems,
@@ -231,6 +232,7 @@ function MobileChat(props: { selection: Selection }) {
             </div>
           )}
         </div>
+        <UsageLimitBadge />
         {!projectless && (
           <PanelMenu
             selection={props.selection}
