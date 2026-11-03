@@ -87,6 +87,7 @@ export function start() {
         ? null
         : getDraftSettings(draftKey(selection))) ?? emptySettings,
     draft: null,
+    replacing: null,
     context: null,
     capabilities: null,
     errors: [],

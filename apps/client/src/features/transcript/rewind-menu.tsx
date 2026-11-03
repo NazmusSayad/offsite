@@ -37,6 +37,7 @@ import {
   projectOf,
   setDraft,
   showError,
+  update,
   updatePrefs,
   useStore,
 } from '@/lib/store'
@@ -163,8 +164,8 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
             )
           )
         : []
-      const truncate =
-        conversation && (!target.first || provider === 'opencode')
+      const replace = conversation && target.first && provider === 'claude'
+      const truncate = conversation && !replace
       if (code || truncate) {
         await call(machine, 'sessions.rewind', {
           sessionId,
@@ -176,8 +177,9 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
           dryRun: false,
         })
       }
-      if (conversation && target.first && provider !== 'opencode') {
+      if (replace) {
         startChat(machine, projectId)
+        update({ replacing: { machine, projectId, sessionId } })
       }
       if (conversation) {
         setDraft({ text: target.text, images })

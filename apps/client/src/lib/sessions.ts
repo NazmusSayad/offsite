@@ -63,6 +63,7 @@ export function openSession(
               'claude'
           )),
     context: null,
+    replacing: null,
     paletteOpen: false,
     unseen: getState().unseen.filter(
       (key) =>
@@ -212,6 +213,20 @@ export async function sendPrompt(
     settings,
     delivery,
   })
+  const replacing = getState().replacing
+  if (
+    selection.sessionId === null &&
+    replacing !== null &&
+    replacing.machine === selection.machine &&
+    replacing.sessionId !== null
+  ) {
+    update({ replacing: null })
+    await removeSession(
+      replacing.machine,
+      replacing.sessionId,
+      replacing.projectId
+    )
+  }
 }
 
 export function unqueue(id: string) {

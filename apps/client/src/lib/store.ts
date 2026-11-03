@@ -111,6 +111,7 @@ export type State = {
   queue: QueuedPrompt[]
   settings: SessionSettings
   draft: Prompt | null
+  replacing: Selection | null
   context: ContextUsage | null
   capabilities: Capabilities | null
   errors: string[]
