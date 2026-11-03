@@ -240,7 +240,6 @@ export function MoreMenu(props: {
         )}
         {props.delivery !== null && (
           <>
-            <DropdownMenuSeparator />
             <DropdownMenuItem disabled={props.empty} onSelect={props.onSubmit}>
               <HugeiconsIcon
                 icon={props.delivery === 'steer' ? Queue01Icon : SentIcon}

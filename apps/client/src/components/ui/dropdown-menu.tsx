@@ -29,6 +29,20 @@ function DropdownMenuTrigger({
   )
 }
 
+function focusCheckedItem(event: Event) {
+  if (!(event.currentTarget instanceof HTMLElement)) {
+    throw new Error('menu content is not an element')
+  }
+  const checked = event.currentTarget.querySelector<HTMLElement>(
+    '[role=menuitemradio][data-state=checked]'
+  )
+  if (checked === null) {
+    return
+  }
+  event.preventDefault()
+  checked.focus()
+}
+
 function DropdownMenuContent({
   className,
   align = 'start',
@@ -46,6 +60,7 @@ function DropdownMenuContent({
           className
         )}
         {...props}
+        {...{ onOpenAutoFocus: focusCheckedItem }}
       />
     </DropdownMenuPrimitive.Portal>
   )
@@ -253,6 +268,7 @@ function DropdownMenuSubContent({
 }
 
 export {
+  focusCheckedItem,
   DropdownMenu,
   DropdownMenuPortal,
   DropdownMenuTrigger,

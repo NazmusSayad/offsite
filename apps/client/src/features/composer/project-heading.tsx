@@ -1,5 +1,6 @@
 import { NO_PROJECT } from '@offsite/core/projects'
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import { machineKey } from '@/api/machines'
 import { ProjectIcon } from '@/components/icons'
 import {
@@ -29,13 +30,27 @@ export function ProjectHeading(props: {
   const machines = useStore((state) => state.machines)
   const projectless =
     props.projectId === NO_PROJECT || project?.scratch === true
+  const [picking, setPicking] = useState(false)
+  useHotkeys(
+    ['mod+p', 'mod+semicolon'],
+    (event) => {
+      event.stopPropagation()
+      setPicking(!picking)
+    },
+    {
+      enabled: sessionId === null,
+      enableOnFormTags: true,
+      preventDefault: true,
+      eventListenerOptions: { capture: true },
+    }
+  )
 
   return (
     <div className="absolute inset-x-0 bottom-full pb-4">
       <h1 className="text-foreground w-full text-center text-2xl font-normal tracking-tight sm:text-3xl">
         What should we build {!projectless && 'in '}
         {sessionId === null ? (
-          <DropdownMenu>
+          <DropdownMenu open={picking} onOpenChange={setPicking}>
             <DropdownMenuTrigger asChild>
               <button
                 className={cn(

@@ -7,6 +7,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { Fragment, useState } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import { machineKey } from '@/api/machines'
 import { ProjectIcon } from '@/components/icons'
 import {
@@ -39,6 +40,10 @@ export function ScopeMenu(props: {
   const sessions = useStore((state) => state.sessions)
   const unseen = useStore((state) => state.unseen)
   const [picking, setPicking] = useState(false)
+  useHotkeys('mod+p', () => setPicking(!picking), {
+    enableOnFormTags: true,
+    preventDefault: true,
+  })
   const groups = machines
     .map((machine) => ({
       machine,

@@ -5,18 +5,10 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Model } from '@offsite/core/providers'
-import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
-import { type ReactNode, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { call } from '@/api/connection'
 import { ProviderIcon } from '@/components/icons'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   Popover,
   PopoverContent,
@@ -33,12 +25,8 @@ import {
   useStore,
 } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { sector } from './sector'
-
-export const control =
-  'relative inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-(--control-radius) border border-transparent outline-none hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-64 [&_svg]:pointer-events-none [&_svg]:shrink-0'
-const controlSm =
-  'h-7 gap-1.5 px-1.5 text-sm font-medium text-secondary-label hover:text-foreground [&_svg:not([class*=text-])]:text-muted-foreground [&_svg:not([class*=size-])]:size-4'
+import { moveFocus } from './move-focus'
+import { control, controlSm, Picker } from './picker'
 
 export function Pickers() {
   const settings = useStore((state) => state.settings)
@@ -54,7 +42,7 @@ export function Pickers() {
       {model !== undefined && model.efforts.length > 0 && (
         <Picker
           title="Effort"
-          shortcut="mod+shift+e"
+          shortcut={['mod+shift+e', 'mod+slash']}
           trigger={
             <>
               <HugeiconsIcon icon={BrainIcon} />
@@ -168,10 +156,24 @@ function ModelPicker() {
     }
   }
 
-  useHotkeys('mod+shift+m', () => changeOpen(!open), {
+  useHotkeys(['mod+shift+m', 'mod+period'], () => changeOpen(!open), {
     enableOnFormTags: true,
     preventDefault: true,
   })
+
+  function view(key: string) {
+    const same = fetched[key]?.find((option) => option.value === settings.model)
+    if (
+      key !== current &&
+      current !== null &&
+      capabilities !== null &&
+      same !== undefined
+    ) {
+      setFetched((models) => ({ ...models, [current]: capabilities.models }))
+      pick(key, same)
+    }
+    setViewed(key)
+  }
 
   function pick(key: string, option: Model) {
     const picked = choices.find((item) => item.key === key)
@@ -234,7 +236,41 @@ function ModelPicker() {
         className="flex max-h-86.5 w-screen max-w-90 flex-row"
         onOpenAutoFocus={(event) => {
           event.preventDefault()
-          searchInput.current?.focus()
+          if (searchInput.current !== null) {
+            searchInput.current.focus()
+            return
+          }
+          if (!(event.currentTarget instanceof HTMLElement)) {
+            throw new Error('model picker is not an element')
+          }
+          const content = event.currentTarget
+          const model =
+            content.querySelector<HTMLElement>('[data-selected=true]') ??
+            content.querySelector<HTMLElement>('[data-model]')
+          model?.focus()
+        }}
+        onKeyDown={(event) => {
+          const typing =
+            document.activeElement === searchInput.current && query !== ''
+          if (
+            (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') ||
+            typing
+          ) {
+            moveFocus(event, 'ArrowUp', 'ArrowDown', 'input, [data-model]')
+            return
+          }
+          event.preventDefault()
+          const usable = choices.filter((item) => item.error === null)
+          const index = usable.findIndex((item) => item.key === viewed)
+          const step = event.key === 'ArrowRight' ? 1 : -1
+          const next = usable.at(
+            Math.min(Math.max(index + step, 0), usable.length - 1)
+          )
+          if (next === undefined || next.key === viewed) {
+            return
+          }
+          event.currentTarget.focus()
+          view(next.key)
         }}
         onCloseAutoFocus={(event) => {
           event.preventDefault()
@@ -271,22 +307,7 @@ function ModelPicker() {
                       if (item.error !== null) {
                         return
                       }
-                      const same = fetched[item.key]?.find(
-                        (option) => option.value === settings.model
-                      )
-                      if (
-                        item.key !== current &&
-                        current !== null &&
-                        capabilities !== null &&
-                        same !== undefined
-                      ) {
-                        setFetched((models) => ({
-                          ...models,
-                          [current]: capabilities.models,
-                        }))
-                        pick(item.key, same)
-                      }
-                      setViewed(item.key)
+                      view(item.key)
                     }}
                   >
                     <ProviderIcon provider={item.provider} className="size-5" />
@@ -370,8 +391,12 @@ function ModelPicker() {
               matches.map((option) => (
                 <button
                   key={option.value}
+                  data-model
+                  data-selected={
+                    viewed === current && option.value === settings.model
+                  }
                   className={cn(
-                    'hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer flex-col justify-center rounded-sm px-2 py-1.5 text-left',
+                    'hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground mb-0.5 outline-none flex min-h-8 w-full cursor-pointer flex-col justify-center rounded-sm px-2 py-1.5 text-left',
                     viewed === current &&
                       option.value === settings.model &&
                       'text-foreground bg-foreground/[0.08]'
@@ -399,112 +424,5 @@ function ModelPicker() {
         </div>
       </PopoverContent>
     </Popover>
-  )
-}
-
-function Picker(props: {
-  title: string
-  shortcut: string
-  trigger: ReactNode
-  value: string
-  options: { value: string; label: string }[]
-  onChange: (value: string) => void
-}) {
-  const radius = Math.min(190, (window.innerWidth - 16) / 2)
-  const [open, setOpen] = useState(false)
-  useHotkeys(props.shortcut, () => setOpen(!open), {
-    enableOnFormTags: true,
-    preventDefault: true,
-  })
-
-  return (
-    <DropdownMenu
-      modal={props.options.length > 5}
-      open={open}
-      onOpenChange={setOpen}
-    >
-      <DropdownMenuTrigger asChild>
-        <button className={cn(control, controlSm)} title={props.title}>
-          {props.trigger}
-        </button>
-      </DropdownMenuTrigger>
-      {props.options.length > 5 && (
-        <DropdownMenuContent
-          className="w-72"
-          side="top"
-          align="start"
-          onCloseAutoFocus={(event) => {
-            event.preventDefault()
-            document.querySelector<HTMLElement>('[data-composer]')?.focus()
-          }}
-        >
-          <DropdownMenuRadioGroup
-            value={props.value}
-            onValueChange={props.onChange}
-          >
-            {props.options.map((option) => (
-              <DropdownMenuRadioItem key={option.value} value={option.value}>
-                {option.label}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      )}
-      {props.options.length <= 5 && (
-        <DropdownMenuPrimitive.Portal>
-          <DropdownMenuPrimitive.Content
-            data-slot="dropdown-menu-content"
-            side="top"
-            sideOffset={-28}
-            className="data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 pointer-events-none relative z-50 origin-(--radix-dropdown-menu-content-transform-origin) drop-shadow-[0_12px_28px_rgb(0_0_0/45%)] duration-100 outline-none"
-            style={{ width: radius * 2, height: radius }}
-            onCloseAutoFocus={(event) => {
-              event.preventDefault()
-              document.querySelector<HTMLElement>('[data-composer]')?.focus()
-            }}
-          >
-            <div
-              className="bg-background pointer-events-auto absolute"
-              style={sector(radius, radius * 0.35, radius, 0, Math.PI).style}
-            />
-            <DropdownMenuPrimitive.RadioGroup
-              value={props.value}
-              onValueChange={props.onChange}
-            >
-              {props.options.map((option, index) => {
-                const shape = sector(
-                  radius,
-                  radius * 0.35,
-                  radius,
-                  Math.PI - ((index + 1) * Math.PI) / props.options.length,
-                  Math.PI - (index * Math.PI) / props.options.length
-                )
-                return (
-                  <DropdownMenuPrimitive.RadioItem
-                    key={option.value}
-                    value={option.value}
-                    className={cn(
-                      'pointer-events-auto absolute cursor-pointer transition-colors outline-none',
-                      option.value === props.value &&
-                        'text-foreground bg-[color-mix(in_srgb,var(--primary)_30%,var(--popover))]',
-                      option.value !== props.value &&
-                        'bg-popover text-secondary-label data-highlighted:bg-accent data-highlighted:text-accent-foreground'
-                    )}
-                    style={shape.style}
-                  >
-                    <span
-                      className="absolute -translate-x-1/2 -translate-y-1/2 text-sm font-medium whitespace-nowrap"
-                      style={shape.center}
-                    >
-                      {option.label}
-                    </span>
-                  </DropdownMenuPrimitive.RadioItem>
-                )
-              })}
-            </DropdownMenuPrimitive.RadioGroup>
-          </DropdownMenuPrimitive.Content>
-        </DropdownMenuPrimitive.Portal>
-      )}
-    </DropdownMenu>
   )
 }

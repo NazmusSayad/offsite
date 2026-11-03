@@ -73,7 +73,7 @@ const EditorDialog = lazy(async () => ({
 
 const wide = window.matchMedia('(min-width: 768px)')
 const compactWidth = 800
-const paletteKeys = ['mod+k', 'mod+p', 'mod+shift+p']
+const paletteKeys = ['mod+k', 'mod+shift+p']
 
 function subscribeWide(listener: () => void) {
   wide.addEventListener('change', listener)

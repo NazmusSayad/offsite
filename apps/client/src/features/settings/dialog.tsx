@@ -2,6 +2,7 @@ import { ArrowRight01Icon, Cancel01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Provider } from '@offsite/core/providers'
 import { useState } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import { updateConfig } from '@/api/machine-config'
 import { ProviderIcon } from '@/components/icons'
 import {
@@ -116,6 +117,10 @@ export function SettingsDialog() {
   const view = useSettingsView()
   const page = view.page
   const machine = view.machine
+  useHotkeys('mod+comma', () => showSettings(!open), {
+    enableOnFormTags: true,
+    preventDefault: true,
+  })
 
   function navButton(item: SettingsPage) {
     return (
