@@ -272,7 +272,7 @@ export function Composer() {
         'pointer-events-none z-20',
         hero
           ? 'absolute inset-0 flex items-center pb-3 sm:pb-4'
-          : 'relative shrink-0 before:absolute before:right-(--app-scrollbar-width) before:bottom-full before:left-0 before:h-8 before:bg-linear-to-t before:from-background before:to-transparent'
+          : 'relative flex min-h-0 flex-col before:absolute before:right-(--app-scrollbar-width) before:bottom-full before:left-0 before:h-8 before:bg-linear-to-t before:from-background before:to-transparent'
       )}
     >
       <Wrapper width="composer" className="pointer-events-auto relative z-10">
