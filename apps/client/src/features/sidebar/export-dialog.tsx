@@ -1,4 +1,6 @@
 import {
+  CheckIcon,
+  CopyIcon,
   FileExportIcon,
   MinusSignIcon,
   Tick02Icon,
@@ -20,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { useCopy } from '@/lib/clipboard'
 import { compact } from '@/lib/format'
 import { saveBlob } from '@/lib/media'
 import { type MachineSession, showError, showExport } from '@/lib/store'
@@ -103,6 +106,7 @@ const contents: {
 
 export function ExportDialog(props: { session: MachineSession }) {
   const session = props.session
+  const clipboard = useCopy()
   const [detail, setDetail] = useState<ExportDetail>('steps')
   const [exports, setExports] = useState<{
     markdown: Record<ExportDetail, string>
@@ -150,14 +154,6 @@ export function ExportDialog(props: { session: MachineSession }) {
           </div>
         </DialogHeader>
         <div className="flex flex-col gap-3 px-6 pt-5 pb-6">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-foreground font-medium">Detail</span>
-            <span className="text-muted-foreground text-xs tabular-nums">
-              {exports === null
-                ? 'Counting tokens…'
-                : `About ${tokens(exports.markdown[detail]).toLocaleString()} tokens`}
-            </span>
-          </div>
           <Slider.Root
             className="relative flex h-5 w-full touch-none items-center select-none"
             min={0}
@@ -234,26 +230,41 @@ export function ExportDialog(props: { session: MachineSession }) {
             ))}
           </ul>
         </div>
-        <DialogFooter className="bg-muted/40 border-t px-6 py-4">
+        <DialogFooter className="bg-muted/40 border-t px-6 py-4 sm:justify-between">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             onClick={() => showExport(null)}
           >
             Cancel
           </Button>
-          <Button
-            type="button"
-            disabled={exports === null}
-            onClick={() => {
-              if (exports !== null) {
-                save(exports.markdown[detail])
-              }
-            }}
-          >
-            <HugeiconsIcon icon={FileExportIcon} />
-            Export
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={exports === null || clipboard.copied}
+              onClick={() => {
+                if (exports !== null) {
+                  void clipboard.copy(exports.markdown[detail])
+                }
+              }}
+            >
+              <HugeiconsIcon icon={clipboard.copied ? CheckIcon : CopyIcon} />
+              {clipboard.copied ? 'Copied' : 'Copy'}
+            </Button>
+            <Button
+              type="button"
+              disabled={exports === null}
+              onClick={() => {
+                if (exports !== null) {
+                  save(exports.markdown[detail])
+                }
+              }}
+            >
+              <HugeiconsIcon icon={FileExportIcon} />
+              Export
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
