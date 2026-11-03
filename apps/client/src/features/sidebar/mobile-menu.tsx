@@ -35,7 +35,7 @@ export function MobileMenu(props: { buttonClassName: string }) {
   )
 
   return (
-    <div className="mr-1.5 flex items-center gap-0.5">
+    <div className="mr-1.5 flex items-center gap-0.75">
       <button
         className={cn(props.buttonClassName, 'size-7 [&>svg]:size-4.5')}
         title="Settings"

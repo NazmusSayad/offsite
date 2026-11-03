@@ -295,7 +295,7 @@ export function Sidebar(
             <MobileMenu buttonClassName={iconButton} />
           ) : (
             <button
-              className={cn(iconButton, 'size-7')}
+              className={cn(iconButton, 'size-7 [&>svg]:size-4.5')}
               title={`Hide sidebar (${mod}+B)`}
               aria-label="Hide sidebar"
               onClick={props.onHide}
@@ -310,29 +310,23 @@ export function Sidebar(
             onAddProject={setAdding}
           />
           {props.mobile && <StatusChips hideDone />}
-          <button
-            className={cn(
-              iconButton,
-              'ml-auto size-7',
-              props.mobile && '[&>svg]:size-4.5'
-            )}
-            title={`Search (${mod}+K)`}
-            aria-label="Search"
-            onClick={() => showPalette(true)}
-          >
-            <HugeiconsIcon icon={SearchIcon} />
-          </button>
-          <button
-            className={cn(
-              iconButton,
-              'size-7',
-              props.mobile && '[&>svg]:size-4.5'
-            )}
-            title={`New thread (${mod}+N)`}
-            onClick={startThread}
-          >
-            <HugeiconsIcon icon={SquarePenIcon} />
-          </button>
+          <div className="ml-auto flex items-center gap-0.75">
+            <button
+              className={cn(iconButton, 'size-7 [&>svg]:size-4.5')}
+              title={`Search (${mod}+K)`}
+              aria-label="Search"
+              onClick={() => showPalette(true)}
+            >
+              <HugeiconsIcon icon={SearchIcon} />
+            </button>
+            <button
+              className={cn(iconButton, 'size-7 [&>svg]:size-4.5')}
+              title={`New thread (${mod}+N)`}
+              onClick={startThread}
+            >
+              <HugeiconsIcon icon={SquarePenIcon} />
+            </button>
+          </div>
         </div>
         <nav className="flex min-h-0 flex-1 [scrollbar-width:none] flex-col overflow-y-auto px-(--sidebar-content-inset) pb-(--sidebar-content-inset)">
           <ul className="flex flex-1 flex-col gap-px">
