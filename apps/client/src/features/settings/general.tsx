@@ -57,7 +57,9 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
 }
 
 function UpdateSection() {
-  const [status, setStatus] = useState<'idle' | 'checking' | 'current'>('idle')
+  const [status, setStatus] = useState<
+    'idle' | 'checking' | 'updating' | 'current'
+  >('idle')
   const [failure, setFailure] = useState<string | null>(null)
 
   async function check() {
@@ -68,18 +70,16 @@ function UpdateSection() {
         'serviceWorker' in navigator
           ? await navigator.serviceWorker.getRegistration()
           : undefined
-      if (registration !== undefined) {
-        await registration.update()
-        const worker = registration.installing ?? registration.waiting
-        if (worker !== null) {
-          await activated(worker)
-        }
-      }
-      if ((await latestEntry()) === currentEntry()) {
-        setStatus('current')
+      if (registration === undefined) {
+        location.reload()
         return
       }
-      location.reload()
+      await registration.update()
+      setStatus(
+        registration.installing === null && registration.waiting === null
+          ? 'current'
+          : 'updating'
+      )
     } catch (error) {
       console.error('could not check for updates', error)
       setFailure(errorMessage(error))
@@ -99,10 +99,15 @@ function UpdateSection() {
           {status === 'current' && (
             <span className="text-muted-foreground text-xs">Up to date</span>
           )}
+          {status === 'updating' && (
+            <span className="text-muted-foreground text-xs">
+              Updating, the page reloads when it&apos;s ready
+            </span>
+          )}
           <Button
             size="sm"
             variant="outline"
-            disabled={status === 'checking'}
+            disabled={status === 'checking' || status === 'updating'}
             onClick={() => void check()}
           >
             Check for updates
@@ -111,44 +116,4 @@ function UpdateSection() {
       </Row>
     </Section>
   )
-}
-
-async function activated(worker: ServiceWorker) {
-  await new Promise<void>((resolve, reject) => {
-    function settle() {
-      if (worker.state === 'activated') {
-        resolve()
-      }
-      if (worker.state === 'redundant') {
-        reject(new Error('the new version failed to install'))
-      }
-    }
-    worker.addEventListener('statechange', settle)
-    settle()
-  })
-}
-
-function currentEntry() {
-  const entry = document
-    .querySelector('script[type="module"][src]')
-    ?.getAttribute('src')
-  if (entry === null || entry === undefined) {
-    throw new Error('this page has no entry script')
-  }
-  return entry
-}
-
-async function latestEntry() {
-  const response = await fetch(`/?update=${Date.now()}`, { cache: 'no-store' })
-  if (!response.ok) {
-    throw new Error(`the server answered ${response.status}`)
-  }
-  const entry = new DOMParser()
-    .parseFromString(await response.text(), 'text/html')
-    .querySelector('script[type="module"][src]')
-    ?.getAttribute('src')
-  if (entry === null || entry === undefined) {
-    throw new Error('the server page has no entry script')
-  }
-  return entry
 }
