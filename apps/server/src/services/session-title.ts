@@ -5,8 +5,8 @@ import { projectPath } from './projects.ts'
 import { sessionHistory } from './runs.ts'
 import { findSession, providerOf, refresh, updateSession } from './sessions.ts'
 
-const CONTEXT_LIMIT = 8_000
-const MESSAGE_LIMIT = 2_000
+const CONTEXT_LIMIT = 10_000
+const MESSAGE_LIMIT = 1_600
 const REPLY_RESERVE = 2_000
 
 const TITLE_INSTRUCTIONS = `You title coding agent sessions so the user can recognize them weeks later.
