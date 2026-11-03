@@ -148,7 +148,8 @@ export function rememberTerminal() {
   if (
     terminalPage() !== null ||
     search.machine === undefined ||
-    search.project === undefined
+    search.project === undefined ||
+    search.session === undefined
   ) {
     return
   }
@@ -172,15 +173,24 @@ export function syncUrl() {
     )
     return
   }
+  const search = currentSearch()
+  const fromDraft =
+    search.machine === selection.machine &&
+    search.project === selection.projectId &&
+    search.session === undefined &&
+    (selection.sessionId === null || getState().loaded)
+  const remembered = terminalProjects().includes(
+    `${selection.machine} ${selection.projectId}`
+  )
   const next = {
     machine: selection.machine,
     project: selection.projectId,
     session: selection.sessionId ?? undefined,
-    bottom: terminalProjects().includes(
-      `${selection.machine} ${selection.projectId}`
-    )
-      ? ('terminal' as const)
-      : undefined,
+    bottom: fromDraft
+      ? search.bottom
+      : selection.sessionId !== null && remembered
+        ? ('terminal' as const)
+        : undefined,
   }
   if (terminalPage() !== null) {
     void router.navigate({
@@ -191,7 +201,6 @@ export function syncUrl() {
     })
     return
   }
-  const search = currentSearch()
   const sameSession =
     search.machine === next.machine &&
     search.project === next.project &&
