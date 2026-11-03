@@ -152,7 +152,13 @@ function DesktopLayout() {
     () => terminalState().open
   )
   const running = useStore(selectedRunning)
-  const projectless = selection?.projectId === NO_PROJECT
+  const projectless = useStore(
+    (state) =>
+      state.selection?.projectId === NO_PROJECT ||
+      (state.selection !== null &&
+        projectOf(state, state.selection.machine, state.selection.projectId)
+          ?.scratch === true)
+  )
   const git = useGitStatus(
     selection?.machine ?? '',
     machine?.status === 'online' && !projectless

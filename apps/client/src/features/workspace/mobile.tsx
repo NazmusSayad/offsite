@@ -115,7 +115,12 @@ function MobileChat(props: { selection: Selection }) {
     props.selection.projectId
   )
   const running = useStore(selectedRunning)
-  const projectless = props.selection.projectId === NO_PROJECT
+  const projectless = useStore(
+    (state) =>
+      props.selection.projectId === NO_PROJECT ||
+      projectOf(state, props.selection.machine, props.selection.projectId)
+        ?.scratch === true
+  )
   const git = useGitStatus(
     props.selection.machine,
     machine.status === 'online' && !projectless
