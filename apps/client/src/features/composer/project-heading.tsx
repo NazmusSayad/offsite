@@ -1,3 +1,4 @@
+import { NO_PROJECT } from '@offsite/core/projects'
 import { Fragment } from 'react'
 import { machineKey } from '@/api/machines'
 import { ProjectIcon } from '@/components/icons'
@@ -13,6 +14,7 @@ import {
 import { MachineLogo } from '@/constants/machine-icons'
 import { openSession } from '@/lib/sessions'
 import { projectOf, useStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 
 export function ProjectHeading(props: {
   machine: string
@@ -25,19 +27,27 @@ export function ProjectHeading(props: {
   )
   const projects = useStore((state) => state.projects)
   const machines = useStore((state) => state.machines)
+  const projectless =
+    props.projectId === NO_PROJECT || project?.scratch === true
 
   return (
     <div className="absolute inset-x-0 bottom-full pb-4">
       <h1 className="text-foreground w-full text-center text-2xl font-normal tracking-tight sm:text-3xl">
-        What should we build in{' '}
+        What should we build {!projectless && 'in '}
         {sessionId === null ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="border-muted-foreground/35 hover:border-foreground/60 inline-flex max-w-64 cursor-pointer border-b border-dotted align-bottom outline-none"
+                className={cn(
+                  'border-muted-foreground/35 hover:border-foreground/60 inline-flex max-w-64 cursor-pointer border-b border-dotted align-bottom outline-none',
+                  projectless && 'max-w-none'
+                )}
                 title={project?.path}
               >
-                <span className="min-w-0 truncate">{project?.name}</span>?
+                <span className="min-w-0 truncate">
+                  {projectless ? 'without a project' : project?.name}
+                </span>
+                ?
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -54,10 +64,14 @@ export function ProjectHeading(props: {
                   .map((machine) => ({
                     machine,
                     items: projects.filter(
-                      (item) => item.machine === machine.id
+                      (item) => item.machine === machine.id && !item.scratch
                     ),
                   }))
-                  .filter((group) => group.items.length > 0)
+                  .filter(
+                    (group) =>
+                      group.items.length > 0 ||
+                      group.machine.system?.scratchAvailable === true
+                  )
                   .map(({ machine, items }, index) => (
                     <Fragment key={machine.id}>
                       {index > 0 && <DropdownMenuSeparator />}
@@ -69,6 +83,27 @@ export function ProjectHeading(props: {
                           />
                           <span className="truncate">{machine.name}</span>
                         </DropdownMenuLabel>
+                      )}
+                      {machine.system?.scratchAvailable === true && (
+                        <DropdownMenuRadioItem
+                          value={machineKey(machine.id, NO_PROJECT)}
+                          onSelect={() =>
+                            openSession({
+                              machine: machine.id,
+                              projectId: NO_PROJECT,
+                              sessionId: null,
+                            })
+                          }
+                        >
+                          <ProjectIcon
+                            machine={machine.id}
+                            projectId={NO_PROJECT}
+                            className="size-4 shrink-0"
+                          />
+                          <span className="min-w-0 flex-1 truncate">
+                            No project
+                          </span>
+                        </DropdownMenuRadioItem>
                       )}
                       {items.map((item) => (
                         <DropdownMenuRadioItem
@@ -100,10 +135,13 @@ export function ProjectHeading(props: {
           </DropdownMenu>
         ) : (
           <span
-            className="border-muted-foreground/35 inline-block max-w-64 truncate border-b border-dotted align-bottom"
+            className={cn(
+              'border-muted-foreground/35 inline-block max-w-64 truncate border-b border-dotted align-bottom',
+              projectless && 'max-w-none'
+            )}
             title={project?.path}
           >
-            {project?.name}
+            {projectless ? 'without a project' : project?.name}
           </span>
         )}
         {sessionId !== null && '?'}

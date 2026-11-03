@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
 import { getSessionMessages } from '@anthropic-ai/claude-agent-sdk'
 import type { SessionSettings } from '@offsite/core/config'
+import { NO_PROJECT } from '@offsite/core/projects'
 import type { RpcMethods } from '@offsite/core/protocol'
 import type { RewindRequest, RewindResult } from '@offsite/core/sessions'
 import { history, Run } from '../lib/claude/index.ts'
@@ -19,7 +20,11 @@ import {
   rewindOpenCode,
 } from '../lib/opencode/index.ts'
 import { assertEnabled, providerName } from './accounts.ts'
-import { projectPath } from './projects.ts'
+import {
+  addScratchProject,
+  projectPath,
+  removeScratchProject,
+} from './projects.ts'
 import { listedUpdatedAt, providerOf, recordInteraction } from './sessions.ts'
 
 const locks = new Map<string, Promise<void>>()
@@ -133,22 +138,50 @@ export async function send(
   request: RpcMethods['sessions.send']['params']
 ) {
   assertEnabled(request.settings.provider, request.settings.accountId)
+  if (request.projectId === NO_PROJECT) {
+    if (request.sessionId !== null) {
+      throw new Error('A started chat always has a project')
+    }
+    const project = await addScratchProject(request.prompt.text)
+    const run = await startRun(project.path, request.settings).catch(
+      async (error: unknown) => {
+        await removeScratchProject(project.id, project.path)
+        throw error
+      }
+    )
+    await submitFirst(client, run, request, project.id)
+    return
+  }
   const cwd = projectPath(request.projectId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
     throw new Error(`${cwd} is not a folder`)
   }
   if (request.sessionId === null) {
     const run = await startRun(cwd, request.settings)
-    const sessionId = run.sessionId
-    client.opening = sessionId
-    client.sessionId = sessionId
-    client.send({ type: 'started', sessionId, projectId: request.projectId })
-    await run.submit(request.prompt, request.delivery)
-    recordInteraction(sessionId)
+    await submitFirst(client, run, request, request.projectId)
     return
   }
   const sessionId = request.sessionId
   await locked(sessionId, () => sendExisting(client, sessionId, cwd, request))
+}
+
+async function submitFirst(
+  client: Client,
+  run: Awaited<ReturnType<typeof startRun>>,
+  request: RpcMethods['sessions.send']['params'],
+  projectId: string
+) {
+  const sessionId = run.sessionId
+  client.opening = sessionId
+  client.sessionId = sessionId
+  client.send({
+    type: 'started',
+    sessionId,
+    projectId,
+    from: request.projectId,
+  })
+  await run.submit(request.prompt, request.delivery)
+  recordInteraction(sessionId)
 }
 
 async function sendExisting(

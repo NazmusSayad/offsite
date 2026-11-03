@@ -1,15 +1,19 @@
+export const NO_PROJECT = 'no-project'
+
 export type Project = {
   id: string
   path: string
   name: string
   logo: string | null
   hidden: boolean
+  scratch: boolean
 }
 
 export type ProjectPatch = {
   name?: string
   logo?: string | null
   hidden?: boolean
+  scratch?: false
 }
 
 export type DirectoryListing = {

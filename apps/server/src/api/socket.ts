@@ -1,5 +1,6 @@
 import os from 'node:os'
 import path from 'node:path'
+import { NO_PROJECT } from '@offsite/core/projects'
 import type { RpcCall, RpcMethod, RpcMethods } from '@offsite/core/protocol'
 import type { WebSocket } from 'ws'
 import { agentMessages, earlier, image } from '../lib/claude/index.ts'
@@ -173,7 +174,7 @@ const handlers: Handlers = {
   },
   'sessions.remove': async (params) => {
     try {
-      await removeSession(params.id)
+      await removeSession(params.id, params.projectId)
     } finally {
       publishSessions()
     }
@@ -273,9 +274,14 @@ const handlers: Handlers = {
     capabilities(
       params.provider,
       params.accountId,
-      params.projectId === null ? os.homedir() : projectPath(params.projectId)
+      params.projectId === null || params.projectId === NO_PROJECT
+        ? os.homedir()
+        : projectPath(params.projectId)
     ),
-  'files.list': (params) => listFiles(projectPath(params.projectId)),
+  'files.list': (params) =>
+    params.projectId === NO_PROJECT
+      ? []
+      : listFiles(projectPath(params.projectId)),
   'files.entries': (params) => listEntries(projectPath(params.projectId)),
   'files.read': (params) =>
     readProjectFile(projectPath(params.projectId), params.path),

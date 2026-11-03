@@ -1,5 +1,6 @@
 import { ChevronDownIcon, SearchIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { NO_PROJECT } from '@offsite/core/projects'
 import {
   matchAction,
   rankMessages,
@@ -22,7 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
 import { timeAgo } from '@/lib/format'
-import { openSession } from '@/lib/sessions'
+import { openSession, startChat } from '@/lib/sessions'
 import {
   getState,
   providerPages,
@@ -140,7 +141,7 @@ function PaletteContent() {
               selection.projectId,
               projects
             ),
-            run: () => openSession({ ...selection, sessionId: null }),
+            run: () => startChat(selection.machine, selection.projectId),
           },
         ]),
     {
@@ -507,8 +508,9 @@ function projectName(
   projectId: string,
   projects: { machine: string; id: string; name: string }[]
 ) {
-  return (
-    projects.find((item) => item.machine === machine && item.id === projectId)
-      ?.name ?? ''
-  )
+  return projectId === NO_PROJECT
+    ? 'No project'
+    : (projects.find(
+        (item) => item.machine === machine && item.id === projectId
+      )?.name ?? '')
 }

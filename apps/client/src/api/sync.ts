@@ -173,6 +173,7 @@ async function resync(machine: string) {
         defaultShell: snapshot.defaultShell,
         defaultClaudeBaseDir: snapshot.defaultClaudeBaseDir,
         homeDir: snapshot.homeDir,
+        scratchAvailable: snapshot.scratchAvailable,
       },
       activity: snapshot.activity,
       providers: snapshot.providers,
@@ -330,7 +331,7 @@ function receive(machine: string, event: ServerEvent) {
       if (
         state.selection === null ||
         !selected ||
-        state.selection.projectId !== event.projectId ||
+        state.selection.projectId !== event.from ||
         state.selection.sessionId !== null
       ) {
         return

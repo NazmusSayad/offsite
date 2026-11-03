@@ -1,5 +1,6 @@
 import type { PromptDelivery, SessionSettings } from '@offsite/core/config'
 import type { PermissionDecision, Prompt } from '@offsite/core/items'
+import { NO_PROJECT } from '@offsite/core/projects'
 import type { SessionPatch } from '@offsite/core/sessions'
 import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import { call } from '@/api/connection'
@@ -16,6 +17,7 @@ import {
   getState,
   type MachineSession,
   machineOf,
+  projectOf,
   type Selection,
   showError,
   update,
@@ -121,6 +123,49 @@ export function lastTerminalMachine() {
     return last
   }
   return machines.at(0)?.id ?? null
+}
+
+export function startChat(machine: string, projectId: string) {
+  openSession({
+    machine,
+    projectId:
+      projectOf(getState(), machine, projectId)?.scratch === true
+        ? NO_PROJECT
+        : projectId,
+    sessionId: null,
+  })
+}
+
+export function lastProject() {
+  const state = getState()
+  const raw = localStorage.getItem('lastProject')
+  const last: { machine: string; projectId: string } | null =
+    raw === null ? null : JSON.parse(raw)
+  const projectless = state.machines.filter(
+    (machine) => machine.system?.scratchAvailable === true
+  )
+  if (
+    last !== null &&
+    last.projectId === NO_PROJECT &&
+    projectless.some((machine) => machine.id === last.machine)
+  ) {
+    return last
+  }
+  const registered =
+    last === null
+      ? undefined
+      : state.projects.find(
+          (project) =>
+            project.machine === last.machine && project.id === last.projectId
+        )
+  const project = registered ?? state.projects.find((item) => !item.scratch)
+  if (project !== undefined) {
+    return { machine: project.machine, projectId: project.id }
+  }
+  if (projectless.length > 0) {
+    return { machine: projectless[0].id, projectId: NO_PROJECT }
+  }
+  return null
 }
 
 export function openTerminalPage(machine: string, view: string) {
@@ -355,20 +400,24 @@ export async function deactivateSession(
       )
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .at(0)
-    openSession(
-      latest === undefined
-        ? { ...selection, sessionId: null }
-        : {
-            machine: latest.machine,
-            projectId: latest.projectId,
-            sessionId: latest.id,
-          }
-    )
+    if (latest === undefined) {
+      startChat(selection.machine, selection.projectId)
+    } else {
+      openSession({
+        machine: latest.machine,
+        projectId: latest.projectId,
+        sessionId: latest.id,
+      })
+    }
   }
   await editSession(machine, id, { status: 'inactive' })
 }
 
-export async function removeSession(machine: string, id: string) {
+export async function removeSession(
+  machine: string,
+  id: string,
+  projectId: string
+) {
   update({
     sessions: getState().sessions.filter(
       (item) => item.machine !== machine || item.id !== id
@@ -380,10 +429,10 @@ export async function removeSession(machine: string, id: string) {
   deleteDraft(machineKey(machine, id))
   const selection = getState().selection
   if (selection?.machine === machine && selection.sessionId === id) {
-    openSession({ ...selection, sessionId: null })
+    startChat(machine, selection.projectId)
   }
   try {
-    await call(machine, 'sessions.remove', { id })
+    await call(machine, 'sessions.remove', { id, projectId })
   } catch (error) {
     showError(error)
   }

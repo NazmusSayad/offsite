@@ -1,5 +1,6 @@
-import { ChatGptIcon } from '@hugeicons/core-free-icons'
+import { BubbleChatIcon, ChatGptIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { NO_PROJECT } from '@offsite/core/projects'
 import type { Provider } from '@offsite/core/providers'
 import { projectOf, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -33,6 +34,19 @@ export function ProjectIcon(props: {
   const project = useStore((state) =>
     projectOf(state, props.machine, props.projectId)
   )
+  if (props.projectId === NO_PROJECT || project?.scratch === true) {
+    return (
+      <span
+        aria-hidden="true"
+        className={cn(
+          'text-muted-foreground inline-flex size-4 shrink-0 items-center justify-center',
+          props.className
+        )}
+      >
+        <HugeiconsIcon icon={BubbleChatIcon} className="size-full" />
+      </span>
+    )
+  }
   return (
     <ProjectBadge
       name={project?.name ?? ''}

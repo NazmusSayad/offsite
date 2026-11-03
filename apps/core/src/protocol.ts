@@ -89,7 +89,10 @@ export type RpcMethods = {
     params: { id: string; projectId: string }
     result: null
   }
-  'sessions.remove': { params: { id: string }; result: null }
+  'sessions.remove': {
+    params: { id: string; projectId: string }
+    result: null
+  }
   'sessions.open': {
     params: {
       sessionId: string
@@ -345,7 +348,7 @@ export type ServerEvent =
   | { type: 'sessions'; sessions: Session[] }
   | { type: 'providers'; providers: ProviderStatus[] }
   | ({ type: 'accounts' } & Accounts)
-  | { type: 'started'; sessionId: string; projectId: string }
+  | { type: 'started'; sessionId: string; projectId: string; from: string }
   | {
       type: 'history'
       sessionId: string

@@ -2,6 +2,7 @@ import {
   AiContentGenerator02Icon,
   Delete02Icon,
   FileExportIcon,
+  FolderAddIcon,
   MinimizeIcon,
   PencilEdit02Icon,
   PinIcon,
@@ -13,6 +14,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
 import { machineKey } from '@/api/machines'
+import { updateProject } from '@/api/projects'
 import {
   ContextMenuItem,
   ContextMenuSeparator,
@@ -23,7 +25,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { providerNames } from '@/lib/format'
 import { editSession, regenerateTitle, removeSession } from '@/lib/sessions'
-import { type MachineSession, showExport, useStore } from '@/lib/store'
+import {
+  type MachineSession,
+  projectOf,
+  showError,
+  showExport,
+  useStore,
+} from '@/lib/store'
 
 export function SessionMenuItems(props: {
   session: MachineSession
@@ -36,6 +44,10 @@ export function SessionMenuItems(props: {
   const [confirming, setConfirming] = useState(false)
   const generatingTitle = useStore((state) =>
     state.generatingTitles.includes(machineKey(session.machine, session.id))
+  )
+  const scratch = useStore(
+    (state) =>
+      projectOf(state, session.machine, session.projectId)?.scratch === true
   )
   const Item = props.context ? ContextMenuItem : DropdownMenuItem
   const Separator = props.context ? ContextMenuSeparator : DropdownMenuSeparator
@@ -114,12 +126,25 @@ export function SessionMenuItems(props: {
         <HugeiconsIcon icon={FileExportIcon} />
         Export
       </Item>
+      {scratch && (
+        <Item
+          onSelect={() =>
+            updateProject(session.machine, session.projectId, {
+              scratch: false,
+              name: session.title,
+            }).catch(showError)
+          }
+        >
+          <HugeiconsIcon icon={FolderAddIcon} />
+          Turn into project
+        </Item>
+      )}
       <Item
         variant="destructive"
         title={`Also removes it from ${providerNames[session.provider]}`}
         onSelect={(event) => {
           if (confirming) {
-            void removeSession(session.machine, session.id)
+            void removeSession(session.machine, session.id, session.projectId)
             return
           }
           event.preventDefault()

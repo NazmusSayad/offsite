@@ -42,7 +42,8 @@ export function ScopeMenu(props: {
     .map((machine) => ({
       machine,
       projects: registered.filter(
-        (project) => project.machine === machine.id && !project.hidden
+        (project) =>
+          project.machine === machine.id && !project.hidden && !project.scratch
       ),
     }))
     .filter((group) => machines.length > 1 || group.projects.length > 0)

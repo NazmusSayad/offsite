@@ -1,5 +1,6 @@
 import { ArrowLeft01Icon, XIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { NO_PROJECT } from '@offsite/core/projects'
 import { useSearch } from '@tanstack/react-router'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import { Fragment, useCallback, useState, useSyncExternalStore } from 'react'
@@ -114,9 +115,12 @@ function MobileChat(props: { selection: Selection }) {
     props.selection.projectId
   )
   const running = useStore(selectedRunning)
+  const projectless = props.selection.projectId === NO_PROJECT
   const git = useGitStatus(
     props.selection.machine,
-    machine.status === 'online' ? props.selection.projectId : null,
+    machine.status === 'online' && !projectless
+      ? props.selection.projectId
+      : null,
     running
   )
   const commands = useGitCommands({
@@ -135,7 +139,7 @@ function MobileChat(props: { selection: Selection }) {
   })
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const changed = git.repos.some((repo) => repo.changed > 0)
-  const open = panel !== null || terminal
+  const open = !projectless && (panel !== null || terminal)
 
   const showOverlay = useCallback(
     (search: Search) => {
@@ -222,25 +226,27 @@ function MobileChat(props: { selection: Selection }) {
             </div>
           )}
         </div>
-        <PanelMenu
-          selection={props.selection}
-          mobile
-          session={session}
-          panel={panel}
-          terminal={terminal}
-          changed={changed}
-          open={commands.menuOpen}
-          onOpenChange={commands.setMenuOpen}
-          onPanel={showPanel}
-          onTerminal={showTerminal}
-        >
-          {git.repos.length > 0 && (
-            <>
-              <DropdownMenuSeparator />
-              <GitMenuItems git={commands} collapsed />
-            </>
-          )}
-        </PanelMenu>
+        {!projectless && (
+          <PanelMenu
+            selection={props.selection}
+            mobile
+            session={session}
+            panel={panel}
+            terminal={terminal}
+            changed={changed}
+            open={commands.menuOpen}
+            onOpenChange={commands.setMenuOpen}
+            onPanel={showPanel}
+            onTerminal={showTerminal}
+          >
+            {git.repos.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <GitMenuItems git={commands} collapsed />
+              </>
+            )}
+          </PanelMenu>
+        )}
         <GitCommandDialog git={commands} />
       </header>
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">

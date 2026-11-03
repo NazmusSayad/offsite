@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto'
-import { readdir, stat } from 'node:fs/promises'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { mkdir, readdir, rmdir, stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import type {
@@ -11,7 +11,10 @@ import { eq, max } from 'drizzle-orm'
 import { broadcast } from '../lib/hub.ts'
 import { db } from '../storage/db.ts'
 import { projects as projectsTable } from '../storage/schema.ts'
+import { home, scratchAvailable } from '../storage/storage.ts'
 import { findLogo, prepareLogo } from './logos.ts'
+
+const scratchRoot = path.join(home, 'scratch')
 
 export function projects(): Project[] {
   return db
@@ -21,6 +24,7 @@ export function projects(): Project[] {
       name: projectsTable.name,
       logo: projectsTable.logo,
       hidden: projectsTable.hidden,
+      scratch: projectsTable.scratch,
     })
     .from(projectsTable)
     .orderBy(projectsTable.position)
@@ -44,18 +48,13 @@ export async function addProject(input: string) {
   if (!(await stat(folder)).isDirectory()) {
     throw new Error(`${folder} is not a folder`)
   }
-  const last = db
-    .select({ position: max(projectsTable.position) })
-    .from(projectsTable)
-    .get()
   db.insert(projectsTable)
     .values({
       id: randomUUID(),
       path: folder,
       name: path.basename(folder) || folder,
       logo: await findLogo(folder),
-      position:
-        last === undefined || last.position === null ? 0 : last.position + 1,
+      position: nextPosition(),
     })
     .onConflictDoNothing({ target: projectsTable.path })
     .run()
@@ -65,6 +64,56 @@ export async function addProject(input: string) {
     throw new Error(`Could not add ${folder}`)
   }
   return project
+}
+
+export async function addScratchProject(text: string) {
+  if (!scratchAvailable) {
+    throw new Error(
+      `Chats without a project are unavailable because ${home} is inside a Git repository`
+    )
+  }
+  await mkdir(scratchRoot, { recursive: true })
+  const words = text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .slice(0, 5)
+    .join('-')
+    .slice(0, 48)
+    .replace(/-+$/, '')
+  const date = new Date().toLocaleDateString('en-CA')
+  while (true) {
+    const folder = path.join(
+      scratchRoot,
+      [date, words, randomBytes(4).toString('hex')].filter(Boolean).join('-')
+    )
+    try {
+      await mkdir(folder)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+        continue
+      }
+      throw error
+    }
+    const id = randomUUID()
+    db.insert(projectsTable)
+      .values({ id, path: folder, name: 'No project', scratch: true })
+      .run()
+    publish()
+    return { id, path: folder }
+  }
+}
+
+export async function removeScratchProject(id: string, folder: string) {
+  db.delete(projectsTable).where(eq(projectsTable.id, id)).run()
+  publish()
+  try {
+    await rmdir(folder)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOTEMPTY') {
+      throw error
+    }
+  }
 }
 
 export async function updateProject(id: string, patch: ProjectPatch) {
@@ -80,6 +129,12 @@ export async function updateProject(id: string, patch: ProjectPatch) {
       .set({
         logo: patch.logo === null ? null : await prepareLogo(patch.logo),
       })
+      .where(eq(projectsTable.id, id))
+      .run()
+  }
+  if (patch.scratch === false) {
+    db.update(projectsTable)
+      .set({ scratch: false, position: nextPosition() })
       .where(eq(projectsTable.id, id))
       .run()
   }
@@ -99,7 +154,9 @@ export function removeProject(id: string) {
 }
 
 export function reorderProjects(ids: string[]) {
-  const current = projects().map((project) => project.id)
+  const current = projects()
+    .filter((project) => !project.scratch)
+    .map((project) => project.id)
   if (
     ids.length !== current.length ||
     !current.every((id) => ids.includes(id))
@@ -134,6 +191,14 @@ export async function directories(input: string): Promise<DirectoryListing> {
       }))
       .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase())),
   }
+}
+
+function nextPosition() {
+  const last = db
+    .select({ position: max(projectsTable.position) })
+    .from(projectsTable)
+    .get()
+  return last === undefined || last.position === null ? 0 : last.position + 1
 }
 
 function publish() {
