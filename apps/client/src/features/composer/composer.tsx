@@ -37,7 +37,7 @@ import { MoreMenu } from './more-menu'
 import { PermissionPrompt } from './permission-prompt'
 import { Pickers } from './pickers'
 import { ProjectHeading } from './project-heading'
-import { QueuedMessages } from './queue'
+import { LimitBanner, QueuedMessages } from './queue'
 import { SendControls } from './send-controls'
 import { isStashShortcut, toggleStash } from './stash'
 
@@ -283,6 +283,7 @@ export function Composer() {
             onCloseMenu={() => input.current?.focus()}
           />
         )}
+        {suggestions.length === 0 && <LimitBanner />}
         {queue.length > 0 && suggestions.length === 0 && <QueuedMessages />}
         {request !== undefined && suggestions.length === 0 && (
           <PermissionPrompt

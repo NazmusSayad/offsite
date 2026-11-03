@@ -1,8 +1,14 @@
-import { ArrowUp02Icon, ListPlusIcon, XIcon } from '@hugeicons/core-free-icons'
+import {
+  ArrowUp02Icon,
+  ListPlusIcon,
+  TimerResetIcon,
+  XIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { steer, unqueue } from '@/lib/sessions'
-import { useStore } from '@/lib/store'
+import { selectedRunning, useStore } from '@/lib/store'
 
 export function QueuedMessages() {
   const queue = useStore((state) => state.queue)
@@ -43,4 +49,61 @@ export function QueuedMessages() {
       ))}
     </div>
   )
+}
+
+export function LimitBanner() {
+  const limit = useStore((state) => {
+    if (!selectedRunning(state)) {
+      return undefined
+    }
+    const machine = state.machines.find(
+      (item) => item.id === state.selection?.machine
+    )
+    return [
+      ...(machine?.claudeAccounts ?? []),
+      ...(machine?.codexAccounts ?? []),
+    ]
+      .find((item) => item.id === state.settings.accountId)
+      ?.limits.find((item) => item.rejected)
+  })
+  const [now, setNow] = useState(Date.now())
+
+  useEffect(() => {
+    if (limit === undefined) {
+      return
+    }
+    setNow(Date.now())
+    const timer = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(timer)
+  }, [limit])
+
+  if (limit === undefined) {
+    return null
+  }
+
+  return (
+    <div className="composer-glass relative mx-auto -mb-[calc(1rem+1px)] flex w-[calc(100%-2.75rem)] items-center gap-2 rounded-t-2xl border border-b-0 border-(--composer-outline) px-3 pt-2 pb-[calc(1rem+1px+0.5rem)] text-xs/4">
+      <HugeiconsIcon
+        icon={TimerResetIcon}
+        className="text-warning-foreground size-3.5 shrink-0"
+      />
+      <span className="text-secondary-label truncate">
+        {limit.resetsAt === null
+          ? 'Usage limit reached'
+          : `Usage limit reached · Resets in ${timeLeft(limit.resetsAt * 1000 - now)}`}
+      </span>
+    </div>
+  )
+}
+
+function timeLeft(ms: number) {
+  const minutes = Math.max(1, Math.ceil(ms / 60_000))
+  if (minutes < 60) {
+    return `${minutes}m`
+  }
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) {
+    return `${hours}h ${minutes % 60}m`
+  }
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`
 }
