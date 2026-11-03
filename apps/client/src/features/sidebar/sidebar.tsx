@@ -10,10 +10,9 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import { NO_PROJECT } from '@offsite/core/projects'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocalStorage } from 'usehooks-ts'
-import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import {
   DesktopDraftRow,
@@ -32,17 +31,15 @@ import { ProjectGroup } from '@/features/sidebar/project-group'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
 import { StatusChips } from '@/features/sidebar/status-chips'
 import { TerminalNav } from '@/features/sidebar/terminal-nav'
+import { useInactiveSessions } from '@/features/sidebar/use-inactive-sessions'
 import { lastProject, openSession, startChat } from '@/lib/sessions'
 import {
   activityOf,
-  getState,
   type MachineProject,
   type MachineSession,
-  showError,
   showPalette,
   showSettings,
   showSettingsPage,
-  update,
   useStore,
 } from '@/lib/store'
 import { cn, drag, mod } from '@/lib/utils'
@@ -63,7 +60,6 @@ export function Sidebar(
   const unseen = useStore((state) => state.unseen)
   const loaded = useStore((state) => state.loaded)
   const inactive = useStore((state) => state.inactive)
-  const inactiveVersion = useStore((state) => state.inactiveVersion)
   const groupActiveByProject = useStore(
     (state) => state.prefs.groupActiveByProject
   )
@@ -154,49 +150,7 @@ export function Sidebar(
       : projectId
   }
 
-  useEffect(() => {
-    if (!inactiveOpen) {
-      return
-    }
-    let current = true
-    let latest = 0
-    async function load() {
-      const request = ++latest
-      const targets =
-        scopeMachine === null
-          ? getState()
-              .machines.filter((machine) => machine.status === 'online')
-              .map((machine) => machine.id)
-          : [scopeMachine]
-      const lists = await Promise.all(
-        targets.map(async (machine) =>
-          (
-            await call(machine, 'sessions.inactive', {
-              projectId: scopeProject,
-            })
-          ).map((session) => ({ ...session, machine }))
-        )
-      )
-      if (current && request === latest) {
-        update({
-          inactive: lists.flat().sort((a, b) => b.updatedAt - a.updatedAt),
-        })
-      }
-    }
-    function reload() {
-      if (document.visibilityState === 'visible') {
-        load().catch(showError)
-      }
-    }
-    load().catch(showError)
-    window.addEventListener('focus', reload)
-    document.addEventListener('visibilitychange', reload)
-    return () => {
-      current = false
-      window.removeEventListener('focus', reload)
-      document.removeEventListener('visibilitychange', reload)
-    }
-  }, [inactiveOpen, scopeMachine, scopeProject, inactiveVersion])
+  useInactiveSessions(inactiveOpen, scopeMachine, scopeProject)
 
   function select(
     machine: string,
@@ -357,7 +311,11 @@ export function Sidebar(
           />
           {props.mobile && <StatusChips hideDone />}
           <button
-            className={cn(iconButton, 'ml-auto size-7')}
+            className={cn(
+              iconButton,
+              'ml-auto size-7',
+              props.mobile && '[&>svg]:size-4.5'
+            )}
             title={`Search (${mod}+K)`}
             aria-label="Search"
             onClick={() => showPalette(true)}
@@ -365,7 +323,11 @@ export function Sidebar(
             <HugeiconsIcon icon={SearchIcon} />
           </button>
           <button
-            className={cn(iconButton, 'size-7')}
+            className={cn(
+              iconButton,
+              'size-7',
+              props.mobile && '[&>svg]:size-4.5'
+            )}
             title={`New thread (${mod}+N)`}
             onClick={startThread}
           >
