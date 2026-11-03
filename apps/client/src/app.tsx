@@ -54,6 +54,7 @@ import {
   PanelToggles,
   PanelView,
 } from '@/features/workspace/panels'
+import { useAttentionBadge } from '@/lib/notifications'
 import {
   defaultMachine,
   getState,
@@ -83,6 +84,7 @@ export function App() {
   const desktop = useSyncExternalStore(subscribeWide, () => wide.matches)
   const editor = useStore((state) => state.editor)
   const exporting = useStore((state) => state.exporting)
+  useAttentionBadge()
   useHotkeys('mod+k', () => showPalette(!getState().paletteOpen), {
     enableOnFormTags: true,
     preventDefault: true,

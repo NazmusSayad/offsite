@@ -1,8 +1,9 @@
 import type { PushSubscriptionInfo } from '@offsite/core/push'
+import { useEffect } from 'react'
 import { call, isConnected } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { providerNames } from './format'
-import { getState, machineOf } from './store'
+import { activityOf, getState, machineOf, useStore } from './store'
 
 type PushKeys = { publicKey: string; privateKey: string }
 
@@ -323,4 +324,30 @@ async function savePushSubscription(
     ...keys,
     machine,
   })
+}
+
+export function useAttentionBadge() {
+  const count = useStore(
+    (state) =>
+      state.sessions.filter((session) => {
+        const activity = activityOf(state.machines, session.machine, session.id)
+        return (
+          activity?.waiting === true ||
+          (state.unseen.includes(machineKey(session.machine, session.id)) &&
+            activity?.running !== true &&
+            !Object.values(activity?.tasks ?? {}).includes('running'))
+        )
+      }).length
+  )
+  useEffect(() => {
+    document.title = count === 0 ? 'OffSite' : `(${count}) OffSite`
+    if (!('setAppBadge' in navigator)) {
+      return
+    }
+    const badge =
+      count === 0 ? navigator.clearAppBadge() : navigator.setAppBadge(count)
+    badge.catch((error: unknown) =>
+      console.error('could not update the app badge', error)
+    )
+  }, [count])
 }

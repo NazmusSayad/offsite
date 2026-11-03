@@ -20,6 +20,8 @@ import {
 import { cn, mod } from '@/lib/utils'
 import {
   AttachedImages,
+  isPasteInline,
+  largePaste,
   lastImageNumber,
   restoredDraft,
 } from './attached-images'
@@ -37,6 +39,7 @@ import { Pickers } from './pickers'
 import { ProjectHeading } from './project-heading'
 import { QueuedMessages } from './queue'
 import { SendControls } from './send-controls'
+import { isStashShortcut, toggleStash } from './stash'
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 const maxImageSize = 5 * 1024 * 1024
@@ -65,6 +68,7 @@ export function Composer() {
   const [files, setFiles] = useState<string[]>([])
   const input = useRef<HTMLTextAreaElement>(null)
   const picker = useRef<HTMLInputElement>(null)
+  const pasteInline = useRef(false)
   const machine = selection?.machine ?? ''
   const projectId = selection?.projectId ?? ''
   const project = useStore((state) => projectOf(state, machine, projectId))
@@ -268,7 +272,7 @@ export function Composer() {
         'pointer-events-none z-20',
         hero
           ? 'absolute inset-0 flex items-center pb-3 sm:pb-4'
-          : 'relative shrink-0 before:absolute before:right-(--app-scrollbar-width) before:bottom-full before:left-0 before:h-8 before:bg-linear-to-t before:from-background before:to-transparent'
+          : 'relative flex min-h-0 flex-col before:absolute before:right-(--app-scrollbar-width) before:bottom-full before:left-0 before:h-8 before:bg-linear-to-t before:from-background before:to-transparent'
       )}
     >
       <Wrapper width="composer" className="pointer-events-auto relative z-10">
@@ -342,8 +346,15 @@ export function Composer() {
               onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
               onPaste={(event) => {
                 const text = event.clipboardData.getData('text/plain')
+                const inline = pasteInline.current
+                pasteInline.current = false
                 if (text !== '') {
                   event.preventDefault()
+                  const file = inline ? null : largePaste(text, attachedFiles)
+                  if (file !== null) {
+                    void attach([file])
+                    return
+                  }
                   document.execCommand('insertText', false, text)
                   return
                 }
@@ -356,6 +367,12 @@ export function Composer() {
               }}
               onKeyDown={(event) => {
                 if (event.nativeEvent.isComposing) {
+                  return
+                }
+                pasteInline.current = isPasteInline(event.nativeEvent)
+                if (isStashShortcut(event.nativeEvent)) {
+                  event.preventDefault()
+                  toggleStash(key)
                   return
                 }
                 if (suggestions.length > 0) {

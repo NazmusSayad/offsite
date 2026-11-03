@@ -7,6 +7,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import type { Model } from '@offsite/core/providers'
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
 import { type ReactNode, useRef, useState } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import { call } from '@/api/connection'
 import { ProviderIcon } from '@/components/icons'
 import {
@@ -53,6 +54,7 @@ export function Pickers() {
       {model !== undefined && model.efforts.length > 0 && (
         <Picker
           title="Effort"
+          shortcut="mod+shift+e"
           trigger={
             <>
               <HugeiconsIcon icon={BrainIcon} />
@@ -165,6 +167,11 @@ function ModelPicker() {
       )
     }
   }
+
+  useHotkeys('mod+shift+m', () => changeOpen(!open), {
+    enableOnFormTags: true,
+    preventDefault: true,
+  })
 
   function pick(key: string, option: Model) {
     const picked = choices.find((item) => item.key === key)
@@ -397,15 +404,25 @@ function ModelPicker() {
 
 function Picker(props: {
   title: string
+  shortcut: string
   trigger: ReactNode
   value: string
   options: { value: string; label: string }[]
   onChange: (value: string) => void
 }) {
   const radius = Math.min(190, (window.innerWidth - 16) / 2)
+  const [open, setOpen] = useState(false)
+  useHotkeys(props.shortcut, () => setOpen(!open), {
+    enableOnFormTags: true,
+    preventDefault: true,
+  })
 
   return (
-    <DropdownMenu modal={props.options.length > 5}>
+    <DropdownMenu
+      modal={props.options.length > 5}
+      open={open}
+      onOpenChange={setOpen}
+    >
       <DropdownMenuTrigger asChild>
         <button className={cn(control, controlSm)} title={props.title}>
           {props.trigger}

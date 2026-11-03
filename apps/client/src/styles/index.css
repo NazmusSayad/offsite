@@ -362,6 +362,15 @@
     @apply pointer-events-none;
   }
 
+  ::highlight(transcript-find) {
+    background-color: color-mix(in srgb, var(--warning) 35%, transparent);
+  }
+
+  ::highlight(transcript-find-current) {
+    background-color: var(--warning);
+    color: var(--background);
+  }
+
   .shiki,
   .shiki span {
     color: var(--shiki-light);
