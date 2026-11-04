@@ -18,11 +18,14 @@ import {
 } from '@offsite/core/search-match'
 import { toMessage } from '../lib/claude/content.ts'
 import { codexMessages, codexSearch } from '../lib/codex/index.ts'
+import { logger } from '../lib/log.ts'
 import { openCodeMessages } from '../lib/opencode/index.ts'
 import { claudeBaseDir, readConfig } from '../storage/config.ts'
 import { providerName } from './accounts.ts'
 import { projects } from './projects.ts'
 import { find, type Found, timeLimit } from './provider-sessions.ts'
+
+const log = logger.withTag('search')
 
 const READ_LIMIT = 30
 const CODEX_READ_LIMIT = 10
@@ -55,8 +58,9 @@ export async function searchMessages(query: string) {
           )
           return { provider, matches, failed: false }
         } catch (error) {
-          console.warn(
-            `could not search ${providerName(provider)} messages: ${error}`
+          log.warn(
+            `could not search ${providerName(provider)} messages:`,
+            error
           )
           return { provider, matches: [], failed: true }
         }
@@ -150,7 +154,7 @@ async function claudeCandidates(query: string) {
       lists[0].filter((id) => lists.every((list) => list.includes(id)))
     )
   } catch (error) {
-    console.warn(`could not narrow Claude sessions with rg: ${error}`)
+    log.warn(`could not narrow Claude sessions with rg:`, error)
     return null
   }
 }

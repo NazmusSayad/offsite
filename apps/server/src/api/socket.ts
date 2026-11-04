@@ -7,6 +7,7 @@ import { agentMessages, earlier, image } from '../lib/claude/index.ts'
 import { codexAgent } from '../lib/codex/index.ts'
 import { type Client, clients } from '../lib/hub.ts'
 import { activity, runs } from '../lib/live.ts'
+import { logger } from '../lib/log.ts'
 import { openCodeAgent } from '../lib/opencode/index.ts'
 import { openSite } from '../lib/proxy/sites.ts'
 import {
@@ -102,6 +103,8 @@ import {
   saveAppIcon,
   saveComposer,
 } from '../storage/state.ts'
+
+const log = logger.withTag('socket')
 
 type Handlers = {
   [M in RpcMethod]: (
@@ -445,6 +448,7 @@ export function connectClient(
     send: (message) => socket.send(JSON.stringify(message)),
   }
   clients.add(client)
+  log.info(`a browser connected from ${address}`)
   socket.on('message', (data, isBinary) => {
     client.heardAt = Date.now()
     if (isBinary) {
@@ -454,9 +458,10 @@ export function connectClient(
     void answer(client, String(data))
   })
   socket.on('error', (error) =>
-    console.warn(`a browser connection failed: ${error}`)
+    log.warn(`a browser connection from ${address} failed:`, error)
   )
-  socket.on('close', () => {
+  socket.on('close', (code) => {
+    log.info(`a browser from ${address} disconnected (code ${code})`)
     clients.delete(client)
     detachTerminal(client)
   })
@@ -467,9 +472,13 @@ async function answer(client: Client, text: string) {
   try {
     call = JSON.parse(text) as RpcCall
   } catch (error) {
-    console.warn(`ignoring a message that is not JSON: ${error}`)
+    log.warn(
+      `ignoring a message from ${client.address} that is not JSON:`,
+      error
+    )
     return
   }
+  const started = performance.now()
   try {
     if (!Object.hasOwn(handlers, call.method)) {
       throw new Error(`unknown method ${call.method}`)
@@ -481,10 +490,16 @@ async function answer(client: Client, text: string) {
     const result = await handler(call.params, client)
     client.send({ type: 'reply', id: call.id, result })
   } catch (error) {
+    log.warn(`${call.method} from ${client.address} failed:`, error)
     client.send({
       type: 'reply',
       id: call.id,
       error: error instanceof Error ? error.message : String(error),
     })
+  } finally {
+    const took = Math.round(performance.now() - started)
+    if (call.method !== 'ping') {
+      log.debug(`${call.method} from ${client.address} took ${took}ms`)
+    }
   }
 }

@@ -1,5 +1,8 @@
+import { logger } from '@/lib/log'
 import ghosttyWasmUrl from './ghostty-vt.wasm?url'
 import { decodePng } from './images'
+
+const log = logger.withTag('terminal')
 
 type WasmFunction = (...args: Array<number | bigint>) => number
 
@@ -100,7 +103,7 @@ export class GhosttyRuntime {
           if (!memory) {
             return
           }
-          console.debug(
+          log.debug(
             '[libghostty-vt]',
             decoder.decode(new Uint8Array(memory.buffer, pointer, length))
           )
@@ -403,7 +406,7 @@ export class GhosttyRuntime {
     try {
       image = decodePng(new Uint8Array(this.memory.buffer, pointer, length))
     } catch (error) {
-      console.warn('could not decode a kitty PNG image', error)
+      log.warn('could not decode a kitty PNG image', error)
       return 0
     }
     const data = this.call('ghostty_alloc', allocator, image.data.length)

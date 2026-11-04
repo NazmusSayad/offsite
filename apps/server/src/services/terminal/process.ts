@@ -4,9 +4,12 @@ import { readFile, readlink } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { spawn } from '@lydell/node-pty'
+import { logger } from '../../lib/log.ts'
 import { defaultShell, platform, readConfig } from '../../storage/config.ts'
 import { findWindowsProgram } from './find-program.ts'
 import { prepare } from './shell-integration.ts'
+
+const log = logger.withTag('terminal')
 
 const run = promisify(execFile)
 const iterm2Version = '3.6.8'
@@ -122,7 +125,7 @@ export async function busyProgram(pid: number) {
   try {
     return await programName(group)
   } catch (error) {
-    console.warn(`could not read the name of process ${group}: ${error}`)
+    log.warn(`could not read the name of process ${group}:`, error)
     return `process ${group}`
   }
 }

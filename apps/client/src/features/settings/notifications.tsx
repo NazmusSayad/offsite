@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Switch } from '@/components/ui/switch'
+import { logger } from '@/lib/log'
 import {
   notificationPermission,
   notificationsWanted,
@@ -14,6 +15,8 @@ import type { Prefs } from '@/lib/prefs'
 import { updatePrefs } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 import { Row, Section } from './controls'
+
+const log = logger.withTag('notifications')
 
 const notices = new Map([
   ['denied', "Blocked in the browser's site settings"],
@@ -74,7 +77,7 @@ function NotificationSwitch() {
     watchPermission(controller.signal, () =>
       setPermission(notificationPermission())
     ).catch((error: unknown) =>
-      console.error('could not watch the notification permission', error)
+      log.error('could not watch the notification permission', error)
     )
     return () => controller.abort()
   }, [])
@@ -119,7 +122,7 @@ function PushSwitch() {
           setSubscribed(value)
         }
       } catch (error) {
-        console.error('could not read the push subscription', error)
+        log.error('could not read the push subscription', error)
       }
       if (mounted) {
         setBusy(false)
@@ -142,7 +145,7 @@ function PushSwitch() {
         setSubscribed(false)
       }
     } catch (error) {
-      console.error('could not change push notifications', error)
+      log.error('could not change push notifications', error)
       setFailure(errorMessage(error))
     }
     setSupport(pushSupport())

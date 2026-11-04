@@ -15,6 +15,7 @@ import {
   type Progress,
   Terminal,
 } from '@/lib/ghostty/terminal'
+import { logger } from '@/lib/log'
 import { router } from '@/lib/router'
 import { openSession } from '@/lib/sessions'
 import {
@@ -35,6 +36,8 @@ import { forgetTab, unseenAttention } from './attention'
 import { applyStyle, terminalOptions } from './config'
 import { createSession } from './create-session'
 import { keepPageOpen, showGroup } from './page'
+
+const log = logger.withTag('terminal')
 
 type State = {
   status: 'connecting' | 'active'
@@ -86,7 +89,7 @@ export async function startTerminal() {
     await Promise.all([loadGhostty(), applyStyle(terminalConfig())])
     setState({ loaded: true })
   } catch (error) {
-    console.error('could not start the terminal', error)
+    log.error('could not start the terminal', error)
     setState({
       failure: errorMessage(error),
     })
@@ -321,7 +324,7 @@ export function sendTo(target: string, request: TerminalRequest) {
     return
   }
   call(target, 'terminal', request).catch((error: unknown) =>
-    console.error('terminal request failed', error)
+    log.error('terminal request failed', error)
   )
 }
 

@@ -6,6 +6,9 @@ import { ensure, headers } from '@opencode/client/service'
 import { refreshSessions } from '../../services/sessions.ts'
 import { isRecord } from '../claude/content.ts'
 import { runs } from '../live.ts'
+import { logger } from '../log.ts'
+
+const log = logger.withTag('opencode')
 
 const listChanges = new Set([
   'session.created',
@@ -61,6 +64,7 @@ async function start() {
 
 async function connect() {
   const endpoint = await ensure()
+  log.info(`connected to OpenCode at ${endpoint.url}`)
   return OpenCode.make({ baseUrl: endpoint.url, headers: headers(endpoint) })
 }
 
@@ -75,16 +79,18 @@ async function listen(client: OpenCodeClient) {
     })) {
       route(event)
     }
-    console.warn('the OpenCode event stream ended')
+    log.warn('the OpenCode event stream ended')
   } catch (error) {
     if (listener !== controller) {
       return
     }
-    console.warn(
-      controller.signal.aborted
-        ? `the OpenCode event stream was silent for ${SILENCE_LIMIT / 1000} seconds`
-        : `lost the OpenCode event stream: ${error}`
-    )
+    if (controller.signal.aborted) {
+      log.warn(
+        `the OpenCode event stream was silent for ${SILENCE_LIMIT / 1000} seconds`
+      )
+    } else {
+      log.warn('lost the OpenCode event stream:', error)
+    }
   } finally {
     clearTimeout(silence)
   }
@@ -103,16 +109,17 @@ async function reconnect() {
     try {
       client = await connect()
     } catch (error) {
+      log.debug(`reconnect attempt ${attempt + 1} to OpenCode failed:`, error)
       failure = error
       continue
     }
     void listen(client)
     await catchUp(client).catch((error: unknown) =>
-      console.warn(`could not catch up with OpenCode: ${error}`)
+      log.warn(`could not catch up with OpenCode:`, error)
     )
     return client
   }
-  console.warn(`could not reconnect to OpenCode: ${failure}`)
+  log.warn(`could not reconnect to OpenCode:`, failure)
   connection = undefined
   for (const run of openCodeRuns()) {
     run.exited()

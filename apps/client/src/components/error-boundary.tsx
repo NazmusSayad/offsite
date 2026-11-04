@@ -1,5 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { logger } from '@/lib/log'
+
+const log = logger.withTag('app')
 
 export class ErrorBoundary extends Component<
   { children: ReactNode },
@@ -12,7 +15,7 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error(error, info.componentStack)
+    log.error('a component crashed:', error, info.componentStack)
   }
 
   render() {

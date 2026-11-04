@@ -10,6 +10,7 @@ import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
 import { storedAccount } from '../../services/accounts.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
+import { logger } from '../log.ts'
 import { skills } from './accounts.ts'
 import {
   type AppServer,
@@ -22,6 +23,8 @@ import { errorItem, imageInputs, itemId, toItems } from './items.ts'
 import { modePreset, threadPreset } from './presets.ts'
 import { reply, toRequest } from './requests.ts'
 import type { ThreadItem, ThreadStarted, Turn, UserInput } from './types.ts'
+
+const log = logger.withTag('codex')
 
 const IDLE_LIMIT = 30 * 60 * 1000
 
@@ -195,12 +198,13 @@ export class CodexRun implements ThreadListener {
     this.server
       .request('thread/unsubscribe', { threadId: this.sessionId })
       .catch((error: unknown) =>
-        console.warn(`could not unload Codex thread: ${error}`)
+        log.warn(`could not unload Codex thread:`, error)
       )
       .finally(() => this.end())
   }
 
   exited() {
+    log.warn(`session ${this.sessionId} lost its Codex app server`)
     this.put(
       errorItem(
         randomUUID(),
@@ -444,6 +448,7 @@ export class CodexRun implements ThreadListener {
   }
 
   private fail(error: unknown) {
+    log.warn(`session ${this.sessionId} failed:`, error)
     this.put(
       errorItem(
         randomUUID(),

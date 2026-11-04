@@ -27,9 +27,12 @@ import type {
 import type { TerminalTab } from '@offsite/core/terminal'
 import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
 import { machineKey } from '@/api/machines'
+import { logger } from '@/lib/log'
 import { errorMessage } from '@/lib/utils'
 import { type Prefs, savePrefs } from './prefs'
 import { applyTheme } from './theme'
+
+const log = logger.withTag('ui')
 
 export type Selection = {
   machine: string
@@ -253,6 +256,7 @@ export function updatePrefs(prefs: Prefs) {
 }
 
 export function showError(error: unknown) {
+  log.warn('showing an error:', error)
   update({ errors: [...getState().errors, errorMessage(error)] })
 }
 

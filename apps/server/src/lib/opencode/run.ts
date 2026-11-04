@@ -18,11 +18,14 @@ import type {
 import { errorItem } from '../codex/index.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
+import { logger } from '../log.ts'
 import { openCode } from './client.ts'
 import { formAnswer, formQuestions, messageItems } from './items.ts'
 import { files, sendPrompt } from './prompts.ts'
 import { permissionRequest } from './requests.ts'
 import { contextOf, modelRef, sessionSettings } from './sessions.ts'
+
+const log = logger.withTag('opencode')
 
 const IDLE_LIMIT = 30 * 60 * 1000
 const RECENT = 30
@@ -196,6 +199,7 @@ export class OpenCodeRun {
   }
 
   exited() {
+    log.warn(`session ${this.sessionId} lost the connection to OpenCode`)
     this.put([
       errorItem(
         randomUUID(),
@@ -301,7 +305,7 @@ export class OpenCodeRun {
     this.loading = this.loading
       .then(async () => this.load(client ?? (await openCode())))
       .catch((error: unknown) =>
-        console.warn(`could not load OpenCode messages: ${error}`)
+        log.warn(`could not load OpenCode messages:`, error)
       )
   }
 
@@ -454,6 +458,7 @@ export class OpenCodeRun {
   }
 
   private fail(error: unknown) {
+    log.warn(`session ${this.sessionId} failed:`, error)
     this.put([
       errorItem(
         randomUUID(),

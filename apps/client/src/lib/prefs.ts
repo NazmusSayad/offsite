@@ -1,5 +1,8 @@
 import { schemes } from '@offsite/core/schemes'
 import { z } from 'zod'
+import { logger } from '@/lib/log'
+
+const log = logger.withTag('prefs')
 
 const prefsSchema = z.strictObject({
   theme: z
@@ -104,7 +107,7 @@ export function loadPrefs(): Prefs {
   }
   const result = prefsSchema.safeParse(JSON.parse(raw))
   if (!result.success) {
-    console.warn(
+    log.warn(
       `invalid stored prefs, using the defaults:\n${z.prettifyError(result.error)}`
     )
     return structuredClone(defaultPrefs)

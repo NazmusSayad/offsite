@@ -1,5 +1,8 @@
+import { logger } from '@/lib/log'
 import type { Colors } from './core'
 import type { Color } from './render-state'
+
+const log = logger.withTag('terminal')
 
 export type Progress = { state: number; value: number }
 
@@ -33,7 +36,7 @@ export function clipboardText(payload: string) {
   try {
     return decodeBase64(payload)
   } catch (error) {
-    console.warn('invalid clipboard sequence', error)
+    log.warn('invalid clipboard sequence', error)
     return null
   }
 }
@@ -150,7 +153,7 @@ export class KittyNotifications {
       try {
         payload = decodeBase64(payload)
       } catch (error) {
-        console.warn('invalid notification sequence', error)
+        log.warn('invalid notification sequence', error)
         return null
       }
     }

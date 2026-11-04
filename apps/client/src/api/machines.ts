@@ -1,4 +1,5 @@
 import type { Project } from '@offsite/core/projects'
+import { logger } from '@/lib/log'
 import { router } from '@/lib/router'
 import {
   getState,
@@ -11,6 +12,8 @@ import {
 import { removeToken, saveToken } from '@/lib/tokens'
 import { syncUrl } from '@/lib/url'
 import { connectMachine, disconnectMachine } from './connection'
+
+const log = logger.withTag('machines')
 
 export type StoredMachine = {
   id: string
@@ -258,7 +261,7 @@ export function reorderMachines(ids: string[]) {
 
 export function shareMachines(machines: StoredMachine[]) {
   shareWithWorker(machines).catch((error: unknown) =>
-    console.error('could not share the machines with the service worker', error)
+    log.error('could not share the machines with the service worker', error)
   )
 }
 
@@ -273,7 +276,7 @@ export function removeMachine(id: string) {
   forgetMachine(id)
   persistMachines()
   removeToken(id).catch((error: unknown) =>
-    console.error('could not remove the device token', error)
+    log.error('could not remove the device token', error)
   )
 }
 

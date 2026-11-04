@@ -26,6 +26,7 @@ import {
 } from '../lib/codex/index.ts'
 import { broadcast } from '../lib/hub.ts'
 import { runs } from '../lib/live.ts'
+import { logger } from '../lib/log.ts'
 import { disconnectOpenCode } from '../lib/opencode/client.ts'
 import {
   openCodeCapabilities,
@@ -33,6 +34,8 @@ import {
 } from '../lib/opencode/index.ts'
 import { platform, readConfig, saveConfig } from '../storage/config.ts'
 import { forgetUsage } from './usage.ts'
+
+const log = logger.withTag('accounts')
 
 export type StoredAccount = {
   id: string
@@ -175,7 +178,7 @@ export async function publishAccounts() {
   try {
     broadcast({ type: 'accounts', ...(await accounts()) })
   } catch (error) {
-    console.warn(`could not list accounts: ${error}`)
+    log.warn(`could not list accounts:`, error)
   }
 }
 

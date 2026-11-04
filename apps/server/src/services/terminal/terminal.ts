@@ -16,11 +16,14 @@ import {
   type TerminalTab,
 } from '@offsite/core/terminal'
 import { broadcast, type Client } from '../../lib/hub.ts'
+import { logger } from '../../lib/log.ts'
 import { workingDirectory } from '../../storage/config.ts'
 import { projectPath } from '../projects.ts'
 import { notifierClient, pushActive, sendPush } from '../push.ts'
 import { ALERT_DELAY, type Alert, Alerts, Scanner } from './alerts.ts'
 import { busyProgram, currentDirectory, startShell } from './process.ts'
+
+const log = logger.withTag('terminal')
 
 type Connection = {
   client: Client
@@ -78,7 +81,7 @@ export async function terminalRequest(
 export function terminalInput(client: Client, frame: Buffer) {
   const connection = connections.get(client)
   if (connection === undefined) {
-    console.warn('terminal input from a browser that is not attached')
+    log.warn('terminal input from a browser that is not attached')
     return
   }
   input(connection, frame)
@@ -105,7 +108,7 @@ export async function busyTerminal(id: number): Promise<BusyResult> {
   try {
     return { program: await busyProgram(terminal.pty.pid) }
   } catch (error) {
-    console.warn(`could not tell if terminal ${id} is busy: ${error}`)
+    log.warn(`could not tell if terminal ${id} is busy:`, error)
     return { error: String(error) }
   }
 }
@@ -204,12 +207,12 @@ function input(connection: Connection, bytes: Buffer) {
   try {
     frame = decodeFrame(bytes)
   } catch (error) {
-    console.warn(`ignoring terminal input: ${error}`)
+    log.warn(`ignoring terminal input:`, error)
     return
   }
   const terminal = terminals.get(frame.id)
   if (terminal === undefined) {
-    console.warn(`input for terminal ${frame.id}, which does not exist`)
+    log.warn(`input for terminal ${frame.id}, which does not exist`)
     return
   }
   if (frame.kind === FRAME_REPLY) {
@@ -223,7 +226,7 @@ function input(connection: Connection, bytes: Buffer) {
       terminal.pty.resize(size.cols, size.rows)
     }
   } else {
-    console.warn(`ignoring terminal input of unknown kind ${frame.kind}`)
+    log.warn(`ignoring terminal input of unknown kind ${frame.kind}`)
     return
   }
   terminal.pty.write(Buffer.from(frame.data))
@@ -232,7 +235,7 @@ function input(connection: Connection, bytes: Buffer) {
 async function createTab(projectId: string | null) {
   const cwd = projectId === null ? workingDirectory() : projectPath(projectId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
-    console.error(`${cwd} is not a folder, terminal not created`)
+    log.error(`${cwd} is not a folder, terminal not created`)
     return
   }
   const activeId = active.get(projectId ?? GLOBAL_TERMINALS)
@@ -245,8 +248,9 @@ async function createTab(projectId: string | null) {
         current.scanner.directory
       )
     } catch (error) {
-      console.warn(
-        `starting in the project folder, could not read the folder of the active terminal: ${error}`
+      log.warn(
+        `starting in the project folder, could not read the folder of the active terminal:`,
+        error
       )
     }
   }
@@ -256,7 +260,7 @@ async function createTab(projectId: string | null) {
   try {
     pty = startShell(directory)
   } catch (error) {
-    console.error(`could not start terminal ${id}: ${error}`)
+    log.error(`could not start terminal ${id}:`, error)
     return
   }
   const terminal: Terminal = {
@@ -267,6 +271,7 @@ async function createTab(projectId: string | null) {
     alerts: new Alerts(),
     scanner: new Scanner(),
   }
+  log.info(`started terminal ${id} with pid ${pty.pid} in ${directory}`)
   terminals.set(id, terminal)
   tabs.push({ id, projectId, customName: null })
   active.set(projectId ?? GLOBAL_TERMINALS, id)
@@ -275,7 +280,8 @@ async function createTab(projectId: string | null) {
     pty.pause()
     held.add(pty)
   }
-  pty.onExit(() => {
+  pty.onExit((event) => {
+    log.info(`terminal ${id} exited with code ${event.exitCode}`)
     terminals.delete(id)
     paused.delete(pty)
     held.delete(pty)
@@ -290,6 +296,7 @@ function closeTab(id: number) {
   if (tab === undefined) {
     return false
   }
+  log.debug(`closing terminal ${id}`)
   release(tab)
   tabs.splice(tabs.indexOf(tab), 1)
   const terminal = terminals.get(id)
@@ -346,7 +353,7 @@ function drain() {
       last.queued = queued
       progress.set(connection, last)
       if (now - last.at > STALL_LIMIT) {
-        console.warn('a browser is not reading fast enough, disconnecting it')
+        log.warn('a browser is not reading fast enough, disconnecting it')
         connection.client.socket.terminate()
         continue
       }

@@ -2,10 +2,12 @@ import type { RateLimit, Usage } from '@offsite/core/providers'
 import { claudeLimits } from '../lib/claude/index.ts'
 import { codexLimits } from '../lib/codex/index.ts'
 import { broadcast } from '../lib/hub.ts'
+import { logger } from '../lib/log.ts'
 import { type StoredAccount, storedAccounts } from './accounts.ts'
 
 const freshFor = 60_000
 const forcedFreshFor = 10_000
+const log = logger.withTag('usage')
 const entries = new Map<string, Usage>()
 const fetching = new Map<string, Promise<Usage>>()
 
@@ -34,6 +36,9 @@ export function recordLimits(accountId: string, limits: RateLimit[]) {
     ],
     updatedAt: Date.now(),
   })
+  log.debug(
+    `account ${accountId} reported ${limits.map((limit) => limit.window).join(', ')} limits from a running session`
+  )
   broadcast({ type: 'limits', accountId, limits })
 }
 
@@ -43,10 +48,14 @@ export async function readUsage(accountId: string, force: boolean) {
     current.fetchedAt !== null &&
     Date.now() - current.fetchedAt < (force ? forcedFreshFor : freshFor)
   ) {
+    log.debug(
+      `account ${accountId} served from cache, ${Math.round((Date.now() - current.fetchedAt) / 1000)}s old${force ? ' (forced)' : ''}`
+    )
     return current
   }
   const pending = fetching.get(accountId)
   if (pending !== undefined) {
+    log.debug(`account ${accountId} joined the fetch in progress`)
     return pending
   }
   const next = fetchUsage(accountId)
@@ -68,8 +77,13 @@ async function fetchUsage(accountId: string) {
     throw new Error('That account was removed')
   }
   let usage: Usage
+  const started = performance.now()
+  log.debug(`fetching limits for ${account.name} (${account.provider})`)
   try {
     const limits = await providerLimits(account)
+    log.debug(
+      `fetched ${limits.length} limits for ${account.name} in ${Math.round(performance.now() - started)}ms`
+    )
     usage = {
       limits,
       fetchedAt: Date.now(),
@@ -77,7 +91,7 @@ async function fetchUsage(accountId: string) {
       error: null,
     }
   } catch (error) {
-    console.warn(`could not read usage limits for ${account.name}: ${error}`)
+    log.warn(`could not read usage limits for ${account.name}:`, error)
     usage = {
       ...cachedUsage(accountId),
       fetchedAt: Date.now(),

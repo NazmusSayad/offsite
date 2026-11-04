@@ -10,14 +10,15 @@ import {
 } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { consola } from 'consola'
 import { z } from 'zod'
 import { args } from '../args.ts'
+import { logger } from '../lib/log.ts'
 
 export const home = args.dir
 
 const lockFile = path.join(home, 'server.pid')
 const savedServer = z.object({ port: z.number() }).nullable()
+const log = logger.withTag('storage')
 
 mkdirSync(home, { recursive: true })
 
@@ -62,7 +63,8 @@ function lock() {
   const validPid = Number.isInteger(pid) && pid > 0
   const writtenThisBoot = modified > Date.now() - os.uptime() * 1000
   if (validPid && writtenThisBoot && pid !== process.pid && isRunning(pid)) {
-    consola.error(`offsite is already running for ${home} (pid ${pid})`)
+    console.error(`offsite is already running for ${home} (pid ${pid})`)
+    log.error(`offsite is already running for ${home} (pid ${pid})`)
     process.exit(1)
   }
   unlinkSync(lockFile)
@@ -109,7 +111,7 @@ export function readSettings<T>(
   try {
     value = readJson(name)
   } catch (error) {
-    console.warn(`invalid ${file}, using the defaults: ${error}`)
+    log.warn(`invalid ${file}, using the defaults:`, error)
     return structuredClone(defaults)
   }
   if (value === null) {
@@ -128,12 +130,12 @@ export function readSettings<T>(
     for (const target of targets) {
       const discarded = discard(value, target)
       if (discarded === null) {
-        console.warn(
+        log.warn(
           `invalid ${file}, using the defaults:\n${z.prettifyError(result.error)}`
         )
         return structuredClone(defaults)
       }
-      console.warn(
+      log.warn(
         `${file}: discarded ${discarded.map(String).join('.')} (${issue.message} at ${target.map(String).join('.')})`
       )
     }

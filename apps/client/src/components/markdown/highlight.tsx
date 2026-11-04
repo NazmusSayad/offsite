@@ -1,7 +1,10 @@
 import { toJsxRuntime } from 'hast-util-to-jsx-runtime'
 import { Fragment, type ReactNode, useEffect, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
+import { logger } from '@/lib/log'
 import { useCodeTheme } from '@/lib/theme'
+
+const log = logger.withTag('markdown')
 
 export function Highlight(props: { code: string; language: string }) {
   const [node, setNode] = useState<ReactNode>(null)
@@ -61,7 +64,7 @@ export function Highlight(props: { code: string; language: string }) {
           )
         }
       })
-      .catch((error: unknown) => console.error(error))
+      .catch((error: unknown) => log.error(error))
     return () => {
       current = false
     }

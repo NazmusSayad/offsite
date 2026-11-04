@@ -17,6 +17,7 @@ import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
 import { cachedUsage, recordLimits } from '../../services/usage.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
+import { logger } from '../log.ts'
 import { claudeEffort, claudeMode, eventLimits, runOptions } from './claude.ts'
 import {
   contextTokens,
@@ -227,6 +228,7 @@ export class Run {
       }
     } catch (error) {
       if (!this.stopping) {
+        logger.withTag('claude').warn(`${this.sessionId} failed:`, error)
         this.add(notice(error instanceof Error ? error.message : String(error)))
       }
     }

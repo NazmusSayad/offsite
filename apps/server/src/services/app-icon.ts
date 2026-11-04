@@ -3,7 +3,10 @@ import type { ServerResponse } from 'node:http'
 import path from 'node:path'
 import { appIcons } from '@offsite/core/app-icons'
 import sharp from 'sharp'
+import { logger } from '../lib/log.ts'
 import { readAppIcon } from '../storage/state.ts'
+
+const log = logger.withTag('app-icon')
 
 const pngs = new Map([
   ['icon-192.png', { size: 192, maskable: false }],
@@ -36,7 +39,7 @@ export async function serveAppIcon(
     response.setHeader('cache-control', 'no-cache')
     response.end(icon.body)
   } catch (error) {
-    console.warn(`could not serve the app icon: ${error}`)
+    log.warn(`could not serve the app icon:`, error)
     response.statusCode = 500
     response.end('could not render the app icon')
   }

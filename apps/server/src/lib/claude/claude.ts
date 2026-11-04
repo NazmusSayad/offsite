@@ -22,7 +22,10 @@ import { notifierConnected, sendPush } from '../../services/push.ts'
 import { sessions } from '../../services/sessions.ts'
 import { claudeBaseDir } from '../../storage/config.ts'
 import { broadcast } from '../hub.ts'
+import { logger } from '../log.ts'
 import { isRecord } from './content.ts'
+
+const log = logger.withTag('claude')
 
 const efforts: EffortLevel[] = ['low', 'medium', 'high', 'xhigh', 'max']
 const modes: PermissionMode[] = [
@@ -329,7 +332,7 @@ function claudeDisplayName(configDir: string) {
     raw = JSON.parse(readFileSync(file, 'utf8'))
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      console.warn(`could not read the Claude account name: ${error}`)
+      log.warn(`could not read the Claude account name:`, error)
     }
     return null
   }

@@ -1,10 +1,13 @@
 import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import { call } from '@/api/connection'
+import { logger } from '@/lib/log'
 import { router } from '@/lib/router'
 import { openTerminalPage } from '@/lib/sessions'
 import { getState as appState, type Machine } from '@/lib/store'
 import { leaveLayer, terminalPage, terminalView } from '@/lib/url'
 import { getState, tabView, terminalMachine, viewTabs } from './session'
+
+const log = logger.withTag('terminal')
 
 export function showGroup(target: string, view: string) {
   openTerminalPage(target, view)
@@ -23,7 +26,7 @@ export async function createTab(target: string, projectId: string | null) {
   try {
     await call(target, 'terminal', { type: 'createTab', projectId })
   } catch (error) {
-    console.error('terminal request failed', error)
+    log.error('terminal request failed', error)
     return
   }
   showGroup(target, projectId ?? GLOBAL_TERMINALS)
