@@ -11,8 +11,11 @@ import os from 'node:os'
 import path from 'node:path'
 import { shellIntegrationIssue } from '@offsite/core/shell-check'
 import { serverDir } from '../../args.ts'
+import { logger } from '../../lib/log.ts'
 import { platform } from '../../storage/config.ts'
 import { home } from '../../storage/storage.ts'
+
+const log = logger.withTag('terminal')
 
 const scripts = path.join(serverDir, 'src/services/terminal/shell-integration')
 const folder = path.join(home, 'shell-integration')
@@ -83,8 +86,9 @@ function zshGlobalsSupported() {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         continue
       }
-      console.warn(
-        `could not read ${global}, zsh starts without shell integration: ${error}`
+      log.warn(
+        `could not read ${global}, zsh starts without shell integration:`,
+        error
       )
       return false
     }
@@ -142,8 +146,9 @@ function writeScript(target: string, source: string) {
     renameSync(`${target}.tmp`, target)
     return true
   } catch (error) {
-    console.warn(
-      `could not write ${target}, the shell starts without shell integration: ${error}`
+    log.warn(
+      `could not write ${target}, the shell starts without shell integration:`,
+      error
     )
     return false
   }

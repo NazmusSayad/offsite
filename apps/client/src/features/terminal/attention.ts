@@ -1,4 +1,5 @@
 import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
+import { logger } from '@/lib/log'
 import { showNotification } from '@/lib/notifications'
 import {
   currentView,
@@ -8,6 +9,8 @@ import {
   tabTitle,
   terminalMachine,
 } from './session'
+
+const log = logger.withTag('terminal')
 
 const notifiedAt = new Map<number, number>()
 const pendingBells = new Map<number, number>()
@@ -75,7 +78,7 @@ function notify(id: number, title: string, body: string) {
     project: tab.projectId ?? GLOBAL_TERMINALS,
     tabId: id,
   }).catch((error: unknown) =>
-    console.error('could not show a notification', error)
+    log.error('could not show a notification', error)
   )
 }
 

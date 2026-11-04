@@ -9,9 +9,14 @@ import { ErrorBoundary } from '@/components/error-boundary'
 import { warmHighlighter } from '@/components/markdown/warm-highlighter'
 import { loadDrafts } from '@/features/composer/drafts'
 import { startTerminal } from '@/features/terminal/session'
+import { logger, startLogging } from '@/lib/log'
 import { refreshPushSubscription } from '@/lib/notifications'
 import { router } from '@/lib/router'
 import { openSession } from '@/lib/sessions'
+
+const log = logger.withTag('app')
+
+startLogging()
 
 const root = document.getElementById('root')
 if (!root) {
@@ -44,7 +49,7 @@ if ('serviceWorker' in navigator) {
       }
     )
     .catch((error: unknown) =>
-      console.error('could not register the service worker', error)
+      log.error('could not register the service worker', error)
     )
 }
 
@@ -63,7 +68,7 @@ startConnections()
 listen({
   open: (machine) => {
     refreshPushSubscription(machine).catch((error: unknown) =>
-      console.error('could not refresh the push subscription', error)
+      log.error('could not refresh the push subscription', error)
     )
   },
 })
@@ -78,5 +83,5 @@ createRoot(root).render(
   </StrictMode>
 )
 warmHighlighter().catch((error: unknown) =>
-  console.error('could not prepare code highlighting', error)
+  log.error('could not prepare code highlighting', error)
 )

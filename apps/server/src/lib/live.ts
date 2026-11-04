@@ -4,10 +4,14 @@ import { readConfig } from '../storage/config.ts'
 import type { Run } from './claude/index.ts'
 import type { CodexRun } from './codex/index.ts'
 import { broadcast } from './hub.ts'
+import { logger } from './log.ts'
 import type { OpenCodeRun } from './opencode/index.ts'
+
+const log = logger.withTag('runs')
 
 export const runs = new Map<string, Run | CodexRun | OpenCodeRun>()
 export const titleJobs = new Set<string>()
+let states = new Map<string, string>()
 
 export function activity() {
   const result: Record<string, SessionActivity> = {}
@@ -32,6 +36,29 @@ export function activity() {
 }
 
 export function broadcastActivity() {
+  const next = new Map<string, string>()
+  for (const run of runs.values()) {
+    const state = [
+      run.running ? 'running' : 'idle',
+      ...(run.pending.size > 0 ? ['waiting for an answer'] : []),
+      ...(run.compacting ? ['compacting'] : []),
+    ].join(', ')
+    next.set(run.sessionId, state)
+    if (!states.has(run.sessionId)) {
+      log.info(
+        `${run.provider} session ${run.sessionId} opened in ${run.cwd} with account ${run.settings.accountId}`
+      )
+    }
+    if (states.get(run.sessionId) !== state) {
+      log.debug(`session ${run.sessionId} is ${state}`)
+    }
+  }
+  for (const sessionId of states.keys()) {
+    if (!next.has(sessionId)) {
+      log.info(`session ${sessionId} closed`)
+    }
+  }
+  states = next
   broadcast({ type: 'activity', activity: activity() })
 }
 
@@ -64,7 +91,7 @@ export function scheduleAutoResolve(
         request.kind === 'question' ? {} : null
       )
     } catch (error) {
-      console.warn(`could not auto-resolve ${request.id}: ${error}`)
+      log.warn(`could not auto-resolve ${request.id}:`, error)
     }
   }, seconds * 1000)
   return {

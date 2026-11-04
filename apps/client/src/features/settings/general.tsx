@@ -14,10 +14,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { logger } from '@/lib/log'
 import type { Prefs } from '@/lib/prefs'
 import { showError, updatePrefs, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 import { Row, Section } from './controls'
+
+const log = logger.withTag('settings')
 
 export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
   const prefs = props.prefs
@@ -90,7 +93,7 @@ function UpdateSection() {
       }
       location.reload()
     } catch (error) {
-      console.error('could not update', error)
+      log.error('could not update', error)
       setFailure(errorMessage(error))
       setUpdating(false)
     }

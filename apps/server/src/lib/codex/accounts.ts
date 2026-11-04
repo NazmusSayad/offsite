@@ -8,8 +8,11 @@ import type {
 import { type StoredAccount, storedAccounts } from '../../services/accounts.ts'
 import { recordLimits } from '../../services/usage.ts'
 import { isRecord } from '../claude/content.ts'
+import { logger } from '../log.ts'
 import { type AppServer, appServer, codexBaseDir } from './app-server.ts'
 import type { CodexModel, RateLimitSnapshot, Skill } from './types.ts'
+
+const log = logger.withTag('codex')
 
 const privateEntries = [
   'auth.json',
@@ -175,7 +178,7 @@ function codexDisplayName(home: string) {
     raw = JSON.parse(readFileSync(path.join(home, 'auth.json'), 'utf8'))
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      console.warn(`could not read the Codex account name: ${error}`)
+      log.warn(`could not read the Codex account name:`, error)
     }
     return null
   }

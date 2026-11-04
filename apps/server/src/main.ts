@@ -22,8 +22,10 @@ import { connectClient } from './api/socket.ts'
 import { args } from './args.ts'
 import { findClaude } from './lib/claude/index.ts'
 import { broadcast, clients } from './lib/hub.ts'
+import { logger } from './lib/log.ts'
 import { proxySocket, serveProxy } from './lib/proxy/proxy.ts'
 import { serveAppIcon } from './services/app-icon.ts'
+import { saveBrowserLogs } from './services/browser-logs.ts'
 import {
   canBrowse,
   serveMedia,
@@ -51,6 +53,7 @@ import { listenPort, lockHome, writeJson } from './storage/storage.ts'
 const UNPAIR_CHECK = 5000
 const TICKET_LIFETIME = 60_000
 const openBody = z.object({ path: z.string() })
+const log = logger.withTag('server')
 
 const contentTypes: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -83,6 +86,7 @@ const browseTypes = new Map([
 const port = Number(listenPort())
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   console.error(`invalid port ${args.port}`)
+  log.error(`invalid port ${args.port}`)
   process.exit(1)
 }
 
@@ -101,6 +105,9 @@ if (args.command === 'unpair') {
 }
 
 lockHome()
+log.info(
+  `starting offsite ${args.command} with pid ${process.pid} on ${address}, dir ${args.dir}, auth ${args.auth ? 'on' : 'off'}`
+)
 
 process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
 installOpen(args.host, port)
@@ -109,6 +116,7 @@ refreshAll()
 
 if (findClaude() === null) {
   console.error('could not find claude on PATH; install Claude Code first')
+  log.error('could not find claude on PATH; install Claude Code first')
   process.exit(1)
 }
 
@@ -120,7 +128,7 @@ const server = createServer((request, response) => {
   try {
     answerRequest(request, response)
   } catch (error) {
-    console.warn(`a request failed: ${error}`)
+    log.warn('a request failed:', error)
     if (response.headersSent) {
       response.destroy()
       return
@@ -232,8 +240,12 @@ server.listen(port, args.host, () => {
       console.log('Run offsite pair to pair another browser')
     }
   }
+  log.info(`listening on ${address}`)
   if (!args.auth) {
     console.warn(
+      'auth is off; anyone who can reach this port can control this machine'
+    )
+    log.warn(
       'auth is off; anyone who can reach this port can control this machine'
     )
   }
@@ -242,7 +254,8 @@ server.listen(port, args.host, () => {
 process.on('SIGINT', stop)
 process.on('SIGTERM', stop)
 
-function stop() {
+function stop(signal: NodeJS.Signals) {
+  log.info(`stopping on ${signal}`)
   stopAll()
   process.exit(0)
 }
@@ -275,6 +288,16 @@ function answerApi(
       return
     }
     answerJson(response, { token })
+    return
+  }
+  if (pathname === '/api/logs') {
+    const device = given === null ? null : findDevice(given)
+    if (args.auth && device === null) {
+      response.statusCode = 401
+      response.end('This browser needs pairing')
+      return
+    }
+    void saveBrowserLogs(device, request, response)
     return
   }
   if (pathname === '/api/ticket') {

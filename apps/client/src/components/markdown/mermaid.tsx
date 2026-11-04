@@ -1,3 +1,4 @@
+import { createStore, get, set } from 'idb-keyval'
 import { lazy, type Ref, Suspense, useEffect, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { currentScheme } from '@/lib/theme'
@@ -5,6 +6,8 @@ import { currentScheme } from '@/lib/theme'
 const ImageViewer = lazy(async () => ({
   default: (await import('@/components/image-viewer')).ImageViewer,
 }))
+
+const database = createStore('offsite-mermaid', 'diagrams')
 
 let diagrams = 0
 
@@ -17,7 +20,9 @@ export function useMermaid(code: string | null) {
       return
     }
     let current = true
-    const timer = setTimeout(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const key = `${theme}\n${code}`
+    function render(source: string) {
       const scheme = currentScheme()
       import('mermaid')
         .then(({ default: mermaid }) => {
@@ -57,9 +62,10 @@ export function useMermaid(code: string | null) {
             },
           })
           diagrams += 1
-          return mermaid.render(`mermaid-${diagrams}`, code)
+          return mermaid.render(`mermaid-${diagrams}`, source)
         })
         .then((result) => {
+          void set(key, result.svg, database)
           if (current) {
             setSvg(result.svg)
           }
@@ -69,7 +75,17 @@ export function useMermaid(code: string | null) {
             setSvg(null)
           }
         })
-    }, 400)
+    }
+    void get<string>(key, database).then((cached) => {
+      if (!current) {
+        return
+      }
+      if (cached !== undefined) {
+        setSvg(cached)
+        return
+      }
+      timer = setTimeout(() => render(code), 400)
+    })
     return () => {
       current = false
       clearTimeout(timer)
@@ -98,7 +114,12 @@ export function MermaidDiagram(props: {
       {props.open && (
         <Suspense>
           <ImageViewer
-            src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(props.svg)}`}
+            src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+              new XMLSerializer().serializeToString(
+                new DOMParser().parseFromString(props.svg, 'text/html').body
+                  .firstElementChild!
+              )
+            )}`}
             alt="Diagram"
             name="Mermaid diagram"
             onClose={() => props.onOpenChange(false)}

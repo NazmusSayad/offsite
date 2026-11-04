@@ -2,8 +2,11 @@ import type { PushMessage, PushRegistration } from '@offsite/core/push'
 import { and, eq, inArray } from 'drizzle-orm'
 import webPush from 'web-push'
 import { type Client, clients } from '../lib/hub.ts'
+import { logger } from '../lib/log.ts'
 import { db } from '../storage/db.ts'
 import { pushSubscriptions } from '../storage/schema.ts'
+
+const log = logger.withTag('push')
 
 const TITLE_LIMIT = 100
 const BODY_LIMIT = 500
@@ -62,7 +65,7 @@ export function subscribe(registration: PushRegistration, client: Client) {
   if (notifier !== null && notifier.client === client) {
     notifier.endpoint = registration.subscription.endpoint
   }
-  console.log('a browser subscribed to push notifications')
+  log.info('a browser subscribed to push notifications')
 }
 
 export function unsubscribe(endpoint: string) {
@@ -72,7 +75,7 @@ export function unsubscribe(endpoint: string) {
   if (notifier !== null && notifier.endpoint === endpoint) {
     notifier.endpoint = null
   }
-  console.log('a browser unsubscribed from push notifications')
+  log.info('a browser unsubscribed from push notifications')
 }
 
 export async function sendPush(message: PushMessage) {
@@ -86,7 +89,7 @@ export async function sendPush(message: PushMessage) {
     body: [...message.body].slice(0, BODY_LIMIT).join(''),
   }
   const gone: string[] = []
-  let sent = false
+  let delivered = 0
   await Promise.all(
     subscriptions.map(async (subscription) => {
       try {
@@ -107,24 +110,23 @@ export async function sendPush(message: PushMessage) {
             timeout: SEND_TIMEOUT,
           }
         )
-        sent = true
+        delivered += 1
       } catch (error) {
         const status = (error as { statusCode?: number }).statusCode
         if (status !== undefined && [401, 403, 404, 410].includes(status)) {
-          console.log(
+          log.info(
             `push subscription ${subscription.endpoint} is gone or was made for another key, removing it`
           )
           gone.push(subscription.endpoint)
           return
         }
-        console.warn(
-          `could not send a push to ${subscription.endpoint}: ${error}`
-        )
+        log.warn(`could not send a push to ${subscription.endpoint}:`, error)
       }
     })
   )
+  log.debug(`sent a push to ${delivered} of ${subscriptions.length} browsers`)
   if (gone.length === 0) {
-    return sent
+    return delivered > 0
   }
   db.delete(pushSubscriptions)
     .where(
@@ -134,7 +136,7 @@ export async function sendPush(message: PushMessage) {
       )
     )
     .run()
-  return sent
+  return delivered > 0
 }
 
 function targets() {

@@ -5,8 +5,11 @@ import path from 'node:path'
 import readline from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
 import { openEnv } from '../../services/open/open.ts'
+import { logger } from '../log.ts'
 import { publishCodexLimits } from './accounts.ts'
 import type { RateLimitSnapshot, ThreadItem } from './types.ts'
+
+const log = logger.withTag('codex')
 
 const IDLE_LIMIT = 30 * 60 * 1000
 const START_TIMEOUT = 15_000
@@ -84,6 +87,7 @@ export class AppServer {
       throw new Error('Codex is not installed or not on the PATH')
     }
     this.home = home
+    log.info(`starting the Codex app server for ${home}`)
     this.child = spawn(executable, ['app-server'], {
       env: { ...process.env, ...openEnv(), CODEX_HOME: home },
       stdio: ['pipe', 'pipe', 'ignore'],
@@ -105,6 +109,7 @@ export class AppServer {
     ).then(
       () => this.write({ method: 'initialized' }),
       (error: unknown) => {
+        log.warn(`the Codex app server for ${home} did not start:`, error)
         this.child.kill()
         throw error
       }
@@ -115,7 +120,17 @@ export class AppServer {
   async request<T>(method: string, params: Params): Promise<T> {
     await this.ready
     this.armIdleTimer()
-    return (await this.call(method, params, REQUEST_TIMEOUT)) as T
+    const started = performance.now()
+    try {
+      const result = await this.call(method, params, REQUEST_TIMEOUT)
+      log.debug(`${method} took ${Math.round(performance.now() - started)}ms`)
+      return result as T
+    } catch (error) {
+      log.debug(
+        `${method} failed after ${Math.round(performance.now() - started)}ms: ${error}`
+      )
+      throw error
+    }
   }
 
   reply(id: number | string, result: unknown) {
@@ -127,6 +142,7 @@ export class AppServer {
   }
 
   stop() {
+    log.info(`stopping the Codex app server for ${this.home}`)
     clearTimeout(this.idleTimer)
     if (servers.get(this.home) === this) {
       servers.delete(this.home)
@@ -176,7 +192,7 @@ export class AppServer {
     try {
       message = JSON.parse(line) as Incoming
     } catch {
-      console.warn(`ignoring a Codex line that is not JSON: ${line}`)
+      log.warn(`ignoring a Codex line that is not JSON: ${line}`)
       return
     }
     if (message.method === undefined) {
@@ -258,6 +274,7 @@ export class AppServer {
       return
     }
     this.exited = error
+    log.info(`the Codex app server for ${this.home} exited:`, error.message)
     clearTimeout(this.idleTimer)
     if (servers.get(this.home) === this) {
       servers.delete(this.home)

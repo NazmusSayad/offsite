@@ -2,8 +2,11 @@ import type { PushSubscriptionInfo } from '@offsite/core/push'
 import { useEffect } from 'react'
 import { call, isConnected } from '@/api/connection'
 import { machineKey } from '@/api/machines'
+import { logger } from '@/lib/log'
 import { providerNames } from './format'
 import { activityOf, getState, machineOf, useStore } from './store'
+
+const log = logger.withTag('notifications')
 
 type PushKeys = { publicKey: string; privateKey: string }
 
@@ -61,7 +64,7 @@ export function notify(machine: string, ids: string[], what: string) {
       session?.title ?? 'Session',
       machineKey(machine, id)
     ).catch((error: unknown) =>
-      console.error('could not show a notification', error)
+      log.error('could not show a notification', error)
     )
   }
 }
@@ -73,9 +76,7 @@ export function push(machine: string, sessionId: string, message: string) {
     findSession(machine, sessionId)?.title ?? 'Session',
     message,
     `push:${machineKey(machine, sessionId)}`
-  ).catch((error: unknown) =>
-    console.error('could not show a notification', error)
-  )
+  ).catch((error: unknown) => log.error('could not show a notification', error))
 }
 
 function findSession(machine: string, id: string) {
@@ -158,7 +159,7 @@ export function claimNotifications() {
       )
     )
     .catch((error: unknown) =>
-      console.error('could not claim notifications', error)
+      log.error('could not claim notifications', error)
     )
     .finally(() => {
       for (const machine of machines) {
@@ -347,7 +348,7 @@ export function useAttentionBadge() {
     const badge =
       count === 0 ? navigator.clearAppBadge() : navigator.setAppBadge(count)
     badge.catch((error: unknown) =>
-      console.error('could not update the app badge', error)
+      log.error('could not update the app badge', error)
     )
   }, [count])
 }

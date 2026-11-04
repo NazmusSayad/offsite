@@ -3,23 +3,26 @@ import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { readBase64 } from '@/api/upload'
 import type { Terminal } from '@/lib/ghostty/terminal'
+import { logger } from '@/lib/log'
+
+const log = logger.withTag('terminal')
 
 const READ_LIMIT = 1024 * 1024
 
 export function writeClipboard(text: string) {
   if (!window.isSecureContext) {
-    console.warn('copy from the terminal needs https or localhost')
+    log.warn('copy from the terminal needs https or localhost')
     return
   }
   navigator.clipboard.writeText(text).catch((error: unknown) => {
-    console.warn('could not copy to the clipboard', error)
+    log.warn('could not copy to the clipboard', error)
     toast('Could not copy to the clipboard')
   })
 }
 
 export async function readClipboard(reply: (text: string) => void) {
   if (!window.isSecureContext) {
-    console.warn('programs can read the clipboard only over https or localhost')
+    log.warn('programs can read the clipboard only over https or localhost')
     toast('Programs can read the clipboard only over https or localhost')
     return
   }
@@ -27,12 +30,12 @@ export async function readClipboard(reply: (text: string) => void) {
   try {
     text = await navigator.clipboard.readText()
   } catch (error) {
-    console.warn('could not read the clipboard', error)
+    log.warn('could not read the clipboard', error)
     toast('Could not read the clipboard')
     return
   }
   if (new TextEncoder().encode(text).length > READ_LIMIT) {
-    console.warn('the clipboard is over 1 MiB, not replying')
+    log.warn('the clipboard is over 1 MiB, not replying')
     toast('The clipboard is too large to share (over 1 MiB)')
     return
   }
@@ -95,6 +98,6 @@ export async function pasteImages(
 }
 
 export function reportPasteError(error: unknown) {
-  console.error('could not paste image', error)
+  log.error('could not paste image', error)
   toast('Could not paste the image')
 }

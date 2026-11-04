@@ -10,6 +10,7 @@ import {
   encodeFrame,
   type TerminalEvent,
 } from '@offsite/core/terminal'
+import { logger } from '@/lib/log'
 import { readToken } from '@/lib/tokens'
 
 type Listener = {
@@ -52,6 +53,7 @@ const longCalls: RpcMethod[] = [
   'git.createPullRequest',
 ]
 
+const log = logger.withTag('connection')
 const listeners = new Set<Listener>()
 const connections = new Map<string, Connection>()
 let nextId = 0
@@ -215,11 +217,16 @@ async function openSocket(
 ) {
   const url = connection.urls[attempt % connection.urls.length]
   connection.url = url
-  const ticket = await requestTicket(machine, url).catch(() => undefined)
+  log.debug(`connecting to ${url}, attempt ${attempt + 1}`)
+  const ticket = await requestTicket(machine, url).catch((error: unknown) => {
+    log.warn(`could not get a ticket from ${url}:`, error)
+    return undefined
+  })
   if (connections.get(machine) !== connection) {
     return
   }
   if (ticket === 'unpaired') {
+    log.warn(`${url} says this browser is not paired`)
     for (const listener of listeners) {
       listener.unpaired?.(machine)
     }
@@ -241,6 +248,7 @@ async function openSocket(
     }
     connection.connected = true
     connection.failures = 0
+    log.info(`connected to ${url}`)
     for (const listener of listeners) {
       listener.open?.(machine, url)
     }
@@ -250,11 +258,12 @@ async function openSocket(
       receive(machine, connection, event.data)
     }
   }
-  next.onclose = () => {
+  next.onclose = (event) => {
     window.clearTimeout(timer)
     if (connection.socket !== next) {
       return
     }
+    log.info(`the connection to ${url} closed (code ${event.code})`)
     if (connection.connected) {
       disconnect(machine, connection)
       retry(machine, connection, 0)
@@ -298,6 +307,9 @@ function retry(machine: string, connection: Connection, attempt: number) {
     Math.min(RECONNECT_LIMIT, RECONNECT_DELAY * 2 ** connection.failures) *
     (0.8 + Math.random() * 0.4)
   connection.failures += 1
+  log.debug(
+    `reconnecting to ${new URL(connection.url).host} in ${Math.round(delay / 1000)}s`
+  )
   connection.timer = window.setTimeout(() => {
     connection.timer = undefined
     void openSocket(machine, connection, attempt)
@@ -334,6 +346,7 @@ async function pingServer(machine: string, connection: Connection) {
   if (alive || connection.socket !== current || !connection.connected) {
     return alive
   }
+  log.warn(`${connection.url} did not answer a ping, reconnecting`)
   current.onclose = null
   current.close()
   disconnect(machine, connection)

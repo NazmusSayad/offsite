@@ -21,6 +21,7 @@ import {
 } from '../lib/codex/index.ts'
 import { broadcast } from '../lib/hub.ts'
 import { runs, titleJobs } from '../lib/live.ts'
+import { logger } from '../lib/log.ts'
 import {
   forkOpenCode,
   openCodeInstalled,
@@ -36,6 +37,8 @@ import {
 import { providerName } from './accounts.ts'
 import { projectPath, projects, removeProject } from './projects.ts'
 import { find, type Found, info, timeLimit } from './provider-sessions.ts'
+
+const log = logger.withTag('sessions')
 
 const day = 24 * 60 * 60 * 1000
 const REFRESH_DELAY = 1000
@@ -93,7 +96,7 @@ export async function searchableSessions() {
         )
         return { provider, items: items ?? [], failed: false }
       } catch (error) {
-        console.warn(`could not search ${providerName(provider)}: ${error}`)
+        log.warn(`could not search ${providerName(provider)}:`, error)
         return { provider, items: [], failed: true }
       }
     })
@@ -298,9 +301,7 @@ async function list(provider: Provider) {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    console.warn(
-      `could not list ${providerName(provider)} sessions: ${message}`
-    )
+    log.warn(`could not list ${providerName(provider)} sessions: ${message}`)
     statuses[provider] = { provider, state: 'error', error: message }
   } finally {
     publishSessions()
@@ -376,13 +377,15 @@ export function watchSessions() {
         refreshSessions(provider)
       )
       watcher.on('error', (error) =>
-        console.warn(`stopped watching ${dir}: ${error}`)
+        log.warn(`stopped watching ${dir}:`, error)
       )
+      log.debug(`watching ${dir}`)
       return [watcher]
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         throw error
       }
+      log.debug(`not watching ${dir}, it does not exist`)
       return []
     }
   })
@@ -473,7 +476,7 @@ export async function removeSession(id: string, projectId: string) {
       removeProject(project.id)
     }
   } catch (error) {
-    console.warn(`could not check other chats in ${project.path}: ${error}`)
+    log.warn(`could not check other chats in ${project.path}:`, error)
   }
 }
 

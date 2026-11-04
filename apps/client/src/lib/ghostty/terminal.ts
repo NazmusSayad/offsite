@@ -1,3 +1,4 @@
+import { logger } from '@/lib/log'
 import { type CursorStyle, GhosttyCore, type Point } from './core'
 import { Find, type FindResults } from './find'
 import { decodeInlineImage, decodeSixel, InlineImages } from './images'
@@ -18,6 +19,8 @@ import { Pointer } from './pointer'
 import { Prompt } from './prompt'
 import type { Color, Snapshot } from './render-state'
 import { type Appearance, type Metrics, measureCell, render } from './renderer'
+
+const log = logger.withTag('terminal')
 
 export type { FindResults } from './find'
 export type { Progress } from './osc'
@@ -112,7 +115,7 @@ async function closeWhenDecoded(decoding: Promise<ImageBitmap | null>) {
     const bitmap = await decoding
     bitmap?.close()
   } catch (error) {
-    console.warn('could not decode image', error)
+    log.warn('could not decode image', error)
   }
 }
 
@@ -564,7 +567,7 @@ export class Terminal {
     try {
       const bitmap = await Promise.race([decoding, timeout])
       if (bitmap === 'timeout') {
-        console.warn('image decoding took too long, skipping the image')
+        log.warn('image decoding took too long, skipping the image')
         void closeWhenDecoded(decoding)
       } else if (bitmap !== null) {
         if (epoch === this.epoch && !this.disposed) {
@@ -574,7 +577,7 @@ export class Terminal {
         }
       }
     } catch (error) {
-      console.warn('could not decode image', error)
+      log.warn('could not decode image', error)
     }
     window.clearTimeout(timer)
     if (epoch !== this.epoch || this.disposed) {
@@ -674,7 +677,7 @@ export class Terminal {
       this.renderFailed = false
     } catch (error) {
       if (!this.renderFailed) {
-        console.error('could not draw the terminal', error)
+        log.error('could not draw the terminal', error)
       }
       this.renderFailed = true
     }
@@ -760,7 +763,7 @@ export class Terminal {
       return
     }
     if (!window.isSecureContext) {
-      console.warn('copy from the terminal needs https or localhost')
+      log.warn('copy from the terminal needs https or localhost')
       return
     }
     void navigator.clipboard.writeText(text)

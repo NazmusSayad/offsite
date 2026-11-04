@@ -1,4 +1,5 @@
 import { call } from '@/api/connection'
+import { logger } from '@/lib/log'
 import {
   findTab,
   send,
@@ -7,6 +8,8 @@ import {
   terminalConfig,
   terminalMachine,
 } from './session'
+
+const log = logger.withTag('terminal')
 
 type Closing = { id: number; name: string; program: string | null }
 type MachineTab = { machine: string; id: number }
@@ -77,7 +80,7 @@ async function busyProgram(machine: string, id: number) {
       ),
     ])
     if ('error' in result) {
-      console.error(
+      log.error(
         `could not check whether tab ${id} is running a program`,
         result.error
       )
@@ -85,7 +88,7 @@ async function busyProgram(machine: string, id: number) {
     }
     return { checked: true as const, program: result.program }
   } catch (error) {
-    console.error('could not check whether a program is running', error)
+    log.error('could not check whether a program is running', error)
     return { checked: false as const }
   }
 }
