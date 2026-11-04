@@ -50,6 +50,8 @@ import { cn, drag, mod } from '@/lib/utils'
 const iconButton =
   'text-sidebar-muted-foreground/80 hover:bg-sidebar-row-hover hover:text-sidebar-foreground flex shrink-0 cursor-pointer items-center justify-center rounded-[var(--control-radius)] [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-(--sidebar-icon-color) hover:[&>svg]:text-sidebar-foreground'
 
+const DONE_PAGE = 50
+
 export function Sidebar(
   props:
     | { className: string; mobile: false; onHide: () => void }
@@ -63,6 +65,7 @@ export function Sidebar(
   const unseen = useStore((state) => state.unseen)
   const loaded = useStore((state) => state.loaded)
   const inactive = useStore((state) => state.inactive)
+  const inactiveTotal = useStore((state) => state.inactiveTotal)
   const groupActiveByProject = useStore(
     (state) => state.prefs.groupActiveByProject
   )
@@ -75,6 +78,7 @@ export function Sidebar(
   const [snoozedOpen, setSnoozedOpen] = useState(false)
   const [minimizedOpen, setMinimizedOpen] = useState(false)
   const [inactiveOpen, setInactiveOpen] = useState(false)
+  const [inactiveLimit, setInactiveLimit] = useState(DONE_PAGE)
   const [width, setWidth] = useLocalStorage('sidebarWidth', 240)
   const shown = sessions
     .filter(
@@ -153,7 +157,7 @@ export function Sidebar(
       : projectId
   }
 
-  useInactiveSessions(inactiveOpen, scopeMachine, scopeProject)
+  useInactiveSessions(inactiveOpen, scopeMachine, scopeProject, inactiveLimit)
 
   function select(
     machine: string,
@@ -394,11 +398,34 @@ export function Sidebar(
             {section({
               icon: Tick01Icon,
               label: 'Done',
-              items: inactive,
+              items: inactive.slice(0, inactiveLimit),
               open: inactiveOpen,
-              onToggle: () => setInactiveOpen(!inactiveOpen),
+              onToggle: () => {
+                setInactiveOpen(!inactiveOpen)
+                setInactiveLimit(DONE_PAGE)
+              },
               first: snoozed.length === 0 && minimized.length === 0,
             })}
+            {inactiveOpen &&
+              inactiveTotal > inactiveLimit &&
+              inactive.length >= inactiveLimit && (
+                <li
+                  aria-hidden
+                  className="h-px shrink-0"
+                  ref={(element) => {
+                    if (element === null) {
+                      return
+                    }
+                    const observer = new IntersectionObserver((entries) => {
+                      if (entries[0].isIntersecting) {
+                        setInactiveLimit(inactiveLimit + DONE_PAGE)
+                      }
+                    })
+                    observer.observe(element)
+                    return () => observer.disconnect()
+                  }}
+                />
+              )}
           </ul>
         </nav>
         {!props.mobile && (

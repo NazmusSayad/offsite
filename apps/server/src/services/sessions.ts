@@ -36,7 +36,19 @@ import {
 } from '../storage/schema.ts'
 import { providerName } from './accounts.ts'
 import { projectPath, projects, removeProject } from './projects.ts'
-import { find, type Found, info, timeLimit } from './provider-sessions.ts'
+import { type Found, info, timeLimit } from './provider-sessions.ts'
+import {
+  fileChanged,
+  forgetThread,
+  knownThreads,
+  markChanged,
+  rebuildThreads,
+  threadFailed,
+  threadOf,
+  threadProvider,
+  threadsReady,
+  updateThreads,
+} from './threads.ts'
 
 const log = logger.withTag('sessions')
 
@@ -69,42 +81,32 @@ export function sessions(): Session[] {
   ).filter((session) => session.status !== 'inactive')
 }
 
-export async function inactiveSessions(projectId: string | null) {
-  const found = await everything(
+export async function inactiveSessions(params: {
+  projectId: string | null
+  limit: number
+}) {
+  await threadsReady()
+  const scope = new Set(
     projects()
       .filter(
         (project) =>
-          projectId === null ||
-          project.id === projectId ||
-          (projectId === NO_PROJECT && project.scratch)
+          params.projectId === null ||
+          project.id === params.projectId ||
+          (params.projectId === NO_PROJECT && project.scratch)
       )
-      .map((project): [string, string] => [project.path, project.id])
+      .map((project) => project.id)
   )
-  return found
+  const found = withStatus(
+    knownThreads().filter((item) => scope.has(item.projectId))
+  )
     .filter((session) => session.status === 'inactive')
     .sort((a, b) => b.updatedAt - a.updatedAt)
+  return { sessions: found.slice(0, params.limit), total: found.length }
 }
 
 export async function searchableSessions() {
-  const paths = projectPaths()
-  const lists = await Promise.all(
-    enabledProviders().map(async (provider) => {
-      try {
-        const items = await timeLimit(
-          find(provider, new Map(paths)),
-          `${providerName(provider)} did not list its sessions in time`
-        )
-        return { provider, items: items ?? [], failed: false }
-      } catch (error) {
-        log.warn(`could not search ${providerName(provider)}:`, error)
-        return { provider, items: [], failed: true }
-      }
-    })
-  )
-  const found = lists.flatMap((list) => list.items)
-  for (const item of found) {
-    providers.set(item.id, item.provider)
-  }
+  await threadsReady()
+  const found = knownThreads()
   const opens = new Map(
     db
       .select()
@@ -117,40 +119,20 @@ export async function searchableSessions() {
       ...session,
       opens: opens.get(session.id) ?? null,
     })),
-    failed: lists.filter((list) => list.failed).map((list) => list.provider),
+    failed: enabledProviders().filter((provider) => threadFailed(provider)),
   }
 }
 
 export async function findSession(id: string) {
-  const paths = new Map(projectPaths())
+  if (ownerOf(id) === undefined) {
+    await threadsReady()
+  }
   const owner = ownerOf(id)
-  if (owner !== undefined) {
-    const item = await info(owner, id, paths)
-    return item === null ? null : withStatus([item])[0]
+  if (owner === undefined) {
+    return null
   }
-  for (const provider of allProviders) {
-    if (!readConfig().enabledProviders[provider]) {
-      continue
-    }
-    const item = await info(provider, id, paths).catch(() => null)
-    if (item !== null) {
-      providers.set(id, provider)
-      return withStatus([item])[0]
-    }
-  }
-  return null
-}
-
-async function everything(paths: [string, string][]) {
-  const found = (
-    await Promise.all(
-      enabledProviders().map((provider) => find(provider, new Map(paths)))
-    )
-  ).flatMap((items) => items ?? [])
-  for (const item of found) {
-    providers.set(item.id, item.provider)
-  }
-  return withStatus(found)
+  const item = await info(owner, id, new Map(projectPaths()))
+  return item === null ? null : withStatus([item])[0]
 }
 
 function withStatus(items: Found[]): Session[] {
@@ -191,7 +173,16 @@ function projectPaths() {
 }
 
 function ownerOf(sessionId: string) {
-  return runs.get(sessionId)?.provider ?? providers.get(sessionId)
+  return (
+    runs.get(sessionId)?.provider ??
+    db
+      .select({ provider: sessionsTable.provider })
+      .from(sessionsTable)
+      .where(eq(sessionsTable.sessionId, sessionId))
+      .get()?.provider ??
+    providers.get(sessionId) ??
+    threadProvider(sessionId)
+  )
 }
 
 export function providerStatuses() {
@@ -212,12 +203,18 @@ export function providerOf(sessionId: string) {
   return provider
 }
 
-export function recordInteraction(id: string) {
+export function recordInteraction(id: string, provider: Provider) {
   db.insert(sessionsTable)
-    .values({ sessionId: id, interactedAt: Date.now(), status: 'active' })
+    .values({
+      sessionId: id,
+      provider,
+      interactedAt: Date.now(),
+      status: 'active',
+    })
     .onConflictDoUpdate({
       target: sessionsTable.sessionId,
       set: {
+        provider,
         interactedAt: Date.now(),
         status: sql`CASE ${sessionsTable.status} WHEN 'pinned' THEN 'pinned' WHEN 'snoozed' THEN 'snoozed' WHEN 'minimized' THEN 'minimized' ELSE 'active' END`,
       },
@@ -243,6 +240,7 @@ export function publishSessions() {
 }
 
 export function refreshAll() {
+  rebuildThreads()
   for (const provider of allProviders) {
     void refresh(provider)
   }
@@ -257,6 +255,7 @@ export function refreshSessions(provider: Provider) {
     setTimeout(() => {
       timers.delete(provider)
       void refresh(provider)
+      void updateThreads(provider)
     }, REFRESH_DELAY)
   )
 }
@@ -326,16 +325,8 @@ async function tracked(
       .select()
       .from(sessionsTable)
       .all()
-      .map((record) => {
-        const owner = ownerOf(record.sessionId)
-        if (owner === provider) {
-          return lookup(provider, record.sessionId, paths)
-        }
-        if (owner === undefined) {
-          return lookup(provider, record.sessionId, paths).catch(() => null)
-        }
-        return null
-      })
+      .filter((record) => record.provider === provider)
+      .map((record) => lookup(provider, record.sessionId, paths))
   )
   return found.filter((item) => item !== null)
 }
@@ -345,7 +336,9 @@ async function lookup(
   sessionId: string,
   paths: Map<string, string>
 ) {
-  const known = listed[provider].find((item) => item.id === sessionId)
+  const known =
+    threadOf(provider, sessionId) ??
+    listed[provider].find((item) => item.id === sessionId)
   const knownPath =
     known === undefined
       ? undefined
@@ -373,9 +366,10 @@ export function watchSessions() {
       return []
     }
     try {
-      const watcher = watch(dir, { recursive: true }, () =>
+      const watcher = watch(dir, { recursive: true }, (_, filename) => {
+        fileChanged(provider, filename)
         refreshSessions(provider)
-      )
+      })
       watcher.on('error', (error) =>
         log.warn(`stopped watching ${dir}:`, error)
       )
@@ -430,16 +424,18 @@ export async function updateSession(id: string, patch: SessionPatch) {
       patch.status === 'active' || patch.status === 'snoozed'
         ? { status: patch.status, interactedAt: Date.now() }
         : { status: patch.status }
+    const provider = providerOf(id)
     db.insert(sessionsTable)
-      .values({ sessionId: id, ...set })
+      .values({ sessionId: id, provider, ...set })
       .onConflictDoUpdate({
         target: sessionsTable.sessionId,
-        set,
+        set: { provider, ...set },
       })
       .run()
-    await refresh(providerOf(id))
+    await refresh(provider)
   }
   if (patch.title !== undefined) {
+    markChanged(providerOf(id), id)
     refreshSessions(providerOf(id))
   }
 }
@@ -464,19 +460,17 @@ export async function removeSession(id: string, projectId: string) {
   db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
   db.delete(sessionOpensTable).where(eq(sessionOpensTable.sessionId, id)).run()
   listed[provider] = listed[provider].filter((item) => item.id !== id)
+  forgetThread(provider, id)
   const project = projects().find((item) => item.id === projectId)
   if (project === undefined || !project.scratch) {
     return
   }
-  try {
-    const others = (await everything([[project.path, project.id]])).filter(
-      (item) => item.id !== id
-    )
-    if (others.length === 0) {
-      removeProject(project.id)
-    }
-  } catch (error) {
-    log.warn(`could not check other chats in ${project.path}:`, error)
+  await threadsReady()
+  if (enabledProviders().some((owner) => threadFailed(owner))) {
+    return
+  }
+  if (!knownThreads().some((item) => item.projectId === project.id)) {
+    removeProject(project.id)
   }
 }
 
@@ -493,7 +487,8 @@ export async function fork(
     messageId
   )
   providers.set(result.sessionId, provider)
-  recordInteraction(result.sessionId)
+  recordInteraction(result.sessionId, provider)
+  markChanged(provider, result.sessionId)
   refreshSessions(provider)
   return result
 }

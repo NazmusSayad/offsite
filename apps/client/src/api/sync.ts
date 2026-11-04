@@ -61,6 +61,7 @@ export function start() {
     machines: stored.map(restoreMachine),
     sessions: [],
     inactive: [],
+    inactiveTotal: 0,
     inactiveVersion: 0,
     projects: stored.flatMap(restoreProjects),
     prefs: loadPrefs(),
@@ -331,6 +332,9 @@ function receive(machine: string, event: ServerEvent) {
       return
     case 'sessions':
       setSessions(machine, event.sessions)
+      return
+    case 'threads':
+      update({ inactiveVersion: getState().inactiveVersion + 1 })
       return
     case 'accounts':
       setAccounts(machine, event)

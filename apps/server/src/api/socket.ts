@@ -199,7 +199,7 @@ const handlers: Handlers = {
     }
     return session
   },
-  'sessions.inactive': (params) => inactiveSessions(params.projectId),
+  'sessions.inactive': (params) => inactiveSessions(params),
   'sessions.searchable': () => searchableSessions(),
   'sessions.searchMessages': (params) => searchMessages(params.query),
   'sessions.earlier': (params) => earlier(params.sessionId, params.before),
@@ -252,7 +252,7 @@ const handlers: Handlers = {
       return null
     }
     await run.respond(params.requestId, params.decision, params.answers)
-    recordInteraction(params.sessionId)
+    recordInteraction(params.sessionId, run.provider)
     return null
   },
   'sessions.rewind': (params) => rewind(params),

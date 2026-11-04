@@ -1,3 +1,4 @@
+import { isEqual } from 'es-toolkit'
 import { useEffect } from 'react'
 import { call } from '@/api/connection'
 import { getState, showError, update, useStore } from '@/lib/store'
@@ -5,7 +6,8 @@ import { getState, showError, update, useStore } from '@/lib/store'
 export function useInactiveSessions(
   inactiveOpen: boolean,
   scopeMachine: string | null,
-  scopeProject: string | null
+  scopeProject: string | null,
+  limit: number
 ) {
   const inactiveVersion = useStore((state) => state.inactiveVersion)
 
@@ -14,42 +16,45 @@ export function useInactiveSessions(
       return
     }
     let current = true
-    let latest = 0
     async function load() {
-      const request = ++latest
       const targets =
         scopeMachine === null
           ? getState()
               .machines.filter((machine) => machine.status === 'online')
               .map((machine) => machine.id)
           : [scopeMachine]
-      const lists = await Promise.all(
-        targets.map(async (machine) =>
-          (
-            await call(machine, 'sessions.inactive', {
-              projectId: scopeProject,
-            })
-          ).map((session) => ({ ...session, machine }))
-        )
-      )
-      if (current && request === latest) {
-        update({
-          inactive: lists.flat().sort((a, b) => b.updatedAt - a.updatedAt),
+      const pages = await Promise.all(
+        targets.map(async (machine) => {
+          const page = await call(machine, 'sessions.inactive', {
+            projectId: scopeProject,
+            limit,
+          })
+          return {
+            sessions: page.sessions.map((session) => ({ ...session, machine })),
+            total: page.total,
+          }
         })
+      )
+      if (!current) {
+        return
       }
-    }
-    function reload() {
-      if (document.visibilityState === 'visible') {
-        load().catch(showError)
+      const inactive = pages
+        .flatMap((page) => page.sessions)
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .slice(0, limit)
+      const inactiveTotal = pages.reduce((sum, page) => sum + page.total, 0)
+      const state = getState()
+      if (
+        isEqual(inactive, state.inactive) &&
+        inactiveTotal === state.inactiveTotal
+      ) {
+        return
       }
+      update({ inactive, inactiveTotal })
     }
     load().catch(showError)
-    window.addEventListener('focus', reload)
-    document.addEventListener('visibilitychange', reload)
     return () => {
       current = false
-      window.removeEventListener('focus', reload)
-      document.removeEventListener('visibilitychange', reload)
     }
-  }, [inactiveOpen, scopeMachine, scopeProject, inactiveVersion])
+  }, [inactiveOpen, scopeMachine, scopeProject, inactiveVersion, limit])
 }

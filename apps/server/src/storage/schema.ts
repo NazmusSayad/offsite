@@ -13,6 +13,7 @@ export const projects = snakeCase.table('projects', {
 
 export const sessions = snakeCase.table('sessions', {
   sessionId: text().primaryKey(),
+  provider: text({ enum: ['claude', 'codex', 'opencode'] }),
   interactedAt: integer(),
   status: text({
     enum: ['active', 'pinned', 'snoozed', 'minimized'],

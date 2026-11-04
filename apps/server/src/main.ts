@@ -25,6 +25,7 @@ import { broadcast, clients } from './lib/hub.ts'
 import { logger } from './lib/log.ts'
 import { proxySocket, serveProxy } from './lib/proxy/proxy.ts'
 import { serveAppIcon } from './services/app-icon.ts'
+import { backfillSessionProviders } from './services/backfill-session-providers.ts'
 import { saveBrowserLogs } from './services/browser-logs.ts'
 import {
   canBrowse,
@@ -111,6 +112,7 @@ log.info(
 
 process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
 installOpen(args.host, port)
+await backfillSessionProviders()
 watchSessions()
 refreshAll()
 

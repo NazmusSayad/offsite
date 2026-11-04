@@ -23,7 +23,8 @@ import { openCodeMessages } from '../lib/opencode/index.ts'
 import { claudeBaseDir, readConfig } from '../storage/config.ts'
 import { providerName } from './accounts.ts'
 import { projects } from './projects.ts'
-import { find, type Found, timeLimit } from './provider-sessions.ts'
+import { type Found, timeLimit } from './provider-sessions.ts'
+import { providerThreads } from './threads.ts'
 
 const log = logger.withTag('search')
 
@@ -40,9 +41,6 @@ export async function searchMessages(query: string) {
   if (!hasSearchableWord(query)) {
     return { matches: [], failed: [] }
   }
-  const paths = new Map(
-    projects().map((project): [string, string] => [project.path, project.id])
-  )
   const folders = new Map(
     projects().map((project) => [project.id, project.path])
   )
@@ -53,7 +51,7 @@ export async function searchMessages(query: string) {
       .map(async (provider) => {
         try {
           const matches = await timeLimit(
-            search(provider, query, paths, folders),
+            search(provider, query, folders),
             `${providerName(provider)} did not search in time`
           )
           return { provider, matches, failed: false }
@@ -77,14 +75,9 @@ export async function searchMessages(query: string) {
 async function search(
   provider: Provider,
   query: string,
-  paths: Map<string, string>,
   folders: Map<string, string>
 ) {
-  const found = await find(provider, paths)
-  if (found === null) {
-    return []
-  }
-  const sessions = newestFirst(found)
+  const sessions = newestFirst(await providerThreads(provider))
   switch (provider) {
     case 'claude':
       return searchClaude(query, sessions, folders)

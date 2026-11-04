@@ -107,8 +107,8 @@ export type RpcMethods = {
     result: Session | null
   }
   'sessions.inactive': {
-    params: { projectId: string | null }
-    result: Session[]
+    params: { projectId: string | null; limit: number }
+    result: { sessions: Session[]; total: number }
   }
   'sessions.searchable': {
     params: void
@@ -353,6 +353,7 @@ export type ServerEvent =
   | { type: 'appIcon'; appIcon: AppIconId }
   | { type: 'projects'; projects: Project[] }
   | { type: 'sessions'; sessions: Session[] }
+  | { type: 'threads' }
   | { type: 'providers'; providers: ProviderStatus[] }
   | ({ type: 'accounts' } & Accounts)
   | { type: 'started'; sessionId: string; projectId: string; from: string }

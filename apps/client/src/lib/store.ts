@@ -91,6 +91,7 @@ export type State = {
   machines: Machine[]
   sessions: MachineSession[]
   inactive: MachineSession[]
+  inactiveTotal: number
   inactiveVersion: number
   projects: MachineProject[]
   prefs: Prefs
