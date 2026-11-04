@@ -1,7 +1,7 @@
 import { RefreshIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Account } from '@offsite/core/providers'
-import { Fragment, useEffect, useState } from 'react'
+import { type CSSProperties, Fragment, useEffect, useState } from 'react'
 import { ProviderIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
@@ -48,7 +48,7 @@ function UsageList() {
   const online = machines.filter((machine) => machine.status === 'online')
   const groups = new Map<
     string,
-    { machine: string; account: Account; machines: Machine[] }
+    { machine: string; account: Account; machines: Machine[]; names: string[] }
   >()
   for (const entry of [
     ...online.flatMap((machine) => accountsOf(machine, machine.claudeAccounts)),
@@ -64,9 +64,11 @@ function UsageList() {
         machine: entry.machine.id,
         account: entry.account,
         machines: [entry.machine],
+        names: [entry.account.name],
       })
     } else {
       group.machines.push(entry.machine)
+      group.names.push(entry.account.name)
     }
   }
 
@@ -86,6 +88,7 @@ function UsageList() {
           machine={entry[1].machine}
           account={entry[1].account}
           machines={entry[1].machines}
+          names={entry[1].names}
           now={now}
         />
       ))}
@@ -97,6 +100,7 @@ function AccountUsage(props: {
   machine: string
   account: Account
   machines: Machine[]
+  names: string[]
   now: number
 }) {
   const account = props.account
@@ -118,25 +122,27 @@ function AccountUsage(props: {
             provider={account.provider}
             className="size-3.5 shrink-0"
           />
-          <span
-            className={cn(
-              'flex min-w-0 items-center gap-1.5',
-              loading && 'text-shimmer'
-            )}
-          >
+          <span className="flex min-w-0 items-center gap-1.5">
             <span
-              className="truncate font-medium"
+              className={cn('truncate font-medium', loading && 'text-shimmer')}
               style={
                 loading
-                  ? undefined
+                  ? ({
+                      '--shimmer-color': providerColors[account.provider],
+                    } as CSSProperties)
                   : { color: providerColors[account.provider] }
               }
             >
-              {accountLabel(account)}
+              {new Set(props.names).size === 1
+                ? account.name
+                : accountLabel(account)}
             </span>
             {account.plan !== null && (
               <span
-                className={cn('shrink-0', !loading && 'text-muted-foreground')}
+                className={cn(
+                  'shrink-0',
+                  loading ? 'text-shimmer' : 'text-muted-foreground'
+                )}
               >
                 · {planName(account.provider, account.plan)}
               </span>
@@ -167,10 +173,22 @@ function AccountUsage(props: {
           {ago !== null && (ago === 'now' ? 'now' : `${ago} ago`)}
           <HugeiconsIcon
             icon={RefreshIcon}
-            className={cn('size-3', loading && 'animate-spin')}
+            className={cn('size-3', refreshing && 'animate-spin')}
           />
         </Button>
       </div>
+      {usage === undefined && (
+        <div className="grid grid-cols-[minmax(2.5rem,max-content)_minmax(0,1fr)_2.25rem_3.25rem] items-center gap-x-3 gap-y-2 text-xs">
+          {Array.from({ length: 2 }, (_, index) => (
+            <Fragment key={index}>
+              <span className="bg-foreground/10 my-0.5 h-3 w-12 animate-pulse rounded" />
+              <span className="bg-foreground/10 h-1.5 animate-pulse rounded-full" />
+              <span className="bg-foreground/10 ml-auto h-3 w-7 animate-pulse rounded" />
+              <span className="bg-foreground/10 h-3 w-10 animate-pulse rounded" />
+            </Fragment>
+          ))}
+        </div>
+      )}
       {limits.length > 0 && (
         <div className="grid grid-cols-[minmax(2.5rem,max-content)_minmax(0,1fr)_2.25rem_3.25rem] items-center gap-x-3 gap-y-2 text-xs">
           {limits.map((limit) => {

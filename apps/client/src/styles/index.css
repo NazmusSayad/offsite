@@ -310,7 +310,10 @@
         var(--foreground) 50%,
         transparent calc(50% + 5.2ch)
       ),
-      linear-gradient(var(--muted-foreground), var(--muted-foreground));
+      linear-gradient(
+        var(--shimmer-color, var(--muted-foreground)),
+        var(--shimmer-color, var(--muted-foreground))
+      );
     background-size:
       calc(200% + 12.4ch) 100%,
       100% 100%;
