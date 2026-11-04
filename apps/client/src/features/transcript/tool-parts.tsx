@@ -1,6 +1,6 @@
 import { AlertDiamondIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useState } from 'react'
+import { lazy, type ReactNode, Suspense, useState } from 'react'
 import { FileTypeIcon } from '@/components/file-icon'
 import { Markdown } from '@/components/markdown/markdown'
 import {
@@ -16,6 +16,12 @@ import {
 import { Disclosure, Shimmer, ToolRow } from '@/features/transcript/tool-row'
 import { MessageCopyButton } from '@/features/transcript/user-message'
 import { compact } from '@/lib/format'
+import { mediaKind, mediaUrl } from '@/lib/media'
+import { showError, useStore } from '@/lib/store'
+
+const ImageViewer = lazy(async () => ({
+  default: (await import('@/components/image-viewer')).ImageViewer,
+}))
 
 export type ToolItem = Exclude<WorkItem, { kind: 'reasoning' }>
 
@@ -109,7 +115,11 @@ export function ToolPart(props: {
           return (
             <ToolRow
               title="Read"
-              subtitle={fileName(readPath(input))}
+              subtitle={
+                <ReadFile path={readPath(input)}>
+                  {fileName(readPath(input))}
+                </ReadFile>
+              }
               args={args(input, ['offset', 'limit'])}
               pending={pending}
               grouped
@@ -161,6 +171,40 @@ export function ToolPart(props: {
       }
     }
   }
+}
+
+export function ReadFile(props: { path: string; children: ReactNode }) {
+  const selection = useStore((state) => state.selection)
+  const [src, setSrc] = useState<string | null>(null)
+  if (selection === null || mediaKind(props.path) !== 'image') {
+    return props.children
+  }
+  return (
+    <>
+      <button
+        type="button"
+        title={`View ${props.path}`}
+        className="hover:text-foreground focus-visible:ring-ring/70 cursor-zoom-in rounded-sm underline decoration-dotted underline-offset-2 focus-visible:ring-2 focus-visible:outline-none"
+        onClick={() =>
+          void mediaUrl(selection.machine, selection.projectId, props.path)
+            .then(setSrc)
+            .catch(showError)
+        }
+      >
+        {props.children}
+      </button>
+      {src !== null && (
+        <Suspense>
+          <ImageViewer
+            src={src}
+            alt={fileName(props.path)}
+            name={props.path}
+            onClose={() => setSrc(null)}
+          />
+        </Suspense>
+      )}
+    </>
+  )
 }
 
 function ShellTool(props: {

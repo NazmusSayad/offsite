@@ -6,6 +6,7 @@ import {
 } from '@/features/transcript/tool-details'
 import {
   FileChanges,
+  ReadFile,
   ReasoningPart,
   type ToolItem,
   ToolPart,
@@ -95,10 +96,12 @@ function GroupItem(props: { item: Item; cwd: string; live: boolean }) {
               {item.items.map((read, index) => (
                 <span key={read.id}>
                   {index > 0 && ' '}
-                  <Shimmer
-                    text={readPath(read.input).split('/').at(-1) ?? ''}
-                    active={props.live && read.status === 'running'}
-                  />
+                  <ReadFile path={readPath(read.input)}>
+                    <Shimmer
+                      text={readPath(read.input).split('/').at(-1) ?? ''}
+                      active={props.live && read.status === 'running'}
+                    />
+                  </ReadFile>
                 </span>
               ))}
             </span>
