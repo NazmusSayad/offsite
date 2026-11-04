@@ -49,6 +49,55 @@ export function newThreadSettings(machine: Machine): SessionSettings {
   return providerSettings(machine.lastUsed, latest.provider)
 }
 
+export function saveLastUsed(
+  machine: string,
+  provider: Provider,
+  accountId: string | null,
+  model: string
+) {
+  call(machine, 'lastUsed.save', { provider, accountId, model }).catch(
+    showError
+  )
+  const others = getState().machines.filter(
+    (item) => item.id !== machine && item.status === 'online'
+  )
+  if (provider === 'opencode') {
+    for (const other of others.filter((item) => item.openCode.available)) {
+      call(other.id, 'lastUsed.save', {
+        provider,
+        accountId: null,
+        model,
+      }).catch(showError)
+    }
+    return
+  }
+  const current = machineOf(getState(), machine)
+  const identity = (
+    provider === 'claude' ? current.claudeAccounts : current.codexAccounts
+  ).find((item) => item.id === accountId)?.identity
+  if (identity === undefined || identity === null) {
+    return
+  }
+  for (const other of others) {
+    const match = (
+      provider === 'claude' ? other.claudeAccounts : other.codexAccounts
+    ).find(
+      (item) =>
+        item.enabled &&
+        item.identity !== null &&
+        item.identity.accountId === identity.accountId &&
+        item.identity.organizationId === identity.organizationId
+    )
+    if (match !== undefined) {
+      call(other.id, 'lastUsed.save', {
+        provider,
+        accountId: match.id,
+        model,
+      }).catch(showError)
+    }
+  }
+}
+
 export function changeSettings(patch: Partial<SessionSettings>) {
   const settings = { ...getState().settings, ...patch }
   update({ settings })

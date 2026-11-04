@@ -22,7 +22,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Tooltip } from '@/components/ui/tooltip'
-import { changeSettings, providerSettings } from '@/lib/accounts'
+import { changeSettings, providerSettings, saveLastUsed } from '@/lib/accounts'
 import {
   getState,
   machineOf,
@@ -284,11 +284,7 @@ function ModelMenu(props: {
       ...(option.effort === null ? {} : { effort: option.effort }),
     }
     if (selection.sessionId === null) {
-      call(selection.machine, 'lastUsed.save', {
-        provider,
-        accountId: picked.accountId,
-        model: option.value,
-      }).catch(showError)
+      saveLastUsed(selection.machine, provider, picked.accountId, option.value)
     }
     if (provider === settings.provider) {
       changeSettings(choice)

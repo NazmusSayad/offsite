@@ -30,6 +30,7 @@ export type Account = {
   email: string | null
   displayName: string | null
   organization: string | null
+  identity: { accountId: string; organizationId: string } | null
   plan: string | null
   error: string | null
   linked: boolean

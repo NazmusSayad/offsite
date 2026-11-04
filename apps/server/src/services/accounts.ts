@@ -167,6 +167,7 @@ function disabledAccount(account: StoredAccount): Account {
     email: null,
     displayName: null,
     organization: null,
+    identity: null,
     plan: null,
     error: null,
     linked: true,
