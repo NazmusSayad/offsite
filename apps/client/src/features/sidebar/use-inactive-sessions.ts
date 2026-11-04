@@ -1,6 +1,7 @@
 import { isEqual } from 'es-toolkit'
 import { useEffect } from 'react'
 import { call } from '@/api/connection'
+import { machineKey } from '@/api/machines'
 import { getState, showError, update, useStore } from '@/lib/store'
 
 let preloaded: string | null = null
@@ -49,12 +50,24 @@ export function useInactiveSessions(
         return
       }
       preloaded = key
+      const state = getState()
+      const known = new Map(
+        state.inactive.map((session) => [
+          machineKey(session.machine, session.id),
+          session,
+        ])
+      )
       const inactive = pages
         .flatMap((page) => page.sessions)
         .sort((a, b) => b.updatedAt - a.updatedAt)
         .slice(0, limit)
+        .map((session) => {
+          const previous = known.get(machineKey(session.machine, session.id))
+          return previous !== undefined && isEqual(previous, session)
+            ? previous
+            : session
+        })
       const inactiveTotal = pages.reduce((sum, page) => sum + page.total, 0)
-      const state = getState()
       if (
         isEqual(inactive, state.inactive) &&
         inactiveTotal === state.inactiveTotal

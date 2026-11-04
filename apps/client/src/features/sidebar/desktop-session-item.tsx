@@ -8,7 +8,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
-import { useRef, useState } from 'react'
+import { memo, useRef, useState } from 'react'
 import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import {
@@ -43,7 +43,9 @@ import { SessionTitle } from './session-title'
 const surface =
   'group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
 
-export function DesktopSessionItem(props: {
+export const DesktopSessionItem = memo(DesktopSessionItemView)
+
+function DesktopSessionItemView(props: {
   session: MachineSession
   slim: boolean
   selected: boolean
@@ -51,7 +53,7 @@ export function DesktopSessionItem(props: {
   unseen: boolean
   saved: boolean
   scope: { machine: string; projectId: string } | null
-  onSelect: () => void
+  onSelect: (machine: string, projectId: string, sessionId: string) => void
 }) {
   const session = props.session
   const projectTitle = useProjectName(session.machine, session.projectId)
@@ -223,10 +225,12 @@ export function DesktopSessionItem(props: {
                 rowState,
                 'flex h-9 items-center gap-2.5 px-2.5'
               )}
-              onClick={props.onSelect}
+              onClick={() =>
+                props.onSelect(session.machine, session.projectId, session.id)
+              }
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
-                  props.onSelect()
+                  props.onSelect(session.machine, session.projectId, session.id)
                 }
               }}
             >
@@ -285,10 +289,12 @@ export function DesktopSessionItem(props: {
                 !props.selected &&
                 'opacity-70 transition-opacity focus-within:opacity-100 hover:opacity-100'
             )}
-            onClick={props.onSelect}
+            onClick={() =>
+              props.onSelect(session.machine, session.projectId, session.id)
+            }
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
-                props.onSelect()
+                props.onSelect(session.machine, session.projectId, session.id)
               }
             }}
           >

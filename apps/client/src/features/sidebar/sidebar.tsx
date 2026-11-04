@@ -159,14 +159,6 @@ export function Sidebar(
 
   useInactiveSessions(inactiveOpen, scopeMachine, scopeProject, inactiveLimit)
 
-  function select(
-    machine: string,
-    projectId: string,
-    sessionId: string | null
-  ) {
-    openSession({ machine, projectId, sessionId })
-  }
-
   function startThread() {
     const target = scope ?? selection ?? lastProject()
     if (target !== null) {
@@ -242,7 +234,7 @@ export function Sidebar(
         unseen={unseen.includes(machineKey(session.machine, session.id))}
         saved={session !== started}
         scope={scope}
-        onSelect={() => select(session.machine, session.projectId, session.id)}
+        onSelect={select}
       />
     )
   }
@@ -504,4 +496,8 @@ export function Sidebar(
       )}
     </aside>
   )
+}
+
+function select(machine: string, projectId: string, sessionId: string | null) {
+  openSession({ machine, projectId, sessionId })
 }
