@@ -70,23 +70,7 @@ export function ShellInput(props: {
   onCommit: (command: string | null) => void
 }) {
   const [text, setText] = useState(props.value ?? '')
-  const [installed, setInstalled] = useState<Shell[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const logo = logoFor(text)
-  const isDevice = props.platform === props.device
-  const shells: Shell[] | null = isDevice
-    ? installed
-    : knownShells[props.platform].map((name) => ({ name, path: null }))
-
-  useEffect(() => {
-    if (!isDevice) {
-      return
-    }
-    call(props.machine, 'terminal.shells', undefined).then(
-      setInstalled,
-      (failure: unknown) => setError(errorMessage(failure))
-    )
-  }, [props.machine, isDevice])
 
   function commit(next: string) {
     setText(next)
@@ -127,37 +111,70 @@ export function ShellInput(props: {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-72">
-          {error && (
-            <p className="text-destructive px-2 py-1.5 text-xs">{error}</p>
-          )}
-          {shells?.length === 0 && (
-            <p className="text-muted-foreground px-2 py-1.5 text-xs">
-              No known shells found
-            </p>
-          )}
-          {shells?.map((shell) => (
-            <DropdownMenuItem
-              key={shell.path ?? shell.name}
-              onSelect={() => commit(shell.path ?? shell.name)}
-            >
-              <ShellLogo logo={logoNames[shell.name]} />
-              {shell.name}
-              {shell.path !== null && (
-                <span
-                  className="text-muted-foreground ml-auto min-w-0 truncate pl-3 text-xs [direction:rtl]"
-                  title={shell.path}
-                >
-                  <bdi>{folderOf(shell.path)}</bdi>
-                </span>
-              )}
-            </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => commit('')}>
-            System default
-          </DropdownMenuItem>
+          <ShellMenu
+            machine={props.machine}
+            platform={props.platform}
+            device={props.device}
+            onCommit={commit}
+          />
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
+  )
+}
+
+function ShellMenu(props: {
+  machine: string
+  platform: Platform
+  device: Platform
+  onCommit: (command: string) => void
+}) {
+  const [installed, setInstalled] = useState<Shell[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const isDevice = props.platform === props.device
+  const shells: Shell[] | null = isDevice
+    ? installed
+    : knownShells[props.platform].map((name) => ({ name, path: null }))
+
+  useEffect(() => {
+    if (!isDevice) {
+      return
+    }
+    call(props.machine, 'terminal.shells', undefined).then(
+      setInstalled,
+      (failure: unknown) => setError(errorMessage(failure))
+    )
+  }, [props.machine, isDevice])
+
+  return (
+    <>
+      {error && <p className="text-destructive px-2 py-1.5 text-xs">{error}</p>}
+      {shells?.length === 0 && (
+        <p className="text-muted-foreground px-2 py-1.5 text-xs">
+          No known shells found
+        </p>
+      )}
+      {shells?.map((shell) => (
+        <DropdownMenuItem
+          key={shell.path ?? shell.name}
+          onSelect={() => props.onCommit(shell.path ?? shell.name)}
+        >
+          <ShellLogo logo={logoNames[shell.name]} />
+          {shell.name}
+          {shell.path !== null && (
+            <span
+              className="text-muted-foreground ml-auto min-w-0 truncate pl-3 text-xs [direction:rtl]"
+              title={shell.path}
+            >
+              <bdi>{folderOf(shell.path)}</bdi>
+            </span>
+          )}
+        </DropdownMenuItem>
+      ))}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={() => props.onCommit('')}>
+        System default
+      </DropdownMenuItem>
+    </>
   )
 }

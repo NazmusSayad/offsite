@@ -8,7 +8,6 @@ import {
   RefreshCwIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { getFiletypeFromFileName } from '@pierre/diffs'
 import {
   type Dispatch,
   type ReactNode,
@@ -34,21 +33,18 @@ import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
   ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
+import { ExplorerMenu } from '@/features/files/explorer-menu'
 import { NameInput } from '@/features/files/name-input'
-import { useCopy } from '@/lib/clipboard'
-import { downloadProjectFile } from '@/lib/media'
 import { showError } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
 type Folder = { folders: Map<string, Folder>; files: string[] }
 
-type Entry = { path: string; folder: boolean }
+export type Entry = { path: string; folder: boolean }
 
-type Editing =
+export type Editing =
   | { kind: 'create'; parent: string; folder: boolean }
   | { kind: 'rename'; path: string; folder: boolean }
 
@@ -76,7 +72,6 @@ export function Explorer(props: {
   const [editing, setEditing] = useState<Editing | null>(null)
   const [deleting, setDeleting] = useState<Entry | null>(null)
   const pending = useRef<(() => void) | null>(null)
-  const clipboard = useCopy()
 
   useEffect(() => {
     let current = true
@@ -358,85 +353,19 @@ export function Explorer(props: {
             pending.current = null
           }}
         >
-          {!menu.folder &&
-            getFiletypeFromFileName(menu.path) === 'markdown' && (
-              <>
-                <ContextMenuItem onSelect={() => props.onPreview(menu.path)}>
-                  Open Preview
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-              </>
-            )}
-          <ContextMenuItem
-            onSelect={() => {
-              pending.current = () =>
-                startCreate(
-                  menu.folder ? menu.path : parentOf(menu.path),
-                  false
-                )
+          <ExplorerMenu
+            machine={props.machine}
+            projectId={props.projectId}
+            root={props.root}
+            entry={menu}
+            onPending={(action) => {
+              pending.current = action
             }}
-          >
-            New File…
-          </ContextMenuItem>
-          <ContextMenuItem
-            onSelect={() => {
-              pending.current = () =>
-                startCreate(menu.folder ? menu.path : parentOf(menu.path), true)
-            }}
-          >
-            New Folder…
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            onSelect={() =>
-              void clipboard.copy(
-                menu.path === '' ? props.root : `${props.root}/${menu.path}`
-              )
-            }
-          >
-            Copy Path
-          </ContextMenuItem>
-          {menu.path !== '' && (
-            <>
-              <ContextMenuItem onSelect={() => void clipboard.copy(menu.path)}>
-                Copy Relative Path
-              </ContextMenuItem>
-              {!menu.folder && (
-                <ContextMenuItem
-                  onSelect={() =>
-                    void downloadProjectFile(
-                      props.machine,
-                      props.projectId,
-                      menu.path
-                    ).catch(showError)
-                  }
-                >
-                  Download
-                </ContextMenuItem>
-              )}
-              <ContextMenuSeparator />
-              <ContextMenuItem
-                onSelect={() => {
-                  pending.current = () =>
-                    setEditing({
-                      kind: 'rename',
-                      path: menu.path,
-                      folder: menu.folder,
-                    })
-                }}
-              >
-                Rename…
-              </ContextMenuItem>
-              <ContextMenuItem
-                variant="destructive"
-                onSelect={() => {
-                  pending.current = () => setDeleting(menu)
-                }}
-              >
-                Delete
-              </ContextMenuItem>
-            </>
-          )}
+            onPreview={props.onPreview}
+            onCreate={startCreate}
+            onEdit={setEditing}
+            onDelete={setDeleting}
+          />
         </ContextMenuContent>
       </ContextMenu>
       <AlertDialog

@@ -81,30 +81,7 @@ export function TerminalPage(props: {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="center" className="w-auto">
-              {groups
-                .filter(
-                  (group) =>
-                    hasTerminals(group) &&
-                    (group.count > 0 || group.view === GLOBAL_TERMINALS),
-                )
-                .map((group) => (
-                  <DropdownMenuItem
-                    key={`${group.machine.id}:${group.view}`}
-                    className={cn(group.view !== GLOBAL_TERMINALS && "pl-7")}
-                    onSelect={() =>
-                      group.count === 0
-                        ? void createTab(group.machine.id, null)
-                        : showGroup(group.machine.id, group.view)
-                    }
-                  >
-                    <GroupIcon group={group} />
-                    <span className="max-w-60 truncate">{group.name}</span>
-                    <GroupCount
-                      count={group.count}
-                      alert={alerted(group, props.machine)}
-                    />
-                  </DropdownMenuItem>
-                ))}
+              <GroupSwitcherItems groups={groups} machine={props.machine} />
             </DropdownMenuContent>
           </DropdownMenu>
           {newTerminal}
@@ -281,6 +258,30 @@ function useGroups(): Group[] {
       })),
     ];
   });
+}
+
+function GroupSwitcherItems(props: { groups: Group[]; machine: string }) {
+  return props.groups
+    .filter(
+      (group) =>
+        hasTerminals(group) &&
+        (group.count > 0 || group.view === GLOBAL_TERMINALS),
+    )
+    .map((group) => (
+      <DropdownMenuItem
+        key={`${group.machine.id}:${group.view}`}
+        className={cn(group.view !== GLOBAL_TERMINALS && "pl-7")}
+        onSelect={() =>
+          group.count === 0
+            ? void createTab(group.machine.id, null)
+            : showGroup(group.machine.id, group.view)
+        }
+      >
+        <GroupIcon group={group} />
+        <span className="max-w-60 truncate">{group.name}</span>
+        <GroupCount count={group.count} alert={alerted(group, props.machine)} />
+      </DropdownMenuItem>
+    ));
 }
 
 function hasTerminals(group: Group) {

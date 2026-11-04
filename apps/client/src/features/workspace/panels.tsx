@@ -61,6 +61,7 @@ import { deactivateSession, editSession } from '@/lib/sessions'
 import {
   activityOf,
   type MachineSession,
+  projectOf,
   selectedActivity,
   type Selection,
   showEditor,
@@ -171,29 +172,8 @@ export function PanelMenu(
   const options = usePanelOptions(props).filter(
     (option) => props.mobile || !toolbar.includes(option.id)
   )
-  const scope = useReadLocalStorage<{
-    machine: string
-    projectId: string
-  } | null>('sidebarScope')
-  const busy = useStore((state) => {
-    if (session === undefined) {
-      return false
-    }
-    const activity = activityOf(state.machines, session.machine, session.id)
-    return (
-      activity?.running === true ||
-      Object.values(activity?.tasks ?? {}).includes('running')
-    )
-  })
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
-
-  function makeInactive() {
-    if (session === undefined) {
-      throw new Error('session is missing')
-    }
-    void deactivateSession(session.machine, session.id, scope)
-  }
 
   return (
     <div className="flex shrink-0 items-center gap-1">
@@ -223,22 +203,12 @@ export function PanelMenu(
           ))}
           {props.children}
           {session !== undefined && (
-            <>
-              <DropdownMenuSeparator />
-              <SessionMenuItems
-                session={session}
-                context={false}
-                mobile={props.mobile}
-                onDeactivate={() => {
-                  if (busy) {
-                    setWarning(true)
-                    return
-                  }
-                  makeInactive()
-                }}
-                onRename={() => setTitle(session.title)}
-              />
-            </>
+            <ThreadMenuItems
+              session={session}
+              mobile={props.mobile}
+              onWarn={() => setWarning(true)}
+              onRename={() => setTitle(session.title)}
+            />
           )}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -289,22 +259,86 @@ export function PanelMenu(
       )}
       <AlertDialog open={warning} onOpenChange={setWarning}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Stop running work?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The agent or background tasks are running. Do you really want to
-              stop them?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={makeInactive}>
-              Stop and Mark Done
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <StopWorkDialog session={session} />
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+function ThreadMenuItems(props: {
+  session: MachineSession
+  mobile: boolean
+  onWarn: () => void
+  onRename: () => void
+}) {
+  const session = props.session
+  const scope = useReadLocalStorage<{
+    machine: string
+    projectId: string
+  } | null>('sidebarScope')
+  const busy = useStore((state) => {
+    const activity = activityOf(state.machines, session.machine, session.id)
+    return (
+      activity?.running === true ||
+      Object.values(activity?.tasks ?? {}).includes('running')
+    )
+  })
+
+  return (
+    <>
+      <DropdownMenuSeparator />
+      <SessionMenuItems
+        session={session}
+        context={false}
+        mobile={props.mobile}
+        onDeactivate={() => {
+          if (busy) {
+            props.onWarn()
+            return
+          }
+          void deactivateSession(session.machine, session.id, scope)
+        }}
+        onRename={props.onRename}
+      />
+    </>
+  )
+}
+
+function StopWorkDialog(props: { session: MachineSession | undefined }) {
+  const scope = useReadLocalStorage<{
+    machine: string
+    projectId: string
+  } | null>('sidebarScope')
+
+  return (
+    <>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Stop running work?</AlertDialogTitle>
+        <AlertDialogDescription>
+          The agent or background tasks are running. Do you really want to stop
+          them?
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          variant="destructive"
+          onClick={() => {
+            if (props.session === undefined) {
+              throw new Error('session is missing')
+            }
+            void deactivateSession(
+              props.session.machine,
+              props.session.id,
+              scope
+            )
+          }}
+        >
+          Stop and Mark Done
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </>
   )
 }
 
@@ -432,12 +466,16 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
 export function PanelView(props: {
   panel: Panel
   selection: Selection
-  cwd: string
   running: boolean
   selectedTask: string | null
   onSelectTask: (id: string | null) => void
   onPanel: (panel: Panel | null) => void
 }) {
+  const cwd = useStore(
+    (state) =>
+      projectOf(state, props.selection.machine, props.selection.projectId)
+        ?.path ?? ''
+  )
   return (
     <>
       {props.panel === 'browser' && (
@@ -460,7 +498,7 @@ export function PanelView(props: {
       {props.panel === 'tasks' && (
         <TasksPanel
           machine={props.selection.machine}
-          cwd={props.cwd}
+          cwd={cwd}
           sessionId={props.selection.sessionId}
           selected={props.selectedTask}
           onSelect={props.onSelectTask}

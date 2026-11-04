@@ -50,43 +50,59 @@ export function MachineIconPicker(props: { machine: Machine }) {
             collisionPadding={12}
             className="flex max-h-96 w-80 flex-col gap-3 overflow-y-auto p-3"
           >
-            {[
-              ...new Set(Object.values(machineIcons).map((item) => item.group)),
-            ].map((group) => (
-              <div key={group} className="flex flex-col gap-1">
-                <span className="text-muted-foreground text-xs">{group}</span>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(2rem,1fr))] gap-1">
-                  {Object.keys(machineIcons)
-                    .filter(
-                      (icon) =>
-                        machineIcons[icon].group === group &&
-                        !quickMachineIcons.includes(icon)
-                    )
-                    .map((icon) => (
-                      <Button
-                        key={icon}
-                        title={icon}
-                        size="icon-sm"
-                        className="aspect-square h-auto! w-full!"
-                        aria-pressed={icon === selected}
-                        variant={icon === selected ? 'default' : 'ghost'}
-                        onClick={() => {
-                          editMachine(machine.id, { icon })
-                          setOpen(false)
-                        }}
-                      >
-                        <MachineLogo
-                          icon={icon}
-                          className="block aspect-square! h-auto! w-[66%]! min-w-0! shrink-0!"
-                        />
-                      </Button>
-                    ))}
-                </div>
-              </div>
-            ))}
+            <MachineIconGrid
+              machine={machine.id}
+              selected={selected}
+              onClose={() => setOpen(false)}
+            />
           </PopoverContent>
         </Popover>
       </div>
     </div>
+  )
+}
+
+function MachineIconGrid(props: {
+  machine: string
+  selected: string
+  onClose: () => void
+}) {
+  return (
+    <>
+      {[...new Set(Object.values(machineIcons).map((item) => item.group))].map(
+        (group) => (
+          <div key={group} className="flex flex-col gap-1">
+            <span className="text-muted-foreground text-xs">{group}</span>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(2rem,1fr))] gap-1">
+              {Object.keys(machineIcons)
+                .filter(
+                  (icon) =>
+                    machineIcons[icon].group === group &&
+                    !quickMachineIcons.includes(icon)
+                )
+                .map((icon) => (
+                  <Button
+                    key={icon}
+                    title={icon}
+                    size="icon-sm"
+                    className="aspect-square h-auto! w-full!"
+                    aria-pressed={icon === props.selected}
+                    variant={icon === props.selected ? 'default' : 'ghost'}
+                    onClick={() => {
+                      editMachine(props.machine, { icon })
+                      props.onClose()
+                    }}
+                  >
+                    <MachineLogo
+                      icon={icon}
+                      className="block aspect-square! h-auto! w-[66%]! min-w-0! shrink-0!"
+                    />
+                  </Button>
+                ))}
+            </div>
+          </div>
+        )
+      )}
+    </>
   )
 }

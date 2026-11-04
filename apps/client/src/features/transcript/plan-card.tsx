@@ -14,12 +14,10 @@ import { cn } from '@/lib/utils'
 
 export function PlanCard(props: { plan: string }) {
   const [expanded, setExpanded] = useState(false)
-  const clipboard = useCopy()
   const plan = props.plan
   const title = planTitle(plan)
   const canCollapse = plan.length > 900 || plan.split('\n').length > 20
   const collapsed = canCollapse && !expanded
-  const contents = `${plan.trimEnd()}\n`
   return (
     <div className="border-border/80 bg-card/70 rounded-3xl border p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -38,28 +36,7 @@ export function PlanCard(props: { plan: string }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault()
-                void clipboard.copy(contents)
-              }}
-            >
-              {clipboard.copied ? 'Copied!' : 'Copy to clipboard'}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                const url = URL.createObjectURL(
-                  new Blob([contents], { type: 'text/markdown;charset=utf-8' })
-                )
-                const anchor = document.createElement('a')
-                anchor.href = url
-                anchor.download = `${planFileName(title ?? 'plan')}.md`
-                anchor.click()
-                setTimeout(() => URL.revokeObjectURL(url), 0)
-              }}
-            >
-              Download as markdown
-            </DropdownMenuItem>
+            <PlanMenuItems plan={plan} title={title} />
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -87,6 +64,37 @@ export function PlanCard(props: { plan: string }) {
         )}
       </div>
     </div>
+  )
+}
+
+function PlanMenuItems(props: { plan: string; title: string | null }) {
+  const clipboard = useCopy()
+  const contents = `${props.plan.trimEnd()}\n`
+  return (
+    <>
+      <DropdownMenuItem
+        onSelect={(event) => {
+          event.preventDefault()
+          void clipboard.copy(contents)
+        }}
+      >
+        {clipboard.copied ? 'Copied!' : 'Copy to clipboard'}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onSelect={() => {
+          const url = URL.createObjectURL(
+            new Blob([contents], { type: 'text/markdown;charset=utf-8' })
+          )
+          const anchor = document.createElement('a')
+          anchor.href = url
+          anchor.download = `${planFileName(props.title ?? 'plan')}.md`
+          anchor.click()
+          setTimeout(() => URL.revokeObjectURL(url), 0)
+        }}
+      >
+        Download as markdown
+      </DropdownMenuItem>
+    </>
   )
 }
 

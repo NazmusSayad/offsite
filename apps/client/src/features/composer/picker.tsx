@@ -54,16 +54,12 @@ export function Picker(props: {
             document.querySelector<HTMLElement>('[data-composer]')?.focus()
           }}
         >
-          <DropdownMenuRadioGroup
+          <PickerItems
             value={props.value}
-            onValueChange={props.onChange}
-          >
-            {props.options.map((option) => (
-              <DropdownMenuRadioItem key={option.value} value={option.value}>
-                {option.label}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
+            options={props.options}
+            radius={radius}
+            onChange={props.onChange}
+          />
         </DropdownMenuContent>
       )}
       {props.options.length <= 5 && (
@@ -88,48 +84,84 @@ export function Picker(props: {
               document.querySelector<HTMLElement>('[data-composer]')?.focus()
             }}
           >
-            <div
-              className="bg-background pointer-events-auto absolute"
-              style={sector(radius, radius * 0.35, radius, 0, Math.PI).style}
-            />
-            <DropdownMenuPrimitive.RadioGroup
+            <PickerItems
               value={props.value}
-              onValueChange={props.onChange}
-            >
-              {props.options.map((option, index) => {
-                const shape = sector(
-                  radius,
-                  radius * 0.35,
-                  radius,
-                  Math.PI - ((index + 1) * Math.PI) / props.options.length,
-                  Math.PI - (index * Math.PI) / props.options.length
-                )
-                return (
-                  <DropdownMenuPrimitive.RadioItem
-                    key={option.value}
-                    value={option.value}
-                    className={cn(
-                      'pointer-events-auto absolute cursor-pointer transition-colors outline-none',
-                      option.value === props.value &&
-                        'text-foreground bg-[color-mix(in_srgb,var(--primary)_30%,var(--popover))]',
-                      option.value !== props.value &&
-                        'bg-popover text-secondary-label data-highlighted:bg-accent data-highlighted:text-accent-foreground'
-                    )}
-                    style={shape.style}
-                  >
-                    <span
-                      className="absolute -translate-x-1/2 -translate-y-1/2 text-sm font-medium whitespace-nowrap"
-                      style={shape.center}
-                    >
-                      {option.label}
-                    </span>
-                  </DropdownMenuPrimitive.RadioItem>
-                )
-              })}
-            </DropdownMenuPrimitive.RadioGroup>
+              options={props.options}
+              radius={radius}
+              onChange={props.onChange}
+            />
           </DropdownMenuPrimitive.Content>
         </DropdownMenuPrimitive.Portal>
       )}
     </DropdownMenu>
+  )
+}
+
+function PickerItems(props: {
+  value: string
+  options: { value: string; label: string }[]
+  radius: number
+  onChange: (value: string) => void
+}) {
+  if (props.options.length > 5) {
+    return (
+      <DropdownMenuRadioGroup
+        value={props.value}
+        onValueChange={props.onChange}
+      >
+        {props.options.map((option) => (
+          <DropdownMenuRadioItem key={option.value} value={option.value}>
+            {option.label}
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+    )
+  }
+
+  return (
+    <>
+      <div
+        className="bg-background pointer-events-auto absolute"
+        style={
+          sector(props.radius, props.radius * 0.35, props.radius, 0, Math.PI)
+            .style
+        }
+      />
+      <DropdownMenuPrimitive.RadioGroup
+        value={props.value}
+        onValueChange={props.onChange}
+      >
+        {props.options.map((option, index) => {
+          const shape = sector(
+            props.radius,
+            props.radius * 0.35,
+            props.radius,
+            Math.PI - ((index + 1) * Math.PI) / props.options.length,
+            Math.PI - (index * Math.PI) / props.options.length
+          )
+          return (
+            <DropdownMenuPrimitive.RadioItem
+              key={option.value}
+              value={option.value}
+              className={cn(
+                'pointer-events-auto absolute cursor-pointer transition-colors outline-none',
+                option.value === props.value &&
+                  'text-foreground bg-[color-mix(in_srgb,var(--primary)_30%,var(--popover))]',
+                option.value !== props.value &&
+                  'bg-popover text-secondary-label data-highlighted:bg-accent data-highlighted:text-accent-foreground'
+              )}
+              style={shape.style}
+            >
+              <span
+                className="absolute -translate-x-1/2 -translate-y-1/2 text-sm font-medium whitespace-nowrap"
+                style={shape.center}
+              >
+                {option.label}
+              </span>
+            </DropdownMenuPrimitive.RadioItem>
+          )
+        })}
+      </DropdownMenuPrimitive.RadioGroup>
+    </>
   )
 }

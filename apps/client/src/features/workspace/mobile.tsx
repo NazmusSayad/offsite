@@ -107,11 +107,6 @@ function MobileChat(props: { selection: Selection }) {
       session !== undefined &&
       state.generatingTitles.includes(machineKey(session.machine, session.id))
   )
-  const cwd = useStore(
-    (state) =>
-      projectOf(state, props.selection.machine, props.selection.projectId)
-        ?.path ?? ''
-  )
   const projectTitle = useProjectName(
     props.selection.machine,
     props.selection.projectId
@@ -283,7 +278,6 @@ function MobileChat(props: { selection: Selection }) {
                 <PanelView
                   panel={panel}
                   selection={props.selection}
-                  cwd={cwd}
                   running={running}
                   selectedTask={selectedTask}
                   onSelectTask={setSelectedTask}

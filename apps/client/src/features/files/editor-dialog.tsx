@@ -494,7 +494,7 @@ export function EditorDialog(props: {
         <EditorErrors />
         <SavePrompt
           open={documents.closing !== null}
-          paths={documents.closingTabs.map((tab) => tab.spec.path)}
+          tabs={documents.closingTabs}
           onCancel={() => documents.setClosing(null)}
           onFinish={(saving) => void documents.finish(saving)}
         />

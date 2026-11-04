@@ -153,22 +153,7 @@ export function useGitCommands(props: GitTarget) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [branchRepo, setBranchRepo] = useState<string | null>(null)
   const [committing, setCommitting] = useState(false)
-  const pushable = eligible(props.repos, 'push')
   const committable = eligible(props.repos, 'commit')
-
-  function push(repo: string) {
-    void startGitToast({
-      labels: { working: 'Pushing…', done: 'Pushed', failed: 'Push failed' },
-      task: async () => {
-        await call(props.machine, 'git.push', {
-          projectId: props.projectId,
-          repo,
-        })
-        return null
-      },
-      onRefresh: props.onRefresh,
-    })
-  }
 
   async function yoloCommit() {
     if (committable.length === 1) {
@@ -204,9 +189,7 @@ export function useGitCommands(props: GitTarget) {
     branchRepo,
     setBranchRepo,
     committing,
-    pushable,
     committable,
-    push,
     yoloCommit,
   }
 }
@@ -217,6 +200,21 @@ export function GitMenuItems(props: { git: GitCommands; collapsed: boolean }) {
   const git = props.git
   const repos = git.target.repos
   const unpushed = repos.reduce((total, repo) => total + repo.ahead, 0)
+  const pushable = eligible(repos, 'push')
+
+  function push(repo: string) {
+    void startGitToast({
+      labels: { working: 'Pushing…', done: 'Pushed', failed: 'Push failed' },
+      task: async () => {
+        await call(git.target.machine, 'git.push', {
+          projectId: git.target.projectId,
+          repo,
+        })
+        return null
+      },
+      onRefresh: git.target.onRefresh,
+    })
+  }
 
   return (
     <>
@@ -249,10 +247,10 @@ export function GitMenuItems(props: { git: GitCommands; collapsed: boolean }) {
         </DropdownMenuItem>
       )}
       <DropdownMenuItem
-        disabled={git.pushable.length === 0 || git.committing}
+        disabled={pushable.length === 0 || git.committing}
         onSelect={() => {
-          if (git.pushable.length === 1) {
-            git.push(git.pushable[0].path)
+          if (pushable.length === 1) {
+            push(pushable[0].path)
             return
           }
           git.setAction('push')

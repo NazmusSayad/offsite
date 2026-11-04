@@ -233,10 +233,6 @@ function TerminalPane(props: { id: number }) {
 
 function TabMenu(props: { tab: TerminalTab; children: ReactNode }) {
   const [renaming, setRenaming] = useState(false)
-  const allProjects = useStore((state) => state.projects)
-  const projects = allProjects.filter(
-    (project) => project.machine === terminalMachine() && !project.scratch
-  )
   const tab = props.tab
 
   return (
@@ -244,43 +240,7 @@ function TabMenu(props: { tab: TerminalTab; children: ReactNode }) {
       <ContextMenu>
         <ContextMenuTrigger asChild>{props.children}</ContextMenuTrigger>
         <ContextMenuContent>
-          <ContextMenuItem onSelect={() => setRenaming(true)}>
-            <HugeiconsIcon icon={PencilEdit02Icon} />
-            Rename
-          </ContextMenuItem>
-          <ContextMenuSub>
-            <ContextMenuSubTrigger>
-              <HugeiconsIcon icon={Folder01Icon} />
-              Move to
-            </ContextMenuSubTrigger>
-            <ContextMenuSubContent className="max-h-80 overflow-y-auto">
-              <ContextMenuRadioGroup
-                value={tab.projectId ?? ''}
-                onValueChange={(value) =>
-                  send({
-                    type: 'assignTab',
-                    id: tab.id,
-                    projectId: value === '' ? null : value,
-                  })
-                }
-              >
-                <ContextMenuRadioItem value="">No project</ContextMenuRadioItem>
-                {projects.length > 0 && <ContextMenuSeparator />}
-                {projects.map((project) => (
-                  <ContextMenuRadioItem key={project.id} value={project.id}>
-                    <span className="max-w-60 truncate">{project.name}</span>
-                  </ContextMenuRadioItem>
-                ))}
-              </ContextMenuRadioGroup>
-            </ContextMenuSubContent>
-          </ContextMenuSub>
-          <ContextMenuItem
-            variant="destructive"
-            onSelect={() => void closeTab(tab.id)}
-          >
-            <HugeiconsIcon icon={Delete02Icon} />
-            Close tab
-          </ContextMenuItem>
+          <TabMenuItems tab={tab} onRename={() => setRenaming(true)} />
         </ContextMenuContent>
       </ContextMenu>
       {renaming && (
@@ -290,6 +250,56 @@ function TabMenu(props: { tab: TerminalTab; children: ReactNode }) {
           onDone={() => setRenaming(false)}
         />
       )}
+    </>
+  )
+}
+
+function TabMenuItems(props: { tab: TerminalTab; onRename: () => void }) {
+  const allProjects = useStore((state) => state.projects)
+  const projects = allProjects.filter(
+    (project) => project.machine === terminalMachine() && !project.scratch
+  )
+  const tab = props.tab
+
+  return (
+    <>
+      <ContextMenuItem onSelect={props.onRename}>
+        <HugeiconsIcon icon={PencilEdit02Icon} />
+        Rename
+      </ContextMenuItem>
+      <ContextMenuSub>
+        <ContextMenuSubTrigger>
+          <HugeiconsIcon icon={Folder01Icon} />
+          Move to
+        </ContextMenuSubTrigger>
+        <ContextMenuSubContent className="max-h-80 overflow-y-auto">
+          <ContextMenuRadioGroup
+            value={tab.projectId ?? ''}
+            onValueChange={(value) =>
+              send({
+                type: 'assignTab',
+                id: tab.id,
+                projectId: value === '' ? null : value,
+              })
+            }
+          >
+            <ContextMenuRadioItem value="">No project</ContextMenuRadioItem>
+            {projects.length > 0 && <ContextMenuSeparator />}
+            {projects.map((project) => (
+              <ContextMenuRadioItem key={project.id} value={project.id}>
+                <span className="max-w-60 truncate">{project.name}</span>
+              </ContextMenuRadioItem>
+            ))}
+          </ContextMenuRadioGroup>
+        </ContextMenuSubContent>
+      </ContextMenuSub>
+      <ContextMenuItem
+        variant="destructive"
+        onSelect={() => void closeTab(tab.id)}
+      >
+        <HugeiconsIcon icon={Delete02Icon} />
+        Close tab
+      </ContextMenuItem>
     </>
   )
 }

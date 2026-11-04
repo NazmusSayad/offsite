@@ -58,7 +58,6 @@ export function ResourceGroups(props: {
     group: Group
     resource: GitResource
   } | null>(null)
-  const clipboard = useCopy()
   const repo = props.repo
 
   function toggle(key: string) {
@@ -266,72 +265,102 @@ export function ResourceGroups(props: {
       </ContextMenuTrigger>
       {menu !== null && (
         <ContextMenuContent className="min-w-52">
-          <ContextMenuItem
-            onSelect={() =>
-              props.onOpen(changeTab(repo.path, menu.group, menu.resource))
-            }
-          >
-            Open Changes
-          </ContextMenuItem>
-          {menu.resource.status !== 'D' && (
-            <ContextMenuItem
-              onSelect={() =>
-                props.onOpen(
-                  fileTab(repo.path, projectFile(repo.path, menu.resource.path))
-                )
-              }
-            >
-              Open File
-            </ContextMenuItem>
-          )}
-          {menu.resource.status !== 'U' && menu.resource.status !== 'A' && (
-            <ContextMenuItem
-              onSelect={() => props.onOpen(headTab(repo.path, menu.resource))}
-            >
-              Open File (HEAD)
-            </ContextMenuItem>
-          )}
-          <ContextMenuSeparator />
-          {menu.group === 'staged' && (
-            <ContextMenuItem onSelect={() => props.onUnstage([menu.resource])}>
-              Unstage Changes
-            </ContextMenuItem>
-          )}
-          {menu.group !== 'staged' && (
-            <ContextMenuItem onSelect={() => props.onStage([menu.resource])}>
-              Stage Changes
-            </ContextMenuItem>
-          )}
-          {menu.group === 'changes' && (
-            <ContextMenuItem onSelect={() => props.onDiscard([menu.resource])}>
-              Discard Changes
-            </ContextMenuItem>
-          )}
-          {menu.resource.status === 'U' && (
-            <ContextMenuItem onSelect={() => props.onIgnore([menu.resource])}>
-              Add to .gitignore
-            </ContextMenuItem>
-          )}
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            onSelect={() =>
-              void clipboard.copy(
-                `${props.root}/${projectFile(repo.path, menu.resource.path)}`
-              )
-            }
-          >
-            Copy Path
-          </ContextMenuItem>
-          <ContextMenuItem
-            onSelect={() =>
-              void clipboard.copy(projectFile(repo.path, menu.resource.path))
-            }
-          >
-            Copy Relative Path
-          </ContextMenuItem>
+          <ResourceMenu
+            repo={repo.path}
+            root={props.root}
+            group={menu.group}
+            resource={menu.resource}
+            onOpen={props.onOpen}
+            onStage={props.onStage}
+            onUnstage={props.onUnstage}
+            onDiscard={props.onDiscard}
+            onIgnore={props.onIgnore}
+          />
         </ContextMenuContent>
       )}
     </ContextMenu>
+  )
+}
+
+function ResourceMenu(props: {
+  repo: string
+  root: string
+  group: Group
+  resource: GitResource
+  onOpen: (spec: TabSpec) => void
+  onStage: (resources: GitResource[]) => void
+  onUnstage: (resources: GitResource[]) => void
+  onDiscard: (resources: GitResource[]) => void
+  onIgnore: (resources: GitResource[]) => void
+}) {
+  const clipboard = useCopy()
+  const resource = props.resource
+  return (
+    <>
+      <ContextMenuItem
+        onSelect={() =>
+          props.onOpen(changeTab(props.repo, props.group, resource))
+        }
+      >
+        Open Changes
+      </ContextMenuItem>
+      {resource.status !== 'D' && (
+        <ContextMenuItem
+          onSelect={() =>
+            props.onOpen(
+              fileTab(props.repo, projectFile(props.repo, resource.path))
+            )
+          }
+        >
+          Open File
+        </ContextMenuItem>
+      )}
+      {resource.status !== 'U' && resource.status !== 'A' && (
+        <ContextMenuItem
+          onSelect={() => props.onOpen(headTab(props.repo, resource))}
+        >
+          Open File (HEAD)
+        </ContextMenuItem>
+      )}
+      <ContextMenuSeparator />
+      {props.group === 'staged' && (
+        <ContextMenuItem onSelect={() => props.onUnstage([resource])}>
+          Unstage Changes
+        </ContextMenuItem>
+      )}
+      {props.group !== 'staged' && (
+        <ContextMenuItem onSelect={() => props.onStage([resource])}>
+          Stage Changes
+        </ContextMenuItem>
+      )}
+      {props.group === 'changes' && (
+        <ContextMenuItem onSelect={() => props.onDiscard([resource])}>
+          Discard Changes
+        </ContextMenuItem>
+      )}
+      {resource.status === 'U' && (
+        <ContextMenuItem onSelect={() => props.onIgnore([resource])}>
+          Add to .gitignore
+        </ContextMenuItem>
+      )}
+      <ContextMenuSeparator />
+      <ContextMenuItem
+        onSelect={() =>
+          void clipboard.copy(
+            `${props.root}/${projectFile(props.repo, resource.path)}`
+          )
+        }
+      >
+        Copy Path
+      </ContextMenuItem>
+      <ContextMenuItem
+        onSelect={() =>
+          void clipboard.copy(projectFile(props.repo, resource.path))
+        }
+      >
+        Copy Relative Path
+      </ContextMenuItem>
+    </>
   )
 }
 
