@@ -7,7 +7,10 @@ import { reorderProjects, updateProject } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { EditProjectDialog } from '@/features/sidebar/project-dialogs'
+import {
+  EditProjectDialog,
+  FolderDialog,
+} from '@/features/sidebar/project-dialogs'
 import { type MachineProject, showError, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { ReorderRow } from './machines'
@@ -16,6 +19,7 @@ export function ProjectsPage(props: { machine: string; homeDir: string }) {
   const registered = useStore((state) => state.projects)
   const [order, setOrder] = useState<string[] | null>(null)
   const [editing, setEditing] = useState<MachineProject | null>(null)
+  const [adding, setAdding] = useState(false)
   const [scope, setScope] = useLocalStorage<{
     machine: string
     projectId: string
@@ -97,6 +101,18 @@ export function ProjectsPage(props: { machine: string; homeDir: string }) {
           </ReorderRow>
         ))}
       </Reorder.Group>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+          Add project…
+        </Button>
+      </div>
+      {adding && (
+        <FolderDialog
+          machine={props.machine}
+          onClose={() => setAdding(false)}
+          onAdd={() => setAdding(false)}
+        />
+      )}
       {editing !== null && (
         <EditProjectDialog
           project={editing}
