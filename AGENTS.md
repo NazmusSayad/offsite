@@ -14,6 +14,8 @@ Never run the main offsite instance. Never run `offsite`, `npx offsite` or `pnpm
 
 Always use the `dialog` skill (`.claude/skills/dialog/SKILL.md`) when adding, changing or reviewing a dialog, alert dialog, popover, hover card, dropdown menu or context menu in the client.
 
-## Dev Server
+## Development
+
+For lint fix and format, use `pnpm lint:fix`.
 
 Always start the dev server with `pnpm dev` from the repository root, unless the user explicitly asks otherwise.
