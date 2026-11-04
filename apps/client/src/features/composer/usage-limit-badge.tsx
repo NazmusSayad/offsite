@@ -1,24 +1,15 @@
 import { LimitationIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useStore } from '@/lib/store'
+import { useSelectedUsage } from '@/lib/usage'
 import { windowName } from './limits'
 
 export function UsageLimitBadge() {
-  const limit = useStore((state) => {
-    const machine = state.machines.find(
-      (item) => item.id === state.selection?.machine
+  const limit = useSelectedUsage()
+    ?.limits.filter(
+      (item) =>
+        !item.rejected && item.utilization !== null && item.utilization >= 0.9
     )
-    return [
-      ...(machine?.claudeAccounts ?? []),
-      ...(machine?.codexAccounts ?? []),
-    ]
-      .find((item) => item.id === state.settings.accountId)
-      ?.limits.filter(
-        (item) =>
-          !item.rejected && item.utilization !== null && item.utilization >= 0.9
-      )
-      .sort((a, b) => (b.utilization ?? 0) - (a.utilization ?? 0))[0]
-  })
+    .sort((a, b) => (b.utilization ?? 0) - (a.utilization ?? 0))[0]
 
   if (limit === undefined) {
     return null

@@ -14,9 +14,10 @@ import type {
   QueuedPrompt,
 } from '@offsite/core/items'
 import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
-import { broadcast, publish } from '../hub.ts'
+import { cachedUsage, recordLimits } from '../../services/usage.ts'
+import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
-import { claudeEffort, claudeMode, recordLimit, runOptions } from './claude.ts'
+import { claudeEffort, claudeMode, eventLimits, runOptions } from './claude.ts'
 import {
   contextTokens,
   type Message,
@@ -292,11 +293,10 @@ export class Run {
         if (accountId === null) {
           throw new Error('Rate limit event for a run without an account')
         }
-        broadcast({
-          type: 'limits',
+        recordLimits(
           accountId,
-          limits: recordLimit(accountId, message.rate_limit_info),
-        })
+          eventLimits(message.rate_limit_info, cachedUsage(accountId).limits)
+        )
         return
       }
       case 'result': {

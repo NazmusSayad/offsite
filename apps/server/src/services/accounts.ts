@@ -32,6 +32,7 @@ import {
   openCodeInstalled,
 } from '../lib/opencode/index.ts'
 import { platform, readConfig, saveConfig } from '../storage/config.ts'
+import { forgetUsage } from './usage.ts'
 
 export type StoredAccount = {
   id: string
@@ -161,9 +162,10 @@ function disabledAccount(account: StoredAccount): Account {
   return {
     ...account,
     email: null,
+    displayName: null,
+    organization: null,
     plan: null,
     error: null,
-    limits: [],
     linked: true,
     valid: false,
   }
@@ -279,6 +281,7 @@ export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
     ),
   })
   forgetClaude(update.id)
+  forgetUsage(update.id)
   if (before.enabled && !update.enabled) {
     await stopAccount(before)
   }
@@ -292,6 +295,7 @@ export function removeAccount(id: string) {
     codexAccounts: config.codexAccounts.filter((item) => item.id !== id),
   })
   forgetClaude(id)
+  forgetUsage(id)
 }
 
 function validAccount(name: string, configDir: string | null) {

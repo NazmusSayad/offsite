@@ -94,6 +94,7 @@ import {
   terminalRequest,
   terminalTabs,
 } from '../services/terminal/terminal.ts'
+import { readUsage } from '../services/usage.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
 import {
   readAppIcon,
@@ -277,6 +278,7 @@ const handlers: Handlers = {
     void publishAccounts()
     return null
   },
+  'accounts.usage': (params) => readUsage(params.id, params.force),
   capabilities: (params) =>
     capabilities(
       params.provider,

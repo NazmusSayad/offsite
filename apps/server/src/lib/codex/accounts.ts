@@ -1,4 +1,4 @@
-import { readdirSync, realpathSync } from 'node:fs'
+import { readdirSync, readFileSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import type {
   Account,
@@ -6,7 +6,8 @@ import type {
   RateLimit,
 } from '@offsite/core/providers'
 import { type StoredAccount, storedAccounts } from '../../services/accounts.ts'
-import { broadcast } from '../hub.ts'
+import { recordLimits } from '../../services/usage.ts'
+import { isRecord } from '../claude/content.ts'
 import { type AppServer, appServer, codexBaseDir } from './app-server.ts'
 import type { CodexModel, RateLimitSnapshot, Skill } from './types.ts'
 
@@ -20,7 +21,12 @@ const privateEntries = [
 
 type CodexLogin =
   | { type: 'apiKey' }
-  | { type: 'chatgpt'; email: string | null; planType: string }
+  | {
+      type: 'chatgpt'
+      email: string | null
+      planType: string
+      workspaceName: string | null
+    }
   | { type: 'amazonBedrock' }
 
 const windowNames = new Map([
@@ -31,7 +37,14 @@ const windowNames = new Map([
 export async function codexAccount(account: StoredAccount): Promise<Account> {
   const configDir = account.configDir ?? codexBaseDir
   const linked = isMirror(configDir)
-  const base = { ...account, email: null, plan: null, limits: [], linked }
+  const base = {
+    ...account,
+    email: null,
+    displayName: null,
+    organization: null,
+    plan: null,
+    linked,
+  }
   try {
     const server = appServer(configDir)
     const result = await server.request<{ account: CodexLogin | null }>(
@@ -50,9 +63,10 @@ export async function codexAccount(account: StoredAccount): Promise<Account> {
         return {
           ...base,
           email: result.account.email,
+          displayName: codexDisplayName(configDir),
+          organization: result.account.workspaceName,
           plan: result.account.planType,
           error: null,
-          limits: await rateLimits(server),
           valid: linked,
         }
       case 'apiKey':
@@ -124,26 +138,16 @@ export function publishCodexLimits(home: string, snapshot: RateLimitSnapshot) {
       account.provider === 'codex' &&
       (account.configDir ?? codexBaseDir) === home
     ) {
-      broadcast({
-        type: 'limits',
-        accountId: account.id,
-        limits: toLimits(snapshot),
-      })
+      recordLimits(account.id, toLimits(snapshot))
     }
   }
 }
 
-async function rateLimits(server: AppServer) {
-  try {
-    const result = await server.request<{ rateLimits: RateLimitSnapshot }>(
-      'account/rateLimits/read',
-      {}
-    )
-    return toLimits(result.rateLimits)
-  } catch (error) {
-    console.warn(`could not read Codex usage limits: ${error}`)
-    return []
-  }
+export async function codexLimits(account: StoredAccount) {
+  const result = await appServer(account.configDir ?? codexBaseDir).request<{
+    rateLimits: RateLimitSnapshot
+  }>('account/rateLimits/read', {})
+  return toLimits(result.rateLimits)
 }
 
 function toLimits(snapshot: RateLimitSnapshot): RateLimit[] {
@@ -163,6 +167,37 @@ function toLimits(snapshot: RateLimitSnapshot): RateLimit[] {
           },
         ]
   )
+}
+
+function codexDisplayName(home: string) {
+  let raw: unknown
+  try {
+    raw = JSON.parse(readFileSync(path.join(home, 'auth.json'), 'utf8'))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.warn(`could not read the Codex account name: ${error}`)
+    }
+    return null
+  }
+  if (
+    !isRecord(raw) ||
+    !isRecord(raw.tokens) ||
+    typeof raw.tokens.id_token !== 'string'
+  ) {
+    return null
+  }
+  const payload = raw.tokens.id_token.split('.').at(1)
+  if (payload === undefined) {
+    return null
+  }
+  const claims: unknown = JSON.parse(
+    Buffer.from(payload, 'base64url').toString('utf8')
+  )
+  if (!isRecord(claims) || typeof claims.name !== 'string') {
+    return null
+  }
+  const name = claims.name.trim()
+  return name === '' ? null : name
 }
 
 function isMirror(dir: string) {

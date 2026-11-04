@@ -33,6 +33,7 @@ import {
   startGuard,
   syncUrl,
 } from '@/lib/url'
+import { receiveLimits, receiveUsage } from '@/lib/usage'
 import { call, connectMachine, listen } from './connection'
 import { receiveComposer, receiveConfig } from './machine-config'
 import {
@@ -72,6 +73,8 @@ export function start() {
     settingsEditedMachine: null,
     settingsListing: true,
     settingsMachine: stored.at(0)?.id ?? null,
+    usageOpen: false,
+    usage: {},
     unseen: [],
     generatingTitles: [],
     selection,
@@ -309,14 +312,10 @@ function receive(machine: string, event: ServerEvent) {
       return
     }
     case 'limits':
-      setMachine(machine, {
-        claudeAccounts: known.claudeAccounts.map((item) =>
-          item.id === event.accountId ? { ...item, limits: event.limits } : item
-        ),
-        codexAccounts: known.codexAccounts.map((item) =>
-          item.id === event.accountId ? { ...item, limits: event.limits } : item
-        ),
-      })
+      receiveLimits(known, event.accountId, event.limits)
+      return
+    case 'usage':
+      receiveUsage(known, event.accountId, event.usage)
       return
     case 'config':
       receiveConfig(machine, event.config)

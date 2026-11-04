@@ -23,6 +23,7 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { windowName } from '@/features/composer/limits'
 import { fullTime } from '@/lib/format'
 import { update } from '@/lib/store'
+import { useUsage } from '@/lib/usage'
 import { cn, errorMessage } from '@/lib/utils'
 import { AccountPage, NewAccountPage } from './account'
 import { Row, Section, TextInput } from './controls'
@@ -330,15 +331,9 @@ function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
                 Not linked to shared threads · hidden in the composer
               </p>
             )}
-            {account.error === null &&
-              account.linked &&
-              account.limits.length > 0 && (
-                <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1.5 pl-4">
-                  {account.limits.map((limit) => (
-                    <UsageMeter key={limit.window} limit={limit} />
-                  ))}
-                </div>
-              )}
+            {account.error === null && account.linked && (
+              <AccountLimits machine={props.machine} account={account} />
+            )}
           </div>
           <Switch
             size="sm"
@@ -379,6 +374,20 @@ function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
         <p className="text-destructive px-4 py-3 text-xs">{error}</p>
       )}
     </>
+  )
+}
+
+function AccountLimits(props: { machine: string; account: Account }) {
+  const usage = useUsage(props.machine, props.account)
+  if (usage === undefined || usage.limits.length === 0) {
+    return null
+  }
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1.5 pl-4">
+      {usage.limits.map((limit) => (
+        <UsageMeter key={limit.window} limit={limit} />
+      ))}
+    </div>
   )
 }
 

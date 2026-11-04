@@ -39,6 +39,18 @@ export function timeAgo(time: number) {
   return `${Math.floor(seconds / 86_400)}d`
 }
 
+export function timeLeft(ms: number) {
+  const minutes = Math.max(1, Math.ceil(ms / 60_000))
+  if (minutes < 60) {
+    return `${minutes}m`
+  }
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) {
+    return `${hours}h ${minutes % 60}m`
+  }
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`
+}
+
 export function clock(time: number) {
   const date = new Date(time)
   const formatted = timeFormat.format(date)

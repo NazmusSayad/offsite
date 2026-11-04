@@ -36,6 +36,7 @@ import type {
   Provider,
   ProviderStatus,
   RateLimit,
+  Usage,
 } from './providers.ts'
 import type { PushRegistration } from './push.ts'
 import type { MessageMatch, SearchSession } from './search.ts'
@@ -198,6 +199,7 @@ export type RpcMethods = {
     result: null
   }
   'accounts.remove': { params: { id: string }; result: null }
+  'accounts.usage': { params: { id: string; force: boolean }; result: Usage }
   capabilities: {
     params: {
       provider: Provider
@@ -345,6 +347,7 @@ export type ServerMessage =
 export type ServerEvent =
   | { type: 'activity'; activity: Record<string, SessionActivity> }
   | { type: 'limits'; accountId: string; limits: RateLimit[] }
+  | { type: 'usage'; accountId: string; usage: Usage }
   | { type: 'config'; config: Config }
   | { type: 'composer'; composer: ComposerSettings }
   | { type: 'appIcon'; appIcon: AppIconId }

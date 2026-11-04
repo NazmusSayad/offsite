@@ -7,8 +7,10 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { timeLeft } from '@/lib/format'
 import { steer, unqueue } from '@/lib/sessions'
 import { selectedRunning, useStore } from '@/lib/store'
+import { useSelectedUsage } from '@/lib/usage'
 
 export function QueuedMessages() {
   const queue = useStore((state) => state.queue)
@@ -52,20 +54,11 @@ export function QueuedMessages() {
 }
 
 export function UsageResetBanner() {
-  const limit = useStore((state) => {
-    if (!selectedRunning(state)) {
-      return undefined
-    }
-    const machine = state.machines.find(
-      (item) => item.id === state.selection?.machine
-    )
-    return [
-      ...(machine?.claudeAccounts ?? []),
-      ...(machine?.codexAccounts ?? []),
-    ]
-      .find((item) => item.id === state.settings.accountId)
-      ?.limits.find((item) => item.rejected)
-  })
+  const running = useStore(selectedRunning)
+  const usage = useSelectedUsage()
+  const limit = running
+    ? usage?.limits.find((item) => item.rejected)
+    : undefined
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
@@ -94,16 +87,4 @@ export function UsageResetBanner() {
       </span>
     </div>
   )
-}
-
-function timeLeft(ms: number) {
-  const minutes = Math.max(1, Math.ceil(ms / 60_000))
-  if (minutes < 60) {
-    return `${minutes}m`
-  }
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) {
-    return `${hours}h ${minutes % 60}m`
-  }
-  return `${Math.floor(hours / 24)}d ${hours % 24}h`
 }

@@ -17,6 +17,7 @@ import type {
   Capabilities,
   Provider,
   ProviderStatus,
+  Usage,
 } from '@offsite/core/providers'
 import type {
   SessionActivity,
@@ -99,6 +100,8 @@ export type State = {
   settingsEditedMachine: string | null
   settingsListing: boolean
   settingsMachine: string | null
+  usageOpen: boolean
+  usage: Record<string, Usage>
   unseen: string[]
   generatingTitles: string[]
   selection: Selection | null
@@ -223,6 +226,10 @@ export function showSettings(settingsOpen: boolean) {
       settingsListing: true,
     }),
   })
+}
+
+export function showUsage(usageOpen: boolean) {
+  update({ usageOpen, paletteOpen: false })
 }
 
 export function showSettingsPage(settingsPage: SettingsPage) {

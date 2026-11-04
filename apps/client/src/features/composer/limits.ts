@@ -1,12 +1,12 @@
 import type { RateLimit } from '@offsite/core/providers'
 
 const windowNames: Record<string, string> = {
-  five_hour: '5h',
-  seven_day: 'Week',
-  seven_day_opus: 'Week (Opus)',
-  seven_day_sonnet: 'Week (Sonnet)',
+  five_hour: 'session',
+  seven_day: 'weekly',
+  seven_day_opus: 'opus',
+  seven_day_sonnet: 'sonnet',
 }
 
 export function windowName(limit: RateLimit) {
-  return windowNames[limit.window] ?? limit.window
+  return windowNames[limit.window] ?? limit.window.toLowerCase()
 }

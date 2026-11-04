@@ -1,13 +1,19 @@
-import { Settings01Icon, SquareTerminalIcon } from '@hugeicons/core-free-icons'
+import {
+  DashboardSpeed02Icon,
+  Menu01Icon,
+  Settings01Icon,
+  SquareTerminalIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { NewTerminalItems } from '@/features/terminal/new-terminal-button'
 import { showMachine } from '@/features/terminal/page'
-import { showSettings, useStore } from '@/lib/store'
+import { showSettings, showUsage, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 export function MobileMenu(props: { buttonClassName: string }) {
@@ -45,14 +51,31 @@ export function MobileMenu(props: { buttonClassName: string }) {
 
   return (
     <div className="mr-1.5 flex items-center gap-0.75">
-      <button
-        className={cn(props.buttonClassName, 'size-7 [&>svg]:size-4.5')}
-        title="Settings"
-        aria-label="Settings"
-        onClick={() => showSettings(true)}
-      >
-        <HugeiconsIcon icon={Settings01Icon} />
-      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className={cn(props.buttonClassName, 'size-7 [&>svg]:size-4.5')}
+            title="Menu"
+            aria-label="Menu"
+          >
+            <HugeiconsIcon icon={Menu01Icon} />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+          className="w-auto min-w-40"
+          onCloseAutoFocus={(event) => event.preventDefault()}
+        >
+          <DropdownMenuItem onSelect={() => showUsage(true)}>
+            <HugeiconsIcon icon={DashboardSpeed02Icon} />
+            Usage
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => showSettings(true)}>
+            <HugeiconsIcon icon={Settings01Icon} />
+            Settings
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       {running.length > 0 ? (
         terminal
       ) : (

@@ -7,6 +7,13 @@ export type RateLimit = {
   rejected: boolean
 }
 
+export type Usage = {
+  limits: RateLimit[]
+  fetchedAt: number | null
+  updatedAt: number | null
+  error: string | null
+}
+
 export type ProviderStatus = {
   provider: Provider
   state: 'loading' | 'ready' | 'missing' | 'error' | 'disabled'
@@ -21,9 +28,10 @@ export type Account = {
   configDir: string | null
   enabled: boolean
   email: string | null
+  displayName: string | null
+  organization: string | null
   plan: string | null
   error: string | null
-  limits: RateLimit[]
   linked: boolean
   valid: boolean
 }

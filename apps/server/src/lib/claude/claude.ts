@@ -1,11 +1,10 @@
-import { realpathSync, statSync } from 'node:fs'
+import { readFileSync, realpathSync, statSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {
   type EffortLevel,
   type Options,
   type PermissionMode,
-  type Query,
   query,
   type SDKControlInitializeResponse,
   type SDKRateLimitInfo,
@@ -35,7 +34,6 @@ const modes: PermissionMode[] = [
   'auto',
 ]
 const probes = new Map<string, Promise<SDKControlInitializeResponse>>()
-const limits = new Map<string, Map<string, RateLimit>>()
 let executable = ''
 
 export function findClaude() {
@@ -205,15 +203,17 @@ export async function claudeCapabilities(
 }
 
 export async function claudeAccount(account: StoredAccount): Promise<Account> {
-  const linked = isLinked(account.configDir ?? claudeBaseDir())
+  const configDir = account.configDir ?? claudeBaseDir()
+  const linked = isLinked(configDir)
   try {
     const info = (await initialization(account.id, os.homedir())).account
     return {
       ...account,
       email: info.email ?? null,
+      displayName: claudeDisplayName(configDir),
+      organization: info.organization ?? null,
       plan: info.subscriptionType ?? null,
       error: null,
-      limits: accountLimits(account.id),
       linked,
       valid: linked,
     }
@@ -221,9 +221,10 @@ export async function claudeAccount(account: StoredAccount): Promise<Account> {
     return {
       ...account,
       email: null,
+      displayName: null,
+      organization: null,
       plan: null,
       error: error instanceof Error ? error.message : String(error),
-      limits: accountLimits(account.id),
       linked,
       valid: linked,
     }
@@ -236,58 +237,72 @@ export function forgetClaude(accountId: string) {
       probes.delete(key)
     }
   }
-  limits.delete(accountId)
 }
 
-export function recordLimit(accountId: string, info: SDKRateLimitInfo) {
-  const current = limits.get(accountId) ?? new Map<string, RateLimit>()
+export function eventLimits(info: SDKRateLimitInfo, current: RateLimit[]) {
+  const changed = new Map<string, RateLimit>()
   const windows = (info as { unifiedWindows?: unknown }).unifiedWindows
   if (isRecord(windows)) {
     for (const [name, value] of Object.entries(windows)) {
       if (isRecord(value)) {
-        current.set(name, {
+        changed.set(name, {
           window: name,
           utilization:
             typeof value.utilization === 'number' ? value.utilization : null,
           resetsAt: typeof value.resetsAt === 'number' ? value.resetsAt : null,
-          rejected: current.get(name)?.rejected ?? false,
+          rejected:
+            current.find((limit) => limit.window === name)?.rejected ?? false,
         })
       }
     }
   }
   if (info.rateLimitType !== undefined) {
-    const existing = current.get(info.rateLimitType)
-    current.set(info.rateLimitType, {
+    const existing =
+      changed.get(info.rateLimitType) ??
+      current.find((limit) => limit.window === info.rateLimitType)
+    changed.set(info.rateLimitType, {
       window: info.rateLimitType,
       utilization: info.utilization ?? existing?.utilization ?? null,
       resetsAt: info.resetsAt ?? existing?.resetsAt ?? null,
       rejected: info.status === 'rejected',
     })
   }
-  limits.set(accountId, current)
-  return accountLimits(accountId)
+  return [...changed.values()]
 }
 
-async function recordUsage(accountId: string, probe: Query) {
+export async function claudeLimits(account: StoredAccount) {
+  const closed = Promise.withResolvers<void>()
+  const probe = query({
+    prompt: idle(closed.promise),
+    options: claudeOptions(account.id, os.homedir()),
+  })
   try {
+    await probe.initializationResult()
     const usage =
       await probe.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET({
         skipBehaviors: true,
       })
     if (usage.rate_limits === null) {
-      return
+      return []
     }
-    const current = limits.get(accountId) ?? new Map<string, RateLimit>()
-    const windows = {
-      five_hour: usage.rate_limits.five_hour,
-      seven_day: usage.rate_limits.seven_day,
-      seven_day_opus: usage.rate_limits.seven_day_opus,
-      seven_day_sonnet: usage.rate_limits.seven_day_sonnet,
-    }
-    for (const [name, window] of Object.entries(windows)) {
-      if (window !== undefined && window !== null) {
-        current.set(name, {
-          window: name,
+    const windows = [
+      { name: 'five_hour', window: usage.rate_limits.five_hour },
+      { name: 'seven_day', window: usage.rate_limits.seven_day },
+      { name: 'seven_day_opus', window: usage.rate_limits.seven_day_opus },
+      { name: 'seven_day_sonnet', window: usage.rate_limits.seven_day_sonnet },
+      ...(usage.rate_limits.model_scoped ?? []).map((row) => ({
+        name: row.display_name,
+        window: row,
+      })),
+    ]
+    return windows.flatMap((entry): RateLimit[] => {
+      const window = entry.window
+      if (window === undefined || window === null) {
+        return []
+      }
+      return [
+        {
+          window: entry.name,
           utilization:
             window.utilization === null ? null : window.utilization / 100,
           resetsAt:
@@ -295,13 +310,38 @@ async function recordUsage(accountId: string, probe: Query) {
               ? null
               : Date.parse(window.resets_at) / 1000,
           rejected: window.utilization !== null && window.utilization >= 100,
-        })
-      }
-    }
-    limits.set(accountId, current)
-  } catch (error) {
-    console.warn(`could not read Claude usage limits: ${error}`)
+        },
+      ]
+    })
+  } finally {
+    closed.resolve()
+    probe.close()
   }
+}
+
+function claudeDisplayName(configDir: string) {
+  const file =
+    path.resolve(configDir) === path.join(os.homedir(), '.claude')
+      ? path.join(os.homedir(), '.claude.json')
+      : path.join(configDir, '.claude.json')
+  let raw: unknown
+  try {
+    raw = JSON.parse(readFileSync(file, 'utf8'))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.warn(`could not read the Claude account name: ${error}`)
+    }
+    return null
+  }
+  if (
+    !isRecord(raw) ||
+    !isRecord(raw.oauthAccount) ||
+    typeof raw.oauthAccount.displayName !== 'string'
+  ) {
+    return null
+  }
+  const name = raw.oauthAccount.displayName.trim()
+  return name === '' ? null : name
 }
 
 function isLinked(configDir: string) {
@@ -320,10 +360,6 @@ function isLinked(configDir: string) {
     }
     throw error
   }
-}
-
-function accountLimits(accountId: string) {
-  return [...(limits.get(accountId)?.values() ?? [])]
 }
 
 function initialization(accountId: string, cwd: string) {
@@ -345,9 +381,7 @@ async function runProbe(accountId: string, cwd: string) {
     options: claudeOptions(accountId, cwd),
   })
   try {
-    const result = await probe.initializationResult()
-    await recordUsage(accountId, probe)
-    return result
+    return await probe.initializationResult()
   } finally {
     closed.resolve()
     probe.close()

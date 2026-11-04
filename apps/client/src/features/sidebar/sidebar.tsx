@@ -1,5 +1,6 @@
 import {
   ChevronDownIcon,
+  DashboardSpeed02Icon,
   MinimizeIcon,
   PanelLeftOpenIcon,
   SearchIcon,
@@ -32,6 +33,7 @@ import { ScopeMenu } from '@/features/sidebar/scope-menu'
 import { StatusChips } from '@/features/sidebar/status-chips'
 import { TerminalNav } from '@/features/sidebar/terminal-nav'
 import { useInactiveSessions } from '@/features/sidebar/use-inactive-sessions'
+import { UsageDialog } from '@/features/usage/usage-dialog'
 import { lastProject, openSession, startChat } from '@/lib/sessions'
 import {
   activityOf,
@@ -40,6 +42,7 @@ import {
   showPalette,
   showSettings,
   showSettingsPage,
+  showUsage,
   useStore,
 } from '@/lib/store'
 import { cn, drag, mod } from '@/lib/utils'
@@ -401,6 +404,17 @@ export function Sidebar(
         {!props.mobile && (
           <div className="border-sidebar-border @container flex shrink-0 flex-col gap-px border-t p-(--sidebar-content-inset)">
             <TerminalNav buttonClassName={iconButton} mobile={false} />
+            <button
+              className={cn(
+                iconButton,
+                'h-8 w-full justify-start gap-2 px-2.5 text-sm'
+              )}
+              title="Usage"
+              onClick={() => showUsage(true)}
+            >
+              <HugeiconsIcon icon={DashboardSpeed02Icon} />
+              <span className="truncate">Usage</span>
+            </button>
             <div className="relative">
               <button
                 className={cn(
@@ -435,6 +449,7 @@ export function Sidebar(
           </div>
         )}
       </div>
+      <UsageDialog />
       {adding !== null && (
         <FolderDialog
           machine={adding}
