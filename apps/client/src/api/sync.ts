@@ -1,3 +1,7 @@
+import {
+  DEFAULT_CLAUDE_PERMISSION_MODE,
+  DEFAULT_PROVIDER,
+} from '@offsite/core/config'
 import type { Project } from '@offsite/core/projects'
 import type { ServerEvent } from '@offsite/core/protocol'
 import type { Session } from '@offsite/core/sessions'
@@ -5,7 +9,6 @@ import { isEqual } from 'es-toolkit'
 import { toast } from 'sonner'
 import { getDraftSettings, saveDraftSettings } from '@/features/composer/drafts'
 import {
-  emptySettings,
   providerSettings,
   refreshAccounts,
   refreshCapabilities,
@@ -86,10 +89,16 @@ export function start() {
     partial: '',
     requests: [],
     queue: [],
-    settings:
-      (selection === null || selection.sessionId === null
-        ? null
-        : getDraftSettings(draftKey(selection))) ?? emptySettings,
+    settings: (selection === null || selection.sessionId === null
+      ? null
+      : getDraftSettings(draftKey(selection))) ?? {
+      provider: DEFAULT_PROVIDER,
+      accountId: null,
+      model: null,
+      effort: null,
+      mode: DEFAULT_CLAUDE_PERMISSION_MODE,
+      plan: false,
+    },
     draft: null,
     replacing: null,
     context: null,

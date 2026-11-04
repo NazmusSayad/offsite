@@ -1,4 +1,10 @@
-import type { LastUsedModel, SessionSettings } from '@offsite/core/config'
+import {
+  DEFAULT_CLAUDE_PERMISSION_MODE,
+  DEFAULT_CODEX_PERMISSION_MODE,
+  DEFAULT_PROVIDER,
+  type LastUsedModel,
+  type SessionSettings,
+} from '@offsite/core/config'
 import type { Accounts, Capabilities, Provider } from '@offsite/core/providers'
 import { maxBy } from 'es-toolkit'
 import { call } from '@/api/connection'
@@ -16,15 +22,6 @@ import {
 
 let loading: { key: string; result: Promise<Capabilities> } | null = null
 
-export const emptySettings: SessionSettings = {
-  provider: 'claude',
-  accountId: null,
-  model: null,
-  effort: null,
-  mode: null,
-  plan: false,
-}
-
 export function providerSettings(
   lastUsed: LastUsedModel[] | null,
   provider: Provider
@@ -32,31 +29,41 @@ export function providerSettings(
   const row = lastUsed?.find((item) => item.provider === provider)
   const mode =
     provider === 'claude'
-      ? 'bypassPermissions'
+      ? DEFAULT_CLAUDE_PERMISSION_MODE
       : provider === 'codex'
-        ? 'full-access'
+        ? DEFAULT_CODEX_PERMISSION_MODE
         : null
-
   if (row === undefined) {
     return {
-      ...emptySettings,
       provider,
+      accountId: null,
+      model: null,
+      effort: null,
       mode,
+      plan: false,
     }
   }
   return {
-    ...emptySettings,
     provider,
     accountId: row.accountId,
     model: row.model,
+    effort: null,
     mode,
+    plan: false,
   }
 }
 
 export function newThreadSettings(machine: Machine): SessionSettings {
   const latest = maxBy(machine.lastUsed ?? [], (item) => item.usedAt)
   if (latest === undefined) {
-    return emptySettings
+    return {
+      provider: DEFAULT_PROVIDER,
+      accountId: null,
+      model: null,
+      effort: null,
+      mode: DEFAULT_CLAUDE_PERMISSION_MODE,
+      plan: false,
+    }
   }
   return providerSettings(machine.lastUsed, latest.provider)
 }

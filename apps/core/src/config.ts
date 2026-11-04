@@ -1,5 +1,9 @@
 import type { Provider } from './providers.ts'
 
+export const DEFAULT_PROVIDER = 'claude'
+export const DEFAULT_CLAUDE_PERMISSION_MODE = 'bypassPermissions'
+export const DEFAULT_CODEX_PERMISSION_MODE = 'full-access'
+
 export type ModelSetting = { hidden: boolean; effort: string | null }
 
 export type ProviderSettings = {
