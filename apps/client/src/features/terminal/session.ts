@@ -71,6 +71,7 @@ let state: State = {
 let mounted: number | null = null
 let machine: string | null = null
 let attached = false
+let tabRequested = false
 
 export async function startTerminal() {
   rememberTerminal()
@@ -262,10 +263,30 @@ export function tabTitle(tab: TerminalTab) {
 
 export function setOpen(open: boolean) {
   if (open) {
+    requestTab()
     replaceSearch({ bottom: 'terminal' })
     return
   }
   leaveLayer('overlay', () => replaceSearch({ bottom: undefined }))
+}
+
+export function requestTab() {
+  if (!state.open) {
+    tabRequested = true
+  }
+}
+
+export function showProject(projectId: string) {
+  const requested = tabRequested
+  tabRequested = false
+  if (viewTabs(state.layout, projectId).length > 0) {
+    return
+  }
+  if (requested) {
+    send({ type: 'createTab', projectId })
+    return
+  }
+  setOpen(false)
 }
 
 function followUrl() {

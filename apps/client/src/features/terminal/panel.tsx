@@ -38,6 +38,7 @@ import {
   mount,
   send,
   sendInput,
+  showProject,
   subscribe,
   tabTitle,
   terminalMachine,
@@ -69,7 +70,7 @@ export function TerminalPanel(props: {
 
   useEffect(() => {
     if (active && !props.page) {
-      send({ type: 'select', view: props.view, tabId: null })
+      showProject(props.view)
     }
   }, [props.view, active, props.page])
 

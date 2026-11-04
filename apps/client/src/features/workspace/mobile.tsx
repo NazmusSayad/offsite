@@ -22,6 +22,7 @@ import { Sidebar } from '@/features/sidebar/sidebar'
 import { TerminalPanel } from '@/features/terminal/panel'
 import {
   getState as terminalState,
+  requestTab,
   subscribe as subscribeTerminal,
 } from '@/features/terminal/session'
 import { TerminalPage } from '@/features/terminal/terminal-page'
@@ -183,6 +184,7 @@ function MobileChat(props: { selection: Selection }) {
       closeOverlay()
       return
     }
+    requestTab()
     showOverlay({ panel: undefined, bottom: 'terminal' })
   }
 

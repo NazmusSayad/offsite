@@ -193,12 +193,6 @@ async function request(
       if (tab !== undefined) {
         active.set(message.view, tab.id)
       }
-      if (
-        message.view !== GLOBAL_TERMINALS &&
-        viewTabs(message.view).length === 0
-      ) {
-        await createTab(message.view)
-      }
       break
     }
   }

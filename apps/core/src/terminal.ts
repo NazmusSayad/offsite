@@ -18,7 +18,7 @@ export type TerminalRequest =
   | { type: 'closeTab'; id: number }
   | { type: 'renameTab'; id: number; name: string }
   | { type: 'assignTab'; id: number; projectId: string | null }
-  | { type: 'select'; view: string; tabId: number | null }
+  | { type: 'select'; view: string; tabId: number }
   | { type: 'resize'; id: number; cols: number; rows: number }
 
 export type TerminalEvent =
