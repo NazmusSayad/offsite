@@ -3,6 +3,8 @@ import { useEffect } from 'react'
 import { call } from '@/api/connection'
 import { getState, showError, update, useStore } from '@/lib/store'
 
+let preloaded: string | null = null
+
 export function useInactiveSessions(
   inactiveOpen: boolean,
   scopeMachine: string | null,
@@ -10,19 +12,27 @@ export function useInactiveSessions(
   limit: number
 ) {
   const inactiveVersion = useStore((state) => state.inactiveVersion)
+  const online = useStore((state) =>
+    state.machines
+      .filter((machine) => machine.status === 'online')
+      .map((machine) => machine.id)
+      .join(' ')
+  )
 
   useEffect(() => {
-    if (!inactiveOpen) {
+    const key = JSON.stringify([scopeMachine, scopeProject, online])
+    if (!inactiveOpen && preloaded === key) {
       return
     }
     let current = true
     async function load() {
-      const targets =
-        scopeMachine === null
-          ? getState()
-              .machines.filter((machine) => machine.status === 'online')
-              .map((machine) => machine.id)
-          : [scopeMachine]
+      const targets = online
+        .split(' ')
+        .filter(
+          (machine) =>
+            machine !== '' &&
+            (scopeMachine === null || machine === scopeMachine)
+        )
       const pages = await Promise.all(
         targets.map(async (machine) => {
           const page = await call(machine, 'sessions.inactive', {
@@ -38,6 +48,7 @@ export function useInactiveSessions(
       if (!current) {
         return
       }
+      preloaded = key
       const inactive = pages
         .flatMap((page) => page.sessions)
         .sort((a, b) => b.updatedAt - a.updatedAt)
@@ -56,5 +67,5 @@ export function useInactiveSessions(
     return () => {
       current = false
     }
-  }, [inactiveOpen, scopeMachine, scopeProject, inactiveVersion, limit])
+  }, [inactiveOpen, scopeMachine, scopeProject, online, inactiveVersion, limit])
 }
