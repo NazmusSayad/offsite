@@ -10,6 +10,10 @@ Another exception: accounts may read the account holder's name read-only, becaus
 
 Never run the main offsite instance. Never run `offsite`, `npx offsite` or `pnpm start`, and never run the server with the default `--dir ~/.offsite`. Never stop or restart it either.
 
+## Dialogs and Menus
+
+Always use the `dialog` skill (`.claude/skills/dialog/SKILL.md`) when adding, changing or reviewing a dialog, alert dialog, popover, hover card, dropdown menu or context menu in the client.
+
 ## Dev Server
 
 Always start the dev server with `pnpm dev` from the repository root, unless the user explicitly asks otherwise.
