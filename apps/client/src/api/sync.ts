@@ -35,7 +35,7 @@ import {
 } from '@/lib/url'
 import { receiveLimits, receiveUsage } from '@/lib/usage'
 import { call, connectMachine, listen } from './connection'
-import { receiveComposer, receiveConfig } from './machine-config'
+import { receiveConfig, receiveLastUsed } from './machine-config'
 import {
   addMachine,
   connectAddresses,
@@ -195,7 +195,7 @@ async function resync(machine: string) {
     setProjects(machine, snapshot.projects)
     setSessions(machine, snapshot.sessions)
     receiveConfig(machine, snapshot.config)
-    receiveComposer(machine, snapshot.composer)
+    receiveLastUsed(machine, snapshot.lastUsed)
     reopenThread(machine)
     void refreshAccounts(machine)
     if (getState().selection?.machine === machine) {
@@ -321,8 +321,8 @@ function receive(machine: string, event: ServerEvent) {
     case 'config':
       receiveConfig(machine, event.config)
       return
-    case 'composer':
-      receiveComposer(machine, event.composer)
+    case 'lastUsed':
+      receiveLastUsed(machine, event.lastUsed)
       return
     case 'appIcon':
       setMachine(machine, { appIcon: event.appIcon })
@@ -401,7 +401,7 @@ function receive(machine: string, event: ServerEvent) {
           (state.settings.provider === event.provider
             ? state.settings
             : providerSettings(
-                machineOf(state, machine).composer,
+                machineOf(state, machine).lastUsed,
                 event.provider
               )),
         context: event.context,

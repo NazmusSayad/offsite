@@ -1,8 +1,8 @@
 import type { AppIconId } from './app-icons.ts'
 import type {
-  ComposerSettings,
   Config,
   ConfigWithDefaults,
+  LastUsedModel,
   PromptDelivery,
   SessionSettings,
 } from './config.ts'
@@ -58,7 +58,7 @@ import type {
 } from './terminal.ts'
 
 export type SyncSnapshot = ConfigWithDefaults & {
-  composer: ComposerSettings
+  lastUsed: LastUsedModel[]
   hostname: string
   projects: Project[]
   sessions: Session[]
@@ -73,8 +73,10 @@ export type RpcMethods = {
   sync: { params: void; result: SyncSnapshot }
   'config.get': { params: void; result: ConfigWithDefaults }
   'config.save': { params: Config; result: Config }
-  'composer.get': { params: void; result: ComposerSettings }
-  'composer.save': { params: ComposerSettings; result: ComposerSettings }
+  'lastUsed.save': {
+    params: Pick<LastUsedModel, 'provider' | 'accountId' | 'model'>
+    result: null
+  }
   'appIcon.save': { params: AppIconId; result: AppIconId }
   'projects.add': { params: { path: string }; result: Project }
   'projects.update': {
@@ -349,7 +351,7 @@ export type ServerEvent =
   | { type: 'limits'; accountId: string; limits: RateLimit[] }
   | { type: 'usage'; accountId: string; usage: Usage }
   | { type: 'config'; config: Config }
-  | { type: 'composer'; composer: ComposerSettings }
+  | { type: 'lastUsed'; lastUsed: LastUsedModel[] }
   | { type: 'appIcon'; appIcon: AppIconId }
   | { type: 'projects'; projects: Project[] }
   | { type: 'sessions'; sessions: Session[] }

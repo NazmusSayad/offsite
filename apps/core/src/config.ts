@@ -30,10 +30,12 @@ export type AccountConfig = {
   enabled: boolean
 }
 
-export type ComposerSettings = { provider: Provider } & Record<
-  Provider,
-  ProviderSettings
->
+export type LastUsedModel = {
+  provider: Provider
+  accountId: string | null
+  model: string
+  usedAt: number
+}
 
 export type GenerationModel = {
   provider: Provider | null
@@ -47,11 +49,6 @@ export type Config = {
   claudeAccounts: AccountConfig[]
   codexAccounts: AccountConfig[]
   enabledProviders: Record<Provider, boolean>
-  newThreads: {
-    provider: Provider
-    accountId: string | null
-    models: Record<Provider, string | null>
-  }
   commitMessage: GenerationModel
   titleGeneration: GenerationModel
   models: Record<Provider, Record<string, ModelSetting>>

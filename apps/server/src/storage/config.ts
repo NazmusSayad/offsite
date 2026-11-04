@@ -83,19 +83,6 @@ const configSchema: z.ZodType<Config> = z.strictObject({
       opencode: z.boolean().default(true),
     })
     .prefault({}),
-  newThreads: z
-    .strictObject({
-      provider: z.enum(['claude', 'codex', 'opencode']).default('claude'),
-      accountId: z.string().nullable().default(null),
-      models: z
-        .strictObject({
-          claude: z.string().nullable().default(null),
-          codex: z.string().nullable().default(null),
-          opencode: z.string().nullable().default(null),
-        })
-        .prefault({}),
-    })
-    .prefault({}),
   commitMessage: generationModel,
   titleGeneration: generationModel,
   models: z

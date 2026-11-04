@@ -283,12 +283,19 @@ function ModelMenu(props: {
       model: option.value,
       ...(option.effort === null ? {} : { effort: option.effort }),
     }
+    if (selection.sessionId === null) {
+      call(selection.machine, 'lastUsed.save', {
+        provider,
+        accountId: picked.accountId,
+        model: option.value,
+      }).catch(showError)
+    }
     if (provider === settings.provider) {
       changeSettings(choice)
     } else {
       changeSettings({
         ...providerSettings(
-          machineOf(getState(), selection.machine).composer,
+          machineOf(getState(), selection.machine).lastUsed,
           provider
         ),
         ...choice,

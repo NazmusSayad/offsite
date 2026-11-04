@@ -133,9 +133,6 @@ function ProviderModels(props: {
   const [error, setError] = useState<string | null>(null)
   const settings = props.config.models[props.provider]
   const models = capabilities === null ? null : capabilities.models
-  const defaultModel =
-    props.config.newThreads.models[props.provider] ??
-    (capabilities === null ? null : capabilities.defaultModel)
 
   useEffect(() => {
     let current = true
@@ -174,42 +171,6 @@ function ProviderModels(props: {
 
   return (
     <Section title="Models">
-      {models !== null && (
-        <Row label="Default model">
-          <Select
-            value={defaultModel ?? undefined}
-            onValueChange={(value) =>
-              void updateConfig(props.machine, {
-                ...props.config,
-                newThreads: {
-                  ...props.config.newThreads,
-                  models: {
-                    ...props.config.newThreads.models,
-                    [props.provider]: value,
-                  },
-                },
-              })
-            }
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Choose a model" />
-            </SelectTrigger>
-            <SelectContent>
-              {models
-                .filter(
-                  (model) =>
-                    !(settings[model.value]?.hidden ?? model.deprecated) ||
-                    model.value === defaultModel
-                )
-                .map((model) => (
-                  <SelectItem key={model.value} value={model.value}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </Row>
-      )}
       {error !== null && (
         <p className="text-destructive px-4 py-3 text-xs">{error}</p>
       )}

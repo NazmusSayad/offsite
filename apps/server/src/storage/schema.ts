@@ -50,3 +50,10 @@ export const pushSubscriptions = snakeCase.table('push_subscriptions', {
   machine: text().notNull(),
   server: text().notNull(),
 })
+
+export const lastUsedModels = snakeCase.table('last_used_models', {
+  provider: text({ enum: ['claude', 'codex', 'opencode'] }).primaryKey(),
+  accountId: text(),
+  model: text().notNull(),
+  usedAt: integer().notNull(),
+})
