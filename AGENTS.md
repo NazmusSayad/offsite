@@ -16,6 +16,6 @@ Always use the `dialog` skill (`.claude/skills/dialog/SKILL.md`) when adding, ch
 
 ## Development
 
-For lint fix and format, use `pnpm lint:fix`.
+For lint fix and format, use `pnpm lint:fix`. Do not use `prettier`.
 
 Always start the dev server with `pnpm dev` from the repository root, unless the user explicitly asks otherwise.
