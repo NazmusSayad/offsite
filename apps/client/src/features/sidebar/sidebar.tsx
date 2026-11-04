@@ -422,7 +422,7 @@ export function Sidebar(
         </nav>
         {!props.mobile && (
           <div className="border-sidebar-border @container flex shrink-0 flex-col gap-px border-t p-(--sidebar-content-inset)">
-            <TerminalNav buttonClassName={iconButton} mobile={false} />
+            <TerminalNav buttonClassName={iconButton} />
             <button
               className={cn(
                 iconButton,
