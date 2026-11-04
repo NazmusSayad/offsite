@@ -283,9 +283,7 @@ function ModelMenu(props: {
       model: option.value,
       ...(option.effort === null ? {} : { effort: option.effort }),
     }
-    if (selection.sessionId === null) {
-      saveLastUsed(selection.machine, provider, picked.accountId, option.value)
-    }
+    saveLastUsed(selection.machine, provider, picked.accountId, option.value)
     if (provider === settings.provider) {
       changeSettings(choice)
     } else {
