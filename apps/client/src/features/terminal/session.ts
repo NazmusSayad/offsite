@@ -483,7 +483,11 @@ export function mount(id: number, container: HTMLElement) {
   reportSize(id, terminal)
   terminal.focus()
   return () => {
+    const focused = terminal.element.contains(document.activeElement)
     terminal.element.remove()
+    if (focused) {
+      document.querySelector<HTMLElement>('[data-composer]')?.focus()
+    }
     if (mounted === id) {
       mounted = null
     }
