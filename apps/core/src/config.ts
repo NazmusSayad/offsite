@@ -54,7 +54,7 @@ export type Config = {
   models: Record<Provider, Record<string, ModelSetting>>
   delivery: PromptDelivery
   autoSkipQuestionTimeout: number | null
-  autoPermissionMode: 'allow' | 'deny'
+  autoPermissionMode: 'bypass' | 'allow' | 'deny'
   autoPermissionTimeout: number | null
   terminal: TerminalConfig
 }

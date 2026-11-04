@@ -94,7 +94,7 @@ const configSchema: z.ZodType<Config> = z.strictObject({
     .prefault({}),
   delivery: z.enum(['queue', 'steer']).default('steer'),
   autoSkipQuestionTimeout: z.number().positive().nullable().default(180),
-  autoPermissionMode: z.enum(['allow', 'deny']).default('allow'),
+  autoPermissionMode: z.enum(['bypass', 'allow', 'deny']).default('bypass'),
   autoPermissionTimeout: z.number().positive().nullable().default(15),
   terminal: z
     .strictObject({

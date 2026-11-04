@@ -70,15 +70,25 @@ export function scheduleAutoResolve(
     return request
   }
   const config = readConfig()
+  const run = runs.get(sessionId)
+  const immediate =
+    config.autoPermissionMode === 'bypass' &&
+    ((run?.provider === 'claude' &&
+      run.settings.mode === 'bypassPermissions') ||
+      (run?.provider === 'codex' && run.settings.mode === 'full-access'))
   const seconds =
     request.kind === 'question'
       ? config.autoSkipQuestionTimeout
-      : config.autoPermissionTimeout
+      : immediate
+        ? 0
+        : config.autoPermissionTimeout
   if (seconds === null) {
     return request
   }
   const decision =
-    request.kind === 'question' ? 'allow' : config.autoPermissionMode
+    request.kind === 'question' || config.autoPermissionMode === 'bypass'
+      ? 'allow'
+      : config.autoPermissionMode
   setTimeout(async () => {
     const run = runs.get(sessionId)
     if (run === undefined) {
