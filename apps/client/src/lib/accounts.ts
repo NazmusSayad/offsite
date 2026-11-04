@@ -30,14 +30,26 @@ export function providerSettings(
   provider: Provider
 ): SessionSettings {
   const row = lastUsed?.find((item) => item.provider === provider)
+  const mode =
+    provider === 'claude'
+      ? 'bypassPermissions'
+      : provider === 'codex'
+        ? 'full-access'
+        : null
+
   if (row === undefined) {
-    return { ...emptySettings, provider }
+    return {
+      ...emptySettings,
+      provider,
+      mode,
+    }
   }
   return {
     ...emptySettings,
     provider,
     accountId: row.accountId,
     model: row.model,
+    mode,
   }
 }
 
