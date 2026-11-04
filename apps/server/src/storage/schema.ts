@@ -13,6 +13,7 @@ export const projects = snakeCase.table('projects', {
 
 export const sessions = snakeCase.table('sessions', {
   sessionId: text().primaryKey(),
+  provider: text({ enum: ['claude', 'codex', 'opencode'] }),
   interactedAt: integer(),
   status: text({
     enum: ['active', 'pinned', 'snoozed', 'minimized'],
@@ -48,4 +49,11 @@ export const pushSubscriptions = snakeCase.table('push_subscriptions', {
   privateKey: text().notNull(),
   machine: text().notNull(),
   server: text().notNull(),
+})
+
+export const lastUsedModels = snakeCase.table('last_used_models', {
+  provider: text({ enum: ['claude', 'codex', 'opencode'] }).primaryKey(),
+  accountId: text(),
+  model: text().notNull(),
+  usedAt: integer().notNull(),
 })

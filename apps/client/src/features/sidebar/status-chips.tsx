@@ -57,6 +57,85 @@ export function StatusChips(props: {
   if (problems === 0 && waiting.length === 0 && !showDone) {
     return null
   }
+  const merged =
+    props.collapsed === true && showDone && waiting.length > 0 && problems > 0
+
+  return (
+    <div className={cn('flex shrink-0 items-center gap-1', props.className)}>
+      {merged && (
+        <Chip
+          className="bg-question/15 text-question"
+          icon={ShieldQuestionMarkIcon}
+          count={waiting.length + done.length}
+          label={`${waiting.length} waiting for approval, ${done.length} done`}
+        >
+          <ChipList kind="merged" />
+        </Chip>
+      )}
+      {!merged && showDone && (
+        <Chip
+          className="bg-success/15 text-success"
+          icon={CircleCheckIcon}
+          count={done.length}
+          label={`${done.length} done`}
+        >
+          <ChipList kind="done" />
+        </Chip>
+      )}
+      {!merged && waiting.length > 0 && (
+        <Chip
+          className="bg-question/15 text-question"
+          icon={ShieldQuestionMarkIcon}
+          count={waiting.length}
+          label={`${waiting.length} waiting for approval`}
+        >
+          <ChipList kind="waiting" />
+        </Chip>
+      )}
+      {problems > 0 && (
+        <Chip
+          className={cn(
+            errors.length > 0 && 'bg-error/15 text-error',
+            errors.length === 0 && 'bg-warning/15 text-warning-foreground'
+          )}
+          icon={errors.length > 0 ? AlertCircleIcon : Alert02Icon}
+          count={problems}
+          label={problems === 1 ? '1 problem' : `${problems} problems`}
+          onClose={dismissErrors}
+        >
+          <ChipList kind="problems" />
+        </Chip>
+      )}
+    </div>
+  )
+}
+
+function ChipList(props: { kind: 'done' | 'waiting' | 'merged' | 'problems' }) {
+  const errors = useStore((state) => state.errors)
+  const machines = useStore((state) => state.machines)
+  const sessions = useStore((state) => state.sessions)
+  const unseen = useStore((state) => state.unseen)
+  const offline = machines.filter(
+    (machine) => machine.status === 'offline' || machine.status === 'unpaired'
+  )
+  const failed = sessions.filter((session) =>
+    Object.values(
+      activityOf(machines, session.machine, session.id)?.tasks ?? {}
+    ).includes('failed')
+  )
+  const waiting = sessions.filter(
+    (session) =>
+      activityOf(machines, session.machine, session.id)?.waiting === true
+  )
+  const done = sessions.filter((session) => {
+    const activity = activityOf(machines, session.machine, session.id)
+    return (
+      unseen.includes(machineKey(session.machine, session.id)) &&
+      activity?.waiting !== true &&
+      activity?.running !== true &&
+      !Object.values(activity?.tasks ?? {}).includes('running')
+    )
+  })
   const doneRows = done.map((session) => (
     <Thread
       key={machineKey(session.machine, session.id)}
@@ -75,83 +154,53 @@ export function StatusChips(props: {
       detail="Waiting for approval"
     />
   ))
-  const merged =
-    props.collapsed === true && showDone && waiting.length > 0 && problems > 0
-
-  return (
-    <div className={cn('flex shrink-0 items-center gap-1', props.className)}>
-      {merged && (
-        <Chip
-          className="bg-question/15 text-question"
-          icon={ShieldQuestionMarkIcon}
-          count={waiting.length + done.length}
-          label={`${waiting.length} waiting for approval, ${done.length} done`}
-        >
-          {waitingRows}
-          {doneRows}
-        </Chip>
-      )}
-      {!merged && showDone && (
-        <Chip
-          className="bg-success/15 text-success"
-          icon={CircleCheckIcon}
-          count={done.length}
-          label={`${done.length} done`}
-        >
-          {doneRows}
-        </Chip>
-      )}
-      {!merged && waiting.length > 0 && (
-        <Chip
-          className="bg-question/15 text-question"
-          icon={ShieldQuestionMarkIcon}
-          count={waiting.length}
-          label={`${waiting.length} waiting for approval`}
-        >
-          {waitingRows}
-        </Chip>
-      )}
-      {problems > 0 && (
-        <Chip
-          className={cn(
-            errors.length > 0 && 'bg-error/15 text-error',
-            errors.length === 0 && 'bg-warning/15 text-warning-foreground'
-          )}
-          icon={errors.length > 0 ? AlertCircleIcon : Alert02Icon}
-          count={problems}
-          label={problems === 1 ? '1 problem' : `${problems} problems`}
-          onClose={dismissErrors}
-        >
-          {errors.map((error, index) => (
-            <Row key={index} icon={AlertCircleIcon} className="text-error">
-              <span className="text-error-foreground whitespace-pre-wrap">
-                {error}
-              </span>
-            </Row>
-          ))}
-          {offline.map((machine) => (
-            <Row
-              key={machine.id}
-              icon={Alert02Icon}
-              className="text-warning-foreground"
-            >
-              {machine.status === 'offline' && `${machine.name} is offline`}
-              {machine.status === 'unpaired' && `${machine.name} needs pairing`}
-            </Row>
-          ))}
-          {failed.map((session) => (
-            <Thread
-              key={machineKey(session.machine, session.id)}
-              session={session}
-              icon={Alert02Icon}
-              className="text-warning-foreground"
-              detail="Background task failed"
-            />
-          ))}
-        </Chip>
-      )}
-    </div>
-  )
+  if (props.kind === 'done') {
+    return doneRows
+  }
+  if (props.kind === 'waiting') {
+    return waitingRows
+  }
+  if (props.kind === 'merged') {
+    return (
+      <>
+        {waitingRows}
+        {doneRows}
+      </>
+    )
+  }
+  if (props.kind === 'problems') {
+    return (
+      <>
+        {errors.map((error, index) => (
+          <Row key={index} icon={AlertCircleIcon} className="text-error">
+            <span className="text-error-foreground whitespace-pre-wrap">
+              {error}
+            </span>
+          </Row>
+        ))}
+        {offline.map((machine) => (
+          <Row
+            key={machine.id}
+            icon={Alert02Icon}
+            className="text-warning-foreground"
+          >
+            {machine.status === 'offline' && `${machine.name} is offline`}
+            {machine.status === 'unpaired' && `${machine.name} needs pairing`}
+          </Row>
+        ))}
+        {failed.map((session) => (
+          <Thread
+            key={machineKey(session.machine, session.id)}
+            session={session}
+            icon={Alert02Icon}
+            className="text-warning-foreground"
+            detail="Background task failed"
+          />
+        ))}
+      </>
+    )
+  }
+  throw new Error('Unknown chip list')
 }
 
 function Chip(props: {

@@ -45,6 +45,7 @@ export async function codexAccount(account: StoredAccount): Promise<Account> {
     email: null,
     displayName: null,
     organization: null,
+    identity: null,
     plan: null,
     linked,
   }
@@ -66,7 +67,7 @@ export async function codexAccount(account: StoredAccount): Promise<Account> {
         return {
           ...base,
           email: result.account.email,
-          displayName: codexDisplayName(configDir),
+          ...codexLogin(configDir),
           organization: result.account.workspaceName,
           plan: result.account.planType,
           error: null,
@@ -172,35 +173,47 @@ function toLimits(snapshot: RateLimitSnapshot): RateLimit[] {
   )
 }
 
-function codexDisplayName(home: string) {
+function codexLogin(home: string) {
   let raw: unknown
   try {
     raw = JSON.parse(readFileSync(path.join(home, 'auth.json'), 'utf8'))
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      log.warn(`could not read the Codex account name:`, error)
+      log.warn(`could not read the Codex account:`, error)
     }
-    return null
+    return { displayName: null, identity: null }
   }
   if (
     !isRecord(raw) ||
     !isRecord(raw.tokens) ||
     typeof raw.tokens.id_token !== 'string'
   ) {
-    return null
+    return { displayName: null, identity: null }
   }
   const payload = raw.tokens.id_token.split('.').at(1)
   if (payload === undefined) {
-    return null
+    return { displayName: null, identity: null }
   }
   const claims: unknown = JSON.parse(
     Buffer.from(payload, 'base64url').toString('utf8')
   )
-  if (!isRecord(claims) || typeof claims.name !== 'string') {
-    return null
+  if (!isRecord(claims)) {
+    return { displayName: null, identity: null }
   }
-  const name = claims.name.trim()
-  return name === '' ? null : name
+  const name = typeof claims.name === 'string' ? claims.name.trim() : ''
+  const auth = claims['https://api.openai.com/auth']
+  return {
+    displayName: name === '' ? null : name,
+    identity:
+      isRecord(auth) &&
+      typeof auth.chatgpt_user_id === 'string' &&
+      typeof auth.chatgpt_account_id === 'string'
+        ? {
+            accountId: auth.chatgpt_user_id,
+            organizationId: auth.chatgpt_account_id,
+          }
+        : null,
+  }
 }
 
 function isMirror(dir: string) {

@@ -1,20 +1,6 @@
-import type { ComposerSettings, Config } from '@offsite/core/config'
-import { isEqual } from 'es-toolkit'
-import { getDraftSettings } from '@/features/composer/drafts'
-import {
-  providerSettings,
-  refreshCapabilities,
-  resetNewThread,
-} from '@/lib/accounts'
-import {
-  activityOf,
-  draftKey,
-  getState,
-  machineOf,
-  setMachine,
-  showError,
-  update,
-} from '@/lib/store'
+import type { Config, LastUsedModel } from '@offsite/core/config'
+import { resetNewThread } from '@/lib/accounts'
+import { getState, machineOf, setMachine, showError } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 import { call } from './connection'
 
@@ -113,59 +99,17 @@ const config = syncedValue<Config>({
   apply: applyConfig,
 })
 
-const composer = syncedValue<ComposerSettings>({
-  set: (machine, value) => setMachine(machine, { composer: value }),
-  save: async (machine, value) => {
-    try {
-      return await call(machine, 'composer.save', value)
-    } catch (error) {
-      showError(error)
-      return null
-    }
-  },
-  load: (machine) => call(machine, 'composer.get', undefined),
-  apply: applyComposer,
-})
-
 export const updateConfig = config.update
 export const receiveConfig = config.receive
-export const updateComposer = composer.update
-export const receiveComposer = composer.receive
 
 function applyConfig(machine: string, value: Config) {
-  const previous = machineOf(getState(), machine).config
   setMachine(machine, { config: value })
-  if (previous === null || !isEqual(previous.newThreads, value.newThreads)) {
-    resetNewThread(machine)
-  }
 }
 
-function applyComposer(machine: string, value: ComposerSettings) {
-  const previous = machineOf(getState(), machine).composer
-  setMachine(machine, { composer: value })
-  const selection = getState().selection
-  if (selection === null || selection.machine !== machine) {
-    return
-  }
-  if (selection.sessionId === null) {
-    if (previous === null) {
-      resetNewThread(machine)
-    }
-    return
-  }
-  const live =
-    activityOf(getState().machines, machine, selection.sessionId) !== undefined
-  if (live) {
-    return
-  }
-  const settings =
-    getDraftSettings(draftKey(selection)) ??
-    providerSettings(value, getState().settings.provider)
-  const accountChanged =
-    settings.provider !== getState().settings.provider ||
-    settings.accountId !== getState().settings.accountId
-  update({ settings })
-  if (accountChanged) {
-    void refreshCapabilities()
+export function receiveLastUsed(machine: string, value: LastUsedModel[]) {
+  const previous = machineOf(getState(), machine).lastUsed
+  setMachine(machine, { lastUsed: value })
+  if (previous === null) {
+    resetNewThread(machine)
   }
 }

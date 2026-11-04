@@ -97,12 +97,8 @@ import {
 } from '../services/terminal/terminal.ts'
 import { readUsage } from '../services/usage.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
-import {
-  readAppIcon,
-  readComposer,
-  saveAppIcon,
-  saveComposer,
-} from '../storage/state.ts'
+import { readLastUsed, saveLastUsed } from '../storage/last-used.ts'
+import { readAppIcon, saveAppIcon } from '../storage/state.ts'
 
 const log = logger.withTag('socket')
 
@@ -119,7 +115,7 @@ const handlers: Handlers = {
     refreshAll()
     return {
       ...configInfo(),
-      composer: readComposer(),
+      lastUsed: readLastUsed(),
       hostname: os.hostname(),
       projects: projects(),
       sessions: sessions(),
@@ -130,8 +126,7 @@ const handlers: Handlers = {
     }
   },
   'config.get': () => configInfo(),
-  'composer.get': () => readComposer(),
-  'composer.save': (params) => saveComposer(params),
+  'lastUsed.save': (params) => saveLastUsed(params),
   'appIcon.save': (params) => saveAppIcon(params),
   'config.save': async (params) => {
     const before = readConfig()
@@ -199,7 +194,7 @@ const handlers: Handlers = {
     }
     return session
   },
-  'sessions.inactive': (params) => inactiveSessions(params.projectId),
+  'sessions.inactive': (params) => inactiveSessions(params),
   'sessions.searchable': () => searchableSessions(),
   'sessions.searchMessages': (params) => searchMessages(params.query),
   'sessions.earlier': (params) => earlier(params.sessionId, params.before),
@@ -252,7 +247,7 @@ const handlers: Handlers = {
       return null
     }
     await run.respond(params.requestId, params.decision, params.answers)
-    recordInteraction(params.sessionId)
+    recordInteraction(params.sessionId, run.provider)
     return null
   },
   'sessions.rewind': (params) => rewind(params),

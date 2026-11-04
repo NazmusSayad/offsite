@@ -1,4 +1,4 @@
-import { useRef, useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
+  type Closing,
   dismissClosing,
   dismissClosingAll,
   getClosing,
@@ -77,11 +78,9 @@ export function RenameDialog(props: {
 
 export function CloseDialog() {
   const dialog = useSyncExternalStore(subscribeClosing, getClosing)
-  const closeButton = useRef<HTMLButtonElement>(null)
   if (dialog === null) {
     return null
   }
-  const closing = dialog.closing
 
   return (
     <AlertDialog
@@ -95,30 +94,44 @@ export function CloseDialog() {
       <AlertDialogContent
         onOpenAutoFocus={(event) => {
           event.preventDefault()
-          closeButton.current?.focus()
+          if (!(event.currentTarget instanceof HTMLElement)) {
+            throw new Error('close dialog is not an element')
+          }
+          event.currentTarget
+            .querySelector<HTMLElement>('[data-slot=alert-dialog-action]')
+            ?.focus()
         }}
         onCloseAutoFocus={restoreFocus}
       >
-        <AlertDialogHeader>
-          <AlertDialogTitle>Close “{closing.name}”?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {closing.program === null
-              ? 'OffSite couldn’t check whether a program is still running.'
-              : `${closing.program} is still running.`}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            ref={closeButton}
-            variant="destructive"
-            onClick={() => send({ type: 'closeTab', id: closing.id })}
-          >
-            Close
-          </AlertDialogAction>
-        </AlertDialogFooter>
+        <CloseConfirm closing={dialog.closing} />
       </AlertDialogContent>
     </AlertDialog>
+  )
+}
+
+function CloseConfirm(props: { closing: Closing }) {
+  const closing = props.closing
+
+  return (
+    <>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Close “{closing.name}”?</AlertDialogTitle>
+        <AlertDialogDescription>
+          {closing.program === null
+            ? 'OffSite couldn’t check whether a program is still running.'
+            : `${closing.program} is still running.`}
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          variant="destructive"
+          onClick={() => send({ type: 'closeTab', id: closing.id })}
+        >
+          Close
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </>
   )
 }
 

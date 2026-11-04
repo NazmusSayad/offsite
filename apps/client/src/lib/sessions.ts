@@ -53,14 +53,12 @@ export function openSession(
           : newThreadSettings(machine)
         : (getDraftSettings(draftKey(selection)) ??
           providerSettings(
-            machine.composer,
+            machine.lastUsed,
             getState().sessions.find(
               (item) =>
                 item.machine === selection.machine &&
                 item.id === selection.sessionId
-            )?.provider ??
-              machine.composer?.provider ??
-              'claude'
+            )?.provider ?? newThreadSettings(machine).provider
           )),
     context: null,
     replacing: null,

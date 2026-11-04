@@ -1,3 +1,7 @@
+import {
+  DEFAULT_CLAUDE_PERMISSION_MODE,
+  DEFAULT_PROVIDER,
+} from '@offsite/core/config'
 import type { Project } from '@offsite/core/projects'
 import type { ServerEvent } from '@offsite/core/protocol'
 import type { Session } from '@offsite/core/sessions'
@@ -5,7 +9,6 @@ import { isEqual } from 'es-toolkit'
 import { toast } from 'sonner'
 import { getDraftSettings, saveDraftSettings } from '@/features/composer/drafts'
 import {
-  emptySettings,
   providerSettings,
   refreshAccounts,
   refreshCapabilities,
@@ -35,7 +38,7 @@ import {
 } from '@/lib/url'
 import { receiveLimits, receiveUsage } from '@/lib/usage'
 import { call, connectMachine, listen } from './connection'
-import { receiveComposer, receiveConfig } from './machine-config'
+import { receiveConfig, receiveLastUsed } from './machine-config'
 import {
   addMachine,
   connectAddresses,
@@ -61,6 +64,7 @@ export function start() {
     machines: stored.map(restoreMachine),
     sessions: [],
     inactive: [],
+    inactiveTotal: 0,
     inactiveVersion: 0,
     projects: stored.flatMap(restoreProjects),
     prefs: loadPrefs(),
@@ -85,10 +89,16 @@ export function start() {
     partial: '',
     requests: [],
     queue: [],
-    settings:
-      (selection === null || selection.sessionId === null
-        ? null
-        : getDraftSettings(draftKey(selection))) ?? emptySettings,
+    settings: (selection === null || selection.sessionId === null
+      ? null
+      : getDraftSettings(draftKey(selection))) ?? {
+      provider: DEFAULT_PROVIDER,
+      accountId: null,
+      model: null,
+      effort: null,
+      mode: DEFAULT_CLAUDE_PERMISSION_MODE,
+      plan: false,
+    },
     draft: null,
     replacing: null,
     context: null,
@@ -194,7 +204,7 @@ async function resync(machine: string) {
     setProjects(machine, snapshot.projects)
     setSessions(machine, snapshot.sessions)
     receiveConfig(machine, snapshot.config)
-    receiveComposer(machine, snapshot.composer)
+    receiveLastUsed(machine, snapshot.lastUsed)
     reopenThread(machine)
     void refreshAccounts(machine)
     if (getState().selection?.machine === machine) {
@@ -320,8 +330,8 @@ function receive(machine: string, event: ServerEvent) {
     case 'config':
       receiveConfig(machine, event.config)
       return
-    case 'composer':
-      receiveComposer(machine, event.composer)
+    case 'lastUsed':
+      receiveLastUsed(machine, event.lastUsed)
       return
     case 'appIcon':
       setMachine(machine, { appIcon: event.appIcon })
@@ -331,6 +341,9 @@ function receive(machine: string, event: ServerEvent) {
       return
     case 'sessions':
       setSessions(machine, event.sessions)
+      return
+    case 'threads':
+      update({ inactiveVersion: getState().inactiveVersion + 1 })
       return
     case 'accounts':
       setAccounts(machine, event)
@@ -397,7 +410,7 @@ function receive(machine: string, event: ServerEvent) {
           (state.settings.provider === event.provider
             ? state.settings
             : providerSettings(
-                machineOf(state, machine).composer,
+                machineOf(state, machine).lastUsed,
                 event.provider
               )),
         context: event.context,

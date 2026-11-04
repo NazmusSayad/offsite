@@ -492,7 +492,6 @@ function DesktopLayout() {
                 <PanelView
                   panel={panel}
                   selection={selection}
-                  cwd={cwd}
                   running={running}
                   selectedTask={selectedTask}
                   onSelectTask={setSelectedTask}

@@ -11,7 +11,7 @@ import {
 
 const log = logger.withTag('terminal')
 
-type Closing = { id: number; name: string; program: string | null }
+export type Closing = { id: number; name: string; program: string | null }
 type MachineTab = { machine: string; id: number }
 type ClosingAll = { tabs: MachineTab[]; programs: string[] }
 

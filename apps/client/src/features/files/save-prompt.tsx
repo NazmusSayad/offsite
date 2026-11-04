@@ -47,7 +47,7 @@ export function ConflictPrompt(props: {
 
 export function SavePrompt(props: {
   open: boolean
-  paths: string[]
+  tabs: { spec: { path: string } }[]
   onCancel: () => void
   onFinish: (saving: boolean) => void
 }) {
@@ -61,31 +61,43 @@ export function SavePrompt(props: {
       }}
     >
       <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            {props.paths.length === 1
-              ? `Do you want to save the changes you made to ${baseName(props.paths[0])}?`
-              : `Do you want to save the changes to the following ${props.paths.length} files?`}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {props.paths.length > 1 &&
-              `${props.paths.map(baseName).join(', ')}. `}
-            {"Your changes will be lost if you don't save them."}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            variant="outline"
-            onClick={() => props.onFinish(false)}
-          >
-            {"Don't Save"}
-          </AlertDialogAction>
-          <AlertDialogAction onClick={() => props.onFinish(true)}>
-            {props.paths.length === 1 ? 'Save' : 'Save All'}
-          </AlertDialogAction>
-        </AlertDialogFooter>
+        <SavePromptBody tabs={props.tabs} onFinish={props.onFinish} />
       </AlertDialogContent>
     </AlertDialog>
+  )
+}
+
+function SavePromptBody(props: {
+  tabs: { spec: { path: string } }[]
+  onFinish: (saving: boolean) => void
+}) {
+  const paths = props.tabs.map((tab) => tab.spec.path)
+
+  return (
+    <>
+      <AlertDialogHeader>
+        <AlertDialogTitle>
+          {paths.length === 1
+            ? `Do you want to save the changes you made to ${baseName(paths[0])}?`
+            : `Do you want to save the changes to the following ${paths.length} files?`}
+        </AlertDialogTitle>
+        <AlertDialogDescription>
+          {paths.length > 1 && `${paths.map(baseName).join(', ')}. `}
+          {"Your changes will be lost if you don't save them."}
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          variant="outline"
+          onClick={() => props.onFinish(false)}
+        >
+          {"Don't Save"}
+        </AlertDialogAction>
+        <AlertDialogAction onClick={() => props.onFinish(true)}>
+          {paths.length === 1 ? 'Save' : 'Save All'}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </>
   )
 }

@@ -1,5 +1,9 @@
 import type { Provider } from './providers.ts'
 
+export const DEFAULT_PROVIDER = 'claude'
+export const DEFAULT_CLAUDE_PERMISSION_MODE = 'bypassPermissions'
+export const DEFAULT_CODEX_PERMISSION_MODE = 'full-access'
+
 export type ModelSetting = { hidden: boolean; effort: string | null }
 
 export type ProviderSettings = {
@@ -30,10 +34,12 @@ export type AccountConfig = {
   enabled: boolean
 }
 
-export type ComposerSettings = { provider: Provider } & Record<
-  Provider,
-  ProviderSettings
->
+export type LastUsedModel = {
+  provider: Provider
+  accountId: string | null
+  model: string
+  usedAt: number
+}
 
 export type GenerationModel = {
   provider: Provider | null
@@ -47,17 +53,12 @@ export type Config = {
   claudeAccounts: AccountConfig[]
   codexAccounts: AccountConfig[]
   enabledProviders: Record<Provider, boolean>
-  newThreads: {
-    provider: Provider
-    accountId: string | null
-    models: Record<Provider, string | null>
-  }
   commitMessage: GenerationModel
   titleGeneration: GenerationModel
   models: Record<Provider, Record<string, ModelSetting>>
   delivery: PromptDelivery
   autoSkipQuestionTimeout: number | null
-  autoPermissionMode: 'allow' | 'deny'
+  autoPermissionMode: 'bypass' | 'allow' | 'deny'
   autoPermissionTimeout: number | null
   terminal: TerminalConfig
 }

@@ -1,8 +1,8 @@
 import type { AppIconId } from '@offsite/core/app-icons'
 import type {
-  ComposerSettings,
   Config,
   ConfigWithDefaults,
+  LastUsedModel,
   SessionSettings,
 } from '@offsite/core/config'
 import type {
@@ -70,7 +70,7 @@ export type Machine = {
   label: string | null
   pairedAt: number | null
   config: Config | null
-  composer: ComposerSettings | null
+  lastUsed: LastUsedModel[] | null
   appIcon: AppIconId | null
   configError: string | null
   system: Omit<ConfigWithDefaults, 'config'> | null
@@ -91,6 +91,7 @@ export type State = {
   machines: Machine[]
   sessions: MachineSession[]
   inactive: MachineSession[]
+  inactiveTotal: number
   inactiveVersion: number
   projects: MachineProject[]
   prefs: Prefs

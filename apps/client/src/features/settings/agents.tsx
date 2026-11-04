@@ -49,28 +49,28 @@ export function AgentsSection(props: { machine: string; config: Config }) {
       </Row>
       <Row label="Auto-resolve permissions">
         <div className="flex items-center gap-2">
-          {config.autoPermissionTimeout !== null && (
-            <Select
-              value={config.autoPermissionMode}
-              onValueChange={(autoPermissionMode) => {
-                if (
-                  autoPermissionMode !== 'allow' &&
-                  autoPermissionMode !== 'deny'
-                ) {
-                  throw new Error(`Unknown decision ${autoPermissionMode}`)
-                }
-                save({ autoPermissionMode })
-              }}
-            >
-              <SelectTrigger className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="allow">Allow</SelectItem>
-                <SelectItem value="deny">Deny</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
+          <Select
+            value={config.autoPermissionMode}
+            onValueChange={(autoPermissionMode) => {
+              if (
+                autoPermissionMode !== 'bypass' &&
+                autoPermissionMode !== 'allow' &&
+                autoPermissionMode !== 'deny'
+              ) {
+                throw new Error(`Unknown decision ${autoPermissionMode}`)
+              }
+              save({ autoPermissionMode })
+            }}
+          >
+            <SelectTrigger className="w-24">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="bypass">Bypass</SelectItem>
+              <SelectItem value="allow">Allow</SelectItem>
+              <SelectItem value="deny">Deny</SelectItem>
+            </SelectContent>
+          </Select>
           <Timeout
             value={config.autoPermissionTimeout}
             onChange={(autoPermissionTimeout) =>

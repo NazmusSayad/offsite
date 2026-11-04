@@ -17,8 +17,6 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
@@ -33,6 +31,7 @@ import {
   useStore,
 } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { MachineScopeItems } from './machine-scope-items'
 import { type MachineSearchSession, usePaletteResults } from './palette-results'
 
 type Item = {
@@ -333,32 +332,13 @@ function PaletteContent() {
                 input.current?.focus()
               }}
             >
-              <DropdownMenuRadioGroup
-                value={scope}
-                onValueChange={(value) => {
+              <MachineScopeItems
+                scope={scope}
+                onScope={(value) => {
                   setScope(value)
                   setActiveKey(null)
                 }}
-              >
-                <DropdownMenuRadioItem value="all">
-                  All machines
-                </DropdownMenuRadioItem>
-                {machines.map((machine) => (
-                  <DropdownMenuRadioItem
-                    key={machine.id}
-                    value={machine.id}
-                    disabled={machine.status !== 'online'}
-                  >
-                    <MachineLogo
-                      icon={machine.icon}
-                      className="size-3.5 shrink-0"
-                    />
-                    <span className="min-w-0 truncate">
-                      {machineLabel(machine)}
-                    </span>
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
+              />
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -460,16 +440,6 @@ function Highlighted(props: { text: string; ranges: SearchRange[] }) {
       {props.text.slice(props.ranges.at(-1)?.end ?? 0)}
     </>
   )
-}
-
-function machineLabel(machine: { name: string; status: string }) {
-  if (machine.status === 'online') {
-    return machine.name
-  }
-  if (machine.status === 'unpaired') {
-    return `${machine.name} · needs pairing`
-  }
-  return `${machine.name} · offline`
 }
 
 function threadSubject(

@@ -114,13 +114,28 @@ type SettingsView = ReturnType<typeof useSettingsView>
 
 export function SettingsDialog() {
   const open = useStore((state) => state.settingsOpen)
-  const view = useSettingsView()
-  const page = view.page
-  const machine = view.machine
   useHotkeys('mod+comma', () => showSettings(!open), {
     enableOnFormTags: true,
     preventDefault: true,
   })
+
+  return (
+    <Dialog open={open} onOpenChange={showSettings}>
+      <DialogContent
+        showCloseButton={false}
+        aria-describedby={undefined}
+        className="flex h-[min(44rem,calc(100dvh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl sm:flex-row"
+      >
+        <SettingsPanel />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SettingsPanel() {
+  const view = useSettingsView()
+  const page = view.page
+  const machine = view.machine
 
   function navButton(item: SettingsPage) {
     return (
@@ -138,92 +153,86 @@ export function SettingsDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={showSettings}>
-      <DialogContent
-        showCloseButton={false}
-        aria-describedby={undefined}
-        className="flex h-[min(44rem,calc(100dvh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl sm:flex-row"
-      >
-        <nav className="flex flex-none gap-1 overflow-x-auto border-b p-3 sm:w-48 sm:flex-col sm:border-r sm:border-b-0">
-          <DialogTitle className="hidden px-2 pt-1 pb-3 text-base font-semibold sm:block">
-            Settings
-          </DialogTitle>
-          {browserPages.map(navButton)}
-          <div className="flex flex-none items-center gap-1 sm:mt-6 sm:flex-col sm:items-stretch">
-            {machine !== null && view.machines.length > 1 && (
-              <Select
-                value={machine.id}
-                onValueChange={(settingsMachine) =>
-                  update({ settingsMachine, settingsAccount: null })
+    <>
+      <nav className="flex flex-none gap-1 overflow-x-auto border-b p-3 sm:w-48 sm:flex-col sm:border-r sm:border-b-0">
+        <DialogTitle className="hidden px-2 pt-1 pb-3 text-base font-semibold sm:block">
+          Settings
+        </DialogTitle>
+        {browserPages.map(navButton)}
+        <div className="flex flex-none items-center gap-1 sm:mt-6 sm:flex-col sm:items-stretch">
+          {machine !== null && view.machines.length > 1 && (
+            <Select
+              value={machine.id}
+              onValueChange={(settingsMachine) =>
+                update({ settingsMachine, settingsAccount: null })
+              }
+            >
+              <SelectTrigger className="mb-1 w-40 sm:w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {view.machines.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    <MachineLogo icon={item.icon} />
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {machine !== null && view.machines.length === 1 && (
+            <p className="text-muted-foreground flex h-9 items-center gap-1.5 px-2 text-xs font-medium [&_svg]:size-4">
+              <MachineLogo icon={machine.icon} />
+              <span className="truncate">{machine.name}</span>
+            </p>
+          )}
+          {machinePages.map(navButton)}
+        </div>
+      </nav>
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-7">
+        <div className="mb-5 flex h-9 items-center">
+          {view.subpage && (
+            <>
+              <button
+                className="text-muted-foreground hover:text-foreground text-xl font-semibold tracking-tight transition-colors"
+                onClick={() =>
+                  update({
+                    settingsAccount: null,
+                    settingsEditedMachine: null,
+                  })
                 }
               >
-                <SelectTrigger className="mb-1 w-40 sm:w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {view.machines.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      <MachineLogo icon={item.icon} />
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {machine !== null && view.machines.length === 1 && (
-              <p className="text-muted-foreground flex h-9 items-center gap-1.5 px-2 text-xs font-medium [&_svg]:size-4">
-                <MachineLogo icon={machine.icon} />
-                <span className="truncate">{machine.name}</span>
-              </p>
-            )}
-            {machinePages.map(navButton)}
-          </div>
-        </nav>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-7">
-          <div className="mb-5 flex h-9 items-center">
-            {view.subpage && (
-              <>
-                <button
-                  className="text-muted-foreground hover:text-foreground text-xl font-semibold tracking-tight transition-colors"
-                  onClick={() =>
-                    update({
-                      settingsAccount: null,
-                      settingsEditedMachine: null,
-                    })
-                  }
-                >
-                  {page}
-                </button>
-                <HugeiconsIcon
-                  icon={ArrowRight01Icon}
-                  className="text-muted-foreground mx-1.5 size-5"
-                />
-                <h2 className="truncate text-xl font-semibold tracking-tight">
-                  {view.subpageTitle}
-                </h2>
-              </>
-            )}
-            {!view.subpage && (
-              <h2 className="text-xl font-semibold tracking-tight">
-                {page === 'Machine' ? 'General' : page}
+                {page}
+              </button>
+              <HugeiconsIcon
+                icon={ArrowRight01Icon}
+                className="text-muted-foreground mx-1.5 size-5"
+              />
+              <h2 className="truncate text-xl font-semibold tracking-tight">
+                {view.subpageTitle}
               </h2>
-            )}
-            <ProviderSwitch view={view} className="ml-3" />
-            <DialogClose asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="-mr-2 ml-auto"
-                aria-label="Close settings"
-              >
-                <HugeiconsIcon icon={Cancel01Icon} />
-              </Button>
-            </DialogClose>
-          </div>
-          <SettingsContent view={view} />
+            </>
+          )}
+          {!view.subpage && (
+            <h2 className="text-xl font-semibold tracking-tight">
+              {page === 'Machine' ? 'General' : page}
+            </h2>
+          )}
+          <ProviderSwitch view={view} className="ml-3" />
+          <DialogClose asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="-mr-2 ml-auto"
+              aria-label="Close settings"
+            >
+              <HugeiconsIcon icon={Cancel01Icon} />
+            </Button>
+          </DialogClose>
         </div>
-      </DialogContent>
-    </Dialog>
+        <SettingsContent view={view} />
+      </div>
+    </>
   )
 }
 

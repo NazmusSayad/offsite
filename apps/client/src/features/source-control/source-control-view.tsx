@@ -207,9 +207,6 @@ export function SourceControlView(props: {
     )
   }
 
-  const discardFiles = discarding?.resources ?? []
-  const untracked = discardFiles.filter((resource) => resource.status === 'U')
-
   return (
     <div className="bg-sidebar flex h-full min-h-0 flex-col">
       <div className="text-sidebar-foreground border-sidebar-border relative flex h-9 shrink-0 items-center gap-0.5 border-b px-1.5">
@@ -392,47 +389,68 @@ export function SourceControlView(props: {
         }}
       >
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {discardFiles.length > 1
-                ? `Are you sure you want to discard ALL changes in ${discardFiles.length} files?`
-                : untracked.length === 1
-                  ? `Are you sure you want to DELETE the following untracked file: '${baseName(discardFiles[0].path)}'?`
-                  : `Are you sure you want to discard changes in '${baseName(discardFiles.at(0)?.path ?? '')}'?`}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {discardFiles.length > 1 &&
-                'This is IRREVERSIBLE! Your current working set will be FOREVER LOST if you proceed.'}
-              {discardFiles.length === 1 &&
-                untracked.length === 1 &&
-                'This is IRREVERSIBLE! This file will be FOREVER LOST if you proceed.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                if (discarding !== null) {
-                  void run(discarding.repo, {
-                    kind: 'discard',
-                    tracked: discardFiles
-                      .filter((resource) => resource.status !== 'U')
-                      .map((resource) => resource.path),
-                    untracked: untracked.map((resource) => resource.path),
-                  })
-                }
-              }}
-            >
-              {discardFiles.length > 1
-                ? `Discard All ${discardFiles.length} Files`
-                : untracked.length === 1
-                  ? 'Delete File'
-                  : 'Discard File'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          {discarding !== null && (
+            <DiscardDialog
+              resources={discarding.resources}
+              onDiscard={(tracked, untracked) =>
+                void run(discarding.repo, {
+                  kind: 'discard',
+                  tracked,
+                  untracked,
+                })
+              }
+            />
+          )}
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+function DiscardDialog(props: {
+  resources: GitResource[]
+  onDiscard: (tracked: string[], untracked: string[]) => void
+}) {
+  const discardFiles = props.resources
+  const untracked = discardFiles.filter((resource) => resource.status === 'U')
+  return (
+    <>
+      <AlertDialogHeader>
+        <AlertDialogTitle>
+          {discardFiles.length > 1
+            ? `Are you sure you want to discard ALL changes in ${discardFiles.length} files?`
+            : untracked.length === 1
+              ? `Are you sure you want to DELETE the following untracked file: '${baseName(discardFiles[0].path)}'?`
+              : `Are you sure you want to discard changes in '${baseName(discardFiles.at(0)?.path ?? '')}'?`}
+        </AlertDialogTitle>
+        <AlertDialogDescription>
+          {discardFiles.length > 1 &&
+            'This is IRREVERSIBLE! Your current working set will be FOREVER LOST if you proceed.'}
+          {discardFiles.length === 1 &&
+            untracked.length === 1 &&
+            'This is IRREVERSIBLE! This file will be FOREVER LOST if you proceed.'}
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          variant="destructive"
+          onClick={() =>
+            props.onDiscard(
+              discardFiles
+                .filter((resource) => resource.status !== 'U')
+                .map((resource) => resource.path),
+              untracked.map((resource) => resource.path)
+            )
+          }
+        >
+          {discardFiles.length > 1
+            ? `Discard All ${discardFiles.length} Files`
+            : untracked.length === 1
+              ? 'Delete File'
+              : 'Discard File'}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </>
   )
 }

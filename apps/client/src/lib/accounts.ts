@@ -1,7 +1,13 @@
-import type { ComposerSettings, SessionSettings } from '@offsite/core/config'
+import {
+  DEFAULT_CLAUDE_PERMISSION_MODE,
+  DEFAULT_CODEX_PERMISSION_MODE,
+  DEFAULT_PROVIDER,
+  type LastUsedModel,
+  type SessionSettings,
+} from '@offsite/core/config'
 import type { Accounts, Capabilities, Provider } from '@offsite/core/providers'
+import { maxBy } from 'es-toolkit'
 import { call } from '@/api/connection'
-import { updateComposer } from '@/api/machine-config'
 import { saveDraftSettings } from '@/features/composer/drafts'
 import {
   activityOf,
@@ -16,35 +22,98 @@ import {
 
 let loading: { key: string; result: Promise<Capabilities> } | null = null
 
-export const emptySettings: SessionSettings = {
-  provider: 'claude',
-  accountId: null,
-  model: null,
-  effort: null,
-  mode: null,
-  plan: false,
-}
-
 export function providerSettings(
-  composer: ComposerSettings | null,
+  lastUsed: LastUsedModel[] | null,
   provider: Provider
 ): SessionSettings {
-  if (composer === null) {
-    return { ...emptySettings, provider }
+  const row = lastUsed?.find((item) => item.provider === provider)
+  const mode =
+    provider === 'claude'
+      ? DEFAULT_CLAUDE_PERMISSION_MODE
+      : provider === 'codex'
+        ? DEFAULT_CODEX_PERMISSION_MODE
+        : null
+  if (row === undefined) {
+    return {
+      provider,
+      accountId: null,
+      model: null,
+      effort: null,
+      mode,
+      plan: false,
+    }
   }
-  return { provider, ...composer[provider] }
+  return {
+    provider,
+    accountId: row.accountId,
+    model: row.model,
+    effort: null,
+    mode,
+    plan: false,
+  }
 }
 
 export function newThreadSettings(machine: Machine): SessionSettings {
-  if (machine.config === null) {
-    return emptySettings
+  const latest = maxBy(machine.lastUsed ?? [], (item) => item.usedAt)
+  if (latest === undefined) {
+    return {
+      provider: DEFAULT_PROVIDER,
+      accountId: null,
+      model: null,
+      effort: null,
+      mode: DEFAULT_CLAUDE_PERMISSION_MODE,
+      plan: false,
+    }
   }
-  const newThreads = machine.config.newThreads
-  return {
-    ...providerSettings(machine.composer, newThreads.provider),
-    accountId: newThreads.accountId,
-    model: newThreads.models[newThreads.provider],
-    effort: null,
+  return providerSettings(machine.lastUsed, latest.provider)
+}
+
+export function saveLastUsed(
+  machine: string,
+  provider: Provider,
+  accountId: string | null,
+  model: string
+) {
+  call(machine, 'lastUsed.save', { provider, accountId, model }).catch(
+    showError
+  )
+  const others = getState().machines.filter(
+    (item) => item.id !== machine && item.status === 'online'
+  )
+  if (provider === 'opencode') {
+    for (const other of others.filter((item) => item.openCode.available)) {
+      call(other.id, 'lastUsed.save', {
+        provider,
+        accountId: null,
+        model,
+      }).catch(showError)
+    }
+    return
+  }
+  const current = machineOf(getState(), machine)
+  const identity = (
+    provider === 'claude' ? current.claudeAccounts : current.codexAccounts
+  ).find((item) => item.id === accountId)?.identity
+  if (identity === undefined || identity === null) {
+    return
+  }
+  for (const other of others) {
+    const match = (
+      provider === 'claude' ? other.claudeAccounts : other.codexAccounts
+    ).find(
+      (item) =>
+        item.enabled &&
+        item.identity !== null &&
+        item.identity.accountId === identity.accountId &&
+        item.identity.organizationId === identity.organizationId
+    )
+    if (match !== undefined) {
+      call(other.id, 'lastUsed.save', {
+        provider,
+        accountId: match.id,
+        model,
+      }).catch(showError)
+    }
   }
 }
 
@@ -57,20 +126,6 @@ export function changeSettings(patch: Partial<SessionSettings>) {
   }
   if (selection.sessionId !== null) {
     saveDraftSettings(draftKey(selection), settings)
-  }
-  const composer = machineOf(getState(), selection.machine).composer
-  if (composer !== null) {
-    updateComposer(selection.machine, {
-      ...composer,
-      provider: settings.provider,
-      [settings.provider]: {
-        accountId: settings.accountId,
-        model: settings.model,
-        effort: settings.effort,
-        mode: settings.mode,
-        plan: settings.plan,
-      },
-    })
   }
   if (patch.accountId !== undefined) {
     void refreshCapabilities()
@@ -124,15 +179,12 @@ export function setAccounts(machine: string, received: Accounts) {
   if (same !== undefined) {
     changeSettings({ accountId: same.accountId })
   } else if (other !== undefined) {
-    const known = machineOf(getState(), machine)
     changeSettings({
-      ...providerSettings(known.composer, other.provider),
+      ...providerSettings(
+        machineOf(getState(), machine).lastUsed,
+        other.provider
+      ),
       accountId: other.accountId,
-      model:
-        known.config === null
-          ? null
-          : known.config.newThreads.models[other.provider],
-      effort: null,
     })
   } else if (settings.accountId !== null) {
     changeSettings({ accountId: null })

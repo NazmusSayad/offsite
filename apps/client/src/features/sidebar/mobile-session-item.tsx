@@ -11,7 +11,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
-import { useRef, useState } from 'react'
+import { memo, useRef, useState } from 'react'
 import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import {
@@ -52,7 +52,9 @@ export const secondarySwipe = {
   { status: MachineSession['status']; icon: IconSvgElement }
 >
 
-export function MobileSessionItem(props: {
+export const MobileSessionItem = memo(MobileSessionItemView)
+
+function MobileSessionItemView(props: {
   session: MachineSession
   slim: boolean
   selected: boolean
@@ -60,7 +62,7 @@ export function MobileSessionItem(props: {
   unseen: boolean
   saved: boolean
   scope: { machine: string; projectId: string } | null
-  onSelect: () => void
+  onSelect: (machine: string, projectId: string, sessionId: string) => void
 }) {
   const session = props.session
   const projectTitle = useProjectName(session.machine, session.projectId)
@@ -123,7 +125,7 @@ export function MobileSessionItem(props: {
         swiped.current = false
         return
       }
-      props.onSelect()
+      props.onSelect(session.machine, session.projectId, session.id)
     },
     onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
       if (!props.saved || event.pointerType !== 'touch') {
@@ -300,7 +302,7 @@ export function MobileSessionItem(props: {
               {...swipeHandlers}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
-                  props.onSelect()
+                  props.onSelect(session.machine, session.projectId, session.id)
                 }
               }}
             >
@@ -345,7 +347,7 @@ export function MobileSessionItem(props: {
             {...swipeHandlers}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
-                props.onSelect()
+                props.onSelect(session.machine, session.projectId, session.id)
               }
             }}
           >

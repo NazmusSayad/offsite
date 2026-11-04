@@ -213,7 +213,7 @@ export async function claudeAccount(account: StoredAccount): Promise<Account> {
     return {
       ...account,
       email: info.email ?? null,
-      displayName: claudeDisplayName(configDir),
+      ...claudeLogin(configDir),
       organization: info.organization ?? null,
       plan: info.subscriptionType ?? null,
       error: null,
@@ -226,6 +226,7 @@ export async function claudeAccount(account: StoredAccount): Promise<Account> {
       email: null,
       displayName: null,
       organization: null,
+      identity: null,
       plan: null,
       error: error instanceof Error ? error.message : String(error),
       linked,
@@ -322,7 +323,7 @@ export async function claudeLimits(account: StoredAccount) {
   }
 }
 
-function claudeDisplayName(configDir: string) {
+function claudeLogin(configDir: string) {
   const file =
     path.resolve(configDir) === path.join(os.homedir(), '.claude')
       ? path.join(os.homedir(), '.claude.json')
@@ -332,19 +333,27 @@ function claudeDisplayName(configDir: string) {
     raw = JSON.parse(readFileSync(file, 'utf8'))
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      log.warn(`could not read the Claude account name:`, error)
+      log.warn(`could not read the Claude account:`, error)
     }
-    return null
+    return { displayName: null, identity: null }
   }
-  if (
-    !isRecord(raw) ||
-    !isRecord(raw.oauthAccount) ||
-    typeof raw.oauthAccount.displayName !== 'string'
-  ) {
-    return null
+  if (!isRecord(raw) || !isRecord(raw.oauthAccount)) {
+    return { displayName: null, identity: null }
   }
-  const name = raw.oauthAccount.displayName.trim()
-  return name === '' ? null : name
+  const login = raw.oauthAccount
+  const name =
+    typeof login.displayName === 'string' ? login.displayName.trim() : ''
+  return {
+    displayName: name === '' ? null : name,
+    identity:
+      typeof login.accountUuid === 'string' &&
+      typeof login.organizationUuid === 'string'
+        ? {
+            accountId: login.accountUuid,
+            organizationId: login.organizationUuid,
+          }
+        : null,
+  }
 }
 
 function isLinked(configDir: string) {
