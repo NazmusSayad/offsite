@@ -470,6 +470,7 @@ export function PanelView(props: {
   selectedTask: string | null
   onSelectTask: (id: string | null) => void
   onPanel: (panel: Panel | null) => void
+  mobile: boolean
 }) {
   const cwd = useStore(
     (state) =>
@@ -482,6 +483,7 @@ export function PanelView(props: {
         <BrowserPanel
           machine={props.selection.machine}
           onClose={() => props.onPanel(null)}
+          mobile={props.mobile}
         />
       )}
       {props.panel === 'diff' && (
@@ -492,6 +494,7 @@ export function PanelView(props: {
             projectId={props.selection.projectId}
             running={props.running}
             onClose={() => props.onPanel(null)}
+            mobile={props.mobile}
           />
         </Suspense>
       )}
@@ -503,6 +506,7 @@ export function PanelView(props: {
           selected={props.selectedTask}
           onSelect={props.onSelectTask}
           onClose={() => props.onPanel(null)}
+          mobile={props.mobile}
         />
       )}
     </>

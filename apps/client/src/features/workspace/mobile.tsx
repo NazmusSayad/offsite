@@ -1,4 +1,4 @@
-import { ArrowLeft01Icon, XIcon } from '@hugeicons/core-free-icons'
+import { ArrowLeft01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { useSearch } from '@tanstack/react-router'
@@ -58,8 +58,8 @@ export function MobileLayout() {
         leading={
           <Button
             variant="ghost"
-            size="icon-xs"
-            className="h-full w-11 rounded-none"
+            size="icon"
+            className="ml-2"
             aria-label="Back"
             title="Back"
             onClick={() =>
@@ -70,7 +70,11 @@ export function MobileLayout() {
               )
             }
           >
-            <HugeiconsIcon icon={ArrowLeft01Icon} />
+            <HugeiconsIcon
+              icon={ArrowLeft01Icon}
+              className="text-foreground size-5"
+              strokeWidth={2}
+            />
           </Button>
         }
       />
@@ -265,7 +269,7 @@ function MobileChat(props: { selection: Selection }) {
         <DialogPrimitive.Portal>
           <DialogPrimitive.Content
             aria-describedby={undefined}
-            className="bg-background data-open:animate-in data-open:slide-in-from-right fixed inset-0 z-40 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-sm duration-200 outline-none [--workspace-topbar-height:44px] motion-reduce:animate-none"
+            className="bg-background data-open:animate-in data-open:slide-in-from-right fixed inset-0 z-40 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-sm duration-200 outline-none motion-reduce:animate-none"
           >
             <DialogPrimitive.Title className="sr-only">
               {panel === 'diff' && 'Diff'}
@@ -282,28 +286,37 @@ function MobileChat(props: { selection: Selection }) {
                   selectedTask={selectedTask}
                   onSelectTask={setSelectedTask}
                   onPanel={showPanel}
+                  mobile
                 />
               )}
               {panel === null && terminal && (
-                <>
-                  <div className="border-border/60 flex h-(--workspace-topbar-height) shrink-0 items-center gap-1 border-b px-3">
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      title="Close"
-                      aria-label="Close"
-                      onClick={() => showTerminal(false)}
-                    >
-                      <HugeiconsIcon icon={XIcon} className="size-4" />
-                    </Button>
-                    <span className="text-foreground min-w-0 truncate text-xs font-medium">
-                      Terminal
-                    </span>
-                  </div>
-                  <div className="min-h-0 flex-1">
-                    <TerminalPanel view={props.selection.projectId} />
-                  </div>
-                </>
+                <div className="min-h-0 flex-1">
+                  <TerminalPanel
+                    view={props.selection.projectId}
+                    mobile
+                    leading={
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="mr-1.5 ml-2"
+                          title="Back"
+                          aria-label="Back"
+                          onClick={() => showTerminal(false)}
+                        >
+                          <HugeiconsIcon
+                            icon={ArrowLeft01Icon}
+                            className="text-foreground size-5"
+                            strokeWidth={2}
+                          />
+                        </Button>
+                        <span className="text-foreground min-w-0 truncate text-[13px]">
+                          Terminal
+                        </span>
+                      </>
+                    }
+                  />
+                </div>
               )}
             </div>
           </DialogPrimitive.Content>

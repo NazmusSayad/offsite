@@ -1,8 +1,4 @@
-import {
-  ArrowLeft01Icon,
-  CommandLineIcon,
-  XIcon,
-} from '@hugeicons/core-free-icons'
+import { ArrowLeft01Icon, CommandLineIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Item } from '@offsite/core/items'
 import type { RpcMethods } from '@offsite/core/protocol'
@@ -25,6 +21,7 @@ import { taskTitle, threadTasks } from '@/features/transcript/tasks'
 import { isTool, turnRows } from '@/features/transcript/timeline'
 import { ToolRow } from '@/features/transcript/tool-row'
 import { RowView } from '@/features/transcript/transcript'
+import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { loadAgent } from '@/lib/sessions'
 import { activityOf, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
@@ -38,6 +35,7 @@ export function TasksPanel(props: {
   selected: string | null
   onSelect: (id: string | null) => void
   onClose: () => void
+  mobile: boolean
 }) {
   const items = useStore((state) => state.items)
   const earlier = useStore((state) => state.earlier)
@@ -54,15 +52,14 @@ export function TasksPanel(props: {
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
       <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-1 border-b pr-3 pl-3">
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          title="Close"
-          aria-label="Close"
-          onClick={props.onClose}
-        >
-          <HugeiconsIcon icon={XIcon} className="size-4" />
-        </Button>
+        <PanelCloseButton
+          mobile={props.mobile}
+          onClick={() =>
+            props.mobile && (agent !== undefined || task !== undefined)
+              ? props.onSelect(null)
+              : props.onClose()
+          }
+        />
         {agent === undefined && task === undefined && (
           <span className="text-foreground min-w-0 truncate text-xs font-medium">
             Tasks
@@ -70,15 +67,17 @@ export function TasksPanel(props: {
         )}
         {(agent !== undefined || task !== undefined) && (
           <div className="flex min-w-0 items-center gap-2 text-xs">
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              title="Back to tasks"
-              aria-label="Back to tasks"
-              onClick={() => props.onSelect(null)}
-            >
-              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-            </Button>
+            {!props.mobile && (
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                title="Back to tasks"
+                aria-label="Back to tasks"
+                onClick={() => props.onSelect(null)}
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+              </Button>
+            )}
             {agent !== undefined && info !== null && (
               <>
                 {agent.status === 'Running' ? (

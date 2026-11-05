@@ -3,7 +3,6 @@ import {
   ArrowRight01Icon,
   LinkSquare02Icon,
   RefreshCwIcon,
-  XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useSearch } from '@tanstack/react-router'
@@ -12,6 +11,7 @@ import { z } from 'zod'
 import { call, machineUrl } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { machineOf, showError, useStore } from '@/lib/store'
 import { openBrowser, replaceSearch } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
@@ -31,7 +31,11 @@ const pageMessage = z.discriminatedUnion('event', [
   z.object({ offsite: z.literal('browser'), event: z.literal('loading') }),
 ])
 
-export function BrowserPanel(props: { machine: string; onClose: () => void }) {
+export function BrowserPanel(props: {
+  machine: string
+  onClose: () => void
+  mobile: boolean
+}) {
   const target = useSearch({
     from: '__root__',
     select: (search) => search.browse ?? null,
@@ -160,15 +164,7 @@ export function BrowserPanel(props: { machine: string; onClose: () => void }) {
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
       <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 border-b pr-3 pl-3">
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          title="Close"
-          aria-label="Close"
-          onClick={props.onClose}
-        >
-          <HugeiconsIcon icon={XIcon} className="size-4" />
-        </Button>
+        <PanelCloseButton mobile={props.mobile} onClick={props.onClose} />
         <div className="flex shrink-0 items-center gap-1">
           <Button
             size="icon-sm"

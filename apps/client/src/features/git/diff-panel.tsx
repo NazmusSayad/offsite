@@ -8,7 +8,6 @@ import {
   Rows3Icon,
   TextWrapIcon,
   UnfoldMoreIcon,
-  XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs'
@@ -18,6 +17,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocalStorage } from 'usehooks-ts'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
+import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { getState, updatePrefs, useStore } from '@/lib/store'
 import { useCodeTheme } from '@/lib/theme'
 import { errorMessage } from '@/lib/utils'
@@ -35,6 +35,7 @@ export function DiffPanel(props: {
   projectId: string
   running: boolean
   onClose: () => void
+  mobile: boolean
 }) {
   const [files, setFiles] = useState<FileDiffMetadata[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -113,15 +114,7 @@ export function DiffPanel(props: {
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
       <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-3 pl-3">
         <div className="flex min-w-0 items-center gap-1">
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            title="Close"
-            aria-label="Close"
-            onClick={props.onClose}
-          >
-            <HugeiconsIcon icon={XIcon} className="size-4" />
-          </Button>
+          <PanelCloseButton mobile={props.mobile} onClick={props.onClose} />
           <span className="text-foreground min-w-0 truncate text-xs font-medium">
             Uncommitted changes
           </span>

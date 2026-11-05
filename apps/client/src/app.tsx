@@ -496,6 +496,7 @@ function DesktopLayout() {
                   selectedTask={selectedTask}
                   onSelectTask={setSelectedTask}
                   onPanel={setPanel}
+                  mobile={false}
                 />
               </div>
             </div>
