@@ -148,11 +148,11 @@ export function TerminalGroups() {
                 <GroupCount
                   count={group.count}
                   alert={alerted(group, page)}
-                  className="group-hover/row:invisible"
+                  className="group-hover/row:invisible pointer-coarse:mr-7"
                 />
               </button>
               <button
-                className="text-muted-foreground hover:text-foreground absolute top-0.5 right-1.5 grid size-6 cursor-pointer place-items-center rounded-md opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden"
+                className="text-muted-foreground hover:text-foreground absolute top-0.5 right-1.5 grid size-6 cursor-pointer place-items-center rounded-md opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
                 aria-label="New terminal"
                 title="New terminal"
                 onClick={() =>
