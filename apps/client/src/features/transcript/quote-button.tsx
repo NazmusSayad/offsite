@@ -60,7 +60,7 @@ export function QuoteButton(props: {
       type="button"
       size="xs"
       variant="outline"
-      className="bg-[color-mix(in_srgb,var(--bg)_65%,black)] dark:bg-[color-mix(in_srgb,var(--bg)_65%,black)] border-[color-mix(in_srgb,var(--bg)_85%,black)] hover:bg-accent dark:hover:bg-accent absolute z-20 -translate-x-1/2 shadow-md"
+      className="bg-[color-mix(in_srgb,var(--bg)_65%,black)] dark:bg-[color-mix(in_srgb,var(--bg)_65%,black)] border-[color-mix(in_srgb,var(--bg)_85%,var(--text))] hover:bg-accent dark:hover:bg-accent absolute z-20 -translate-x-1/2 shadow-md"
       style={{ top: quote.top, left: quote.left }}
       onPointerDown={(event) => event.preventDefault()}
       onClick={() => {
