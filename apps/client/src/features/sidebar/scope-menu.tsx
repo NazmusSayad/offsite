@@ -305,7 +305,7 @@ export function ProjectMenuItems(props: {
               onSelect={() => props.onAddProject(machines[0].id)}
             >
               <HugeiconsIcon icon={Add01Icon} />
-              Add project…
+              Add project
             </DropdownMenuItem>
             <div className="flex shrink-0 items-center">
               {machines[0].system?.scratchAvailable === true &&
