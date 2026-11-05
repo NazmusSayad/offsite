@@ -26,7 +26,7 @@ import {
   restoredDraft,
 } from './attached-images'
 import { ComposerMenu, type Suggestion } from './composer-menu'
-import { DictationStrip, useDictation } from './dictation-button'
+import { useDictation } from './dictation-button'
 import {
   editDraft,
   getDraft,
@@ -297,7 +297,6 @@ export function Composer() {
             draft={text}
           />
         )}
-        {suggestions.length === 0 && <DictationStrip dictation={dictation} />}
         {suggestions.length > 0 && (
           <ComposerMenu
             items={suggestions}
@@ -451,7 +450,7 @@ export function Composer() {
             <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-1 overflow-x-auto p-1 ps-3 sm:ps-4">
               <Pickers />
             </div>
-            <div className="flex shrink-0 items-center justify-end gap-2">
+            <div className="relative flex shrink-0 items-center justify-end gap-2">
               <input
                 ref={picker}
                 type="file"

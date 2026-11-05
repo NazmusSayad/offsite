@@ -1,16 +1,7 @@
-import {
-  Alert02Icon,
-  Loading03Icon,
-  RefreshIcon,
-  XIcon,
-} from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { call } from '@/api/connection'
 import { readBase64 } from '@/api/upload'
-import { Button } from '@/components/ui/button'
-import { duration } from '@/lib/format'
 import { logger } from '@/lib/log'
 import {
   draftKey,
@@ -24,14 +15,16 @@ import { toWav } from './dictation-audio'
 import { editDraft } from './drafts'
 
 const log = logger.withTag('dictation')
-const meterBars = 40
+
+export type ActiveDictation = Exclude<DictationState, { kind: 'idle' }>
 
 type DictationState =
   | { kind: 'idle' }
   | { kind: 'recording'; started: number; analyser: AnalyserNode }
-  | { kind: 'transcribing'; seconds: number }
+  | { kind: 'transcribing' }
   | {
       kind: 'failed'
+      label: string
       title: string
       detail: string | null
       action: 'retry' | 'restart' | null
@@ -46,11 +39,11 @@ export function useDictation() {
     machine: string
     key: string
     audio: string
-    seconds: number
   } | null>(null)
+  const attempt = useRef(0)
 
   const selection = useStore((store) => store.selection)
-  const listening = state.kind === 'recording'
+  const escapable = state.kind === 'recording' || state.kind === 'failed'
 
   useEffect(
     () => () => {
@@ -65,7 +58,7 @@ export function useDictation() {
   )
 
   useEffect(() => {
-    if (!listening) {
+    if (!escapable) {
       return
     }
     function onKeyDown(event: KeyboardEvent) {
@@ -74,11 +67,17 @@ export function useDictation() {
       }
       event.preventDefault()
       event.stopPropagation()
-      recorder.current?.stop()
+      const media = recorder.current
+      if (media !== null) {
+        media.stop()
+        return
+      }
+      recording.current = null
+      setState({ kind: 'idle' })
     }
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [listening])
+  }, [escapable])
 
   useHotkeys('mod+shift+d', () => void toggle(), {
     enableOnFormTags: true,
@@ -86,18 +85,20 @@ export function useDictation() {
   })
 
   function fail(
+    label: string,
     title: string,
     detail: string | null,
     action: 'retry' | 'restart' | null
   ) {
     log.warn(title, detail)
-    setState({ kind: 'failed', title, detail, action })
+    setState({ kind: 'failed', label, title, detail, action })
   }
 
   async function start() {
     recording.current = null
     if (!window.isSecureContext) {
       fail(
+        'Needs https',
         'Dictation needs a secure connection',
         'Open offsite over https or localhost to use the microphone',
         null
@@ -106,13 +107,19 @@ export function useDictation() {
     }
     const thread = getState().selection
     if (thread === null) {
-      fail('No thread is open', 'Open a thread to dictate into it', null)
+      fail(
+        'No thread',
+        'No thread is open',
+        'Open a thread to dictate into it',
+        null
+      )
       return
     }
     const key = draftKey(thread)
     const machine = dictationMachine()
     if (machine === undefined) {
       fail(
+        'No machine',
         'No machine is online',
         'Dictation is transcribed by OiPer on a connected machine',
         'restart'
@@ -122,6 +129,7 @@ export function useDictation() {
     const dictation = machine.config?.dictation
     if (dictation === undefined) {
       fail(
+        'Not ready',
         `${machine.name} hasn't loaded its settings yet`,
         'Wait a moment, then try again',
         'restart'
@@ -136,6 +144,7 @@ export function useDictation() {
     }
     if (!(await call(machine.id, 'dictation.ping', undefined))) {
       fail(
+        'OiPer is off',
         `OiPer isn't running on ${machine.name}`,
         'Open the OiPer app on that machine, then try again',
         'restart'
@@ -148,6 +157,7 @@ export function useDictation() {
     } catch (error) {
       if (error instanceof DOMException && error.name === 'NotAllowedError') {
         fail(
+          'Mic blocked',
           'Microphone access is blocked',
           'Allow the microphone for this site in your browser settings, then try again',
           'restart'
@@ -156,6 +166,7 @@ export function useDictation() {
       }
       if (error instanceof DOMException && error.name === 'NotFoundError') {
         fail(
+          'No mic',
           'No microphone found',
           'Connect a microphone, then try again',
           'restart'
@@ -164,13 +175,19 @@ export function useDictation() {
       }
       if (error instanceof DOMException && error.name === 'NotReadableError') {
         fail(
+          'Mic busy',
           'The microphone is unavailable',
           'Another app may be using it, or the system blocked it',
           'restart'
         )
         return
       }
-      fail("The microphone couldn't start", errorMessage(error), 'restart')
+      fail(
+        'Mic failed',
+        "The microphone couldn't start",
+        errorMessage(error),
+        'restart'
+      )
       return
     }
     const context = new AudioContext()
@@ -190,21 +207,28 @@ export function useDictation() {
         return
       }
       recorder.current = null
-      const seconds = (Date.now() - started) / 1000
-      setState({ kind: 'transcribing', seconds })
+      const current = attempt.current
+      setState({ kind: 'transcribing' })
+      let audio: string
       try {
-        recording.current = {
-          machine: machine.id,
-          key,
-          audio: await readBase64(
-            await toWav(new Blob(chunks, { type: media.mimeType }))
-          ),
-          seconds,
-        }
+        audio = await readBase64(
+          await toWav(new Blob(chunks, { type: media.mimeType }))
+        )
       } catch (error) {
-        fail("The recording couldn't be read", errorMessage(error), 'restart')
+        if (attempt.current === current) {
+          fail(
+            'Bad audio',
+            "The recording couldn't be read",
+            errorMessage(error),
+            'restart'
+          )
+        }
         return
       }
+      if (attempt.current !== current) {
+        return
+      }
+      recording.current = { machine: machine.id, key, audio }
       await transcribe()
     })
     media.start()
@@ -217,7 +241,8 @@ export function useDictation() {
     if (saved === null) {
       throw new Error('No recording is saved to transcribe')
     }
-    setState({ kind: 'transcribing', seconds: saved.seconds })
+    const current = attempt.current
+    setState({ kind: 'transcribing' })
     let text: string
     try {
       text = await call(saved.machine, 'dictation.transcribe', {
@@ -225,15 +250,22 @@ export function useDictation() {
         mediaType: 'audio/wav',
       })
     } catch (error) {
-      fail(
-        "OiPer couldn't transcribe the recording",
-        errorMessage(error),
-        'retry'
-      )
+      if (attempt.current === current) {
+        fail(
+          'Failed',
+          "OiPer couldn't transcribe the recording",
+          errorMessage(error),
+          'retry'
+        )
+      }
+      return
+    }
+    if (attempt.current !== current) {
       return
     }
     if (text.trim() === '') {
       fail(
+        'No speech',
         'No speech was heard',
         'OiPer returned no text for this recording',
         'restart'
@@ -243,7 +275,12 @@ export function useDictation() {
     try {
       insert(text.trim(), saved.key)
     } catch (error) {
-      fail("The transcript couldn't be added", errorMessage(error), 'retry')
+      fail(
+        'Not added',
+        "The transcript couldn't be added",
+        errorMessage(error),
+        'retry'
+      )
       return
     }
     recording.current = null
@@ -261,18 +298,15 @@ export function useDictation() {
     try {
       await start()
     } catch (error) {
-      fail("Dictation couldn't start", errorMessage(error), 'restart')
+      fail('Failed', "Dictation couldn't start", errorMessage(error), 'restart')
     }
   }
 
   function cancel() {
+    attempt.current += 1
     const media = recorder.current
     recorder.current = null
     media?.stop()
-    setState({ kind: 'idle' })
-  }
-
-  function dismiss() {
     recording.current = null
     setState({ kind: 'idle' })
   }
@@ -281,181 +315,8 @@ export function useDictation() {
     state,
     toggle,
     cancel,
-    dismiss,
     retry: () => void transcribe(),
   }
-}
-
-export function DictationStrip(props: { dictation: Dictation }) {
-  const state = props.dictation.state
-
-  if (state.kind === 'idle') {
-    return null
-  }
-
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="composer-glass relative mx-auto -mb-[calc(1rem+1px)] flex w-[calc(100%-2.75rem)] items-center gap-2 rounded-t-2xl border border-b-0 border-(--composer-outline) ps-3 pe-1 pt-1 pb-[calc(1rem+1px+0.25rem)] text-xs/4"
-    >
-      {state.kind === 'recording' && (
-        <Recording
-          started={state.started}
-          analyser={state.analyser}
-          onCancel={props.dictation.cancel}
-          onStop={() => void props.dictation.toggle()}
-        />
-      )}
-      {state.kind === 'transcribing' && (
-        <>
-          <HugeiconsIcon
-            icon={Loading03Icon}
-            className="text-muted-foreground size-3.5 shrink-0 animate-spin"
-          />
-          <span className="text-secondary-label flex min-h-6 items-center truncate">
-            Transcribing {duration(state.seconds)} of audio with OiPer…
-          </span>
-        </>
-      )}
-      {state.kind === 'failed' && (
-        <>
-          <HugeiconsIcon
-            icon={Alert02Icon}
-            className="text-destructive size-3.5 shrink-0"
-          />
-          <div className="min-w-0 flex-1 py-1">
-            <div className="text-foreground font-medium">{state.title}</div>
-            {state.detail !== null && (
-              <div className="text-muted-foreground line-clamp-3 break-words select-text">
-                {state.detail}
-              </div>
-            )}
-          </div>
-          {state.action === 'retry' && (
-            <Button
-              variant="ghost"
-              size="xs"
-              className="h-6"
-              title="Send the same recording again"
-              onClick={props.dictation.retry}
-            >
-              <HugeiconsIcon icon={RefreshIcon} />
-              Retry
-            </Button>
-          )}
-          {state.action === 'restart' && (
-            <Button
-              variant="ghost"
-              size="xs"
-              className="h-6"
-              onClick={() => void props.dictation.toggle()}
-            >
-              Try again
-            </Button>
-          )}
-          <Button
-            variant="ghost-muted"
-            size="icon-micro"
-            title="Dismiss"
-            aria-label="Dismiss"
-            onClick={props.dictation.dismiss}
-          >
-            <HugeiconsIcon icon={XIcon} className="size-4" />
-          </Button>
-        </>
-      )}
-    </div>
-  )
-}
-
-function Recording(props: {
-  started: number
-  analyser: AnalyserNode
-  onCancel: () => void
-  onStop: () => void
-}) {
-  const [levels, setLevels] = useState<number[]>([])
-  const [now, setNow] = useState(Date.now())
-
-  useEffect(() => {
-    const samples = new Float32Array(props.analyser.fftSize)
-    let history: number[] = []
-    let last = 0
-    let frame = requestAnimationFrame(tick)
-    function tick(time: number) {
-      frame = requestAnimationFrame(tick)
-      if (time - last < 60) {
-        return
-      }
-      last = time
-      props.analyser.getFloatTimeDomainData(samples)
-      let sum = 0
-      for (const sample of samples) {
-        sum += sample * sample
-      }
-      const level = Math.min(
-        1,
-        Math.sqrt(Math.sqrt(sum / samples.length)) * 1.6
-      )
-      history = [...history, level].slice(-meterBars)
-      setLevels(history)
-      setNow(Date.now())
-    }
-    return () => cancelAnimationFrame(frame)
-  }, [props.analyser])
-
-  const quiet =
-    now - props.started > 3000 &&
-    levels.length === meterBars &&
-    levels.every((level) => level < 0.08)
-
-  return (
-    <>
-      <span className="bg-destructive size-2 shrink-0 rounded-full motion-safe:animate-pulse" />
-      <span className="text-foreground font-medium">Recording</span>
-      <span className="text-muted-foreground tabular-nums">
-        {duration((now - props.started) / 1000)}
-      </span>
-      {quiet ? (
-        <span className="text-warning-foreground min-w-0 flex-1 truncate text-end">
-          No sound from the microphone. Check that it is not muted
-        </span>
-      ) : (
-        <div
-          aria-hidden="true"
-          className="flex h-4 min-w-0 flex-1 items-center justify-end gap-0.5 overflow-hidden"
-        >
-          {[...Array<number>(meterBars - levels.length).fill(0), ...levels].map(
-            (level, index) => (
-              <span
-                key={index}
-                className="bg-foreground/50 w-0.5 shrink-0 rounded-full"
-                style={{ height: `${Math.max(12, level * 100)}%` }}
-              />
-            )
-          )}
-        </div>
-      )}
-      <Button
-        variant="ghost-muted"
-        size="xs"
-        className="h-6"
-        onClick={props.onCancel}
-      >
-        Cancel
-      </Button>
-      <Button
-        variant="ghost"
-        size="xs"
-        className="h-6"
-        title="Done, transcribe (Esc)"
-        onClick={props.onStop}
-      >
-        Done
-      </Button>
-    </>
-  )
 }
 
 function dictationMachine() {
