@@ -1,6 +1,5 @@
 import { PaperclipIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Item } from '@offsite/core/items'
 import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { readBase64, UPLOAD_LIMIT, uploadFile } from '@/api/upload'
@@ -23,9 +22,11 @@ import {
   isPasteInline,
   largePaste,
   lastImageNumber,
+  lastUserText,
   restoredDraft,
 } from './attached-images'
 import { ComposerMenu, type Suggestion } from './composer-menu'
+import { DictationStrip, useDictation } from './dictation-button'
 import {
   editDraft,
   getDraft,
@@ -85,6 +86,7 @@ export function Composer() {
   const running = useStore(selectedRunning)
   const hero = loaded && blank && !running
   const request = requests.at(0)
+  const dictation = useDictation()
 
   useEffect(() => {
     const element = input.current
@@ -295,6 +297,7 @@ export function Composer() {
             draft={text}
           />
         )}
+        {suggestions.length === 0 && <DictationStrip dictation={dictation} />}
         {suggestions.length > 0 && (
           <ComposerMenu
             items={suggestions}
@@ -479,6 +482,7 @@ export function Composer() {
                 <HugeiconsIcon icon={PaperclipIcon} />
               </Button>
               <SendControls
+                dictation={dictation}
                 running={running}
                 empty={empty}
                 delivery={delivery}
@@ -495,19 +499,4 @@ export function Composer() {
 
 function fileMarker(file: { number: number; name: string }) {
   return `[File #${file.number}: ${file.name}]`
-}
-
-function lastUserText(items: Item[]) {
-  for (let index = items.length - 1; index >= 0; index--) {
-    const item = items[index]
-    if (
-      item.kind === 'user' &&
-      item.parent === null &&
-      item.format === 'text' &&
-      item.text !== ''
-    ) {
-      return item.text
-    }
-  }
-  return null
 }
