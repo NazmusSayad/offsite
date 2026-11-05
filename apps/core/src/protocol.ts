@@ -244,10 +244,7 @@ export type RpcMethods = {
   }
   'files.upload': { params: { name: string; data: string }; result: string }
   'files.browse': { params: void; result: string }
-  'dictation.transcribe': {
-    params: { audio: string; mediaType: string }
-    result: string
-  }
+  'dictation.transcribe': { params: { audio: string }; result: string }
   'dictation.ping': { params: void; result: boolean }
   'dictation.workflows': {
     params: void

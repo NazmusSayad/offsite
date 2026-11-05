@@ -38,7 +38,7 @@ import { compact, timeAgo } from '@/lib/format'
 import { sendPrompt } from '@/lib/sessions'
 import { draftKey, getState, showError, useStore } from '@/lib/store'
 import { mod } from '@/lib/utils'
-import type { Dictation } from './dictation-button'
+import type { Dictation } from './dictation'
 import { deleteStash, hasPrompt, useDraft, useStash } from './drafts'
 import { restorePrompt, stashPrompt } from './stash'
 

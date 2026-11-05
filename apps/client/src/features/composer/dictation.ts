@@ -247,7 +247,6 @@ export function useDictation() {
     try {
       text = await call(saved.machine, 'dictation.transcribe', {
         audio: saved.audio,
-        mediaType: 'audio/wav',
       })
     } catch (error) {
       if (attempt.current === current) {
@@ -321,11 +320,11 @@ export function useDictation() {
 
 function dictationMachine() {
   const state = getState()
-  const selected = state.selection?.machine
-  return [
-    ...state.machines.filter((machine) => machine.id === selected),
-    ...state.machines.filter((machine) => machine.id !== selected),
-  ].find((machine) => machine.status === 'online')
+  const online = state.machines.filter((machine) => machine.status === 'online')
+  return (
+    online.find((machine) => machine.id === state.selection?.machine) ??
+    online.at(0)
+  )
 }
 
 function insert(value: string, key: string) {

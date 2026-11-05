@@ -327,7 +327,7 @@ const handlers: Handlers = {
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
   'dictation.transcribe': (params) =>
-    transcribe(Buffer.from(params.audio, 'base64'), params.mediaType),
+    transcribe(Buffer.from(params.audio, 'base64')),
   'dictation.ping': () => ping(),
   'dictation.workflows': () => workflows(),
   'files.browse': (_params, client) =>

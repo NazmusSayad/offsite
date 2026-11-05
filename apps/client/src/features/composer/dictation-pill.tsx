@@ -8,7 +8,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
-import type { ActiveDictation, Dictation } from './dictation-button'
+import type { ActiveDictation, Dictation } from './dictation'
 
 const meterBars = 9
 const quietSamples = 40

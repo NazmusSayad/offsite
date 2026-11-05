@@ -9,10 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { errorMessage } from '@/lib/utils'
 import { Row, Section } from './controls'
 
 export function DictationPage(props: { machine: string; config: Config }) {
-  const dictation = props.config.dictation
   const [workflows, setWorkflows] = useState<
     { id: string; name: string }[] | null
   >(null)
@@ -30,7 +30,7 @@ export function DictationPage(props: { machine: string; config: Config }) {
       },
       (reason: unknown) => {
         if (mounted) {
-          setError(reason instanceof Error ? reason.message : String(reason))
+          setError(errorMessage(reason))
         }
       }
     )
@@ -51,17 +51,13 @@ export function DictationPage(props: { machine: string; config: Config }) {
           <span className="text-muted-foreground text-xs">Checking…</span>
         ) : (
           <Select
-            value={dictation.workflowId ?? ''}
-            onValueChange={(value) => {
-              const next = workflows.find((item) => item.id === value)
-              if (next === undefined) {
-                throw new Error(`Unknown OiPer workflow ${value}`)
-              }
+            value={props.config.dictation.workflowId ?? ''}
+            onValueChange={(workflowId) =>
               void updateConfig(props.machine, {
                 ...props.config,
-                dictation: { ...dictation, workflowId: next.id },
+                dictation: { ...props.config.dictation, workflowId },
               })
-            }}
+            }
           >
             <SelectTrigger className="w-56">
               <SelectValue placeholder="Choose a workflow" />

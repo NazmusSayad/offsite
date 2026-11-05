@@ -26,7 +26,7 @@ import {
   restoredDraft,
 } from './attached-images'
 import { ComposerMenu, type Suggestion } from './composer-menu'
-import { useDictation } from './dictation-button'
+import { useDictation } from './dictation'
 import {
   editDraft,
   getDraft,
