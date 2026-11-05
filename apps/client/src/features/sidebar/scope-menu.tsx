@@ -140,7 +140,7 @@ export function ProjectMenuItems(props: {
   function manageButton(machine: (typeof machines)[number]) {
     return (
       <DropdownMenuItem
-        className="text-muted-foreground grid size-5 min-h-0 shrink-0 place-items-center rounded-sm p-0"
+        className="text-muted-foreground grid size-7 min-h-0 shrink-0 place-items-center rounded-sm p-0"
         title={`Manage projects on ${machine.name}`}
         aria-label={`Manage projects on ${machine.name}`}
         disabled={machine.status !== 'online'}
@@ -158,7 +158,7 @@ export function ProjectMenuItems(props: {
     return (
       <DropdownMenuRadioItem
         value={machineKey(machine.id, NO_PROJECT)}
-        className="text-muted-foreground data-[state=checked]:bg-foreground/10 data-[state=checked]:text-foreground mr-0.5 h-5 min-h-0 shrink-0 gap-1 px-1.5 py-0 text-xs *:data-[slot=dropdown-menu-radio-item-indicator]:hidden"
+        className="text-muted-foreground data-[state=checked]:bg-foreground/10 data-[state=checked]:text-foreground h-7 min-h-0 shrink-0 gap-1 px-2 py-0 text-xs *:data-[slot=dropdown-menu-radio-item-indicator]:hidden"
         title={`Threads on ${machine.name} without a project`}
         onSelect={() =>
           props.onScope({ machine: machine.id, projectId: NO_PROJECT })
@@ -228,10 +228,10 @@ export function ProjectMenuItems(props: {
               </DropdownMenuLabel>
               {group.machine.system?.scratchAvailable === true &&
                 chatChip(group.machine)}
-              <div className="flex shrink-0 items-center gap-0.5 pr-1">
+              <div className="flex shrink-0 items-center">
                 {manageButton(group.machine)}
                 <DropdownMenuItem
-                  className="text-muted-foreground grid size-5 min-h-0 shrink-0 place-items-center rounded-sm p-0"
+                  className="text-muted-foreground grid size-7 min-h-0 shrink-0 place-items-center rounded-sm p-0"
                   title={`Add project to ${group.machine.name}`}
                   aria-label={`Add project to ${group.machine.name}`}
                   disabled={group.machine.status !== 'online'}
@@ -307,7 +307,7 @@ export function ProjectMenuItems(props: {
               <HugeiconsIcon icon={Add01Icon} />
               Add project…
             </DropdownMenuItem>
-            <div className="flex shrink-0 items-center gap-0.5 pr-1">
+            <div className="flex shrink-0 items-center">
               {machines[0].system?.scratchAvailable === true &&
                 chatChip(machines[0])}
               {manageButton(machines[0])}
