@@ -4,6 +4,7 @@ import {
   Delete02Icon,
   Folder01Icon,
   PencilEdit02Icon,
+  SquareTerminalIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { GLOBAL_TERMINALS, type TerminalTab } from '@offsite/core/terminal'
@@ -27,6 +28,13 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import type { Progress } from '@/lib/ghostty/terminal'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -61,12 +69,14 @@ export function TerminalPanel(props: {
   page?: boolean
   tabSize?: 'default' | 'lg'
   leading?: ReactNode
+  mobile?: boolean
 }) {
   const state = useSyncExternalStore(subscribe, getState)
   const active = state.status === 'active'
   const tabs = viewTabs(state.layout, props.view)
   const tabId = state.layout.active[props.view] ?? null
   const shortcuts = useTerminalShortcuts()
+  const [tabsOpen, setTabsOpen] = useState(false)
 
   useEffect(() => {
     if (active && !props.page) {
@@ -91,74 +101,142 @@ export function TerminalPanel(props: {
     )
   }
 
+  const selected = tabs.find((tab) => tab.id === tabId)
+
   return (
     <div ref={shortcuts} className="flex h-full flex-col text-sm">
-      <header
-        className={cn(
-          'flex h-9 flex-none select-none',
-          props.tabSize === 'lg' && 'h-(--workspace-topbar-height)',
-          tabs.length === 1 ? 'bg-background' : 'bg-sidebar'
-        )}
-      >
-        {props.leading && (
-          <div className="flex flex-none items-center border-b px-1.5">
+      {props.mobile ? (
+        <header className="bg-background grid h-(--workspace-topbar-height) flex-none grid-cols-[1fr_auto_1fr] items-center border-b select-none">
+          <div className="flex min-w-0 items-center self-stretch">
             {props.leading}
           </div>
-        )}
-        <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
-          {tabs.map((tab) => (
-            <TabMenu key={tab.id} tab={tab}>
-              <div
-                className={cn(
-                  'group/tab text-muted-foreground hover:text-foreground relative flex min-w-28 flex-1 items-center justify-center border-r border-b px-7 text-xs transition-colors last:border-r-0',
-                  props.tabSize === 'lg' && 'text-[13px]',
-                  tab.id === tabId &&
-                    'bg-background text-foreground border-b-transparent'
-                )}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() =>
-                  send({
-                    type: 'select',
-                    view: props.view,
-                    tabId: tab.id,
-                  })
-                }
+          <span className="bg-border h-4 w-px" />
+          <div className="flex min-w-0 items-center self-stretch">
+            {selected === undefined ? (
+              <button
+                className="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1.5 self-stretch px-3 text-[13px] transition-colors"
+                onClick={create}
               >
-                <span className="truncate">{tabTitle(tab)}</span>
-                <AttentionDot
-                  id={tab.id}
-                  className="ml-1.5 size-1.5 flex-none rounded-full"
-                />
-                <TabProgress progress={state.progress[tab.id]} />
+                <HugeiconsIcon icon={Add01Icon} className="size-4" />
+                New tab
+              </button>
+            ) : (
+              <>
+                <DropdownMenu open={tabsOpen} onOpenChange={setTabsOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <button className="text-foreground relative flex min-w-0 flex-1 items-center gap-3.5 self-stretch px-3 text-[13px]">
+                      <span className="text-muted-foreground relative flex-none">
+                        <HugeiconsIcon
+                          icon={SquareTerminalIcon}
+                          className="size-4"
+                        />
+                        {tabs.length > 1 && (
+                          <span className="text-foreground/75 ring-background absolute -top-1.5 -right-2 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_14%,var(--background))] px-0.5 text-[9px] leading-none font-medium tabular-nums ring-2">
+                            {tabs.length}
+                          </span>
+                        )}
+                      </span>
+                      <span className="truncate">{tabTitle(selected)}</span>
+                      {tabs.some(
+                        (tab) =>
+                          tab.id !== tabId && state.alerts.includes(tab.id)
+                      ) && (
+                        <span className="bg-primary size-1.5 flex-none rounded-full" />
+                      )}
+                      <TabProgress progress={state.progress[selected.id]} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="start"
+                    className="w-auto min-w-48"
+                  >
+                    <TabSwitcherItems
+                      view={props.view}
+                      onCreate={create}
+                      onClose={() => setTabsOpen(false)}
+                    />
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <button
-                  className={cn(
-                    'text-muted-foreground hover:bg-accent hover:text-foreground absolute left-1.5 grid size-4.5 place-items-center rounded opacity-0 transition-opacity group-hover/tab:opacity-100',
-                    tab.id === tabId && 'pointer-coarse:opacity-100'
-                  )}
+                  className="text-muted-foreground hover:text-foreground grid w-11 flex-none place-items-center self-stretch transition-colors"
                   aria-label="Close tab"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    void closeTab(tab.id)
-                  }}
+                  title="Close tab"
+                  onClick={() => void closeTab(selected.id)}
                 >
-                  <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
+                  <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
                 </button>
-              </div>
-            </TabMenu>
-          ))}
-        </div>
-        <button
+              </>
+            )}
+          </div>
+        </header>
+      ) : (
+        <header
           className={cn(
-            'text-muted-foreground hover:text-foreground grid w-8 flex-none place-items-center transition-colors',
-            tabs.length > 1 && 'border-b border-l'
+            'flex h-9 flex-none select-none',
+            props.tabSize === 'lg' && 'h-(--workspace-topbar-height)',
+            tabs.length === 1 ? 'bg-background' : 'bg-sidebar'
           )}
-          aria-label="New tab"
-          title="New tab"
-          onClick={create}
         >
-          <HugeiconsIcon icon={Add01Icon} className="size-4" />
-        </button>
-      </header>
+          {props.leading && (
+            <div className="flex flex-none items-center border-b px-1.5">
+              {props.leading}
+            </div>
+          )}
+          <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
+            {tabs.map((tab) => (
+              <TabMenu key={tab.id} tab={tab}>
+                <div
+                  className={cn(
+                    'group/tab text-muted-foreground hover:text-foreground relative flex min-w-28 flex-1 items-center justify-center border-r border-b px-7 text-xs transition-colors last:border-r-0',
+                    props.tabSize === 'lg' && 'text-[13px]',
+                    tab.id === tabId &&
+                      'bg-background text-foreground border-b-transparent'
+                  )}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() =>
+                    send({
+                      type: 'select',
+                      view: props.view,
+                      tabId: tab.id,
+                    })
+                  }
+                >
+                  <span className="truncate">{tabTitle(tab)}</span>
+                  <AttentionDot
+                    id={tab.id}
+                    className="ml-1.5 size-1.5 flex-none rounded-full"
+                  />
+                  <TabProgress progress={state.progress[tab.id]} />
+                  <button
+                    className={cn(
+                      'text-muted-foreground hover:bg-accent hover:text-foreground absolute left-1.5 grid size-4.5 place-items-center rounded opacity-0 transition-opacity group-hover/tab:opacity-100',
+                      tab.id === tabId && 'pointer-coarse:opacity-100'
+                    )}
+                    aria-label="Close tab"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      void closeTab(tab.id)
+                    }}
+                  >
+                    <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
+                  </button>
+                </div>
+              </TabMenu>
+            ))}
+          </div>
+          <button
+            className={cn(
+              'text-muted-foreground hover:text-foreground grid w-8 flex-none place-items-center transition-colors',
+              tabs.length > 1 && 'border-b border-l'
+            )}
+            aria-label="New tab"
+            title="New tab"
+            onClick={create}
+          >
+            <HugeiconsIcon icon={Add01Icon} className="size-4" />
+          </button>
+        </header>
+      )}
       <div className="relative min-h-0 flex-1">
         {tabId !== null && (
           <TerminalPane key={`${state.instance}-${tabId}`} id={tabId} />
@@ -250,6 +328,51 @@ function TabMenu(props: { tab: TerminalTab; children: ReactNode }) {
           onDone={() => setRenaming(false)}
         />
       )}
+    </>
+  )
+}
+
+function TabSwitcherItems(props: {
+  view: string
+  onCreate: () => void
+  onClose: () => void
+}) {
+  const state = useSyncExternalStore(subscribe, getState)
+  const tabId = state.layout.active[props.view] ?? null
+
+  return (
+    <>
+      {viewTabs(state.layout, props.view).map((tab) => (
+        <DropdownMenuItem
+          key={tab.id}
+          className={cn(tab.id === tabId && 'bg-accent')}
+          onSelect={() =>
+            send({ type: 'select', view: props.view, tabId: tab.id })
+          }
+        >
+          <span className="max-w-60 truncate">{tabTitle(tab)}</span>
+          <span className="-mr-1 ml-auto flex flex-none items-center gap-2">
+            <AttentionDot id={tab.id} className="size-1.5 rounded-full" />
+            <button
+              className="text-muted-foreground hover:text-foreground grid size-6 place-items-center rounded"
+              aria-label="Close tab"
+              title="Close tab"
+              onClick={(event) => {
+                event.stopPropagation()
+                props.onClose()
+                void closeTab(tab.id)
+              }}
+            >
+              <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+            </button>
+          </span>
+        </DropdownMenuItem>
+      ))}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={props.onCreate}>
+        <HugeiconsIcon icon={Add01Icon} />
+        New tab
+      </DropdownMenuItem>
     </>
   )
 }

@@ -1,7 +1,16 @@
-import { Add01Icon, Delete02Icon } from '@hugeicons/core-free-icons'
+import {
+  Add01Icon,
+  ArrowDown01Icon,
+  Delete02Icon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
-import { type ReactNode, useEffect, useSyncExternalStore } from 'react'
+import {
+  type ReactNode,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { ProjectIcon } from '@/components/icons'
 import {
   ContextMenu,
@@ -10,17 +19,15 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { MachineLogo } from '@/constants/machine-icons'
 import { type Machine, useStore } from '@/lib/store'
 import { useTerminalPage, useTerminalView } from '@/lib/url'
 import { cn } from '@/lib/utils'
 import { closeTabs } from './close-tab'
-import { NewTerminalItems } from './new-terminal-button'
 import { createTab, showGroup } from './page'
 import { TerminalPanel } from './panel'
 import { getState, subscribe, tabView } from './session'
@@ -38,8 +45,7 @@ export function TerminalPage(props: {
   mobile: boolean
 }) {
   useSyncExternalStore(subscribe, getState)
-  const machines = useStore((store) => store.machines)
-  const online = machines.filter((machine) => machine.status === 'online')
+  const [groupsOpen, setGroupsOpen] = useState(false)
   const view = useTerminalView()
   const groups = useGroups()
   const current = groups.find(
@@ -51,43 +57,39 @@ export function TerminalPage(props: {
     localStorage.setItem('lastTerminalView', view)
   }, [props.machine, view])
 
-  const newTerminal = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild disabled={online.length === 0}>
-        <button
-          className="text-muted-foreground enabled:hover:text-foreground grid w-11 flex-none place-items-center self-stretch transition-colors"
-          aria-label="New terminal"
-          title="New terminal"
-        >
-          <HugeiconsIcon icon={Add01Icon} className="size-4" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-auto min-w-56">
-        <NewTerminalItems />
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-
   if (props.mobile) {
     return (
       <main className="bg-background flex min-w-0 flex-1 flex-col overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-        <header className="grid h-(--workspace-topbar-height) flex-none grid-cols-[auto_1fr_auto] items-center border-b select-none">
-          {props.leading}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="text-muted-foreground hover:text-foreground flex min-w-0 items-center justify-center gap-1.5 self-stretch px-1 text-[13px]">
-                {current !== undefined && <GroupIcon group={current} />}
-                <span className="truncate">{current?.name}</span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-auto">
-              <GroupSwitcherItems groups={groups} machine={props.machine} />
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {newTerminal}
-        </header>
         <div className="min-h-0 flex-1">
-          <TerminalPanel view={view} page />
+          <TerminalPanel
+            view={view}
+            page
+            mobile
+            leading={
+              <>
+                {props.leading}
+                <Popover open={groupsOpen} onOpenChange={setGroupsOpen}>
+                  <PopoverTrigger asChild>
+                    <button className="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1.5 self-stretch px-2 text-[13px]">
+                      {current !== undefined && <GroupIcon group={current} />}
+                      <span className="truncate">{current?.name}</span>
+                      <HugeiconsIcon
+                        icon={ArrowDown01Icon}
+                        className="size-3.5 flex-none"
+                      />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="start"
+                    className="w-56 p-1"
+                    onClick={() => setGroupsOpen(false)}
+                  >
+                    <TerminalGroups />
+                  </PopoverContent>
+                </Popover>
+              </>
+            }
+          />
         </div>
       </main>
     )
@@ -146,11 +148,11 @@ export function TerminalGroups() {
                 <GroupCount
                   count={group.count}
                   alert={alerted(group, page)}
-                  className="group-hover/row:invisible"
+                  className="group-hover/row:invisible pointer-coarse:mr-7"
                 />
               </button>
               <button
-                className="text-muted-foreground hover:text-foreground absolute top-0.5 right-1.5 grid size-6 cursor-pointer place-items-center rounded-md opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden"
+                className="text-muted-foreground hover:text-foreground absolute top-0.5 right-1.5 grid size-6 cursor-pointer place-items-center rounded-md opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
                 aria-label="New terminal"
                 title="New terminal"
                 onClick={() =>
@@ -258,34 +260,6 @@ function useGroups(): Group[] {
       })),
     ]
   })
-}
-
-function GroupSwitcherItems(props: { groups: Group[]; machine: string }) {
-  return props.groups
-    .filter(
-      (group) =>
-        hasTerminals(group) &&
-        (group.count > 0 || group.view === GLOBAL_TERMINALS)
-    )
-    .map((group) => (
-      <DropdownMenuItem
-        key={`${group.machine.id}:${group.view}`}
-        className={cn(group.view !== GLOBAL_TERMINALS && 'pl-7')}
-        onSelect={() =>
-          group.count === 0
-            ? void createTab(group.machine.id, null)
-            : showGroup(group.machine.id, group.view)
-        }
-      >
-        <GroupIcon group={group} />
-        <span className="max-w-60 truncate">{group.name}</span>
-        <GroupCount count={group.count} alert={alerted(group, props.machine)} />
-      </DropdownMenuItem>
-    ))
-}
-
-function hasTerminals(group: Group) {
-  return group.machine.status === 'online' && group.machine.terminals.length > 0
 }
 
 function alerted(group: Group, machine: string | null) {
