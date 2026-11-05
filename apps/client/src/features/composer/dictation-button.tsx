@@ -1,9 +1,7 @@
 import {
   Alert02Icon,
   Loading03Icon,
-  Mic01Icon,
   RefreshIcon,
-  StopIcon,
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -14,8 +12,14 @@ import { readBase64 } from '@/api/upload'
 import { Button } from '@/components/ui/button'
 import { duration } from '@/lib/format'
 import { logger } from '@/lib/log'
-import { draftKey, getState, showSettingsPage, update } from '@/lib/store'
-import { cn, errorMessage, mod } from '@/lib/utils'
+import {
+  draftKey,
+  getState,
+  showSettingsPage,
+  update,
+  useStore,
+} from '@/lib/store'
+import { errorMessage } from '@/lib/utils'
 import { toWav } from './dictation-audio'
 import { editDraft } from './drafts'
 
@@ -40,20 +44,41 @@ export function useDictation() {
   const recorder = useRef<MediaRecorder | null>(null)
   const recording = useRef<{
     machine: string
+    key: string
     audio: string
     seconds: number
   } | null>(null)
+
+  const selection = useStore((store) => store.selection)
+  const listening = state.kind === 'recording'
 
   useEffect(
     () => () => {
       const media = recorder.current
       recorder.current = null
-      if (media !== null) {
-        media.stop()
-      }
+      media?.stop()
+      setState((current) =>
+        current.kind === 'transcribing' ? current : { kind: 'idle' }
+      )
     },
-    []
+    [selection?.machine, selection?.projectId, selection?.sessionId]
   )
+
+  useEffect(() => {
+    if (!listening) {
+      return
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape' || event.isComposing) {
+        return
+      }
+      event.preventDefault()
+      event.stopPropagation()
+      recorder.current?.stop()
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [listening])
 
   useHotkeys('mod+shift+d', () => void toggle(), {
     enableOnFormTags: true,
@@ -79,6 +104,12 @@ export function useDictation() {
       )
       return
     }
+    const thread = getState().selection
+    if (thread === null) {
+      fail('No thread is open', 'Open a thread to dictate into it', null)
+      return
+    }
+    const key = draftKey(thread)
     const machine = dictationMachine()
     if (machine === undefined) {
       fail(
@@ -164,6 +195,7 @@ export function useDictation() {
       try {
         recording.current = {
           machine: machine.id,
+          key,
           audio: await readBase64(
             await toWav(new Blob(chunks, { type: media.mimeType }))
           ),
@@ -209,7 +241,7 @@ export function useDictation() {
       return
     }
     try {
-      insert(text.trim())
+      insert(text.trim(), saved.key)
     } catch (error) {
       fail("The transcript couldn't be added", errorMessage(error), 'retry')
       return
@@ -252,44 +284,6 @@ export function useDictation() {
     dismiss,
     retry: () => void transcribe(),
   }
-}
-
-export function DictationButton(props: { dictation: Dictation }) {
-  const state = props.dictation.state
-
-  if (state.kind === 'recording') {
-    return (
-      <Button
-        variant="destructive"
-        size="icon-sm"
-        title={`Stop and transcribe (${mod}+Shift+D)`}
-        aria-label="Stop dictation"
-        onClick={() => void props.dictation.toggle()}
-      >
-        <HugeiconsIcon icon={StopIcon} />
-      </Button>
-    )
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      title={
-        state.kind === 'transcribing'
-          ? 'Transcribing…'
-          : `Dictate (${mod}+Shift+D)`
-      }
-      aria-label="Dictate"
-      disabled={state.kind === 'transcribing'}
-      onClick={() => void props.dictation.toggle()}
-    >
-      <HugeiconsIcon
-        icon={state.kind === 'transcribing' ? Loading03Icon : Mic01Icon}
-        className={cn(state.kind === 'transcribing' && 'animate-spin')}
-      />
-    </Button>
-  )
 }
 
 export function DictationStrip(props: { dictation: Dictation }) {
@@ -455,7 +449,7 @@ function Recording(props: {
         variant="ghost"
         size="xs"
         className="h-6"
-        title={`Stop and transcribe (${mod}+Shift+D)`}
+        title="Done, transcribe (Esc)"
         onClick={props.onStop}
       >
         Done
@@ -473,10 +467,14 @@ function dictationMachine() {
   ].find((machine) => machine.status === 'online')
 }
 
-function insert(value: string) {
+function insert(value: string, key: string) {
   const selection = getState().selection
-  if (selection === null) {
-    throw new Error('No thread is open to dictate into')
+  if (selection === null || draftKey(selection) !== key) {
+    editDraft(key, (current) => ({
+      ...current,
+      text: `${current.text}${/(^|\s)$/.test(current.text) ? '' : ' '}${value} `,
+    }))
+    return
   }
   const input = document.querySelector<HTMLTextAreaElement>('[data-composer]')
   if (input === null) {
@@ -487,7 +485,7 @@ function insert(value: string) {
   const after = /^\s/.test(input.value.slice(at)) ? '' : ' '
   const inserted = `${before}${value}${after}`
   const position = at + inserted.length
-  editDraft(draftKey(selection), (current) => ({
+  editDraft(key, (current) => ({
     ...current,
     text: `${current.text.slice(0, at)}${inserted}${current.text.slice(at)}`,
   }))
