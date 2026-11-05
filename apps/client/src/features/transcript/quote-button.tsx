@@ -15,6 +15,7 @@ export function QuoteButton(props: {
   } | null>(null)
 
   useEffect(() => {
+    let pressed = false
     function update() {
       const element = props.scroller.current
       const selected = window.getSelection()
@@ -22,7 +23,8 @@ export function QuoteButton(props: {
         element === null ||
         selected === null ||
         selected.isCollapsed ||
-        selected.rangeCount === 0
+        selected.rangeCount === 0 ||
+        pressed
       ) {
         setQuote(null)
         return
@@ -37,19 +39,42 @@ export function QuoteButton(props: {
         setQuote(null)
         return
       }
-      const rect = range.getBoundingClientRect()
+      const rects = [...range.getClientRects()].filter((rect) => rect.width > 0)
+      if (rects.length === 0) {
+        setQuote(null)
+        return
+      }
+      const forward =
+        range.endContainer === selected.focusNode &&
+        range.endOffset === selected.focusOffset
+      const end = forward ? rects[rects.length - 1] : rects[0]
       const box = element.getBoundingClientRect()
       setQuote({
         text,
-        top: rect.bottom - box.top + element.scrollTop + 6,
+        top: end.bottom - box.top + element.scrollTop + 6,
         left: Math.min(
-          Math.max(rect.left + rect.width / 2 - box.left, 48),
+          Math.max((forward ? end.right : end.left) - box.left, 48),
           box.width - 48
         ),
       })
     }
+    function press() {
+      pressed = true
+    }
+    function release() {
+      pressed = false
+      update()
+    }
     document.addEventListener('selectionchange', update)
-    return () => document.removeEventListener('selectionchange', update)
+    document.addEventListener('pointerdown', press)
+    document.addEventListener('pointerup', release)
+    document.addEventListener('pointercancel', release)
+    return () => {
+      document.removeEventListener('selectionchange', update)
+      document.removeEventListener('pointerdown', press)
+      document.removeEventListener('pointerup', release)
+      document.removeEventListener('pointercancel', release)
+    }
   }, [props.scroller])
 
   if (quote === null) {
@@ -60,7 +85,7 @@ export function QuoteButton(props: {
       type="button"
       size="xs"
       variant="outline"
-      className="bg-[color-mix(in_srgb,var(--bg)_65%,black)] dark:bg-[color-mix(in_srgb,var(--bg)_65%,black)] border-[color-mix(in_srgb,var(--bg)_85%,var(--text))] hover:bg-accent dark:hover:bg-accent absolute z-20 -translate-x-1/2 shadow-md"
+      className="animate-in fade-in-0 zoom-in-95 hover:bg-accent dark:hover:bg-accent absolute z-20 -translate-x-1/2 border-[color-mix(in_srgb,var(--bg)_85%,var(--text))] bg-[color-mix(in_srgb,var(--bg)_65%,black)] shadow-md duration-25 ease-out dark:bg-[color-mix(in_srgb,var(--bg)_65%,black)]"
       style={{ top: quote.top, left: quote.left }}
       onPointerDown={(event) => event.preventDefault()}
       onClick={() => {
