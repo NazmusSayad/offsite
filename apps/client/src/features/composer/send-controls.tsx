@@ -1,5 +1,6 @@
 import type { PromptDelivery } from '@offsite/core/config'
 import { mod } from '@/lib/utils'
+import { DictationButton } from './dictation-button'
 
 export function SendControls(props: {
   running: boolean
@@ -10,6 +11,7 @@ export function SendControls(props: {
 }) {
   return (
     <>
+      <DictationButton />
       {props.running && props.empty && (
         <button
           className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors"

@@ -45,6 +45,7 @@ export type SettingsPage =
   | 'Editor'
   | 'Terminal'
   | 'Notifications'
+  | 'Dictation'
   | 'Machine'
   | 'Projects'
   | 'Claude'

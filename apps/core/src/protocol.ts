@@ -2,6 +2,8 @@ import type { AppIconId } from './app-icons.ts'
 import type {
   Config,
   ConfigWithDefaults,
+  DictationKeySource,
+  DictationProvider,
   LastUsedModel,
   PromptDelivery,
   SessionSettings,
@@ -244,6 +246,18 @@ export type RpcMethods = {
   }
   'files.upload': { params: { name: string; data: string }; result: string }
   'files.browse': { params: void; result: string }
+  'dictation.transcribe': {
+    params: { audio: string; mediaType: string }
+    result: string
+  }
+  'dictation.hasKey': {
+    params: { provider: DictationProvider; keySource: DictationKeySource }
+    result: boolean
+  }
+  'dictation.saveKey': {
+    params: { provider: DictationProvider; key: string }
+    result: null
+  }
   'browser.open': {
     params: { url: string; fromPage: boolean }
     result: string

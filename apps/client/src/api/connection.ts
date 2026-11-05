@@ -51,6 +51,7 @@ const longCalls: RpcMethod[] = [
   'git.push',
   'git.pullRequest',
   'git.createPullRequest',
+  'dictation.transcribe',
 ]
 
 const log = logger.withTag('connection')

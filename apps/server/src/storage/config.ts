@@ -115,6 +115,14 @@ const configSchema: z.ZodType<Config> = z.strictObject({
         .prefault({}),
     })
     .prefault({}),
+  dictation: z
+    .strictObject({
+      provider: z
+        .enum(['openai', 'groq', 'elevenlabs', 'deepgram'])
+        .default('openai'),
+      keySource: z.enum(['env', 'keychain']).default('env'),
+    })
+    .prefault({}),
 })
 
 export const defaults = configSchema.parse({})

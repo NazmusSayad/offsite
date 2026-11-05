@@ -47,6 +47,22 @@ export type GenerationModel = {
   model: string | null
 }
 
+export type DictationProvider = 'openai' | 'groq' | 'elevenlabs' | 'deepgram'
+
+export type DictationKeySource = 'env' | 'keychain'
+
+export const dictationEnvNames: Record<DictationProvider, string> = {
+  openai: 'OPENAI_API_KEY',
+  groq: 'GROQ_API_KEY',
+  elevenlabs: 'ELEVENLABS_API_KEY',
+  deepgram: 'DEEPGRAM_API_KEY',
+}
+
+export type DictationConfig = {
+  provider: DictationProvider
+  keySource: DictationKeySource
+}
+
 export type Config = {
   claudeBaseDir: Record<Platform, string | null>
   workingDir: Record<Platform, string | null>
@@ -61,6 +77,7 @@ export type Config = {
   autoPermissionMode: 'bypass' | 'allow' | 'deny'
   autoPermissionTimeout: number | null
   terminal: TerminalConfig
+  dictation: DictationConfig
 }
 
 export type ConfigWithDefaults = {

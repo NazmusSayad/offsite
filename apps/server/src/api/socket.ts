@@ -19,6 +19,7 @@ import {
   stopProvider,
   updateAccount,
 } from '../services/accounts.ts'
+import { hasKey, saveKey, transcribe } from '../services/dictation.ts'
 import { exportSession } from '../services/export.ts'
 import {
   createProjectEntry,
@@ -325,6 +326,10 @@ const handlers: Handlers = {
     ),
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
+  'dictation.transcribe': (params) =>
+    transcribe(Buffer.from(params.audio, 'base64'), params.mediaType),
+  'dictation.hasKey': (params) => hasKey(params.provider, params.keySource),
+  'dictation.saveKey': (params) => saveKey(params.provider, params.key),
   'files.browse': (_params, client) =>
     linkBrowse(client.device, client.address),
   'browser.open': (params) => openSite(params.url, params.fromPage),
