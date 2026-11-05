@@ -1,5 +1,6 @@
 import {
   Add01Icon,
+  CenterFocusIcon,
   ChevronDownIcon,
   Settings01Icon,
   SlidersHorizontalIcon,
@@ -198,6 +199,10 @@ export function ProjectMenuItems(props: {
     >
       {props.inbox && (
         <DropdownMenuRadioItem value="" onSelect={() => props.onScope(null)}>
+          <HugeiconsIcon
+            icon={CenterFocusIcon}
+            className="text-muted-foreground size-5 shrink-0"
+          />
           <span className="min-w-0 flex-1 truncate">Inbox</span>
           {attention.length > 0 && (
             <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
