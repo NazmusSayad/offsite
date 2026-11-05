@@ -1,8 +1,7 @@
-import { type Config, dictationEnvNames } from '@offsite/core/config'
+import type { Config } from '@offsite/core/config'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { updateConfig } from '@/api/machine-config'
-import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -10,154 +9,73 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { showError } from '@/lib/store'
-import { Row, Section, TextInput } from './controls'
-
-const providers = [
-  { id: 'openai', label: 'OpenAI' },
-  { id: 'groq', label: 'Groq' },
-  { id: 'elevenlabs', label: 'ElevenLabs' },
-  { id: 'deepgram', label: 'Deepgram' },
-] as const
-
-const keySources = [
-  { id: 'env', label: 'Environment variable' },
-  { id: 'keychain', label: 'Keychain' },
-] as const
+import { Row, Section } from './controls'
 
 export function DictationPage(props: { machine: string; config: Config }) {
   const dictation = props.config.dictation
-  const provider = dictation.provider
-  const keySource = dictation.keySource
-  const [found, setFound] = useState<boolean | null>(null)
-  const [revision, setRevision] = useState(0)
+  const [workflows, setWorkflows] = useState<
+    { id: string; name: string }[] | null
+  >(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
-    setFound(null)
-    call(props.machine, 'dictation.hasKey', { provider, keySource }).then(
+    setWorkflows(null)
+    setError(null)
+    call(props.machine, 'dictation.workflows', undefined).then(
       (value) => {
         if (mounted) {
-          setFound(value)
+          setWorkflows(value)
         }
       },
-      showError
+      (reason: unknown) => {
+        if (mounted) {
+          setError(reason instanceof Error ? reason.message : String(reason))
+        }
+      }
     )
     return () => {
       mounted = false
     }
-  }, [props.machine, provider, keySource, revision])
-
-  async function saveKey(key: string) {
-    try {
-      await call(props.machine, 'dictation.saveKey', { provider, key })
-    } catch (error) {
-      showError(error)
-    }
-    setRevision(revision + 1)
-  }
+  }, [props.machine])
 
   return (
     <Section
       title="Dictation"
-      note="This machine sends your recordings to the provider"
+      note="This machine transcribes your recordings with the OiPer app"
     >
-      <Row label="Provider">
-        <Select
-          value={provider}
-          onValueChange={(value) => {
-            const next = providers.find((item) => item.id === value)
-            if (next === undefined) {
-              throw new Error(`Unknown dictation provider ${value}`)
-            }
-            void updateConfig(props.machine, {
-              ...props.config,
-              dictation: { ...dictation, provider: next.id },
-            })
-          }}
-        >
-          <SelectTrigger className="w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {providers.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Row>
-      <Row label="API key from">
-        <Select
-          value={keySource}
-          onValueChange={(value) => {
-            const next = keySources.find((item) => item.id === value)
-            if (next === undefined) {
-              throw new Error(`Unknown dictation key source ${value}`)
-            }
-            void updateConfig(props.machine, {
-              ...props.config,
-              dictation: { ...dictation, keySource: next.id },
-            })
-          }}
-        >
-          <SelectTrigger className="w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {keySources.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Row>
-      {keySource === 'env' && (
-        <Row
-          label={
-            <>
-              <code>{dictationEnvNames[provider]}</code>
-              <span className="text-muted-foreground block text-xs font-normal">
-                Read from the environment OffSite was started in
-              </span>
-            </>
-          }
-        >
-          <span className="text-muted-foreground text-xs">
-            {found === null ? 'Checking…' : found ? 'Found' : 'Not set'}
-          </span>
-        </Row>
-      )}
-      {keySource === 'keychain' && (
-        <Row label="API key">
-          <div className="flex items-center gap-2">
-            <TextInput
-              key={`${provider} ${revision}`}
-              type="password"
-              placeholder={
-                found === null
-                  ? 'Checking…'
-                  : found
-                    ? 'Saved, paste to replace'
-                    : 'Paste your API key'
+      <Row label="OiPer workflow">
+        {error !== null ? (
+          <span className="text-muted-foreground text-xs">{error}</span>
+        ) : workflows === null ? (
+          <span className="text-muted-foreground text-xs">Checking…</span>
+        ) : (
+          <Select
+            value={dictation.workflowId ?? ''}
+            onValueChange={(value) => {
+              const next = workflows.find((item) => item.id === value)
+              if (next === undefined) {
+                throw new Error(`Unknown OiPer workflow ${value}`)
               }
-              value=""
-              onCommit={(text) => void saveKey(text.trim())}
-            />
-            {found === true && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void saveKey('')}
-              >
-                Remove
-              </Button>
-            )}
-          </div>
-        </Row>
-      )}
+              void updateConfig(props.machine, {
+                ...props.config,
+                dictation: { ...dictation, workflowId: next.id },
+              })
+            }}
+          >
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Choose a workflow" />
+            </SelectTrigger>
+            <SelectContent>
+              {workflows.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </Row>
     </Section>
   )
 }

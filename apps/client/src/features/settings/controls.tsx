@@ -37,7 +37,7 @@ export function TextInput(props: {
   value: string
   placeholder?: string
   className?: string
-  type?: 'text' | 'number' | 'password'
+  type?: 'text' | 'number'
   step?: number
   valid?: (text: string) => boolean
   disabled?: boolean

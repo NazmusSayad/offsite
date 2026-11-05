@@ -117,10 +117,7 @@ const configSchema: z.ZodType<Config> = z.strictObject({
     .prefault({}),
   dictation: z
     .strictObject({
-      provider: z
-        .enum(['openai', 'groq', 'elevenlabs', 'deepgram'])
-        .default('openai'),
-      keySource: z.enum(['env', 'keychain']).default('env'),
+      workflowId: z.string().nullable().default(null),
     })
     .prefault({}),
 })

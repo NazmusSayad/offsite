@@ -15,6 +15,8 @@ import {
 import { cn, mod } from '@/lib/utils'
 import { editDraft } from './drafts'
 
+const recordingTypes = ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/ogg']
+
 export function DictationButton() {
   const [state, setState] = useState<'idle' | 'recording' | 'transcribing'>(
     'idle'
@@ -44,17 +46,24 @@ export function DictationButton() {
     if (dictation === undefined) {
       throw new Error('This machine is not connected')
     }
-    const ready = await call(machine, 'dictation.hasKey', {
-      provider: dictation.provider,
-      keySource: dictation.keySource,
-    })
-    if (!ready) {
+    if (dictation.workflowId === null) {
       showSettingsPage('Dictation')
       update({ settingsMachine: machine })
       return
     }
+    if (!(await call(machine, 'dictation.ping', undefined))) {
+      throw new Error('OiPer is not running on this machine')
+    }
+    const mimeType = recordingTypes.find((type) =>
+      MediaRecorder.isTypeSupported(type)
+    )
+    if (mimeType === undefined) {
+      throw new Error(
+        'This browser cannot record audio in a format OiPer reads'
+      )
+    }
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    const media = new MediaRecorder(stream)
+    const media = new MediaRecorder(stream, { mimeType })
     const chunks: Blob[] = []
     media.addEventListener('dataavailable', (event) => chunks.push(event.data))
     media.addEventListener('stop', async () => {
