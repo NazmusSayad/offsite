@@ -295,25 +295,20 @@ function MobileChat(props: { selection: Selection }) {
                     view={props.selection.projectId}
                     mobile
                     leading={
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="mr-1.5 ml-2"
-                          title="Back"
-                          aria-label="Back"
-                          onClick={() => showTerminal(false)}
-                        >
-                          <HugeiconsIcon
-                            icon={ArrowLeft01Icon}
-                            className="text-foreground size-5"
-                            strokeWidth={2}
-                          />
-                        </Button>
-                        <span className="text-foreground min-w-0 truncate text-[13px]">
-                          Terminal
-                        </span>
-                      </>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="ml-2"
+                        title="Back"
+                        aria-label="Back"
+                        onClick={() => showTerminal(false)}
+                      >
+                        <HugeiconsIcon
+                          icon={ArrowLeft01Icon}
+                          className="text-foreground size-5"
+                          strokeWidth={2}
+                        />
+                      </Button>
                     }
                   />
                 </div>

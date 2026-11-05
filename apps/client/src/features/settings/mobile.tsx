@@ -36,7 +36,7 @@ export function MobileSettings() {
       <DialogPrimitive.Portal>
         <DialogPrimitive.Content
           aria-describedby={undefined}
-          className="bg-background text-foreground data-open:animate-in data-open:slide-in-from-right fixed inset-0 z-50 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-sm duration-200 outline-none [--workspace-topbar-height:44px] motion-reduce:animate-none"
+          className="bg-background text-foreground data-open:animate-in data-open:slide-in-from-right fixed inset-0 z-50 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] text-sm duration-200 outline-none motion-reduce:animate-none"
         >
           <MobileSettingsPanel />
         </DialogPrimitive.Content>
@@ -81,7 +81,7 @@ function MobileSettingsPanel() {
 
   return (
     <>
-      <header className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-1.5 pr-3 pl-1">
+      <header className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-1.5 px-2">
         <Button variant="ghost" size="icon" aria-label="Back" onClick={back}>
           <HugeiconsIcon
             icon={ArrowLeft01Icon}

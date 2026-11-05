@@ -67,26 +67,29 @@ export function TerminalPage(props: {
             mobile
             leading={
               <>
-                {props.leading}
-                <Popover open={groupsOpen} onOpenChange={setGroupsOpen}>
-                  <PopoverTrigger asChild>
-                    <button className="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1.5 self-stretch px-2 text-[13px]">
-                      {current !== undefined && <GroupIcon group={current} />}
-                      <span className="truncate">{current?.name}</span>
-                      <HugeiconsIcon
-                        icon={ArrowDown01Icon}
-                        className="size-3.5 flex-none"
-                      />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="start"
-                    className="w-56 p-1"
-                    onClick={() => setGroupsOpen(false)}
-                  >
-                    <TerminalGroups />
-                  </PopoverContent>
-                </Popover>
+                <div className="flex min-w-0 flex-1 items-center self-stretch">
+                  {props.leading}
+                  <Popover open={groupsOpen} onOpenChange={setGroupsOpen}>
+                    <PopoverTrigger asChild>
+                      <button className="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1.5 self-stretch px-2 text-[13px]">
+                        {current !== undefined && <GroupIcon group={current} />}
+                        <span className="truncate">{current?.name}</span>
+                        <HugeiconsIcon
+                          icon={ArrowDown01Icon}
+                          className="size-3.5 flex-none"
+                        />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="start"
+                      className="w-56 p-1"
+                      onClick={() => setGroupsOpen(false)}
+                    >
+                      <TerminalGroups />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <span className="bg-border h-4 w-px flex-none" />
               </>
             }
           />

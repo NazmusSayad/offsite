@@ -106,15 +106,12 @@ export function TerminalPanel(props: {
   return (
     <div ref={shortcuts} className="flex h-full flex-col text-sm">
       {props.mobile ? (
-        <header className="bg-background grid h-(--workspace-topbar-height) flex-none grid-cols-[1fr_auto_1fr] items-center border-b select-none">
-          <div className="flex min-w-0 items-center self-stretch">
-            {props.leading}
-          </div>
-          <span className="bg-border h-4 w-px" />
-          <div className="flex min-w-0 items-center self-stretch">
+        <header className="bg-background flex h-(--workspace-topbar-height) flex-none items-center border-b select-none">
+          {props.leading}
+          <div className="flex min-w-0 flex-1 items-center self-stretch">
             {selected === undefined ? (
               <button
-                className="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1.5 self-stretch px-3 text-[13px] transition-colors"
+                className="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1.5 self-stretch px-2 text-[13px] transition-colors"
                 onClick={create}
               >
                 <HugeiconsIcon icon={Add01Icon} className="size-4" />
@@ -124,7 +121,7 @@ export function TerminalPanel(props: {
               <>
                 <DropdownMenu open={tabsOpen} onOpenChange={setTabsOpen}>
                   <DropdownMenuTrigger asChild>
-                    <button className="text-foreground relative flex min-w-0 flex-1 items-center gap-3.5 self-stretch px-3 text-[13px]">
+                    <button className="text-foreground relative flex min-w-0 flex-1 items-center gap-3.5 self-stretch pr-3 pl-2 text-[13px]">
                       <span className="text-muted-foreground relative flex-none">
                         <HugeiconsIcon
                           icon={SquareTerminalIcon}
