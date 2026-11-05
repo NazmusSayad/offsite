@@ -1,6 +1,5 @@
 import { PaperclipIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Item } from '@offsite/core/items'
 import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { readBase64, UPLOAD_LIMIT, uploadFile } from '@/api/upload'
@@ -23,9 +22,11 @@ import {
   isPasteInline,
   largePaste,
   lastImageNumber,
+  lastUserText,
   restoredDraft,
 } from './attached-images'
 import { ComposerMenu, type Suggestion } from './composer-menu'
+import { useDictation } from './dictation'
 import {
   editDraft,
   getDraft,
@@ -85,6 +86,7 @@ export function Composer() {
   const running = useStore(selectedRunning)
   const hero = loaded && blank && !running
   const request = requests.at(0)
+  const dictation = useDictation()
 
   useEffect(() => {
     const element = input.current
@@ -448,7 +450,7 @@ export function Composer() {
             <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-1 overflow-x-auto p-1 ps-3 sm:ps-4">
               <Pickers />
             </div>
-            <div className="flex shrink-0 items-center justify-end gap-2">
+            <div className="relative flex shrink-0 items-center justify-end gap-2">
               <input
                 ref={picker}
                 type="file"
@@ -465,6 +467,7 @@ export function Composer() {
                 </span>
               )}
               <MoreMenu
+                dictation={dictation}
                 empty={empty}
                 delivery={delivery}
                 onSubmit={() => void submit(true)}
@@ -479,8 +482,10 @@ export function Composer() {
                 <HugeiconsIcon icon={PaperclipIcon} />
               </Button>
               <SendControls
+                dictation={dictation}
                 running={running}
                 empty={empty}
+                blank={text.trim() === '' && images.length === 0}
                 delivery={delivery}
                 onSubmit={(swap) => void submit(swap)}
                 onStop={interrupt}
@@ -495,19 +500,4 @@ export function Composer() {
 
 function fileMarker(file: { number: number; name: string }) {
   return `[File #${file.number}: ${file.name}]`
-}
-
-function lastUserText(items: Item[]) {
-  for (let index = items.length - 1; index >= 0; index--) {
-    const item = items[index]
-    if (
-      item.kind === 'user' &&
-      item.parent === null &&
-      item.format === 'text' &&
-      item.text !== ''
-    ) {
-      return item.text
-    }
-  }
-  return null
 }

@@ -238,6 +238,9 @@ importers:
       '@lydell/node-pty':
         specifier: 1.2.0-beta.15
         version: 1.2.0-beta.15
+      '@oiper/desktop':
+        specifier: ^0.0.0
+        version: 0.0.0
       '@opencode/client':
         specifier: 2.0.30
         version: 2.0.30(effect@4.0.1)
@@ -1693,6 +1696,10 @@ packages:
   '@ntnyq/utils@0.23.0':
     resolution: {integrity: sha512-IJOOjGUZsFh269lL43ezshoaYTgEjWwAbx1LL7Aw/eYttkl6eN7J7S1O48peQbrp3yFnDuWE/vqOV6jEm2NXRA==}
     engines: {node: ^22.19.0 || >=24.11.0}
+
+  '@oiper/desktop@0.0.0':
+    resolution: {integrity: sha512-U9Gz1u7wqjauCg5stDixT9ingFAzxpWf6PZX6C+Ejma1wBVsG1M6S6tOHbmQjlEPu+L9IU8m43shtxeOXq/i+w==}
+    engines: {node: '>=18'}
 
   '@one-ini/wasm@0.2.1':
     resolution: {integrity: sha512-TUqERXGNTifZ9y2g3wPxQrw3HpHv/02DsW3D90T9x0hhonrL1ZqpSmNrU2XkoIq0fP1N6gZfVQzy2Fw1ZvGBNg==}
@@ -9314,6 +9321,8 @@ snapshots:
       fastq: 1.20.3
 
   '@ntnyq/utils@0.23.0': {}
+
+  '@oiper/desktop@0.0.0': {}
 
   '@one-ini/wasm@0.2.1': {}
 

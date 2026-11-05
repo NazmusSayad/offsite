@@ -13,6 +13,7 @@ const shortcuts = [
   ['@', 'Mention a file'],
   [`${mod}+S`, 'Stash the prompt, or bring back the last stash'],
   [`${mod}+Shift+V`, 'Paste long text inline instead of as a file'],
+  [`${mod}+Shift+D`, 'Start or stop dictation'],
   [`${mod}+. or ${mod}+Shift+M`, 'Choose the model'],
   [`${mod}+/ or ${mod}+Shift+E`, 'Choose the effort'],
   [`${mod}+P`, 'Choose the project, or the sidebar scope'],

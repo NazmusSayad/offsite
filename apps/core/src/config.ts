@@ -47,6 +47,10 @@ export type GenerationModel = {
   model: string | null
 }
 
+export type DictationConfig = {
+  workflowId: string | null
+}
+
 export type Config = {
   claudeBaseDir: Record<Platform, string | null>
   workingDir: Record<Platform, string | null>
@@ -61,6 +65,7 @@ export type Config = {
   autoPermissionMode: 'bypass' | 'allow' | 'deny'
   autoPermissionTimeout: number | null
   terminal: TerminalConfig
+  dictation: DictationConfig
 }
 
 export type ConfigWithDefaults = {

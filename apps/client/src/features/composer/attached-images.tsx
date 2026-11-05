@@ -112,3 +112,18 @@ export function isPasteInline(event: KeyboardEvent) {
     event.key.toLowerCase() === 'v'
   )
 }
+
+export function lastUserText(items: Item[]) {
+  for (let index = items.length - 1; index >= 0; index--) {
+    const item = items[index]
+    if (
+      item.kind === 'user' &&
+      item.parent === null &&
+      item.format === 'text' &&
+      item.text !== ''
+    ) {
+      return item.text
+    }
+  }
+  return null
+}

@@ -19,6 +19,7 @@ import {
   stopProvider,
   updateAccount,
 } from '../services/accounts.ts'
+import { ping, transcribe, workflows } from '../services/dictation.ts'
 import { exportSession } from '../services/export.ts'
 import {
   createProjectEntry,
@@ -325,6 +326,10 @@ const handlers: Handlers = {
     ),
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
+  'dictation.transcribe': (params) =>
+    transcribe(Buffer.from(params.audio, 'base64')),
+  'dictation.ping': () => ping(),
+  'dictation.workflows': () => workflows(),
   'files.browse': (_params, client) =>
     linkBrowse(client.device, client.address),
   'browser.open': (params) => openSite(params.url, params.fromPage),

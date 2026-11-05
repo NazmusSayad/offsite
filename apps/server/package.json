@@ -10,6 +10,7 @@
     "@anthropic-ai/claude-agent-sdk": "^0.3.296",
     "@commander-js/extra-typings": "^15.0.0",
     "@lydell/node-pty": "1.2.0-beta.15",
+    "@oiper/desktop": "^0.0.0",
     "@opencode/client": "2.0.30",
     "commander": "^15.0.0",
     "consola": "^3.4.2",

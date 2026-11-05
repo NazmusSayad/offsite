@@ -42,6 +42,7 @@ import {
   useStore,
 } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { DictationPage } from './dictation'
 import { EditorPage } from './editor'
 import { GeneralPage } from './general'
 import { MachinePage } from './machine'
@@ -63,6 +64,7 @@ export const browserPages: SettingsPage[] = [
 export const machinePages: SettingsPage[] = [
   'Machine',
   'Projects',
+  'Dictation',
   'Claude',
   'Codex',
   'OpenCode',
@@ -330,6 +332,9 @@ export function SettingsContent(props: { view: SettingsView }) {
               onRestore={() => setConfirming('machine')}
             />
           )}
+        {page === 'Dictation' && machine !== null && config !== null && (
+          <DictationPage machine={machine.id} config={config} />
+        )}
         {page === 'Projects' && machine !== null && system !== null && (
           <ProjectsPage machine={machine.id} homeDir={system.homeDir} />
         )}

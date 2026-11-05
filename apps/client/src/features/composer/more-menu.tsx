@@ -5,6 +5,7 @@ import {
   ChartRingIcon,
   FilePenIcon,
   ListTodoIcon,
+  AiMicIcon,
   MoreHorizontalIcon,
   Queue01Icon,
   SentIcon,
@@ -37,6 +38,7 @@ import { compact, timeAgo } from '@/lib/format'
 import { sendPrompt } from '@/lib/sessions'
 import { draftKey, getState, showError, useStore } from '@/lib/store'
 import { mod } from '@/lib/utils'
+import type { Dictation } from './dictation'
 import { deleteStash, hasPrompt, useDraft, useStash } from './drafts'
 import { restorePrompt, stashPrompt } from './stash'
 
@@ -74,6 +76,7 @@ function providerModes(provider: Provider, capabilities: Capabilities | null) {
 }
 
 export function MoreMenu(props: {
+  dictation: Dictation
   empty: boolean
   delivery: PromptDelivery | null
   onSubmit: () => void
@@ -102,6 +105,7 @@ export function MoreMenu(props: {
         }}
       >
         <MoreMenuContent
+          dictation={props.dictation}
           empty={props.empty}
           delivery={props.delivery}
           onSubmit={props.onSubmit}
@@ -113,6 +117,7 @@ export function MoreMenu(props: {
 }
 
 function MoreMenuContent(props: {
+  dictation: Dictation
   empty: boolean
   delivery: PromptDelivery | null
   onSubmit: () => void
@@ -191,6 +196,18 @@ function MoreMenuContent(props: {
         </div>
       )}
       <DropdownMenuSeparator />
+      <DropdownMenuItem
+        disabled={props.dictation.state.kind === 'transcribing'}
+        onSelect={() => void props.dictation.toggle()}
+      >
+        <HugeiconsIcon icon={AiMicIcon} />
+        <span className="flex-1">
+          {props.dictation.state.kind === 'recording'
+            ? 'Finish dictation'
+            : 'Dictate'}
+        </span>
+        <span className="text-muted-foreground text-xs">{mod}+Shift+D</span>
+      </DropdownMenuItem>
       <DropdownMenuItem
         disabled={!hasPrompt(draft)}
         onSelect={() => stashPrompt(key)}

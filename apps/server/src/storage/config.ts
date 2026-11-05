@@ -115,6 +115,11 @@ const configSchema: z.ZodType<Config> = z.strictObject({
         .prefault({}),
     })
     .prefault({}),
+  dictation: z
+    .strictObject({
+      workflowId: z.string().nullable().default(null),
+    })
+    .prefault({}),
 })
 
 export const defaults = configSchema.parse({})
