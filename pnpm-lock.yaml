@@ -239,8 +239,8 @@ importers:
         specifier: 1.2.0-beta.15
         version: 1.2.0-beta.15
       '@oiper/desktop':
-        specifier: ^0.0.0
-        version: 0.0.0
+        specifier: ^0.1.40
+        version: 0.1.40
       '@opencode/client':
         specifier: 2.0.30
         version: 2.0.30(effect@4.0.1)
@@ -1697,8 +1697,8 @@ packages:
     resolution: {integrity: sha512-IJOOjGUZsFh269lL43ezshoaYTgEjWwAbx1LL7Aw/eYttkl6eN7J7S1O48peQbrp3yFnDuWE/vqOV6jEm2NXRA==}
     engines: {node: ^22.19.0 || >=24.11.0}
 
-  '@oiper/desktop@0.0.0':
-    resolution: {integrity: sha512-U9Gz1u7wqjauCg5stDixT9ingFAzxpWf6PZX6C+Ejma1wBVsG1M6S6tOHbmQjlEPu+L9IU8m43shtxeOXq/i+w==}
+  '@oiper/desktop@0.1.40':
+    resolution: {integrity: sha512-tZVA5owLdbeiVMxhAt2ekuA/O8yFX562/vmDDqB/gxdlmeiHbAuQcdiqTgpGwZEfrKZV3zZyRf96Ap5XCYOHOQ==}
     engines: {node: '>=18'}
 
   '@one-ini/wasm@0.2.1':
@@ -9322,7 +9322,7 @@ snapshots:
 
   '@ntnyq/utils@0.23.0': {}
 
-  '@oiper/desktop@0.0.0': {}
+  '@oiper/desktop@0.1.40': {}
 
   '@one-ini/wasm@0.2.1': {}
 

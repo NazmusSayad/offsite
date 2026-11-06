@@ -51,18 +51,22 @@ export function DictationPage(props: { machine: string; config: Config }) {
           <span className="text-muted-foreground text-xs">Checking…</span>
         ) : (
           <Select
-            value={props.config.dictation.workflowId ?? ''}
-            onValueChange={(workflowId) =>
+            value={props.config.dictation.workflowId ?? 'offsite:default'}
+            onValueChange={(value) =>
               void updateConfig(props.machine, {
                 ...props.config,
-                dictation: { ...props.config.dictation, workflowId },
+                dictation: {
+                  ...props.config.dictation,
+                  workflowId: value === 'offsite:default' ? null : value,
+                },
               })
             }
           >
             <SelectTrigger className="w-56">
-              <SelectValue placeholder="Choose a workflow" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="offsite:default">OiPer default</SelectItem>
               {workflows.map((item) => (
                 <SelectItem key={item.id} value={item.id}>
                   {item.name}

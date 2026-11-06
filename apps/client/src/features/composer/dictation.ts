@@ -3,13 +3,7 @@ import { useHotkeys } from 'react-hotkeys-hook'
 import { call } from '@/api/connection'
 import { readBase64 } from '@/api/upload'
 import { logger } from '@/lib/log'
-import {
-  draftKey,
-  getState,
-  showSettingsPage,
-  update,
-  useStore,
-} from '@/lib/store'
+import { draftKey, getState, useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 import { toWav } from './dictation-audio'
 import { editDraft } from './drafts'
@@ -124,22 +118,6 @@ export function useDictation() {
         'Dictation is transcribed by OiPer on a connected machine',
         'restart'
       )
-      return
-    }
-    const dictation = machine.config?.dictation
-    if (dictation === undefined) {
-      fail(
-        'Not ready',
-        `${machine.name} hasn't loaded its settings yet`,
-        'Wait a moment, then try again',
-        'restart'
-      )
-      return
-    }
-    if (dictation.workflowId === null) {
-      setState({ kind: 'idle' })
-      showSettingsPage('Dictation')
-      update({ settingsMachine: machine.id })
       return
     }
     if (!(await call(machine.id, 'dictation.ping', undefined))) {
