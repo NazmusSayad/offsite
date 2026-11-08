@@ -1,7 +1,7 @@
 import {
   AiContentGenerator02Icon,
   ArrowExpandDiagonal01Icon,
-  CenterFocusIcon,
+  SunriseIcon,
   Delete02Icon,
   FileExportIcon,
   FolderAddIcon,
@@ -36,7 +36,7 @@ import {
 } from '@/lib/store'
 
 const restore = {
-  snoozed: { icon: CenterFocusIcon, label: 'Focus' },
+  snoozed: { icon: SunriseIcon, label: 'Unsnooze' },
   minimized: { icon: ArrowExpandDiagonal01Icon, label: 'Restore' },
   inactive: { icon: PlayIcon, label: 'Resume' },
   pinned: { icon: PinOffIcon, label: 'Unpin' },

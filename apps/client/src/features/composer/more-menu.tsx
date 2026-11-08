@@ -7,7 +7,7 @@ import {
   ListTodoIcon,
   AiMicIcon,
   MoreHorizontalIcon,
-  CenterFocusIcon,
+  SunriseIcon,
   Queue01Icon,
   SentIcon,
   ShieldCheckIcon,
@@ -341,9 +341,9 @@ function MoreMenuContent(props: {
             disabled={props.empty}
             onSelect={props.onFlipSnooze}
           >
-            <HugeiconsIcon icon={snoozes ? CenterFocusIcon : ZzzIcon} />
+            <HugeiconsIcon icon={snoozes ? SunriseIcon : ZzzIcon} />
             <span className="flex-1">
-              {snoozes ? 'Send & Focus' : 'Send & Snooze'}
+              {snoozes ? 'Send & Unsnooze' : 'Send & Snooze'}
             </span>
             <span className="text-muted-foreground text-xs">
               {mod}+Shift+Enter
