@@ -109,7 +109,10 @@ export function ProjectMenuItems(props: {
       machine,
       projects: registered.filter(
         (project) =>
-          project.machine === machine.id && !project.hidden && !project.scratch
+          project.machine === machine.id &&
+          !project.hidden &&
+          !project.scratch &&
+          project.parentId === null
       ),
     }))
     .filter((group) => machines.length > 1 || group.projects.length > 0)

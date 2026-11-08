@@ -7,12 +7,13 @@ import type {
   Project,
   ProjectPatch,
 } from '@offsite/core/projects'
-import { eq, max } from 'drizzle-orm'
+import { eq, max, or } from 'drizzle-orm'
 import { broadcast } from '../lib/hub.ts'
 import { db } from '../storage/db.ts'
 import { projects as projectsTable } from '../storage/schema.ts'
 import { home, scratchAvailable } from '../storage/storage.ts'
 import { findLogo, prepareLogo } from './logos.ts'
+import { createWorktree, removeWorktree } from './worktrees.ts'
 
 const scratchRoot = path.join(home, 'scratch')
 
@@ -25,6 +26,7 @@ export function projects(): Project[] {
       logo: projectsTable.logo,
       hidden: projectsTable.hidden,
       scratch: projectsTable.scratch,
+      parentId: projectsTable.parentId,
     })
     .from(projectsTable)
     .orderBy(projectsTable.position)
@@ -116,6 +118,45 @@ export async function removeScratchProject(id: string, folder: string) {
   }
 }
 
+export async function addWorktreeProject(
+  projectId: string,
+  name: string | null,
+  prompt: string
+) {
+  const project = projects().find((item) => item.id === projectId)
+  if (project === undefined) {
+    throw new Error('That project was removed')
+  }
+  const root =
+    project.parentId === null
+      ? project
+      : projects().find((item) => item.id === project.parentId)
+  if (root === undefined) {
+    throw new Error('That project was removed')
+  }
+  const worktree = await createWorktree(root.path, name, prompt)
+  const id = randomUUID()
+  db.insert(projectsTable)
+    .values({
+      id,
+      path: worktree.cwd,
+      name: root.name,
+      logo: root.logo,
+      parentId: root.id,
+    })
+    .run()
+  publish()
+  return { ...worktree, id }
+}
+
+export async function removeWorktreeProject(
+  project: Awaited<ReturnType<typeof addWorktreeProject>>
+) {
+  db.delete(projectsTable).where(eq(projectsTable.id, project.id)).run()
+  publish()
+  await removeWorktree(project)
+}
+
 export async function updateProject(id: string, patch: ProjectPatch) {
   if (patch.name !== undefined) {
     const name = patch.name.trim()
@@ -149,13 +190,15 @@ export async function updateProject(id: string, patch: ProjectPatch) {
 }
 
 export function removeProject(id: string) {
-  db.delete(projectsTable).where(eq(projectsTable.id, id)).run()
+  db.delete(projectsTable)
+    .where(or(eq(projectsTable.id, id), eq(projectsTable.parentId, id)))
+    .run()
   publish()
 }
 
 export function reorderProjects(ids: string[]) {
   const current = projects()
-    .filter((project) => !project.scratch)
+    .filter((project) => !project.scratch && project.parentId === null)
     .map((project) => project.id)
   if (
     ids.length !== current.length ||

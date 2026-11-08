@@ -101,6 +101,7 @@ export function start() {
     },
     draft: null,
     replacing: null,
+    worktree: null,
     context: null,
     capabilities: null,
     errors: [],

@@ -377,7 +377,10 @@ function TabSwitcherItems(props: {
 function TabMenuItems(props: { tab: TerminalTab; onRename: () => void }) {
   const allProjects = useStore((state) => state.projects)
   const projects = allProjects.filter(
-    (project) => project.machine === terminalMachine() && !project.scratch
+    (project) =>
+      project.machine === terminalMachine() &&
+      !project.scratch &&
+      project.parentId === null
   )
   const tab = props.tab
 

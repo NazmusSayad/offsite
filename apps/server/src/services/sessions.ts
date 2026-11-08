@@ -92,6 +92,7 @@ export async function inactiveSessions(params: {
         (project) =>
           params.projectId === null ||
           project.id === params.projectId ||
+          project.parentId === params.projectId ||
           (params.projectId === NO_PROJECT && project.scratch)
       )
       .map((project) => project.id)

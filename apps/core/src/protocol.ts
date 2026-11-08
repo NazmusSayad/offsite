@@ -156,6 +156,7 @@ export type RpcMethods = {
       settings: SessionSettings
       delivery: PromptDelivery
       status: 'active' | 'snoozed' | null
+      worktree: { name: string | null } | null
     }
     result: null
   }

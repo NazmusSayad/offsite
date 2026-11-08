@@ -7,6 +7,7 @@ export type Project = {
   logo: string | null
   hidden: boolean
   scratch: boolean
+  parentId: string | null
 }
 
 export type ProjectPatch = {

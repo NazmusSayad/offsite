@@ -15,6 +15,7 @@ export const projects = snakeCase.table('projects', {
   position: integer().notNull().default(0),
   hidden: integer({ mode: 'boolean' }).notNull().default(false),
   scratch: integer({ mode: 'boolean' }).notNull().default(false),
+  parentId: text(),
 })
 
 export const sessions = snakeCase.table('sessions', {

@@ -1,5 +1,6 @@
 import { PaperclipIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { NO_PROJECT } from '@offsite/core/projects'
 import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { readBase64, UPLOAD_LIMIT, uploadFile } from '@/api/upload'
@@ -41,6 +42,7 @@ import { ProjectHeading } from './project-heading'
 import { UsageResetBanner, QueuedMessages } from './queue'
 import { SendControls } from './send-controls'
 import { isStashShortcut, toggleStash } from './stash'
+import { WorktreeBar } from './worktree-bar'
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 const maxImageSize = 5 * 1024 * 1024
@@ -481,6 +483,9 @@ export function Composer() {
             </div>
           </div>
         </div>
+        {hero && selection?.sessionId === null && projectId !== NO_PROJECT && (
+          <WorktreeBar key={key} machine={machine} projectId={projectId} />
+        )}
       </Wrapper>
     </div>
   )

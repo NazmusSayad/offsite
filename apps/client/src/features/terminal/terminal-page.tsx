@@ -236,7 +236,8 @@ function useGroups(): Group[] {
               machine.status === 'online' &&
               project.machine === machine.id &&
               !project.hidden &&
-              !project.scratch
+              !project.scratch &&
+              project.parentId === null
           )
           .map((project) => project.id),
         ...tabs.flatMap((tab) =>

@@ -62,6 +62,7 @@ export function openSession(
           )),
     context: null,
     replacing: null,
+    worktree: null,
     paletteOpen: false,
     unseen: getState().unseen.filter(
       (key) =>
@@ -129,13 +130,14 @@ export function lastTerminalMachine() {
 }
 
 export function startChat(machine: string, projectId: string, replace = false) {
+  const project = projectOf(getState(), machine, projectId)
   openSession(
     {
       machine,
       projectId:
-        projectOf(getState(), machine, projectId)?.scratch === true
+        project?.scratch === true
           ? NO_PROJECT
-          : projectId,
+          : (project?.parentId ?? projectId),
       sessionId: null,
     },
     null,
@@ -204,6 +206,7 @@ export async function sendPrompt(
     void Notification.requestPermission()
   }
   update({ sentAt: Date.now() })
+  const name = getState().worktree?.trim()
   await call(selection.machine, 'sessions.send', {
     sessionId: selection.sessionId,
     projectId: selection.projectId,
@@ -211,6 +214,10 @@ export async function sendPrompt(
     settings,
     delivery,
     status,
+    worktree:
+      selection.sessionId !== null || name === undefined
+        ? null
+        : { name: name === '' ? null : name },
   })
   const replacing = getState().replacing
   if (

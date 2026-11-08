@@ -122,6 +122,7 @@ export type State = {
   settings: SessionSettings
   draft: Prompt | null
   replacing: Selection | null
+  worktree: string | null
   context: ContextUsage | null
   capabilities: Capabilities | null
   errors: string[]
