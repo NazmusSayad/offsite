@@ -80,7 +80,7 @@ export function Sidebar(
   const [minimizedOpen, setMinimizedOpen] = useState(false)
   const [inactiveOpen, setInactiveOpen] = useState(false)
   const [inactiveLimit, setInactiveLimit] = useState(DONE_PAGE)
-  const [width, setWidth] = useLocalStorage('sidebarWidth', 240)
+  const [width, setWidth] = useLocalStorage('sidebarWidth', 256)
   const shown = sessions
     .filter(
       (session) =>
@@ -215,7 +215,7 @@ export function Sidebar(
   function resize(event: React.PointerEvent<HTMLDivElement>) {
     const start = event.clientX - width
     drag(event, (next) => {
-      const value = Math.min(480, Math.max(200, next.clientX - start))
+      const value = Math.min(480, Math.max(240, next.clientX - start))
       setWidth(value)
     })
   }
