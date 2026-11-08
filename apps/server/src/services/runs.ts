@@ -1,11 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
-import { getSessionMessages } from '@anthropic-ai/claude-agent-sdk'
 import type { SessionSettings } from '@offsite/core/config'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { RpcMethods } from '@offsite/core/protocol'
 import type { RewindRequest, RewindResult } from '@offsite/core/sessions'
-import { history, rewindLive, Run, visible } from '../lib/claude/index.ts'
+import { history, rewindLive, Run, shownMessages } from '../lib/claude/index.ts'
 import {
   stopAppServers,
   CodexRun,
@@ -108,13 +107,13 @@ async function rewindNow(request: RewindRequest): Promise<RewindResult> {
   if (request.dryRun || !request.conversation) {
     return result
   }
-  const disk = await getSessionMessages(sessionId, { dir: cwd })
+  const disk = await shownMessages(sessionId, cwd)
   const index = disk.findIndex((item) => item.uuid === request.messageId)
   if (index < 1) {
     throw new Error('Cannot rewind the conversation to that point')
   }
   if (run.backgroundTasks > 0) {
-    const lastSeen = visible(run, disk).findLast(
+    const lastSeen = disk.findLast(
       (item) => item.type === 'user' && item.parent_tool_use_id === null
     )
     if (lastSeen === undefined) {
@@ -316,7 +315,7 @@ async function changedElsewhere(run: Run, cwd: string) {
   if (run.messages.length === 0) {
     return false
   }
-  const history = await getSessionMessages(run.sessionId, { dir: cwd })
-  const last = visible(run, history).at(-1)?.uuid
+  const history = await shownMessages(run.sessionId, cwd)
+  const last = history.at(-1)?.uuid
   return last !== undefined && !run.messages.some((item) => item.uuid === last)
 }

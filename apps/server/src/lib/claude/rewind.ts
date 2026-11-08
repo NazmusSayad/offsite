@@ -43,27 +43,6 @@ export async function rewindLive(
     await sleep(500)
   }
   const index = run.messages.findIndex((item) => item.uuid === messageId)
-  const removed = run.messages.splice(index < 0 ? 0 : index)
+  run.messages.splice(index < 0 ? 0 : index)
   run.cut = messageId
-  const tools = new Set(
-    removed.flatMap((item) =>
-      item.type === 'user' || item.type === 'assistant'
-        ? item.content.flatMap((block) =>
-            block.type === 'tool_use' ? [block.id] : []
-          )
-        : []
-    )
-  )
-  await Promise.all(
-    [...run.taskTools]
-      .filter(
-        (entry) => tools.has(entry[0]) && run.tasks[entry[1]] === 'running'
-      )
-      .map((entry) => run.query.stopTask(entry[1]))
-  )
-}
-
-export function visible<T extends { uuid: string }>(run: Run, disk: T[]) {
-  const index = disk.findIndex((item) => item.uuid === run.cut)
-  return index < 0 ? disk : disk.slice(0, index)
 }

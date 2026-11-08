@@ -61,7 +61,6 @@ export class Run {
   backgroundTasks = 0
   backgroundAgents = 0
   tasks: Record<string, TaskStatus> = {}
-  readonly taskTools = new Map<string, string>()
   private readonly inbox: SDKUserMessage[] = []
   private wake: (() => void) | null = null
   private idleTimer: NodeJS.Timeout | undefined
@@ -343,11 +342,6 @@ export class Run {
             this.armIdleTimer()
             return
           }
-          case 'task_started':
-            if (message.tool_use_id !== undefined) {
-              this.taskTools.set(message.tool_use_id, message.task_id)
-            }
-            return
           case 'task_notification':
             if (message.ambient === true) {
               return
