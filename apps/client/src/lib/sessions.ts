@@ -53,7 +53,7 @@ export function openSession(
           : newThreadSettings(machine)
         : (getDraftSettings(draftKey(selection)) ??
           providerSettings(
-            machine.lastUsed,
+            machine,
             getState().sessions.find(
               (item) =>
                 item.machine === selection.machine &&

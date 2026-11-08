@@ -2,7 +2,6 @@ import {
   DEFAULT_CLAUDE_PERMISSION_MODE,
   DEFAULT_CODEX_PERMISSION_MODE,
   DEFAULT_PROVIDER,
-  type LastUsedModel,
   type SessionSettings,
 } from '@offsite/core/config'
 import type { Accounts, Capabilities, Provider } from '@offsite/core/providers'
@@ -22,11 +21,37 @@ import {
 
 let loading: { key: string; result: Promise<Capabilities> } | null = null
 
+export function lastEffort(
+  machine: Machine,
+  provider: Provider,
+  model: string
+) {
+  return (
+    machine.lastEfforts.find(
+      (item) => item.provider === provider && item.model === model
+    )?.effort ?? null
+  )
+}
+
+export function saveLastEffort(
+  provider: Provider,
+  model: string,
+  effort: string | null
+) {
+  for (const machine of getState().machines) {
+    if (machine.status === 'online') {
+      call(machine.id, 'lastEffort.save', { provider, model, effort }).catch(
+        showError
+      )
+    }
+  }
+}
+
 export function providerSettings(
-  lastUsed: LastUsedModel[] | null,
+  machine: Machine,
   provider: Provider
 ): SessionSettings {
-  const row = lastUsed?.find((item) => item.provider === provider)
+  const row = machine.lastUsed?.find((item) => item.provider === provider)
   const mode =
     provider === 'claude'
       ? DEFAULT_CLAUDE_PERMISSION_MODE
@@ -47,7 +72,7 @@ export function providerSettings(
     provider,
     accountId: row.accountId,
     model: row.model,
-    effort: null,
+    effort: lastEffort(machine, provider, row.model),
     mode,
     plan: false,
   }
@@ -65,7 +90,7 @@ export function newThreadSettings(machine: Machine): SessionSettings {
       plan: false,
     }
   }
-  return providerSettings(machine.lastUsed, latest.provider)
+  return providerSettings(machine, latest.provider)
 }
 
 export function saveLastUsed(
@@ -180,10 +205,7 @@ export function setAccounts(machine: string, received: Accounts) {
     changeSettings({ accountId: same.accountId })
   } else if (other !== undefined) {
     changeSettings({
-      ...providerSettings(
-        machineOf(getState(), machine).lastUsed,
-        other.provider
-      ),
+      ...providerSettings(machineOf(getState(), machine), other.provider),
       accountId: other.accountId,
     })
   } else if (settings.accountId !== null) {
@@ -289,7 +311,12 @@ export async function refreshCapabilities() {
     }
     changeSettings({
       model: first.value,
-      ...(first.effort === null ? {} : { effort: first.effort }),
+      effort:
+        lastEffort(
+          machineOf(getState(), selection.machine),
+          provider,
+          first.value
+        ) ?? first.effort,
     })
   } catch (error) {
     showError(error)

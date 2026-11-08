@@ -4,7 +4,7 @@ export const DEFAULT_PROVIDER = 'claude'
 export const DEFAULT_CLAUDE_PERMISSION_MODE = 'bypassPermissions'
 export const DEFAULT_CODEX_PERMISSION_MODE = 'full-access'
 
-export type ModelSetting = { hidden: boolean; effort: string | null }
+export type ModelSetting = { hidden: boolean }
 
 export type ProviderSettings = {
   accountId: string | null
@@ -39,6 +39,12 @@ export type LastUsedModel = {
   accountId: string | null
   model: string
   usedAt: number
+}
+
+export type LastEffort = {
+  provider: Provider
+  model: string
+  effort: string | null
 }
 
 export type GenerationModel = {

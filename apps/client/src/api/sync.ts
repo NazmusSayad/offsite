@@ -201,6 +201,7 @@ async function resync(machine: string) {
       providers: snapshot.providers,
       terminals: snapshot.terminals,
       appIcon: snapshot.appIcon,
+      lastEfforts: snapshot.lastEfforts,
     })
     setProjects(machine, snapshot.projects)
     setSessions(machine, snapshot.sessions)
@@ -334,6 +335,9 @@ function receive(machine: string, event: ServerEvent) {
     case 'lastUsed':
       receiveLastUsed(machine, event.lastUsed)
       return
+    case 'lastEfforts':
+      setMachine(machine, { lastEfforts: event.lastEfforts })
+      return
     case 'appIcon':
       setMachine(machine, { appIcon: event.appIcon })
       return
@@ -410,10 +414,7 @@ function receive(machine: string, event: ServerEvent) {
           event.settings ??
           (state.settings.provider === event.provider
             ? state.settings
-            : providerSettings(
-                machineOf(state, machine).lastUsed,
-                event.provider
-              )),
+            : providerSettings(machineOf(state, machine), event.provider)),
         context: event.context,
         partial: event.partial,
       })

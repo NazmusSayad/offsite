@@ -7,7 +7,6 @@ import { readSettings, scratchAvailable, writeJson } from './storage.ts'
 
 const modelSetting = z.strictObject({
   hidden: z.boolean(),
-  effort: z.string().nullable(),
 })
 
 const generationModel = z

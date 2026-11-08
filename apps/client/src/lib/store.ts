@@ -2,6 +2,7 @@ import type { AppIconId } from '@offsite/core/app-icons'
 import type {
   Config,
   ConfigWithDefaults,
+  LastEffort,
   LastUsedModel,
   SessionSettings,
 } from '@offsite/core/config'
@@ -72,6 +73,7 @@ export type Machine = {
   pairedAt: number | null
   config: Config | null
   lastUsed: LastUsedModel[] | null
+  lastEfforts: LastEffort[]
   appIcon: AppIconId | null
   configError: string | null
   system: Omit<ConfigWithDefaults, 'config'> | null

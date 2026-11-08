@@ -100,7 +100,12 @@ import {
 } from '../services/terminal/terminal.ts'
 import { readUsage } from '../services/usage.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
-import { readLastUsed, saveLastUsed } from '../storage/last-used.ts'
+import {
+  readLastEfforts,
+  readLastUsed,
+  saveLastEffort,
+  saveLastUsed,
+} from '../storage/last-used.ts'
 import { readAppIcon, saveAppIcon } from '../storage/state.ts'
 
 const log = logger.withTag('socket')
@@ -119,6 +124,7 @@ const handlers: Handlers = {
     return {
       ...configInfo(),
       lastUsed: readLastUsed(),
+      lastEfforts: readLastEfforts(),
       hostname: os.hostname(),
       projects: projects(),
       sessions: sessions(),
@@ -130,6 +136,7 @@ const handlers: Handlers = {
   },
   'config.get': () => configInfo(),
   'lastUsed.save': (params) => saveLastUsed(params),
+  'lastEffort.save': (params) => saveLastEffort(params),
   'appIcon.save': (params) => saveAppIcon(params),
   'config.save': async (params) => {
     const before = readConfig()

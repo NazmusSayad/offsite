@@ -16,13 +16,6 @@ import { call } from '@/api/connection'
 import { updateConfig } from '@/api/machine-config'
 import { AlertDialog, AlertDialogContent } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip } from '@/components/ui/tooltip'
 import { windowName } from '@/features/composer/limits'
@@ -191,10 +184,7 @@ function ProviderModels(props: {
         <p className="text-muted-foreground px-4 py-3 text-xs">Loading…</p>
       )}
       {(models ?? []).map((model) => {
-        const setting = settings[model.value] ?? {
-          hidden: model.deprecated,
-          effort: model.effort,
-        }
+        const setting = settings[model.value] ?? { hidden: model.deprecated }
         return (
           <div
             key={model.value}
@@ -213,31 +203,10 @@ function ProviderModels(props: {
                 </span>
               )}
             </div>
-            {model.efforts.length > 0 && (
-              <Select
-                value={setting.effort ?? model.effort ?? undefined}
-                onValueChange={(effort) =>
-                  save(model.value, { ...setting, effort })
-                }
-              >
-                <SelectTrigger size="sm" className="w-28">
-                  <SelectValue placeholder="Effort" />
-                </SelectTrigger>
-                <SelectContent>
-                  {model.efforts.map((effort) => (
-                    <SelectItem key={effort} value={effort}>
-                      {effort.charAt(0).toUpperCase() + effort.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
             <Switch
               size="sm"
               checked={!setting.hidden}
-              onCheckedChange={(shown) =>
-                save(model.value, { ...setting, hidden: !shown })
-              }
+              onCheckedChange={(shown) => save(model.value, { hidden: !shown })}
               aria-label={`Show ${model.name}`}
             />
           </div>

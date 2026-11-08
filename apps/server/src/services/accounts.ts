@@ -201,10 +201,7 @@ export async function capabilities(
     defaultModel: defaultModels[provider],
     models: result.models.map((model) => {
       const deprecated = deprecatedModels[provider].includes(model.value)
-      const setting = settings[model.value] ?? {
-        hidden: deprecated,
-        effort: null,
-      }
+      const setting = settings[model.value] ?? { hidden: deprecated }
       const preferred = defaultEfforts[provider]
       const effort =
         preferred === null
@@ -216,7 +213,7 @@ export async function capabilities(
         ...model,
         deprecated,
         hidden: setting.hidden,
-        effort: setting.effort ?? effort,
+        effort,
       }
     }),
   }

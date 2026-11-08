@@ -2,6 +2,7 @@ import type { AppIconId } from './app-icons.ts'
 import type {
   Config,
   ConfigWithDefaults,
+  LastEffort,
   LastUsedModel,
   PromptDelivery,
   SessionSettings,
@@ -60,6 +61,7 @@ import type {
 
 export type SyncSnapshot = ConfigWithDefaults & {
   lastUsed: LastUsedModel[]
+  lastEfforts: LastEffort[]
   hostname: string
   projects: Project[]
   sessions: Session[]
@@ -78,6 +80,7 @@ export type RpcMethods = {
     params: Pick<LastUsedModel, 'provider' | 'accountId' | 'model'>
     result: null
   }
+  'lastEffort.save': { params: LastEffort; result: null }
   'appIcon.save': { params: AppIconId; result: AppIconId }
   'projects.add': { params: { path: string }; result: Project }
   'projects.update': {
@@ -362,6 +365,7 @@ export type ServerEvent =
   | { type: 'usage'; accountId: string; usage: Usage }
   | { type: 'config'; config: Config }
   | { type: 'lastUsed'; lastUsed: LastUsedModel[] }
+  | { type: 'lastEfforts'; lastEfforts: LastEffort[] }
   | { type: 'appIcon'; appIcon: AppIconId }
   | { type: 'projects'; projects: Project[] }
   | { type: 'sessions'; sessions: Session[] }

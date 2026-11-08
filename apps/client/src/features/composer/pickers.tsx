@@ -23,7 +23,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Tooltip } from '@/components/ui/tooltip'
-import { changeSettings, providerSettings, saveLastUsed } from '@/lib/accounts'
+import {
+  changeSettings,
+  lastEffort,
+  providerSettings,
+  saveLastEffort,
+  saveLastUsed,
+} from '@/lib/accounts'
 import {
   getState,
   machineOf,
@@ -68,9 +74,11 @@ export function Pickers() {
                 label: effort.charAt(0).toUpperCase() + effort.slice(1),
               })),
             ]}
-            onChange={(value) =>
-              changeSettings({ effort: value === 'default' ? null : value })
-            }
+            onChange={(value) => {
+              const effort = value === 'default' ? null : value
+              changeSettings({ effort })
+              saveLastEffort(settings.provider, model.value, effort)
+            }}
           />
         </>
       )}
@@ -284,22 +292,17 @@ function ModelMenu(props: {
       return
     }
     const provider = picked.provider
+    const machine = machineOf(getState(), selection.machine)
     const choice = {
       accountId: picked.accountId,
       model: option.value,
-      ...(option.effort === null ? {} : { effort: option.effort }),
+      effort: lastEffort(machine, provider, option.value) ?? option.effort,
     }
     saveLastUsed(selection.machine, provider, picked.accountId, option.value)
     if (provider === settings.provider) {
       changeSettings(choice)
     } else {
-      changeSettings({
-        ...providerSettings(
-          machineOf(getState(), selection.machine).lastUsed,
-          provider
-        ),
-        ...choice,
-      })
+      changeSettings({ ...providerSettings(machine, provider), ...choice })
     }
   }
 

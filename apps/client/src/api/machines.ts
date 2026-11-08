@@ -106,6 +106,7 @@ export function restoreMachine(machine: StoredMachine): Machine {
     pairedAt: machine.pairedAt ?? null,
     config: null,
     lastUsed: null,
+    lastEfforts: [],
     appIcon: null,
     configError: null,
     system: null,
