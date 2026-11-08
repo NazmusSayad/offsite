@@ -1,7 +1,7 @@
 import {
   BrowserIcon,
   GitCompareIcon,
-  MoreHorizontalIcon,
+  MoreVerticalIcon,
   VisualStudioCodeIcon,
   SquareTerminalIcon,
   TaskDaily01Icon,
@@ -14,6 +14,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { FaAsterisk, FaChevronRight } from 'react-icons/fa6'
 import { useReadLocalStorage } from 'usehooks-ts'
 import {
   AlertDialog,
@@ -54,7 +55,7 @@ import {
   getState as terminalState,
   subscribe as subscribeTerminal,
 } from '@/features/terminal/session'
-import { threadTasks } from '@/features/transcript/tasks'
+import { taskStatuses } from '@/features/transcript/tasks'
 import { TasksPanel } from '@/features/transcript/tasks-panel'
 import type { Prefs } from '@/lib/prefs'
 import { deactivateSession, editSession } from '@/lib/sessions'
@@ -62,7 +63,6 @@ import {
   activityOf,
   type MachineSession,
   projectOf,
-  selectedActivity,
   type Selection,
   showEditor,
   updatePrefs,
@@ -82,9 +82,7 @@ type MenuOption = {
   title: string
   icon: IconSvgElement
   pressed: boolean
-  attention: boolean
-  badge: ReactNode
-  detail: ReactNode
+  dot: { color: string; status: string } | null
   onSelect: () => void
 }
 
@@ -129,7 +127,14 @@ export function PanelToggles(props: ToggleProps & { children: ReactNode }) {
                 onClick={option.onSelect}
               >
                 <HugeiconsIcon icon={option.icon} />
-                {option.badge}
+                {option.dot !== null && (
+                  <span
+                    className={cn(
+                      'ring-background absolute top-0.5 right-0.5 size-1.5 rounded-full bg-current ring-2',
+                      option.dot.color
+                    )}
+                  />
+                )}
               </button>
             ))}
           {props.children}
@@ -184,9 +189,25 @@ export function PanelMenu(
             aria-label="More"
             title="More"
           >
-            <HugeiconsIcon icon={MoreHorizontalIcon} />
-            {options.some((option) => option.attention) && (
-              <span className="bg-muted-foreground ring-background absolute top-0.5 right-0.5 size-1.5 rounded-full ring-2" />
+            <HugeiconsIcon icon={MoreVerticalIcon} />
+            {options.map(
+              (option) =>
+                option.dot !== null && (
+                  <span
+                    key={option.id}
+                    className={cn('contents', option.dot.color)}
+                  >
+                    {option.id === 'terminal' && (
+                      <FaChevronRight className="absolute top-0.5 left-0.5 size-2! opacity-100!" />
+                    )}
+                    {option.id === 'tasks' && (
+                      <span className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-current" />
+                    )}
+                    {option.id === 'diff' && (
+                      <FaAsterisk className="absolute right-0.5 bottom-0.5 size-2! opacity-100!" />
+                    )}
+                  </span>
+                )
             )}
           </button>
         </DropdownMenuTrigger>
@@ -198,7 +219,17 @@ export function PanelMenu(
             <DropdownMenuItem key={option.id} onSelect={option.onSelect}>
               <HugeiconsIcon icon={option.icon} />
               <span className="flex-1">{option.label}</span>
-              {option.detail}
+              {option.dot !== null && (
+                <span className="text-muted-foreground flex items-center gap-1.5 text-xs tabular-nums">
+                  {option.dot.status}
+                  <span
+                    className={cn(
+                      'size-1.5 rounded-full bg-current',
+                      option.dot.color
+                    )}
+                  />
+                </span>
+              )}
             </DropdownMenuItem>
           ))}
           {props.children}
@@ -354,18 +385,11 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
         (tab) => tab.projectId === props.selection.projectId
       ).length
   )
-  const runningTasks = useStore((state) => {
-    if (state.selection?.sessionId === null) {
-      return 0
-    }
-    const found = threadTasks(
-      [...state.earlier, ...state.items],
-      selectedActivity(state)
-    )
-    return [...found.agents, ...found.tasks].filter(
-      (item) => item.status === 'Running'
-    ).length
-  })
+  const runningTasks = useStore(
+    (state) =>
+      taskStatuses(state).filter((status) => status === 'Running').length
+  )
+  const allTasks = useStore((state) => taskStatuses(state).length)
 
   return [
     {
@@ -374,13 +398,7 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       title: 'Diff',
       icon: GitCompareIcon,
       pressed: props.panel === 'diff',
-      attention: props.changed,
-      badge: props.changed && (
-        <span className="bg-muted-foreground ring-background absolute top-0.5 right-0.5 size-1.5 rounded-full ring-2" />
-      ),
-      detail: props.changed && (
-        <span className="bg-muted-foreground size-1.5 rounded-full" />
-      ),
+      dot: props.changed ? { color: 'text-warning', status: 'Changes' } : null,
       onSelect: () => props.onPanel(props.panel === 'diff' ? null : 'diff'),
     },
     {
@@ -389,29 +407,11 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       title: `Terminal (${mod}+\`)`,
       icon: SquareTerminalIcon,
       pressed: props.terminal,
-      attention: terminalAlert,
-      badge: terminalTabs > 0 && (
-        <span
-          className={cn(
-            'absolute top-0 right-0 grid h-3 min-w-3 place-items-center rounded-full px-0.5 text-[8px] leading-none font-medium tabular-nums',
-            terminalAlert
-              ? 'bg-primary text-primary-foreground'
-              : 'text-foreground bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))]'
-          )}
-        >
-          {terminalTabs}
-        </span>
-      ),
-      detail: terminalTabs > 0 && (
-        <span
-          className={cn(
-            'text-xs tabular-nums',
-            terminalAlert ? 'text-primary' : 'text-muted-foreground'
-          )}
-        >
-          {terminalTabs}
-        </span>
-      ),
+      dot: terminalAlert
+        ? { color: 'text-info', status: 'Needs you' }
+        : terminalTabs > 0
+          ? { color: 'text-muted-foreground', status: `${terminalTabs} open` }
+          : null,
       onSelect: () => props.onTerminal(!props.terminal),
     },
     {
@@ -420,17 +420,12 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       title: 'Tasks',
       icon: TaskDaily01Icon,
       pressed: props.panel === 'tasks',
-      attention: runningTasks > 0,
-      badge: runningTasks > 0 && (
-        <span className="text-foreground absolute top-0 right-0 grid h-3 min-w-3 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-0.5 text-[8px] leading-none font-medium tabular-nums">
-          {runningTasks}
-        </span>
-      ),
-      detail: runningTasks > 0 && (
-        <span className="text-muted-foreground text-xs tabular-nums">
-          {runningTasks}
-        </span>
-      ),
+      dot:
+        runningTasks > 0
+          ? { color: 'text-info', status: `${runningTasks} running` }
+          : allTasks > 0
+            ? { color: 'text-muted-foreground', status: 'None running' }
+            : null,
       onSelect: () => props.onPanel(props.panel === 'tasks' ? null : 'tasks'),
     },
     {
@@ -439,9 +434,7 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       title: 'Browser',
       icon: BrowserIcon,
       pressed: props.panel === 'browser',
-      attention: false,
-      badge: null,
-      detail: null,
+      dot: null,
       onSelect: () =>
         props.onPanel(props.panel === 'browser' ? null : 'browser'),
     },
@@ -451,9 +444,7 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       title: 'Editor',
       icon: VisualStudioCodeIcon,
       pressed: false,
-      attention: false,
-      badge: null,
-      detail: null,
+      dot: null,
       onSelect: () =>
         showEditor({
           machine: props.selection.machine,

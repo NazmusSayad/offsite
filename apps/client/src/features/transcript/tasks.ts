@@ -1,5 +1,6 @@
 import type { Item, ItemStatus } from '@offsite/core/items'
 import type { SessionActivity } from '@offsite/core/sessions'
+import { selectedActivity, type State } from '@/lib/store'
 
 const labels: Record<ItemStatus, string> = {
   running: 'Running',
@@ -38,6 +39,17 @@ export function threadTasks(
         : []
     ),
   }
+}
+
+export function taskStatuses(state: State) {
+  if (state.selection?.sessionId === null) {
+    return []
+  }
+  const found = threadTasks(
+    [...state.earlier, ...state.items],
+    selectedActivity(state)
+  )
+  return [...found.agents, ...found.tasks].map((item) => item.status)
 }
 
 export function taskTitle(item: Extract<Item, { kind: 'command' }>) {
