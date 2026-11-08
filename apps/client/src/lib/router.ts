@@ -65,7 +65,7 @@ if (
     '/'
   )
   window.history.pushState(
-    { __TSR_index: 1, __TSR_key: top, key: top, layer: 'chat' },
+    { __TSR_index: 1, __TSR_key: top, key: top },
     '',
     href
   )
@@ -97,7 +97,7 @@ declare module '@tanstack/react-router' {
     router: typeof router
   }
   interface HistoryState {
-    layer?: 'chat' | 'overlay'
+    layer?: 'overlay'
     guard?: true
   }
 }

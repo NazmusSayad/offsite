@@ -4,7 +4,7 @@ import { logger } from '@/lib/log'
 import { router } from '@/lib/router'
 import { openTerminalPage } from '@/lib/sessions'
 import { getState as appState, type Machine } from '@/lib/store'
-import { leaveLayer, terminalPage, terminalView } from '@/lib/url'
+import { terminalPage, terminalView } from '@/lib/url'
 import { getState, tabView, terminalMachine, viewTabs } from './session'
 
 const log = logger.withTag('terminal')
@@ -54,8 +54,5 @@ export function keepPageOpen() {
     showMachine(other)
     return
   }
-  leaveLayer(
-    'chat',
-    () => void router.navigate({ to: '/', search: {}, replace: true })
-  )
+  void router.navigate({ to: '/', search: {}, replace: true })
 }

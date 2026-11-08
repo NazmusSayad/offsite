@@ -64,7 +64,7 @@ export function replaceSearch(next: Search) {
   )
 }
 
-export function pushSearch(next: Search, layer: 'chat' | 'overlay') {
+export function pushSearch(next: Search, layer: 'overlay' | undefined) {
   navigate({ ...currentSearch(), ...next }, false, layer)
 }
 
@@ -97,14 +97,6 @@ export function openBrowser(target: string) {
     throw new Error(`project ${state.selection.projectId} is not listed`)
   }
   replaceSearch({ panel: 'browser', browse: `${project.path}/${target}` })
-}
-
-export function leaveLayer(layer: 'chat' | 'overlay', fallback: () => void) {
-  if (router.history.location.state.layer === layer) {
-    router.history.back()
-    return
-  }
-  fallback()
 }
 
 const layers: Array<() => void> = []
@@ -233,7 +225,6 @@ export function syncUrl(replace = false) {
       to: '/',
       search: next,
       replace: replace || onGuard(),
-      state: { layer: 'chat' },
       resetScroll: false,
     })
     return
@@ -250,13 +241,13 @@ export function syncUrl(replace = false) {
     replaceSearch(next)
     return
   }
-  pushSearch(next, 'chat')
+  pushSearch(next, undefined)
 }
 
 function navigate(
   search: Search,
   replace: boolean,
-  layer: 'chat' | 'overlay' | undefined
+  layer: 'overlay' | undefined
 ) {
   const machine = terminalPage()
   const guard = onGuard()

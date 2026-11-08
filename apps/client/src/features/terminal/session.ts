@@ -25,7 +25,6 @@ import {
 } from '@/lib/store'
 import {
   currentSearch,
-  leaveLayer,
   rememberTerminal,
   replaceSearch,
   terminalPage,
@@ -270,7 +269,11 @@ export function setOpen(open: boolean) {
     replaceSearch({ bottom: 'terminal' })
     return
   }
-  leaveLayer('overlay', () => replaceSearch({ bottom: undefined }))
+  if (router.history.location.state.layer === 'overlay') {
+    router.history.back()
+    return
+  }
+  replaceSearch({ bottom: undefined })
 }
 
 export function requestTab() {

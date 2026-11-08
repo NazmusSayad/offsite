@@ -185,7 +185,6 @@ export function openTerminalPage(machine: string, view: string) {
     params: { machine },
     search: { project: view === GLOBAL_TERMINALS ? undefined : view },
     replace: current !== null || onGuard(),
-    state: { layer: 'chat' },
     resetScroll: false,
   })
   closeSession()

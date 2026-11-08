@@ -37,12 +37,7 @@ import {
   selectedRunning,
   useStore,
 } from '@/lib/store'
-import {
-  leaveLayer,
-  pushSearch,
-  replaceSearch,
-  useTerminalPage,
-} from '@/lib/url'
+import { pushSearch, replaceSearch, useTerminalPage } from '@/lib/url'
 import { cn } from '@/lib/utils'
 
 export function MobileLayout() {
@@ -63,11 +58,7 @@ export function MobileLayout() {
             aria-label="Back"
             title="Back"
             onClick={() =>
-              leaveLayer(
-                'chat',
-                () =>
-                  void router.navigate({ to: '/', search: {}, replace: true })
-              )
+              void router.navigate({ to: '/', search: {}, replace: true })
             }
           >
             <HugeiconsIcon
@@ -162,7 +153,7 @@ function MobileChat(props: { selection: Selection }) {
     (next: Panel | null) => {
       setSelectedTask(null)
       if (next === null) {
-        closeOverlay()
+        replaceSearch({ panel: undefined, bottom: undefined })
         return
       }
       showOverlay({ panel: next, bottom: undefined })
@@ -180,7 +171,7 @@ function MobileChat(props: { selection: Selection }) {
 
   function showTerminal(next: boolean) {
     if (!next) {
-      closeOverlay()
+      replaceSearch({ panel: undefined, bottom: undefined })
       return
     }
     requestTab()
@@ -318,11 +309,5 @@ function MobileChat(props: { selection: Selection }) {
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
     </main>
-  )
-}
-
-function closeOverlay() {
-  leaveLayer('overlay', () =>
-    replaceSearch({ panel: undefined, bottom: undefined })
   )
 }
