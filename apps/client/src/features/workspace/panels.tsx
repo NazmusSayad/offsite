@@ -50,7 +50,7 @@ import {
   getState as terminalState,
   subscribe as subscribeTerminal,
 } from '@/features/terminal/session'
-import { taskStatuses } from '@/features/transcript/tasks'
+import { selectedTasks } from '@/features/transcript/tasks'
 import type { Prefs } from '@/lib/prefs'
 import { deactivateSession, editSession } from '@/lib/sessions'
 import {
@@ -71,7 +71,7 @@ type MenuOption = {
   title: string
   icon: IconSvgElement
   pressed: boolean
-  dot: { color: string; status: ReactNode } | null
+  dot: { color: string | null; status: ReactNode } | null
   attention: string | null
   onSelect: () => void
 }
@@ -117,7 +117,7 @@ export function PanelToggles(props: ToggleProps & { children: ReactNode }) {
                 onClick={option.onSelect}
               >
                 <HugeiconsIcon icon={option.icon} />
-                {option.dot !== null && (
+                {option.dot !== null && option.dot.color !== null && (
                   <span
                     className={cn(
                       'ring-background absolute top-0.5 right-0.5 size-1.5 rounded-full bg-current ring-2',
@@ -212,7 +212,7 @@ export function PanelMenu(
               {option.dot !== null && (
                 <span className="text-muted-foreground flex items-center gap-1.5 text-xs tabular-nums">
                   {option.dot.status}
-                  {option.id !== 'diff' && (
+                  {option.id !== 'diff' && option.dot.color !== null && (
                     <span
                       className={cn(
                         'size-1.5 rounded-full bg-current',
@@ -377,10 +377,18 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
         (tab) => tab.projectId === props.selection.projectId
       ).length
   )
-  const runningTasks = useStore(
-    (state) =>
-      taskStatuses(state).filter((status) => status === 'Running').length
-  )
+  const agents = useStore((state) => selectedTasks(state).agents.length)
+  const tasks = useStore((state) => selectedTasks(state).tasks.length)
+  const runningTasks = useStore((state) => {
+    const found = selectedTasks(state)
+    return [...found.agents, ...found.tasks].filter(
+      (item) => item.status === 'Running'
+    ).length
+  })
+  const taskCounts = [
+    agents > 0 ? `${agents} ${agents === 1 ? 'agent' : 'agents'}` : null,
+    tasks > 0 ? `${tasks} ${tasks === 1 ? 'task' : 'tasks'}` : null,
+  ].filter((label) => label !== null)
   const changed = props.repos.some((repo) => repo.changed > 0)
   const added = sumBy(props.repos, (repo) => repo.added)
   const removed = sumBy(props.repos, (repo) => repo.removed)
@@ -435,10 +443,10 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       icon: TaskDaily01Icon,
       pressed: props.panel === 'tasks',
       dot:
-        runningTasks > 0
+        taskCounts.length > 0
           ? {
-              color: 'text-muted-foreground',
-              status: `${runningTasks} running`,
+              color: runningTasks > 0 ? 'text-muted-foreground' : null,
+              status: taskCounts.join(' · '),
             }
           : null,
       attention: runningTasks > 0 ? 'text-muted-foreground' : null,

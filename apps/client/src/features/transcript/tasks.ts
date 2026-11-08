@@ -41,15 +41,14 @@ export function threadTasks(
   }
 }
 
-export function taskStatuses(state: State) {
+export function selectedTasks(state: State) {
   if (state.selection?.sessionId === null) {
-    return []
+    return { agents: [], tasks: [] }
   }
-  const found = threadTasks(
+  return threadTasks(
     [...state.earlier, ...state.items],
     selectedActivity(state)
   )
-  return [...found.agents, ...found.tasks].map((item) => item.status)
 }
 
 export function taskTitle(item: Extract<Item, { kind: 'command' }>) {
