@@ -83,6 +83,7 @@ type MenuOption = {
   icon: IconSvgElement
   pressed: boolean
   dot: { color: string; status: string } | null
+  attention: string | null
   onSelect: () => void
 }
 
@@ -192,10 +193,10 @@ export function PanelMenu(
             <HugeiconsIcon icon={MoreVerticalIcon} />
             {options.map(
               (option) =>
-                option.dot !== null && (
+                option.attention !== null && (
                   <span
                     key={option.id}
-                    className={cn('contents', option.dot.color)}
+                    className={cn('contents', option.attention)}
                   >
                     {option.id === 'terminal' && (
                       <FaChevronRight className="absolute top-0.5 left-0.5 size-2! opacity-100!" />
@@ -389,7 +390,6 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
     (state) =>
       taskStatuses(state).filter((status) => status === 'Running').length
   )
-  const allTasks = useStore((state) => taskStatuses(state).length)
 
   return [
     {
@@ -399,6 +399,7 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       icon: GitCompareIcon,
       pressed: props.panel === 'diff',
       dot: props.changed ? { color: 'text-warning', status: 'Changes' } : null,
+      attention: props.changed ? 'text-warning' : null,
       onSelect: () => props.onPanel(props.panel === 'diff' ? null : 'diff'),
     },
     {
@@ -407,11 +408,13 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       title: `Terminal (${mod}+\`)`,
       icon: SquareTerminalIcon,
       pressed: props.terminal,
-      dot: terminalAlert
-        ? { color: 'text-info', status: 'Needs you' }
-        : terminalTabs > 0
-          ? { color: 'text-muted-foreground', status: `${terminalTabs} open` }
+      dot:
+        terminalTabs > 0
+          ? terminalAlert
+            ? { color: 'text-info', status: 'Needs you' }
+            : { color: 'text-muted-foreground', status: `${terminalTabs} open` }
           : null,
+      attention: terminalAlert ? 'text-info' : null,
       onSelect: () => props.onTerminal(!props.terminal),
     },
     {
@@ -426,9 +429,8 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
               color: 'text-muted-foreground',
               status: `${runningTasks} running`,
             }
-          : allTasks > 0
-            ? { color: 'text-muted-foreground', status: 'None running' }
-            : null,
+          : null,
+      attention: runningTasks > 0 ? 'text-muted-foreground' : null,
       onSelect: () => props.onPanel(props.panel === 'tasks' ? null : 'tasks'),
     },
     {
@@ -438,6 +440,7 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       icon: BrowserIcon,
       pressed: props.panel === 'browser',
       dot: null,
+      attention: null,
       onSelect: () =>
         props.onPanel(props.panel === 'browser' ? null : 'browser'),
     },
@@ -448,6 +451,7 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       icon: VisualStudioCodeIcon,
       pressed: false,
       dot: null,
+      attention: null,
       onSelect: () =>
         showEditor({
           machine: props.selection.machine,
