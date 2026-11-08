@@ -194,7 +194,7 @@ function MobileChat(props: { selection: Selection }) {
           variant="ghost"
           size="icon"
           aria-label="Back"
-          onClick={() => leaveLayer('chat', closeSession)}
+          onClick={closeSession}
         >
           <HugeiconsIcon
             icon={ArrowLeft01Icon}
