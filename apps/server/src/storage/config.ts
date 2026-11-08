@@ -65,8 +65,31 @@ function accountSchema(provider: 'claude' | 'codex') {
   })
 }
 
+const modelSettings = z.record(z.string(), modelSetting).default({})
+
 const configSchema: z.ZodType<Config> = z.strictObject({
-  claudeBaseDir: platformDirs,
+  version: z.literal(2).default(2),
+  claude: z
+    .strictObject({
+      enabled: z.boolean().default(true),
+      baseDir: platformDirs,
+      accounts: z.array(accountSchema('claude')).default([]),
+      models: modelSettings,
+    })
+    .prefault({}),
+  codex: z
+    .strictObject({
+      enabled: z.boolean().default(true),
+      accounts: z.array(accountSchema('codex')).default([]),
+      models: modelSettings,
+    })
+    .prefault({}),
+  opencode: z
+    .strictObject({
+      enabled: z.boolean().default(true),
+      models: modelSettings,
+    })
+    .prefault({}),
   workingDir: z
     .strictObject({
       macos: workingDir(path.posix.isAbsolute),
@@ -74,24 +97,8 @@ const configSchema: z.ZodType<Config> = z.strictObject({
       windows: workingDir(path.win32.isAbsolute),
     })
     .prefault({}),
-  claudeAccounts: z.array(accountSchema('claude')).default([]),
-  codexAccounts: z.array(accountSchema('codex')).default([]),
-  enabledProviders: z
-    .strictObject({
-      claude: z.boolean().default(true),
-      codex: z.boolean().default(true),
-      opencode: z.boolean().default(true),
-    })
-    .prefault({}),
   commitMessage: generationModel,
   titleGeneration: generationModel,
-  models: z
-    .strictObject({
-      claude: z.record(z.string(), modelSetting).default({}),
-      codex: z.record(z.string(), modelSetting).default({}),
-      opencode: z.record(z.string(), modelSetting).default({}),
-    })
-    .prefault({}),
   delivery: z.enum(['queue', 'steer']).default('steer'),
   autoSkipQuestionTimeout: z.number().positive().nullable().default(180),
   autoPermissionMode: z.enum(['bypass', 'allow', 'deny']).default('bypass'),
@@ -139,7 +146,8 @@ export function platform(): Platform {
 
 export function claudeBaseDir() {
   return (
-    readConfig().claudeBaseDir[platform()] ?? path.join(os.homedir(), '.claude')
+    readConfig().claude.baseDir[platform()] ??
+    path.join(os.homedir(), '.claude')
   )
 }
 
@@ -168,7 +176,54 @@ export function configInfo(): ConfigWithDefaults {
 }
 
 export function readConfig() {
-  return readSettings('config.json', configSchema, defaults)
+  return readSettings('config.json', configSchema, defaults, migrate)
+}
+
+function migrate(value: unknown) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return value
+  }
+  if (!('version' in value)) {
+    return fromVersion1(value)
+  }
+  if (value.version === 2) {
+    return value
+  }
+  throw new Error(
+    `config.json has version ${String(value.version)}, which this version of offsite cannot read. Update offsite`
+  )
+}
+
+function fromVersion1(value: object) {
+  const {
+    claudeBaseDir,
+    claudeAccounts,
+    codexAccounts,
+    enabledProviders,
+    models,
+    ...rest
+  } = value as Record<string, unknown>
+  const enabled = (enabledProviders ?? {}) as Record<string, unknown>
+  const providerModels = (models ?? {}) as Record<string, unknown>
+  return {
+    ...rest,
+    version: 2,
+    claude: {
+      enabled: enabled.claude,
+      baseDir: claudeBaseDir,
+      accounts: claudeAccounts,
+      models: providerModels.claude,
+    },
+    codex: {
+      enabled: enabled.codex,
+      accounts: codexAccounts,
+      models: providerModels.codex,
+    },
+    opencode: {
+      enabled: enabled.opencode,
+      models: providerModels.opencode,
+    },
+  }
 }
 
 export function saveConfig(value: unknown) {

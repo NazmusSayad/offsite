@@ -38,7 +38,7 @@ export async function backfillSessionProviders() {
     projects().map((project): [string, string] => [project.path, project.id])
   )
   const enabled = allProviders.filter(
-    (provider) => readConfig().enabledProviders[provider]
+    (provider) => readConfig()[provider].enabled
   )
   for (const row of rows) {
     const answers = await Promise.all(

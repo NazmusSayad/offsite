@@ -29,8 +29,10 @@ export function rebuildThreads() {
   const config = readConfig()
   const key = JSON.stringify([
     projectPaths(),
-    config.enabledProviders,
-    config.claudeBaseDir,
+    config.claude.enabled,
+    config.codex.enabled,
+    config.opencode.enabled,
+    config.claude.baseDir,
   ])
   if (key === builtFor) {
     return
@@ -50,7 +52,7 @@ export function threadFailed(provider: Provider) {
 export function knownThreads() {
   const known = new Set(projects().map((project) => project.id))
   return allProviders
-    .filter((provider) => readConfig().enabledProviders[provider])
+    .filter((provider) => readConfig()[provider].enabled)
     .flatMap((provider) => [...threads[provider].values()])
     .filter((item) => known.has(item.projectId))
 }
@@ -174,7 +176,7 @@ async function relistAll() {
 }
 
 async function relist(provider: Provider) {
-  if (!readConfig().enabledProviders[provider]) {
+  if (!readConfig()[provider].enabled) {
     threads[provider] = new Map()
     failures.delete(provider)
     broadcast({ type: 'threads' })
