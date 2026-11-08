@@ -422,7 +422,10 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       pressed: props.panel === 'tasks',
       dot:
         runningTasks > 0
-          ? { color: 'text-info', status: `${runningTasks} running` }
+          ? {
+              color: 'text-muted-foreground',
+              status: `${runningTasks} running`,
+            }
           : allTasks > 0
             ? { color: 'text-muted-foreground', status: 'None running' }
             : null,
