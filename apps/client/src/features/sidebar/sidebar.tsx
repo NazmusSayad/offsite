@@ -34,6 +34,7 @@ import { StatusChips } from '@/features/sidebar/status-chips'
 import { TerminalNav } from '@/features/sidebar/terminal-nav'
 import { useInactiveSessions } from '@/features/sidebar/use-inactive-sessions'
 import { UsageDialog } from '@/features/usage/usage-dialog'
+import { UsageMeters } from '@/features/usage/usage-meters'
 import { lastProject, openSession, startChat } from '@/lib/sessions'
 import {
   activityOf,
@@ -428,17 +429,22 @@ export function Sidebar(
         {!props.mobile && (
           <div className="border-sidebar-border @container flex shrink-0 flex-col gap-px border-t p-(--sidebar-content-inset)">
             <TerminalNav buttonClassName={iconButton} />
-            <button
-              className={cn(
-                iconButton,
-                'h-8 w-full justify-start gap-2 px-2.5 text-sm'
-              )}
-              title="Usage"
-              onClick={() => showUsage(true)}
-            >
-              <HugeiconsIcon icon={DashboardSpeed02Icon} />
-              <span className="truncate">Usage</span>
-            </button>
+            <div className="relative">
+              <button
+                className={cn(
+                  iconButton,
+                  'h-8 w-full justify-start gap-2 px-2.5 text-sm'
+                )}
+                title="Usage"
+                onClick={() => showUsage(true)}
+              >
+                <HugeiconsIcon icon={DashboardSpeed02Icon} />
+                <span className="truncate">Usage</span>
+              </button>
+              <div className="absolute top-1.5 right-1.5">
+                <UsageMeters />
+              </div>
+            </div>
             <div className="relative">
               <button
                 className={cn(
