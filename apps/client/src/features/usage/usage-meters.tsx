@@ -87,7 +87,11 @@ function UsageMeter(props: {
           <span className="relative">{left === null ? '–' : `${left}%`}</span>
         </button>
       </HoverCardTrigger>
-      <HoverCardContent side="right" align="end" className="w-80 p-0">
+      <HoverCardContent
+        side="right"
+        align="end"
+        className="pointer-events-none w-80 p-0"
+      >
         <UsageDetails machine={props.machine} account={props.account} />
       </HoverCardContent>
     </HoverCard>
