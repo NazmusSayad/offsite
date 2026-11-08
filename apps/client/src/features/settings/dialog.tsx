@@ -279,11 +279,11 @@ export function ProviderSwitch(props: {
   return (
     <Switch
       className={props.className}
-      checked={config.enabledProviders[provider]}
+      checked={config[provider].enabled}
       onCheckedChange={(checked) =>
         void updateConfig(machine.id, {
           ...config,
-          enabledProviders: { ...config.enabledProviders, [provider]: checked },
+          [provider]: { ...config[provider], enabled: checked },
         })
       }
       aria-label={`Enable ${props.view.page}`}
@@ -411,8 +411,14 @@ export function SettingsContent(props: { view: SettingsView }) {
                 }
                 updateConfig(machine.id, {
                   ...system.defaults,
-                  claudeAccounts: config.claudeAccounts,
-                  codexAccounts: config.codexAccounts,
+                  claude: {
+                    ...system.defaults.claude,
+                    accounts: config.claude.accounts,
+                  },
+                  codex: {
+                    ...system.defaults.codex,
+                    accounts: config.codex.accounts,
+                  },
                 })
               }}
             >

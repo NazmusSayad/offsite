@@ -52,14 +52,25 @@ export type DictationConfig = {
 }
 
 export type Config = {
-  claudeBaseDir: Record<Platform, string | null>
+  version: 2
+  claude: {
+    enabled: boolean
+    baseDir: Record<Platform, string | null>
+    accounts: AccountConfig[]
+    models: Record<string, ModelSetting>
+  }
+  codex: {
+    enabled: boolean
+    accounts: AccountConfig[]
+    models: Record<string, ModelSetting>
+  }
+  opencode: {
+    enabled: boolean
+    models: Record<string, ModelSetting>
+  }
   workingDir: Record<Platform, string | null>
-  claudeAccounts: AccountConfig[]
-  codexAccounts: AccountConfig[]
-  enabledProviders: Record<Provider, boolean>
   commitMessage: GenerationModel
   titleGeneration: GenerationModel
-  models: Record<Provider, Record<string, ModelSetting>>
   delivery: PromptDelivery
   autoSkipQuestionTimeout: number | null
   autoPermissionMode: 'bypass' | 'allow' | 'deny'

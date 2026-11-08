@@ -59,11 +59,11 @@ export function providerName(provider: Provider) {
 export function storedAccounts(): StoredAccount[] {
   const config = readConfig()
   return [
-    ...config.claudeAccounts.map((item) => ({
+    ...config.claude.accounts.map((item) => ({
       ...item,
       configDir: item.configDir[platform()],
     })),
-    ...config.codexAccounts.map((item) => ({
+    ...config.codex.accounts.map((item) => ({
       ...item,
       configDir: item.configDir[platform()],
     })),
@@ -71,7 +71,7 @@ export function storedAccounts(): StoredAccount[] {
 }
 
 export function assertEnabled(provider: Provider, accountId: string | null) {
-  if (!readConfig().enabledProviders[provider]) {
+  if (!readConfig()[provider].enabled) {
     throw new Error(`${providerName(provider)} is disabled in Settings`)
   }
   if (provider === 'opencode') {
@@ -138,10 +138,7 @@ export function storedAccount(provider: Provider, accountId: string | null) {
 export async function accounts(): Promise<Accounts> {
   const stored = await Promise.all(
     storedAccounts().map((account) => {
-      if (
-        !account.enabled ||
-        !readConfig().enabledProviders[account.provider]
-      ) {
+      if (!account.enabled || !readConfig()[account.provider].enabled) {
         return disabledAccount(account)
       }
       switch (account.provider) {
@@ -156,7 +153,7 @@ export async function accounts(): Promise<Accounts> {
     claudeAccounts: stored.filter((item) => item.provider === 'claude'),
     codexAccounts: stored.filter((item) => item.provider === 'codex'),
     openCode: {
-      available: openCodeInstalled() && readConfig().enabledProviders.opencode,
+      available: openCodeInstalled() && readConfig().opencode.enabled,
     },
   }
 }
@@ -191,7 +188,7 @@ export async function capabilities(
   assertEnabled(provider, accountId)
   const result = await providerCapabilities(provider, accountId, cwd)
   const config = readConfig()
-  const settings = config.models[provider]
+  const settings = config[provider].models
   return {
     ...result,
     defaultModel: defaultModels[provider],
@@ -245,20 +242,22 @@ export function addAccount(
 ) {
   const account = validAccount(name, configDir)
   const config = readConfig()
-  const key = `${provider}Accounts` as const
   saveConfig({
     ...config,
-    [key]: [
-      ...config[key],
-      {
-        id: randomUUID(),
-        provider,
-        name: account.name,
-        color: null,
-        configDir: { [platform()]: account.configDir },
-        enabled: true,
-      },
-    ],
+    [provider]: {
+      ...config[provider],
+      accounts: [
+        ...config[provider].accounts,
+        {
+          id: randomUUID(),
+          provider,
+          name: account.name,
+          color: null,
+          configDir: { [platform()]: account.configDir },
+          enabled: true,
+        },
+      ],
+    },
   })
 }
 
@@ -269,20 +268,22 @@ export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
   }
   const account = validAccount(update.name, update.configDir)
   const config = readConfig()
-  const key = `${before.provider}Accounts` as const
   saveConfig({
     ...config,
-    [key]: config[key].map((item) =>
-      item.id === update.id
-        ? {
-            ...item,
-            name: account.name,
-            color: update.color,
-            configDir: { ...item.configDir, [platform()]: account.configDir },
-            enabled: update.enabled,
-          }
-        : item
-    ),
+    [before.provider]: {
+      ...config[before.provider],
+      accounts: config[before.provider].accounts.map((item) =>
+        item.id === update.id
+          ? {
+              ...item,
+              name: account.name,
+              color: update.color,
+              configDir: { ...item.configDir, [platform()]: account.configDir },
+              enabled: update.enabled,
+            }
+          : item
+      ),
+    },
   })
   forgetClaude(update.id)
   forgetUsage(update.id)
@@ -295,8 +296,14 @@ export function removeAccount(id: string) {
   const config = readConfig()
   saveConfig({
     ...config,
-    claudeAccounts: config.claudeAccounts.filter((item) => item.id !== id),
-    codexAccounts: config.codexAccounts.filter((item) => item.id !== id),
+    claude: {
+      ...config.claude,
+      accounts: config.claude.accounts.filter((item) => item.id !== id),
+    },
+    codex: {
+      ...config.codex,
+      accounts: config.codex.accounts.filter((item) => item.id !== id),
+    },
   })
   forgetClaude(id)
   forgetUsage(id)
