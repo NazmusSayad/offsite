@@ -1,4 +1,8 @@
-import { Add01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
+import {
+  Add01Icon,
+  ArrowRight01Icon,
+  Link01Icon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Config, ModelSetting, Platform } from '@offsite/core/config'
 import type {
@@ -315,10 +319,10 @@ function ProviderAccounts(props: {
             !account.linked && (
               <Button
                 size="sm"
-                variant="outline"
                 disabled={busy}
                 onClick={() => setLinkTarget(account)}
               >
+                <HugeiconsIcon icon={Link01Icon} />
                 Link
               </Button>
             )}

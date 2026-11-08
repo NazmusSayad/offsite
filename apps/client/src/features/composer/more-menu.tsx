@@ -116,7 +116,7 @@ export function MoreMenu(props: {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-56"
+        className="w-64"
         side="top"
         align="end"
         onOpenAutoFocus={keepFocusOnTouch}
@@ -317,6 +317,19 @@ function MoreMenuContent(props: {
       )}
       {props.delivery !== null && (
         <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            disabled={props.empty}
+            onSelect={props.onFlipSnooze}
+          >
+            <HugeiconsIcon icon={autoMoveToSnooze ? PowerIcon : ZzzIcon} />
+            <span className="flex-1">
+              {autoMoveToSnooze ? 'Send & Activate' : 'Send & Snooze'}
+            </span>
+            <span className="text-muted-foreground text-xs">
+              {mod}+Shift+Enter
+            </span>
+          </DropdownMenuItem>
           <DropdownMenuItem disabled={props.empty} onSelect={props.onSubmit}>
             <HugeiconsIcon
               icon={props.delivery === 'steer' ? Queue01Icon : SentIcon}
@@ -326,18 +339,6 @@ function MoreMenuContent(props: {
               {props.delivery === 'queue' && 'Send now'}
             </span>
             <span className="text-muted-foreground text-xs">{mod}+Enter</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={props.empty}
-            onSelect={props.onFlipSnooze}
-          >
-            <HugeiconsIcon icon={autoMoveToSnooze ? PowerIcon : ZzzIcon} />
-            <span className="flex-1">
-              {autoMoveToSnooze ? 'Send and keep active' : 'Send and snooze'}
-            </span>
-            <span className="text-muted-foreground text-xs">
-              {mod}+Shift+Enter
-            </span>
           </DropdownMenuItem>
         </>
       )}
