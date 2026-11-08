@@ -160,9 +160,7 @@ function withStatus(items: Found[]): Session[] {
 }
 
 function enabledProviders() {
-  return allProviders.filter(
-    (provider) => readConfig().enabledProviders[provider]
-  )
+  return allProviders.filter((provider) => readConfig()[provider].enabled)
 }
 
 function projectPaths() {
@@ -286,7 +284,7 @@ async function list(provider: Provider) {
   const paths = new Map(projectPaths())
   const before = statuses[provider]
   try {
-    if (!readConfig().enabledProviders[provider]) {
+    if (!readConfig()[provider].enabled) {
       listed[provider] = []
       statuses[provider] = { provider, state: 'disabled', error: null }
       return
@@ -369,7 +367,7 @@ export function watchSessions() {
       ['codex', path.join(codexBaseDir, 'sessions')],
     ] as const
   ).flatMap(([provider, dir]) => {
-    if (!readConfig().enabledProviders[provider]) {
+    if (!readConfig()[provider].enabled) {
       return []
     }
     try {

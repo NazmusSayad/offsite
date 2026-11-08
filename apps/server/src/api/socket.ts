@@ -135,18 +135,16 @@ const handlers: Handlers = {
     const before = readConfig()
     const saved = saveConfig(params)
     for (const provider of ['claude', 'codex', 'opencode'] as const) {
-      if (
-        before.enabledProviders[provider] &&
-        !saved.enabledProviders[provider]
-      ) {
+      if (before[provider].enabled && !saved[provider].enabled) {
         await stopProvider(provider)
       }
     }
     if (
-      JSON.stringify(saved.claudeBaseDir) ===
-        JSON.stringify(before.claudeBaseDir) &&
-      JSON.stringify(saved.enabledProviders) ===
-        JSON.stringify(before.enabledProviders)
+      JSON.stringify(saved.claude.baseDir) ===
+        JSON.stringify(before.claude.baseDir) &&
+      saved.claude.enabled === before.claude.enabled &&
+      saved.codex.enabled === before.codex.enabled &&
+      saved.opencode.enabled === before.opencode.enabled
     ) {
       return saved
     }

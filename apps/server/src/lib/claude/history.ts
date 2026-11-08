@@ -195,6 +195,20 @@ export async function image(sessionId: string, uuid: string, index: number) {
   return { mediaType: block.mediaType, data: block.data }
 }
 
+export async function shownMessages(sessionId: string, cwd: string) {
+  const [disk, session] = await Promise.all([
+    getSessionMessages(sessionId, { dir: cwd }),
+    loadSession(sessionId),
+  ])
+  const found = runs.get(sessionId)
+  const saved = session?.entries.findLast(
+    (entry) => entry.type === 'last-prompt' && entry.rewound === true
+  )
+  const cuts = [found?.provider === 'claude' ? found.cut : null, saved?.cutUuid]
+  const index = disk.findIndex((item) => cuts.includes(item.uuid))
+  return index < 0 ? disk : disk.slice(0, index)
+}
+
 export async function history(
   sessionId: string,
   cwd: string
@@ -202,7 +216,7 @@ export async function history(
   const found = runs.get(sessionId)
   const run = found?.provider === 'claude' ? found : undefined
   const [disk, session] = await Promise.all([
-    getSessionMessages(sessionId, { dir: cwd }),
+    shownMessages(sessionId, cwd),
     loadSession(sessionId),
   ])
   const entries = session === null ? [] : session.entries

@@ -104,21 +104,30 @@ export function readJson(name: string): unknown {
 export function readSettings<T>(
   name: string,
   schema: z.ZodType<T>,
-  defaults: T
+  defaults: T,
+  migrate: (value: unknown) => unknown = (value) => value
 ) {
   const file = path.join(home, name)
-  let value: unknown
+  let saved: unknown
   try {
-    value = readJson(name)
+    saved = readJson(name)
   } catch (error) {
     log.warn(`invalid ${file}, using the defaults:`, error)
     return structuredClone(defaults)
   }
-  if (value === null) {
+  if (saved === null) {
     return structuredClone(defaults)
+  }
+  const value = migrate(saved)
+  if (value !== saved) {
+    writeJson(`${name}.bak`, saved)
+    log.info(`migrated ${file}, the old file is in ${file}.bak`)
   }
   let result = schema.safeParse(value)
   if (result.success) {
+    if (value !== saved) {
+      writeJson(name, result.data)
+    }
     return result.data
   }
   while (!result.success) {

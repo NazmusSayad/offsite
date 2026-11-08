@@ -47,7 +47,7 @@ export async function searchMessages(query: string) {
   const allProviders: Provider[] = ['claude', 'codex', 'opencode']
   const results = await Promise.all(
     allProviders
-      .filter((provider) => readConfig().enabledProviders[provider])
+      .filter((provider) => readConfig()[provider].enabled)
       .map(async (provider) => {
         try {
           const matches = await timeLimit(

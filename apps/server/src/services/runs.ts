@@ -1,11 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { statSync } from 'node:fs'
-import { getSessionMessages } from '@anthropic-ai/claude-agent-sdk'
 import type { SessionSettings } from '@offsite/core/config'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { RpcMethods } from '@offsite/core/protocol'
 import type { RewindRequest, RewindResult } from '@offsite/core/sessions'
-import { history, Run } from '../lib/claude/index.ts'
+import { history, rewindLive, Run, shownMessages } from '../lib/claude/index.ts'
 import {
   stopAppServers,
   CodexRun,
@@ -65,9 +64,6 @@ async function rewindNow(request: RewindRequest): Promise<RewindResult> {
       `Stop ${providerName(providerOf(sessionId))} before rewinding`
     )
   }
-  if ((runs.get(sessionId)?.backgroundTasks ?? 0) > 0) {
-    throw new Error('Wait for background tasks to finish before rewinding')
-  }
   const run = await runFor(sessionId, cwd, request.settings)
   if (run.provider === 'codex') {
     if (request.code) {
@@ -111,10 +107,21 @@ async function rewindNow(request: RewindRequest): Promise<RewindResult> {
   if (request.dryRun || !request.conversation) {
     return result
   }
-  const disk = await getSessionMessages(sessionId, { dir: cwd })
+  const disk = await shownMessages(sessionId, cwd)
   const index = disk.findIndex((item) => item.uuid === request.messageId)
   if (index < 1) {
     throw new Error('Cannot rewind the conversation to that point')
+  }
+  if (run.backgroundTasks > 0) {
+    const lastSeen = disk.findLast(
+      (item) => item.type === 'user' && item.parent_tool_use_id === null
+    )
+    if (lastSeen === undefined) {
+      throw new Error('Cannot rewind the conversation to that point')
+    }
+    await rewindLive(run, request.messageId, lastSeen.uuid)
+    publish(sessionId, await history(sessionId, cwd))
+    return result
   }
   run.stop()
   await run.closed
@@ -308,7 +315,7 @@ async function changedElsewhere(run: Run, cwd: string) {
   if (run.messages.length === 0) {
     return false
   }
-  const history = await getSessionMessages(run.sessionId, { dir: cwd })
+  const history = await shownMessages(run.sessionId, cwd)
   const last = history.at(-1)?.uuid
   return last !== undefined && !run.messages.some((item) => item.uuid === last)
 }

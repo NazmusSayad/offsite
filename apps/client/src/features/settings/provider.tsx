@@ -42,7 +42,7 @@ export function ProviderPage(props: {
   selected: string | null
 }) {
   const config = props.config
-  const enabled = config.enabledProviders[props.provider]
+  const enabled = config[props.provider].enabled
   const accounts =
     props.provider === 'claude'
       ? props.claudeAccounts
@@ -51,7 +51,7 @@ export function ProviderPage(props: {
         : []
   const account = accounts.find((item) => item.valid)
   const claudeBaseDir =
-    config.claudeBaseDir[props.platform] ?? props.defaultClaudeBaseDir
+    config.claude.baseDir[props.platform] ?? props.defaultClaudeBaseDir
 
   if (props.selected === 'new') {
     if (props.provider === 'opencode') {
@@ -84,9 +84,12 @@ export function ProviderPage(props: {
               onCommit={(dir) =>
                 updateConfig(props.machine, {
                   ...config,
-                  claudeBaseDir: {
-                    ...config.claudeBaseDir,
-                    [props.platform]: dir,
+                  claude: {
+                    ...config.claude,
+                    baseDir: {
+                      ...config.claude.baseDir,
+                      [props.platform]: dir,
+                    },
                   },
                 })
               }
@@ -137,7 +140,7 @@ function ProviderModels(props: {
 }) {
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const settings = props.config.models[props.provider]
+  const settings = props.config[props.provider].models
   const models = capabilities === null ? null : capabilities.models
 
   useEffect(() => {
@@ -168,9 +171,9 @@ function ProviderModels(props: {
   function save(value: string, setting: ModelSetting) {
     void updateConfig(props.machine, {
       ...props.config,
-      models: {
-        ...props.config.models,
-        [props.provider]: { ...settings, [value]: setting },
+      [props.provider]: {
+        ...props.config[props.provider],
+        models: { ...settings, [value]: setting },
       },
     })
   }

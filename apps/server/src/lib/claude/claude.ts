@@ -175,6 +175,7 @@ export function runOptions(options: {
       : { effort: claudeEffort(settings.effort) }),
     allowDangerouslySkipPermissions: true,
     includePartialMessages: true,
+    perTaskStopAffordance: true,
   }
 }
 
