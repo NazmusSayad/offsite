@@ -414,7 +414,11 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
             ? { color: 'text-info', status: 'Needs you' }
             : { color: 'text-muted-foreground', status: `${terminalTabs} open` }
           : null,
-      attention: terminalAlert ? 'text-info' : null,
+      attention: terminalAlert
+        ? 'text-info'
+        : terminalTabs > 0
+          ? 'text-muted-foreground'
+          : null,
       onSelect: () => props.onTerminal(!props.terminal),
     },
     {
