@@ -1,7 +1,7 @@
 import {
   EllipsisIcon,
   PinIcon,
-  PowerIcon,
+  PlayIcon,
   SquarePenIcon,
   TickDouble01Icon,
   ZzzIcon,
@@ -47,7 +47,6 @@ export const DesktopSessionItem = memo(DesktopSessionItemView)
 
 function DesktopSessionItemView(props: {
   session: MachineSession
-  slim: boolean
   selected: boolean
   activity: SessionActivity | undefined
   unseen: boolean
@@ -167,7 +166,7 @@ function DesktopSessionItemView(props: {
       <span
         className={cn(
           'min-w-0 flex-1 truncate text-sm',
-          recede ? 'text-secondary-label font-normal' : 'font-medium',
+          recede ? 'text-foreground/70 font-normal' : 'font-medium',
           !recede && (props.unseen || waiting) && 'text-foreground',
           !recede && !props.unseen && !waiting && 'text-foreground/90'
         )}
@@ -212,70 +211,6 @@ function DesktopSessionItemView(props: {
       'text-sidebar-foreground hover:bg-sidebar-row-hover has-[[data-state=open]]:bg-sidebar-row-hover bg-transparent'
   )
 
-  if (props.slim) {
-    return (
-      <li className="list-none">
-        <ContextMenu>
-          <ContextMenuTrigger asChild disabled={!props.saved}>
-            <div
-              role="button"
-              tabIndex={0}
-              className={cn(
-                surface,
-                rowState,
-                'flex h-9 items-center gap-2.5 px-2.5'
-              )}
-              onClick={() =>
-                props.onSelect(session.machine, session.projectId, session.id)
-              }
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  props.onSelect(session.machine, session.projectId, session.id)
-                }
-              }}
-            >
-              <span className="flex shrink-0 items-center opacity-40 grayscale transition-opacity group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0 group-has-[[data-state=open]]/sidebar-row:opacity-100 group-has-[[data-state=open]]/sidebar-row:grayscale-0">
-                <ProjectIcon
-                  machine={session.machine}
-                  projectId={session.projectId}
-                />
-              </span>
-              <span className="group-any-hover/sidebar-row:mask-r-from-[calc(100%-2rem)] group-any-hover/sidebar-row:mask-r-to-[calc(100%-0.5rem)] flex min-w-0 flex-1 group-has-[[data-state=open]]/sidebar-row:mask-r-from-[calc(100%-2rem)] group-has-[[data-state=open]]/sidebar-row:mask-r-to-[calc(100%-0.5rem)]">
-                {titleText}
-              </span>
-              <span className="relative ml-auto flex h-6 min-w-8 shrink-0 items-center justify-end">
-                <span className="text-secondary-label group-any-hover/sidebar-row:opacity-0 inline-flex items-center justify-end gap-1.5 text-xs tabular-nums transition-opacity group-has-[[data-state=open]]/sidebar-row:opacity-0">
-                  {timeAgo(session.updatedAt)}
-                  <MachineLogo icon={machineIcon} className="size-3 shrink-0" />
-                </span>
-                <span className="group-any-hover/sidebar-row:opacity-100 absolute inset-y-0 right-0 -mr-1 flex items-center opacity-0 transition-opacity has-[[data-state=open]]:opacity-100">
-                  {menu}
-                  {props.saved && (
-                    <button
-                      className="text-muted-foreground hover:text-foreground inline-flex h-5 cursor-pointer items-center rounded-md px-1.5"
-                      title="Activate"
-                      aria-label="Activate"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        void editSession(session.machine, session.id, {
-                          status: 'active',
-                        })
-                      }}
-                    >
-                      <HugeiconsIcon icon={PowerIcon} className="size-3.5" />
-                    </button>
-                  )}
-                </span>
-              </span>
-            </div>
-          </ContextMenuTrigger>
-          {contextMenu}
-        </ContextMenu>
-        {stopDialog}
-      </li>
-    )
-  }
-
   return (
     <li className="list-none py-0.5">
       <ContextMenu>
@@ -304,7 +239,11 @@ function DesktopSessionItemView(props: {
                 <ProjectIcon
                   machine={session.machine}
                   projectId={session.projectId}
-                  className="size-5"
+                  className={cn(
+                    'size-5',
+                    session.status === 'inactive' &&
+                      'opacity-40 grayscale transition-opacity group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0 group-has-[[data-state=open]]/sidebar-row:opacity-100 group-has-[[data-state=open]]/sidebar-row:grayscale-0'
+                  )}
                 />
                 {titleText}
                 <SessionStatus
@@ -314,10 +253,13 @@ function DesktopSessionItemView(props: {
                 />
               </div>
               <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
-                <MachineLogo icon={machineIcon} className="size-3 shrink-0" />
+                <MachineLogo
+                  icon={machineIcon}
+                  className="size-3 shrink-0 opacity-70"
+                />
                 <span
                   className={cn(
-                    'min-w-0 flex-1 truncate',
+                    'text-secondary-label/70 min-w-0 flex-1 truncate',
                     recede ? 'font-normal' : 'font-medium'
                   )}
                 >
@@ -342,21 +284,37 @@ function DesktopSessionItemView(props: {
             {props.saved && (
               <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex flex-col items-end py-(--sidebar-content-inset) pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
                 <div className="flex h-6 items-center">
-                  <button
-                    className="text-muted-foreground hover:text-foreground me-0.75 inline-flex size-5 cursor-pointer items-center justify-center transition-colors"
-                    title="Done"
-                    aria-label="Done"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      deactivate()
-                    }}
-                  >
-                    <HugeiconsIcon
-                      icon={TickDouble01Icon}
-                      strokeWidth={1.25}
-                      className="size-5 scale-110"
-                    />
-                  </button>
+                  {session.status === 'inactive' ? (
+                    <button
+                      className="text-muted-foreground hover:text-foreground me-0.75 inline-flex size-5 cursor-pointer items-center justify-center transition-colors"
+                      title="Resume"
+                      aria-label="Resume"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void editSession(session.machine, session.id, {
+                          status: 'active',
+                        })
+                      }}
+                    >
+                      <HugeiconsIcon icon={PlayIcon} className="size-4" />
+                    </button>
+                  ) : (
+                    <button
+                      className="text-muted-foreground hover:text-foreground me-0.75 inline-flex size-5 cursor-pointer items-center justify-center transition-colors"
+                      title="Done"
+                      aria-label="Done"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        deactivate()
+                      }}
+                    >
+                      <HugeiconsIcon
+                        icon={TickDouble01Icon}
+                        strokeWidth={1.25}
+                        className="size-5 scale-110"
+                      />
+                    </button>
+                  )}
                 </div>
                 <div className="mt-1 flex h-5 items-center">{menu}</div>
               </div>

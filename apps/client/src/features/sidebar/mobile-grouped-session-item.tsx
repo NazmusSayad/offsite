@@ -1,6 +1,6 @@
 import {
   PinIcon,
-  PowerIcon,
+  PlayIcon,
   SquarePenIcon,
   TickDouble01Icon,
   ZzzIcon,
@@ -156,7 +156,7 @@ export function MobileGroupedSessionItem(props: {
           offset < 0
             ? secondarySwipe[session.status].icon
             : session.status === 'inactive'
-              ? PowerIcon
+              ? PlayIcon
               : TickDouble01Icon
         }
         className="size-6"

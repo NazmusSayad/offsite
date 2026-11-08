@@ -1,5 +1,7 @@
 import {
   AiContentGenerator02Icon,
+  ArrowExpandDiagonal01Icon,
+  CenterFocusIcon,
   Delete02Icon,
   FileExportIcon,
   FolderAddIcon,
@@ -7,7 +9,7 @@ import {
   PencilEdit02Icon,
   PinIcon,
   PinOffIcon,
-  PowerIcon,
+  PlayIcon,
   TickDouble01Icon,
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
@@ -32,6 +34,13 @@ import {
   showExport,
   useStore,
 } from '@/lib/store'
+
+const restore = {
+  snoozed: { icon: CenterFocusIcon, label: 'Focus' },
+  minimized: { icon: ArrowExpandDiagonal01Icon, label: 'Restore' },
+  inactive: { icon: PlayIcon, label: 'Resume' },
+  pinned: { icon: PinOffIcon, label: 'Unpin' },
+} as const
 
 export function SessionMenuItems(props: {
   session: MachineSession
@@ -62,10 +71,8 @@ export function SessionMenuItems(props: {
             })
           }
         >
-          <HugeiconsIcon
-            icon={session.status === 'pinned' ? PinOffIcon : PowerIcon}
-          />
-          {session.status === 'pinned' ? 'Unpin' : 'Activate'}
+          <HugeiconsIcon icon={restore[session.status].icon} />
+          {restore[session.status].label}
         </Item>
       )}
       {session.status !== 'inactive' && (
