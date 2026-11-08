@@ -5,7 +5,7 @@ import type { SessionSettings } from '@offsite/core/config'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { RpcMethods } from '@offsite/core/protocol'
 import type { RewindRequest, RewindResult } from '@offsite/core/sessions'
-import { history, Run } from '../lib/claude/index.ts'
+import { history, rewindLive, Run, visible } from '../lib/claude/index.ts'
 import {
   stopAppServers,
   CodexRun,
@@ -65,9 +65,6 @@ async function rewindNow(request: RewindRequest): Promise<RewindResult> {
       `Stop ${providerName(providerOf(sessionId))} before rewinding`
     )
   }
-  if ((runs.get(sessionId)?.backgroundTasks ?? 0) > 0) {
-    throw new Error('Wait for background tasks to finish before rewinding')
-  }
   const run = await runFor(sessionId, cwd, request.settings)
   if (run.provider === 'codex') {
     if (request.code) {
@@ -115,6 +112,17 @@ async function rewindNow(request: RewindRequest): Promise<RewindResult> {
   const index = disk.findIndex((item) => item.uuid === request.messageId)
   if (index < 1) {
     throw new Error('Cannot rewind the conversation to that point')
+  }
+  if (run.backgroundTasks > 0) {
+    const lastSeen = visible(run, disk).findLast(
+      (item) => item.type === 'user' && item.parent_tool_use_id === null
+    )
+    if (lastSeen === undefined) {
+      throw new Error('Cannot rewind the conversation to that point')
+    }
+    await rewindLive(run, request.messageId, lastSeen.uuid)
+    publish(sessionId, await history(sessionId, cwd))
+    return result
   }
   run.stop()
   await run.closed
@@ -309,6 +317,6 @@ async function changedElsewhere(run: Run, cwd: string) {
     return false
   }
   const history = await getSessionMessages(run.sessionId, { dir: cwd })
-  const last = history.at(-1)?.uuid
+  const last = visible(run, history).at(-1)?.uuid
   return last !== undefined && !run.messages.some((item) => item.uuid === last)
 }

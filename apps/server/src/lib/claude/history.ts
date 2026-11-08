@@ -12,6 +12,7 @@ import { claudeBaseDir } from '../../storage/config.ts'
 import { runs } from '../live.ts'
 import { contextTokens, type Message, toMessage } from './content.ts'
 import { toItems } from './items.ts'
+import { visible } from './rewind.ts'
 
 async function sessionFile(sessionId: string) {
   const projectsDir = path.join(claudeBaseDir(), 'projects')
@@ -207,10 +208,11 @@ export async function history(
   ])
   const entries = session === null ? [] : session.entries
   const resumeAt = run?.resumeAt ?? null
-  const kept =
+  const resumed =
     resumeAt === null
       ? disk
       : disk.slice(0, disk.findIndex((item) => item.uuid === resumeAt) + 1)
+  const kept = run === undefined ? resumed : visible(run, resumed)
   const messages = mainMessages(kept, entries)
   const seen = new Set(messages.map((item) => item.uuid))
   const last = kept.findLast(

@@ -28,6 +28,7 @@ import {
   toUserInput,
 } from './content.ts'
 import { toItems, toRequest } from './items.ts'
+import { permissionResult } from './permission.ts'
 
 const IDLE_LIMIT = 10 * 60 * 1000
 
@@ -48,6 +49,7 @@ export class Run {
   readonly query: Query
   readonly closed: Promise<void>
   readonly resumeAt: string | null
+  cut: string | null = null
   queue: QueuedPrompt[] = []
   settings: SessionSettings
   context: ContextUsage | null = null
@@ -59,6 +61,7 @@ export class Run {
   backgroundTasks = 0
   backgroundAgents = 0
   tasks: Record<string, TaskStatus> = {}
+  readonly taskTools = new Map<string, string>()
   private readonly inbox: SDKUserMessage[] = []
   private wake: (() => void) | null = null
   private idleTimer: NodeJS.Timeout | undefined
@@ -159,28 +162,10 @@ export class Run {
     if (pending === undefined) {
       return
     }
-    const input = pending.input
-    switch (decision) {
-      case 'allow':
-        this.settle(requestId, {
-          behavior: 'allow',
-          updatedInput: answers === null ? input : { ...input, answers },
-        })
-        return
-      case 'always':
-        this.settle(requestId, {
-          behavior: 'allow',
-          updatedInput: input,
-          updatedPermissions: pending.suggestions,
-        })
-        return
-      case 'deny':
-        this.settle(requestId, {
-          behavior: 'deny',
-          message: 'The user rejected this action',
-          interrupt: true,
-        })
-    }
+    this.settle(
+      requestId,
+      permissionResult(pending.input, pending.suggestions, decision, answers)
+    )
   }
 
   stop() {
@@ -358,6 +343,11 @@ export class Run {
             this.armIdleTimer()
             return
           }
+          case 'task_started':
+            if (message.tool_use_id !== undefined) {
+              this.taskTools.set(message.tool_use_id, message.task_id)
+            }
+            return
           case 'task_notification':
             if (message.ambient === true) {
               return
