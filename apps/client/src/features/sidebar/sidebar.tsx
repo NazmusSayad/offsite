@@ -94,8 +94,7 @@ export function Sidebar(
     return (
       session.status === 'snoozed' &&
       activity?.waiting !== true &&
-      (activity?.running === true ||
-        Object.values(activity?.tasks ?? {}).includes('running'))
+      (activity?.running === true || activity?.holdsCompletion === true)
     )
   })
   const active = [

@@ -5,6 +5,11 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  define: {
+    'process.env.OFFSITE_VERSION': JSON.stringify(
+      process.env.OFFSITE_VERSION ?? 'dev'
+    ),
+  },
   plugins: [
     react(),
     tailwindcss(),

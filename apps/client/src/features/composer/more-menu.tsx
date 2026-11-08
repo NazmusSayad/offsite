@@ -7,11 +7,13 @@ import {
   ListTodoIcon,
   AiMicIcon,
   MoreHorizontalIcon,
+  PowerIcon,
   Queue01Icon,
   SentIcon,
   ShieldCheckIcon,
   ShieldOffIcon,
   SparklesIcon,
+  ZzzIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import type { PromptDelivery } from '@offsite/core/config'
@@ -76,11 +78,28 @@ function providerModes(provider: Provider, capabilities: Capabilities | null) {
   }))
 }
 
+export function isSnoozeShortcut(event: KeyboardEvent) {
+  return (
+    event.key === 'Enter' &&
+    (event.metaKey || event.ctrlKey) &&
+    (event.shiftKey || event.altKey)
+  )
+}
+
+export function sendStatus(flipSnooze: boolean) {
+  const autoMoveToSnooze = getState().prefs.autoMoveToSnooze
+  if (flipSnooze) {
+    return autoMoveToSnooze ? 'active' : 'snoozed'
+  }
+  return autoMoveToSnooze ? 'snoozed' : null
+}
+
 export function MoreMenu(props: {
   dictation: Dictation
   empty: boolean
   delivery: PromptDelivery | null
   onSubmit: () => void
+  onFlipSnooze: () => void
 }) {
   const [open, setOpen] = useState(false)
 
@@ -108,6 +127,7 @@ export function MoreMenu(props: {
           empty={props.empty}
           delivery={props.delivery}
           onSubmit={props.onSubmit}
+          onFlipSnooze={props.onFlipSnooze}
           onClose={() => setOpen(false)}
         />
       </DropdownMenuContent>
@@ -120,9 +140,11 @@ function MoreMenuContent(props: {
   empty: boolean
   delivery: PromptDelivery | null
   onSubmit: () => void
+  onFlipSnooze: () => void
   onClose: () => void
 }) {
   const settings = useStore((state) => state.settings)
+  const autoMoveToSnooze = useStore((state) => state.prefs.autoMoveToSnooze)
   const context = useStore((state) => state.context)
   const capabilities = useStore((state) => state.capabilities)
   const modes = providerModes(settings.provider, capabilities)
@@ -197,7 +219,8 @@ function MoreMenuContent(props: {
                 { text: '/compact', images: [] },
                 'queue',
                 getState().selection,
-                getState().settings
+                getState().settings,
+                null
               ).catch(showError)
             }}
           >
@@ -303,6 +326,18 @@ function MoreMenuContent(props: {
               {props.delivery === 'queue' && 'Send now'}
             </span>
             <span className="text-muted-foreground text-xs">{mod}+Enter</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={props.empty}
+            onSelect={props.onFlipSnooze}
+          >
+            <HugeiconsIcon icon={autoMoveToSnooze ? PowerIcon : ZzzIcon} />
+            <span className="flex-1">
+              {autoMoveToSnooze ? 'Send and keep active' : 'Send and snooze'}
+            </span>
+            <span className="text-muted-foreground text-xs">
+              {mod}+Shift+Enter
+            </span>
           </DropdownMenuItem>
         </>
       )}

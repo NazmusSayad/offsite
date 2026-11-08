@@ -1,5 +1,6 @@
 import { FileIcon, SquareSlashIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import type { SlashCommand } from '@offsite/core/providers'
 import { useLayoutEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -8,6 +9,38 @@ export type Suggestion = {
   label: string
   description: string
   insert: string
+}
+
+export function suggestionsFor(
+  trigger: string,
+  commands: SlashCommand[],
+  files: string[]
+): Suggestion[] {
+  const query = trigger.slice(1).toLowerCase()
+  if (trigger.startsWith('/')) {
+    return commands
+      .filter((command) => command.name.toLowerCase().includes(query))
+      .sort(
+        (a, b) =>
+          Number(!a.name.toLowerCase().startsWith(query)) -
+          Number(!b.name.toLowerCase().startsWith(query))
+      )
+      .map((command) => ({
+        key: command.name,
+        label: `/${command.name}${command.hint === '' ? '' : ` ${command.hint}`}`,
+        description: command.description,
+        insert: `/${command.name}`,
+      }))
+  }
+  return files
+    .filter((file) => file.toLowerCase().includes(query))
+    .slice(0, 50)
+    .map((file) => ({
+      key: file,
+      label: file,
+      description: '',
+      insert: `@${file}`,
+    }))
 }
 
 export function ComposerMenu(props: {

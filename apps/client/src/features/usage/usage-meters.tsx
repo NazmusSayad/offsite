@@ -98,7 +98,7 @@ function UsageMeter(props: {
   )
 }
 
-function UsageDetails(props: { machine: string; account: Account }) {
+export function UsageDetails(props: { machine: string; account: Account }) {
   const machines = useStore((state) => state.machines)
   const [now] = useState(() => Date.now())
   const key = usageKey(props.machine, props.account)

@@ -47,6 +47,7 @@ export type SessionActivity = {
   prompted: boolean
   compacting: boolean
   backgroundAgent: boolean
+  holdsCompletion: boolean
   tasks: Record<string, TaskStatus>
 }
 

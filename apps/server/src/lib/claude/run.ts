@@ -24,8 +24,10 @@ import {
   type Message,
   notice,
   promptMessage,
+  resultNotice,
   toMessage,
   toUserInput,
+  turnFailed,
 } from './content.ts'
 import { toItems, toRequest } from './items.ts'
 
@@ -58,6 +60,8 @@ export class Run {
   compacting = false
   backgroundTasks = 0
   backgroundAgents = 0
+  agentTasks = 0
+  failed = false
   tasks: Record<string, TaskStatus> = {}
   private readonly inbox: SDKUserMessage[] = []
   private wake: (() => void) | null = null
@@ -302,19 +306,11 @@ export class Run {
         return
       }
       case 'result': {
-        if (
-          message.subtype !== 'success' &&
-          message.terminal_reason !== 'aborted_streaming' &&
-          message.terminal_reason !== 'aborted_tools'
-        ) {
-          this.add(
-            notice(
-              message.errors
-                .filter((error) => !error.startsWith('[ede_diagnostic]'))
-                .join('\n') || message.subtype
-            )
-          )
+        const failure = resultNotice(message)
+        if (failure !== null) {
+          this.add(failure)
         }
+        this.failed = turnFailed(message)
         this.finishTurn()
         const usage =
           this.model === null ? undefined : message.modelUsage[this.model]
@@ -339,6 +335,9 @@ export class Run {
             })
             return
           case 'background_tasks_changed': {
+            this.agentTasks = message.tasks.filter(
+              (task) => task.task_type !== 'local_bash'
+            ).length
             const live = message.tasks.filter((task) => task.ambient !== true)
             this.backgroundTasks = live.length
             this.backgroundAgents = live.filter(

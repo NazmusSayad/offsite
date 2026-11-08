@@ -191,7 +191,7 @@ async function submitFirst(
     from: request.projectId,
   })
   await run.submit(request.prompt, request.delivery)
-  recordInteraction(sessionId, run.provider)
+  recordInteraction(sessionId, run.provider, request.status)
 }
 
 async function sendExisting(
@@ -225,7 +225,7 @@ async function sendExisting(
     await open(client, sessionId, request.projectId)
   }
   await run.submit(request.prompt, request.delivery)
-  recordInteraction(sessionId, provider)
+  recordInteraction(sessionId, provider, request.status)
   if (emptied.has(sessionId) && request.prompt.text.trim() !== '') {
     emptied.delete(sessionId)
     await updateSession(sessionId, { title: request.prompt.text.trim() })

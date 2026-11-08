@@ -164,6 +164,7 @@ export function configInfo(): ConfigWithDefaults {
     defaultClaudeBaseDir: path.join(os.homedir(), '.claude'),
     homeDir: os.homedir(),
     scratchAvailable,
+    version: process.env.OFFSITE_VERSION ?? 'dev',
   }
 }
 

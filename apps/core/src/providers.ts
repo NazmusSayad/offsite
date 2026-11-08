@@ -37,6 +37,28 @@ export type Account = {
   valid: boolean
 }
 
+export type LinkAction =
+  | 'linked'
+  | 'link'
+  | 'relink'
+  | 'replace'
+  | 'backup'
+  | 'skip'
+
+export type LinkEntry = {
+  name: string
+  required: boolean
+  folder: boolean
+  action: LinkAction
+  createInBase: boolean
+}
+
+export type LinkPlan = {
+  configDir: string
+  baseDir: string
+  entries: LinkEntry[]
+}
+
 export type Accounts = {
   claudeAccounts: Account[]
   codexAccounts: Account[]

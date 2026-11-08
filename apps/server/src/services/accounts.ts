@@ -16,6 +16,8 @@ import {
   claudeAccount,
   claudeCapabilities,
   forgetClaude,
+  linkClaude,
+  linkPlan,
 } from '../lib/claude/index.ts'
 import {
   codexAccount,
@@ -32,7 +34,12 @@ import {
   openCodeCapabilities,
   openCodeInstalled,
 } from '../lib/opencode/index.ts'
-import { platform, readConfig, saveConfig } from '../storage/config.ts'
+import {
+  claudeBaseDir,
+  platform,
+  readConfig,
+  saveConfig,
+} from '../storage/config.ts'
 import { forgetUsage } from './usage.ts'
 
 const log = logger.withTag('accounts')
@@ -260,6 +267,8 @@ export function addAccount(
       },
     ],
   })
+  void publishAccounts()
+  return null
 }
 
 export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
@@ -289,6 +298,24 @@ export async function updateAccount(update: Omit<StoredAccount, 'provider'>) {
   if (before.enabled && !update.enabled) {
     await stopAccount(before)
   }
+  void publishAccounts()
+  return null
+}
+
+export function accountLinkPlan(id: string) {
+  const account = storedAccount('claude', id)
+  return linkPlan(account.configDir ?? claudeBaseDir())
+}
+
+export async function linkAccount(id: string) {
+  const account = storedAccount('claude', id)
+  await stopAccount(account)
+  try {
+    await linkClaude(account.configDir ?? claudeBaseDir())
+  } finally {
+    void publishAccounts()
+  }
+  return null
 }
 
 export function removeAccount(id: string) {
@@ -300,6 +327,8 @@ export function removeAccount(id: string) {
   })
   forgetClaude(id)
   forgetUsage(id)
+  void publishAccounts()
+  return null
 }
 
 function validAccount(name: string, configDir: string | null) {

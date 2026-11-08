@@ -93,7 +93,16 @@ export function MachinesPage() {
                 className="text-muted-foreground size-5 shrink-0"
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{machine.name}</p>
+                <p className="flex items-baseline gap-2">
+                  <span className="truncate text-sm font-medium">
+                    {machine.name}
+                  </span>
+                  {machine.system !== null && (
+                    <span className="text-muted-foreground shrink-0 text-xs">
+                      {machine.system.version}
+                    </span>
+                  )}
+                </p>
                 {machine.addresses.map((address) => (
                   <p
                     key={address}

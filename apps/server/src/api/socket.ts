@@ -11,9 +11,11 @@ import { logger } from '../lib/log.ts'
 import { openCodeAgent } from '../lib/opencode/index.ts'
 import { openSite } from '../lib/proxy/sites.ts'
 import {
+  accountLinkPlan,
   accounts,
   addAccount,
   capabilities,
+  linkAccount,
   publishAccounts,
   removeAccount,
   stopProvider,
@@ -248,7 +250,7 @@ const handlers: Handlers = {
       return null
     }
     await run.respond(params.requestId, params.decision, params.answers)
-    recordInteraction(params.sessionId, run.provider)
+    recordInteraction(params.sessionId, run.provider, null)
     return null
   },
   'sessions.rewind': (params) => rewind(params),
@@ -262,21 +264,12 @@ const handlers: Handlers = {
     return result
   },
   'accounts.list': () => accounts(),
-  'accounts.add': (params) => {
-    addAccount(params.provider, params.name, params.configDir)
-    void publishAccounts()
-    return null
-  },
-  'accounts.update': async (params) => {
-    await updateAccount(params)
-    void publishAccounts()
-    return null
-  },
-  'accounts.remove': (params) => {
-    removeAccount(params.id)
-    void publishAccounts()
-    return null
-  },
+  'accounts.add': (params) =>
+    addAccount(params.provider, params.name, params.configDir),
+  'accounts.update': (params) => updateAccount(params),
+  'accounts.remove': (params) => removeAccount(params.id),
+  'accounts.link': (params) => linkAccount(params.id),
+  'accounts.linkPlan': (params) => accountLinkPlan(params.id),
   'accounts.usage': (params) => readUsage(params.id, params.force),
   capabilities: (params) =>
     capabilities(

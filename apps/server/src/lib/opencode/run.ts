@@ -56,6 +56,8 @@ export class OpenCodeRun {
   compacting = false
   backgroundTasks = 0
   backgroundAgents = 0
+  agentTasks = 0
+  failed = false
   tasks: Record<string, TaskStatus> = {}
   private readonly close: () => void
   private applied: SessionSettings

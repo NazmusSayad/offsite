@@ -10,4 +10,9 @@ export default defineConfig({
   dts: false,
   sourcemap: true,
   minify: 'dce-only',
+  define: {
+    'process.env.OFFSITE_VERSION': JSON.stringify(
+      process.env.OFFSITE_VERSION ?? 'dev'
+    ),
+  },
 })

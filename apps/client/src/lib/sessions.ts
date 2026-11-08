@@ -194,7 +194,8 @@ export async function sendPrompt(
   prompt: Prompt,
   delivery: PromptDelivery,
   selection: Selection | null,
-  settings: SessionSettings
+  settings: SessionSettings,
+  status: 'active' | 'snoozed' | null
 ) {
   if (selection === null) {
     throw new Error('no session selected')
@@ -209,6 +210,7 @@ export async function sendPrompt(
     prompt,
     settings,
     delivery,
+    status,
   })
   const replacing = getState().replacing
   if (

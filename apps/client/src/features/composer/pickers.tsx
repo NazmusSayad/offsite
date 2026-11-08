@@ -1,5 +1,5 @@
 import {
-  BrainIcon,
+  ArrowRight01Icon,
   SearchIcon,
   UserSettings01Icon,
 } from '@hugeicons/core-free-icons'
@@ -46,31 +46,33 @@ export function Pickers() {
   return (
     <>
       <ModelPicker />
-      <span className="bg-border mx-0.5 hidden h-4 w-px shrink-0 sm:block" />
       {model !== undefined && model.efforts.length > 0 && (
-        <Picker
-          title="Effort"
-          shortcut={['mod+shift+e', 'mod+slash']}
-          trigger={
-            <>
-              <HugeiconsIcon icon={BrainIcon} />
+        <>
+          <HugeiconsIcon
+            icon={ArrowRight01Icon}
+            className="text-muted-foreground/60 -mx-1 hidden size-3.5 shrink-0 sm:block"
+          />
+          <Picker
+            title="Effort"
+            shortcut={['mod+shift+e', 'mod+slash']}
+            trigger={
               <span className="capitalize">{settings.effort ?? 'Default'}</span>
-            </>
-          }
-          value={settings.effort ?? 'default'}
-          options={[
-            ...(settings.provider === 'opencode'
-              ? [{ value: 'default', label: 'Default' }]
-              : []),
-            ...model.efforts.map((effort) => ({
-              value: effort,
-              label: effort.charAt(0).toUpperCase() + effort.slice(1),
-            })),
-          ]}
-          onChange={(value) =>
-            changeSettings({ effort: value === 'default' ? null : value })
-          }
-        />
+            }
+            value={settings.effort ?? 'default'}
+            options={[
+              ...(settings.provider === 'opencode'
+                ? [{ value: 'default', label: 'Default' }]
+                : []),
+              ...model.efforts.map((effort) => ({
+                value: effort,
+                label: effort.charAt(0).toUpperCase() + effort.slice(1),
+              })),
+            ]}
+            onChange={(value) =>
+              changeSettings({ effort: value === 'default' ? null : value })
+            }
+          />
+        </>
       )}
     </>
   )

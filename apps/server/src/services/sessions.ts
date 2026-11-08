@@ -203,20 +203,27 @@ export function providerOf(sessionId: string) {
   return provider
 }
 
-export function recordInteraction(id: string, provider: Provider) {
+export function recordInteraction(
+  id: string,
+  provider: Provider,
+  status: 'active' | 'snoozed' | null
+) {
   db.insert(sessionsTable)
     .values({
       sessionId: id,
       provider,
       interactedAt: Date.now(),
-      status: 'active',
+      status: status ?? 'active',
     })
     .onConflictDoUpdate({
       target: sessionsTable.sessionId,
       set: {
         provider,
         interactedAt: Date.now(),
-        status: sql`CASE ${sessionsTable.status} WHEN 'pinned' THEN 'pinned' WHEN 'snoozed' THEN 'snoozed' WHEN 'minimized' THEN 'minimized' ELSE 'active' END`,
+        status:
+          status === null
+            ? sql`CASE ${sessionsTable.status} WHEN 'pinned' THEN 'pinned' WHEN 'snoozed' THEN 'snoozed' WHEN 'minimized' THEN 'minimized' ELSE 'active' END`
+            : sql`CASE ${sessionsTable.status} WHEN 'pinned' THEN 'pinned' ELSE ${status} END`,
       },
     })
     .run()
@@ -487,7 +494,7 @@ export async function fork(
     messageId
   )
   providers.set(result.sessionId, provider)
-  recordInteraction(result.sessionId, provider)
+  recordInteraction(result.sessionId, provider, null)
   markChanged(provider, result.sessionId)
   refreshSessions(provider)
   return result

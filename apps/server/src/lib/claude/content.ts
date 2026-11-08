@@ -1,5 +1,9 @@
 import { randomUUID, type UUID } from 'node:crypto'
-import type { SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
+import type {
+  SDKResultMessage,
+  SDKUserMessage,
+  TerminalReason,
+} from '@anthropic-ai/claude-agent-sdk'
 import type { Prompt } from '@offsite/core/items'
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
@@ -124,6 +128,54 @@ export function notice(text: string): Message {
     text,
     isError: true,
   }
+}
+
+export function resultNotice(message: SDKResultMessage) {
+  if (
+    message.subtype === 'success' ||
+    message.terminal_reason === 'aborted_streaming' ||
+    message.terminal_reason === 'aborted_tools'
+  ) {
+    return null
+  }
+  return notice(
+    message.errors
+      .filter((error) => !error.startsWith('[ede_diagnostic]'))
+      .join('\n') || message.subtype
+  )
+}
+
+const failingReasons: (TerminalReason | undefined)[] = [
+  'api_error',
+  'malformed_tool_use_exhausted',
+  'budget_exhausted',
+  'structured_output_retry_exhausted',
+  'tool_deferred_unavailable',
+  'turn_setup_failed',
+  'blocking_limit',
+  'rapid_refill_breaker',
+  'prompt_too_long',
+  'image_error',
+  'model_error',
+]
+
+export function turnFailed(message: SDKResultMessage) {
+  if (
+    message.terminal_reason === 'aborted_tools' ||
+    message.terminal_reason === 'aborted_streaming'
+  ) {
+    return false
+  }
+  if (message.subtype === 'success') {
+    return (
+      message.api_error_status === 429 ||
+      message.api_error_status === 529 ||
+      (message.is_error && message.api_error_status === 403) ||
+      failingReasons.includes(message.terminal_reason)
+    )
+  }
+  const errors = message.errors.join('\n').toLowerCase()
+  return !errors.includes('interrupt') && !errors.includes('cancel')
 }
 
 export function contextTokens(message: unknown) {

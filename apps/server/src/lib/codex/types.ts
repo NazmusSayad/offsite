@@ -48,6 +48,19 @@ export type ThreadItem = { id: string } & (
       tool: string
       status: Status | 'interrupted'
       receiverThreadIds: string[]
+      agentsStates: Record<
+        string,
+        {
+          status:
+            | 'pendingInit'
+            | 'running'
+            | 'interrupted'
+            | 'completed'
+            | 'errored'
+            | 'shutdown'
+            | 'notFound'
+        }
+      >
       prompt: string | null
       model: string | null
     }
@@ -75,6 +88,7 @@ export type ThreadItem = { id: string } & (
   | {
       type: 'subAgentActivity'
       agentThreadId: string
+      kind: 'started' | 'interacted' | 'interrupted' | 'completed'
     }
 )
 
