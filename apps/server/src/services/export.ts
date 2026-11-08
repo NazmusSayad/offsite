@@ -169,6 +169,10 @@ function itemText(item: Exclude<Item, { kind: 'user' }>, level: number) {
       return level < 1
         ? null
         : `**Message${item.target === null ? '' : ` to ${item.target}`}:** ${item.summary}${statusText(item.status)}`
+    case 'received_message':
+      return level < 1
+        ? null
+        : `**Message from ${item.sender}:**\n\n${item.text}`
     case 'notice':
       return level < 1 ? null : `_${item.text}_`
     case 'compaction':

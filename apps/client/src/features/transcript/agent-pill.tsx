@@ -1,8 +1,9 @@
 import { ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Item } from '@offsite/core/items'
+import { Markdown } from '@/components/markdown/markdown'
 import { taskTitle, type threadTasks } from '@/features/transcript/tasks'
-import type { AgentItem } from '@/features/transcript/timeline'
+import type { AgentItem, ReceivedItem } from '@/features/transcript/timeline'
 import { Shimmer } from '@/features/transcript/tool-row'
 import { cn } from '@/lib/utils'
 
@@ -149,6 +150,30 @@ export function AgentLine(props: {
       pending={agent.status === 'Running'}
       onOpen={() => props.onOpen(item.id)}
     />
+  )
+}
+
+export function ReceivedMessage(props: {
+  item: ReceivedItem
+  onOpen: (id: string) => void
+}) {
+  const target = props.item.target
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <Line
+        label={
+          props.item.source === 'agent'
+            ? 'Message from agent'
+            : 'Message from session'
+        }
+        detail={props.item.sender}
+        pending={false}
+        onOpen={target === null ? null : () => props.onOpen(target)}
+      />
+      <div className="bg-muted/40 text-muted-foreground rounded-lg border px-4 py-3 text-sm">
+        <Markdown text={props.item.text} lineBreaks rawHtml={false} />
+      </div>
+    </div>
   )
 }
 

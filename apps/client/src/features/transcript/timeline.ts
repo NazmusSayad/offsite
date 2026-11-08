@@ -10,6 +10,8 @@ export type AgentItem = Extract<
 
 export type QuestionItem = Extract<Item, { kind: 'question' }>
 
+export type ReceivedItem = Extract<Item, { kind: 'received_message' }>
+
 export type Turn = { prompt: UserItem | null; first: boolean; items: Item[] }
 
 export type Row =
@@ -17,6 +19,7 @@ export type Row =
   | { kind: 'working'; key: string }
   | { kind: 'group'; key: string; entries: WorkItem[]; live: boolean }
   | { kind: 'agent'; key: string; item: AgentItem; live: boolean }
+  | { kind: 'received'; key: string; item: ReceivedItem }
   | {
       kind: 'assistant'
       key: string
@@ -124,6 +127,8 @@ function rowOf(item: Item, live: boolean): Row | null {
     case 'subagent':
     case 'agent_message':
       return { kind: 'agent', key: item.id, item, live }
+    case 'received_message':
+      return { kind: 'received', key: item.id, item }
     case 'plan':
       return { kind: 'plan', key: item.id, plan: item.plan }
     case 'question':

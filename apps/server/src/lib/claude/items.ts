@@ -6,13 +6,16 @@ import type {
   Question,
   TodoStep,
 } from '@offsite/core/items'
-import { type Block, isRecord, type Message } from './content.ts'
+import { type Block, isRecord, type Message, userText } from './content.ts'
 
 type ToolUse = Extract<Block, { type: 'tool_use' }>
 
 type ToolResult = Extract<Block, { type: 'tool_result' }>
 
 const notifications = /<task-notification>([\s\S]*?)<\/task-notification>/g
+
+const receivedMessage =
+  /^(?:Another Claude session sent a message:\s*)?<(agent-message|cross-session-message) from="([^"]*)">([\s\S]*?)<\/\1>/
 
 const taskStatuses = new Map<string, ItemStatus>([
   ['completed', 'completed'],
@@ -180,6 +183,23 @@ export function toItems(messages: Message[]): Item[] {
         }
         continue
       }
+      const received = receivedMessage.exec(block.text)
+      if (received !== null) {
+        const owner = owners.get(received[2])
+        const sender = owner === undefined ? null : items[owner]
+        items.push({
+          id: `${message.uuid}:received`,
+          parent: message.parent,
+          time: message.time,
+          kind: 'received_message',
+          source: received[1] === 'agent-message' ? 'agent' : 'session',
+          sender:
+            sender?.kind === 'subagent' ? sender.description : received[2],
+          target: sender?.id ?? null,
+          text: received[3].trim(),
+        })
+        continue
+      }
       if (block.text.startsWith('[Request interrupted by user')) {
         items.push({
           id: message.uuid,
@@ -190,7 +210,10 @@ export function toItems(messages: Message[]): Item[] {
         })
         continue
       }
-      texts.push(userText(block.text))
+      const part = userText(block.text)
+      if (part.text !== '') {
+        texts.push(part)
+      }
     }
     if (texts.length === 0 && images.length === 0) {
       continue
@@ -455,28 +478,6 @@ function applyResult(item: Item, result: ToolResult): Item {
     default:
       return item
   }
-}
-
-function userText(value: string): {
-  format: 'text' | 'command' | 'output'
-  text: string
-} {
-  const command = /<command-name>(.*?)<\/command-name>/s.exec(value)
-  if (command !== null) {
-    const args = /<command-args>(.*?)<\/command-args>/s.exec(value)
-    return {
-      format: 'command',
-      text: `${command[1]} ${args?.[1] ?? ''}`.trim(),
-    }
-  }
-  const output =
-    /^<local-command-(?:stdout|stderr)>(.*)<\/local-command-(?:stdout|stderr)>$/s.exec(
-      value.trim()
-    )
-  if (output !== null) {
-    return { format: 'output', text: output[1] }
-  }
-  return { format: 'text', text: value }
 }
 
 function text(value: unknown) {

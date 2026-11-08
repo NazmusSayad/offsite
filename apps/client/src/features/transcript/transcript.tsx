@@ -20,7 +20,7 @@ import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Wrapper } from '@/components/wrapper'
-import { AgentLine } from '@/features/transcript/agent-pill'
+import { AgentLine, ReceivedMessage } from '@/features/transcript/agent-pill'
 import { ThreadFindBar } from '@/features/transcript/find-bar'
 import { PlanCard } from '@/features/transcript/plan-card'
 import { QuestionCard } from '@/features/transcript/question-card'
@@ -355,6 +355,8 @@ function RowContent(props: {
           onOpen={props.onOpenTask}
         />
       )
+    case 'received':
+      return <ReceivedMessage item={row.item} onOpen={props.onOpenTask} />
     case 'assistant':
       return (
         <>

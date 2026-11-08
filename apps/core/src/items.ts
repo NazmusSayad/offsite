@@ -91,6 +91,13 @@ export type Item = {
       summary: string
       status: ItemStatus
     }
+  | {
+      kind: 'received_message'
+      source: 'agent' | 'session'
+      sender: string
+      target: string | null
+      text: string
+    }
   | { kind: 'compaction'; summary: string | null }
   | { kind: 'notice'; text: string }
   | { kind: 'error'; text: string }

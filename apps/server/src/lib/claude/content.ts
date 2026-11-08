@@ -226,3 +226,36 @@ function toBlocks(
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
+
+export function userText(value: string): {
+  format: 'text' | 'command' | 'output'
+  text: string
+} {
+  const command = /<command-name>(.*?)<\/command-name>/s.exec(value)
+  if (command !== null) {
+    const args = /<command-args>(.*?)<\/command-args>/s.exec(value)
+    return {
+      format: 'command',
+      text: `${command[1]} ${args?.[1] ?? ''}`.trim(),
+    }
+  }
+  const output =
+    /^<local-command-(?:stdout|stderr)>(.*)<\/local-command-(?:stdout|stderr)>$/s.exec(
+      value.trim()
+    )
+  if (output !== null) {
+    return { format: 'output', text: output[1] }
+  }
+  const bash = /^<bash-input>(.*)<\/bash-input>$/s.exec(value.trim())
+  if (bash !== null) {
+    return { format: 'command', text: `$ ${bash[1]}` }
+  }
+  const bashOutput =
+    /^<bash-stdout>(.*)<\/bash-stdout><bash-stderr>(.*)<\/bash-stderr>$/s.exec(
+      value.trim()
+    )
+  if (bashOutput !== null) {
+    return { format: 'output', text: `${bashOutput[1]}${bashOutput[2]}`.trim() }
+  }
+  return { format: 'text', text: value }
+}
