@@ -28,6 +28,7 @@ import {
   toUserInput,
 } from './content.ts'
 import { toItems, toRequest } from './items.ts'
+import { permissionResult } from './permission.ts'
 
 const IDLE_LIMIT = 10 * 60 * 1000
 
@@ -48,6 +49,7 @@ export class Run {
   readonly query: Query
   readonly closed: Promise<void>
   readonly resumeAt: string | null
+  cut: string | null = null
   queue: QueuedPrompt[] = []
   settings: SessionSettings
   context: ContextUsage | null = null
@@ -159,28 +161,10 @@ export class Run {
     if (pending === undefined) {
       return
     }
-    const input = pending.input
-    switch (decision) {
-      case 'allow':
-        this.settle(requestId, {
-          behavior: 'allow',
-          updatedInput: answers === null ? input : { ...input, answers },
-        })
-        return
-      case 'always':
-        this.settle(requestId, {
-          behavior: 'allow',
-          updatedInput: input,
-          updatedPermissions: pending.suggestions,
-        })
-        return
-      case 'deny':
-        this.settle(requestId, {
-          behavior: 'deny',
-          message: 'The user rejected this action',
-          interrupt: true,
-        })
-    }
+    this.settle(
+      requestId,
+      permissionResult(pending.input, pending.suggestions, decision, answers)
+    )
   }
 
   stop() {
