@@ -1,4 +1,5 @@
 import {
+  Asterisk02Icon,
   BrowserIcon,
   GitCompareIcon,
   MoreVerticalIcon,
@@ -10,7 +11,7 @@ import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
 import { sumBy } from 'es-toolkit'
 import { type ReactNode, useState, useSyncExternalStore } from 'react'
-import { FaAsterisk, FaChevronRight } from 'react-icons/fa6'
+import { FaAngleRight } from 'react-icons/fa6'
 import { useReadLocalStorage } from 'usehooks-ts'
 import {
   AlertDialog,
@@ -188,13 +189,20 @@ export function PanelMenu(
                     className={cn('contents', option.attention)}
                   >
                     {option.id === 'terminal' && (
-                      <FaChevronRight className="absolute top-0.5 left-0.5 size-2! opacity-100!" />
+                      <FaAngleRight
+                        strokeWidth={20}
+                        className="absolute top-[5px] left-[5px] size-[9px]! -translate-1/2 opacity-100!"
+                      />
                     )}
                     {option.id === 'tasks' && (
                       <span className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-current" />
                     )}
                     {option.id === 'diff' && (
-                      <FaAsterisk className="absolute right-0.5 bottom-0.5 size-2! opacity-100!" />
+                      <HugeiconsIcon
+                        icon={Asterisk02Icon}
+                        strokeWidth={4.25}
+                        className="absolute right-px bottom-0.5 size-2! scale-[1.0625] opacity-100!"
+                      />
                     )}
                   </span>
                 )
