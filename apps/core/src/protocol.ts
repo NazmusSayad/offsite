@@ -33,6 +33,7 @@ import type {
   Account,
   Accounts,
   Capabilities,
+  LinkPlan,
   Provider,
   ProviderStatus,
   RateLimit,
@@ -151,6 +152,7 @@ export type RpcMethods = {
       prompt: Prompt
       settings: SessionSettings
       delivery: PromptDelivery
+      status: 'active' | 'snoozed' | null
     }
     result: null
   }
@@ -201,6 +203,8 @@ export type RpcMethods = {
     result: null
   }
   'accounts.remove': { params: { id: string }; result: null }
+  'accounts.link': { params: { id: string }; result: null }
+  'accounts.linkPlan': { params: { id: string }; result: LinkPlan }
   'accounts.usage': { params: { id: string; force: boolean }; result: Usage }
   capabilities: {
     params: {

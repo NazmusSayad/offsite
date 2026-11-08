@@ -29,6 +29,7 @@ export function activity() {
       prompted: run.prompted,
       compacting: run.compacting,
       backgroundAgent: run.backgroundAgents > 0,
+      holdsCompletion: !run.failed && run.agentTasks > 0,
       tasks: run.tasks,
     }
   }

@@ -25,7 +25,7 @@ import {
   lastUserText,
   restoredDraft,
 } from './attached-images'
-import { ComposerMenu, type Suggestion } from './composer-menu'
+import { ComposerMenu, type Suggestion, suggestionsFor } from './composer-menu'
 import { useDictation } from './dictation'
 import {
   editDraft,
@@ -34,7 +34,7 @@ import {
   saveDraftFile,
   useDraft,
 } from './drafts'
-import { MoreMenu } from './more-menu'
+import { isSnoozeShortcut, MoreMenu, sendStatus } from './more-menu'
 import { PermissionPrompt } from './permission-prompt'
 import { Pickers } from './pickers'
 import { ProjectHeading } from './project-heading'
@@ -117,33 +117,10 @@ export function Composer() {
   const before = text.slice(0, caret)
   const trigger =
     /^\/\S*$/.exec(before)?.[0] ?? /(?:^|\s)(@\S*)$/.exec(before)?.[1] ?? null
-  const query = trigger?.slice(1).toLowerCase() ?? ''
-  const suggestions: Suggestion[] =
+  const suggestions =
     trigger === null || menuClosed
       ? []
-      : trigger.startsWith('/')
-        ? (capabilities?.commands ?? [])
-            .filter((command) => command.name.toLowerCase().includes(query))
-            .sort(
-              (a, b) =>
-                Number(!a.name.toLowerCase().startsWith(query)) -
-                Number(!b.name.toLowerCase().startsWith(query))
-            )
-            .map((command) => ({
-              key: command.name,
-              label: `/${command.name}${command.hint === '' ? '' : ` ${command.hint}`}`,
-              description: command.description,
-              insert: `/${command.name}`,
-            }))
-        : files
-            .filter((file) => file.toLowerCase().includes(query))
-            .slice(0, 50)
-            .map((file) => ({
-              key: file,
-              label: file,
-              description: '',
-              insert: `@${file}`,
-            }))
+      : suggestionsFor(trigger, capabilities?.commands ?? [], files)
   const activeIndex = Math.min(active, suggestions.length - 1)
   const empty =
     (text.trim() === '' && images.length === 0) || sending || noAccount
@@ -174,7 +151,7 @@ export function Composer() {
     )
   }
 
-  async function submit(swap: boolean) {
+  async function submit(swap: boolean, flipSnooze: boolean) {
     if (empty) {
       return
     }
@@ -203,7 +180,8 @@ export function Composer() {
         },
         swap ? (delivery === 'queue' ? 'steer' : 'queue') : delivery,
         selection,
-        settings
+        settings,
+        sendStatus(flipSnooze)
       )
       editDraft(key, (current) => ({
         ...current,
@@ -409,11 +387,15 @@ export function Composer() {
                 }
                 if (
                   event.key === 'Enter' &&
-                  !event.shiftKey &&
+                  (!event.shiftKey || isSnoozeShortcut(event.nativeEvent)) &&
                   !touch.matches
                 ) {
                   event.preventDefault()
-                  void submit(event.metaKey || event.ctrlKey)
+                  const flipSnooze = isSnoozeShortcut(event.nativeEvent)
+                  void submit(
+                    !flipSnooze && (event.metaKey || event.ctrlKey),
+                    flipSnooze
+                  )
                   return
                 }
                 if (event.key === 'ArrowUp' && text === '') {
@@ -475,7 +457,8 @@ export function Composer() {
                 dictation={dictation}
                 empty={empty}
                 delivery={delivery}
-                onSubmit={() => void submit(true)}
+                onSubmit={() => void submit(true, false)}
+                onFlipSnooze={() => void submit(false, true)}
               />
               <Button
                 variant="ghost"
@@ -492,7 +475,7 @@ export function Composer() {
                 empty={empty}
                 blank={text.trim() === '' && images.length === 0}
                 delivery={delivery}
-                onSubmit={(swap) => void submit(swap)}
+                onSubmit={(swap) => void submit(swap, false)}
                 onStop={interrupt}
               />
             </div>

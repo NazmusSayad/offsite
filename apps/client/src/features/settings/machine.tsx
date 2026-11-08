@@ -87,9 +87,11 @@ export function MachinePage(props: {
         codexAccounts={props.codexAccounts}
         openCode={props.openCode}
       />
-      <Button variant="outline" onClick={props.onRestore}>
-        Restore machine defaults
-      </Button>
+      <div className="flex justify-center">
+        <Button variant="ghost-muted" size="xs" onClick={props.onRestore}>
+          Restore machine defaults
+        </Button>
+      </div>
     </>
   )
 }

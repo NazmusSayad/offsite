@@ -1,4 +1,4 @@
-import { readFileSync, realpathSync, statSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {
@@ -24,6 +24,7 @@ import { claudeBaseDir } from '../../storage/config.ts'
 import { broadcast } from '../hub.ts'
 import { logger } from '../log.ts'
 import { isRecord } from './content.ts'
+import { isLinked } from './links.ts'
 
 const log = logger.withTag('claude')
 
@@ -354,24 +355,6 @@ function claudeLogin(configDir: string) {
             organizationId: login.organizationUuid,
           }
         : null,
-  }
-}
-
-function isLinked(configDir: string) {
-  const base = claudeBaseDir()
-  try {
-    if (realpathSync(configDir) === realpathSync(base)) {
-      return true
-    }
-    return (
-      realpathSync(path.join(configDir, 'projects')) ===
-      realpathSync(path.join(base, 'projects'))
-    )
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return false
-    }
-    throw error
   }
 }
 

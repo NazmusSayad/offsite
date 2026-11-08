@@ -55,7 +55,7 @@ export function ScopeMenu(props: {
     <DropdownMenu open={picking} onOpenChange={setPicking}>
       <DropdownMenuTrigger asChild>
         <button
-          className="hover:bg-sidebar-row-hover data-[state=open]:bg-sidebar-row-hover -ml-1.5 flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-[var(--control-radius)] px-1.5 text-sm font-medium"
+          className="hover:bg-sidebar-row-hover data-[state=open]:bg-sidebar-row-hover -ml-1.5 flex h-7 min-w-0 cursor-pointer items-center gap-1.5 rounded-[var(--control-radius)] ps-2 pe-1.5 text-sm font-medium"
           title={props.scope === null ? 'Inbox' : project?.path}
         >
           {props.scope !== null && (

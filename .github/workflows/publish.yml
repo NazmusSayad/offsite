@@ -39,6 +39,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+        env:
+          OFFSITE_VERSION: ${{ github.event.release.tag_name }}
 
       - run: npm install -g npm@latest version-patch
       - run: node scripts/build-npm.mts

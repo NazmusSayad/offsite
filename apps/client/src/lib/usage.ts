@@ -33,7 +33,7 @@ export function useUsage(machine: string | null, account: Account | undefined) {
   return usage
 }
 
-export function useSelectedUsage() {
+export function useSelectedAccount() {
   const machine = useStore((state) => state.selection?.machine ?? null)
   const account = useStore((state) => {
     const known = state.machines.find((item) => item.id === machine)
@@ -42,7 +42,12 @@ export function useSelectedUsage() {
       ...(known?.codexAccounts ?? []),
     ].find((item) => item.id === state.settings.accountId)
   })
-  return useUsage(machine, account)
+  return { machine, account }
+}
+
+export function useSelectedUsage() {
+  const selected = useSelectedAccount()
+  return useUsage(selected.machine, selected.account)
 }
 
 export function receiveUsage(

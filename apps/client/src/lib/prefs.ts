@@ -83,6 +83,7 @@ const prefsSchema = z.strictObject({
     .prefault({}),
   rewind: z.enum(['all', 'chat', 'code']).default('chat'),
   groupActiveByProject: z.boolean().default(false),
+  autoMoveToSnooze: z.boolean().default(false),
   dictateButton: z
     .strictObject({
       desktop: z.boolean().default(false),

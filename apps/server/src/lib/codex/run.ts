@@ -12,6 +12,7 @@ import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import { logger } from '../log.ts'
 import { skills } from './accounts.ts'
+import { trackAgents } from './agents.ts'
 import {
   type AppServer,
   appServer,
@@ -58,11 +59,13 @@ export class CodexRun implements ThreadListener {
   compacting = false
   backgroundTasks = 0
   backgroundAgents = 0
+  failed = false
   tasks: Record<string, TaskStatus> = {}
   activeAt = Date.now()
   private readonly model: string
   private readonly close: () => void
   private turnId: string | null = null
+  private readonly agents = new Map<string, boolean>()
   private idleTimer: NodeJS.Timeout | undefined
 
   static async start(cwd: string, settings: SessionSettings) {
@@ -221,6 +224,7 @@ export class CodexRun implements ThreadListener {
 
   notify(method: string, params: Params) {
     this.activeAt = Date.now()
+    this.notifyAgent(method, params)
     switch (method) {
       case 'turn/started': {
         const turn = params.turn as Turn
@@ -238,6 +242,7 @@ export class CodexRun implements ThreadListener {
         if (turn.status === 'failed' && turn.error !== null) {
           this.put(errorItem(`${turn.id}:error`, turn.error.message))
         }
+        this.failed = turn.status === 'failed' || turn.status === 'inProgress'
         this.finishTurn()
         return
       }
@@ -321,6 +326,18 @@ export class CodexRun implements ThreadListener {
       case 'serverRequest/resolved':
         this.settle(String(params.requestId))
     }
+  }
+
+  notifyAgent(method: string, params: Params) {
+    const running = this.agentTasks
+    trackAgents(this.agents, method, params)
+    if (this.agentTasks !== running) {
+      broadcastActivity()
+    }
+  }
+
+  get agentTasks() {
+    return [...this.agents.values()].filter((running) => running).length
   }
 
   request(id: number | string, method: string, params: Params) {

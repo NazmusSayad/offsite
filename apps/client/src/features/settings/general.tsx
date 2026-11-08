@@ -1,7 +1,8 @@
-import { RefreshIcon } from '@hugeicons/core-free-icons'
+import { ArrowDown01Icon, RefreshIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { appIcons } from '@offsite/core/app-icons'
 import { schemes } from '@offsite/core/schemes'
+import { Collapsible } from 'radix-ui'
 import { useState } from 'react'
 import { call } from '@/api/connection'
 import { connectAddresses } from '@/api/machines'
@@ -14,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Tooltip } from '@/components/ui/tooltip'
 import { logger } from '@/lib/log'
 import type { Prefs } from '@/lib/prefs'
 import { showError, updatePrefs, useStore } from '@/lib/store'
@@ -55,11 +57,16 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
             }
           />
         </Row>
+        <Row label="Move sessions to Snooze when you send">
+          <Switch
+            checked={prefs.autoMoveToSnooze}
+            onCheckedChange={(autoMoveToSnooze) =>
+              updatePrefs({ ...prefs, autoMoveToSnooze })
+            }
+          />
+        </Row>
       </Section>
-      <Section
-        title="Dictate button"
-        note="Takes the place of Send while the message is empty"
-      >
+      <Section title="Dictate button" note="Replaces Send when empty">
         <Row label="On desktop">
           <Switch
             checked={prefs.dictateButton.desktop}
@@ -83,16 +90,20 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
           />
         </Row>
       </Section>
-      <AppIconSection />
-      <UpdateSection />
-      <Button variant="outline" onClick={props.onRestore}>
-        Restore browser defaults
-      </Button>
+      <Section title="App">
+        <AppIconRow />
+        <UpdateRow />
+      </Section>
+      <div className="flex justify-center">
+        <Button variant="ghost-muted" size="xs" onClick={props.onRestore}>
+          Restore browser defaults
+        </Button>
+      </div>
     </>
   )
 }
 
-function UpdateSection() {
+function UpdateRow() {
   const [updating, setUpdating] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
 
@@ -127,28 +138,29 @@ function UpdateSection() {
   }
 
   return (
-    <Section title="App">
-      <Row label="Load the newest version of OffSite in this browser">
-        <div className="flex items-center gap-3">
-          {failure !== null && (
-            <span className="text-destructive text-xs">
-              Could not update: {failure}
-            </span>
+    <Row label="Version">
+      <div className="flex items-center gap-3">
+        {failure !== null && (
+          <span className="text-destructive text-xs">
+            Could not update: {failure}
+          </span>
+        )}
+        <span className="text-muted-foreground text-sm">
+          {process.env.OFFSITE_VERSION ?? 'dev'}
+        </span>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={updating}
+          onClick={() => void update()}
+        >
+          {updating && (
+            <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={updating}
-            onClick={() => void update()}
-          >
-            {updating && (
-              <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
-            )}
-            {updating ? 'Updating…' : 'Update'}
-          </Button>
-        </div>
-      </Row>
-    </Section>
+          {updating ? 'Updating…' : 'Update'}
+        </Button>
+      </div>
+    </Row>
   )
 }
 
@@ -167,7 +179,7 @@ async function activated(worker: ServiceWorker) {
   })
 }
 
-function AppIconSection() {
+function AppIconRow() {
   const host = useStore((state) =>
     state.machines.find((machine) =>
       machine.addresses.some((address) =>
@@ -178,43 +190,68 @@ function AppIconSection() {
   if (host === undefined || host.appIcon === null) {
     return null
   }
-  const selected = host.appIcon
+  const active = appIcons.find((icon) => icon.id === host.appIcon)
+  if (active === undefined) {
+    throw new Error(`unknown app icon ${host.appIcon}`)
+  }
 
   return (
-    <Section title="App icon">
-      <div className="grid grid-cols-4 gap-2 p-3 @max-lg:grid-cols-2">
-        {appIcons.map((icon) => (
-          <button
-            key={icon.id}
-            type="button"
-            aria-pressed={selected === icon.id}
-            className={cn(
-              'hover:bg-accent flex flex-col items-center gap-2 rounded-lg border p-3 text-xs',
-              selected === icon.id && 'border-primary bg-accent'
-            )}
-            onClick={() =>
-              call(host.id, 'appIcon.save', icon.id).catch(showError)
-            }
-          >
-            <span
-              className={cn(
-                'flex size-12 items-center justify-center',
-                icon.tile?.shape === 'rounded' && 'rounded-[22%]',
-                icon.tile?.shape === 'circle' && 'rounded-full',
-                icon.tile !== null && 'ring-border ring-1'
-              )}
-              style={{ background: icon.tile?.color }}
-            >
-              <img
-                src="/icon.svg"
-                alt=""
-                style={{ width: `${icon.scale * 100}%` }}
-              />
-            </span>
-            {icon.name}
-          </button>
-        ))}
-      </div>
-    </Section>
+    <Collapsible.Root>
+      <Collapsible.Trigger className="group hover:bg-accent/50 flex min-h-13 w-full items-center gap-3 px-4 py-2.5 text-left">
+        <span className="flex-1 text-sm font-medium">Icon</span>
+        <AppIconTile icon={active} className="size-7" />
+        <span className="text-muted-foreground text-sm">{active.name}</span>
+        <HugeiconsIcon
+          icon={ArrowDown01Icon}
+          className="text-muted-foreground size-4 transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+        />
+      </Collapsible.Trigger>
+      <Collapsible.Content className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden motion-reduce:animate-none">
+        <div className="grid grid-cols-8 gap-1.5 px-3 pt-1 pb-3 @max-lg:grid-cols-4">
+          {appIcons.map((icon) => (
+            <Tooltip key={icon.id} label={icon.name}>
+              <button
+                type="button"
+                aria-label={icon.name}
+                aria-pressed={active.id === icon.id}
+                className={cn(
+                  'hover:bg-accent flex h-16 items-center justify-center rounded-lg border border-transparent',
+                  active.id === icon.id && 'border-primary bg-accent'
+                )}
+                onClick={() =>
+                  call(host.id, 'appIcon.save', icon.id).catch(showError)
+                }
+              >
+                <AppIconTile icon={icon} className="size-11" />
+              </button>
+            </Tooltip>
+          ))}
+        </div>
+      </Collapsible.Content>
+    </Collapsible.Root>
+  )
+}
+
+function AppIconTile(props: {
+  icon: (typeof appIcons)[number]
+  className: string
+}) {
+  return (
+    <span
+      className={cn(
+        'flex shrink-0 items-center justify-center',
+        props.icon.tile?.shape === 'rounded' && 'rounded-[22%]',
+        props.icon.tile?.shape === 'circle' && 'rounded-full',
+        props.icon.tile !== null && 'ring-border ring-1',
+        props.className
+      )}
+      style={{ background: props.icon.tile?.color }}
+    >
+      <img
+        src="/icon.svg"
+        alt=""
+        style={{ width: `${props.icon.scale * 100}%` }}
+      />
+    </span>
   )
 }

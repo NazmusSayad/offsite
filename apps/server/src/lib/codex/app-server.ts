@@ -19,6 +19,7 @@ export type Params = Record<string, unknown>
 
 export type ThreadListener = {
   notify: (method: string, params: Params) => void
+  notifyAgent?: (method: string, params: Params) => void
   request: (id: number | string, method: string, params: Params) => void
   exited: () => void
 }
@@ -237,7 +238,11 @@ export class AppServer {
       publishCodexLimits(this.home, params.rateLimits as RateLimitSnapshot)
       return
     }
-    listener?.notify(message.method, params)
+    if (listener === undefined) {
+      owner?.notifyAgent?.(message.method, params)
+      return
+    }
+    listener.notify(message.method, params)
   }
 
   private rootOf(threadId: unknown) {

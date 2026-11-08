@@ -1,4 +1,8 @@
-import { Add01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons'
+import {
+  Add01Icon,
+  ArrowRight01Icon,
+  Link01Icon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Config, ModelSetting, Platform } from '@offsite/core/config'
 import type {
@@ -10,6 +14,7 @@ import type {
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { updateConfig } from '@/api/machine-config'
+import { AlertDialog, AlertDialogContent } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -27,6 +32,7 @@ import { useUsage } from '@/lib/usage'
 import { cn, errorMessage } from '@/lib/utils'
 import { AccountPage, NewAccountPage } from './account'
 import { Row, Section, TextInput } from './controls'
+import { LinkDialog } from './link-dialog'
 
 export function ProviderPage(props: {
   machine: string
@@ -100,7 +106,11 @@ export function ProviderPage(props: {
       >
         {props.provider !== 'opencode' && (
           <Section title="Accounts">
-            <ProviderAccounts machine={props.machine} accounts={accounts} />
+            <ProviderAccounts
+              machine={props.machine}
+              platform={props.platform}
+              accounts={accounts}
+            />
           </Section>
         )}
         {enabled &&
@@ -237,8 +247,13 @@ function ProviderModels(props: {
   )
 }
 
-function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
+function ProviderAccounts(props: {
+  machine: string
+  platform: Platform
+  accounts: Account[]
+}) {
   const [busy, setBusy] = useState(false)
+  const [linkTarget, setLinkTarget] = useState<Account | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   async function run(action: () => Promise<null>) {
@@ -299,6 +314,18 @@ function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
               <AccountLimits machine={props.machine} account={account} />
             )}
           </div>
+          {account.provider === 'claude' &&
+            account.error === null &&
+            !account.linked && (
+              <Button
+                size="sm"
+                disabled={busy}
+                onClick={() => setLinkTarget(account)}
+              >
+                <HugeiconsIcon icon={Link01Icon} />
+                Link
+              </Button>
+            )}
           <Switch
             size="sm"
             checked={account.enabled}
@@ -337,6 +364,24 @@ function ProviderAccounts(props: { machine: string; accounts: Account[] }) {
       {error !== null && (
         <p className="text-destructive px-4 py-3 text-xs">{error}</p>
       )}
+      <AlertDialog
+        open={linkTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setLinkTarget(null)
+          }
+        }}
+      >
+        {linkTarget !== null && (
+          <AlertDialogContent className="data-[size=default]:sm:max-w-lg">
+            <LinkDialog
+              machine={props.machine}
+              platform={props.platform}
+              account={linkTarget}
+            />
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
     </>
   )
 }
