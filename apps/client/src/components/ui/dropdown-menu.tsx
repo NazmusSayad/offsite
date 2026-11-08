@@ -268,7 +268,6 @@ function DropdownMenuSubContent({
 }
 
 export {
-  focusCheckedItem,
   DropdownMenu,
   DropdownMenuPortal,
   DropdownMenuTrigger,
