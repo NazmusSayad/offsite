@@ -32,9 +32,9 @@ import {
   showSettingsPage,
   useStore,
 } from '@/lib/store'
-import { cn } from '@/lib/utils'
+import { cn, touch } from '@/lib/utils'
 import { moveFocus } from './move-focus'
-import { control, controlSm, Picker } from './picker'
+import { control, controlSm, Picker, refocusComposer } from './picker'
 
 export function Pickers() {
   const settings = useStore((state) => state.settings)
@@ -163,15 +163,15 @@ function ModelPicker() {
         className="w-screen max-w-90"
         onOpenAutoFocus={(event) => {
           event.preventDefault()
+          if (touch.matches) {
+            return
+          }
           if (!(event.currentTarget instanceof HTMLElement)) {
             throw new Error('model picker is not an element')
           }
           focusModel(event.currentTarget)
         }}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault()
-          document.querySelector<HTMLElement>('[data-composer]')?.focus()
-        }}
+        onCloseAutoFocus={refocusComposer}
       >
         <ModelMenu
           choices={choices}
@@ -267,6 +267,9 @@ function ModelMenu(props: {
       pick(key, same)
     }
     flushSync(() => setViewed(key))
+    if (touch.matches) {
+      return
+    }
     if (root.current === null) {
       throw new Error('model menu is not mounted')
     }

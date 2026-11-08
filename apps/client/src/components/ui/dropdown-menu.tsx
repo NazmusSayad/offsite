@@ -47,8 +47,11 @@ function DropdownMenuContent({
   className,
   align = 'start',
   sideOffset = 4,
+  onOpenAutoFocus,
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Content> & {
+  onOpenAutoFocus?: (event: Event) => void
+}) {
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
@@ -60,7 +63,14 @@ function DropdownMenuContent({
           className
         )}
         {...props}
-        {...{ onOpenAutoFocus: focusCheckedItem }}
+        {...{
+          onOpenAutoFocus: (event: Event) => {
+            onOpenAutoFocus?.(event)
+            if (!event.defaultPrevented) {
+              focusCheckedItem(event)
+            }
+          },
+        }}
       />
     </DropdownMenuPrimitive.Portal>
   )

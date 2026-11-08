@@ -37,9 +37,10 @@ import { changeSettings } from '@/lib/accounts'
 import { compact, timeAgo } from '@/lib/format'
 import { sendPrompt } from '@/lib/sessions'
 import { draftKey, getState, showError, useStore } from '@/lib/store'
-import { mod } from '@/lib/utils'
+import { mod, touch } from '@/lib/utils'
 import type { Dictation } from './dictation'
 import { deleteStash, hasPrompt, useDraft, useStash } from './drafts'
+import { keepFocusOnTouch, refocusComposer } from './picker'
 import { restorePrompt, stashPrompt } from './stash'
 
 const fixedModes: Record<
@@ -84,7 +85,7 @@ export function MoreMenu(props: {
   const [open, setOpen] = useState(false)
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={setOpen} modal={!touch.matches}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
@@ -99,10 +100,8 @@ export function MoreMenu(props: {
         className="w-56"
         side="top"
         align="end"
-        onCloseAutoFocus={(event) => {
-          event.preventDefault()
-          document.querySelector<HTMLElement>('[data-composer]')?.focus()
-        }}
+        onOpenAutoFocus={keepFocusOnTouch}
+        onCloseAutoFocus={refocusComposer}
       >
         <MoreMenuContent
           dictation={props.dictation}
@@ -134,11 +133,22 @@ function MoreMenuContent(props: {
     state.selection === null ? '' : draftKey(state.selection)
   )
   const draft = useDraft(key)
+  const [submenu, setSubmenu] = useState<'mode' | 'stash' | null>(null)
 
   return (
     <>
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger>
+      <DropdownMenuSub
+        open={submenu === 'mode'}
+        onOpenChange={(next) => setSubmenu(next ? 'mode' : null)}
+      >
+        <DropdownMenuSubTrigger
+          onClick={(event) => {
+            if (touch.matches) {
+              event.preventDefault()
+              setSubmenu('mode')
+            }
+          }}
+        >
           <HugeiconsIcon icon={mode?.icon ?? ShieldCheckIcon} />
           <span className="min-w-0 flex-1 truncate">
             {mode?.label ?? 'Default'}
@@ -217,8 +227,18 @@ function MoreMenuContent(props: {
         <span className="text-muted-foreground text-xs">{mod}+S</span>
       </DropdownMenuItem>
       {stash.length > 0 && (
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
+        <DropdownMenuSub
+          open={submenu === 'stash'}
+          onOpenChange={(next) => setSubmenu(next ? 'stash' : null)}
+        >
+          <DropdownMenuSubTrigger
+            onClick={(event) => {
+              if (touch.matches) {
+                event.preventDefault()
+                setSubmenu('stash')
+              }
+            }}
+          >
             <HugeiconsIcon icon={Archive02Icon} />
             <span className="flex-1">Stashed prompts</span>
             <span className="text-muted-foreground text-xs tabular-nums">

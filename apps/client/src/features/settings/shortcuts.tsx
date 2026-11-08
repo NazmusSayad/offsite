@@ -16,7 +16,7 @@ const shortcuts = [
   [`${mod}+Shift+D`, 'Start or stop dictation'],
   [`${mod}+. or ${mod}+Shift+M`, 'Choose the model'],
   [`${mod}+/ or ${mod}+Shift+E`, 'Choose the effort'],
-  [`${mod}+P`, 'Choose the project, or the sidebar scope'],
+  [`${mod}+P`, 'Choose the sidebar scope'],
   [`${mod}+;`, 'Choose the project of a new thread'],
   [`${mod}+F`, 'Find in the thread'],
   [`${mod}+K or ${mod}+Shift+P`, 'Search sessions and actions'],

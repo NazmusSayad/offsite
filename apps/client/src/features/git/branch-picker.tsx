@@ -21,7 +21,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { showError } from '@/lib/store'
-import { cn } from '@/lib/utils'
+import { cn, touch } from '@/lib/utils'
 
 type BranchTarget = {
   machine: string
@@ -29,8 +29,6 @@ type BranchTarget = {
   repo: Omit<GitRepo, 'added' | 'removed'>
   onRefresh: () => void
 }
-
-const touch = window.matchMedia('(pointer: coarse)')
 
 export function BranchPicker(props: BranchTarget) {
   const [open, setOpen] = useState(false)

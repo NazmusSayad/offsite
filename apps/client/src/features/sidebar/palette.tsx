@@ -9,10 +9,9 @@ import {
   type ThreadSubject,
 } from '@offsite/core/search'
 import { messageRanges, type SearchRange } from '@offsite/core/search-match'
-import { Fragment, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useDebounceValue } from 'usehooks-ts'
 import { machineKey } from '@/api/machines'
-import { ProjectIcon } from '@/components/icons'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
@@ -20,7 +19,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
-import { timeAgo } from '@/lib/format'
 import { openSession, startChat } from '@/lib/sessions'
 import {
   getState,
@@ -31,8 +29,11 @@ import {
   useStore,
 } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { Highlighted } from './highlighted'
 import { MachineScopeItems } from './machine-scope-items'
+import { PaletteMessageItem } from './palette-message-item'
 import { type MachineSearchSession, usePaletteResults } from './palette-results'
+import { PaletteThreadItem } from './palette-thread-item'
 
 type Item = {
   key: string
@@ -41,7 +42,6 @@ type Item = {
   labelRanges: SearchRange[]
   detail: string
   detailRanges: SearchRange[]
-  branch: string
   updatedAt: number | null
   place: { machine: string; projectId: string } | null
   run: () => void
@@ -164,7 +164,6 @@ function PaletteContent() {
       section: 'Actions',
       labelRanges: [],
       detailRanges: [],
-      branch: '',
       updatedAt: null,
     }
     if (text.trim() === '') {
@@ -181,10 +180,6 @@ function PaletteContent() {
     ? []
     : shownThreads.map((entry) => {
         const session = entry.item
-        const branch =
-          text.trim() !== '' && session.branch !== null
-            ? ` | ${session.branch}`
-            : ''
         return {
           key: machineKey(session.machine, session.id),
           section: text.trim() === '' ? 'Recent' : 'Threads',
@@ -192,7 +187,6 @@ function PaletteContent() {
           labelRanges: entry.ranges,
           detail: threadDetail(session, projects),
           detailRanges: [],
-          branch,
           updatedAt: session.updatedAt,
           place: { machine: session.machine, projectId: session.projectId },
           run: () =>
@@ -235,7 +229,6 @@ function PaletteContent() {
               labelRanges: [],
               detail,
               detailRanges: messageRanges(text, detail),
-              branch: '',
               updatedAt: session.updatedAt,
               place: {
                 machine: session.machine,
@@ -359,44 +352,48 @@ function PaletteContent() {
             <button
               data-active={index === activeIndex}
               className={cn(
-                'flex w-full cursor-pointer flex-col rounded-lg px-2.5 py-1.5 text-left',
+                'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left',
                 index === activeIndex && 'bg-accent'
               )}
               onMouseMove={() => setActiveKey(item.key)}
               onClick={() => pick(item)}
             >
-              <span className="flex min-w-0 items-center gap-2 text-sm">
-                {item.place !== null && (
-                  <ProjectIcon
-                    machine={item.place.machine}
-                    projectId={item.place.projectId}
-                    className="size-3.5 shrink-0 grayscale"
-                  />
-                )}
-                <span className="min-w-0 truncate">
-                  <Highlighted text={item.label} ranges={item.labelRanges} />
-                </span>
-              </span>
-              {item.detail !== '' && (
-                <span className="text-secondary-label flex min-w-0 items-center gap-1.5 text-xs">
-                  {item.place !== null && machines.length > 1 && (
-                    <MachineTag id={item.place.machine} machines={machines} />
-                  )}
-                  <span className="min-w-0 truncate">
-                    <Highlighted
-                      text={item.detail}
-                      ranges={item.detailRanges}
-                    />
-                    <span className="text-muted-foreground/40">
-                      {item.branch}
-                    </span>
+              {item.place === null && (
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate text-sm">
+                    <Highlighted text={item.label} ranges={item.labelRanges} />
                   </span>
-                  {item.updatedAt !== null && (
-                    <span className="ml-auto shrink-0 pl-2 tabular-nums">
-                      {timeAgo(item.updatedAt)}
+                  {item.detail !== '' && (
+                    <span className="text-secondary-label truncate text-xs">
+                      {item.detail}
                     </span>
                   )}
                 </span>
+              )}
+              {item.place !== null && item.section === 'In messages' && (
+                <PaletteMessageItem
+                  title={item.label}
+                  snippet={item.detail}
+                  snippetRanges={item.detailRanges}
+                  project={projectName(
+                    item.place.machine,
+                    item.place.projectId,
+                    projects
+                  )}
+                  updatedAt={item.updatedAt}
+                  place={item.place}
+                  machines={machines}
+                />
+              )}
+              {item.place !== null && item.section !== 'In messages' && (
+                <PaletteThreadItem
+                  title={item.label}
+                  titleRanges={item.labelRanges}
+                  project={item.detail}
+                  updatedAt={item.updatedAt}
+                  place={item.place}
+                  machines={machines}
+                />
               )}
             </button>
           </div>
@@ -412,32 +409,6 @@ function PaletteContent() {
           Couldn&apos;t search {results.failures.join(', ')}
         </p>
       )}
-    </>
-  )
-}
-
-function MachineTag(props: {
-  id: string
-  machines: { id: string; icon: string | null }[]
-}) {
-  const machine = props.machines.find((item) => item.id === props.id)
-  return (
-    <MachineLogo icon={machine?.icon ?? null} className="size-3 shrink-0" />
-  )
-}
-
-function Highlighted(props: { text: string; ranges: SearchRange[] }) {
-  return (
-    <>
-      {props.ranges.map((range, index) => (
-        <Fragment key={range.start}>
-          {props.text.slice(props.ranges[index - 1]?.end ?? 0, range.start)}
-          <mark className="text-foreground bg-transparent font-medium">
-            {props.text.slice(range.start, range.end)}
-          </mark>
-        </Fragment>
-      ))}
-      {props.text.slice(props.ranges.at(-1)?.end ?? 0)}
     </>
   )
 }

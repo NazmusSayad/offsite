@@ -244,8 +244,9 @@ function DesktopSessionItemView(props: {
                 {titleText}
               </span>
               <span className="relative ml-auto flex h-6 min-w-8 shrink-0 items-center justify-end">
-                <span className="text-secondary-label group-any-hover/sidebar-row:opacity-0 inline-flex justify-end text-xs tabular-nums transition-opacity group-has-[[data-state=open]]/sidebar-row:opacity-0">
+                <span className="text-secondary-label group-any-hover/sidebar-row:opacity-0 inline-flex items-center justify-end gap-1.5 text-xs tabular-nums transition-opacity group-has-[[data-state=open]]/sidebar-row:opacity-0">
                   {timeAgo(session.updatedAt)}
+                  <MachineLogo icon={machineIcon} className="size-3 shrink-0" />
                 </span>
                 <span className="group-any-hover/sidebar-row:opacity-100 absolute inset-y-0 right-0 -mr-1 flex items-center opacity-0 transition-opacity has-[[data-state=open]]:opacity-100">
                   {menu}

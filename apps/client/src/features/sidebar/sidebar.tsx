@@ -304,7 +304,12 @@ export function Sidebar(
           )}
           <ScopeMenu
             scope={scope}
-            onScope={setScope}
+            onScope={(next) => {
+              setScope(next)
+              if (next !== null && selection?.sessionId === null) {
+                select(next.machine, next.projectId, null)
+              }
+            }}
             onEdit={setEditing}
             onAddProject={setAdding}
           />

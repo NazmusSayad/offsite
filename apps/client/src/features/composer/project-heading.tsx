@@ -30,7 +30,7 @@ export function ProjectHeading(props: {
   const [adding, setAdding] = useState<string | null>(null)
   const [editing, setEditing] = useState<MachineProject | null>(null)
   useHotkeys(
-    ['mod+p', 'mod+semicolon'],
+    'mod+semicolon',
     (event) => {
       event.stopPropagation()
       setPicking(!picking)

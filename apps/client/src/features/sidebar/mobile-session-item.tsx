@@ -313,8 +313,9 @@ function MobileSessionItemView(props: {
                 />
               </span>
               {titleText}
-              <span className="text-secondary-label ml-auto shrink-0 text-xs tabular-nums">
+              <span className="text-secondary-label ml-auto inline-flex shrink-0 items-center gap-1.5 text-xs tabular-nums">
                 {timeAgo(session.updatedAt)}
+                <MachineLogo icon={machineIcon} className="size-3 shrink-0" />
               </span>
             </div>
           </ContextMenuTrigger>

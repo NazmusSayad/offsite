@@ -4,7 +4,7 @@ import { call } from '@/api/connection'
 import { readBase64 } from '@/api/upload'
 import { logger } from '@/lib/log'
 import { draftKey, getState, useStore } from '@/lib/store'
-import { errorMessage } from '@/lib/utils'
+import { errorMessage, touch } from '@/lib/utils'
 import { toWav } from './dictation-audio'
 import { editDraft } from './drafts'
 
@@ -328,7 +328,9 @@ function insert(value: string, key: string) {
     text: `${current.text.slice(0, at)}${inserted}${current.text.slice(at)}`,
   }))
   requestAnimationFrame(() => {
-    input.focus()
+    if (!touch.matches) {
+      input.focus()
+    }
     input.setSelectionRange(position, position)
   })
 }

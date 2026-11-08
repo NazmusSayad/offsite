@@ -16,7 +16,7 @@ import {
   selectedRunning,
   useStore,
 } from '@/lib/store'
-import { cn, mod } from '@/lib/utils'
+import { cn, mod, touch } from '@/lib/utils'
 import {
   AttachedImages,
   isPasteInline,
@@ -44,7 +44,6 @@ import { isStashShortcut, toggleStash } from './stash'
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 const maxImageSize = 5 * 1024 * 1024
-const touch = window.matchMedia('(pointer: coarse)')
 
 export function Composer() {
   const selection = useStore((state) => state.selection)
@@ -315,14 +314,20 @@ export function Composer() {
             if (!(event.target instanceof Element)) {
               return
             }
-            if (!event.currentTarget.contains(event.target)) {
+            if (event.target.closest('input, textarea')) {
               return
             }
-            if (event.target.closest('button, a, input, textarea')) {
+            if (
+              event.currentTarget.contains(event.target) &&
+              event.target.closest('button, a') === null
+            ) {
+              event.preventDefault()
+              input.current?.focus()
               return
             }
-            event.preventDefault()
-            input.current?.focus()
+            if (touch.matches) {
+              event.preventDefault()
+            }
           }}
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => {
