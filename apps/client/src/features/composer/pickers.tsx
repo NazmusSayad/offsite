@@ -13,6 +13,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { flushSync } from 'react-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { call } from '@/api/connection'
 import { ProviderIcon } from '@/components/icons'
@@ -165,12 +166,7 @@ function ModelPicker() {
           if (!(event.currentTarget instanceof HTMLElement)) {
             throw new Error('model picker is not an element')
           }
-          const content = event.currentTarget
-          const target =
-            content.querySelector<HTMLElement>('input') ??
-            content.querySelector<HTMLElement>('[data-selected=true]') ??
-            content.querySelector<HTMLElement>('[data-model]')
-          target?.focus()
+          focusModel(event.currentTarget)
         }}
         onCloseAutoFocus={(event) => {
           event.preventDefault()
@@ -210,6 +206,7 @@ function ModelMenu(props: {
   const [viewed, setViewed] = useState(current)
   const [query, setQuery] = useState('')
   const searchInput = useRef<HTMLInputElement>(null)
+  const root = useRef<HTMLDivElement>(null)
   const viewedModels =
     viewed === null
       ? []
@@ -269,7 +266,11 @@ function ModelMenu(props: {
       }))
       pick(key, same)
     }
-    setViewed(key)
+    flushSync(() => setViewed(key))
+    if (root.current === null) {
+      throw new Error('model menu is not mounted')
+    }
+    focusModel(root.current)
   }
 
   function pick(key: string, option: Model) {
@@ -299,6 +300,7 @@ function ModelMenu(props: {
 
   return (
     <div
+      ref={root}
       tabIndex={-1}
       className="flex max-h-86.5 flex-row outline-none"
       onKeyDown={(event) => {
@@ -473,4 +475,12 @@ function ModelMenu(props: {
       </div>
     </div>
   )
+}
+
+function focusModel(container: HTMLElement) {
+  const target =
+    container.querySelector<HTMLElement>('input') ??
+    container.querySelector<HTMLElement>('[data-selected=true]') ??
+    container.querySelector<HTMLElement>('[data-model]')
+  target?.focus()
 }
