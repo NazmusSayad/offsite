@@ -47,11 +47,11 @@ import {
 import { TerminalPage } from '@/features/terminal/terminal-page'
 import { Transcript } from '@/features/transcript/transcript'
 import { MobileLayout } from '@/features/workspace/mobile'
+import { PanelView } from '@/features/workspace/panel-view'
 import {
   type Panel,
   PanelMenu,
   PanelToggles,
-  PanelView,
 } from '@/features/workspace/panels'
 import { useAttentionBadge } from '@/lib/notifications'
 import {
@@ -375,7 +375,7 @@ function DesktopLayout() {
                 selection={selection}
                 panel={panel}
                 terminal={terminal}
-                changed={git.repos.some((repo) => repo.changed > 0)}
+                repos={git.repos}
                 onPanel={(next) => {
                   setSelectedTask(null)
                   setPanel(next)
@@ -388,7 +388,7 @@ function DesktopLayout() {
                   session={session}
                   panel={panel}
                   terminal={terminal}
-                  changed={git.repos.some((repo) => repo.changed > 0)}
+                  repos={git.repos}
                   open={commands.menuOpen}
                   onOpenChange={commands.setMenuOpen}
                   onPanel={(next) => {

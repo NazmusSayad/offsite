@@ -7,13 +7,9 @@ import {
   TaskDaily01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
-import {
-  lazy,
-  type ReactNode,
-  Suspense,
-  useState,
-  useSyncExternalStore,
-} from 'react'
+import type { GitRepo } from '@offsite/core/git'
+import { sumBy } from 'es-toolkit'
+import { type ReactNode, useState, useSyncExternalStore } from 'react'
 import { FaAsterisk, FaChevronRight } from 'react-icons/fa6'
 import { useReadLocalStorage } from 'usehooks-ts'
 import {
@@ -48,7 +44,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { BrowserPanel } from '@/features/browser/browser-panel'
 import { useEditorShortcut } from '@/features/files/use-editor-shortcut'
 import { SessionMenuItems } from '@/features/sidebar/session-menu-items'
 import {
@@ -56,13 +51,11 @@ import {
   subscribe as subscribeTerminal,
 } from '@/features/terminal/session'
 import { taskStatuses } from '@/features/transcript/tasks'
-import { TasksPanel } from '@/features/transcript/tasks-panel'
 import type { Prefs } from '@/lib/prefs'
 import { deactivateSession, editSession } from '@/lib/sessions'
 import {
   activityOf,
   type MachineSession,
-  projectOf,
   type Selection,
   showEditor,
   updatePrefs,
@@ -72,17 +65,13 @@ import { cn, mod } from '@/lib/utils'
 
 export type Panel = 'diff' | 'tasks' | 'browser'
 
-const DiffPanel = lazy(async () => ({
-  default: (await import('@/features/git/diff-panel')).DiffPanel,
-}))
-
 type MenuOption = {
   id: Prefs['toolbar'][number]
   label: string
   title: string
   icon: IconSvgElement
   pressed: boolean
-  dot: { color: string; status: string } | null
+  dot: { color: string; status: ReactNode } | null
   attention: string | null
   onSelect: () => void
 }
@@ -94,7 +83,7 @@ type ToggleProps = {
   selection: Selection
   panel: Panel | null
   terminal: boolean
-  changed: boolean
+  repos: GitRepo[]
   onPanel: (panel: Panel | null) => void
   onTerminal: (open: boolean) => void
 }
@@ -223,12 +212,14 @@ export function PanelMenu(
               {option.dot !== null && (
                 <span className="text-muted-foreground flex items-center gap-1.5 text-xs tabular-nums">
                   {option.dot.status}
-                  <span
-                    className={cn(
-                      'size-1.5 rounded-full bg-current',
-                      option.dot.color
-                    )}
-                  />
+                  {option.id !== 'diff' && (
+                    <span
+                      className={cn(
+                        'size-1.5 rounded-full bg-current',
+                        option.dot.color
+                      )}
+                    />
+                  )}
                 </span>
               )}
             </DropdownMenuItem>
@@ -390,6 +381,9 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
     (state) =>
       taskStatuses(state).filter((status) => status === 'Running').length
   )
+  const changed = props.repos.some((repo) => repo.changed > 0)
+  const added = sumBy(props.repos, (repo) => repo.added)
+  const removed = sumBy(props.repos, (repo) => repo.removed)
 
   return [
     {
@@ -398,8 +392,21 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       title: 'Diff',
       icon: GitCompareIcon,
       pressed: props.panel === 'diff',
-      dot: props.changed ? { color: 'text-warning', status: 'Changes' } : null,
-      attention: props.changed ? 'text-warning' : null,
+      dot: changed
+        ? {
+            color: 'text-warning',
+            status:
+              added + removed > 0 ? (
+                <>
+                  <span className="text-diff-addition">+{added}</span>
+                  <span className="text-diff-deletion">-{removed}</span>
+                </>
+              ) : (
+                'Changes'
+              ),
+          }
+        : null,
+      attention: changed ? 'text-warning' : null,
       onSelect: () => props.onPanel(props.panel === 'diff' ? null : 'diff'),
     },
     {
@@ -463,54 +470,4 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
         }),
     },
   ]
-}
-
-export function PanelView(props: {
-  panel: Panel
-  selection: Selection
-  running: boolean
-  selectedTask: string | null
-  onSelectTask: (id: string | null) => void
-  onPanel: (panel: Panel | null) => void
-  mobile: boolean
-}) {
-  const cwd = useStore(
-    (state) =>
-      projectOf(state, props.selection.machine, props.selection.projectId)
-        ?.path ?? ''
-  )
-  return (
-    <>
-      {props.panel === 'browser' && (
-        <BrowserPanel
-          machine={props.selection.machine}
-          onClose={() => props.onPanel(null)}
-          mobile={props.mobile}
-        />
-      )}
-      {props.panel === 'diff' && (
-        <Suspense>
-          <DiffPanel
-            key={`${props.selection.machine} ${props.selection.projectId}`}
-            machine={props.selection.machine}
-            projectId={props.selection.projectId}
-            running={props.running}
-            onClose={() => props.onPanel(null)}
-            mobile={props.mobile}
-          />
-        </Suspense>
-      )}
-      {props.panel === 'tasks' && (
-        <TasksPanel
-          machine={props.selection.machine}
-          cwd={cwd}
-          sessionId={props.selection.sessionId}
-          selected={props.selectedTask}
-          onSelect={props.onSelectTask}
-          onClose={() => props.onPanel(null)}
-          mobile={props.mobile}
-        />
-      )}
-    </>
-  )
 }

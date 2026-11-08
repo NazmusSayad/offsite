@@ -6,6 +6,8 @@ export type GitRepo = {
   ahead: number
   behind: number
   changed: number
+  added: number
+  removed: number
 }
 
 export type PullRequestBranches = {

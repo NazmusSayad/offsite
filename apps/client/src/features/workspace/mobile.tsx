@@ -27,7 +27,8 @@ import {
 } from '@/features/terminal/session'
 import { TerminalPage } from '@/features/terminal/terminal-page'
 import { Transcript } from '@/features/transcript/transcript'
-import { type Panel, PanelMenu, PanelView } from '@/features/workspace/panels'
+import { PanelView } from '@/features/workspace/panel-view'
+import { type Panel, PanelMenu } from '@/features/workspace/panels'
 import { router, type Search } from '@/lib/router'
 import { closeSession } from '@/lib/sessions'
 import {
@@ -135,7 +136,6 @@ function MobileChat(props: { selection: Selection }) {
     select: (search) => search.panel ?? null,
   })
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
-  const changed = git.repos.some((repo) => repo.changed > 0)
   const open = !projectless && (panel !== null || terminal)
 
   const showOverlay = useCallback(
@@ -232,7 +232,7 @@ function MobileChat(props: { selection: Selection }) {
             session={session}
             panel={panel}
             terminal={terminal}
-            changed={changed}
+            repos={git.repos}
             open={commands.menuOpen}
             onOpenChange={commands.setMenuOpen}
             onPanel={showPanel}

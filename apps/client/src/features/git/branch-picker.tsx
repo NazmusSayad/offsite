@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils'
 type BranchTarget = {
   machine: string
   projectId: string
-  repo: GitRepo
+  repo: Omit<GitRepo, 'added' | 'removed'>
   onRefresh: () => void
 }
 
@@ -282,7 +282,7 @@ export function SyncCounts(props: { behind: number; ahead: number }) {
   )
 }
 
-export function syncAction(repo: GitRepo) {
+export function syncAction(repo: BranchTarget['repo']) {
   if (repo.branch === null || !repo.remote) {
     return null
   }

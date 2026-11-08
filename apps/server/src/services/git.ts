@@ -51,6 +51,7 @@ export async function gitRepos(cwd: string) {
   return Promise.all(
     (await projectRepos(cwd)).map(async (repo) => ({
       ...(await gitStatus(path.join(cwd, repo))),
+      ...(await lineChanges(path.join(cwd, repo))),
       path: repo,
     }))
   )
@@ -340,7 +341,7 @@ async function gitStatus(cwd: string) {
     '.',
   ])
   const remotes = await git(cwd, ['remote'])
-  const status: Omit<GitRepo, 'path'> = {
+  const status: Omit<GitRepo, 'path' | 'added' | 'removed'> = {
     branch: null,
     upstream: null,
     remote: remotes.stdout.trim() !== '',
@@ -362,6 +363,24 @@ async function gitStatus(cwd: string) {
     }
   }
   return status
+}
+
+async function lineChanges(repo: string) {
+  let added = 0
+  let removed = 0
+  let hunk = false
+  for (const line of (await repoDiff(repo, '')).split('\n')) {
+    if (line.startsWith('diff --git ')) {
+      hunk = false
+    } else if (line.startsWith('@@')) {
+      hunk = true
+    } else if (hunk && line.startsWith('+')) {
+      added++
+    } else if (hunk && line.startsWith('-')) {
+      removed++
+    }
+  }
+  return { added, removed }
 }
 
 async function rebaseOnUpstream(cwd: string) {
