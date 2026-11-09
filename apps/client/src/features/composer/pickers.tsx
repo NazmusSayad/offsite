@@ -1,8 +1,4 @@
-import {
-  ArrowRight01Icon,
-  SearchIcon,
-  UserSettings01Icon,
-} from '@hugeicons/core-free-icons'
+import { SearchIcon, UserSettings01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Model, Provider } from '@offsite/core/providers'
 import {
@@ -54,10 +50,7 @@ export function Pickers() {
       <ModelPicker />
       {model !== undefined && model.efforts.length > 0 && (
         <>
-          <HugeiconsIcon
-            icon={ArrowRight01Icon}
-            className="text-muted-foreground/60 -mx-1 hidden size-3.5 shrink-0 sm:block"
-          />
+          <span className="bg-muted-foreground/25 mx-px h-2 w-px shrink-0" />
           <Picker
             title="Effort"
             shortcut={['mod+shift+e', 'mod+slash']}
@@ -144,7 +137,7 @@ function ModelPicker() {
           title={account === undefined ? 'Model' : `${account.name} · ${label}`}
         >
           <span className="relative">
-            <ProviderIcon provider={settings.provider} className="size-4" />
+            <ProviderIcon provider={settings.provider} className="size-3.5" />
             {choices.filter((item) => item.provider === settings.provider)
               .length > 1 &&
               account !== undefined && (

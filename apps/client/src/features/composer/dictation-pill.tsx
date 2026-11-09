@@ -60,7 +60,7 @@ export function DictationPill(props: {
         }
         onClick={props.dictation.cancel}
       >
-        <HugeiconsIcon icon={XIcon} className="size-4" />
+        <HugeiconsIcon icon={XIcon} className="size-3.5" />
       </button>
       {state.kind === 'recording' && (
         <Meter started={state.started} analyser={state.analyser} />

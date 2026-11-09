@@ -28,6 +28,7 @@ import { deactivateSession, editSession } from '@/lib/sessions'
 import type { MachineSession } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { secondarySwipe } from './mobile-session-item'
+import { RestartDialog } from './restart-dialog'
 import { SessionMenuItems } from './session-menu-items'
 import { SessionStatus } from './session-status'
 import { SessionTitle } from './session-title'
@@ -46,6 +47,7 @@ export function MobileGroupedSessionItem(props: {
   const session = props.session
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
+  const [restarting, setRestarting] = useState(false)
   const [offset, setOffset] = useState(0)
   const field = useRef<HTMLInputElement>(null)
   const swipe = useRef<{ x: number; y: number; swiping: boolean } | null>(null)
@@ -201,6 +203,7 @@ export function MobileGroupedSessionItem(props: {
         context={true}
         mobile={true}
         onDeactivate={deactivate}
+        onRestart={() => setRestarting(true)}
         onRename={() => setTitle(session.title)}
       />
     </ContextMenuContent>
@@ -306,6 +309,11 @@ export function MobileGroupedSessionItem(props: {
         {menu}
       </ContextMenu>
       {stopDialog}
+      <AlertDialog open={restarting} onOpenChange={setRestarting}>
+        <AlertDialogContent>
+          <RestartDialog session={session} />
+        </AlertDialogContent>
+      </AlertDialog>
     </li>
   )
 }

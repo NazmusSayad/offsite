@@ -127,7 +127,8 @@ export function MoreMenu(props: {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon-xs"
+          className="relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5"
           title="More"
           aria-label="More composer controls"
         >

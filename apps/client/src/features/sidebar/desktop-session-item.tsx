@@ -36,6 +36,7 @@ import { timeAgo } from '@/lib/format'
 import { deactivateSession, editSession } from '@/lib/sessions'
 import { machineOf, type MachineSession, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { RestartDialog } from './restart-dialog'
 import { SessionMenuItems } from './session-menu-items'
 import { SessionStatus } from './session-status'
 import { SessionTitle } from './session-title'
@@ -61,6 +62,7 @@ function DesktopSessionItemView(props: {
   )
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
+  const [restarting, setRestarting] = useState(false)
   const field = useRef<HTMLInputElement>(null)
   const waiting = props.activity?.waiting === true
   const backgroundRunning = Object.values(props.activity?.tasks ?? {}).includes(
@@ -133,6 +135,7 @@ function DesktopSessionItemView(props: {
           context={false}
           mobile={false}
           onDeactivate={deactivate}
+          onRestart={() => setRestarting(true)}
           onRename={() => setTitle(session.title)}
         />
       </DropdownMenuContent>
@@ -156,6 +159,7 @@ function DesktopSessionItemView(props: {
         context={true}
         mobile={false}
         onDeactivate={deactivate}
+        onRestart={() => setRestarting(true)}
         onRename={() => setTitle(session.title)}
       />
     </ContextMenuContent>
@@ -324,6 +328,11 @@ function DesktopSessionItemView(props: {
         {contextMenu}
       </ContextMenu>
       {stopDialog}
+      <AlertDialog open={restarting} onOpenChange={setRestarting}>
+        <AlertDialogContent>
+          <RestartDialog session={session} />
+        </AlertDialogContent>
+      </AlertDialog>
     </li>
   )
 }

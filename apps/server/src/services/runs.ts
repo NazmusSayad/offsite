@@ -4,10 +4,17 @@ import type { SessionSettings } from '@offsite/core/config'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { RpcMethods } from '@offsite/core/protocol'
 import type { RewindRequest, RewindResult } from '@offsite/core/sessions'
-import { history, rewindLive, Run, shownMessages } from '../lib/claude/index.ts'
+import {
+  agentMessages,
+  history,
+  rewindLive,
+  Run,
+  shownMessages,
+} from '../lib/claude/index.ts'
 import {
   stopAppServers,
   CodexRun,
+  codexAgent,
   codexHistory,
   revertThread,
 } from '../lib/codex/index.ts'
@@ -15,6 +22,7 @@ import { type Client, publish } from '../lib/hub.ts'
 import { runs } from '../lib/live.ts'
 import {
   OpenCodeRun,
+  openCodeAgent,
   openCodeHistory,
   rewindOpenCode,
 } from '../lib/opencode/index.ts'
@@ -49,6 +57,22 @@ export function sessionHistory(sessionId: string, cwd: string) {
       return codexHistory(sessionId)
     case 'opencode':
       return openCodeHistory(sessionId, cwd)
+  }
+}
+
+export function agentHistory(
+  sessionId: string,
+  cwd: string,
+  agentId: string,
+  parent: string
+) {
+  switch (providerOf(sessionId)) {
+    case 'claude':
+      return agentMessages(sessionId, cwd, agentId, parent)
+    case 'codex':
+      return codexAgent(agentId, parent)
+    case 'opencode':
+      return openCodeAgent(agentId, parent)
   }
 }
 
@@ -134,6 +158,31 @@ async function rewindNow(request: RewindRequest): Promise<RewindResult> {
   })
   publish(sessionId, await history(sessionId, cwd))
   return result
+}
+
+export function restart(sessionId: string) {
+  return locked(sessionId, async () => {
+    const run = runs.get(sessionId)
+    if (run === undefined) {
+      return
+    }
+    if (run.provider !== 'claude') {
+      throw new Error('Only Claude Code threads can be restarted')
+    }
+    if (run.running) {
+      await run.interrupt()
+    }
+    run.stop()
+    await run.closed
+    new Run({
+      sessionId,
+      cwd: run.cwd,
+      resume: true,
+      resumeAt: null,
+      settings: run.settings,
+    })
+    publish(sessionId, await history(sessionId, run.cwd))
+  })
 }
 
 export async function open(

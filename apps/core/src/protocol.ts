@@ -168,6 +168,7 @@ export type RpcMethods = {
     result: null
   }
   'sessions.interrupt': { params: { sessionId: string }; result: null }
+  'sessions.restart': { params: { sessionId: string }; result: null }
   'sessions.stopTask': {
     params: { sessionId: string; taskId: string }
     result: null

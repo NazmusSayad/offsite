@@ -313,7 +313,9 @@ export function Composer() {
             void attach([...event.dataTransfer.files])
           }}
         >
-          <div className={cn('pb-2', images.length > 0 && 'pt-3.5 sm:pt-4')}>
+          <div
+            className={cn('pb-1 md:pb-2', images.length > 0 && 'pt-2 sm:pt-4')}
+          >
             {images.length > 0 && <AttachedImages draftKey={key} />}
             <textarea
               ref={input}
@@ -421,23 +423,23 @@ export function Composer() {
                       : 'Ask anything, @tag files/folders, or / for commands'
               }
               className={cn(
-                'placeholder:text-placeholder/75 block [field-sizing:content] w-full resize-none bg-transparent px-3 text-sm leading-relaxed outline-none sm:px-4',
+                'placeholder:text-placeholder/75 block [field-sizing:content] w-full resize-none bg-transparent px-2.5 text-sm leading-relaxed outline-none sm:px-4',
                 images.length > 0
                   ? 'max-h-52 min-h-19.5'
-                  : 'max-h-55.5 min-h-20 pt-3.5 sm:max-h-56 sm:pt-4 [@media(min-height:840px)]:min-h-23 sm:[@media(min-height:840px)]:min-h-23.5'
+                  : 'max-h-55.5 min-h-20 pt-2 sm:max-h-56 sm:pt-4 [@media(min-height:840px)]:min-h-23 sm:[@media(min-height:840px)]:min-h-23.5'
               )}
             />
           </div>
           <div
             className={cn(
-              'flex min-w-0 items-center justify-between gap-2 px-3 sm:px-3.5',
-              hero ? 'pb-2.5 sm:pb-3.5' : 'pb-2 sm:pb-3'
+              'flex min-w-0 items-center justify-between gap-2 px-2 sm:px-3.5',
+              hero ? 'pb-2 sm:pb-3.5' : 'pb-1.5 sm:pb-3'
             )}
           >
-            <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-1 overflow-x-auto p-1 ps-3 sm:ps-4">
+            <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center overflow-x-auto p-1 ps-2.25 sm:ps-4">
               <Pickers />
             </div>
-            <div className="relative flex shrink-0 items-center justify-end gap-2">
+            <div className="relative flex shrink-0 items-center justify-end gap-1">
               <input
                 ref={picker}
                 type="file"
@@ -462,7 +464,8 @@ export function Composer() {
               />
               <Button
                 variant="ghost"
-                size="icon-sm"
+                size="icon-xs"
+                className="relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5"
                 title="Attach files"
                 aria-label="Attach files"
                 onClick={() => picker.current?.click()}
@@ -473,7 +476,6 @@ export function Composer() {
                 dictation={dictation}
                 running={running}
                 empty={empty}
-                blank={text.trim() === '' && images.length === 0}
                 delivery={delivery}
                 onSubmit={(swap) => void submit(swap, false)}
                 onStop={interrupt}
