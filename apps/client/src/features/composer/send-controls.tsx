@@ -20,7 +20,6 @@ export function SendControls(props: {
   onSubmit: (swap: boolean) => void
   onStop: () => void
 }) {
-  const dictateButton = useStore((state) => state.prefs.dictateButton.mobile)
   const dictation = props.dictation.state
   const [previous, setPrevious] = useState(dictation)
   const [closing, setClosing] = useState<ActiveDictation | null>(null)
@@ -48,21 +47,6 @@ export function SendControls(props: {
           dictation={props.dictation}
           closing={dictation.kind === 'idle'}
         />
-      )}
-      {dictateButton && (
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          className={cn(
-            'relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5 md:hidden',
-            dictation.kind !== 'idle' && 'invisible'
-          )}
-          title={`Dictate (${mod}+Shift+D)`}
-          aria-label="Dictate"
-          onClick={() => void props.dictation.toggle()}
-        >
-          <HugeiconsIcon icon={AiMicIcon} />
-        </Button>
       )}
       {dictation.kind !== 'idle' ? (
         <div className="size-9.5 shrink-0 md:-my-px" />
@@ -101,5 +85,27 @@ export function SendControls(props: {
         </button>
       )}
     </>
+  )
+}
+
+export function DictateButton(props: { dictation: Dictation }) {
+  const dictateButton = useStore((state) => state.prefs.dictateButton.mobile)
+  if (!dictateButton) {
+    return null
+  }
+  return (
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      className={cn(
+        'relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5 md:hidden',
+        props.dictation.state.kind !== 'idle' && 'invisible'
+      )}
+      title={`Dictate (${mod}+Shift+D)`}
+      aria-label="Dictate"
+      onClick={() => void props.dictation.toggle()}
+    >
+      <HugeiconsIcon icon={AiMicIcon} />
+    </Button>
   )
 }
