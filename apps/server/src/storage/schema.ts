@@ -59,14 +59,19 @@ export const pushSubscriptions = snakeCase.table('push_subscriptions', {
   server: text().notNull(),
 })
 
-export const lastUsedModels = snakeCase.table('last_used_models', {
+export const lastPickedModels = snakeCase.table('last_used_models', {
   provider: text({ enum: ['claude', 'codex', 'opencode'] }).primaryKey(),
   accountId: text(),
   model: text().notNull(),
   usedAt: integer().notNull(),
 })
 
-export const lastEfforts = snakeCase.table(
+export const lastMessageTimes = snakeCase.table('last_sent', {
+  accountId: text().primaryKey(),
+  sentAt: integer().notNull(),
+})
+
+export const lastPickedEfforts = snakeCase.table(
   'last_efforts',
   {
     provider: text({ enum: ['claude', 'codex', 'opencode'] }).notNull(),

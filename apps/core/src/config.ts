@@ -34,14 +34,19 @@ export type AccountConfig = {
   enabled: boolean
 }
 
-export type LastUsedModel = {
+export type LastPickedModelForProvider = {
   provider: Provider
   accountId: string | null
   model: string
   usedAt: number
 }
 
-export type LastEffort = {
+export type LastMessageAtForAccount = {
+  accountId: string
+  sentAt: number
+}
+
+export type LastPickedEffortForModel = {
   provider: Provider
   model: string
   effort: string | null

@@ -2,8 +2,9 @@ import type { AppIconId } from '@offsite/core/app-icons'
 import type {
   Config,
   ConfigWithDefaults,
-  LastEffort,
-  LastUsedModel,
+  LastPickedEffortForModel,
+  LastMessageAtForAccount,
+  LastPickedModelForProvider,
   SessionSettings,
 } from '@offsite/core/config'
 import type { WorktreeStage } from '@offsite/core/git'
@@ -73,8 +74,9 @@ export type Machine = {
   label: string | null
   pairedAt: number | null
   config: Config | null
-  lastUsed: LastUsedModel[] | null
-  lastEfforts: LastEffort[]
+  lastPickedModelByProvider: LastPickedModelForProvider[] | null
+  lastMessageAtByAccount: LastMessageAtForAccount[]
+  lastPickedEffortByModel: LastPickedEffortForModel[]
   appIcon: AppIconId | null
   configError: string | null
   system: Omit<ConfigWithDefaults, 'config'> | null

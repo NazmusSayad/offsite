@@ -26,6 +26,7 @@ import {
   openCodeHistory,
   rewindOpenCode,
 } from '../lib/opencode/index.ts'
+import { saveLastMessageTime } from '../storage/last-used.ts'
 import { assertEnabled, providerName } from './accounts.ts'
 import {
   addScratchProject,
@@ -206,6 +207,9 @@ export async function send(
   request: RpcMethods['sessions.send']['params']
 ) {
   assertEnabled(request.settings.provider, request.settings.accountId)
+  if (request.settings.accountId !== null) {
+    saveLastMessageTime(request.settings.accountId)
+  }
   if (request.projectId === NO_PROJECT) {
     if (request.sessionId !== null) {
       throw new Error('A started chat always has a project')

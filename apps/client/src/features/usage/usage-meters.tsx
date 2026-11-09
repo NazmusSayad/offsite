@@ -143,17 +143,17 @@ function recentAccounts(machines: Machine[]) {
   const used = machines
     .filter((machine) => machine.status === 'online')
     .flatMap((machine) =>
-      (machine.lastUsed ?? []).flatMap((row) => {
+      machine.lastMessageAtByAccount.flatMap((row) => {
         const account = [
           ...machine.claudeAccounts,
           ...machine.codexAccounts,
         ].find((item) => item.id === row.accountId)
         return account === undefined || !hasUsage(account)
           ? []
-          : [{ machine: machine.id, account, usedAt: row.usedAt }]
+          : [{ machine: machine.id, account, sentAt: row.sentAt }]
       })
     )
-    .sort((a, b) => b.usedAt - a.usedAt)
+    .sort((a, b) => b.sentAt - a.sentAt)
   return uniqBy(used, (entry) => usageKey(entry.machine, entry.account)).slice(
     0,
     2

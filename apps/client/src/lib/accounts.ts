@@ -21,19 +21,19 @@ import {
 
 let loading: { key: string; result: Promise<Capabilities> } | null = null
 
-export function lastEffort(
+export function lastPickedEffort(
   machine: Machine,
   provider: Provider,
   model: string
 ) {
   return (
-    machine.lastEfforts.find(
+    machine.lastPickedEffortByModel.find(
       (item) => item.provider === provider && item.model === model
     )?.effort ?? null
   )
 }
 
-export function saveLastEffort(
+export function saveLastPickedEffort(
   provider: Provider,
   model: string,
   effort: string | null
@@ -51,7 +51,9 @@ export function providerSettings(
   machine: Machine,
   provider: Provider
 ): SessionSettings {
-  const row = machine.lastUsed?.find((item) => item.provider === provider)
+  const row = machine.lastPickedModelByProvider?.find(
+    (item) => item.provider === provider
+  )
   const mode =
     provider === 'claude'
       ? DEFAULT_CLAUDE_PERMISSION_MODE
@@ -72,14 +74,17 @@ export function providerSettings(
     provider,
     accountId: row.accountId,
     model: row.model,
-    effort: lastEffort(machine, provider, row.model),
+    effort: lastPickedEffort(machine, provider, row.model),
     mode,
     plan: false,
   }
 }
 
 export function newThreadSettings(machine: Machine): SessionSettings {
-  const latest = maxBy(machine.lastUsed ?? [], (item) => item.usedAt)
+  const latest = maxBy(
+    machine.lastPickedModelByProvider ?? [],
+    (item) => item.usedAt
+  )
   if (latest === undefined) {
     return {
       provider: DEFAULT_PROVIDER,
@@ -93,7 +98,7 @@ export function newThreadSettings(machine: Machine): SessionSettings {
   return providerSettings(machine, latest.provider)
 }
 
-export function saveLastUsed(
+export function saveLastPickedModel(
   machine: string,
   provider: Provider,
   accountId: string | null,
@@ -312,7 +317,7 @@ export async function refreshCapabilities() {
     changeSettings({
       model: first.value,
       effort:
-        lastEffort(
+        lastPickedEffort(
           machineOf(getState(), selection.machine),
           provider,
           first.value

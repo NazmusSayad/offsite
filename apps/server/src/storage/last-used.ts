@@ -1,8 +1,15 @@
-import type { LastUsedModel } from '@offsite/core/config'
+import type {
+  LastMessageAtForAccount,
+  LastPickedModelForProvider,
+} from '@offsite/core/config'
 import { z } from 'zod'
 import { broadcast } from '../lib/hub.ts'
 import { db } from './db.ts'
-import { lastEfforts, lastUsedModels } from './schema.ts'
+import {
+  lastMessageTimes,
+  lastPickedEfforts,
+  lastPickedModels,
+} from './schema.ts'
 
 const lastUsedSchema = z.discriminatedUnion('provider', [
   z.strictObject({
@@ -23,40 +30,53 @@ const lastEffortSchema = z.strictObject({
   effort: z.string().nullable(),
 })
 
-export function readLastUsed(): LastUsedModel[] {
-  return db.select().from(lastUsedModels).all()
+export function readLastPickedModels(): LastPickedModelForProvider[] {
+  return db.select().from(lastPickedModels).all()
 }
 
-export function saveLastUsed(value: unknown) {
+export function saveLastPickedModel(value: unknown) {
   const result = lastUsedSchema.safeParse(value)
   if (!result.success) {
     throw new Error(z.prettifyError(result.error))
   }
   const row = { ...result.data, usedAt: Date.now() }
-  db.insert(lastUsedModels)
+  db.insert(lastPickedModels)
     .values(row)
-    .onConflictDoUpdate({ target: lastUsedModels.provider, set: row })
+    .onConflictDoUpdate({ target: lastPickedModels.provider, set: row })
     .run()
-  broadcast({ type: 'lastUsed', lastUsed: readLastUsed() })
+  broadcast({ type: 'lastUsed', lastUsed: readLastPickedModels() })
   return null
 }
 
-export function readLastEfforts() {
-  return db.select().from(lastEfforts).all()
+export function readLastMessageTimes(): LastMessageAtForAccount[] {
+  return db.select().from(lastMessageTimes).all()
 }
 
-export function saveLastEffort(value: unknown) {
+export function saveLastMessageTime(accountId: string) {
+  const row = { accountId, sentAt: Date.now() }
+  db.insert(lastMessageTimes)
+    .values(row)
+    .onConflictDoUpdate({ target: lastMessageTimes.accountId, set: row })
+    .run()
+  broadcast({ type: 'lastSent', lastSent: readLastMessageTimes() })
+}
+
+export function readLastPickedEfforts() {
+  return db.select().from(lastPickedEfforts).all()
+}
+
+export function saveLastPickedEffort(value: unknown) {
   const result = lastEffortSchema.safeParse(value)
   if (!result.success) {
     throw new Error(z.prettifyError(result.error))
   }
-  db.insert(lastEfforts)
+  db.insert(lastPickedEfforts)
     .values(result.data)
     .onConflictDoUpdate({
-      target: [lastEfforts.provider, lastEfforts.model],
+      target: [lastPickedEfforts.provider, lastPickedEfforts.model],
       set: { effort: result.data.effort },
     })
     .run()
-  broadcast({ type: 'lastEfforts', lastEfforts: readLastEfforts() })
+  broadcast({ type: 'lastEfforts', lastEfforts: readLastPickedEfforts() })
   return null
 }

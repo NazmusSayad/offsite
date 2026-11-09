@@ -38,7 +38,7 @@ import {
 } from '@/lib/url'
 import { receiveLimits, receiveUsage } from '@/lib/usage'
 import { call, connectMachine, listen } from './connection'
-import { receiveConfig, receiveLastUsed } from './machine-config'
+import { receiveConfig, receiveLastPickedModels } from './machine-config'
 import {
   addMachine,
   connectAddresses,
@@ -203,12 +203,13 @@ async function resync(machine: string) {
       providers: snapshot.providers,
       terminals: snapshot.terminals,
       appIcon: snapshot.appIcon,
-      lastEfforts: snapshot.lastEfforts,
+      lastMessageAtByAccount: snapshot.lastSent,
+      lastPickedEffortByModel: snapshot.lastEfforts,
     })
     setProjects(machine, snapshot.projects)
     setSessions(machine, snapshot.sessions)
     receiveConfig(machine, snapshot.config)
-    receiveLastUsed(machine, snapshot.lastUsed)
+    receiveLastPickedModels(machine, snapshot.lastUsed)
     reopenThread(machine)
     void refreshAccounts(machine)
     if (getState().selection?.machine === machine) {
@@ -335,10 +336,13 @@ function receive(machine: string, event: ServerEvent) {
       receiveConfig(machine, event.config)
       return
     case 'lastUsed':
-      receiveLastUsed(machine, event.lastUsed)
+      receiveLastPickedModels(machine, event.lastUsed)
+      return
+    case 'lastSent':
+      setMachine(machine, { lastMessageAtByAccount: event.lastSent })
       return
     case 'lastEfforts':
-      setMachine(machine, { lastEfforts: event.lastEfforts })
+      setMachine(machine, { lastPickedEffortByModel: event.lastEfforts })
       return
     case 'appIcon':
       setMachine(machine, { appIcon: event.appIcon })

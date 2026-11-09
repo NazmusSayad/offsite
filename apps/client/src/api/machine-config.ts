@@ -1,4 +1,4 @@
-import type { Config, LastUsedModel } from '@offsite/core/config'
+import type { Config, LastPickedModelForProvider } from '@offsite/core/config'
 import { resetNewThread } from '@/lib/accounts'
 import { getState, machineOf, setMachine, showError } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
@@ -106,9 +106,12 @@ function applyConfig(machine: string, value: Config) {
   setMachine(machine, { config: value })
 }
 
-export function receiveLastUsed(machine: string, value: LastUsedModel[]) {
-  const previous = machineOf(getState(), machine).lastUsed
-  setMachine(machine, { lastUsed: value })
+export function receiveLastPickedModels(
+  machine: string,
+  value: LastPickedModelForProvider[]
+) {
+  const previous = machineOf(getState(), machine).lastPickedModelByProvider
+  setMachine(machine, { lastPickedModelByProvider: value })
   if (previous === null) {
     resetNewThread(machine)
   }

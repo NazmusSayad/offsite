@@ -2,8 +2,9 @@ import type { AppIconId } from './app-icons.ts'
 import type {
   Config,
   ConfigWithDefaults,
-  LastEffort,
-  LastUsedModel,
+  LastPickedEffortForModel,
+  LastMessageAtForAccount,
+  LastPickedModelForProvider,
   PromptDelivery,
   SessionSettings,
 } from './config.ts'
@@ -61,8 +62,9 @@ import type {
 } from './terminal.ts'
 
 export type SyncSnapshot = ConfigWithDefaults & {
-  lastUsed: LastUsedModel[]
-  lastEfforts: LastEffort[]
+  lastUsed: LastPickedModelForProvider[]
+  lastSent: LastMessageAtForAccount[]
+  lastEfforts: LastPickedEffortForModel[]
   hostname: string
   projects: Project[]
   sessions: Session[]
@@ -78,10 +80,10 @@ export type RpcMethods = {
   'config.get': { params: void; result: ConfigWithDefaults }
   'config.save': { params: Config; result: Config }
   'lastUsed.save': {
-    params: Pick<LastUsedModel, 'provider' | 'accountId' | 'model'>
+    params: Pick<LastPickedModelForProvider, 'provider' | 'accountId' | 'model'>
     result: null
   }
-  'lastEffort.save': { params: LastEffort; result: null }
+  'lastEffort.save': { params: LastPickedEffortForModel; result: null }
   'appIcon.save': { params: AppIconId; result: AppIconId }
   'projects.add': { params: { path: string }; result: Project }
   'projects.update': {
@@ -371,8 +373,9 @@ export type ServerEvent =
   | { type: 'limits'; accountId: string; limits: RateLimit[] }
   | { type: 'usage'; accountId: string; usage: Usage }
   | { type: 'config'; config: Config }
-  | { type: 'lastUsed'; lastUsed: LastUsedModel[] }
-  | { type: 'lastEfforts'; lastEfforts: LastEffort[] }
+  | { type: 'lastUsed'; lastUsed: LastPickedModelForProvider[] }
+  | { type: 'lastSent'; lastSent: LastMessageAtForAccount[] }
+  | { type: 'lastEfforts'; lastEfforts: LastPickedEffortForModel[] }
   | { type: 'appIcon'; appIcon: AppIconId }
   | { type: 'projects'; projects: Project[] }
   | { type: 'sessions'; sessions: Session[] }

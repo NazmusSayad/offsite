@@ -25,10 +25,10 @@ import {
 import { Tooltip } from '@/components/ui/tooltip'
 import {
   changeSettings,
-  lastEffort,
+  lastPickedEffort,
   providerSettings,
-  saveLastEffort,
-  saveLastUsed,
+  saveLastPickedEffort,
+  saveLastPickedModel,
 } from '@/lib/accounts'
 import {
   getState,
@@ -78,7 +78,7 @@ export function Pickers() {
             onChange={(value) => {
               const effort = value === 'default' ? null : value
               changeSettings({ effort })
-              saveLastEffort(settings.provider, model.value, effort)
+              saveLastPickedEffort(settings.provider, model.value, effort)
             }}
           />
         </>
@@ -300,9 +300,15 @@ function ModelMenu(props: {
     const choice = {
       accountId: picked.accountId,
       model: option.value,
-      effort: lastEffort(machine, provider, option.value) ?? option.effort,
+      effort:
+        lastPickedEffort(machine, provider, option.value) ?? option.effort,
     }
-    saveLastUsed(selection.machine, provider, picked.accountId, option.value)
+    saveLastPickedModel(
+      selection.machine,
+      provider,
+      picked.accountId,
+      option.value
+    )
     if (provider === settings.provider) {
       changeSettings(choice)
     } else {

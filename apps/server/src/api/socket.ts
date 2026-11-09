@@ -99,10 +99,11 @@ import {
 import { readUsage } from '../services/usage.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
 import {
-  readLastEfforts,
-  readLastUsed,
-  saveLastEffort,
-  saveLastUsed,
+  readLastPickedEfforts,
+  readLastMessageTimes,
+  readLastPickedModels,
+  saveLastPickedEffort,
+  saveLastPickedModel,
 } from '../storage/last-used.ts'
 import { readAppIcon, saveAppIcon } from '../storage/state.ts'
 
@@ -121,8 +122,9 @@ const handlers: Handlers = {
     refreshAll()
     return {
       ...configInfo(),
-      lastUsed: readLastUsed(),
-      lastEfforts: readLastEfforts(),
+      lastUsed: readLastPickedModels(),
+      lastSent: readLastMessageTimes(),
+      lastEfforts: readLastPickedEfforts(),
       hostname: os.hostname(),
       projects: projects(),
       sessions: sessions(),
@@ -133,8 +135,8 @@ const handlers: Handlers = {
     }
   },
   'config.get': () => configInfo(),
-  'lastUsed.save': (params) => saveLastUsed(params),
-  'lastEffort.save': (params) => saveLastEffort(params),
+  'lastUsed.save': (params) => saveLastPickedModel(params),
+  'lastEffort.save': (params) => saveLastPickedEffort(params),
   'appIcon.save': (params) => saveAppIcon(params),
   'config.save': async (params) => {
     const before = readConfig()
