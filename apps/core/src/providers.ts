@@ -38,7 +38,13 @@ export type Account = {
   valid: boolean
 }
 
-export type LinkAction = 'linked' | 'link' | 'relink' | 'replace' | 'backup'
+export type LinkAction =
+  | 'linked'
+  | 'link'
+  | 'relink'
+  | 'replace'
+  | 'backup'
+  | 'skip'
 
 export type LinkEntry = {
   type: 'folder' | 'json' | 'jsonl' | 'md'

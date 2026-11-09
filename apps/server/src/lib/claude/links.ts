@@ -42,7 +42,6 @@ const shared: Pick<LinkEntry, 'type' | 'name' | 'required'>[] = [
   { type: 'jsonl', name: 'history.jsonl', required: true },
   { type: 'json', name: 'settings.json', required: true },
   { type: 'md', name: 'CLAUDE.md', required: true },
-  { type: 'folder', name: 'todos', required: false },
   { type: 'folder', name: 'teams', required: false },
   { type: 'json', name: 'keybindings.json', required: false },
 ]
@@ -69,7 +68,9 @@ export function isFullyLinked(configDir: string) {
   if (sameFile(configDir, claudeBaseDir())) {
     return true
   }
-  return linkPlan(configDir).entries.every((item) => item.action === 'linked')
+  return linkPlan(configDir).entries.every(
+    (item) => item.action === 'linked' || item.action === 'skip'
+  )
 }
 
 export function linkPlan(configDir: string): LinkPlan {
@@ -109,6 +110,7 @@ export async function linkClaude(configDir: string) {
   }
   const missing = plan.entries.filter(
     (item) =>
+      item.action !== 'skip' &&
       !sameFile(
         path.join(plan.configDir, item.name),
         path.join(plan.baseDir, item.name)
@@ -128,10 +130,11 @@ function entry(
 ): LinkEntry {
   const target = path.join(configDir, item.name)
   const source = path.join(base, item.name)
+  const missing = statSync(source, { throwIfNoEntry: false }) === undefined
   return {
     ...item,
-    action: entryAction(target, source),
-    createInBase: statSync(source, { throwIfNoEntry: false }) === undefined,
+    action: !item.required && missing ? 'skip' : entryAction(target, source),
+    createInBase: item.required && missing,
   }
 }
 
@@ -176,6 +179,7 @@ function entrySteps(plan: LinkPlan, item: LinkEntry, stamp: string): Step[] {
   }
   switch (item.action) {
     case 'linked':
+    case 'skip':
       return []
     case 'link':
       return [link]

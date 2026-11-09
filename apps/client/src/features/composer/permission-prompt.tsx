@@ -2,6 +2,7 @@ import {
   CheckIcon,
   CheckmarkCircle02Icon,
   CircleDashedIcon,
+  CornerDownLeftIcon,
   HelpCircleIcon,
   MessageCircleQuestionMarkIcon,
   ShieldAlertIcon,
@@ -9,7 +10,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { PermissionRequest, Question } from '@offsite/core/items'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { uploadFile } from '@/api/upload'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
@@ -173,6 +174,7 @@ function QuestionPrompt(props: {
   const [active, setActive] = useState(0)
   const [picked, setPicked] = useState<Record<string, string[]>>({})
   const [other, setOther] = useState<Record<string, string>>({})
+  const options = useRef<HTMLDivElement>(null)
   const explicit = Object.fromEntries(
     questions.map((item) => [
       item.question,
@@ -196,6 +198,61 @@ function QuestionPrompt(props: {
     explicit[item.question].length === 0 ? [index] : []
   )
   const next = unanswered.find((index) => index > active) ?? unanswered[0]
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (
+        event.key !== 'Enter' ||
+        event.shiftKey ||
+        event.repeat ||
+        event.isComposing ||
+        event.defaultPrevented
+      ) {
+        return
+      }
+      if (
+        event.target !== document.body &&
+        !(
+          event.target instanceof Node &&
+          options.current?.contains(event.target) === true
+        )
+      ) {
+        return
+      }
+      event.preventDefault()
+      if (next === undefined) {
+        submit()
+        return
+      }
+      advance(next)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
+
+  function submit() {
+    respond(
+      props.request.id,
+      'allow',
+      Object.fromEntries(
+        questions.flatMap((item) =>
+          explicit[item.question].length === 0
+            ? []
+            : [[item.question, explicit[item.question].join(', ')]]
+        )
+      )
+    )
+  }
+
+  function advance(index: number) {
+    if (explicit[question.question].length === 0) {
+      setPicked({
+        ...picked,
+        [question.question]: recommendations(question),
+      })
+    }
+    setActive(index)
+  }
 
   function pick(question: Question, label: string) {
     const current = picked[question.question] ?? []
@@ -280,6 +337,7 @@ function QuestionPrompt(props: {
             </Button>
           </div>
           <div
+            ref={options}
             role={question.multiSelect ? 'group' : 'radiogroup'}
             aria-label={question.question}
             className="flex max-h-[min(18rem,32dvh)] flex-col gap-0.5 overflow-y-auto"
@@ -433,36 +491,17 @@ function QuestionPrompt(props: {
             <Button
               size="xs"
               variant={next === undefined ? 'default' : 'outline'}
-              onClick={() =>
-                respond(
-                  props.request.id,
-                  'allow',
-                  Object.fromEntries(
-                    questions.flatMap((item) =>
-                      explicit[item.question].length === 0
-                        ? []
-                        : [[item.question, explicit[item.question].join(', ')]]
-                    )
-                  )
-                )
-              }
+              onClick={submit}
             >
               Submit
+              {next === undefined && (
+                <HugeiconsIcon icon={CornerDownLeftIcon} />
+              )}
             </Button>
             {next !== undefined && (
-              <Button
-                size="xs"
-                onClick={() => {
-                  if (explicit[question.question].length === 0) {
-                    setPicked({
-                      ...picked,
-                      [question.question]: recommendations(question),
-                    })
-                  }
-                  setActive(next)
-                }}
-              >
+              <Button size="xs" onClick={() => advance(next)}>
                 Next
+                <HugeiconsIcon icon={CornerDownLeftIcon} />
               </Button>
             )}
           </div>

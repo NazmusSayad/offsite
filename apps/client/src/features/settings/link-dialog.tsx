@@ -20,6 +20,7 @@ const plannedLabels = {
   relink: 'Replace old link',
   replace: 'Replace empty folder',
   backup: 'Back up, then link',
+  skip: 'Skip',
 }
 
 export function LinkDialog(props: {
@@ -74,7 +75,10 @@ export function LinkDialog(props: {
 
   const name = props.account.name
   const failed =
-    result !== null && result.entries.some((item) => item.action !== 'linked')
+    result !== null &&
+    result.entries.some(
+      (item) => item.action !== 'linked' && item.action !== 'skip'
+    )
 
   return (
     <>
@@ -115,14 +119,30 @@ export function LinkDialog(props: {
           <div className="max-h-72 overflow-y-auto py-1">
             <LinkSection
               title="Required"
-              entries={plan.entries.filter((item) => item.required)}
+              entries={plan.entries.filter(
+                (item) =>
+                  item.required &&
+                  item.action !== 'linked' &&
+                  item.action !== 'skip'
+              )}
               result={result}
             />
             <LinkSection
               title="Optional"
-              entries={plan.entries.filter((item) => !item.required)}
+              entries={plan.entries.filter(
+                (item) =>
+                  !item.required &&
+                  item.action !== 'linked' &&
+                  item.action !== 'skip'
+              )}
               result={result}
             />
+            {plan.entries.some((item) => item.action === 'linked') && (
+              <p className="text-muted-foreground px-3 pt-2.5 pb-1.5">
+                {plan.entries.filter((item) => item.action === 'linked').length}{' '}
+                already linked
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -173,6 +193,9 @@ function LinkSection(props: {
   entries: LinkEntry[]
   result: LinkPlan | null
 }) {
+  if (props.entries.length === 0) {
+    return null
+  }
   return (
     <div className="not-first:pt-1.5">
       <p className="text-muted-foreground px-3 pt-1.5 pb-1">{props.title}</p>
@@ -193,45 +216,31 @@ function LinkSection(props: {
 function LinkRow(props: { planned: LinkEntry; result: LinkEntry | null }) {
   const planned = props.planned
   const result = props.result
-  const unchanged = planned.action === 'linked'
   return (
-    <div className="flex items-center gap-3 px-3 py-1">
-      <span
-        className={cn(
-          'min-w-0 flex-1 truncate font-mono',
-          unchanged && 'text-muted-foreground'
-        )}
-      >
+    <div className="flex items-center gap-3 px-3 py-1.5">
+      <span className="min-w-0 flex-1 truncate font-mono">
         {planned.name}
         {planned.type === 'folder' && '/'}
       </span>
       <span
         className={cn(
           'shrink-0',
-          unchanged && 'text-muted-foreground',
+          result === null && 'text-muted-foreground',
           result === null && planned.action === 'backup' && 'text-warning',
-          !unchanged && result?.action === 'linked' && 'text-success',
-          !unchanged &&
-            result !== null &&
-            result.action !== 'linked' &&
-            'text-destructive'
+          result?.action === 'linked' && 'text-success',
+          result !== null && result.action !== 'linked' && 'text-destructive'
         )}
       >
         {result === null
           ? plannedLabels[planned.action]
           : resultLabel(planned, result)}
-        {result === null && planned.createInBase && !unchanged && (
-          <span className="text-muted-foreground"> · new in main</span>
-        )}
+        {result === null && planned.createInBase && ' · creates it in main'}
       </span>
     </div>
   )
 }
 
 function resultLabel(planned: LinkEntry, result: LinkEntry) {
-  if (planned.action === 'linked') {
-    return 'Already linked'
-  }
   if (result.action !== 'linked') {
     return 'Not linked'
   }

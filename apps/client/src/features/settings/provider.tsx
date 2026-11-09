@@ -274,7 +274,7 @@ function ProviderAccounts(props: {
               account.linked &&
               account.email !== null && (
                 <p className="text-muted-foreground mt-1 truncate pl-4 text-xs">
-                  {account.email}
+                  {maskEmail(account.email)}
                 </p>
               )}
           </div>
@@ -348,4 +348,15 @@ function ProviderAccounts(props: {
       </AlertDialog>
     </>
   )
+}
+
+function maskEmail(email: string) {
+  const at = email.lastIndexOf('@')
+  if (at < 1) {
+    throw new Error(`Not an email address: ${email}`)
+  }
+  if (at < 3) {
+    return `${email[0]}•••${email.slice(at)}`
+  }
+  return `${email[0]}•••${email.slice(at - 1)}`
 }
