@@ -211,6 +211,7 @@ export function EditProjectDialog(props: {
   const path = props.project.path
   const [name, setName] = useState(props.project.name)
   const [logo, setLogo] = useState(props.project.logo)
+  const [setup, setSetup] = useState(props.project.worktreeSetup ?? '')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -229,6 +230,7 @@ export function EditProjectDialog(props: {
               await updateProject(props.project.machine, props.project.id, {
                 name,
                 logo: logo === props.project.logo ? undefined : logo,
+                worktreeSetup: setup,
               })
               props.onClose()
             } catch (failure) {
@@ -318,6 +320,20 @@ export function EditProjectDialog(props: {
                 value={name}
                 onChange={(event) => setName(event.target.value)}
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="project-setup">Setup for new worktrees</Label>
+              <Input
+                id="project-setup"
+                placeholder="pnpm install"
+                spellCheck={false}
+                className="font-mono"
+                value={setup}
+                onChange={(event) => setSetup(event.target.value)}
+              />
+              <p className="text-muted-foreground text-xs">
+                Runs in each new worktree before the agent starts
+              </p>
             </div>
             {error !== null && (
               <p className="text-destructive text-sm break-all">{error}</p>

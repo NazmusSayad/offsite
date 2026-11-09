@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { mkdir, readdir, rmdir, stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import type { WorktreeStage } from '@offsite/core/git'
 import type {
   DirectoryListing,
   Project,
@@ -13,7 +14,12 @@ import { db } from '../storage/db.ts'
 import { projects as projectsTable } from '../storage/schema.ts'
 import { home, scratchAvailable } from '../storage/storage.ts'
 import { findLogo, prepareLogo } from './logos.ts'
-import { createWorktree, removeWorktree } from './worktrees.ts'
+import {
+  createWorktree,
+  removeCleanWorktree,
+  removeWorktree,
+  runSetup,
+} from './worktrees.ts'
 
 const scratchRoot = path.join(home, 'scratch')
 
@@ -27,6 +33,7 @@ export function projects(): Project[] {
       hidden: projectsTable.hidden,
       scratch: projectsTable.scratch,
       parentId: projectsTable.parentId,
+      worktreeSetup: projectsTable.worktreeSetup,
     })
     .from(projectsTable)
     .orderBy(projectsTable.position)
@@ -121,7 +128,8 @@ export async function removeScratchProject(id: string, folder: string) {
 export async function addWorktreeProject(
   projectId: string,
   name: string | null,
-  prompt: string
+  prompt: string,
+  onStage: (stage: WorktreeStage) => void
 ) {
   const project = projects().find((item) => item.id === projectId)
   if (project === undefined) {
@@ -134,7 +142,16 @@ export async function addWorktreeProject(
   if (root === undefined) {
     throw new Error('That project was removed')
   }
-  const worktree = await createWorktree(root.path, name, prompt)
+  const worktree = await createWorktree(root.path, name, prompt, onStage)
+  if (root.worktreeSetup !== null) {
+    onStage('setup')
+    try {
+      await runSetup(worktree.cwd, root.worktreeSetup)
+    } catch (error) {
+      await removeWorktree(worktree)
+      throw error
+    }
+  }
   const id = randomUUID()
   db.insert(projectsTable)
     .values({
@@ -157,6 +174,22 @@ export async function removeWorktreeProject(
   await removeWorktree(project)
 }
 
+export async function removeUnusedProject(project: Project) {
+  if (project.scratch) {
+    removeProject(project.id)
+    return
+  }
+  const parent = projects().find((item) => item.id === project.parentId)
+  if (parent === undefined) {
+    throw new Error('That project was removed')
+  }
+  if (!(await removeCleanWorktree(parent.path, project.path))) {
+    return
+  }
+  db.delete(projectsTable).where(eq(projectsTable.id, project.id)).run()
+  publish()
+}
+
 export async function updateProject(id: string, patch: ProjectPatch) {
   if (patch.name !== undefined) {
     const name = patch.name.trim()
@@ -176,6 +209,13 @@ export async function updateProject(id: string, patch: ProjectPatch) {
   if (patch.scratch === false) {
     db.update(projectsTable)
       .set({ scratch: false, position: nextPosition() })
+      .where(eq(projectsTable.id, id))
+      .run()
+  }
+  if (patch.worktreeSetup !== undefined) {
+    const command = patch.worktreeSetup.trim()
+    db.update(projectsTable)
+      .set({ worktreeSetup: command === '' ? null : command })
       .where(eq(projectsTable.id, id))
       .run()
   }

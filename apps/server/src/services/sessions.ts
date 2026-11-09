@@ -35,7 +35,7 @@ import {
   sessions as sessionsTable,
 } from '../storage/schema.ts'
 import { providerName } from './accounts.ts'
-import { projectPath, projects, removeProject } from './projects.ts'
+import { projectPath, projects, removeUnusedProject } from './projects.ts'
 import { type Found, info, timeLimit } from './provider-sessions.ts'
 import {
   fileChanged,
@@ -468,7 +468,10 @@ export async function removeSession(id: string, projectId: string) {
   listed[provider] = listed[provider].filter((item) => item.id !== id)
   forgetThread(provider, id)
   const project = projects().find((item) => item.id === projectId)
-  if (project === undefined || !project.scratch) {
+  if (
+    project === undefined ||
+    (!project.scratch && project.parentId === null)
+  ) {
     return
   }
   await threadsReady()
@@ -476,7 +479,7 @@ export async function removeSession(id: string, projectId: string) {
     return
   }
   if (!knownThreads().some((item) => item.projectId === project.id)) {
-    removeProject(project.id)
+    await removeUnusedProject(project)
   }
 }
 

@@ -26,6 +26,8 @@ export type PullRequestDraft =
       body: string
     }
 
+export type WorktreeStage = 'pull' | 'create' | 'setup'
+
 export type GitStatus = 'M' | 'T' | 'A' | 'D' | 'R' | 'C' | 'U' | '!'
 
 export type GitResource = {

@@ -207,18 +207,22 @@ export async function sendPrompt(
   }
   update({ sentAt: Date.now() })
   const name = getState().worktree?.trim()
-  await call(selection.machine, 'sessions.send', {
-    sessionId: selection.sessionId,
-    projectId: selection.projectId,
-    prompt,
-    settings,
-    delivery,
-    status,
-    worktree:
-      selection.sessionId !== null || name === undefined
-        ? null
-        : { name: name === '' ? null : name },
-  })
+  try {
+    await call(selection.machine, 'sessions.send', {
+      sessionId: selection.sessionId,
+      projectId: selection.projectId,
+      prompt,
+      settings,
+      delivery,
+      status,
+      worktree:
+        selection.sessionId !== null || name === undefined
+          ? null
+          : { name: name === '' ? null : name },
+    })
+  } finally {
+    update({ worktreeStage: null })
+  }
   const replacing = getState().replacing
   if (
     selection.sessionId === null &&

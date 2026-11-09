@@ -181,7 +181,8 @@ export async function send(
     const project = await addWorktreeProject(
       request.projectId,
       request.worktree.name,
-      request.prompt.text
+      request.prompt.text,
+      (stage) => client.send({ type: 'worktreeStage', stage })
     )
     const run = await startRun(project.cwd, request.settings).catch(
       async (error: unknown) => {

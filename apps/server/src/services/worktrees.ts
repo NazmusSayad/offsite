@@ -1,19 +1,24 @@
-import { execFile } from 'node:child_process'
+import { exec, execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import type { WorktreeStage } from '@offsite/core/git'
 import { home } from '../storage/storage.ts'
 import { git, gitError } from './git.ts'
 
 const FETCH_TIMEOUT = 60_000
+const SETUP_TIMEOUT = 4 * 60_000
+const SETUP_OUTPUT_LINES = 20
 const BRANCH_PREFIX = 'offsite/'
 const worktreeRoot = path.join(home, 'worktrees')
 const run = promisify(execFile)
+const shell = promisify(exec)
 
 export async function createWorktree(
   repo: string,
   name: string | null,
-  prompt: string
+  prompt: string,
+  onStage: (stage: WorktreeStage) => void
 ) {
   let top
   try {
@@ -22,12 +27,14 @@ export async function createWorktree(
     throw new Error(`${repo} is not a Git repository`, { cause: error })
   }
   const prefix = (await git(repo, ['rev-parse', '--show-prefix'])).stdout.trim()
+  onStage('pull')
   const start = await freshMain(top)
   const parent = path.join(worktreeRoot, path.basename(top))
   const target =
     name === null
       ? await generatedTarget(top, parent, prompt)
       : await chosenTarget(top, parent, name)
+  onStage('create')
   try {
     await git(top, [
       'worktree',
@@ -42,6 +49,40 @@ export async function createWorktree(
     throw gitError(error)
   }
   return { ...target, repo: top, cwd: path.join(target.folder, prefix) }
+}
+
+export async function runSetup(cwd: string, command: string) {
+  try {
+    await shell(command, {
+      cwd,
+      timeout: SETUP_TIMEOUT,
+      maxBuffer: 64 * 1024 * 1024,
+    })
+  } catch (error) {
+    const output =
+      error instanceof Error && 'stderr' in error && 'stdout' in error
+        ? `${String(error.stdout)}${String(error.stderr)}`
+        : String(error)
+    throw new Error(
+      `The worktree setup command failed:\n${output.trim().split('\n').slice(-SETUP_OUTPUT_LINES).join('\n')}`,
+      { cause: error }
+    )
+  }
+}
+
+export async function removeCleanWorktree(repo: string, cwd: string) {
+  if (!existsSync(cwd)) {
+    await git(repo, ['worktree', 'prune'])
+    return true
+  }
+  if ((await git(cwd, ['status', '--porcelain'])).stdout !== '') {
+    return false
+  }
+  const folder = (
+    await git(cwd, ['rev-parse', '--show-toplevel'])
+  ).stdout.trim()
+  await git(repo, ['worktree', 'remove', '--force', folder])
+  return true
 }
 
 export async function removeWorktree(worktree: {

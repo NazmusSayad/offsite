@@ -102,6 +102,7 @@ export function start() {
     draft: null,
     replacing: null,
     worktree: null,
+    worktreeStage: null,
     context: null,
     capabilities: null,
     errors: [],
@@ -356,6 +357,9 @@ function receive(machine: string, event: ServerEvent) {
       return
     case 'providers':
       setMachine(machine, { providers: event.providers })
+      return
+    case 'worktreeStage':
+      update({ worktreeStage: event.stage })
       return
     case 'started':
       if (
