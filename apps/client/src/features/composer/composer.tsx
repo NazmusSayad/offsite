@@ -482,7 +482,6 @@ export function Composer() {
                 dictation={dictation}
                 running={running}
                 empty={empty}
-                blank={text.trim() === '' && images.length === 0}
                 delivery={delivery}
                 onSubmit={(swap) => void submit(swap, false)}
                 onStop={interrupt}
