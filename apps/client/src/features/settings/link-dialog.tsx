@@ -1,4 +1,10 @@
-import { ArrowRight02Icon } from '@hugeicons/core-free-icons'
+import {
+  LinkIcon,
+  ArchiveArrowDownIcon,
+  ArrowReloadHorizontalIcon,
+  CancelCircleIcon,
+  CheckmarkCircle02Icon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Platform } from '@offsite/core/config'
 import type { Account, LinkEntry, LinkPlan } from '@offsite/core/providers'
@@ -15,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { cn, errorMessage } from '@/lib/utils'
 
 const plannedLabels = {
-  linked: 'Already linked',
+  linked: 'Linked',
   link: 'Link',
   relink: 'Replace old link',
   replace: 'Replace empty folder',
@@ -103,47 +109,20 @@ export function LinkDialog(props: {
         <p className="text-muted-foreground text-sm">Checking {name}…</p>
       )}
       {plan !== null && (
-        <div className="overflow-hidden rounded-lg border text-xs">
-          <div className="bg-muted/40 flex items-center gap-2 border-b px-3 py-2 font-mono">
-            <span className="min-w-0 flex-1 truncate" title={plan.configDir}>
-              {plan.configDir}
-            </span>
-            <HugeiconsIcon
-              icon={ArrowRight02Icon}
-              className="text-muted-foreground size-3.5 shrink-0"
-            />
-            <span className="min-w-0 flex-1 truncate" title={plan.baseDir}>
-              {plan.baseDir}
-            </span>
-          </div>
-          <div className="max-h-72 overflow-y-auto py-1">
-            <LinkSection
-              title="Required"
-              entries={plan.entries.filter(
-                (item) =>
-                  item.required &&
-                  item.action !== 'linked' &&
-                  item.action !== 'skip'
-              )}
-              result={result}
-            />
-            <LinkSection
-              title="Optional"
-              entries={plan.entries.filter(
-                (item) =>
-                  !item.required &&
-                  item.action !== 'linked' &&
-                  item.action !== 'skip'
-              )}
-              result={result}
-            />
-            {plan.entries.some((item) => item.action === 'linked') && (
-              <p className="text-muted-foreground px-3 pt-2.5 pb-1.5">
-                {plan.entries.filter((item) => item.action === 'linked').length}{' '}
-                already linked
-              </p>
-            )}
-          </div>
+        <div className="max-h-80 overflow-y-auto rounded-lg border py-1 text-xs">
+          {plan.entries
+            .filter((item) => item.action !== 'skip')
+            .map((item) => (
+              <LinkRow
+                key={item.name}
+                plan={plan}
+                planned={item}
+                result={
+                  result?.entries.find((entry) => entry.name === item.name) ??
+                  null
+                }
+              />
+            ))}
         </div>
       )}
       {linking && props.platform === 'windows' && (
@@ -188,56 +167,75 @@ export function LinkDialog(props: {
   )
 }
 
-function LinkSection(props: {
-  title: string
-  entries: LinkEntry[]
-  result: LinkPlan | null
+function LinkRow(props: {
+  plan: LinkPlan
+  planned: LinkEntry
+  result: LinkEntry | null
 }) {
-  if (props.entries.length === 0) {
-    return null
-  }
+  const planned = props.planned
+  const result = props.result
+  const state =
+    result === null
+      ? planned.action
+      : result.action === 'linked'
+        ? 'linked'
+        : 'failed'
+  const entry = `${planned.name}${planned.type === 'folder' ? '/' : ''}`
   return (
-    <div className="not-first:pt-1.5">
-      <p className="text-muted-foreground px-3 pt-1.5 pb-1">{props.title}</p>
-      {props.entries.map((item) => (
-        <LinkRow
-          key={item.name}
-          planned={item}
-          result={
-            props.result?.entries.find((entry) => entry.name === item.name) ??
-            null
+    <div
+      className={cn(
+        'grid grid-cols-[1fr_1fr_auto] items-center gap-3 px-3 py-1.5 font-mono',
+        state === 'linked' && result === null && 'text-muted-foreground'
+      )}
+    >
+      <span className="truncate">
+        {folderName(props.plan.baseDir)}/{entry}
+      </span>
+      <span className="truncate">
+        {folderName(props.plan.configDir)}/{entry}
+      </span>
+      <span
+        title={`${
+          result === null
+            ? plannedLabels[planned.action]
+            : resultLabel(planned, result)
+        }${result === null && planned.createInBase ? ' · creates it in main' : ''}`}
+      >
+        <HugeiconsIcon
+          icon={
+            state === 'linked'
+              ? CheckmarkCircle02Icon
+              : state === 'failed'
+                ? CancelCircleIcon
+                : state === 'backup'
+                  ? ArchiveArrowDownIcon
+                  : state === 'link'
+                    ? LinkIcon
+                    : ArrowReloadHorizontalIcon
           }
+          className={cn(
+            'size-4',
+            state === 'linked' && 'text-success',
+            state === 'failed' && 'text-destructive',
+            state === 'backup' && 'text-warning',
+            (state === 'link' || state === 'relink' || state === 'replace') &&
+              'text-info'
+          )}
         />
-      ))}
+      </span>
     </div>
   )
 }
 
-function LinkRow(props: { planned: LinkEntry; result: LinkEntry | null }) {
-  const planned = props.planned
-  const result = props.result
-  return (
-    <div className="flex items-center gap-3 px-3 py-1.5">
-      <span className="min-w-0 flex-1 truncate font-mono">
-        {planned.name}
-        {planned.type === 'folder' && '/'}
-      </span>
-      <span
-        className={cn(
-          'shrink-0',
-          result === null && 'text-muted-foreground',
-          result === null && planned.action === 'backup' && 'text-warning',
-          result?.action === 'linked' && 'text-success',
-          result !== null && result.action !== 'linked' && 'text-destructive'
-        )}
-      >
-        {result === null
-          ? plannedLabels[planned.action]
-          : resultLabel(planned, result)}
-        {result === null && planned.createInBase && ' · creates it in main'}
-      </span>
-    </div>
-  )
+function folderName(dir: string) {
+  const name = dir
+    .split(/[\\/]/)
+    .filter((part) => part !== '')
+    .at(-1)
+  if (name === undefined) {
+    throw new Error(`Not a folder path: ${dir}`)
+  }
+  return name
 }
 
 function resultLabel(planned: LinkEntry, result: LinkEntry) {

@@ -38,11 +38,11 @@ export function MarkdownTable(props: { children: ReactNode }) {
   const clipboard = useCopy()
   const copyLabel = clipboard.copied ? 'Copied' : 'Copy table'
   return (
-    <div className="chat-markdown-table-container">
+    <div className="chat-markdown-table-container group/table">
       <div className="chat-markdown-table-scroll">
         <table ref={table}>{props.children}</table>
       </div>
-      <div className="mt-0.5 flex items-center justify-end gap-0.5 select-none">
+      <div className="mt-0.5 flex items-center justify-end gap-0.5 opacity-0 transition-opacity duration-200 select-none group-hover/table:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100">
         <Tooltip label="Fullscreen">
           <Button
             type="button"
