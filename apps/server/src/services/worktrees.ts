@@ -124,7 +124,7 @@ async function freshMain(repo: string) {
   if (!(await refExists(repo, local))) {
     return remote
   }
-  const checkout = await checkoutOf(repo, local)
+  const checkout = await checkoutOf(repo, branch)
   try {
     if (checkout !== null) {
       await git(checkout, ['merge', '--ff-only', remote])
@@ -141,21 +141,33 @@ async function freshMain(repo: string) {
   return branch
 }
 
-async function checkoutOf(repo: string, ref: string) {
-  const lines = (
-    await git(repo, ['worktree', 'list', '--porcelain'])
-  ).stdout.split('\n')
-  const index = lines.indexOf(`branch ${ref}`)
-  if (index === -1) {
-    return null
-  }
-  const worktree = lines
-    .slice(0, index)
-    .findLast((line) => line.startsWith('worktree '))
-  if (worktree === undefined) {
-    throw new Error('Could not read the Git worktrees')
-  }
-  return worktree.slice('worktree '.length)
+export async function listWorktrees(repo: string) {
+  const output = await git(repo, ['worktree', 'list', '--porcelain'])
+  return output.stdout
+    .trim()
+    .split('\n\n')
+    .map((block) => block.split('\n'))
+    .filter((lines) => !lines.some((line) => line.startsWith('prunable')))
+    .map((lines) => {
+      if (!lines[0].startsWith('worktree ')) {
+        throw new Error('Could not read the Git worktrees')
+      }
+      const branch = lines.find((line) => line.startsWith('branch refs/heads/'))
+      return {
+        folder: path.resolve(lines[0].slice('worktree '.length)),
+        branch:
+          branch === undefined
+            ? null
+            : branch.slice('branch refs/heads/'.length),
+      }
+    })
+}
+
+async function checkoutOf(repo: string, branch: string) {
+  const worktree = (await listWorktrees(repo)).find(
+    (item) => item.branch === branch
+  )
+  return worktree === undefined ? null : worktree.folder
 }
 
 async function mainBranch(repo: string, refs: string) {

@@ -58,6 +58,7 @@ import {
   directories,
   projectPath,
   projects,
+  projectWorktrees,
   removeProject,
   reorderProjects,
   updateProject,
@@ -173,6 +174,7 @@ const handlers: Handlers = {
   },
   'projects.reorder': (params) => reorderProjects(params.ids),
   'projects.logoFiles': (params) => logoFiles(projectPath(params.id)),
+  'projects.worktrees': (params) => projectWorktrees(params.projectId),
   'directories.list': (params) => directories(params.path),
   'sessions.update': async (params) => {
     try {

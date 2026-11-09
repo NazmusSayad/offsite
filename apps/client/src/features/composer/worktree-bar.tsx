@@ -5,8 +5,18 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo, WorktreeStage } from '@offsite/core/git'
+import type { RpcMethods } from '@offsite/core/protocol'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { openSession } from '@/lib/sessions'
 import { machineOf, showError, update, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -66,20 +76,29 @@ export function WorktreeBar(props: { machine: string; projectId: string }) {
         )}
         {stage === null && (
           <>
-            <button
-              className={cn(
-                'text-muted-foreground hover:text-foreground flex h-6 max-w-56 cursor-pointer items-center gap-1.5 rounded-full px-2',
-                worktree === null && 'text-foreground bg-foreground/[0.07]'
-              )}
-              title="Work in the current checkout"
-              onClick={() => update({ worktree: null })}
-            >
-              <HugeiconsIcon
-                icon={GitBranchIcon}
-                className="size-3.5 shrink-0"
-              />
-              <span className="truncate">{repo.branch ?? 'Detached'}</span>
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={cn(
+                    'text-muted-foreground hover:text-foreground flex h-6 max-w-56 cursor-pointer items-center gap-1.5 rounded-full px-2 outline-none',
+                    worktree === null && 'text-foreground bg-foreground/[0.07]'
+                  )}
+                  title="Choose where the agent works"
+                >
+                  <HugeiconsIcon
+                    icon={GitBranchIcon}
+                    className="size-3.5 shrink-0"
+                  />
+                  <span className="truncate">{repo.branch ?? 'Detached'}</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                <WorktreeMenu
+                  machine={props.machine}
+                  projectId={props.projectId}
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button
               className={cn(
                 'text-muted-foreground hover:text-foreground flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-2',
@@ -104,6 +123,63 @@ export function WorktreeBar(props: { machine: string; projectId: string }) {
         )}
       </div>
     </div>
+  )
+}
+
+function WorktreeMenu(props: { machine: string; projectId: string }) {
+  const [worktrees, setWorktrees] = useState<
+    RpcMethods['projects.worktrees']['result'] | null
+  >(null)
+
+  useEffect(() => {
+    let current = true
+    async function load() {
+      try {
+        const found = await call(props.machine, 'projects.worktrees', {
+          projectId: props.projectId,
+        })
+        if (current) {
+          setWorktrees(found)
+        }
+      } catch (error) {
+        if (current) {
+          showError(error)
+        }
+      }
+    }
+    void load()
+    return () => {
+      current = false
+    }
+  }, [props.machine, props.projectId])
+
+  if (worktrees === null) {
+    return <DropdownMenuItem disabled>Loading…</DropdownMenuItem>
+  }
+
+  return (
+    <DropdownMenuRadioGroup value={props.projectId}>
+      {worktrees.map((item) => (
+        <DropdownMenuRadioItem
+          key={item.projectId}
+          value={item.projectId}
+          onSelect={() =>
+            openSession({
+              machine: props.machine,
+              projectId: item.projectId,
+              sessionId: null,
+            })
+          }
+        >
+          <span className="min-w-0 flex-1 truncate">
+            {item.branch ?? 'Detached'}
+          </span>
+          <span className="text-muted-foreground text-xs">
+            {item.worktree ? 'Worktree' : 'Project folder'}
+          </span>
+        </DropdownMenuRadioItem>
+      ))}
+    </DropdownMenuRadioGroup>
   )
 }
 

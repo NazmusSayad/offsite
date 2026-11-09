@@ -16,6 +16,7 @@ import { home, scratchAvailable } from '../storage/storage.ts'
 import { findLogo, prepareLogo } from './logos.ts'
 import {
   createWorktree,
+  listWorktrees,
   removeCleanWorktree,
   removeWorktree,
   runSetup,
@@ -131,17 +132,7 @@ export async function addWorktreeProject(
   prompt: string,
   onStage: (stage: WorktreeStage) => void
 ) {
-  const project = projects().find((item) => item.id === projectId)
-  if (project === undefined) {
-    throw new Error('That project was removed')
-  }
-  const root =
-    project.parentId === null
-      ? project
-      : projects().find((item) => item.id === project.parentId)
-  if (root === undefined) {
-    throw new Error('That project was removed')
-  }
+  const root = rootProject(projectId)
   const worktree = await createWorktree(root.path, name, prompt, onStage)
   if (root.worktreeSetup !== null) {
     onStage('setup')
@@ -164,6 +155,45 @@ export async function addWorktreeProject(
     .run()
   publish()
   return { ...worktree, id }
+}
+
+export async function projectWorktrees(projectId: string) {
+  const root = rootProject(projectId)
+  const worktrees = await listWorktrees(root.path)
+  return [
+    root,
+    ...projects().filter((item) => item.parentId === root.id),
+  ].flatMap((project) => {
+    const worktree = worktrees.find(
+      (item) =>
+        project.path === item.folder ||
+        project.path.startsWith(`${item.folder}${path.sep}`)
+    )
+    return worktree === undefined
+      ? []
+      : [
+          {
+            projectId: project.id,
+            branch: worktree.branch,
+            worktree: project.id !== root.id,
+          },
+        ]
+  })
+}
+
+function rootProject(projectId: string) {
+  const project = projects().find((item) => item.id === projectId)
+  if (project === undefined) {
+    throw new Error('That project was removed')
+  }
+  const root =
+    project.parentId === null
+      ? project
+      : projects().find((item) => item.id === project.parentId)
+  if (root === undefined) {
+    throw new Error('That project was removed')
+  }
+  return root
 }
 
 export async function removeWorktreeProject(

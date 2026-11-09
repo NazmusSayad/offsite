@@ -91,6 +91,10 @@ export type RpcMethods = {
   'projects.remove': { params: { id: string }; result: null }
   'projects.reorder': { params: { ids: string[] }; result: null }
   'projects.logoFiles': { params: { id: string }; result: string[] }
+  'projects.worktrees': {
+    params: { projectId: string }
+    result: { projectId: string; branch: string | null; worktree: boolean }[]
+  }
   'directories.list': { params: { path: string }; result: DirectoryListing }
   'sessions.update': {
     params: { id: string; patch: SessionPatch }
