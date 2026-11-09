@@ -22,28 +22,28 @@ import { claudeBaseDir } from '../../storage/config.ts'
 
 const run = promisify(execFile)
 
-const shared: Pick<LinkEntry, 'type' | 'name' | 'required'>[] = [
-  { type: 'folder', name: 'projects', required: true },
-  { type: 'folder', name: 'sessions', required: true },
-  { type: 'folder', name: 'session-env', required: true },
-  { type: 'folder', name: 'shell-snapshots', required: true },
-  { type: 'folder', name: 'paste-cache', required: true },
-  { type: 'folder', name: 'plans', required: true },
-  { type: 'folder', name: 'tasks', required: true },
-  { type: 'folder', name: 'jobs', required: true },
-  { type: 'folder', name: 'cache', required: true },
-  { type: 'folder', name: 'state', required: true },
-  { type: 'folder', name: 'plugins', required: true },
-  { type: 'folder', name: 'skills', required: true },
-  { type: 'folder', name: 'file-history', required: true },
-  { type: 'folder', name: 'agents', required: true },
-  { type: 'folder', name: 'commands', required: true },
-  { type: 'folder', name: 'output-styles', required: true },
-  { type: 'jsonl', name: 'history.jsonl', required: true },
-  { type: 'json', name: 'settings.json', required: true },
-  { type: 'md', name: 'CLAUDE.md', required: true },
-  { type: 'folder', name: 'teams', required: false },
-  { type: 'json', name: 'keybindings.json', required: false },
+const shared: Pick<LinkEntry, 'type' | 'name' | 'required' | 'keep'>[] = [
+  { type: 'folder', name: 'projects', required: true, keep: false },
+  { type: 'folder', name: 'sessions', required: true, keep: true },
+  { type: 'folder', name: 'session-env', required: true, keep: true },
+  { type: 'folder', name: 'shell-snapshots', required: true, keep: true },
+  { type: 'folder', name: 'paste-cache', required: true, keep: true },
+  { type: 'folder', name: 'plans', required: true, keep: true },
+  { type: 'folder', name: 'tasks', required: true, keep: true },
+  { type: 'folder', name: 'jobs', required: true, keep: true },
+  { type: 'folder', name: 'cache', required: true, keep: true },
+  { type: 'folder', name: 'state', required: true, keep: true },
+  { type: 'folder', name: 'plugins', required: true, keep: true },
+  { type: 'folder', name: 'skills', required: true, keep: true },
+  { type: 'folder', name: 'file-history', required: true, keep: true },
+  { type: 'folder', name: 'agents', required: true, keep: true },
+  { type: 'folder', name: 'commands', required: true, keep: true },
+  { type: 'folder', name: 'output-styles', required: true, keep: true },
+  { type: 'jsonl', name: 'history.jsonl', required: true, keep: false },
+  { type: 'json', name: 'settings.json', required: true, keep: false },
+  { type: 'md', name: 'CLAUDE.md', required: true, keep: false },
+  { type: 'folder', name: 'teams', required: false, keep: true },
+  { type: 'json', name: 'keybindings.json', required: false, keep: false },
 ]
 
 type Step =
@@ -100,6 +100,10 @@ export async function linkClaude(configDir: string) {
     if (item.createInBase) {
       createInBase(path.join(plan.baseDir, item.name), item.type)
     }
+    const keep = path.join(plan.baseDir, item.name, '.keep')
+    if (item.keep && item.action !== 'skip' && !existsSync(keep)) {
+      writeFileSync(keep, '')
+    }
   }
   if (process.platform === 'win32' && !canSymlink()) {
     await runElevated(steps)
@@ -126,7 +130,7 @@ export async function linkClaude(configDir: string) {
 function entry(
   configDir: string,
   base: string,
-  item: Pick<LinkEntry, 'type' | 'name' | 'required'>
+  item: Pick<LinkEntry, 'type' | 'name' | 'required' | 'keep'>
 ): LinkEntry {
   const target = path.join(configDir, item.name)
   const source = path.join(base, item.name)

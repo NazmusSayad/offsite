@@ -50,6 +50,7 @@ export type LinkEntry = {
   type: 'folder' | 'json' | 'jsonl' | 'md'
   name: string
   required: boolean
+  keep: boolean
   action: LinkAction
   createInBase: boolean
 }
