@@ -7,7 +7,7 @@ import {
   ListTodoIcon,
   AiMicIcon,
   MoreHorizontalIcon,
-  PowerIcon,
+  SunriseIcon,
   Queue01Icon,
   SentIcon,
   ShieldCheckIcon,
@@ -38,7 +38,13 @@ import {
 import { changeSettings } from '@/lib/accounts'
 import { compact, timeAgo } from '@/lib/format'
 import { sendPrompt } from '@/lib/sessions'
-import { draftKey, getState, showError, useStore } from '@/lib/store'
+import {
+  draftKey,
+  getState,
+  showError,
+  type State,
+  useStore,
+} from '@/lib/store'
 import { mod, touch } from '@/lib/utils'
 import type { Dictation } from './dictation'
 import { deleteStash, hasPrompt, useDraft, useStash } from './drafts'
@@ -86,12 +92,25 @@ export function isSnoozeShortcut(event: KeyboardEvent) {
   )
 }
 
+function snoozesOnSend(state: State) {
+  const selection = state.selection
+  const session =
+    selection === null || selection.sessionId === null
+      ? undefined
+      : state.sessions.find(
+          (item) =>
+            item.machine === selection.machine &&
+            item.id === selection.sessionId
+        )
+  return state.prefs.autoMoveToSnooze || session?.status === 'snoozed'
+}
+
 export function sendStatus(flipSnooze: boolean) {
-  const autoMoveToSnooze = getState().prefs.autoMoveToSnooze
+  const state = getState()
   if (flipSnooze) {
-    return autoMoveToSnooze ? 'active' : 'snoozed'
+    return snoozesOnSend(state) ? 'active' : 'snoozed'
   }
-  return autoMoveToSnooze ? 'snoozed' : null
+  return state.prefs.autoMoveToSnooze ? 'snoozed' : null
 }
 
 export function MoreMenu(props: {
@@ -108,11 +127,15 @@ export function MoreMenu(props: {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon-xs"
+          className="relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5 md:size-8 md:after:hidden"
           title="More"
           aria-label="More composer controls"
         >
-          <HugeiconsIcon icon={MoreHorizontalIcon} />
+          <HugeiconsIcon
+            icon={MoreHorizontalIcon}
+            className="size-3.5 md:size-4"
+          />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -144,7 +167,7 @@ function MoreMenuContent(props: {
   onClose: () => void
 }) {
   const settings = useStore((state) => state.settings)
-  const autoMoveToSnooze = useStore((state) => state.prefs.autoMoveToSnooze)
+  const snoozes = useStore(snoozesOnSend)
   const context = useStore((state) => state.context)
   const capabilities = useStore((state) => state.capabilities)
   const modes = providerModes(settings.provider, capabilities)
@@ -322,9 +345,9 @@ function MoreMenuContent(props: {
             disabled={props.empty}
             onSelect={props.onFlipSnooze}
           >
-            <HugeiconsIcon icon={autoMoveToSnooze ? PowerIcon : ZzzIcon} />
+            <HugeiconsIcon icon={snoozes ? SunriseIcon : ZzzIcon} />
             <span className="flex-1">
-              {autoMoveToSnooze ? 'Send & Activate' : 'Send & Snooze'}
+              {snoozes ? 'Send & Unsnooze' : 'Send & Snooze'}
             </span>
             <span className="text-muted-foreground text-xs">
               {mod}+Shift+Enter

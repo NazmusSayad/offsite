@@ -217,13 +217,12 @@ export function Sidebar(
     })
   }
 
-  function row(session: MachineSession, slim: boolean) {
+  function row(session: MachineSession) {
     const Item = props.mobile ? MobileSessionItem : DesktopSessionItem
     return (
       <Item
         key={machineKey(session.machine, session.id)}
         session={session}
-        slim={slim}
         selected={
           selection?.machine === session.machine &&
           selection.sessionId === session.id
@@ -265,10 +264,7 @@ export function Sidebar(
             />
           </button>
         </li>
-        {options.open &&
-          options.items.map((session) =>
-            row(session, session.status === 'inactive')
-          )}
+        {options.open && options.items.map((session) => row(session))}
       </>
     )
   }
@@ -360,7 +356,7 @@ export function Sidebar(
                     }
                   />
                 )}
-                {listed.map((session) => row(session, false))}
+                {listed.map((session) => row(session))}
               </>
             )}
             {active.length === 0 &&

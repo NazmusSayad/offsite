@@ -1,5 +1,7 @@
 import {
   AiContentGenerator02Icon,
+  ArrowExpandDiagonal01Icon,
+  SunriseIcon,
   Delete02Icon,
   FileExportIcon,
   FolderAddIcon,
@@ -7,7 +9,8 @@ import {
   PencilEdit02Icon,
   PinIcon,
   PinOffIcon,
-  PowerIcon,
+  PlayIcon,
+  RefreshIcon,
   TickDouble01Icon,
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
@@ -33,11 +36,19 @@ import {
   useStore,
 } from '@/lib/store'
 
+const restore = {
+  snoozed: { icon: SunriseIcon, label: 'Unsnooze' },
+  minimized: { icon: ArrowExpandDiagonal01Icon, label: 'Restore' },
+  inactive: { icon: PlayIcon, label: 'Resume' },
+  pinned: { icon: PinOffIcon, label: 'Unpin' },
+} as const
+
 export function SessionMenuItems(props: {
   session: MachineSession
   context: boolean
   mobile: boolean
   onDeactivate: () => void
+  onRestart: () => void
   onRename: () => void
 }) {
   const session = props.session
@@ -62,10 +73,8 @@ export function SessionMenuItems(props: {
             })
           }
         >
-          <HugeiconsIcon
-            icon={session.status === 'pinned' ? PinOffIcon : PowerIcon}
-          />
-          {session.status === 'pinned' ? 'Unpin' : 'Activate'}
+          <HugeiconsIcon icon={restore[session.status].icon} />
+          {restore[session.status].label}
         </Item>
       )}
       {session.status !== 'inactive' && (
@@ -111,6 +120,12 @@ export function SessionMenuItems(props: {
         </Item>
       )}
       <Separator />
+      {session.provider === 'claude' && (
+        <Item onSelect={props.onRestart}>
+          <HugeiconsIcon icon={RefreshIcon} />
+          Restart Claude
+        </Item>
+      )}
       <Item
         disabled={generatingTitle}
         onSelect={() => void regenerateTitle(session)}

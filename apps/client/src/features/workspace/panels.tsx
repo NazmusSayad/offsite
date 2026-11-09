@@ -46,6 +46,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { useEditorShortcut } from '@/features/files/use-editor-shortcut'
+import { RestartDialog } from '@/features/sidebar/restart-dialog'
 import { SessionMenuItems } from '@/features/sidebar/session-menu-items'
 import {
   getState as terminalState,
@@ -170,6 +171,7 @@ export function PanelMenu(
   )
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
+  const [restarting, setRestarting] = useState(false)
 
   return (
     <div className="flex shrink-0 items-center gap-1">
@@ -238,6 +240,7 @@ export function PanelMenu(
               session={session}
               mobile={props.mobile}
               onWarn={() => setWarning(true)}
+              onRestart={() => setRestarting(true)}
               onRename={() => setTitle(session.title)}
             />
           )}
@@ -293,6 +296,13 @@ export function PanelMenu(
           <StopWorkDialog session={session} />
         </AlertDialogContent>
       </AlertDialog>
+      {session !== undefined && (
+        <AlertDialog open={restarting} onOpenChange={setRestarting}>
+          <AlertDialogContent>
+            <RestartDialog session={session} />
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   )
 }
@@ -301,6 +311,7 @@ function ThreadMenuItems(props: {
   session: MachineSession
   mobile: boolean
   onWarn: () => void
+  onRestart: () => void
   onRename: () => void
 }) {
   const session = props.session
@@ -330,6 +341,7 @@ function ThreadMenuItems(props: {
           }
           void deactivateSession(session.machine, session.id, scope)
         }}
+        onRestart={props.onRestart}
         onRename={props.onRename}
       />
     </>

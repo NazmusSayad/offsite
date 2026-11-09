@@ -3,12 +3,10 @@ import path from 'node:path'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { RpcCall, RpcMethod, RpcMethods } from '@offsite/core/protocol'
 import type { WebSocket } from 'ws'
-import { agentMessages, earlier, image } from '../lib/claude/index.ts'
-import { codexAgent } from '../lib/codex/index.ts'
+import { earlier, image } from '../lib/claude/index.ts'
 import { type Client, clients } from '../lib/hub.ts'
 import { activity, runs } from '../lib/live.ts'
 import { logger } from '../lib/log.ts'
-import { openCodeAgent } from '../lib/opencode/index.ts'
 import { openSite } from '../lib/proxy/sites.ts'
 import {
   accountLinkPlan,
@@ -64,13 +62,12 @@ import {
   updateProject,
 } from '../services/projects.ts'
 import { claimNotifier, subscribe, unsubscribe } from '../services/push.ts'
-import { open, rewind, send } from '../services/runs.ts'
+import { agentHistory, open, restart, rewind, send } from '../services/runs.ts'
 import { generateSessionTitle } from '../services/session-title.ts'
 import {
   findSession,
   fork,
   inactiveSessions,
-  providerOf,
   providerStatuses,
   publishSessions,
   recordInteraction,
@@ -212,21 +209,13 @@ const handlers: Handlers = {
     exportSession(params.sessionId, params.projectId),
   'sessions.image': (params) =>
     image(params.sessionId, params.itemId, params.index),
-  'sessions.agent': (params) => {
-    switch (providerOf(params.sessionId)) {
-      case 'claude':
-        return agentMessages(
-          params.sessionId,
-          projectPath(params.projectId),
-          params.agentId,
-          params.parent
-        )
-      case 'codex':
-        return codexAgent(params.agentId, params.parent)
-      case 'opencode':
-        return openCodeAgent(params.agentId, params.parent)
-    }
-  },
+  'sessions.agent': (params) =>
+    agentHistory(
+      params.sessionId,
+      projectPath(params.projectId),
+      params.agentId,
+      params.parent
+    ),
   'sessions.send': async (params, client) => {
     await send(client, params)
     return null
@@ -241,6 +230,10 @@ const handlers: Handlers = {
   },
   'sessions.interrupt': async (params) => {
     await runs.get(params.sessionId)?.interrupt()
+    return null
+  },
+  'sessions.restart': async (params) => {
+    await restart(params.sessionId)
     return null
   },
   'sessions.stopTask': async (params) => {

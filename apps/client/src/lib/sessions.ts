@@ -271,6 +271,10 @@ export function interrupt() {
   }).catch(showError)
 }
 
+export function restartSession(machine: string, sessionId: string) {
+  call(machine, 'sessions.restart', { sessionId }).catch(showError)
+}
+
 export function stopTask(machine: string, sessionId: string, taskId: string) {
   call(machine, 'sessions.stopTask', { sessionId, taskId }).catch(showError)
 }

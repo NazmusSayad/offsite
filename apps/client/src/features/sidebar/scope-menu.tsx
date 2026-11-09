@@ -2,12 +2,13 @@ import {
   Add01Icon,
   CenterFocusIcon,
   ChevronDownIcon,
+  SearchIcon,
   Settings01Icon,
   SlidersHorizontalIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { NO_PROJECT } from '@offsite/core/projects'
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { machineKey } from '@/api/machines'
 import { ProjectIcon } from '@/components/icons'
@@ -29,6 +30,7 @@ import {
   update,
   useStore,
 } from '@/lib/store'
+import { touch } from '@/lib/utils'
 
 export function ScopeMenu(props: {
   scope: { machine: string; projectId: string } | null
@@ -78,7 +80,7 @@ export function ScopeMenu(props: {
           />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-64">
+      <DropdownMenuContent className="flex w-64 flex-col overflow-hidden p-0">
         <ProjectMenuItems
           inbox
           scope={props.scope}
@@ -104,6 +106,15 @@ export function ProjectMenuItems(props: {
   const registered = useStore((state) => state.projects)
   const sessions = useStore((state) => state.sessions)
   const unseen = useStore((state) => state.unseen)
+  const [query, setQuery] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const search = query.trim().toLowerCase()
+  useEffect(() => {
+    if (!touch.matches) {
+      inputRef.current?.focus()
+    }
+  }, [])
   const groups = machines
     .map((machine) => ({
       machine,
@@ -112,10 +123,15 @@ export function ProjectMenuItems(props: {
           project.machine === machine.id &&
           !project.hidden &&
           !project.scratch &&
-          project.parentId === null
+          project.parentId === null &&
+          project.name.toLowerCase().includes(search)
       ),
     }))
-    .filter((group) => machines.length > 1 || group.projects.length > 0)
+    .filter((group) =>
+      search === ''
+        ? machines.length > 1 || group.projects.length > 0
+        : group.projects.length > 0
+    )
   const attention = sessions.filter((session) => {
     const activity = activityOf(machines, session.machine, session.id)
     return (
@@ -193,131 +209,214 @@ export function ProjectMenuItems(props: {
   }
 
   return (
-    <DropdownMenuRadioGroup
-      value={
-        props.scope === null
-          ? ''
-          : machineKey(props.scope.machine, props.scope.projectId)
-      }
+    <div
+      className="flex min-h-0 flex-col"
+      onKeyDownCapture={(event) => {
+        if (event.target === inputRef.current) {
+          return
+        }
+        if (event.ctrlKey || event.metaKey || event.altKey) {
+          return
+        }
+        if (
+          event.key === 'ArrowUp' &&
+          event.target ===
+            listRef.current?.querySelector(
+              '[role^=menuitem]:not([data-disabled])'
+            )
+        ) {
+          event.preventDefault()
+          event.stopPropagation()
+          inputRef.current?.focus()
+          return
+        }
+        if (
+          (event.key.length === 1 && event.key !== ' ') ||
+          event.key === 'Backspace'
+        ) {
+          event.stopPropagation()
+          inputRef.current?.focus()
+        }
+      }}
     >
-      {props.inbox && (
-        <DropdownMenuRadioItem value="" onSelect={() => props.onScope(null)}>
-          <HugeiconsIcon
-            icon={CenterFocusIcon}
-            className="text-muted-foreground size-5 shrink-0"
-          />
-          <span className="min-w-0 flex-1 truncate">Inbox</span>
-          {attention.length > 0 && (
-            <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
-              {attention.length}
-            </span>
-          )}
-        </DropdownMenuRadioItem>
-      )}
-
-      {props.inbox && groups.length > 0 && <DropdownMenuSeparator />}
-
-      {groups.map((group, index) => (
-        <Fragment key={group.machine.id}>
-          {index > 0 && <DropdownMenuSeparator />}
-          {machines.length > 1 && (
-            <div className="flex items-center">
-              <DropdownMenuLabel className="flex min-w-0 flex-1 items-center gap-2 pl-[0.52rem]!">
-                <MachineLogo
-                  icon={group.machine.icon}
-                  className="size-3.5 shrink-0"
-                />
-                <span className="truncate">{machineLabel(group.machine)}</span>
-              </DropdownMenuLabel>
-              {group.machine.system?.scratchAvailable === true &&
-                chatChip(group.machine)}
-              <div className="flex shrink-0 items-center">
-                {manageButton(group.machine)}
-                <DropdownMenuItem
-                  className="text-muted-foreground grid size-7 min-h-0 shrink-0 place-items-center rounded-sm p-0"
-                  title={`Add project to ${group.machine.name}`}
-                  aria-label={`Add project to ${group.machine.name}`}
-                  disabled={group.machine.status !== 'online'}
-                  onSelect={() => props.onAddProject(group.machine.id)}
-                >
-                  <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
-                </DropdownMenuItem>
-              </div>
+      <div className="border-border flex h-9 shrink-0 items-center gap-2 border-b px-3">
+        <HugeiconsIcon
+          icon={SearchIcon}
+          className="text-muted-foreground size-4 shrink-0"
+        />
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              return
+            }
+            event.stopPropagation()
+            if (event.key === 'ArrowDown') {
+              event.preventDefault()
+              listRef.current
+                ?.querySelector<HTMLElement>(
+                  '[role^=menuitem]:not([data-disabled])'
+                )
+                ?.focus()
+            }
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              listRef.current
+                ?.querySelector<HTMLElement>('[data-project]')
+                ?.click()
+            }
+          }}
+          placeholder="Search projects"
+          aria-label="Search projects"
+          className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-sm outline-none"
+        />
+      </div>
+      <div ref={listRef} className="min-h-0 overflow-y-auto p-1">
+        <DropdownMenuRadioGroup
+          value={
+            props.scope === null
+              ? ''
+              : machineKey(props.scope.machine, props.scope.projectId)
+          }
+        >
+          {search !== '' && groups.length === 0 && (
+            <div className="text-muted-foreground px-2 py-6 text-center text-sm">
+              No matching projects
             </div>
           )}
-          {group.projects.map((project) => {
-            const count = attention.filter(
-              (session) =>
-                session.machine === project.machine &&
-                session.projectId === project.id
-            ).length
-            return (
-              <DropdownMenuRadioItem
-                key={machineKey(project.machine, project.id)}
-                value={machineKey(project.machine, project.id)}
-                title={project.path}
-                className="group/project"
-                onSelect={() =>
-                  props.onScope({
-                    machine: project.machine,
-                    projectId: project.id,
-                  })
-                }
-                onContextMenu={(event) => {
-                  event.preventDefault()
-                  props.onClose()
-                  props.onEdit(project)
-                }}
-              >
-                <ProjectIcon
-                  machine={project.machine}
-                  projectId={project.id}
-                  className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
-                />
-                <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                {count > 0 && (
-                  <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
-                    {count}
-                  </span>
-                )}
-                <div className="-my-0.5 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-data-highlighted/project:opacity-100 pointer-coarse:hidden">
-                  <button
-                    className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 grid size-5 cursor-pointer place-items-center rounded-sm [&_svg]:size-3.5"
-                    title="Configure project"
-                    aria-label={`Configure ${project.name}`}
-                    onClick={(event) => {
-                      event.stopPropagation()
+
+          {props.inbox && search === '' && (
+            <DropdownMenuRadioItem
+              value=""
+              onSelect={() => props.onScope(null)}
+            >
+              <HugeiconsIcon
+                icon={CenterFocusIcon}
+                className="text-muted-foreground size-5 shrink-0"
+              />
+              <span className="min-w-0 flex-1 truncate">Inbox</span>
+              {attention.length > 0 && (
+                <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+                  {attention.length}
+                </span>
+              )}
+            </DropdownMenuRadioItem>
+          )}
+
+          {props.inbox && search === '' && groups.length > 0 && (
+            <DropdownMenuSeparator />
+          )}
+
+          {groups.map((group, index) => (
+            <Fragment key={group.machine.id}>
+              {index > 0 && <DropdownMenuSeparator />}
+              {machines.length > 1 && (
+                <div className="flex items-center">
+                  <DropdownMenuLabel className="flex min-w-0 flex-1 items-center gap-2 pl-[0.52rem]!">
+                    <MachineLogo
+                      icon={group.machine.icon}
+                      className="size-3.5 shrink-0"
+                    />
+                    <span className="truncate">
+                      {machineLabel(group.machine)}
+                    </span>
+                  </DropdownMenuLabel>
+                  {group.machine.system?.scratchAvailable === true &&
+                    chatChip(group.machine)}
+                  <div className="flex shrink-0 items-center">
+                    {manageButton(group.machine)}
+                    <DropdownMenuItem
+                      className="text-muted-foreground grid size-7 min-h-0 shrink-0 place-items-center rounded-sm p-0"
+                      title={`Add project to ${group.machine.name}`}
+                      aria-label={`Add project to ${group.machine.name}`}
+                      disabled={group.machine.status !== 'online'}
+                      onSelect={() => props.onAddProject(group.machine.id)}
+                    >
+                      <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
+                    </DropdownMenuItem>
+                  </div>
+                </div>
+              )}
+              {group.projects.map((project) => {
+                const count = attention.filter(
+                  (session) =>
+                    session.machine === project.machine &&
+                    session.projectId === project.id
+                ).length
+                return (
+                  <DropdownMenuRadioItem
+                    key={machineKey(project.machine, project.id)}
+                    value={machineKey(project.machine, project.id)}
+                    title={project.path}
+                    data-project=""
+                    className="group/project"
+                    onSelect={() =>
+                      props.onScope({
+                        machine: project.machine,
+                        projectId: project.id,
+                      })
+                    }
+                    onContextMenu={(event) => {
+                      event.preventDefault()
                       props.onClose()
                       props.onEdit(project)
                     }}
                   >
-                    <HugeiconsIcon icon={Settings01Icon} />
-                  </button>
+                    <ProjectIcon
+                      machine={project.machine}
+                      projectId={project.id}
+                      className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {project.name}
+                    </span>
+                    {count > 0 && (
+                      <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
+                        {count}
+                      </span>
+                    )}
+                    <div className="-my-0.5 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-data-highlighted/project:opacity-100 pointer-coarse:hidden">
+                      <button
+                        className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 grid size-5 cursor-pointer place-items-center rounded-sm [&_svg]:size-3.5"
+                        title="Configure project"
+                        aria-label={`Configure ${project.name}`}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          props.onClose()
+                          props.onEdit(project)
+                        }}
+                      >
+                        <HugeiconsIcon icon={Settings01Icon} />
+                      </button>
+                    </div>
+                  </DropdownMenuRadioItem>
+                )
+              })}
+            </Fragment>
+          ))}
+          {machines.length === 1 && search === '' && (
+            <>
+              {(props.inbox || groups.length > 0) && <DropdownMenuSeparator />}
+              <div className="flex items-center">
+                <DropdownMenuItem
+                  className="flex-1"
+                  onSelect={() => props.onAddProject(machines[0].id)}
+                >
+                  <HugeiconsIcon icon={Add01Icon} />
+                  Add project
+                </DropdownMenuItem>
+                <div className="flex shrink-0 items-center">
+                  {machines[0].system?.scratchAvailable === true &&
+                    chatChip(machines[0])}
+                  {manageButton(machines[0])}
                 </div>
-              </DropdownMenuRadioItem>
-            )
-          })}
-        </Fragment>
-      ))}
-      {machines.length === 1 && (
-        <>
-          {(props.inbox || groups.length > 0) && <DropdownMenuSeparator />}
-          <div className="flex items-center">
-            <DropdownMenuItem
-              className="flex-1"
-              onSelect={() => props.onAddProject(machines[0].id)}
-            >
-              <HugeiconsIcon icon={Add01Icon} />
-              Add project
-            </DropdownMenuItem>
-            <div className="flex shrink-0 items-center">
-              {machines[0].system?.scratchAvailable === true &&
-                chatChip(machines[0])}
-              {manageButton(machines[0])}
-            </div>
-          </div>
-        </>
-      )}
-    </DropdownMenuRadioGroup>
+              </div>
+            </>
+          )}
+        </DropdownMenuRadioGroup>
+      </div>
+    </div>
   )
 }

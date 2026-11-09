@@ -82,6 +82,7 @@ function UsageList() {
           machines={entry[1].machines}
           names={entry[1].names}
           now={now}
+          refreshable
           className="px-5 py-4"
         />
       ))}

@@ -64,7 +64,7 @@ export function ProjectHeading(props: {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="max-h-80 w-64"
+              className="flex max-h-80 w-64 flex-col overflow-hidden p-0"
               onCloseAutoFocus={(event) => {
                 event.preventDefault()
                 props.onCloseMenu()

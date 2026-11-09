@@ -3,7 +3,7 @@ import {
   MinimizeIcon,
   PinIcon,
   PinOffIcon,
-  PowerIcon,
+  PlayIcon,
   SquarePenIcon,
   SunriseIcon,
   TickDouble01Icon,
@@ -34,6 +34,7 @@ import { timeAgo } from '@/lib/format'
 import { deactivateSession, editSession } from '@/lib/sessions'
 import { machineOf, type MachineSession, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { RestartDialog } from './restart-dialog'
 import { SessionMenuItems } from './session-menu-items'
 import { SessionStatus } from './session-status'
 import { SessionTitle } from './session-title'
@@ -56,7 +57,6 @@ export const MobileSessionItem = memo(MobileSessionItemView)
 
 function MobileSessionItemView(props: {
   session: MachineSession
-  slim: boolean
   selected: boolean
   activity: SessionActivity | undefined
   unseen: boolean
@@ -71,6 +71,7 @@ function MobileSessionItemView(props: {
   )
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
+  const [restarting, setRestarting] = useState(false)
   const [offset, setOffset] = useState(0)
   const field = useRef<HTMLInputElement>(null)
   const swipe = useRef<{ x: number; y: number; swiping: boolean } | null>(null)
@@ -166,7 +167,7 @@ function MobileSessionItemView(props: {
     <div
       className={cn(
         'absolute inset-x-0 flex items-center rounded-md px-4 text-white',
-        props.slim ? 'inset-y-0' : 'inset-y-0.5',
+        'inset-y-0.5',
         offset > 0 && session.status !== 'inactive' && 'bg-success',
         offset > 0 && session.status === 'inactive' && 'bg-[#56b6c2]',
         offset < 0 && session.status === 'active' && 'bg-[#c678dd]',
@@ -182,7 +183,7 @@ function MobileSessionItemView(props: {
           offset < 0
             ? secondarySwipe[session.status].icon
             : session.status === 'inactive'
-              ? PowerIcon
+              ? PlayIcon
               : TickDouble01Icon
         }
         className="size-6"
@@ -227,6 +228,7 @@ function MobileSessionItemView(props: {
         context={true}
         mobile={true}
         onDeactivate={deactivate}
+        onRestart={() => setRestarting(true)}
         onRename={() => setTitle(session.title)}
       />
     </ContextMenuContent>
@@ -237,7 +239,7 @@ function MobileSessionItemView(props: {
       <span
         className={cn(
           'min-w-0 flex-1 truncate text-sm',
-          recede ? 'text-secondary-label font-normal' : 'font-medium',
+          recede ? 'text-foreground/70 font-normal' : 'font-medium',
           !recede && (props.unseen || waiting) && 'text-foreground',
           !recede && !props.unseen && !waiting && 'text-foreground/90'
         )}
@@ -279,53 +281,6 @@ function MobileSessionItemView(props: {
     !props.selected && !recede && 'text-sidebar-foreground bg-transparent'
   )
 
-  if (props.slim) {
-    return (
-      <li className="relative list-none">
-        {swipeBackground}
-        <ContextMenu>
-          <ContextMenuTrigger asChild disabled={!props.saved}>
-            <div
-              role="button"
-              tabIndex={0}
-              className={cn(
-                surface,
-                rowState,
-                'flex h-9 items-center gap-2.5 px-2.5',
-                offset !== 0 && 'bg-sidebar'
-              )}
-              style={
-                offset !== 0
-                  ? { transform: `translateX(${offset}px)` }
-                  : undefined
-              }
-              {...swipeHandlers}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  props.onSelect(session.machine, session.projectId, session.id)
-                }
-              }}
-            >
-              <span className="flex shrink-0 items-center opacity-40 grayscale">
-                <ProjectIcon
-                  machine={session.machine}
-                  projectId={session.projectId}
-                />
-              </span>
-              {titleText}
-              <span className="text-secondary-label ml-auto inline-flex shrink-0 items-center gap-1.5 text-xs tabular-nums">
-                {timeAgo(session.updatedAt)}
-                <MachineLogo icon={machineIcon} className="size-3 shrink-0" />
-              </span>
-            </div>
-          </ContextMenuTrigger>
-          {menu}
-        </ContextMenu>
-        {stopDialog}
-      </li>
-    )
-  }
-
   return (
     <li className="relative list-none py-0.5">
       {swipeBackground}
@@ -357,7 +312,10 @@ function MobileSessionItemView(props: {
                 <ProjectIcon
                   machine={session.machine}
                   projectId={session.projectId}
-                  className="size-5"
+                  className={cn(
+                    'size-5',
+                    session.status === 'inactive' && 'opacity-40 grayscale'
+                  )}
                 />
                 {titleText}
                 <SessionStatus
@@ -367,10 +325,13 @@ function MobileSessionItemView(props: {
                 />
               </div>
               <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
-                <MachineLogo icon={machineIcon} className="size-3 shrink-0" />
+                <MachineLogo
+                  icon={machineIcon}
+                  className="size-3 shrink-0 opacity-70"
+                />
                 <span
                   className={cn(
-                    'min-w-0 flex-1 truncate',
+                    'text-secondary-label/70 min-w-0 flex-1 truncate',
                     recede ? 'font-normal' : 'font-medium'
                   )}
                 >
@@ -397,6 +358,11 @@ function MobileSessionItemView(props: {
         {menu}
       </ContextMenu>
       {stopDialog}
+      <AlertDialog open={restarting} onOpenChange={setRestarting}>
+        <AlertDialogContent>
+          <RestartDialog session={session} />
+        </AlertDialogContent>
+      </AlertDialog>
     </li>
   )
 }
