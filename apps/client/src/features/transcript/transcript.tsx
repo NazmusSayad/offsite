@@ -403,7 +403,7 @@ function RowContent(props: {
       return (
         <div className="text-muted-foreground mx-auto flex w-full max-w-(--chat-content-max-width) items-center gap-3 py-1 text-xs">
           <span className="bg-border/70 h-px flex-1" />
-          <span>{row.text}</span>
+          <span className="min-w-0 [overflow-wrap:anywhere]">{row.text}</span>
           <span className="bg-border/70 h-px flex-1" />
         </div>
       )
