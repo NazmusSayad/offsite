@@ -29,8 +29,10 @@ import {
 import { assertEnabled, providerName } from './accounts.ts'
 import {
   addScratchProject,
+  addWorktreeProject,
   projectPath,
   removeScratchProject,
+  removeWorktreeProject,
 } from './projects.ts'
 import {
   listedUpdatedAt,
@@ -208,10 +210,32 @@ export async function send(
     if (request.sessionId !== null) {
       throw new Error('A started chat always has a project')
     }
+    if (request.worktree !== null) {
+      throw new Error('A chat without a project cannot use a worktree')
+    }
     const project = await addScratchProject(request.prompt.text)
     const run = await startRun(project.path, request.settings).catch(
       async (error: unknown) => {
         await removeScratchProject(project.id, project.path)
+        throw error
+      }
+    )
+    await submitFirst(client, run, request, project.id)
+    return
+  }
+  if (request.worktree !== null) {
+    if (request.sessionId !== null) {
+      throw new Error('Only a new chat can start in a new worktree')
+    }
+    const project = await addWorktreeProject(
+      request.projectId,
+      request.worktree.name,
+      request.prompt.text,
+      (stage) => client.send({ type: 'worktreeStage', stage })
+    )
+    const run = await startRun(project.cwd, request.settings).catch(
+      async (error: unknown) => {
+        await removeWorktreeProject(project)
         throw error
       }
     )

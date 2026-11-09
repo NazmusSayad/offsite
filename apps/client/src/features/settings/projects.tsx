@@ -25,7 +25,12 @@ export function ProjectsPage(props: { machine: string; homeDir: string }) {
     projectId: string
   } | null>('sidebarScope', null)
   const projects = registered
-    .filter((project) => project.machine === props.machine && !project.scratch)
+    .filter(
+      (project) =>
+        project.machine === props.machine &&
+        !project.scratch &&
+        project.parentId === null
+    )
     .sort((a, b) =>
       order === null ? 0 : order.indexOf(a.id) - order.indexOf(b.id)
     )

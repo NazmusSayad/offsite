@@ -142,14 +142,12 @@ export function Sidebar(
   const Draft = props.mobile ? MobileDraftRow : DesktopDraftRow
 
   function groupProject(machine: string, projectId: string) {
-    return projects.some(
-      (project) =>
-        project.machine === machine &&
-        project.id === projectId &&
-        project.scratch
+    const project = projects.find(
+      (item) => item.machine === machine && item.id === projectId
     )
+    return project?.scratch === true
       ? NO_PROJECT
-      : projectId
+      : (project?.parentId ?? projectId)
   }
 
   useInactiveSessions(inactiveOpen, scopeMachine, scopeProject, inactiveLimit)

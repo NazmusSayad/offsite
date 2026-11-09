@@ -7,6 +7,8 @@ export type Project = {
   logo: string | null
   hidden: boolean
   scratch: boolean
+  parentId: string | null
+  worktreeSetup: string | null
 }
 
 export type ProjectPatch = {
@@ -14,6 +16,7 @@ export type ProjectPatch = {
   logo?: string | null
   hidden?: boolean
   scratch?: false
+  worktreeSetup?: string
 }
 
 export type DirectoryListing = {

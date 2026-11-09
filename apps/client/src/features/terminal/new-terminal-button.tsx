@@ -22,7 +22,8 @@ export function NewTerminalItems(props: { contextMenu?: boolean }) {
           (project) =>
             project.machine === machine.id &&
             !project.hidden &&
-            !project.scratch
+            !project.scratch &&
+            project.parentId === null
         )
         .map((project) => (
           <Item

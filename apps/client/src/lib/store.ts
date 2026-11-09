@@ -6,6 +6,7 @@ import type {
   LastUsedModel,
   SessionSettings,
 } from '@offsite/core/config'
+import type { WorktreeStage } from '@offsite/core/git'
 import type {
   Item,
   PermissionRequest,
@@ -122,6 +123,8 @@ export type State = {
   settings: SessionSettings
   draft: Prompt | null
   replacing: Selection | null
+  worktree: string | null
+  worktreeStage: WorktreeStage | null
   context: ContextUsage | null
   capabilities: Capabilities | null
   errors: string[]

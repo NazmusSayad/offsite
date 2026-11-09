@@ -123,6 +123,8 @@ export function restoreMachine(machine: StoredMachine): Machine {
 export function restoreProjects(machine: StoredMachine): MachineProject[] {
   return machine.projects.map((project) => ({
     ...project,
+    parentId: project.parentId ?? null,
+    worktreeSetup: project.worktreeSetup ?? null,
     machine: machine.id,
   }))
 }
@@ -317,6 +319,8 @@ export function persistMachines() {
         logo: project.logo,
         hidden: project.hidden,
         scratch: project.scratch,
+        parentId: project.parentId,
+        worktreeSetup: project.worktreeSetup,
       })),
   }))
   saveMachines(machines)

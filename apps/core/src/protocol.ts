@@ -15,6 +15,7 @@ import type {
   PullRequestBranches,
   PullRequestDraft,
   SourceControlRepo,
+  WorktreeStage,
 } from './git.ts'
 import type {
   PermissionDecision,
@@ -90,6 +91,10 @@ export type RpcMethods = {
   'projects.remove': { params: { id: string }; result: null }
   'projects.reorder': { params: { ids: string[] }; result: null }
   'projects.logoFiles': { params: { id: string }; result: string[] }
+  'projects.worktrees': {
+    params: { projectId: string }
+    result: { projectId: string; branch: string | null; worktree: boolean }[]
+  }
   'directories.list': { params: { path: string }; result: DirectoryListing }
   'sessions.update': {
     params: { id: string; patch: SessionPatch }
@@ -156,6 +161,7 @@ export type RpcMethods = {
       settings: SessionSettings
       delivery: PromptDelivery
       status: 'active' | 'snoozed' | null
+      worktree: { name: string | null } | null
     }
     result: null
   }
@@ -374,6 +380,7 @@ export type ServerEvent =
   | { type: 'providers'; providers: ProviderStatus[] }
   | ({ type: 'accounts' } & Accounts)
   | { type: 'started'; sessionId: string; projectId: string; from: string }
+  | { type: 'worktreeStage'; stage: WorktreeStage }
   | {
       type: 'history'
       sessionId: string
