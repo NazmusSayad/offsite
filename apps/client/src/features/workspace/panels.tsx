@@ -397,14 +397,18 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
         (tab) => tab.projectId === props.selection.projectId
       ).length
   )
-  const agents = useStore((state) => selectedTasks(state).agents.length)
-  const tasks = useStore((state) => selectedTasks(state).tasks.length)
-  const runningTasks = useStore((state) => {
-    const found = selectedTasks(state)
-    return [...found.agents, ...found.tasks].filter(
-      (item) => item.status === 'Running'
-    ).length
-  })
+  const agents = useStore(
+    (state) =>
+      selectedTasks(state).agents.filter((item) => item.status === 'Running')
+        .length
+  )
+  const tasks = useStore(
+    (state) =>
+      selectedTasks(state).tasks.filter((item) => item.status === 'Running')
+        .length
+  )
+  const tasksColor =
+    agents > 0 ? 'text-info' : tasks > 0 ? 'text-muted-foreground' : null
   const taskCounts = [
     agents > 0 ? `${agents} ${agents === 1 ? 'agent' : 'agents'}` : null,
     tasks > 0 ? `${tasks} ${tasks === 1 ? 'task' : 'tasks'}` : null,
@@ -464,12 +468,9 @@ function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
       pressed: props.panel === 'tasks',
       dot:
         taskCounts.length > 0
-          ? {
-              color: runningTasks > 0 ? 'text-muted-foreground' : null,
-              status: taskCounts.join(' · '),
-            }
+          ? { color: tasksColor, status: taskCounts.join(' · ') }
           : null,
-      attention: runningTasks > 0 ? 'text-muted-foreground' : null,
+      attention: tasksColor,
       onSelect: () => props.onPanel(props.panel === 'tasks' ? null : 'tasks'),
     },
     {
