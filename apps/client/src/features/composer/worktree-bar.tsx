@@ -16,9 +16,12 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { logger } from '@/lib/log'
 import { openSession } from '@/lib/sessions'
-import { machineOf, showError, update, useStore } from '@/lib/store'
+import { machineOf, update, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
+
+const log = logger.withTag('worktree')
 
 export function WorktreeBar(props: { machine: string; projectId: string }) {
   const worktree = useStore((state) => state.worktree)
@@ -47,9 +50,7 @@ export function WorktreeBar(props: { machine: string; projectId: string }) {
           setRepos(found)
         }
       } catch (error) {
-        if (current) {
-          showError(error)
-        }
+        log.error('could not load the git status', error)
       }
     }
     void load()
@@ -142,9 +143,7 @@ function WorktreeMenu(props: { machine: string; projectId: string }) {
           setWorktrees(found)
         }
       } catch (error) {
-        if (current) {
-          showError(error)
-        }
+        log.error('could not load the worktrees', error)
       }
     }
     void load()

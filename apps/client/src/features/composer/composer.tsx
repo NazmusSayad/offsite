@@ -6,6 +6,7 @@ import { call } from '@/api/connection'
 import { readBase64, UPLOAD_LIMIT, uploadFile } from '@/api/upload'
 import { Button } from '@/components/ui/button'
 import { Wrapper } from '@/components/wrapper'
+import { logger } from '@/lib/log'
 import { interrupt, sendPrompt } from '@/lib/sessions'
 import {
   draftKey,
@@ -43,6 +44,8 @@ import { UsageResetBanner, QueuedMessages } from './queue'
 import { DictateButton, SendControls } from './send-controls'
 import { isStashShortcut, toggleStash } from './stash'
 import { WorktreeBar } from './worktree-bar'
+
+const log = logger.withTag('composer')
 
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 const maxImageSize = 5 * 1024 * 1024
@@ -113,7 +116,10 @@ export function Composer() {
     if (status !== 'online') {
       return
     }
-    call(machine, 'files.list', { projectId }).then(setFiles, showError)
+    call(machine, 'files.list', { projectId }).then(
+      setFiles,
+      (error: unknown) => log.error('could not list files', error)
+    )
   }, [machine, projectId, status])
 
   const before = text.slice(0, caret)

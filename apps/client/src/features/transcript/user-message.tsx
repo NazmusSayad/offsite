@@ -10,8 +10,11 @@ import { RewindMenu } from '@/features/transcript/rewind-menu'
 import type { UserItem } from '@/features/transcript/timeline'
 import { useCopy } from '@/lib/clipboard'
 import { clock, fullTime } from '@/lib/format'
-import { showError, useStore } from '@/lib/store'
+import { logger } from '@/lib/log'
+import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
+
+const log = logger.withTag('transcript')
 
 const IMAGE_LIMIT = 20
 const fade =
@@ -189,7 +192,7 @@ function PromptImage(props: {
           setLoaded(result.data)
         }
       })
-      .catch(showError)
+      .catch((error: unknown) => log.error('could not load an image', error))
     return () => {
       current = false
     }

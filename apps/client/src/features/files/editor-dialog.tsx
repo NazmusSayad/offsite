@@ -23,15 +23,11 @@ import {
 import { EditorTabs } from '@/features/files/editor-tabs'
 import { Explorer } from '@/features/files/explorer'
 import { MarkdownPreview } from '@/features/files/markdown-preview'
-import {
-  applyTheme,
-  editorOptions,
-  loadEditorFont,
-  monaco,
-} from '@/features/files/monaco'
+import { monaco } from '@/features/files/monaco'
 import { ConflictPrompt, SavePrompt } from '@/features/files/save-prompt'
 import { StatusBar } from '@/features/files/status-bar'
 import { useBlockStaging } from '@/features/files/use-block-staging'
+import { useEditorAppearance } from '@/features/files/use-editor-appearance'
 import { useEditorHosts } from '@/features/files/use-editor-hosts'
 import { useTabs } from '@/features/files/use-tabs'
 import { ViewSwitcher } from '@/features/files/view-switcher'
@@ -46,7 +42,6 @@ import { GitStatus } from '@/features/source-control/git-status'
 import { SourceControlView } from '@/features/source-control/source-control-view'
 import { useRepos } from '@/features/source-control/use-repos'
 import { projectOf, showError, useStore } from '@/lib/store'
-import { useCodeTheme } from '@/lib/theme'
 import { cn, drag } from '@/lib/utils'
 
 const ZoomableImage = lazy(async () => ({
@@ -61,8 +56,6 @@ export function EditorDialog(props: {
   const project = useStore((state) =>
     projectOf(state, props.machine, props.projectId)
   )
-  const codeTheme = useCodeTheme()
-  const prefs = useStore((state) => state.prefs.editor)
   const [saved] = useState(() =>
     loadEditorState(props.machine, props.projectId)
   )
@@ -132,15 +125,7 @@ export function EditorDialog(props: {
       ? modified
       : null
 
-  useEffect(() => {
-    applyTheme().catch(showError)
-  }, [codeTheme])
-
-  useEffect(() => {
-    editor?.updateOptions(editorOptions(prefs))
-    diff?.updateOptions(editorOptions(prefs))
-    loadEditorFont(prefs).catch(showError)
-  }, [editor, diff, prefs])
+  useEditorAppearance(editor, diff)
 
   useEffect(() => {
     diff?.updateOptions({

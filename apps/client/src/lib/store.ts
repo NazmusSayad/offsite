@@ -29,6 +29,7 @@ import type {
 } from '@offsite/core/sessions'
 import type { TerminalTab } from '@offsite/core/terminal'
 import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
+import { ConnectionError } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { logger } from '@/lib/log'
 import { errorMessage } from '@/lib/utils'
@@ -265,8 +266,15 @@ export function updatePrefs(prefs: Prefs) {
 }
 
 export function showError(error: unknown) {
+  if (error instanceof ConnectionError) {
+    log.info('not showing a connection error:', error)
+    return
+  }
   log.warn('showing an error:', error)
-  update({ errors: [...getState().errors, errorMessage(error)] })
+  const message = errorMessage(error)
+  update({
+    errors: [...getState().errors.filter((item) => item !== message), message],
+  })
 }
 
 export function dismissErrors() {

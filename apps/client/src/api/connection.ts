@@ -60,6 +60,8 @@ const listeners = new Set<Listener>()
 const connections = new Map<string, Connection>()
 let nextId = 0
 
+export class ConnectionError extends Error {}
+
 export function startConnections() {
   window.setInterval(() => {
     for (const machine of connections.keys()) {
@@ -151,11 +153,11 @@ export function call<M extends RpcMethod>(
     !connection.connected
   ) {
     return Promise.reject(
-      new Error(
-        connection === undefined
-          ? 'That machine was removed'
-          : `Not connected to ${new URL(connection.url).host}; reconnecting`
-      )
+      connection === undefined
+        ? new Error('That machine was removed')
+        : new ConnectionError(
+            `Not connected to ${new URL(connection.url).host}; reconnecting`
+          )
     )
   }
   nextId += 1
@@ -321,7 +323,7 @@ function retry(machine: string, connection: Connection, attempt: number) {
 function disconnect(machine: string, connection: Connection) {
   for (const waiter of connection.pending.values()) {
     waiter.reject(
-      new Error(`Disconnected from ${new URL(connection.url).host}`)
+      new ConnectionError(`Disconnected from ${new URL(connection.url).host}`)
     )
   }
   connection.pending.clear()

@@ -1,8 +1,11 @@
 import type { Config, LastPickedModelForProvider } from '@offsite/core/config'
 import { resetNewThread } from '@/lib/accounts'
-import { getState, machineOf, setMachine, showError } from '@/lib/store'
+import { logger } from '@/lib/log'
+import { getState, machineOf, setMachine } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 import { call } from './connection'
+
+const log = logger.withTag('config')
 
 function syncedValue<T>(handlers: {
   set: (machine: string, value: T) => void
@@ -51,7 +54,7 @@ function syncedValue<T>(handlers: {
         apply(machine, value)
       }
     } catch (error) {
-      showError(error)
+      log.error(`could not load the config of ${machine}`, error)
     }
   }
 

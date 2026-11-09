@@ -30,17 +30,19 @@ import {
   saveLastPickedEffort,
   saveLastPickedModel,
 } from '@/lib/accounts'
+import { logger } from '@/lib/log'
 import {
   getState,
   machineOf,
   providerPages,
-  showError,
   showSettingsPage,
   useStore,
 } from '@/lib/store'
 import { cn, touch } from '@/lib/utils'
 import { moveFocus } from './move-focus'
 import { control, controlSm, Picker, refocusComposer } from './picker'
+
+const log = logger.withTag('composer')
 
 export function Pickers() {
   const settings = useStore((state) => state.settings)
@@ -255,7 +257,7 @@ function ModelMenu(props: {
             ...models,
             [item.key]: result.models,
           })),
-        showError
+        (error: unknown) => log.error('could not load models', error)
       )
     }
   })

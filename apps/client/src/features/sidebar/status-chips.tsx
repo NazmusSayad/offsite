@@ -34,11 +34,6 @@ export function StatusChips(props: {
   const offline = machines.filter(
     (machine) => machine.status === 'offline' || machine.status === 'unpaired'
   )
-  const failed = sessions.filter((session) =>
-    Object.values(
-      activityOf(machines, session.machine, session.id)?.tasks ?? {}
-    ).includes('failed')
-  )
   const waiting = sessions.filter(
     (session) =>
       activityOf(machines, session.machine, session.id)?.waiting === true
@@ -52,7 +47,7 @@ export function StatusChips(props: {
       !Object.values(activity?.tasks ?? {}).includes('running')
     )
   })
-  const problems = errors.length + offline.length + failed.length
+  const problems = errors.length + offline.length
   const showDone = !props.hideDone && done.length > 0
   if (problems === 0 && waiting.length === 0 && !showDone) {
     return null
@@ -118,11 +113,6 @@ function ChipList(props: { kind: 'done' | 'waiting' | 'merged' | 'problems' }) {
   const offline = machines.filter(
     (machine) => machine.status === 'offline' || machine.status === 'unpaired'
   )
-  const failed = sessions.filter((session) =>
-    Object.values(
-      activityOf(machines, session.machine, session.id)?.tasks ?? {}
-    ).includes('failed')
-  )
   const waiting = sessions.filter(
     (session) =>
       activityOf(machines, session.machine, session.id)?.waiting === true
@@ -187,15 +177,6 @@ function ChipList(props: { kind: 'done' | 'waiting' | 'merged' | 'problems' }) {
             {machine.status === 'offline' && `${machine.name} is offline`}
             {machine.status === 'unpaired' && `${machine.name} needs pairing`}
           </Row>
-        ))}
-        {failed.map((session) => (
-          <Thread
-            key={machineKey(session.machine, session.id)}
-            session={session}
-            icon={Alert02Icon}
-            className="text-warning-foreground"
-            detail="Background task failed"
-          />
         ))}
       </>
     )

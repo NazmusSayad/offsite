@@ -1,7 +1,10 @@
 import type { Account, RateLimit, Usage } from '@offsite/core/providers'
 import { useEffect } from 'react'
 import { call } from '@/api/connection'
+import { logger } from '@/lib/log'
 import { getState, type Machine, showError, update, useStore } from './store'
+
+const log = logger.withTag('usage')
 
 const freshFor = 300_000
 const loading = new Map<string, Promise<void>>()
@@ -148,7 +151,11 @@ async function fetchUsage(machine: string, account: Account, force: boolean) {
       receiveUsage(known, account.id, usage)
     }
   } catch (error) {
-    showError(error)
+    if (force) {
+      showError(error)
+    } else {
+      log.error('could not load usage', error)
+    }
   } finally {
     loading.delete(usageKey(machine, account))
   }

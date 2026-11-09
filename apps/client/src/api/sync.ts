@@ -14,6 +14,7 @@ import {
   refreshCapabilities,
   setAccounts,
 } from '@/lib/accounts'
+import { logger } from '@/lib/log'
 import { claimNotifications, notify, push } from '@/lib/notifications'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
@@ -51,6 +52,8 @@ import {
   restoreProjects,
   shareMachines,
 } from './machines'
+
+const log = logger.withTag('sync')
 
 const DELTA_DELAY = 50
 
@@ -216,7 +219,7 @@ async function resync(machine: string) {
       void refreshCapabilities()
     }
   } catch (error) {
-    showError(error)
+    log.error(`could not sync ${machine}`, error)
   }
 }
 

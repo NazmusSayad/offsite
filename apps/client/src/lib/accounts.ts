@@ -8,6 +8,7 @@ import type { Accounts, Capabilities, Provider } from '@offsite/core/providers'
 import { maxBy } from 'es-toolkit'
 import { call } from '@/api/connection'
 import { saveDraftSettings } from '@/features/composer/drafts'
+import { logger } from '@/lib/log'
 import {
   activityOf,
   draftKey,
@@ -18,6 +19,8 @@ import {
   showError,
   update,
 } from './store'
+
+const log = logger.withTag('accounts')
 
 let loading: { key: string; result: Promise<Capabilities> } | null = null
 
@@ -41,7 +44,7 @@ export function saveLastPickedEffort(
   for (const machine of getState().machines) {
     if (machine.status === 'online') {
       call(machine.id, 'lastEffort.save', { provider, model, effort }).catch(
-        showError
+        (error: unknown) => log.error('could not save the last effort', error)
       )
     }
   }
@@ -105,7 +108,7 @@ export function saveLastPickedModel(
   model: string
 ) {
   call(machine, 'lastUsed.save', { provider, accountId, model }).catch(
-    showError
+    (error: unknown) => log.error('could not save the last model', error)
   )
   const others = getState().machines.filter(
     (item) => item.id !== machine && item.status === 'online'
@@ -116,7 +119,9 @@ export function saveLastPickedModel(
         provider,
         accountId: null,
         model,
-      }).catch(showError)
+      }).catch((error: unknown) =>
+        log.error('could not save the last model', error)
+      )
     }
     return
   }
@@ -142,7 +147,9 @@ export function saveLastPickedModel(
         provider,
         accountId: match.id,
         model,
-      }).catch(showError)
+      }).catch((error: unknown) =>
+        log.error('could not save the last model', error)
+      )
     }
   }
 }
@@ -247,7 +254,7 @@ export async function refreshAccounts(machine: string) {
   try {
     setAccounts(machine, await call(machine, 'accounts.list', undefined))
   } catch (error) {
-    showError(error)
+    log.error(`could not load the accounts of ${machine}`, error)
   }
 }
 
@@ -324,6 +331,6 @@ export async function refreshCapabilities() {
         ) ?? first.effort,
     })
   } catch (error) {
-    showError(error)
+    log.error('could not load the models', error)
   }
 }

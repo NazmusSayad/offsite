@@ -20,8 +20,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { logger } from '@/lib/log'
 import { showError } from '@/lib/store'
 import { cn, touch } from '@/lib/utils'
+
+const log = logger.withTag('git')
 
 type BranchTarget = {
   machine: string
@@ -99,9 +102,12 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   useEffect(() => {
     call(machine, 'git.localBranches', { projectId, repo: repoPath }).then(
       setBranches,
-      showError
+      (error: unknown) => log.error('could not list branches', error)
     )
-    call(machine, 'git.fetch', { projectId }).then(onRefresh, showError)
+    call(machine, 'git.fetch', { projectId }).then(
+      onRefresh,
+      (error: unknown) => log.error('could not fetch', error)
+    )
   }, [machine, projectId, repoPath, onRefresh])
 
   async function sync() {

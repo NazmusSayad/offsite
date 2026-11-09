@@ -2,7 +2,10 @@ import { isEqual } from 'es-toolkit'
 import { useEffect } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
-import { getState, showError, update, useStore } from '@/lib/store'
+import { logger } from '@/lib/log'
+import { getState, update, useStore } from '@/lib/store'
+
+const log = logger.withTag('sidebar')
 
 let preloaded: string | null = null
 
@@ -76,7 +79,9 @@ export function useInactiveSessions(
       }
       update({ inactive, inactiveTotal })
     }
-    load().catch(showError)
+    load().catch((error: unknown) =>
+      log.error('could not load inactive sessions', error)
+    )
     return () => {
       current = false
     }
