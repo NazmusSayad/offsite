@@ -314,7 +314,10 @@ export function Composer() {
           }}
         >
           <div
-            className={cn('pb-1 md:pb-2', images.length > 0 && 'pt-2 sm:pt-4')}
+            className={cn(
+              'pb-1 md:pb-2',
+              images.length > 0 && 'pt-2 sm:pt-4 md:pt-3.5'
+            )}
           >
             {images.length > 0 && <AttachedImages draftKey={key} />}
             <textarea
@@ -426,13 +429,13 @@ export function Composer() {
                 'placeholder:text-placeholder/75 block [field-sizing:content] w-full resize-none bg-transparent px-2.5 text-sm leading-relaxed outline-none sm:px-4',
                 images.length > 0
                   ? 'max-h-52 min-h-19.5'
-                  : 'max-h-55.5 min-h-20 pt-2 sm:max-h-56 sm:pt-4 [@media(min-height:840px)]:min-h-23 sm:[@media(min-height:840px)]:min-h-23.5'
+                  : 'max-h-55.5 min-h-20 pt-2 sm:max-h-56 sm:pt-4 md:pt-3.5 [@media(min-height:840px)]:min-h-23 sm:[@media(min-height:840px)]:min-h-23.5'
               )}
             />
           </div>
           <div
             className={cn(
-              'flex min-w-0 items-center justify-between gap-2 ps-2 pe-1.5 sm:px-3.5',
+              'flex min-w-0 items-center justify-between gap-2 ps-2 pe-1.5 sm:px-3.5 md:pe-3.25',
               hero ? 'pb-2 sm:pb-3.5' : 'pb-1.5 sm:pb-3'
             )}
           >

@@ -65,10 +65,10 @@ export function SendControls(props: {
         </Button>
       )}
       {dictation.kind !== 'idle' ? (
-        <div className="size-9.5 shrink-0 md:size-9" />
+        <div className="size-9.5 shrink-0 md:-my-px" />
       ) : props.running && props.empty ? (
         <button
-          className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive relative flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors after:absolute after:-inset-y-px after:right-0 after:-left-0.5 md:size-9 md:after:hidden"
+          className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive relative flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors after:absolute after:-inset-y-px after:right-0 after:-left-0.5 md:-my-px md:after:hidden"
           title="Stop (Esc)"
           aria-label="Stop generation"
           onClick={props.onStop}
@@ -85,7 +85,7 @@ export function SendControls(props: {
         </button>
       ) : wide.matches && props.blank && desktopDictate ? (
         <button
-          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xs transition-all duration-150 hover:scale-105"
+          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover -my-px flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xs transition-all duration-150 hover:scale-105"
           title={`Dictate (${mod}+Shift+D)`}
           aria-label="Dictate"
           onClick={() => void props.dictation.toggle()}
@@ -94,7 +94,7 @@ export function SendControls(props: {
         </button>
       ) : (
         <button
-          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover disabled:bg-foreground/12 disabled:text-muted-foreground relative flex size-9.5 items-center justify-center rounded-full shadow-xs transition-all duration-150 after:absolute after:-inset-y-px after:right-0 after:-left-0.5 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:shadow-none md:size-9 md:overflow-hidden md:after:hidden"
+          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover disabled:bg-foreground/12 disabled:text-muted-foreground relative flex size-9.5 items-center justify-center rounded-full shadow-xs transition-all duration-150 after:absolute after:-inset-y-px after:right-0 after:-left-0.5 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:shadow-none md:-my-px md:overflow-hidden md:after:hidden"
           title={
             props.running && props.delivery === 'steer'
               ? `Send now (Enter) · Queue (${mod}+Enter)`
