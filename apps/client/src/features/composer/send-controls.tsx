@@ -1,4 +1,4 @@
-import { AiMicIcon } from '@hugeicons/core-free-icons'
+import { AiMicIcon, SendIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { PromptDelivery } from '@offsite/core/config'
 import { useEffect, useState } from 'react'
@@ -81,7 +81,7 @@ export function SendControls(props: {
         </button>
       ) : (
         <button
-          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover disabled:bg-foreground/12 disabled:text-muted-foreground relative flex size-9.5 items-center justify-center rounded-full shadow-xs transition-all duration-150 after:absolute after:-inset-y-px after:right-0 after:-left-0.5 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:shadow-none md:-my-px md:overflow-hidden md:after:hidden"
+          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover disabled:bg-foreground/12 disabled:text-muted-foreground group relative flex size-9.5 items-center justify-center rounded-full shadow-xs transition-all duration-150 after:absolute after:-inset-y-px after:right-0 after:-left-0.5 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:shadow-none md:-my-px md:overflow-hidden md:after:hidden"
           title={
             props.running && props.delivery === 'steer'
               ? `Send now (Enter) · Queue (${mod}+Enter)`
@@ -93,21 +93,11 @@ export function SendControls(props: {
           disabled={props.empty}
           onClick={(event) => props.onSubmit(event.metaKey || event.ctrlKey)}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M7 11.5V2.5M7 2.5L3 6.5M7 2.5L11 6.5"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <HugeiconsIcon
+            icon={SendIcon}
+            className="size-4.5 -translate-x-[0.5px] translate-y-[0.5px] transition-[rotate,translate] duration-150 group-hover:translate-x-0 group-hover:-rotate-45 motion-reduce:transition-none"
+            strokeWidth={1.25}
+          />
         </button>
       )}
     </>
