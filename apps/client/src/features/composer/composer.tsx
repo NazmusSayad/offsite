@@ -436,10 +436,10 @@ export function Composer() {
               hero ? 'pb-2 sm:pb-3.5' : 'pb-1.5 sm:pb-3'
             )}
           >
-            <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center overflow-x-auto p-1 ps-2.25 sm:ps-4">
+            <div className="-m-1 -ms-3.5 flex min-w-0 flex-1 [scrollbar-width:none] items-center overflow-x-auto p-1 ps-2.25 sm:ps-4 md:gap-1">
               <Pickers />
             </div>
-            <div className="relative flex shrink-0 items-center justify-end gap-1">
+            <div className="relative flex shrink-0 items-center justify-end gap-1 md:gap-2">
               <input
                 ref={picker}
                 type="file"
@@ -465,17 +465,21 @@ export function Composer() {
               <Button
                 variant="ghost"
                 size="icon-xs"
-                className="relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5"
+                className="relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5 md:size-8 md:after:hidden"
                 title="Attach files"
                 aria-label="Attach files"
                 onClick={() => picker.current?.click()}
               >
-                <HugeiconsIcon icon={PaperclipIcon} />
+                <HugeiconsIcon
+                  icon={PaperclipIcon}
+                  className="size-3.5 md:size-4"
+                />
               </Button>
               <SendControls
                 dictation={dictation}
                 running={running}
                 empty={empty}
+                blank={text.trim() === '' && images.length === 0}
                 delivery={delivery}
                 onSubmit={(swap) => void submit(swap, false)}
                 onStop={interrupt}

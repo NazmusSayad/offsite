@@ -128,11 +128,14 @@ export function MoreMenu(props: {
         <Button
           variant="ghost"
           size="icon-xs"
-          className="relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5"
+          className="relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5 md:size-8 md:after:hidden"
           title="More"
           aria-label="More composer controls"
         >
-          <HugeiconsIcon icon={MoreHorizontalIcon} />
+          <HugeiconsIcon
+            icon={MoreHorizontalIcon}
+            className="size-3.5 md:size-4"
+          />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

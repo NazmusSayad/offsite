@@ -66,14 +66,25 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
           />
         </Row>
       </Section>
-      <Section title="Dictate button" note="Shows above Send">
+      <Section title="Dictate button" note="Replaces Send when empty">
+        <Row label="On desktop">
+          <Switch
+            checked={prefs.dictateButton.desktop}
+            onCheckedChange={(desktop) =>
+              updatePrefs({
+                ...prefs,
+                dictateButton: { ...prefs.dictateButton, desktop },
+              })
+            }
+          />
+        </Row>
         <Row label="On mobile">
           <Switch
             checked={prefs.dictateButton.mobile}
             onCheckedChange={(mobile) =>
               updatePrefs({
                 ...prefs,
-                dictateButton: { mobile },
+                dictateButton: { ...prefs.dictateButton, mobile },
               })
             }
           />

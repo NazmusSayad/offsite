@@ -8,15 +8,19 @@ import { cn, mod } from '@/lib/utils'
 import type { ActiveDictation, Dictation } from './dictation'
 import { DictationPill } from './dictation-pill'
 
+const wide = window.matchMedia('(min-width: 768px)')
+
 export function SendControls(props: {
   dictation: Dictation
   running: boolean
   empty: boolean
+  blank: boolean
   delivery: PromptDelivery | null
   onSubmit: (swap: boolean) => void
   onStop: () => void
 }) {
   const dictateButton = useStore((state) => state.prefs.dictateButton.mobile)
+  const desktopDictate = useStore((state) => state.prefs.dictateButton.desktop)
   const dictation = props.dictation.state
   const [previous, setPrevious] = useState(dictation)
   const [closing, setClosing] = useState<ActiveDictation | null>(null)
@@ -61,10 +65,10 @@ export function SendControls(props: {
         </Button>
       )}
       {dictation.kind !== 'idle' ? (
-        <div className="size-9.5 shrink-0" />
+        <div className="size-9.5 shrink-0 md:size-9" />
       ) : props.running && props.empty ? (
         <button
-          className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive relative flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors after:absolute after:-inset-y-px after:right-0 after:-left-0.5"
+          className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive relative flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors after:absolute after:-inset-y-px after:right-0 after:-left-0.5 md:size-9 md:after:hidden"
           title="Stop (Esc)"
           aria-label="Stop generation"
           onClick={props.onStop}
@@ -79,9 +83,18 @@ export function SendControls(props: {
             <rect x="2" y="2" width="8" height="8" rx="1.5" />
           </svg>
         </button>
+      ) : wide.matches && props.blank && desktopDictate ? (
+        <button
+          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xs transition-all duration-150 hover:scale-105"
+          title={`Dictate (${mod}+Shift+D)`}
+          aria-label="Dictate"
+          onClick={() => void props.dictation.toggle()}
+        >
+          <HugeiconsIcon icon={AiMicIcon} className="size-4" />
+        </button>
       ) : (
         <button
-          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover disabled:bg-foreground/12 disabled:text-muted-foreground relative flex size-9.5 items-center justify-center rounded-full shadow-xs transition-all duration-150 after:absolute after:-inset-y-px after:right-0 after:-left-0.5 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:shadow-none"
+          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover disabled:bg-foreground/12 disabled:text-muted-foreground relative flex size-9.5 items-center justify-center rounded-full shadow-xs transition-all duration-150 after:absolute after:-inset-y-px after:right-0 after:-left-0.5 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:shadow-none md:size-9 md:overflow-hidden md:after:hidden"
           title={
             props.running && props.delivery === 'steer'
               ? `Send now (Enter) · Queue (${mod}+Enter)`
