@@ -48,7 +48,7 @@ export function SessionMenuItems(props: {
   context: boolean
   mobile: boolean
   onDeactivate: () => void
-  onRestart: () => void
+  onRestart: (() => void) | null
   onRename: () => void
 }) {
   const session = props.session
@@ -120,7 +120,7 @@ export function SessionMenuItems(props: {
         </Item>
       )}
       <Separator />
-      {session.provider === 'claude' && (
+      {session.provider === 'claude' && props.onRestart !== null && (
         <Item onSelect={props.onRestart}>
           <HugeiconsIcon icon={RefreshIcon} />
           Restart Claude

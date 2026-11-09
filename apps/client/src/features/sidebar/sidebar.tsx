@@ -1,10 +1,8 @@
 import {
   ChevronDownIcon,
-  DashboardSpeed02Icon,
   MinimizeIcon,
   PanelLeftOpenIcon,
   SearchIcon,
-  Settings01Icon,
   SquarePenIcon,
   Tick01Icon,
   ZzzIcon,
@@ -30,20 +28,17 @@ import {
 } from '@/features/sidebar/project-dialogs'
 import { ProjectGroup } from '@/features/sidebar/project-group'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
+import { SidebarFooter } from '@/features/sidebar/sidebar-footer'
 import { StatusChips } from '@/features/sidebar/status-chips'
-import { TerminalNav } from '@/features/sidebar/terminal-nav'
 import { useInactiveSessions } from '@/features/sidebar/use-inactive-sessions'
 import { UsageDialog } from '@/features/usage/usage-dialog'
-import { UsageMeters } from '@/features/usage/usage-meters'
 import { lastProject, openSession, startChat } from '@/lib/sessions'
 import {
   activityOf,
   type MachineProject,
   type MachineSession,
   showPalette,
-  showSettings,
   showSettingsPage,
-  showUsage,
   useStore,
 } from '@/lib/store'
 import { cn, drag, mod } from '@/lib/utils'
@@ -55,7 +50,7 @@ const DONE_PAGE = 50
 
 export function Sidebar(
   props:
-    | { className: string; mobile: false; onHide: () => void }
+    | { className: string; mobile: false; hidden: boolean; onHide: () => void }
     | { className: string; mobile: true }
 ) {
   const selection = useStore((state) => state.selection)
@@ -275,7 +270,8 @@ export function Sidebar(
     <aside
       className={cn(
         'bg-sidebar text-sidebar-foreground border-sidebar-border flex flex-none border-r select-none',
-        props.className
+        props.className,
+        !props.mobile && props.hidden && 'hidden'
       )}
     >
       <div
@@ -308,6 +304,7 @@ export function Sidebar(
             }}
             onEdit={setEditing}
             onAddProject={setAdding}
+            shortcut={props.mobile || !props.hidden}
           />
           {props.mobile && <StatusChips hideDone />}
           <div className="ml-auto flex items-center gap-0.75">
@@ -421,48 +418,7 @@ export function Sidebar(
               )}
           </ul>
         </nav>
-        {!props.mobile && (
-          <div className="border-sidebar-border @container flex shrink-0 flex-col gap-px border-t p-(--sidebar-content-inset)">
-            <TerminalNav buttonClassName={iconButton} />
-            <div className="relative">
-              <button
-                className={cn(
-                  iconButton,
-                  'h-8 w-full justify-start gap-2 px-2.5 text-sm'
-                )}
-                title="Usage"
-                onClick={() => showUsage(true)}
-              >
-                <HugeiconsIcon icon={DashboardSpeed02Icon} />
-                <span className="truncate">Usage</span>
-              </button>
-              <div className="absolute top-1.5 right-1.5">
-                <UsageMeters />
-              </div>
-            </div>
-            <div className="relative">
-              <button
-                className={cn(
-                  iconButton,
-                  'h-8 w-full justify-start gap-2 px-2.5 text-sm'
-                )}
-                title="Settings"
-                onClick={() => showSettings(true)}
-              >
-                <HugeiconsIcon icon={Settings01Icon} />
-                <span className="truncate">Settings</span>
-              </button>
-              <div className="absolute top-1.5 right-1.5">
-                <StatusChips className="@max-[13rem]:hidden" hideDone={false} />
-                <StatusChips
-                  className="hidden @max-[13rem]:flex"
-                  hideDone={false}
-                  collapsed
-                />
-              </div>
-            </div>
-          </div>
-        )}
+        {!props.mobile && <SidebarFooter buttonClassName={iconButton} />}
         {!props.mobile && (
           <div
             role="separator"

@@ -32,7 +32,6 @@ import { timeAgo } from '@/lib/format'
 import { deactivateSession, editSession } from '@/lib/sessions'
 import type { MachineSession } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { RestartDialog } from './restart-dialog'
 import { SessionMenuItems } from './session-menu-items'
 import { SessionStatus } from './session-status'
 import { SessionTitle } from './session-title'
@@ -51,7 +50,6 @@ export function DesktopGroupedSessionItem(props: {
   const session = props.session
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
-  const [restarting, setRestarting] = useState(false)
   const field = useRef<HTMLInputElement>(null)
   const waiting = props.activity?.waiting === true
   const backgroundRunning = Object.values(props.activity?.tasks ?? {}).includes(
@@ -124,7 +122,7 @@ export function DesktopGroupedSessionItem(props: {
           context={false}
           mobile={false}
           onDeactivate={deactivate}
-          onRestart={() => setRestarting(true)}
+          onRestart={null}
           onRename={() => setTitle(session.title)}
         />
       </DropdownMenuContent>
@@ -148,7 +146,7 @@ export function DesktopGroupedSessionItem(props: {
         context={true}
         mobile={false}
         onDeactivate={deactivate}
-        onRestart={() => setRestarting(true)}
+        onRestart={null}
         onRename={() => setTitle(session.title)}
       />
     </ContextMenuContent>
@@ -274,11 +272,6 @@ export function DesktopGroupedSessionItem(props: {
         {contextMenu}
       </ContextMenu>
       {stopDialog}
-      <AlertDialog open={restarting} onOpenChange={setRestarting}>
-        <AlertDialogContent>
-          <RestartDialog session={session} />
-        </AlertDialogContent>
-      </AlertDialog>
     </li>
   )
 }
