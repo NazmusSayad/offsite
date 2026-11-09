@@ -73,7 +73,11 @@ export function SendControls(props: {
           aria-label="Stop generation"
           onClick={props.onStop}
         >
-          <HugeiconsIcon icon={StopIcon} className="size-3.5 fill-current" />
+          <HugeiconsIcon
+            icon={StopIcon}
+            className="size-4 fill-current"
+            strokeWidth={2}
+          />
         </button>
       ) : (
         <button
