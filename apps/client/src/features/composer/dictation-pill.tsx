@@ -37,6 +37,7 @@ export function DictationPill(props: {
         props.closing
           ? 'pointer-events-none [clip-path:inset(0_0_0_calc(100%-2.25rem)_round_9999px)] opacity-0 [transition:clip-path_250ms_cubic-bezier(0.4,0,0.2,1),opacity_120ms_linear_150ms]'
           : '[clip-path:inset(0_0_0_0_round_9999px)] transition-[clip-path,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+        state.kind === 'failed' && state.action === null && 'pe-7',
         state.kind === 'failed'
           ? 'bg-[color-mix(in_srgb,var(--composer-surface)_86%,var(--destructive))]'
           : 'bg-[color-mix(in_srgb,var(--composer-surface)_90%,var(--text))]'

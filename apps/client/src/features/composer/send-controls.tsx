@@ -4,7 +4,7 @@ import type { PromptDelivery } from '@offsite/core/config'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useStore } from '@/lib/store'
-import { mod } from '@/lib/utils'
+import { cn, mod } from '@/lib/utils'
 import type { ActiveDictation, Dictation } from './dictation'
 import { DictationPill } from './dictation-pill'
 
@@ -45,11 +45,14 @@ export function SendControls(props: {
           closing={dictation.kind === 'idle'}
         />
       )}
-      {dictateButton && dictation.kind === 'idle' && (
+      {dictateButton && (
         <Button
           variant="ghost"
           size="icon-xs"
-          className="relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5 md:hidden"
+          className={cn(
+            'relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5 md:hidden',
+            dictation.kind !== 'idle' && 'invisible'
+          )}
           title={`Dictate (${mod}+Shift+D)`}
           aria-label="Dictate"
           onClick={() => void props.dictation.toggle()}
