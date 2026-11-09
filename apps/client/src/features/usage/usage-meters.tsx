@@ -121,6 +121,7 @@ export function UsageDetails(props: { machine: string; account: Account }) {
         machines={shared.map((entry) => entry.machine)}
         names={shared.map((entry) => entry.account.name)}
         now={now}
+        refreshable={false}
         className="px-3.5 py-3"
       />
     </ul>

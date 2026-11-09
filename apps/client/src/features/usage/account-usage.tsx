@@ -18,6 +18,7 @@ export function AccountUsage(props: {
   machines: Machine[]
   names: string[]
   now: number
+  refreshable: boolean
   className: string
 }) {
   const account = props.account
@@ -88,10 +89,12 @@ export function AccountUsage(props: {
           }}
         >
           {ago !== null && (ago === 'now' ? 'now' : `${ago} ago`)}
-          <HugeiconsIcon
-            icon={RefreshIcon}
-            className={cn('size-3', refreshing && 'animate-spin')}
-          />
+          {props.refreshable && (
+            <HugeiconsIcon
+              icon={RefreshIcon}
+              className={cn('size-3', refreshing && 'animate-spin')}
+            />
+          )}
         </Button>
       </div>
       {usage === undefined && (
