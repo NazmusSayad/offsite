@@ -1,4 +1,8 @@
-import { AiMicIcon, SendIcon } from '@hugeicons/core-free-icons'
+import {
+  AiMicIcon,
+  SendHorizontalIcon,
+  StopIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { PromptDelivery } from '@offsite/core/config'
 import { useEffect, useState } from 'react'
@@ -69,15 +73,7 @@ export function SendControls(props: {
           aria-label="Stop generation"
           onClick={props.onStop}
         >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 12 12"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <rect x="2" y="2" width="8" height="8" rx="1.5" />
-          </svg>
+          <HugeiconsIcon icon={StopIcon} className="size-3.5 fill-current" />
         </button>
       ) : (
         <button
@@ -94,8 +90,8 @@ export function SendControls(props: {
           onClick={(event) => props.onSubmit(event.metaKey || event.ctrlKey)}
         >
           <HugeiconsIcon
-            icon={SendIcon}
-            className="size-4.5 -translate-x-[0.5px] translate-y-[0.5px] transition-[rotate,translate] duration-150 group-hover:translate-x-0 group-hover:-rotate-45 motion-reduce:transition-none"
+            icon={SendHorizontalIcon}
+            className="size-4.5 translate-x-[0.5px] -translate-y-[0.5px] -rotate-45 transition-[rotate,translate] duration-150 group-hover:translate-x-0 group-hover:-translate-y-[0.75px] group-hover:-rotate-90 group-disabled:translate-x-[0.75px] group-disabled:translate-y-0 group-disabled:rotate-0 motion-reduce:transition-none"
             strokeWidth={1.25}
           />
         </button>
