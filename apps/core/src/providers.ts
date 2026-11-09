@@ -34,21 +34,16 @@ export type Account = {
   plan: string | null
   error: string | null
   linked: boolean
+  fullyLinked: boolean
   valid: boolean
 }
 
-export type LinkAction =
-  | 'linked'
-  | 'link'
-  | 'relink'
-  | 'replace'
-  | 'backup'
-  | 'skip'
+export type LinkAction = 'linked' | 'link' | 'relink' | 'replace' | 'backup'
 
 export type LinkEntry = {
+  type: 'folder' | 'json' | 'jsonl' | 'md'
   name: string
   required: boolean
-  folder: boolean
   action: LinkAction
   createInBase: boolean
 }

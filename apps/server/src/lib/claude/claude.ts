@@ -24,7 +24,7 @@ import { claudeBaseDir } from '../../storage/config.ts'
 import { broadcast } from '../hub.ts'
 import { logger } from '../log.ts'
 import { isRecord } from './content.ts'
-import { isLinked } from './links.ts'
+import { isFullyLinked, isLinked } from './links.ts'
 
 const log = logger.withTag('claude')
 
@@ -210,6 +210,7 @@ export async function claudeCapabilities(
 export async function claudeAccount(account: StoredAccount): Promise<Account> {
   const configDir = account.configDir ?? claudeBaseDir()
   const linked = isLinked(configDir)
+  const fullyLinked = linked && isFullyLinked(configDir)
   try {
     const info = (await initialization(account.id, os.homedir())).account
     return {
@@ -220,6 +221,7 @@ export async function claudeAccount(account: StoredAccount): Promise<Account> {
       plan: info.subscriptionType ?? null,
       error: null,
       linked,
+      fullyLinked,
       valid: linked,
     }
   } catch (error) {
@@ -232,6 +234,7 @@ export async function claudeAccount(account: StoredAccount): Promise<Account> {
       plan: null,
       error: error instanceof Error ? error.message : String(error),
       linked,
+      fullyLinked,
       valid: linked,
     }
   }

@@ -48,6 +48,7 @@ export async function codexAccount(account: StoredAccount): Promise<Account> {
     identity: null,
     plan: null,
     linked,
+    fullyLinked: linked,
   }
   try {
     const server = appServer(configDir)

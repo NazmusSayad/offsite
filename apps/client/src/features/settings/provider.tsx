@@ -5,23 +5,14 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Config, ModelSetting, Platform } from '@offsite/core/config'
-import type {
-  Account,
-  Capabilities,
-  Provider,
-  RateLimit,
-} from '@offsite/core/providers'
+import type { Account, Capabilities, Provider } from '@offsite/core/providers'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { updateConfig } from '@/api/machine-config'
 import { AlertDialog, AlertDialogContent } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { Tooltip } from '@/components/ui/tooltip'
-import { windowName } from '@/features/composer/limits'
-import { fullTime } from '@/lib/format'
 import { update } from '@/lib/store'
-import { useUsage } from '@/lib/usage'
 import { cn, errorMessage } from '@/lib/utils'
 import { AccountPage, NewAccountPage } from './account'
 import { Row, Section, TextInput } from './controls'
@@ -279,13 +270,17 @@ function ProviderAccounts(props: {
                 Not linked to shared threads · hidden in the composer
               </p>
             )}
-            {account.error === null && account.linked && (
-              <AccountLimits machine={props.machine} account={account} />
-            )}
+            {account.error === null &&
+              account.linked &&
+              account.email !== null && (
+                <p className="text-muted-foreground mt-1 truncate pl-4 text-xs">
+                  {account.email}
+                </p>
+              )}
           </div>
           {account.provider === 'claude' &&
             account.error === null &&
-            !account.linked && (
+            !account.fullyLinked && (
               <Button
                 size="sm"
                 disabled={busy}
@@ -352,64 +347,5 @@ function ProviderAccounts(props: {
         )}
       </AlertDialog>
     </>
-  )
-}
-
-function AccountLimits(props: { machine: string; account: Account }) {
-  const usage = useUsage(props.machine, props.account)
-  if (usage === undefined || usage.limits.length === 0) {
-    return null
-  }
-  return (
-    <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1.5 pl-4">
-      {usage.limits.map((limit) => (
-        <UsageMeter key={limit.window} limit={limit} />
-      ))}
-    </div>
-  )
-}
-
-function UsageMeter(props: { limit: RateLimit }) {
-  const limit = props.limit
-  const percent = limit.rejected
-    ? 100
-    : limit.utilization === null
-      ? null
-      : Math.min(100, Math.round(limit.utilization * 100))
-  if (percent === null) {
-    return null
-  }
-  return (
-    <Tooltip
-      label={
-        limit.resetsAt === null
-          ? 'Reset time unknown'
-          : `Resets ${fullTime(limit.resetsAt * 1000)}`
-      }
-    >
-      <div className="flex items-center gap-1.5 text-xs">
-        <span className="text-muted-foreground">{windowName(limit)}</span>
-        <div className="bg-foreground/10 h-1 w-16 overflow-hidden rounded-full">
-          <div
-            className={cn(
-              'h-full rounded-full',
-              limit.rejected && 'bg-destructive',
-              !limit.rejected && percent >= 80 && 'bg-warning',
-              !limit.rejected && percent < 80 && 'bg-foreground/50'
-            )}
-            style={{ width: `${percent}%` }}
-          />
-        </div>
-        <span
-          className={cn(
-            'tabular-nums',
-            limit.rejected && 'text-destructive',
-            !limit.rejected && 'text-muted-foreground'
-          )}
-        >
-          {percent}%
-        </span>
-      </div>
-    </Tooltip>
   )
 }

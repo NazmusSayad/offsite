@@ -175,6 +175,7 @@ function disabledAccount(account: StoredAccount): Account {
     plan: null,
     error: null,
     linked: true,
+    fullyLinked: true,
     valid: false,
   }
 }

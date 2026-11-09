@@ -12,6 +12,7 @@ import {
   statSync,
   symlinkSync,
   unlinkSync,
+  writeFileSync,
 } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -21,33 +22,29 @@ import { claudeBaseDir } from '../../storage/config.ts'
 
 const run = promisify(execFile)
 
-const requiredFolders = [
-  'projects',
-  'file-history',
-  'tasks',
-  'todos',
-  'plans',
-  'paste-cache',
-  'session-env',
-  'jobs',
-  'teams',
-  'sessions',
-]
-const sharedFolders = [
-  'skills',
-  'agents',
-  'commands',
-  'output-styles',
-  'plugins',
-  'cache',
-  'state',
-  'shell-snapshots',
-]
-const sharedFiles = [
-  'settings.json',
-  'CLAUDE.md',
-  'keybindings.json',
-  'history.jsonl',
+const shared: Pick<LinkEntry, 'type' | 'name' | 'required'>[] = [
+  { type: 'folder', name: 'projects', required: true },
+  { type: 'folder', name: 'sessions', required: true },
+  { type: 'folder', name: 'session-env', required: true },
+  { type: 'folder', name: 'shell-snapshots', required: true },
+  { type: 'folder', name: 'paste-cache', required: true },
+  { type: 'folder', name: 'plans', required: true },
+  { type: 'folder', name: 'tasks', required: true },
+  { type: 'folder', name: 'jobs', required: true },
+  { type: 'folder', name: 'cache', required: true },
+  { type: 'folder', name: 'state', required: true },
+  { type: 'folder', name: 'plugins', required: true },
+  { type: 'folder', name: 'skills', required: true },
+  { type: 'folder', name: 'file-history', required: true },
+  { type: 'folder', name: 'agents', required: true },
+  { type: 'folder', name: 'commands', required: true },
+  { type: 'folder', name: 'output-styles', required: true },
+  { type: 'jsonl', name: 'history.jsonl', required: true },
+  { type: 'json', name: 'settings.json', required: true },
+  { type: 'md', name: 'CLAUDE.md', required: true },
+  { type: 'folder', name: 'todos', required: false },
+  { type: 'folder', name: 'teams', required: false },
+  { type: 'json', name: 'keybindings.json', required: false },
 ]
 
 type Step =
@@ -60,10 +57,19 @@ export function isLinked(configDir: string) {
   const base = claudeBaseDir()
   return (
     sameFile(configDir, base) ||
-    requiredFolders.every((name) =>
-      sameFile(path.join(configDir, name), path.join(base, name))
-    )
+    shared
+      .filter((item) => item.required)
+      .every((item) =>
+        sameFile(path.join(configDir, item.name), path.join(base, item.name))
+      )
   )
+}
+
+export function isFullyLinked(configDir: string) {
+  if (sameFile(configDir, claudeBaseDir())) {
+    return true
+  }
+  return linkPlan(configDir).entries.every((item) => item.action === 'linked')
 }
 
 export function linkPlan(configDir: string): LinkPlan {
@@ -78,13 +84,7 @@ export function linkPlan(configDir: string): LinkPlan {
   return {
     configDir,
     baseDir: base,
-    entries: [
-      ...requiredFolders.map((name) =>
-        entry(configDir, base, name, true, true)
-      ),
-      ...sharedFolders.map((name) => entry(configDir, base, name, false, true)),
-      ...sharedFiles.map((name) => entry(configDir, base, name, false, false)),
-    ],
+    entries: shared.map((item) => entry(configDir, base, item)),
   }
 }
 
@@ -97,7 +97,7 @@ export async function linkClaude(configDir: string) {
   }
   for (const item of plan.entries) {
     if (item.createInBase) {
-      mkdirSync(path.join(plan.baseDir, item.name), { recursive: true })
+      createInBase(path.join(plan.baseDir, item.name), item.type)
     }
   }
   if (process.platform === 'win32' && !canSymlink()) {
@@ -109,7 +109,6 @@ export async function linkClaude(configDir: string) {
   }
   const missing = plan.entries.filter(
     (item) =>
-      item.action !== 'skip' &&
       !sameFile(
         path.join(plan.configDir, item.name),
         path.join(plan.baseDir, item.name)
@@ -125,31 +124,32 @@ export async function linkClaude(configDir: string) {
 function entry(
   configDir: string,
   base: string,
-  name: string,
-  required: boolean,
-  folder: boolean
+  item: Pick<LinkEntry, 'type' | 'name' | 'required'>
 ): LinkEntry {
-  const target = path.join(configDir, name)
-  const source = path.join(base, name)
-  const sourceExists = statSync(source, { throwIfNoEntry: false }) !== undefined
+  const target = path.join(configDir, item.name)
+  const source = path.join(base, item.name)
   return {
-    name,
-    required,
-    folder,
-    action: entryAction(target, source, folder, sourceExists),
-    createInBase: folder && !sourceExists,
+    ...item,
+    action: entryAction(target, source),
+    createInBase: statSync(source, { throwIfNoEntry: false }) === undefined,
   }
 }
 
-function entryAction(
-  target: string,
-  source: string,
-  folder: boolean,
-  sourceExists: boolean
-): LinkAction {
-  if (!folder && !sourceExists) {
-    return 'skip'
+function createInBase(file: string, type: LinkEntry['type']) {
+  switch (type) {
+    case 'folder':
+      mkdirSync(file, { recursive: true })
+      return
+    case 'json':
+      writeFileSync(file, '{}\n', { flag: 'wx' })
+      return
+    case 'jsonl':
+    case 'md':
+      writeFileSync(file, '', { flag: 'wx' })
   }
+}
+
+function entryAction(target: string, source: string): LinkAction {
   const existing = lstatSync(target, { throwIfNoEntry: false })
   if (existing === undefined) {
     return 'link'
@@ -172,11 +172,10 @@ function entrySteps(plan: LinkPlan, item: LinkEntry, stamp: string): Step[] {
     type: 'link',
     path: target,
     target: path.join(plan.baseDir, item.name),
-    folder: item.folder,
+    folder: item.type === 'folder',
   }
   switch (item.action) {
     case 'linked':
-    case 'skip':
       return []
     case 'link':
       return [link]

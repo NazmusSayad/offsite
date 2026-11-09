@@ -20,7 +20,6 @@ const plannedLabels = {
   relink: 'Replace old link',
   replace: 'Replace empty folder',
   backup: 'Back up, then link',
-  skip: 'Skip · not in main folder',
 }
 
 export function LinkDialog(props: {
@@ -75,10 +74,7 @@ export function LinkDialog(props: {
 
   const name = props.account.name
   const failed =
-    result !== null &&
-    result.entries.some(
-      (item) => item.action !== 'linked' && item.action !== 'skip'
-    )
+    result !== null && result.entries.some((item) => item.action !== 'linked')
 
   return (
     <>
@@ -118,12 +114,12 @@ export function LinkDialog(props: {
           </div>
           <div className="max-h-72 overflow-y-auto py-1">
             <LinkSection
-              title="Needed for shared threads"
+              title="Required"
               entries={plan.entries.filter((item) => item.required)}
               result={result}
             />
             <LinkSection
-              title="Shared settings"
+              title="Optional"
               entries={plan.entries.filter((item) => !item.required)}
               result={result}
             />
@@ -197,7 +193,7 @@ function LinkSection(props: {
 function LinkRow(props: { planned: LinkEntry; result: LinkEntry | null }) {
   const planned = props.planned
   const result = props.result
-  const unchanged = planned.action === 'linked' || planned.action === 'skip'
+  const unchanged = planned.action === 'linked'
   return (
     <div className="flex items-center gap-3 px-3 py-1">
       <span
@@ -207,7 +203,7 @@ function LinkRow(props: { planned: LinkEntry; result: LinkEntry | null }) {
         )}
       >
         {planned.name}
-        {planned.folder && '/'}
+        {planned.type === 'folder' && '/'}
       </span>
       <span
         className={cn(
@@ -235,9 +231,6 @@ function LinkRow(props: { planned: LinkEntry; result: LinkEntry | null }) {
 function resultLabel(planned: LinkEntry, result: LinkEntry) {
   if (planned.action === 'linked') {
     return 'Already linked'
-  }
-  if (planned.action === 'skip') {
-    return 'Skipped'
   }
   if (result.action !== 'linked') {
     return 'Not linked'
