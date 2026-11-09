@@ -61,10 +61,10 @@ export function SendControls(props: {
         </Button>
       )}
       {dictation.kind !== 'idle' ? (
-        <div className="size-9 shrink-0" />
+        <div className="size-9.5 shrink-0" />
       ) : props.running && props.empty ? (
         <button
-          className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive relative flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors after:absolute after:-inset-0.5"
+          className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive relative flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors after:absolute after:-inset-y-px after:right-0 after:-left-0.5"
           title="Stop (Esc)"
           aria-label="Stop generation"
           onClick={props.onStop}
@@ -81,7 +81,7 @@ export function SendControls(props: {
         </button>
       ) : (
         <button
-          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover disabled:bg-foreground/12 disabled:text-muted-foreground relative flex size-9 items-center justify-center rounded-full shadow-xs transition-all duration-150 after:absolute after:-inset-0.5 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:shadow-none"
+          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover disabled:bg-foreground/12 disabled:text-muted-foreground relative flex size-9.5 items-center justify-center rounded-full shadow-xs transition-all duration-150 after:absolute after:-inset-y-px after:right-0 after:-left-0.5 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:shadow-none"
           title={
             props.running && props.delivery === 'steer'
               ? `Send now (Enter) · Queue (${mod}+Enter)`

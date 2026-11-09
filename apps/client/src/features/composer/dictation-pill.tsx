@@ -33,9 +33,9 @@ export function DictationPill(props: {
             : state.title
       }
       className={cn(
-        'absolute inset-y-0 right-0 left-0 z-10 flex items-center gap-0.5 rounded-full ps-1 shadow-xs motion-safe:starting:[clip-path:inset(0_0_0_calc(100%-2.25rem)_round_9999px)]',
+        'absolute inset-y-0 right-0 left-0 z-10 flex items-center gap-0.5 rounded-full ps-1 shadow-xs motion-safe:starting:[clip-path:inset(0_0_0_calc(100%-2.375rem)_round_9999px)]',
         props.closing
-          ? 'pointer-events-none [clip-path:inset(0_0_0_calc(100%-2.25rem)_round_9999px)] opacity-0 [transition:clip-path_250ms_cubic-bezier(0.4,0,0.2,1),opacity_120ms_linear_150ms]'
+          ? 'pointer-events-none [clip-path:inset(0_0_0_calc(100%-2.375rem)_round_9999px)] opacity-0 [transition:clip-path_250ms_cubic-bezier(0.4,0,0.2,1),opacity_120ms_linear_150ms]'
           : '[clip-path:inset(0_0_0_0_round_9999px)] transition-[clip-path,background-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
         state.kind === 'failed' && state.action === null && 'pe-7',
         state.kind === 'failed'
@@ -90,7 +90,7 @@ export function DictationPill(props: {
       )}
       {state.kind === 'recording' && (
         <button
-          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xs transition-colors"
+          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xs transition-colors"
           title="Done, transcribe (Esc)"
           aria-label="Finish dictation"
           onClick={() => void props.dictation.toggle()}
@@ -99,13 +99,13 @@ export function DictationPill(props: {
         </button>
       )}
       {state.kind === 'transcribing' && (
-        <span className="bg-foreground/12 text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-full">
+        <span className="bg-foreground/12 text-muted-foreground flex size-9.5 shrink-0 items-center justify-center rounded-full">
           <HugeiconsIcon icon={Loading03Icon} className="size-4 animate-spin" />
         </span>
       )}
       {state.kind === 'failed' && state.action !== null && (
         <button
-          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xs transition-colors"
+          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xs transition-colors"
           title={
             state.action === 'retry'
               ? 'Retry with the same recording'

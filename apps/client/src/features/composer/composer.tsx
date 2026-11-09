@@ -432,7 +432,7 @@ export function Composer() {
           </div>
           <div
             className={cn(
-              'flex min-w-0 items-center justify-between gap-2 px-2 sm:px-3.5',
+              'flex min-w-0 items-center justify-between gap-2 ps-2 pe-1.5 sm:px-3.5',
               hero ? 'pb-2 sm:pb-3.5' : 'pb-1.5 sm:pb-3'
             )}
           >
