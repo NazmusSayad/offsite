@@ -1,6 +1,7 @@
 import type { Item } from '@offsite/core/items'
 import { diffLines } from 'diff'
 import { Markdown } from '@/components/markdown/markdown'
+import { commandSummary } from '@/features/transcript/command-summary'
 import { cn } from '@/lib/utils'
 
 export type WorkItem = Extract<
@@ -61,7 +62,7 @@ export function ToolDetails(props: { item: Item }) {
 export function summary(item: Item, cwd: string) {
   switch (item.kind) {
     case 'command':
-      return item.command
+      return commandSummary(item.command)
     case 'file_change':
       return relative(item.path, cwd)
     case 'web_search':

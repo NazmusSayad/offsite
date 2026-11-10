@@ -8,6 +8,7 @@ import type { Session } from '@offsite/core/sessions'
 import { isSessionNotFoundError, type SessionInfo } from '@opencode/client'
 import {
   codexInstalled,
+  codexMessages,
   codexThread,
   codexThreads,
 } from '../lib/codex/index.ts'
@@ -99,13 +100,23 @@ function fromClaude(item: SDKSessionInfo, projectId: string): Found {
   }
 }
 
-function fromCodex(thread: Thread, projectId: string): Found {
+async function fromCodex(thread: Thread, projectId: string): Promise<Found> {
+  let title =
+    thread.name?.trim() ||
+    thread.preview.replaceAll(/\[Image: source: [^\]]+\]/g, '').trim()
+  if (title === '') {
+    const messages = await codexMessages(thread.id).catch(() => [])
+    title =
+      messages
+        .find(
+          (message) => message.author === 'user' && message.text.trim() !== ''
+        )
+        ?.text.trim() ?? 'New thread'
+  }
   return {
     id: thread.id,
     provider: 'codex',
-    title:
-      thread.name ??
-      thread.preview.replaceAll(/\[Image: source: [^\]]+\]/g, ''),
+    title,
     projectId,
     branch: thread.gitInfo?.branch ?? null,
     updatedAt: thread.updatedAt * 1000,
@@ -146,13 +157,17 @@ export async function find(
       if (!codexInstalled()) {
         return null
       }
-      return (await codexThreads([...paths.keys()])).flatMap((thread) => {
-        const projectId = paths.get(thread.cwd)
-        if (projectId === undefined) {
-          return []
-        }
-        return [fromCodex(thread, projectId)]
-      })
+      return (
+        await Promise.all(
+          (await codexThreads([...paths.keys()])).map(async (thread) => {
+            const projectId = paths.get(thread.cwd)
+            if (projectId === undefined) {
+              return null
+            }
+            return fromCodex(thread, projectId)
+          })
+        )
+      ).filter((item) => item !== null)
     case 'opencode':
       if (!openCodeInstalled()) {
         return null
