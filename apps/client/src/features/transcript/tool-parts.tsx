@@ -3,6 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { lazy, type ReactNode, Suspense, useState } from 'react'
 import { FileTypeIcon } from '@/components/file-icon'
 import { Markdown } from '@/components/markdown/markdown'
+import { commandSummary } from '@/features/transcript/command-summary'
 import {
   editStats,
   type FileChangeItem,
@@ -216,7 +217,7 @@ function ShellTool(props: {
   return (
     <ToolRow
       title="Shell"
-      subtitle={open ? undefined : props.command}
+      subtitle={open ? undefined : commandSummary(props.command)}
       pending={props.pending}
       grouped
       open={open}
@@ -445,7 +446,7 @@ function ErrorCard(props: { title: string; subtitle: string; error: string }) {
 function subtitleOf(item: ToolItem, cwd: string) {
   switch (item.kind) {
     case 'command':
-      return item.command
+      return commandSummary(item.command)
     case 'file_change':
       return item.path
     case 'web_search':

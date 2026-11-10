@@ -8,14 +8,11 @@ import type { Model, Provider } from '@offsite/core/providers'
 import {
   type Dispatch,
   type SetStateAction,
-  useEffect,
-  useEffectEvent,
   useRef,
   useState,
 } from 'react'
 import { flushSync } from 'react-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { call } from '@/api/connection'
 import { ProviderIcon } from '@/components/icons'
 import {
   Popover,
@@ -30,7 +27,6 @@ import {
   saveLastPickedEffort,
   saveLastPickedModel,
 } from '@/lib/accounts'
-import { logger } from '@/lib/log'
 import {
   getState,
   machineOf,
@@ -39,10 +35,10 @@ import {
   useStore,
 } from '@/lib/store'
 import { cn, touch } from '@/lib/utils'
+import { useModelLoading } from './model-loading'
 import { moveFocus } from './move-focus'
 import { control, controlSm, Picker, refocusComposer } from './picker'
 
-const log = logger.withTag('composer')
 
 export function Pickers() {
   const settings = useStore((state) => state.settings)
@@ -221,6 +217,7 @@ function ModelMenu(props: {
     settings.provider === 'opencode' ? 'opencode' : settings.accountId
   const [viewed, setViewed] = useState(current)
   const [query, setQuery] = useState('')
+  const errors = useModelLoading(props.choices, current, props.onFetched)
   const searchInput = useRef<HTMLInputElement>(null)
   const root = useRef<HTMLDivElement>(null)
   const viewedModels =
@@ -238,33 +235,6 @@ function ModelMenu(props: {
   const matches = visible.filter((option) =>
     `${option.name} ${option.description}`.toLowerCase().includes(search)
   )
-
-  const loadModels = useEffectEvent(() => {
-    if (selection === null) {
-      return
-    }
-    for (const item of props.choices) {
-      if (item.key === current || item.error !== null) {
-        continue
-      }
-      call(selection.machine, 'capabilities', {
-        provider: item.provider,
-        accountId: item.accountId,
-        projectId: selection.projectId,
-      }).then(
-        (result) =>
-          props.onFetched((models) => ({
-            ...models,
-            [item.key]: result.models,
-          })),
-        (error: unknown) => log.error('could not load models', error)
-      )
-    }
-  })
-
-  useEffect(() => {
-    loadModels()
-  }, [])
 
   function view(key: string) {
     const same = props.fetched[key]?.find(
@@ -456,7 +426,11 @@ function ModelMenu(props: {
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1.5">
           {matches.length === 0 ? (
             <p className="text-muted-foreground p-2 text-center text-sm">
-              {viewedModels === null ? 'Loading models…' : 'No models found'}
+              {viewed !== null && errors[viewed] !== undefined
+                ? errors[viewed]
+                : viewedModels === null
+                  ? 'Loading models…'
+                  : 'No models found'}
             </p>
           ) : (
             matches.map((option) => (
