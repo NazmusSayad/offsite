@@ -1,8 +1,10 @@
 import {
-  BubbleChatIcon,
+  Chat01Icon,
   Delete02Icon,
   Message01Icon,
   QuoteDownIcon,
+  Robot01Icon,
+  UserIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Bookmark } from '@offsite/core/bookmarks'
@@ -106,13 +108,7 @@ function BookmarkList() {
             onClick={() => openBookmark(machine, bookmark)}
           >
             <HugeiconsIcon
-              icon={
-                bookmark.itemId === null
-                  ? BubbleChatIcon
-                  : bookmark.start === null
-                    ? Message01Icon
-                    : QuoteDownIcon
-              }
+              icon={bookmarkIcon(bookmark)}
               className="text-muted-foreground mt-0.5 size-4 shrink-0"
             />
             <span className="flex min-w-0 flex-1 flex-col gap-1">
@@ -177,4 +173,22 @@ function BookmarkList() {
       ))}
     </ul>
   )
+}
+
+function bookmarkIcon(bookmark: Bookmark) {
+  if (bookmark.itemId === null) {
+    return Chat01Icon
+  }
+  if (bookmark.start !== null) {
+    return QuoteDownIcon
+  }
+  if (bookmark.message === null) {
+    return Message01Icon
+  }
+  switch (bookmark.message.author) {
+    case 'user':
+      return UserIcon
+    case 'assistant':
+      return Robot01Icon
+  }
 }
