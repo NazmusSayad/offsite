@@ -7,7 +7,13 @@ import type { ServerEvent } from '@offsite/core/protocol'
 import type { Session } from '@offsite/core/sessions'
 import { isEqual } from 'es-toolkit'
 import { toast } from 'sonner'
-import { getDraftSettings, saveDraftSettings } from '@/features/composer/drafts'
+import {
+  getDraft,
+  getDraftSettings,
+  hasPrompt,
+  moveDraft,
+  saveDraftSettings,
+} from '@/features/composer/drafts'
 import {
   providerSettings,
   refreshAccounts,
@@ -90,6 +96,7 @@ export function start() {
     partial: '',
     requests: [],
     queue: [],
+    pending: [],
     settings: (selection === null || selection.sessionId === null
       ? null
       : getDraftSettings(draftKey(selection))) ?? {
@@ -203,6 +210,7 @@ async function resync(machine: string) {
       activity: snapshot.activity,
       providers: snapshot.providers,
       terminals: snapshot.terminals,
+      starting: snapshot.starting,
       appIcon: snapshot.appIcon,
       bookmarks: snapshot.bookmarks,
       lastMessageAtByAccount: snapshot.lastSent,
@@ -370,7 +378,10 @@ function receive(machine: string, event: ServerEvent) {
     case 'worktreeStage':
       update({ worktreeStage: event.stage })
       return
-    case 'started':
+    case 'starting':
+      setMachine(machine, { starting: event.starting })
+      return
+    case 'started': {
       if (
         state.selection === null ||
         !selected ||
@@ -379,12 +390,17 @@ function receive(machine: string, event: ServerEvent) {
       ) {
         return
       }
+      const typed = draftKey(state.selection)
+      const started = {
+        machine,
+        projectId: event.projectId,
+        sessionId: event.sessionId,
+      }
+      if (hasPrompt(getDraft(typed))) {
+        moveDraft(typed, draftKey(started))
+      }
       update({
-        selection: {
-          machine,
-          projectId: event.projectId,
-          sessionId: event.sessionId,
-        },
+        selection: started,
         loaded: true,
         items: [],
         earlier: [],
@@ -395,6 +411,7 @@ function receive(machine: string, event: ServerEvent) {
       })
       syncUrl(true)
       return
+    }
     case 'notification':
       push(machine, event.sessionId, event.message)
       return

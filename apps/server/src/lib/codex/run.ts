@@ -1,13 +1,15 @@
 import { randomUUID } from 'node:crypto'
 import type { SessionSettings } from '@offsite/core/config'
-import type {
-  Item,
-  PermissionRequest,
-  Prompt,
-  QueuedPrompt,
-} from '@offsite/core/items'
+import type { Item, PermissionRequest, Prompt } from '@offsite/core/items'
 import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
 import { storedAccount } from '../../services/accounts.ts'
+import {
+  failQueued,
+  Handover,
+  nextQueued,
+  setUnsentStatus,
+  unsentFor,
+} from '../../services/unsent.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import { logger } from '../log.ts'
@@ -50,7 +52,6 @@ export class CodexRun implements ThreadListener {
   readonly pending = new Map<string, Pending>()
   readonly items = new Map<string, Item>()
   readonly closed: Promise<void>
-  queue: QueuedPrompt[] = []
   settings: SessionSettings
   context: ContextUsage | null = null
   partial = ''
@@ -66,6 +67,7 @@ export class CodexRun implements ThreadListener {
   private readonly close: () => void
   private turnId: string | null = null
   private readonly agents = new Map<string, boolean>()
+  private readonly handover = new Handover()
   private idleTimer: NodeJS.Timeout | undefined
 
   static async start(cwd: string, settings: SessionSettings) {
@@ -115,42 +117,42 @@ export class CodexRun implements ThreadListener {
     this.armIdleTimer()
   }
 
-  async submit(prompt: Prompt, delivery: 'queue' | 'steer') {
+  async submit(id: string, prompt: Prompt, delivery: 'queue' | 'steer') {
     if (!this.running) {
-      await this.startTurn(prompt)
+      await this.handover.hand(id, () => this.startTurn(prompt))
       return
     }
     switch (delivery) {
-      case 'steer':
-        if (this.turnId === null) {
+      case 'steer': {
+        const turnId = this.turnId
+        if (turnId === null) {
           throw new Error('Codex has no turn to steer')
         }
-        await this.server.request('turn/steer', {
-          threadId: this.sessionId,
-          input: await this.input(prompt),
-          expectedTurnId: this.turnId,
-        })
+        await this.handover.hand(id, async () =>
+          this.server.request('turn/steer', {
+            threadId: this.sessionId,
+            input: await this.input(prompt),
+            expectedTurnId: turnId,
+          })
+        )
         return
+      }
       case 'queue':
-        this.queue = [...this.queue, { id: randomUUID(), prompt }]
-        this.publishQueue()
+        setUnsentStatus(id, 'queued')
     }
-  }
-
-  unqueue(id: string) {
-    this.queue = this.queue.filter((item) => item.id !== id)
-    this.publishQueue()
   }
 
   steer(id: string) {
-    const item = this.queue.find((queued) => queued.id === id)
+    const item = unsentFor(this.sessionId).find(
+      (queued) => queued.id === id && queued.status === 'queued'
+    )
     if (item === undefined) {
       return
     }
-    this.unqueue(id)
-    this.submit(item.prompt, 'steer').catch((error: unknown) =>
+    this.submit(id, item.prompt, 'steer').catch((error: unknown) => {
       this.fail(error)
-    )
+      setUnsentStatus(id, 'failed')
+    })
   }
 
   configure(settings: SessionSettings) {
@@ -431,11 +433,15 @@ export class CodexRun implements ThreadListener {
     this.partial = ''
     this.compacting = false
     this.turnId = null
-    const [next, ...rest] = this.queue
+    this.handover.confirmAll()
+    const next = nextQueued(this.sessionId)
     if (next !== undefined) {
-      this.queue = rest
-      this.publishQueue()
-      this.startTurn(next.prompt).catch((error: unknown) => this.fail(error))
+      this.handover
+        .hand(next.id, () => this.startTurn(next.prompt))
+        .catch((error: unknown) => {
+          this.fail(error)
+          setUnsentStatus(next.id, 'failed')
+        })
       return
     }
     this.running = false
@@ -456,12 +462,17 @@ export class CodexRun implements ThreadListener {
   }
 
   private put(item: Item) {
+    const arrived =
+      item.kind === 'user' && item.parent === null && !this.items.has(item.id)
     this.items.set(item.id, item)
     publish(this.sessionId, {
       type: 'items',
       sessionId: this.sessionId,
       items: [item],
     })
+    if (arrived) {
+      this.handover.confirm(1)
+    }
   }
 
   private fail(error: unknown) {
@@ -492,15 +503,9 @@ export class CodexRun implements ThreadListener {
       this.settle(requestId)
     }
     this.running = false
+    this.handover.confirmAll()
+    failQueued(this.sessionId)
     broadcastActivity()
     this.close()
-  }
-
-  private publishQueue() {
-    publish(this.sessionId, {
-      type: 'queue',
-      sessionId: this.sessionId,
-      queue: this.queue,
-    })
   }
 }

@@ -8,12 +8,15 @@ import {
   type SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk'
 import type { SessionSettings } from '@offsite/core/config'
-import type {
-  PermissionRequest,
-  Prompt,
-  QueuedPrompt,
-} from '@offsite/core/items'
+import type { PermissionRequest, Prompt } from '@offsite/core/items'
 import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
+import {
+  failQueued,
+  nextQueued,
+  removeUnsent,
+  setUnsentStatus,
+  unsentFor,
+} from '../../services/unsent.ts'
 import { cachedUsage, recordLimits } from '../../services/usage.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
@@ -52,7 +55,6 @@ export class Run {
   readonly closed: Promise<void>
   readonly resumeAt: string | null
   cut: string | null = null
-  queue: QueuedPrompt[] = []
   settings: SessionSettings
   context: ContextUsage | null = null
   partial = ''
@@ -99,33 +101,30 @@ export class Run {
     this.closed = this.read()
   }
 
-  submit(prompt: Prompt, delivery: 'queue' | 'steer') {
+  submit(id: string, prompt: Prompt, delivery: 'queue' | 'steer') {
     if (!this.running) {
       this.push(prompt, undefined)
+      removeUnsent(id)
       return
     }
     switch (delivery) {
       case 'steer':
         this.push(prompt, 'next')
+        removeUnsent(id)
         return
       case 'queue':
-        this.queue = [...this.queue, { id: randomUUID(), prompt }]
-        this.publishQueue()
+        setUnsentStatus(id, 'queued')
     }
-  }
-
-  unqueue(id: string) {
-    this.queue = this.queue.filter((item) => item.id !== id)
-    this.publishQueue()
   }
 
   steer(id: string) {
-    const item = this.queue.find((queued) => queued.id === id)
+    const item = unsentFor(this.sessionId).find(
+      (queued) => queued.id === id && queued.status === 'queued'
+    )
     if (item === undefined) {
       return
     }
-    this.unqueue(id)
-    this.submit(item.prompt, 'steer')
+    this.submit(id, item.prompt, 'steer')
   }
 
   async configure(settings: SessionSettings) {
@@ -228,6 +227,7 @@ export class Run {
       runs.delete(this.sessionId)
     }
     this.running = false
+    failQueued(this.sessionId)
     broadcastActivity()
   }
 
@@ -390,11 +390,10 @@ export class Run {
   private finishTurn() {
     this.partial = ''
     this.compacting = false
-    const [next, ...rest] = this.queue
+    const next = nextQueued(this.sessionId)
     if (next !== undefined) {
-      this.queue = rest
-      this.publishQueue()
       this.push(next.prompt, undefined)
+      removeUnsent(next.id)
       return
     }
     this.running = false
@@ -494,14 +493,6 @@ export class Run {
       type: 'settings',
       sessionId: this.sessionId,
       settings,
-    })
-  }
-
-  private publishQueue() {
-    publish(this.sessionId, {
-      type: 'queue',
-      sessionId: this.sessionId,
-      queue: this.queue,
     })
   }
 }

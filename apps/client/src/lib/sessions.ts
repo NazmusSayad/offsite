@@ -1,4 +1,4 @@
-import type { PromptDelivery, SessionSettings } from '@offsite/core/config'
+import type { PromptDelivery } from '@offsite/core/config'
 import type { PermissionDecision, Prompt } from '@offsite/core/items'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { SessionPatch } from '@offsite/core/sessions'
@@ -193,10 +193,10 @@ export function openTerminalPage(machine: string, view: string) {
 }
 
 export async function sendPrompt(
+  id: string,
   prompt: Prompt,
   delivery: PromptDelivery,
   selection: Selection | null,
-  settings: SessionSettings,
   status: 'active' | 'snoozed' | null
 ) {
   if (selection === null) {
@@ -209,10 +209,11 @@ export async function sendPrompt(
   const name = getState().worktree?.trim()
   try {
     await call(selection.machine, 'sessions.send', {
+      id,
       sessionId: selection.sessionId,
       projectId: selection.projectId,
       prompt,
-      settings,
+      settings: getState().settings,
       delivery,
       status,
       worktree:
@@ -241,13 +242,18 @@ export async function sendPrompt(
 
 export function unqueue(id: string) {
   const selection = getState().selection
-  if (selection === null || selection.sessionId === null) {
+  if (selection === null) {
     return
   }
-  call(selection.machine, 'sessions.unqueue', {
-    sessionId: selection.sessionId,
-    id,
-  }).catch(showError)
+  call(selection.machine, 'sessions.unqueue', { id }).catch(showError)
+}
+
+export function resend(id: string) {
+  const selection = getState().selection
+  if (selection === null) {
+    return
+  }
+  call(selection.machine, 'sessions.resend', { id }).catch(showError)
 }
 
 export function steer(id: string) {

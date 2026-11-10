@@ -5,7 +5,7 @@ import type { RpcCall, RpcMethod, RpcMethods } from '@offsite/core/protocol'
 import type { WebSocket } from 'ws'
 import { earlier, image } from '../lib/claude/index.ts'
 import { type Client, clients } from '../lib/hub.ts'
-import { activity, runs } from '../lib/live.ts'
+import { runs } from '../lib/live.ts'
 import { logger } from '../lib/log.ts'
 import { openSite } from '../lib/proxy/sites.ts'
 import {
@@ -56,30 +56,35 @@ import {
   addProject,
   directories,
   projectPath,
-  projects,
   projectWorktrees,
   removeProject,
   reorderProjects,
   updateProject,
 } from '../services/projects.ts'
 import { claimNotifier, subscribe, unsubscribe } from '../services/push.ts'
-import { agentHistory, open, restart, rewind, send } from '../services/runs.ts'
+import {
+  agentHistory,
+  open,
+  resend,
+  restart,
+  rewind,
+  send,
+} from '../services/runs.ts'
 import { generateSessionTitle } from '../services/session-title.ts'
 import {
   findSession,
   fork,
   inactiveSessions,
-  providerStatuses,
   publishSessions,
   recordInteraction,
   recordOpen,
   refreshAll,
   removeSession,
   searchableSessions,
-  sessions,
   updateSession,
   watchSessions,
 } from '../services/sessions.ts'
+import { syncSnapshot } from '../services/snapshot.ts'
 import {
   commitFiles,
   history,
@@ -95,18 +100,15 @@ import {
   detachTerminal,
   terminalInput,
   terminalRequest,
-  terminalTabs,
 } from '../services/terminal/terminal.ts'
+import { removeUnsent } from '../services/unsent.ts'
 import { readUsage } from '../services/usage.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
 import {
-  readLastPickedEfforts,
-  readLastMessageTimes,
-  readLastPickedModels,
   saveLastPickedEffort,
   saveLastPickedModel,
 } from '../storage/last-used.ts'
-import { readAppIcon, saveAppIcon } from '../storage/state.ts'
+import { saveAppIcon } from '../storage/state.ts'
 
 const log = logger.withTag('socket')
 
@@ -119,23 +121,7 @@ type Handlers = {
 
 const handlers: Handlers = {
   ping: () => null,
-  sync: () => {
-    refreshAll()
-    return {
-      ...configInfo(),
-      lastUsed: readLastPickedModels(),
-      lastSent: readLastMessageTimes(),
-      lastEfforts: readLastPickedEfforts(),
-      hostname: os.hostname(),
-      projects: projects(),
-      sessions: sessions(),
-      providers: providerStatuses(),
-      activity: activity(),
-      terminals: terminalTabs(),
-      appIcon: readAppIcon(),
-      bookmarks: bookmarks.readBookmarks(),
-    }
-  },
+  sync: () => syncSnapshot(),
   'config.get': () => configInfo(),
   'lastUsed.save': (params) => saveLastPickedModel(params),
   'lastEffort.save': (params) => saveLastPickedEffort(params),
@@ -225,7 +211,11 @@ const handlers: Handlers = {
     return null
   },
   'sessions.unqueue': (params) => {
-    runs.get(params.sessionId)?.unqueue(params.id)
+    removeUnsent(params.id)
+    return null
+  },
+  'sessions.resend': async (params, client) => {
+    await resend(client, params.id)
     return null
   },
   'sessions.steer': (params) => {

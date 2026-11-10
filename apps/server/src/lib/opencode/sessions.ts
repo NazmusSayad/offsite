@@ -14,6 +14,7 @@ import type {
   SessionMessageInfo,
 } from '@opencode/client'
 import { sumBy } from 'es-toolkit'
+import { unsentFor } from '../../services/unsent.ts'
 import { runs } from '../live.ts'
 import { findOpenCode, openCode } from './client.ts'
 import { messageItems } from './items.ts'
@@ -111,7 +112,7 @@ export async function openCodeHistory(
     provider: 'opencode',
     items: messages.flatMap((message) => messageItems(message, null)),
     requests: [...(run?.pending.values() ?? [])].map((item) => item.request),
-    queue: run?.queue ?? [],
+    queue: unsentFor(sessionId),
     settings: run?.settings ?? null,
     context: run?.context ?? (await contextOf(client, cwd, messages)),
     before: null,

@@ -2,7 +2,13 @@ export type ImageAttachment = { mediaType: string; data: string }
 
 export type Prompt = { text: string; images: ImageAttachment[] }
 
-export type QueuedPrompt = { id: string; prompt: Prompt }
+export type UnsentPrompt = {
+  id: string
+  prompt: Prompt
+  status: 'sending' | 'queued' | 'failed'
+}
+
+export type StartingPrompt = UnsentPrompt & { projectId: string }
 
 export type ItemStatus = 'running' | 'completed' | 'failed' | 'stopped'
 

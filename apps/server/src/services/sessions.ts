@@ -49,6 +49,7 @@ import {
   threadsReady,
   updateThreads,
 } from './threads.ts'
+import { removeSessionUnsent } from './unsent.ts'
 
 const log = logger.withTag('sessions')
 
@@ -465,6 +466,7 @@ export async function removeSession(id: string, projectId: string) {
   }
   db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
   db.delete(sessionOpensTable).where(eq(sessionOpensTable.sessionId, id)).run()
+  removeSessionUnsent(id)
   listed[provider] = listed[provider].filter((item) => item.id !== id)
   forgetThread(provider, id)
   const project = projects().find((item) => item.id === projectId)

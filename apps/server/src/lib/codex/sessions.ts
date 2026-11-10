@@ -3,6 +3,7 @@ import type { Item } from '@offsite/core/items'
 import type { ServerEvent } from '@offsite/core/protocol'
 import type { SearchMessage } from '@offsite/core/search'
 import { storedAccount } from '../../services/accounts.ts'
+import { unsentFor } from '../../services/unsent.ts'
 import { runs } from '../live.ts'
 import { appServer, codexBaseDir, findCodex } from './app-server.ts'
 import { turnItems, turnOf } from './items.ts'
@@ -89,7 +90,7 @@ export async function codexHistory(sessionId: string): Promise<ServerEvent> {
       ...[...(run?.items.values() ?? [])].filter((item) => !ids.has(item.id)),
     ],
     requests: [...(run?.pending.values() ?? [])].map((item) => item.request),
-    queue: run?.queue ?? [],
+    queue: unsentFor(sessionId),
     settings: run?.settings ?? null,
     context: run?.context ?? null,
     before: null,

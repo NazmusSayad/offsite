@@ -1,3 +1,4 @@
+import type { RpcMethods } from '@offsite/core/protocol'
 import type { SessionPick } from '@offsite/core/search'
 import {
   integer,
@@ -87,5 +88,16 @@ export const bookmarks = snakeCase.table('bookmarks', {
   itemId: text(),
   start: integer(),
   end: integer(),
+  createdAt: integer().notNull(),
+})
+
+export const unsentPrompts = snakeCase.table('unsent_prompts', {
+  id: text().primaryKey(),
+  sessionId: text(),
+  projectId: text().notNull(),
+  request: text({ mode: 'json' })
+    .$type<RpcMethods['sessions.send']['params']>()
+    .notNull(),
+  status: text({ enum: ['sending', 'queued', 'failed'] }).notNull(),
   createdAt: integer().notNull(),
 })

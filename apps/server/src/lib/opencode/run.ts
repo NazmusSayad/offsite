@@ -5,7 +5,6 @@ import type {
   Item,
   PermissionRequest,
   Prompt,
-  QueuedPrompt,
 } from '@offsite/core/items'
 import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
 import type {
@@ -15,6 +14,13 @@ import type {
   PermissionRequest as OpenCodePermission,
   V2Event,
 } from '@opencode/client'
+import {
+  failQueued,
+  Handover,
+  nextQueued,
+  setUnsentStatus,
+  unsentFor,
+} from '../../services/unsent.ts'
 import { errorItem } from '../codex/index.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
@@ -47,7 +53,6 @@ export class OpenCodeRun {
   readonly pending = new Map<string, Pending>()
   readonly items = new Map<string, Item>()
   readonly closed: Promise<void>
-  queue: QueuedPrompt[] = []
   settings: SessionSettings
   context: ContextUsage | null = null
   partial = ''
@@ -62,6 +67,7 @@ export class OpenCodeRun {
   private readonly close: () => void
   private applied: SessionSettings
   private loading = Promise.resolve()
+  private readonly handover = new Handover()
   private refreshTimer: NodeJS.Timeout | undefined
   private idleTimer: NodeJS.Timeout | undefined
 
@@ -109,42 +115,38 @@ export class OpenCodeRun {
     this.armIdleTimer()
   }
 
-  async submit(prompt: Prompt, delivery: PromptDelivery) {
+  async submit(id: string, prompt: Prompt, delivery: PromptDelivery) {
     if (!this.running) {
-      await this.startTurn(prompt)
+      await this.handover.hand(id, () => this.startTurn(prompt))
       return
     }
     switch (delivery) {
       case 'steer':
-        await (
-          await openCode()
-        ).session.prompt({
-          sessionID: this.sessionId,
-          text: prompt.text,
-          files: await files(this.sessionId, prompt),
-          delivery: 'steer',
-        })
+        await this.handover.hand(id, async () =>
+          (await openCode()).session.prompt({
+            sessionID: this.sessionId,
+            text: prompt.text,
+            files: await files(this.sessionId, prompt),
+            delivery: 'steer',
+          })
+        )
         return
       case 'queue':
-        this.queue = [...this.queue, { id: randomUUID(), prompt }]
-        this.publishQueue()
+        setUnsentStatus(id, 'queued')
     }
-  }
-
-  unqueue(id: string) {
-    this.queue = this.queue.filter((item) => item.id !== id)
-    this.publishQueue()
   }
 
   steer(id: string) {
-    const item = this.queue.find((queued) => queued.id === id)
+    const item = unsentFor(this.sessionId).find(
+      (queued) => queued.id === id && queued.status === 'queued'
+    )
     if (item === undefined) {
       return
     }
-    this.unqueue(id)
-    this.submit(item.prompt, 'steer').catch((error: unknown) =>
+    this.submit(id, item.prompt, 'steer').catch((error: unknown) => {
       this.fail(error)
-    )
+      setUnsentStatus(id, 'failed')
+    })
   }
 
   configure(settings: SessionSettings) {
@@ -418,11 +420,15 @@ export class OpenCodeRun {
   private finishTurn() {
     this.partial = ''
     this.compacting = false
-    const [next, ...rest] = this.queue
+    this.handover.confirmAll()
+    const next = nextQueued(this.sessionId)
     if (next !== undefined) {
-      this.queue = rest
-      this.publishQueue()
-      this.startTurn(next.prompt).catch((error: unknown) => this.fail(error))
+      this.handover
+        .hand(next.id, () => this.startTurn(next.prompt))
+        .catch((error: unknown) => {
+          this.fail(error)
+          setUnsentStatus(next.id, 'failed')
+        })
       return
     }
     this.running = false
@@ -446,6 +452,10 @@ export class OpenCodeRun {
     if (items.length === 0) {
       return
     }
+    const arrived = items.filter(
+      (item) =>
+        item.kind === 'user' && item.parent === null && !this.items.has(item.id)
+    ).length
     for (const item of items) {
       this.items.set(item.id, item)
     }
@@ -457,6 +467,7 @@ export class OpenCodeRun {
       sessionId: this.sessionId,
       items,
     })
+    this.handover.confirm(arrived)
   }
 
   private fail(error: unknown) {
@@ -488,15 +499,9 @@ export class OpenCodeRun {
       this.settle(requestId)
     }
     this.running = false
+    this.handover.confirmAll()
+    failQueued(this.sessionId)
     broadcastActivity()
     this.close()
-  }
-
-  private publishQueue() {
-    publish(this.sessionId, {
-      type: 'queue',
-      sessionId: this.sessionId,
-      queue: this.queue,
-    })
   }
 }

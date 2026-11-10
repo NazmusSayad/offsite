@@ -41,6 +41,12 @@ import {
   recordInteraction,
   updateSession,
 } from './sessions.ts'
+import {
+  findUnsent,
+  moveUnsent,
+  saveUnsent,
+  setUnsentStatus,
+} from './unsent.ts'
 
 const locks = new Map<string, Promise<void>>()
 const emptied = new Set<string>()
@@ -206,6 +212,35 @@ export async function send(
   client: Client,
   request: RpcMethods['sessions.send']['params']
 ) {
+  saveUnsent(request)
+  try {
+    await deliver(client, request)
+  } catch (error) {
+    setUnsentStatus(request.id, 'failed')
+    throw error
+  }
+}
+
+export async function resend(client: Client, id: string) {
+  const row = findUnsent(id)
+  if (row === undefined) {
+    throw new Error('This message no longer exists')
+  }
+  if (row.status !== 'failed') {
+    throw new Error('This message is already being sent')
+  }
+  await send(client, {
+    ...row.request,
+    sessionId: row.sessionId,
+    projectId: row.projectId,
+    worktree: row.sessionId === null ? row.request.worktree : null,
+  })
+}
+
+async function deliver(
+  client: Client,
+  request: RpcMethods['sessions.send']['params']
+) {
   assertEnabled(request.settings.provider, request.settings.accountId)
   if (request.settings.accountId !== null) {
     saveLastMessageTime(request.settings.accountId)
@@ -274,7 +309,8 @@ async function submitFirst(
     projectId,
     from: request.projectId,
   })
-  await run.submit(request.prompt, request.delivery)
+  moveUnsent(request.id, sessionId, projectId)
+  await run.submit(request.id, request.prompt, request.delivery)
   recordInteraction(sessionId, run.provider, request.status)
 }
 
@@ -308,7 +344,7 @@ async function sendExisting(
   } else {
     await open(client, sessionId, request.projectId)
   }
-  await run.submit(request.prompt, request.delivery)
+  await run.submit(request.id, request.prompt, request.delivery)
   recordInteraction(sessionId, provider, request.status)
   if (emptied.has(sessionId) && request.prompt.text.trim() !== '') {
     emptied.delete(sessionId)

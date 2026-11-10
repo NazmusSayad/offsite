@@ -182,7 +182,7 @@ function WorktreeMenu(props: { machine: string; projectId: string }) {
   )
 }
 
-function stageText(stage: WorktreeStage, setup: string | null) {
+export function stageText(stage: WorktreeStage, setup: string | null) {
   switch (stage) {
     case 'pull':
       return 'Pulling main…'

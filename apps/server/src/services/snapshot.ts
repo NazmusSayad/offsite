@@ -1,0 +1,34 @@
+import os from 'node:os'
+import type { SyncSnapshot } from '@offsite/core/protocol'
+import { activity } from '../lib/live.ts'
+import { configInfo } from '../storage/config.ts'
+import {
+  readLastPickedEfforts,
+  readLastMessageTimes,
+  readLastPickedModels,
+} from '../storage/last-used.ts'
+import { readAppIcon } from '../storage/state.ts'
+import { readBookmarks } from './bookmarks.ts'
+import { projects } from './projects.ts'
+import { providerStatuses, refreshAll, sessions } from './sessions.ts'
+import { terminalTabs } from './terminal/terminal.ts'
+import { startingPrompts } from './unsent.ts'
+
+export function syncSnapshot(): SyncSnapshot {
+  refreshAll()
+  return {
+    ...configInfo(),
+    lastUsed: readLastPickedModels(),
+    lastSent: readLastMessageTimes(),
+    lastEfforts: readLastPickedEfforts(),
+    hostname: os.hostname(),
+    projects: projects(),
+    sessions: sessions(),
+    starting: startingPrompts(),
+    providers: providerStatuses(),
+    activity: activity(),
+    terminals: terminalTabs(),
+    appIcon: readAppIcon(),
+    bookmarks: readBookmarks(),
+  }
+}

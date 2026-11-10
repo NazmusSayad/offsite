@@ -38,6 +38,7 @@ import { installOpen, openSecret } from './services/open/open.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
 import { refreshAll, watchSessions } from './services/sessions.ts'
+import { failInterrupted } from './services/unsent.ts'
 import {
   addCode,
   findDevice,
@@ -113,6 +114,7 @@ log.info(
 process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
 installOpen(args.host, port)
 await backfillSessionProviders()
+failInterrupted()
 watchSessions()
 refreshAll()
 

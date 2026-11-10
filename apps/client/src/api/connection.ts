@@ -46,6 +46,7 @@ const LONG_CALL_TIMEOUT = 5 * 60_000
 const longCalls: RpcMethod[] = [
   'accounts.link',
   'sessions.send',
+  'sessions.resend',
   'sessions.rewind',
   'sessions.fork',
   'git.commit',
