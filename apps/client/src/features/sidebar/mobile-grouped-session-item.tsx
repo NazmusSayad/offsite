@@ -203,7 +203,7 @@ export function MobileGroupedSessionItem(props: {
         context={true}
         mobile={true}
         onDeactivate={deactivate}
-        onRestart={null}
+        onDebug={null}
         onRename={() => setTitle(session.title)}
       />
     </ContextMenuContent>

@@ -284,6 +284,10 @@ export function restartSession(machine: string, sessionId: string) {
   call(machine, 'sessions.restart', { sessionId }).catch(showError)
 }
 
+export function stopClaude(machine: string, sessionId: string) {
+  call(machine, 'sessions.stop', { sessionId }).catch(showError)
+}
+
 export function stopTask(machine: string, sessionId: string, taskId: string) {
   call(machine, 'sessions.stopTask', { sessionId, taskId }).catch(showError)
 }

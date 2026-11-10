@@ -52,7 +52,9 @@ import type {
   RewindRequest,
   RewindResult,
   Session,
+  SessionContext,
   SessionPatch,
+  SessionRuntime,
 } from './sessions.ts'
 import type {
   BusyResult,
@@ -179,6 +181,15 @@ export type RpcMethods = {
   }
   'sessions.interrupt': { params: { sessionId: string }; result: null }
   'sessions.restart': { params: { sessionId: string }; result: null }
+  'sessions.stop': { params: { sessionId: string }; result: null }
+  'sessions.runtime': {
+    params: { sessionId: string }
+    result: SessionRuntime | null
+  }
+  'sessions.context': {
+    params: { sessionId: string; projectId: string }
+    result: SessionContext
+  }
   'sessions.stopTask': {
     params: { sessionId: string; taskId: string }
     result: null

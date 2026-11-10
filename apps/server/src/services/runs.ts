@@ -194,6 +194,24 @@ export function restart(sessionId: string) {
   })
 }
 
+export function stop(sessionId: string) {
+  return locked(sessionId, async () => {
+    const run = runs.get(sessionId)
+    if (run === undefined) {
+      return
+    }
+    if (run.provider !== 'claude') {
+      throw new Error('Only Claude Code threads can be stopped')
+    }
+    if (run.running) {
+      await run.interrupt()
+    }
+    run.stop()
+    await run.closed
+    publish(sessionId, await history(sessionId, run.cwd))
+  })
+}
+
 export async function open(
   client: Client,
   sessionId: string,

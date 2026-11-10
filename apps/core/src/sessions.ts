@@ -21,6 +21,23 @@ export type ContextUsage = {
   window: number | null
 }
 
+export type SessionContext = {
+  usage: ContextUsage | null
+  skills: { name: string; tokens: number | null }[] | null
+}
+
+export type SessionRuntime = {
+  provider: Provider
+  cwd: string
+  settings: SessionSettings
+  running: boolean
+  compacting: boolean
+  waiting: number
+  queued: number
+  backgroundTasks: number
+  backgroundAgents: number
+}
+
 export type RewindRequest = {
   sessionId: string
   projectId: string

@@ -12,7 +12,6 @@ import {
   PinIcon,
   PinOffIcon,
   PlayIcon,
-  RefreshIcon,
   TickDouble01Icon,
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
@@ -38,6 +37,8 @@ import {
   showExport,
   useStore,
 } from '@/lib/store'
+import type { DebugAction } from './debug-dialogs'
+import { DebugMenu } from './debug-menu'
 
 const restore = {
   snoozed: { icon: SunriseIcon, label: 'Unsnooze' },
@@ -51,7 +52,7 @@ export function SessionMenuItems(props: {
   context: boolean
   mobile: boolean
   onDeactivate: () => void
-  onRestart: (() => void) | null
+  onDebug: ((action: DebugAction) => void) | null
   onRename: () => void
 }) {
   const session = props.session
@@ -136,11 +137,12 @@ export function SessionMenuItems(props: {
         {bookmarked ? 'Remove bookmark' : 'Bookmark'}
       </Item>
       <Separator />
-      {session.provider === 'claude' && props.onRestart !== null && (
-        <Item onSelect={props.onRestart}>
-          <HugeiconsIcon icon={RefreshIcon} />
-          Restart Claude
-        </Item>
+      {props.onDebug !== null && (
+        <DebugMenu
+          session={session}
+          context={props.context}
+          onDebug={props.onDebug}
+        />
       )}
       <Item
         disabled={generatingTitle}

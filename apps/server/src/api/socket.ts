@@ -20,6 +20,7 @@ import {
   updateAccount,
 } from '../services/accounts.ts'
 import * as bookmarks from '../services/bookmarks.ts'
+import { runtime, sessionContext } from '../services/debug.ts'
 import { ping, transcribe, workflows } from '../services/dictation.ts'
 import { exportSession } from '../services/export.ts'
 import {
@@ -69,6 +70,7 @@ import {
   restart,
   rewind,
   send,
+  stop,
 } from '../services/runs.ts'
 import { generateSessionTitle } from '../services/session-title.ts'
 import {
@@ -230,6 +232,13 @@ const handlers: Handlers = {
     await restart(params.sessionId)
     return null
   },
+  'sessions.stop': async (params) => {
+    await stop(params.sessionId)
+    return null
+  },
+  'sessions.runtime': (params) => runtime(params.sessionId),
+  'sessions.context': (params) =>
+    sessionContext(params.sessionId, params.projectId),
   'sessions.stopTask': async (params) => {
     await runs.get(params.sessionId)?.stopTask(params.taskId)
     return null
