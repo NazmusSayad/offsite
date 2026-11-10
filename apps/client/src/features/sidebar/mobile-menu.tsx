@@ -1,5 +1,5 @@
 import {
-  DashboardSpeed02Icon,
+  LimitationIcon,
   Menu01Icon,
   Settings01Icon,
   SquareTerminalIcon,
@@ -48,7 +48,7 @@ export function MobileMenu(props: { buttonClassName: string }) {
           onCloseAutoFocus={(event) => event.preventDefault()}
         >
           <DropdownMenuItem onSelect={() => showUsage(true)}>
-            <HugeiconsIcon icon={DashboardSpeed02Icon} />
+            <HugeiconsIcon icon={LimitationIcon} />
             Usage
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => showSettings(true)}>

@@ -1,5 +1,6 @@
 import type { Account } from '@offsite/core/providers'
 import { useEffect, useState } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,10 @@ import { AccountUsage } from './account-usage'
 
 export function UsageDialog() {
   const open = useStore((state) => state.usageOpen)
+  useHotkeys('mod+u', () => showUsage(!open), {
+    enableOnFormTags: true,
+    preventDefault: true,
+  })
 
   return (
     <Dialog open={open} onOpenChange={showUsage}>

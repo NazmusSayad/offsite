@@ -1,7 +1,6 @@
 import {
   ChevronDownIcon,
   MinimizeIcon,
-  PanelLeftOpenIcon,
   SearchIcon,
   SquarePenIcon,
   Tick01Icon,
@@ -28,9 +27,9 @@ import {
 } from '@/features/sidebar/project-dialogs'
 import { ProjectGroup } from '@/features/sidebar/project-group'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
-import { SidebarFooter } from '@/features/sidebar/sidebar-footer'
-import { StatusChips } from '@/features/sidebar/status-chips'
+import { FittedStatusChips, StatusChips } from '@/features/sidebar/status-chips'
 import { useInactiveSessions } from '@/features/sidebar/use-inactive-sessions'
+import { CloseAllDialog } from '@/features/terminal/dialogs'
 import { UsageDialog } from '@/features/usage/usage-dialog'
 import { lastProject, openSession, startChat } from '@/lib/sessions'
 import {
@@ -48,11 +47,7 @@ const iconButton =
 
 const DONE_PAGE = 50
 
-export function Sidebar(
-  props:
-    | { className: string; mobile: false; hidden: boolean; onHide: () => void }
-    | { className: string; mobile: true }
-) {
+export function Sidebar(props: { className: string; mobile: boolean }) {
   const selection = useStore((state) => state.selection)
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
@@ -75,7 +70,8 @@ export function Sidebar(
   const [minimizedOpen, setMinimizedOpen] = useState(false)
   const [inactiveOpen, setInactiveOpen] = useState(false)
   const [inactiveLimit, setInactiveLimit] = useState(DONE_PAGE)
-  const [width, setWidth] = useLocalStorage('sidebarWidth', 256)
+  const [storedWidth, setWidth] = useLocalStorage('sidebarWidth', 256)
+  const width = Math.max(256, storedWidth)
   const shown = sessions
     .filter(
       (session) =>
@@ -207,7 +203,7 @@ export function Sidebar(
   function resize(event: React.PointerEvent<HTMLDivElement>) {
     const start = event.clientX - width
     drag(event, (next) => {
-      const value = Math.min(480, Math.max(240, next.clientX - start))
+      const value = Math.min(480, Math.max(256, next.clientX - start))
       setWidth(value)
     })
   }
@@ -268,8 +264,7 @@ export function Sidebar(
     <aside
       className={cn(
         'bg-sidebar text-sidebar-foreground border-sidebar-border flex flex-none border-r select-none',
-        props.className,
-        !props.mobile && props.hidden && 'hidden'
+        props.className
       )}
     >
       <div
@@ -280,18 +275,7 @@ export function Sidebar(
         style={props.mobile ? undefined : { width }}
       >
         <div className="flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 px-3">
-          {props.mobile ? (
-            <MobileMenu buttonClassName={iconButton} />
-          ) : (
-            <button
-              className={cn(iconButton, 'size-7 [&>svg]:size-4.5')}
-              title={`Hide sidebar (${mod}+B)`}
-              aria-label="Hide sidebar"
-              onClick={props.onHide}
-            >
-              <HugeiconsIcon icon={PanelLeftOpenIcon} />
-            </button>
-          )}
+          <MobileMenu buttonClassName={iconButton} />
           <ScopeMenu
             scope={scope}
             onScope={(next) => {
@@ -302,9 +286,9 @@ export function Sidebar(
             }}
             onEdit={setEditing}
             onAddProject={setAdding}
-            shortcut={props.mobile || !props.hidden}
           />
           {props.mobile && <StatusChips hideDone />}
+          {!props.mobile && <FittedStatusChips />}
           <div className="ml-auto flex items-center gap-0.75">
             <button
               className={cn(iconButton, 'size-7 [&>svg]:size-4.5')}
@@ -416,7 +400,6 @@ export function Sidebar(
               )}
           </ul>
         </nav>
-        {!props.mobile && <SidebarFooter buttonClassName={iconButton} />}
         {!props.mobile && (
           <div
             role="separator"
@@ -429,6 +412,7 @@ export function Sidebar(
         )}
       </div>
       <UsageDialog />
+      <CloseAllDialog />
       {adding !== null && (
         <FolderDialog
           machine={adding}

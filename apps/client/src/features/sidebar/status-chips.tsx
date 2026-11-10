@@ -6,7 +6,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Popover as PopoverPrimitive } from 'radix-ui'
-import type { ReactNode } from 'react'
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react'
 import { machineKey } from '@/api/machines'
 import {
   Popover,
@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils'
 export function StatusChips(props: {
   className?: string
   hideDone: boolean
-  collapsed?: boolean
+  combine?: 'threads' | 'all'
 }) {
   const errors = useStore((state) => state.errors)
   const machines = useStore((state) => state.machines)
@@ -52,8 +52,45 @@ export function StatusChips(props: {
   if (problems === 0 && waiting.length === 0 && !showDone) {
     return null
   }
-  const merged =
-    props.collapsed === true && showDone && waiting.length > 0 && problems > 0
+  if (props.combine === 'all') {
+    return (
+      <div className={cn('flex shrink-0 items-center', props.className)}>
+        <Chip
+          className={cn(
+            errors.length > 0 && 'bg-error/15 text-error',
+            errors.length === 0 &&
+              offline.length > 0 &&
+              'bg-warning/15 text-warning-foreground',
+            problems === 0 &&
+              waiting.length > 0 &&
+              'bg-question/15 text-question',
+            problems === 0 &&
+              waiting.length === 0 &&
+              'bg-success/15 text-success'
+          )}
+          icon={
+            (errors.length > 0 && AlertCircleIcon) ||
+            (offline.length > 0 && Alert02Icon) ||
+            (waiting.length > 0 && ShieldQuestionMarkIcon) ||
+            CircleCheckIcon
+          }
+          count={problems + waiting.length + (showDone ? done.length : 0)}
+          label={[
+            problems === 1 && '1 problem',
+            problems > 1 && `${problems} problems`,
+            waiting.length > 0 && `${waiting.length} waiting for approval`,
+            showDone && `${done.length} done`,
+          ]
+            .filter(Boolean)
+            .join(', ')}
+          onClose={dismissErrors}
+        >
+          <ChipList kind="all" />
+        </Chip>
+      </div>
+    )
+  }
+  const merged = props.combine === 'threads' && showDone && waiting.length > 0
 
   return (
     <div className={cn('flex shrink-0 items-center gap-1', props.className)}>
@@ -105,7 +142,79 @@ export function StatusChips(props: {
   )
 }
 
-function ChipList(props: { kind: 'done' | 'waiting' | 'merged' | 'problems' }) {
+export function FittedStatusChips() {
+  const slot = useRef<HTMLDivElement>(null)
+  const full = useRef<HTMLDivElement>(null)
+  const threads = useRef<HTMLDivElement>(null)
+  const all = useRef<HTMLDivElement>(null)
+  const [combine, setCombine] = useState<'none' | 'threads' | 'all'>('none')
+  const [minWidth, setMinWidth] = useState(0)
+
+  useLayoutEffect(() => {
+    if (
+      slot.current === null ||
+      full.current === null ||
+      threads.current === null ||
+      all.current === null
+    ) {
+      throw new Error('Status chips are not mounted')
+    }
+    const elements = {
+      slot: slot.current,
+      full: full.current,
+      threads: threads.current,
+      all: all.current,
+    }
+    const observer = new ResizeObserver(() => {
+      const width = elements.slot.clientWidth
+      setMinWidth(elements.all.offsetWidth)
+      if (elements.full.offsetWidth <= width) {
+        setCombine('none')
+        return
+      }
+      if (elements.threads.offsetWidth <= width) {
+        setCombine('threads')
+        return
+      }
+      setCombine('all')
+    })
+    for (const element of Object.values(elements)) {
+      observer.observe(element)
+    }
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div
+      ref={slot}
+      className="relative flex flex-1 justify-end"
+      style={{ minWidth }}
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none invisible absolute right-0 flex w-max"
+      >
+        <div ref={full}>
+          <StatusChips hideDone={false} />
+        </div>
+        <div ref={threads}>
+          <StatusChips hideDone={false} combine="threads" />
+        </div>
+        <div ref={all}>
+          <StatusChips hideDone={false} combine="all" />
+        </div>
+      </div>
+      <StatusChips
+        hideDone={false}
+        combine={combine === 'none' ? undefined : combine}
+      />
+    </div>
+  )
+}
+
+function ChipList(props: {
+  kind: 'done' | 'waiting' | 'merged' | 'problems' | 'all'
+}) {
   const errors = useStore((state) => state.errors)
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
@@ -144,6 +253,27 @@ function ChipList(props: { kind: 'done' | 'waiting' | 'merged' | 'problems' }) {
       detail="Waiting for approval"
     />
   ))
+  const problemRows = (
+    <>
+      {errors.map((error, index) => (
+        <Row key={index} icon={AlertCircleIcon} className="text-error">
+          <span className="text-error-foreground whitespace-pre-wrap">
+            {error}
+          </span>
+        </Row>
+      ))}
+      {offline.map((machine) => (
+        <Row
+          key={machine.id}
+          icon={Alert02Icon}
+          className="text-warning-foreground"
+        >
+          {machine.status === 'offline' && `${machine.name} is offline`}
+          {machine.status === 'unpaired' && `${machine.name} needs pairing`}
+        </Row>
+      ))}
+    </>
+  )
   if (props.kind === 'done') {
     return doneRows
   }
@@ -159,25 +289,14 @@ function ChipList(props: { kind: 'done' | 'waiting' | 'merged' | 'problems' }) {
     )
   }
   if (props.kind === 'problems') {
+    return problemRows
+  }
+  if (props.kind === 'all') {
     return (
       <>
-        {errors.map((error, index) => (
-          <Row key={index} icon={AlertCircleIcon} className="text-error">
-            <span className="text-error-foreground whitespace-pre-wrap">
-              {error}
-            </span>
-          </Row>
-        ))}
-        {offline.map((machine) => (
-          <Row
-            key={machine.id}
-            icon={Alert02Icon}
-            className="text-warning-foreground"
-          >
-            {machine.status === 'offline' && `${machine.name} is offline`}
-            {machine.status === 'unpaired' && `${machine.name} needs pairing`}
-          </Row>
-        ))}
+        {problemRows}
+        {waitingRows}
+        {doneRows}
       </>
     )
   }

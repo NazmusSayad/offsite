@@ -1,5 +1,3 @@
-import { PanelLeftIcon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { useSearch } from '@tanstack/react-router'
 import {
@@ -15,7 +13,6 @@ import { useLocalStorage } from 'usehooks-ts'
 import { machineKey } from '@/api/machines'
 import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
-import { Button } from '@/components/ui/button'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
 import { Composer } from '@/features/composer/composer'
@@ -29,7 +26,6 @@ import {
 } from '@/features/git/git-menu'
 import { ConnectMachine } from '@/features/sidebar/connect-machine'
 import { Sidebar } from '@/features/sidebar/sidebar'
-import { StatusChips } from '@/features/sidebar/status-chips'
 import { TerminalPanel } from '@/features/terminal/panel'
 import {
   getState as terminalState,
@@ -52,7 +48,7 @@ import {
   useStore,
 } from '@/lib/store'
 import { currentSearch, replaceSearch, useTerminalPage } from '@/lib/url'
-import { cn, drag, mod } from '@/lib/utils'
+import { cn, drag } from '@/lib/utils'
 
 const compactWidth = 800
 
@@ -74,7 +70,6 @@ export function DesktopLayout() {
     const origin = defaultMachine(state)
     return origin === null ? null : machineOf(state, origin)
   })
-  const [sidebar, setSidebar] = useState(true)
   const header = useRef<HTMLElement>(null)
   const [compact, setCompact] = useState(false)
   const panel = useSearch({
@@ -141,7 +136,7 @@ export function DesktopLayout() {
     }
   )
   useHotkeys(
-    ['mod+j', 'mod+shift+b'],
+    ['mod+b', 'mod+shift+b'],
     (event) => {
       event.stopPropagation()
       setPanel(currentSearch().panel === undefined ? lastPanel.current : null)
@@ -157,10 +152,6 @@ export function DesktopLayout() {
       lastPanel.current = panel
     }
   }, [panel])
-  useHotkeys(['mod+b', 'mod+shift+j'], () => setSidebar((open) => !open), {
-    enableOnFormTags: true,
-    preventDefault: true,
-  })
   useEffect(() => {
     if (page !== null) {
       return
@@ -179,61 +170,19 @@ export function DesktopLayout() {
   if (page !== null) {
     return (
       <>
-        <Sidebar
-          className="relative"
-          mobile={false}
-          hidden={!sidebar}
-          onHide={() => setSidebar(false)}
-        />
-        <TerminalPage
-          machine={page}
-          mobile={false}
-          leading={
-            !sidebar && (
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label="Show sidebar"
-                title={`Show sidebar (${mod}+B)`}
-                onClick={() => setSidebar(true)}
-              >
-                <HugeiconsIcon icon={PanelLeftIcon} />
-              </Button>
-            )
-          }
-        />
+        <Sidebar className="relative" mobile={false} />
+        <TerminalPage machine={page} mobile={false} />
       </>
     )
   }
 
   return (
     <>
-      <Sidebar
-        className="relative"
-        mobile={false}
-        hidden={!sidebar}
-        onHide={() => setSidebar(false)}
-      />
-      {!sidebar && (
-        <div className="fixed top-0 left-3 z-50 flex h-(--workspace-topbar-height) items-center">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Show sidebar"
-            title={`Show sidebar (${mod}+B)`}
-            onClick={() => setSidebar(true)}
-          >
-            <HugeiconsIcon icon={PanelLeftIcon} />
-          </Button>
-        </div>
-      )}
+      <Sidebar className="relative" mobile={false} />
       <main className="bg-background relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <header
           ref={header}
-          className={cn(
-            'bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-3 pl-[3.25rem]',
-            sidebar && 'pl-5'
-          )}
+          className="bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-3 pr-3 pl-5"
         >
           {selection !== null && machine !== null && (
             <nav className="min-w-0 flex-1">
@@ -262,12 +211,7 @@ export function DesktopLayout() {
                 <li aria-hidden className="text-icon-muted shrink-0">
                   /
                 </li>
-                <li
-                  className={cn(
-                    'text-foreground flex min-w-10 items-center gap-2 font-medium',
-                    sidebar && 'flex-1'
-                  )}
-                >
+                <li className="text-foreground flex min-w-10 flex-1 items-center gap-2 font-medium">
                   <span
                     className={cn(
                       'truncate',
@@ -281,15 +225,9 @@ export function DesktopLayout() {
                   </span>
                   <UsageLimitBadge />
                 </li>
-                {!sidebar && (
-                  <li className="shrink-0">
-                    <StatusChips hideDone />
-                  </li>
-                )}
               </ol>
             </nav>
           )}
-          {selection === null && !sidebar && <StatusChips hideDone />}
           {selection === null && <span className="flex-1" />}
           {machine !== null && machine.status !== 'online' && (
             <span className="text-warning-foreground shrink-0 text-xs">

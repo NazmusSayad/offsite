@@ -39,11 +39,11 @@ type Group = {
   count: number
 }
 
-export function TerminalPage(props: {
-  machine: string
-  leading: ReactNode
-  mobile: boolean
-}) {
+export function TerminalPage(
+  props:
+    | { machine: string; mobile: true; leading: ReactNode }
+    | { machine: string; mobile: false }
+) {
   useSyncExternalStore(subscribe, getState)
   const [groupsOpen, setGroupsOpen] = useState(false)
   const view = useTerminalView()
@@ -101,7 +101,7 @@ export function TerminalPage(props: {
   return (
     <main className="bg-background flex min-w-0 flex-1 flex-col overflow-hidden">
       <div className="min-h-0 flex-1">
-        <TerminalPanel view={view} page tabSize="lg" leading={props.leading} />
+        <TerminalPanel view={view} page tabSize="lg" />
       </div>
     </main>
   )
