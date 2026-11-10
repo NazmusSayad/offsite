@@ -35,6 +35,7 @@ import {
   UserMessage,
 } from '@/features/transcript/user-message'
 import { clock, fullTime } from '@/lib/format'
+import { pendingItems } from '@/lib/pending'
 import { forkFrom, loadEarlier } from '@/lib/sessions'
 import {
   projectOf,
@@ -54,6 +55,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   const before = useStore((state) => state.before)
   const partial = useStore((state) => state.partial)
   const requests = useStore((state) => state.requests)
+  const pending = useStore((state) => state.pending)
   const activity = useStore(selectedActivity)
   const scroller = useRef<HTMLDivElement>(null)
   const content = useRef<HTMLDivElement>(null)
@@ -108,7 +110,14 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     [earlier, items, activity]
   )
   const olderRows = mainRows(earlier, false, '')
-  const rows = [...olderRows, ...mainRows(items, running, partial)]
+  const rows = [
+    ...olderRows,
+    ...mainRows(
+      loaded ? [...items, ...pendingItems(pending, selection)] : items,
+      running,
+      partial
+    ),
+  ]
   const topIndex = rows.findIndex((row) => row.key === top?.key)
   const start = finding
     ? 0

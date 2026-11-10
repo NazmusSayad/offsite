@@ -6,12 +6,15 @@ import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { ViewableImage } from '@/components/viewable-image'
+import { stageText } from '@/features/composer/worktree-bar'
 import { RewindMenu } from '@/features/transcript/rewind-menu'
 import type { UserItem } from '@/features/transcript/timeline'
+import { Shimmer } from '@/features/transcript/tool-row'
 import { useCopy } from '@/lib/clipboard'
 import { clock, fullTime } from '@/lib/format'
 import { logger } from '@/lib/log'
-import { useStore } from '@/lib/store'
+import { isPending } from '@/lib/pending'
+import { projectOf, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 const log = logger.withTag('transcript')
@@ -36,6 +39,7 @@ export function UserMessage(props: {
     prompt.trim() !== '' &&
     (prompt.length > 600 || prompt.split('\n').length > 8)
   const collapsed = canCollapse && !expanded
+  const pending = isPending(item)
   return (
     <div className="group flex flex-col items-end gap-1">
       <div className="bg-message text-message-foreground relative max-w-[80%] rounded-2xl px-3 py-2">
@@ -103,8 +107,14 @@ export function UserMessage(props: {
           </div>
         )}
       </div>
-      <div className="flex w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100">
+      <div
+        className={cn(
+          'flex w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100',
+          pending && 'opacity-100'
+        )}
+      >
         <div className="flex shrink-0 items-center gap-2">
+          {pending && <SendingLabel />}
           {item.time !== null && (
             <Tooltip label={fullTime(item.time)}>
               <p className="text-muted-foreground text-xs tabular-nums">
@@ -112,7 +122,7 @@ export function UserMessage(props: {
               </p>
             </Tooltip>
           )}
-          {prompt !== '' && (
+          {prompt !== '' && !pending && (
             <div className="flex items-center gap-0.5">
               {props.rewind && (
                 <RewindMenu
@@ -131,6 +141,26 @@ export function UserMessage(props: {
         </div>
       </div>
     </div>
+  )
+}
+
+function SendingLabel() {
+  const stage = useStore((state) =>
+    state.selection?.sessionId === null ? state.worktreeStage : null
+  )
+  const setup = useStore((state) =>
+    state.selection === null
+      ? null
+      : (projectOf(state, state.selection.machine, state.selection.projectId)
+          ?.worktreeSetup ?? null)
+  )
+  return (
+    <p className="text-muted-foreground text-xs">
+      <Shimmer
+        text={stage === null ? 'Sending' : stageText(stage, setup)}
+        active
+      />
+    </p>
   )
 }
 

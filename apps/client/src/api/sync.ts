@@ -92,6 +92,7 @@ export function start() {
     partial: '',
     requests: [],
     queue: [],
+    pending: [],
     settings: (selection === null || selection.sessionId === null
       ? null
       : getDraftSettings(draftKey(selection))) ?? {

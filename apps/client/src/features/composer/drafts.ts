@@ -92,6 +92,15 @@ export async function loadDraftFile(id: string) {
   return await get<File>(id, fileDatabase)
 }
 
+export function moveDraft(from: string, to: string) {
+  const draft = { ...getDraft(from), settings: getDraft(to).settings }
+  useDrafts.setState((state) => {
+    const drafts = { ...state.drafts, [to]: draft }
+    delete drafts[from]
+    return { drafts }
+  })
+}
+
 export function deleteDraft(key: string) {
   editDraft(key, () => empty)
 }
@@ -117,6 +126,10 @@ export function useStash() {
 
 export function getStash() {
   return useDrafts.getState().stash
+}
+
+export function fileMarker(file: { number: number; name: string }) {
+  return `[File #${file.number}: ${file.name}]`
 }
 
 export function hasPrompt(draft: Omit<Draft, 'settings'>) {

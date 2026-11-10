@@ -44,6 +44,14 @@ export type Selection = {
   sessionId: string | null
 }
 
+export type PendingPrompt = Selection & {
+  id: string
+  prompt: Prompt
+  queued: boolean
+  seen: string[]
+  sent: boolean
+}
+
 export type SettingsPage =
   | 'General'
   | 'Editor'
@@ -123,6 +131,7 @@ export type State = {
   partial: string
   requests: PermissionRequest[]
   queue: QueuedPrompt[]
+  pending: PendingPrompt[]
   settings: SessionSettings
   draft: Prompt | null
   replacing: Selection | null

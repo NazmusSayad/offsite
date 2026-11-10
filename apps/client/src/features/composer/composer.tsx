@@ -3,11 +3,12 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
-import { readBase64, UPLOAD_LIMIT, uploadFile } from '@/api/upload'
+import { readBase64, UPLOAD_LIMIT } from '@/api/upload'
 import { Button } from '@/components/ui/button'
 import { Wrapper } from '@/components/wrapper'
 import { logger } from '@/lib/log'
-import { interrupt, sendPrompt } from '@/lib/sessions'
+import { hasPending } from '@/lib/pending'
+import { interrupt } from '@/lib/sessions'
 import {
   draftKey,
   getState,
@@ -31,8 +32,8 @@ import { ComposerMenu, type Suggestion, suggestionsFor } from './composer-menu'
 import { useDictation } from './dictation'
 import {
   editDraft,
+  fileMarker,
   getDraft,
-  loadDraftFile,
   saveDraftFile,
   useDraft,
 } from './drafts'
@@ -41,6 +42,7 @@ import { PermissionPrompt } from './permission-prompt'
 import { Pickers } from './pickers'
 import { ProjectHeading } from './project-heading'
 import { UsageResetBanner, QueuedMessages } from './queue'
+import { sendDraft } from './send'
 import { DictateButton, SendControls } from './send-controls'
 import { isStashShortcut, toggleStash } from './stash'
 import { WorktreeBar } from './worktree-bar'
@@ -57,7 +59,7 @@ export function Composer() {
     (state) => state.items.length === 0 && state.partial === ''
   )
   const requests = useStore((state) => state.requests)
-  const queue = useStore((state) => state.queue)
+  const waiting = useStore(hasPending)
   const draft = useStore((state) => state.draft)
   const capabilities = useStore((state) => state.capabilities)
   const noAccount = useStore((state) =>
@@ -88,7 +90,7 @@ export function Composer() {
   const attachedFiles = stored.files
   const [caret, setCaret] = useState(text.length)
   const running = useStore(selectedRunning)
-  const hero = loaded && blank && !running
+  const hero = loaded && blank && !running && !waiting
   const request = requests.at(0)
   const dictation = useDictation()
 
@@ -131,7 +133,10 @@ export function Composer() {
       : suggestionsFor(trigger, capabilities?.commands ?? [], files)
   const activeIndex = Math.min(active, suggestions.length - 1)
   const empty =
-    (text.trim() === '' && images.length === 0) || sending || noAccount
+    (text.trim() === '' && images.length === 0) ||
+    sending ||
+    noAccount ||
+    (waiting && selection?.sessionId === null)
 
   function edit(value: string, position: number) {
     editDraft(key, (current) => ({
@@ -168,35 +173,11 @@ export function Composer() {
       if (delivery === null) {
         throw new Error('This machine is not connected')
       }
-      const settings = getState().settings
-      let prompt = text.trim()
-      for (const file of attachedFiles) {
-        const saved = await loadDraftFile(file.id)
-        if (saved === undefined) {
-          throw new Error(`${file.name} is no longer saved, attach it again`)
-        }
-        const path = await uploadFile(machine, saved)
-        prompt = prompt.replace(fileMarker(file), () => `@${path}`)
-      }
-      await sendPrompt(
-        {
-          text: prompt,
-          images: images.map((image) => ({
-            mediaType: image.mediaType,
-            data: image.data,
-          })),
-        },
+      await sendDraft(
+        key,
         swap ? (delivery === 'queue' ? 'steer' : 'queue') : delivery,
-        selection,
-        settings,
         sendStatus(flipSnooze)
       )
-      editDraft(key, (current) => ({
-        ...current,
-        text: '',
-        images: [],
-        files: [],
-      }))
       setCaret(0)
     } catch (error) {
       showError(error)
@@ -271,7 +252,7 @@ export function Composer() {
           />
         )}
         {suggestions.length === 0 && <UsageResetBanner />}
-        {queue.length > 0 && suggestions.length === 0 && <QueuedMessages />}
+        {suggestions.length === 0 && <QueuedMessages />}
         {request !== undefined && suggestions.length === 0 && (
           <PermissionPrompt
             key={request.id}
@@ -506,8 +487,4 @@ export function Composer() {
       </Wrapper>
     </div>
   )
-}
-
-function fileMarker(file: { number: number; name: string }) {
-  return `[File #${file.number}: ${file.name}]`
 }
