@@ -3,6 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import type { BookmarkTarget } from '@offsite/core/bookmarks'
 import { type RefObject, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Tooltip } from '@/components/ui/tooltip'
 import { editDraft } from '@/features/composer/drafts'
 import { sourceRange } from '@/features/transcript/anchors'
 import { toggleBookmark } from '@/lib/bookmarks'
@@ -90,15 +91,15 @@ export function QuoteButton(props: {
   const bookmark = quote.bookmark
   return (
     <div
-      className="animate-in fade-in-0 zoom-in-95 absolute z-20 flex -translate-x-1/2 gap-1 duration-25 ease-out"
+      className="animate-in fade-in-0 zoom-in-95 absolute z-20 flex -translate-x-1/2 overflow-hidden rounded-[var(--control-radius)] border border-[color-mix(in_srgb,var(--bg)_85%,var(--text))] bg-[color-mix(in_srgb,var(--bg)_65%,black)] shadow-md duration-25 ease-out"
       style={{ top: quote.top, left: quote.left }}
     >
       {quote.quotable && (
         <Button
           type="button"
           size="xs"
-          variant="outline"
-          className="hover:bg-accent dark:hover:bg-accent border-[color-mix(in_srgb,var(--bg)_85%,var(--text))] bg-[color-mix(in_srgb,var(--bg)_65%,black)] shadow-md dark:bg-[color-mix(in_srgb,var(--bg)_65%,black)]"
+          variant="ghost"
+          className="rounded-none"
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => {
             quoteInComposer(quote.text)
@@ -110,22 +111,27 @@ export function QuoteButton(props: {
           Quote
         </Button>
       )}
+      {quote.quotable && bookmark !== null && (
+        <span className="w-px bg-[color-mix(in_srgb,var(--bg)_85%,var(--text))]" />
+      )}
       {bookmark !== null && (
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          className="hover:bg-accent dark:hover:bg-accent border-[color-mix(in_srgb,var(--bg)_85%,var(--text))] bg-[color-mix(in_srgb,var(--bg)_65%,black)] shadow-md dark:bg-[color-mix(in_srgb,var(--bg)_65%,black)]"
-          onPointerDown={(event) => event.preventDefault()}
-          onClick={() => {
-            toggleBookmark(bookmark.machine, bookmark.target)
-            window.getSelection()?.removeAllRanges()
-            setQuote(null)
-          }}
-        >
-          <HugeiconsIcon icon={BookmarkAdd02Icon} />
-          Bookmark
-        </Button>
+        <Tooltip label="Bookmark">
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            className="rounded-none"
+            aria-label="Bookmark"
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={() => {
+              toggleBookmark(bookmark.machine, bookmark.target)
+              window.getSelection()?.removeAllRanges()
+              setQuote(null)
+            }}
+          >
+            <HugeiconsIcon icon={BookmarkAdd02Icon} />
+          </Button>
+        </Tooltip>
       )}
     </div>
   )
