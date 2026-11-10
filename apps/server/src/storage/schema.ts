@@ -80,3 +80,12 @@ export const lastPickedEfforts = snakeCase.table(
   },
   (table) => [primaryKey({ columns: [table.provider, table.model] })]
 )
+
+export const bookmarks = snakeCase.table('bookmarks', {
+  id: text().primaryKey(),
+  sessionId: text().notNull(),
+  itemId: text(),
+  start: integer(),
+  end: integer(),
+  createdAt: integer().notNull(),
+})

@@ -1,4 +1,5 @@
 import type { AppIconId } from './app-icons.ts'
+import type { Bookmark, BookmarkRef, BookmarkTarget } from './bookmarks.ts'
 import type {
   Config,
   ConfigWithDefaults,
@@ -72,6 +73,7 @@ export type SyncSnapshot = ConfigWithDefaults & {
   activity: Record<string, SessionActivity>
   terminals: TerminalTab[]
   appIcon: AppIconId
+  bookmarks: BookmarkRef[]
 }
 
 export type RpcMethods = {
@@ -199,6 +201,9 @@ export type RpcMethods = {
     params: { sessionId: string; projectId: string; messageId: string }
     result: { sessionId: string }
   }
+  'bookmarks.list': { params: void; result: Bookmark[] }
+  'bookmarks.add': { params: BookmarkTarget; result: null }
+  'bookmarks.remove': { params: { id: string }; result: null }
   'accounts.list': { params: void; result: Accounts }
   'accounts.add': {
     params: { provider: Account['provider']; name: string; configDir: string }
@@ -377,6 +382,7 @@ export type ServerEvent =
   | { type: 'lastSent'; lastSent: LastMessageAtForAccount[] }
   | { type: 'lastEfforts'; lastEfforts: LastPickedEffortForModel[] }
   | { type: 'appIcon'; appIcon: AppIconId }
+  | { type: 'bookmarks'; bookmarks: BookmarkRef[] }
   | { type: 'projects'; projects: Project[] }
   | { type: 'sessions'; sessions: Session[] }
   | { type: 'threads' }

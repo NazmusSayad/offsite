@@ -1,5 +1,7 @@
 import {
   AiContentGenerator02Icon,
+  Bookmark02Icon,
+  BookmarkCheck02Icon,
   ArrowExpandDiagonal01Icon,
   SunriseIcon,
   Delete02Icon,
@@ -26,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
+import { toggleBookmark, useBookmarked } from '@/lib/bookmarks'
 import { providerNames } from '@/lib/format'
 import { editSession, regenerateTitle, removeSession } from '@/lib/sessions'
 import {
@@ -60,6 +63,13 @@ export function SessionMenuItems(props: {
     (state) =>
       projectOf(state, session.machine, session.projectId)?.scratch === true
   )
+  const target = {
+    sessionId: session.id,
+    itemId: null,
+    start: null,
+    end: null,
+  }
+  const bookmarked = useBookmarked(session.machine, target)
   const Item = props.context ? ContextMenuItem : DropdownMenuItem
   const Separator = props.context ? ContextMenuSeparator : DropdownMenuSeparator
 
@@ -119,6 +129,12 @@ export function SessionMenuItems(props: {
           Pin
         </Item>
       )}
+      <Item onSelect={() => toggleBookmark(session.machine, target)}>
+        <HugeiconsIcon
+          icon={bookmarked ? BookmarkCheck02Icon : Bookmark02Icon}
+        />
+        {bookmarked ? 'Remove bookmark' : 'Bookmark'}
+      </Item>
       <Separator />
       {session.provider === 'claude' && props.onRestart !== null && (
         <Item onSelect={props.onRestart}>

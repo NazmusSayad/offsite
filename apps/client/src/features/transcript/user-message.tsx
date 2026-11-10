@@ -6,6 +6,7 @@ import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { ViewableImage } from '@/components/viewable-image'
+import { MessageBookmarkButton } from '@/features/transcript/bookmarks'
 import { RewindMenu } from '@/features/transcript/rewind-menu'
 import type { UserItem } from '@/features/transcript/timeline'
 import { useCopy } from '@/lib/clipboard'
@@ -59,6 +60,7 @@ export function UserMessage(props: {
         {item.text !== '' && (
           <div>
             <div
+              data-message-text
               className={cn(
                 'relative',
                 collapsed && 'max-h-44 overflow-hidden'
@@ -126,6 +128,7 @@ export function UserMessage(props: {
                 />
               )}
               <MessageCopyButton text={prompt} />
+              <MessageBookmarkButton itemId={item.id} />
             </div>
           )}
         </div>

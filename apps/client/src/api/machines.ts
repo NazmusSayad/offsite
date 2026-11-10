@@ -118,6 +118,7 @@ export function restoreMachine(machine: StoredMachine): Machine {
     activity: {},
     providers: [],
     terminals: [],
+    bookmarks: [],
   }
 }
 

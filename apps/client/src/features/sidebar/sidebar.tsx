@@ -1,4 +1,5 @@
 import {
+  Bookmark02Icon,
   ChevronDownIcon,
   MinimizeIcon,
   PanelLeftOpenIcon,
@@ -13,6 +14,7 @@ import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocalStorage } from 'usehooks-ts'
 import { machineKey } from '@/api/machines'
+import { BookmarksDialog } from '@/features/bookmarks/bookmarks-dialog'
 import {
   DesktopDraftRow,
   DesktopSessionItem,
@@ -37,6 +39,7 @@ import {
   activityOf,
   type MachineProject,
   type MachineSession,
+  showBookmarks,
   showPalette,
   showSettingsPage,
   useStore,
@@ -316,6 +319,14 @@ export function Sidebar(
             </button>
             <button
               className={cn(iconButton, 'size-7 [&>svg]:size-4.5')}
+              title="Bookmarks"
+              aria-label="Bookmarks"
+              onClick={() => showBookmarks(true)}
+            >
+              <HugeiconsIcon icon={Bookmark02Icon} />
+            </button>
+            <button
+              className={cn(iconButton, 'size-7 [&>svg]:size-4.5')}
               title={`New thread (${mod}+N)`}
               onClick={startThread}
             >
@@ -429,6 +440,7 @@ export function Sidebar(
         )}
       </div>
       <UsageDialog />
+      <BookmarksDialog />
       {adding !== null && (
         <FolderDialog
           machine={adding}
