@@ -1,4 +1,5 @@
 import type { AppIconId } from '@offsite/core/app-icons'
+import type { BookmarkRef, BookmarkTarget } from '@offsite/core/bookmarks'
 import type {
   Config,
   ConfigWithDefaults,
@@ -88,6 +89,7 @@ export type Machine = {
   activity: Record<string, SessionActivity>
   providers: ProviderStatus[]
   terminals: TerminalTab[]
+  bookmarks: BookmarkRef[]
 }
 
 export type MachineProject = Project & { machine: string }
@@ -112,6 +114,8 @@ export type State = {
   settingsListing: boolean
   settingsMachine: string | null
   usageOpen: boolean
+  bookmarksOpen: boolean
+  focus: BookmarkTarget | null
   usage: Record<string, Usage>
   unseen: string[]
   generatingTitles: string[]
@@ -243,6 +247,10 @@ export function showSettings(settingsOpen: boolean) {
 
 export function showUsage(usageOpen: boolean) {
   update({ usageOpen, paletteOpen: false })
+}
+
+export function showBookmarks(bookmarksOpen: boolean) {
+  update({ bookmarksOpen, paletteOpen: false })
 }
 
 export function showSettingsPage(settingsPage: SettingsPage) {

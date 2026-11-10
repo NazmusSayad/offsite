@@ -39,6 +39,7 @@ import {
 } from '@/lib/url'
 import { receiveLimits, receiveUsage } from '@/lib/usage'
 import { call, connectMachine, listen } from './connection'
+import { flushDelta, queueDelta } from './delta'
 import { receiveConfig, receiveLastPickedModels } from './machine-config'
 import {
   addMachine,
@@ -54,11 +55,6 @@ import {
 } from './machines'
 
 const log = logger.withTag('sync')
-
-const DELTA_DELAY = 50
-
-let pendingDelta: { machine: string; sessionId: string; text: string } | null =
-  null
 
 export function start() {
   const stored = loadMachines()
@@ -81,6 +77,8 @@ export function start() {
     settingsListing: true,
     settingsMachine: stored.at(0)?.id ?? null,
     usageOpen: false,
+    bookmarksOpen: false,
+    focus: null,
     usage: {},
     unseen: [],
     generatingTitles: [],
@@ -206,6 +204,7 @@ async function resync(machine: string) {
       providers: snapshot.providers,
       terminals: snapshot.terminals,
       appIcon: snapshot.appIcon,
+      bookmarks: snapshot.bookmarks,
       lastMessageAtByAccount: snapshot.lastSent,
       lastPickedEffortByModel: snapshot.lastEfforts,
     })
@@ -350,6 +349,9 @@ function receive(machine: string, event: ServerEvent) {
     case 'appIcon':
       setMachine(machine, { appIcon: event.appIcon })
       return
+    case 'bookmarks':
+      setMachine(machine, { bookmarks: event.bookmarks })
+      return
     case 'projects':
       setProjects(machine, event.projects)
       return
@@ -473,38 +475,5 @@ function receive(machine: string, event: ServerEvent) {
       update({ settings })
       saveDraftSettings(machineKey(machine, event.sessionId), settings)
     }
-  }
-}
-
-function queueDelta(machine: string, sessionId: string, text: string) {
-  const selection = getState().selection
-  if (selection?.machine !== machine || selection.sessionId !== sessionId) {
-    return
-  }
-  if (
-    pendingDelta !== null &&
-    (pendingDelta.machine !== machine || pendingDelta.sessionId !== sessionId)
-  ) {
-    flushDelta()
-  }
-  if (pendingDelta === null) {
-    pendingDelta = { machine, sessionId, text: '' }
-    setTimeout(flushDelta, DELTA_DELAY)
-  }
-  pendingDelta.text += text
-}
-
-function flushDelta() {
-  if (pendingDelta === null) {
-    return
-  }
-  const delta = pendingDelta
-  pendingDelta = null
-  const state = getState()
-  if (
-    state.selection?.machine === delta.machine &&
-    state.selection.sessionId === delta.sessionId
-  ) {
-    update({ partial: state.partial + delta.text })
   }
 }

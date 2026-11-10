@@ -19,6 +19,7 @@ import {
   stopProvider,
   updateAccount,
 } from '../services/accounts.ts'
+import * as bookmarks from '../services/bookmarks.ts'
 import { ping, transcribe, workflows } from '../services/dictation.ts'
 import { exportSession } from '../services/export.ts'
 import {
@@ -132,6 +133,7 @@ const handlers: Handlers = {
       activity: activity(),
       terminals: terminalTabs(),
       appIcon: readAppIcon(),
+      bookmarks: bookmarks.readBookmarks(),
     }
   },
   'config.get': () => configInfo(),
@@ -265,6 +267,9 @@ const handlers: Handlers = {
     publishSessions()
     return result
   },
+  'bookmarks.list': () => bookmarks.listBookmarks(),
+  'bookmarks.add': (params) => bookmarks.addBookmark(params),
+  'bookmarks.remove': (params) => bookmarks.removeBookmark(params.id),
   'accounts.list': () => accounts(),
   'accounts.add': (params) =>
     addAccount(params.provider, params.name, params.configDir),

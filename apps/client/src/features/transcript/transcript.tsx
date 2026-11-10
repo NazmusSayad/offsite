@@ -21,6 +21,10 @@ import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Wrapper } from '@/components/wrapper'
 import { AgentLine, ReceivedMessage } from '@/features/transcript/agent-pill'
+import {
+  MessageBookmarkButton,
+  useBookmarks,
+} from '@/features/transcript/bookmarks'
 import { ThreadFindBar } from '@/features/transcript/find-bar'
 import { PlanCard } from '@/features/transcript/plan-card'
 import { QuestionCard } from '@/features/transcript/question-card'
@@ -186,6 +190,8 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     jumpTo.current = key
     setTop({ key, above: 1 })
   }
+
+  useBookmarks({ content, scroller, rows, onJump: jump })
 
   const toggle = useCallback((key: string) => {
     setExpanded((current) =>
@@ -360,7 +366,7 @@ function RowContent(props: {
     case 'assistant':
       return (
         <>
-          <div data-quotable>
+          <div data-quotable data-message-text>
             <Markdown
               text={
                 row.text === '' && !row.streaming
@@ -375,6 +381,7 @@ function RowContent(props: {
               <div className="flex items-center gap-0.5">
                 <MessageCopyButton text={row.text} />
                 {props.fork && <ForkButton uuid={row.message} />}
+                <MessageBookmarkButton itemId={row.key} />
               </div>
               {row.time !== null && (
                 <Tooltip label={fullTime(row.time)}>

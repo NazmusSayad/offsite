@@ -1,8 +1,11 @@
-import { QuoteDownIcon } from '@hugeicons/core-free-icons'
+import { Bookmark02Icon, QuoteDownIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import type { BookmarkTarget } from '@offsite/core/bookmarks'
 import { type RefObject, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { editDraft } from '@/features/composer/drafts'
+import { sourceRange } from '@/features/transcript/anchors'
+import { toggleBookmark } from '@/lib/bookmarks'
 import { draftKey, getState } from '@/lib/store'
 
 export function QuoteButton(props: {
@@ -10,6 +13,8 @@ export function QuoteButton(props: {
 }) {
   const [quote, setQuote] = useState<{
     text: string
+    quotable: boolean
+    bookmark: { machine: string; target: BookmarkTarget } | null
     top: number
     left: number
   } | null>(null)
@@ -31,11 +36,11 @@ export function QuoteButton(props: {
       }
       const range = selected.getRangeAt(0)
       const text = selected.toString().trim()
-      if (
-        text === '' ||
-        !isQuotable(range.startContainer, element) ||
-        !isQuotable(range.endContainer, element)
-      ) {
+      const quotable =
+        isQuotable(range.startContainer, element) &&
+        isQuotable(range.endContainer, element)
+      const bookmark = bookmarkOf(range)
+      if (text === '' || (!quotable && bookmark === null)) {
         setQuote(null)
         return
       }
@@ -51,6 +56,8 @@ export function QuoteButton(props: {
       const box = element.getBoundingClientRect()
       setQuote({
         text,
+        quotable,
+        bookmark,
         top: end.bottom - box.top + element.scrollTop + 6,
         left: Math.min(
           Math.max((forward ? end.right : end.left) - box.left, 48),
@@ -80,24 +87,84 @@ export function QuoteButton(props: {
   if (quote === null) {
     return null
   }
+  const bookmark = quote.bookmark
   return (
-    <Button
-      type="button"
-      size="xs"
-      variant="outline"
-      className="animate-in fade-in-0 zoom-in-95 hover:bg-accent dark:hover:bg-accent absolute z-20 -translate-x-1/2 border-[color-mix(in_srgb,var(--bg)_85%,var(--text))] bg-[color-mix(in_srgb,var(--bg)_65%,black)] shadow-md duration-25 ease-out dark:bg-[color-mix(in_srgb,var(--bg)_65%,black)]"
+    <div
+      className="animate-in fade-in-0 zoom-in-95 absolute z-20 flex -translate-x-1/2 gap-1 duration-25 ease-out"
       style={{ top: quote.top, left: quote.left }}
-      onPointerDown={(event) => event.preventDefault()}
-      onClick={() => {
-        quoteInComposer(quote.text)
-        window.getSelection()?.removeAllRanges()
-        setQuote(null)
-      }}
     >
-      <HugeiconsIcon icon={QuoteDownIcon} />
-      Quote
-    </Button>
+      {quote.quotable && (
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          className="hover:bg-accent dark:hover:bg-accent border-[color-mix(in_srgb,var(--bg)_85%,var(--text))] bg-[color-mix(in_srgb,var(--bg)_65%,black)] shadow-md dark:bg-[color-mix(in_srgb,var(--bg)_65%,black)]"
+          onPointerDown={(event) => event.preventDefault()}
+          onClick={() => {
+            quoteInComposer(quote.text)
+            window.getSelection()?.removeAllRanges()
+            setQuote(null)
+          }}
+        >
+          <HugeiconsIcon icon={QuoteDownIcon} />
+          Quote
+        </Button>
+      )}
+      {bookmark !== null && (
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          className="hover:bg-accent dark:hover:bg-accent border-[color-mix(in_srgb,var(--bg)_85%,var(--text))] bg-[color-mix(in_srgb,var(--bg)_65%,black)] shadow-md dark:bg-[color-mix(in_srgb,var(--bg)_65%,black)]"
+          onPointerDown={(event) => event.preventDefault()}
+          onClick={() => {
+            toggleBookmark(bookmark.machine, bookmark.target)
+            window.getSelection()?.removeAllRanges()
+            setQuote(null)
+          }}
+        >
+          <HugeiconsIcon icon={Bookmark02Icon} />
+          Bookmark
+        </Button>
+      )}
+    </div>
   )
+}
+
+function bookmarkOf(range: Range) {
+  const selection = getState().selection
+  const start = messageText(range.startContainer)
+  if (
+    selection === null ||
+    selection.sessionId === null ||
+    start === null ||
+    start !== messageText(range.endContainer)
+  ) {
+    return null
+  }
+  const itemId = start.closest('[data-row]')?.getAttribute('data-row')
+  const item = [...getState().earlier, ...getState().items].find(
+    (candidate) => candidate.id === itemId
+  )
+  if (
+    item === undefined ||
+    (item.kind !== 'user' && item.kind !== 'assistant')
+  ) {
+    return null
+  }
+  const excerpt = sourceRange(start, item.text, range)
+  if (excerpt === null) {
+    return null
+  }
+  return {
+    machine: selection.machine,
+    target: { sessionId: selection.sessionId, itemId: item.id, ...excerpt },
+  }
+}
+
+function messageText(node: Node) {
+  const element = node instanceof Element ? node : node.parentElement
+  return element?.closest('[data-message-text]') ?? null
 }
 
 function isQuotable(node: Node, root: HTMLElement) {
