@@ -1,13 +1,9 @@
 import {
-  Bookmark02Icon,
   ChevronDownIcon,
-  MinimizeIcon,
   SearchIcon,
   SquarePenIcon,
-  Tick01Icon,
-  ZzzIcon,
 } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
@@ -38,7 +34,6 @@ import {
   activityOf,
   type MachineProject,
   type MachineSession,
-  showBookmarks,
   showPalette,
   showSettingsPage,
   useStore,
@@ -231,7 +226,6 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   }
 
   function section(options: {
-    icon: IconSvgElement
     label: string
     items: MachineSession[]
     open: boolean
@@ -240,14 +234,13 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   }) {
     return (
       <>
-        <li className={cn('mx-0.5 h-9 pt-2', options.first && 'mt-auto')}>
+        <li className={cn('mx-0.5 h-8 shrink-0', options.first && 'mt-auto')}>
           <button
             aria-expanded={options.open}
-            className="text-sidebar-muted-foreground/60 flex h-9 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs font-medium"
+            className="text-sidebar-muted-foreground/60 flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs font-medium"
             onClick={options.onToggle}
           >
-            <HugeiconsIcon icon={options.icon} className="size-3 shrink-0" />
-            <span className="-ms-1 shrink-0">{options.label}</span>
+            <span className="shrink-0">{options.label}</span>
             <span className="bg-sidebar-border/60 h-px min-w-2 flex-1" />
             <HugeiconsIcon
               icon={ChevronDownIcon}
@@ -303,14 +296,6 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
             </button>
             <button
               className={cn(iconButton, 'size-7 [&>svg]:size-4.5')}
-              title="Bookmarks"
-              aria-label="Bookmarks"
-              onClick={() => showBookmarks(true)}
-            >
-              <HugeiconsIcon icon={Bookmark02Icon} />
-            </button>
-            <button
-              className={cn(iconButton, 'size-7 [&>svg]:size-4.5')}
               title={`New thread (${mod}+N)`}
               onClick={startThread}
             >
@@ -360,7 +345,6 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
               )}
             {snoozed.length > 0 &&
               section({
-                icon: ZzzIcon,
                 label: snoozedOpen ? 'Snoozed' : `Snoozed (${snoozed.length})`,
                 items: snoozed,
                 open: snoozedOpen,
@@ -369,7 +353,6 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
               })}
             {minimized.length > 0 &&
               section({
-                icon: MinimizeIcon,
                 label: minimizedOpen
                   ? 'Minimized'
                   : `Minimized (${minimized.length})`,
@@ -379,7 +362,6 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
                 first: snoozed.length === 0,
               })}
             {section({
-              icon: Tick01Icon,
               label: 'Done',
               items: inactive.slice(0, inactiveLimit),
               open: inactiveOpen,

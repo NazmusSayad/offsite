@@ -1,5 +1,6 @@
 import {
   Add01Icon,
+  Bookmark02Icon,
   Delete02Icon,
   LimitationIcon,
   Menu01Icon,
@@ -31,7 +32,7 @@ import {
 import { closeTabs } from '@/features/terminal/close-tab'
 import { NewTerminalItems } from '@/features/terminal/new-terminal-button'
 import { TerminalGroups } from '@/features/terminal/terminal-page'
-import { showSettings, showUsage, useStore } from '@/lib/store'
+import { showBookmarks, showSettings, showUsage, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 export function MobileMenu(props: { buttonClassName: string }) {
@@ -63,6 +64,10 @@ export function MobileMenu(props: { buttonClassName: string }) {
           <DropdownMenuItem onSelect={() => showUsage(true)}>
             <HugeiconsIcon icon={LimitationIcon} />
             Usage
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => showBookmarks(true)}>
+            <HugeiconsIcon icon={Bookmark02Icon} />
+            Bookmarks
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => showSettings(true)}>
             <HugeiconsIcon icon={Settings01Icon} />
