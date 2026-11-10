@@ -41,7 +41,7 @@ export function addBookmark(value: unknown) {
     return null
   }
   db.insert(bookmarksTable)
-    .values({ ...result.data, id: randomUUID(), createdAt: Date.now() })
+    .values({ ...target, id: randomUUID(), createdAt: Date.now() })
     .run()
   broadcast({ type: 'bookmarks', bookmarks: readBookmarks() })
   return null
