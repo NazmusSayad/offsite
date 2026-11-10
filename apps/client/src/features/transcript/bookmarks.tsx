@@ -1,4 +1,7 @@
-import { BookmarkCheck02Icon, Bookmark02Icon } from '@hugeicons/core-free-icons'
+import {
+  BookmarkAdd02Icon,
+  BookmarkCheck02Icon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { BookmarkTarget } from '@offsite/core/bookmarks'
 import type { Item } from '@offsite/core/items'
@@ -43,7 +46,7 @@ function BookmarkToggle(props: { machine: string; target: BookmarkTarget }) {
         onClick={() => toggleBookmark(props.machine, props.target)}
       >
         <HugeiconsIcon
-          icon={bookmarked ? BookmarkCheck02Icon : Bookmark02Icon}
+          icon={bookmarked ? BookmarkCheck02Icon : BookmarkAdd02Icon}
           className={cn('size-4', bookmarked && 'text-primary')}
         />
       </Button>

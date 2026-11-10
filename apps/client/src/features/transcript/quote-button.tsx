@@ -1,4 +1,4 @@
-import { Bookmark02Icon, QuoteDownIcon } from '@hugeicons/core-free-icons'
+import { BookmarkAdd02Icon, QuoteDownIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { BookmarkTarget } from '@offsite/core/bookmarks'
 import { type RefObject, useEffect, useState } from 'react'
@@ -123,7 +123,7 @@ export function QuoteButton(props: {
             setQuote(null)
           }}
         >
-          <HugeiconsIcon icon={Bookmark02Icon} />
+          <HugeiconsIcon icon={BookmarkAdd02Icon} />
           Bookmark
         </Button>
       )}

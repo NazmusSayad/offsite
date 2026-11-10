@@ -1,7 +1,7 @@
 import {
   AiContentGenerator02Icon,
-  Bookmark02Icon,
-  BookmarkCheck02Icon,
+  BookmarkAdd02Icon,
+  BookmarkRemove02Icon,
   ArrowExpandDiagonal01Icon,
   SunriseIcon,
   Delete02Icon,
@@ -131,7 +131,7 @@ export function SessionMenuItems(props: {
       )}
       <Item onSelect={() => toggleBookmark(session.machine, target)}>
         <HugeiconsIcon
-          icon={bookmarked ? BookmarkCheck02Icon : Bookmark02Icon}
+          icon={bookmarked ? BookmarkRemove02Icon : BookmarkAdd02Icon}
         />
         {bookmarked ? 'Remove bookmark' : 'Bookmark'}
       </Item>

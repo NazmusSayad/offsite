@@ -1,6 +1,6 @@
 import {
+  BookmarkRemove02Icon,
   Chat01Icon,
-  Delete02Icon,
   Message01Icon,
   QuoteDownIcon,
   Robot01Icon,
@@ -100,10 +100,10 @@ function BookmarkList() {
   return (
     <ul className="max-h-[70dvh] divide-y overflow-y-auto border-t">
       {entries.map(({ machine, bookmark }) => (
-        <li key={bookmark.id} className="group flex items-start gap-1 pr-2">
+        <li key={bookmark.id} className="relative">
           <button
             type="button"
-            className="hover:bg-accent/50 flex min-w-0 flex-1 items-start gap-3 px-5 py-3 text-left disabled:opacity-60"
+            className="hover:bg-accent/50 flex w-full min-w-0 items-start gap-3 py-3 ps-5 pe-14 text-left disabled:opacity-60"
             disabled={bookmark.session === null}
             onClick={() => openBookmark(machine, bookmark)}
           >
@@ -149,17 +149,17 @@ function BookmarkList() {
                     )?.name ?? ''}
                   </span>
                 )}
-                <span className="ml-auto shrink-0 tabular-nums">
-                  {timeAgo(bookmark.createdAt)}
+                <span className="shrink-0 tabular-nums">
+                  · {timeAgo(bookmark.createdAt)}
                 </span>
               </span>
             </span>
           </button>
           <Button
             type="button"
-            size="icon-micro"
+            size="icon-sm"
             variant="ghost-muted"
-            className="mt-3 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
+            className="absolute top-1/2 right-3 -translate-y-1/2"
             aria-label="Remove bookmark"
             onClick={() =>
               void call(machine, 'bookmarks.remove', { id: bookmark.id }).catch(
@@ -167,7 +167,7 @@ function BookmarkList() {
               )
             }
           >
-            <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+            <HugeiconsIcon icon={BookmarkRemove02Icon} className="size-5" />
           </Button>
         </li>
       ))}
