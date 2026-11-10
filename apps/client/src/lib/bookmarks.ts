@@ -1,8 +1,19 @@
-import type { Bookmark, BookmarkTarget } from '@offsite/core/bookmarks'
+import type {
+  Bookmark,
+  BookmarkRef,
+  BookmarkTarget,
+} from '@offsite/core/bookmarks'
 import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { openSession } from './sessions'
-import { getState, machineOf, showError, update, useStore } from './store'
+import {
+  getState,
+  machineOf,
+  setMachine,
+  showError,
+  update,
+  useStore,
+} from './store'
 
 function sameTarget(left: BookmarkTarget, right: BookmarkTarget) {
   return (
@@ -50,4 +61,32 @@ export function openBookmark(machine: string, bookmark: Bookmark) {
     bookmarksOpen: false,
     focus: bookmark.itemId === null ? null : bookmark,
   })
+}
+
+export function receiveBookmarks(machine: string, bookmarks: BookmarkRef[]) {
+  const loaded = machineOf(getState(), machine).bookmarkList
+  if (
+    loaded !== null &&
+    bookmarks.every((ref) => loaded.some((item) => item.id === ref.id))
+  ) {
+    setMachine(machine, {
+      bookmarks,
+      bookmarkList: loaded.filter((item) =>
+        bookmarks.some((ref) => ref.id === item.id)
+      ),
+    })
+    return
+  }
+  setMachine(machine, { bookmarks })
+  call(machine, 'bookmarks.list', undefined)
+    .then((list) => {
+      const current = machineOf(getState(), machine).bookmarks
+      if (
+        list.length === current.length &&
+        list.every((item) => current.some((ref) => ref.id === item.id))
+      ) {
+        setMachine(machine, { bookmarkList: list })
+      }
+    })
+    .catch(showError)
 }

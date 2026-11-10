@@ -32,6 +32,7 @@ import {
 import { closeTabs } from '@/features/terminal/close-tab'
 import { NewTerminalItems } from '@/features/terminal/new-terminal-button'
 import { TerminalGroups } from '@/features/terminal/terminal-page'
+import { LastUsageMeter } from '@/features/usage/usage-meters'
 import { showBookmarks, showSettings, showUsage, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -64,6 +65,7 @@ export function MobileMenu(props: { buttonClassName: string }) {
           <DropdownMenuItem onSelect={() => showUsage(true)}>
             <HugeiconsIcon icon={LimitationIcon} />
             Usage
+            <LastUsageMeter />
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => showBookmarks(true)}>
             <HugeiconsIcon icon={Bookmark02Icon} />

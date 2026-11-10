@@ -20,6 +20,7 @@ import {
   refreshCapabilities,
   setAccounts,
 } from '@/lib/accounts'
+import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
 import { claimNotifications, notify, push } from '@/lib/notifications'
 import { loadPrefs } from '@/lib/prefs'
@@ -212,10 +213,10 @@ async function resync(machine: string) {
       terminals: snapshot.terminals,
       starting: snapshot.starting,
       appIcon: snapshot.appIcon,
-      bookmarks: snapshot.bookmarks,
       lastMessageAtByAccount: snapshot.lastSent,
       lastPickedEffortByModel: snapshot.lastEfforts,
     })
+    receiveBookmarks(machine, snapshot.bookmarks)
     setProjects(machine, snapshot.projects)
     setSessions(machine, snapshot.sessions)
     receiveConfig(machine, snapshot.config)
@@ -358,7 +359,7 @@ function receive(machine: string, event: ServerEvent) {
       setMachine(machine, { appIcon: event.appIcon })
       return
     case 'bookmarks':
-      setMachine(machine, { bookmarks: event.bookmarks })
+      receiveBookmarks(machine, event.bookmarks)
       return
     case 'projects':
       setProjects(machine, event.projects)

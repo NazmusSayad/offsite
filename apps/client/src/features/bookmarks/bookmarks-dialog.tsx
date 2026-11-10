@@ -8,7 +8,6 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Bookmark } from '@offsite/core/bookmarks'
-import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import {
@@ -42,46 +41,19 @@ export function BookmarksDialog() {
 function BookmarkList() {
   const machines = useStore((state) => state.machines)
   const projects = useStore((state) => state.projects)
-  const [entries, setEntries] = useState<
-    { machine: string; bookmark: Bookmark }[] | null
-  >(null)
   const online = machines.filter((machine) => machine.status === 'online')
-  const version = online
-    .map(
-      (machine) =>
-        `${machine.id}:${machine.bookmarks.map((item) => item.id).join(',')}`
-    )
-    .join(' ')
-
-  useEffect(() => {
-    let current = true
-    Promise.all(
-      version
-        .split(' ')
-        .filter((entry) => entry !== '')
-        .map(async (entry) => {
-          const machine = entry.slice(0, entry.indexOf(':'))
-          const bookmarks = await call(machine, 'bookmarks.list', undefined)
-          return bookmarks.map((bookmark) => ({ machine, bookmark }))
-        })
-    )
-      .then((lists) => {
-        if (current) {
-          setEntries(
-            lists
-              .flat()
-              .sort(
-                (left, right) =>
-                  right.bookmark.createdAt - left.bookmark.createdAt
-              )
-          )
-        }
-      })
-      .catch(showError)
-    return () => {
-      current = false
-    }
-  }, [version])
+  const entries = online.some((machine) => machine.bookmarkList === null)
+    ? null
+    : online
+        .flatMap((machine) =>
+          (machine.bookmarkList ?? []).map((bookmark) => ({
+            machine: machine.id,
+            bookmark,
+          }))
+        )
+        .sort(
+          (left, right) => right.bookmark.createdAt - left.bookmark.createdAt
+        )
 
   if (entries === null) {
     return (

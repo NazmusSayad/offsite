@@ -22,6 +22,8 @@ export function QuoteButton(props: {
 
   useEffect(() => {
     let pressed = false
+    let clicks = 0
+    let pointer: { x: number; y: number } | null = null
     function update() {
       const element = props.scroller.current
       const selected = window.getSelection()
@@ -29,59 +31,95 @@ export function QuoteButton(props: {
         element === null ||
         selected === null ||
         selected.isCollapsed ||
-        selected.rangeCount === 0 ||
-        pressed
+        selected.rangeCount === 0
       ) {
         setQuote(null)
         return
       }
-      const range = selected.getRangeAt(0)
+      if (pressed) {
+        if (clicks < 2) {
+          setQuote(null)
+        }
+        return
+      }
+      const original = selected.getRangeAt(0)
+      if (!element.contains(original.commonAncestorContainer)) {
+        setQuote(null)
+        return
+      }
+      const parts = textParts(original)
+      const first = parts.at(0)
+      const last = parts.at(-1)
       const text = selected.toString().trim()
+      if (first === undefined || last === undefined || text === '') {
+        setQuote(null)
+        return
+      }
+      const range = document.createRange()
+      range.setStart(first.node, first.start)
+      range.setEnd(last.node, last.end)
       const quotable =
         isQuotable(range.startContainer, element) &&
         isQuotable(range.endContainer, element)
       const bookmark = bookmarkOf(range)
-      if (text === '' || (!quotable && bookmark === null)) {
+      if (!quotable && bookmark === null) {
         setQuote(null)
         return
       }
-      const rects = [...range.getClientRects()].filter((rect) => rect.width > 0)
-      if (rects.length === 0) {
+      const lines = parts.flatMap((part) => {
+        const piece = document.createRange()
+        piece.setStart(part.node, part.start)
+        piece.setEnd(part.node, part.end)
+        return [...piece.getClientRects()].filter((rect) => rect.width > 0)
+      })
+      if (lines.length === 0) {
         setQuote(null)
         return
       }
       const forward =
-        range.endContainer === selected.focusNode &&
-        range.endOffset === selected.focusOffset
-      const end = forward ? rects[rects.length - 1] : rects[0]
+        original.endContainer === selected.focusNode &&
+        original.endOffset === selected.focusOffset
+      const target = pointer ?? edgeOf(lines, forward ? 'end' : 'start')
+      const line = nearestLine(lines, target)
       const box = element.getBoundingClientRect()
       setQuote({
         text,
         quotable,
         bookmark,
-        top: end.bottom - box.top + element.scrollTop + 6,
+        top: line.bottom - box.top + element.scrollTop + 6,
         left: Math.min(
-          Math.max((forward ? end.right : end.left) - box.left, 48),
+          Math.max(
+            Math.min(Math.max(target.x, line.left), line.right) - box.left,
+            48
+          ),
           box.width - 48
         ),
       })
     }
-    function press() {
+    function press(event: PointerEvent) {
       pressed = true
+      clicks = event.detail
+      pointer = null
     }
-    function release() {
+    function release(event: PointerEvent) {
       pressed = false
+      pointer = { x: event.clientX, y: event.clientY }
       update()
+    }
+    function type() {
+      pointer = null
     }
     document.addEventListener('selectionchange', update)
     document.addEventListener('pointerdown', press)
     document.addEventListener('pointerup', release)
     document.addEventListener('pointercancel', release)
+    document.addEventListener('keydown', type)
     return () => {
       document.removeEventListener('selectionchange', update)
       document.removeEventListener('pointerdown', press)
       document.removeEventListener('pointerup', release)
       document.removeEventListener('pointercancel', release)
+      document.removeEventListener('keydown', type)
     }
   }, [props.scroller])
 
@@ -169,17 +207,82 @@ function bookmarkOf(range: Range) {
 }
 
 function messageText(node: Node) {
-  const element = node instanceof Element ? node : node.parentElement
-  return element?.closest('[data-message-text]') ?? null
+  return elementOf(node)?.closest('[data-message-text]') ?? null
 }
 
 function isQuotable(node: Node, root: HTMLElement) {
-  const element = node instanceof Element ? node : node.parentElement
+  const element = elementOf(node)
   return (
     element !== null &&
     root.contains(element) &&
     element.closest('[data-quotable]') !== null
   )
+}
+
+function textParts(range: Range) {
+  const root = range.commonAncestorContainer
+  const nodes: Text[] = []
+  if (root instanceof Text) {
+    nodes.push(root)
+  } else {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+    for (
+      let node = walker.nextNode();
+      node !== null;
+      node = walker.nextNode()
+    ) {
+      if (
+        node instanceof Text &&
+        range.intersectsNode(node) &&
+        node.parentElement !== null &&
+        getComputedStyle(node.parentElement).userSelect !== 'none'
+      ) {
+        nodes.push(node)
+      }
+    }
+  }
+  return nodes.flatMap((node) => {
+    const start = node === range.startContainer ? range.startOffset : 0
+    const end = node === range.endContainer ? range.endOffset : node.length
+    return node.data.slice(start, end).trim() === ''
+      ? []
+      : [{ node, start, end }]
+  })
+}
+
+function edgeOf(lines: DOMRect[], edge: 'start' | 'end') {
+  switch (edge) {
+    case 'start': {
+      const line = lines[0]
+      return { x: line.left, y: line.top + line.height / 2 }
+    }
+    case 'end': {
+      const line = lines[lines.length - 1]
+      return { x: line.right, y: line.top + line.height / 2 }
+    }
+  }
+}
+
+function nearestLine(lines: DOMRect[], point: { x: number; y: number }) {
+  return lines.reduce((best, line) => {
+    const current = lineDistance(line, point)
+    const previous = lineDistance(best, point)
+    return current.y < previous.y ||
+      (current.y === previous.y && current.x < previous.x)
+      ? line
+      : best
+  })
+}
+
+function lineDistance(line: DOMRect, point: { x: number; y: number }) {
+  return {
+    y: Math.max(line.top - point.y, 0, point.y - line.bottom),
+    x: Math.max(line.left - point.x, 0, point.x - line.right),
+  }
+}
+
+function elementOf(node: Node) {
+  return node instanceof Element ? node : node.parentElement
 }
 
 function quoteInComposer(text: string) {

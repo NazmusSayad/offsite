@@ -1,5 +1,9 @@
 import type { AppIconId } from '@offsite/core/app-icons'
-import type { BookmarkRef, BookmarkTarget } from '@offsite/core/bookmarks'
+import type {
+  Bookmark,
+  BookmarkRef,
+  BookmarkTarget,
+} from '@offsite/core/bookmarks'
 import type {
   Config,
   ConfigWithDefaults,
@@ -97,6 +101,7 @@ export type Machine = {
   providers: ProviderStatus[]
   terminals: TerminalTab[]
   bookmarks: BookmarkRef[]
+  bookmarkList: Bookmark[] | null
   starting: StartingPrompt[]
 }
 
