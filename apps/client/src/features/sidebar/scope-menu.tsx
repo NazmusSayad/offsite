@@ -146,7 +146,7 @@ export function ProjectMenuItems(props: {
     return (
       activity?.running === true ||
       activity?.waiting === true ||
-      Object.values(activity?.tasks ?? {}).includes('running') ||
+      activity?.holdsCompletion === true ||
       unseen.includes(machineKey(session.machine, session.id))
     )
   })

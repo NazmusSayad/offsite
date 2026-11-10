@@ -11,7 +11,6 @@ import type { SessionActivity } from '@offsite/core/sessions'
 
 export function SessionStatus(props: {
   activity: SessionActivity | undefined
-  backgroundRunning: boolean
   done: boolean
 }) {
   return props.activity?.approval === true &&
@@ -40,7 +39,7 @@ export function SessionStatus(props: {
         className="size-4 shrink-0 animate-spin"
       />
     </span>
-  ) : props.backgroundRunning ? (
+  ) : props.activity?.holdsCompletion === true ? (
     props.activity?.backgroundAgent === true ? (
       <span title="Agent running in background" className="text-info flex">
         <HugeiconsIcon
