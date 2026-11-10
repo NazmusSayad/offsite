@@ -6,6 +6,7 @@ import {
   StopCircleIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { ProviderIcon } from '@/components/icons'
 import {
   ContextMenuItem,
   ContextMenuLabel,
@@ -66,11 +67,25 @@ export function DebugMenu(props: {
               <Separator />
               <Label>Claude</Label>
               <Item onSelect={() => props.onDebug('restart')}>
-                <HugeiconsIcon icon={RefreshIcon} />
+                <span className="relative">
+                  <ProviderIcon provider="claude" />
+                  <HugeiconsIcon
+                    icon={RefreshIcon}
+                    strokeWidth={3}
+                    className="bg-popover text-foreground absolute -right-1 -bottom-1 size-2.5! rounded-full"
+                  />
+                </span>
                 Restart Claude
               </Item>
               <Item onSelect={() => props.onDebug('stop')}>
-                <HugeiconsIcon icon={StopCircleIcon} />
+                <span className="relative">
+                  <ProviderIcon provider="claude" />
+                  <HugeiconsIcon
+                    icon={StopCircleIcon}
+                    strokeWidth={3}
+                    className="bg-popover text-foreground absolute -right-1 -bottom-1 size-2.5! rounded-full"
+                  />
+                </span>
                 Stop Claude
               </Item>
             </>
