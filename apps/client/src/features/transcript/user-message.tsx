@@ -171,8 +171,8 @@ export function UserMessage(props: {
                   disabled={props.running}
                 />
               )}
-              <MessageCopyButton text={prompt} />
               <MessageBookmarkButton itemId={item.id} />
+              <MessageCopyButton text={prompt} />
             </div>
           )}
         </div>
