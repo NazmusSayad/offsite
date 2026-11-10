@@ -152,12 +152,12 @@ function BookmarkList() {
               </span>
             </span>
           </button>
-          <div className="pointer-events-none absolute top-1/2 right-3 flex -translate-y-1/2 flex-col items-center justify-center gap-0.5">
+          <div className="pointer-events-none absolute top-1/2 right-3 flex -translate-y-1/2 flex-col items-center justify-center gap-1">
             <Button
               type="button"
               size="icon-xs"
               variant="ghost-muted"
-              className="pointer-events-auto"
+              className="pointer-events-auto size-[1.625rem]!"
               aria-label="Remove bookmark"
               onClick={() =>
                 void call(machine, 'bookmarks.remove', {
@@ -165,7 +165,10 @@ function BookmarkList() {
                 }).catch(showError)
               }
             >
-              <HugeiconsIcon icon={BookmarkRemove02Icon} className="size-5" />
+              <HugeiconsIcon
+                icon={BookmarkRemove02Icon}
+                className="size-[1.375rem]!"
+              />
             </Button>
             <span className="text-muted-foreground text-2xs flex w-0 justify-center text-center! text-nowrap tabular-nums">
               {timeAgo(bookmark.createdAt)}
