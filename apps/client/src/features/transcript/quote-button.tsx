@@ -79,7 +79,11 @@ export function QuoteButton(props: {
       const forward =
         original.endContainer === selected.focusNode &&
         original.endOffset === selected.focusOffset
-      const target = pointer ?? edgeOf(lines, forward ? 'end' : 'start')
+      const edge = forward ? lines[lines.length - 1] : lines[0]
+      const target = pointer ?? {
+        x: forward ? edge.right : edge.left,
+        y: edge.top + edge.height / 2,
+      }
       const line = nearestLine(lines, target)
       const box = element.getBoundingClientRect()
       setQuote({
@@ -248,19 +252,6 @@ function textParts(range: Range) {
       ? []
       : [{ node, start, end }]
   })
-}
-
-function edgeOf(lines: DOMRect[], edge: 'start' | 'end') {
-  switch (edge) {
-    case 'start': {
-      const line = lines[0]
-      return { x: line.left, y: line.top + line.height / 2 }
-    }
-    case 'end': {
-      const line = lines[lines.length - 1]
-      return { x: line.right, y: line.top + line.height / 2 }
-    }
-  }
 }
 
 function nearestLine(lines: DOMRect[], point: { x: number; y: number }) {
