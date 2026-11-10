@@ -60,7 +60,7 @@ export function ComposerMenu(props: {
   return (
     <div
       ref={list}
-      className="composer-glass mx-auto -mb-[calc(1rem+1px)] max-h-72 w-[calc(100%-2.75rem)] overflow-y-auto rounded-t-2xl border border-b-0 border-(--composer-outline) p-1 pb-[calc(1rem+1px+0.25rem)]"
+      className="composer-glass mx-auto -mb-[calc(1rem+1px)] max-h-72 w-[calc(100%-2.75rem)] overflow-y-auto rounded-t-2xl border border-b-0 border-(--composer-outline) scroll-pt-1 scroll-pb-[calc(1rem+1px+0.25rem)] p-1 pb-[calc(1rem+1px+0.25rem)]"
     >
       {props.items.map((item, index) => (
         <button
