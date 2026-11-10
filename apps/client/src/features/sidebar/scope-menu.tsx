@@ -37,7 +37,6 @@ export function ScopeMenu(props: {
   onScope: (scope: { machine: string; projectId: string } | null) => void
   onEdit: (project: MachineProject) => void
   onAddProject: (machine: string) => void
-  shortcut: boolean
 }) {
   const scope = props.scope
   const project = useStore((state) =>
@@ -49,18 +48,10 @@ export function ScopeMenu(props: {
         )
   )
   const [picking, setPicking] = useState(false)
-  useHotkeys(
-    'mod+p',
-    () => {
-      if (props.shortcut) {
-        setPicking(!picking)
-      }
-    },
-    {
-      enableOnFormTags: true,
-      preventDefault: true,
-    }
-  )
+  useHotkeys('mod+p', () => setPicking(!picking), {
+    enableOnFormTags: true,
+    preventDefault: true,
+  })
 
   return (
     <DropdownMenu open={picking} onOpenChange={setPicking}>

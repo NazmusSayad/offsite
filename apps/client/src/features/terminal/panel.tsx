@@ -174,11 +174,6 @@ export function TerminalPanel(props: {
             tabs.length === 1 ? 'bg-background' : 'bg-sidebar'
           )}
         >
-          {props.leading && (
-            <div className="flex flex-none items-center border-b px-1.5">
-              {props.leading}
-            </div>
-          )}
           <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
             {tabs.map((tab) => (
               <TabMenu key={tab.id} tab={tab}>
