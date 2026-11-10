@@ -56,7 +56,7 @@ export type OptionAsMeta = 'off' | 'left' | 'right' | 'both'
 export type TerminalHandlers = {
   onData: (data: string) => void
   onReply: (data: string) => void
-  onResize: (cols: number, rows: number) => void
+  onResize: (cols: number, rows: number, width: number, height: number) => void
   onTitle: (title: string) => void
   onProgress: (progress: Progress) => void
   onBell: () => void
@@ -123,6 +123,8 @@ export class Terminal {
   readonly element: HTMLDivElement
   cols = 80
   rows = 24
+  pixelWidth = 0
+  pixelHeight = 0
   private readonly canvas: HTMLCanvasElement
   private readonly input: HTMLTextAreaElement
   private readonly context: CanvasRenderingContext2D
@@ -316,12 +318,20 @@ export class Terminal {
     }
     const cols = Math.max(1, Math.floor(width / this.metrics.width))
     const rows = Math.max(1, Math.floor(height / this.metrics.height))
-    if (cols !== this.cols || rows !== this.rows) {
+    const cell = this.core.cellSize()
+    if (
+      cols !== this.cols ||
+      rows !== this.rows ||
+      cols * cell.width !== this.pixelWidth ||
+      rows * cell.height !== this.pixelHeight
+    ) {
       this.cols = cols
       this.rows = rows
+      this.pixelWidth = cols * cell.width
+      this.pixelHeight = rows * cell.height
       this.resizeCore()
       this.forceFull = true
-      this.handlers.onResize(cols, rows)
+      this.handlers.onResize(cols, rows, this.pixelWidth, this.pixelHeight)
     }
     this.renderFrame()
   }

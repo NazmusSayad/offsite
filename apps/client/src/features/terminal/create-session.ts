@@ -49,7 +49,8 @@ export function createSession(id: number) {
         sendReply(id, data)
       }
     },
-    onResize: (cols, rows) => send({ type: 'resize', id, cols, rows }),
+    onResize: (cols, rows, width, height) =>
+      send({ type: 'resize', id, cols, rows, width, height }),
     onTitle: (title) =>
       setState({ titles: { ...getState().titles, [id]: title } }),
     onProgress: (progress) =>
