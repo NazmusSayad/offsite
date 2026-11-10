@@ -25,6 +25,7 @@ import { logger } from '@/lib/log'
 import { claimNotifications, notify, push } from '@/lib/notifications'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
+import { withBump } from '@/lib/sent-sessions'
 import { closeSession, loadSession, openSession } from '@/lib/sessions'
 import {
   createAppStore,
@@ -257,10 +258,10 @@ function setSessions(machine: string, sessions: Session[]) {
   )
   const next = [
     ...state.sessions.filter((item) => item.machine !== machine),
-    ...sessions.map((session) => ({ ...session, machine })),
+    ...sessions.map((session) => withBump({ ...session, machine })),
     ...(opened === undefined
       ? []
-      : [{ ...opened, status: 'inactive' as const }]),
+      : [withBump({ ...opened, status: 'inactive' as const })]),
   ]
   const inactiveVersion =
     sessions

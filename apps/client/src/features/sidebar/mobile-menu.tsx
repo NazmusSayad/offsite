@@ -70,6 +70,7 @@ export function MobileMenu(props: { buttonClassName: string }) {
           <DropdownMenuItem onSelect={() => showBookmarks(true)}>
             <HugeiconsIcon icon={Bookmark02Icon} />
             Bookmarks
+            <BookmarkCount />
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => showSettings(true)}>
             <HugeiconsIcon icon={Settings01Icon} />
@@ -116,6 +117,20 @@ export function MobileMenu(props: { buttonClassName: string }) {
         </PopoverContent>
       </Popover>
     </div>
+  )
+}
+
+function BookmarkCount() {
+  const total = useStore((state) =>
+    state.machines
+      .filter((machine) => machine.status === 'online')
+      .reduce((sum, machine) => sum + machine.bookmarks.length, 0)
+  )
+
+  return (
+    <span className="bg-foreground/5 text-muted-foreground ms-auto flex h-5 min-w-5 items-center justify-center rounded-[6px] px-1.25 text-[11px] font-medium tabular-nums">
+      {total}
+    </span>
   )
 }
 

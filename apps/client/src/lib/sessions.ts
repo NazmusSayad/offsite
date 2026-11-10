@@ -12,6 +12,7 @@ import {
   refreshSettings,
 } from './accounts'
 import { router } from './router'
+import { bumpSession } from './sent-sessions'
 import {
   draftKey,
   getState,
@@ -206,6 +207,7 @@ export async function sendPrompt(
     void Notification.requestPermission()
   }
   update({ sentAt: Date.now() })
+  const revert = bumpSession(selection, status)
   const name = getState().worktree?.trim()
   try {
     await call(selection.machine, 'sessions.send', {
@@ -221,6 +223,9 @@ export async function sendPrompt(
           ? null
           : { name: name === '' ? null : name },
     })
+  } catch (error) {
+    revert()
+    throw error
   } finally {
     update({ worktreeStage: null })
   }
