@@ -120,7 +120,7 @@ export function restoreMachine(machine: StoredMachine): Machine {
     terminals: [],
     bookmarks: [],
     bookmarkList: null,
-    starting: [],
+    unsent: [],
   }
 }
 

@@ -1,36 +1,28 @@
 import type { PromptDelivery } from '@offsite/core/config'
-import type { Prompt, StartingPrompt, UnsentPrompt } from '@offsite/core/items'
+import type { Prompt, UnsentPrompt } from '@offsite/core/items'
 import type { UserItem } from '@/features/transcript/timeline'
 import {
   activityOf,
   getState,
   type PendingPrompt,
   type Selection,
+  setMachine,
   type State,
-  subscribe,
   update,
 } from './store'
 
 const PREFIX = 'unsent:'
-const none: StartingPrompt[] = []
+const none: UnsentPrompt[] = []
 
-export function watchPending() {
-  subscribe(() => {
-    const state = getState()
-    if (state.pending.length === 0) {
-      return
-    }
-    const saved = new Set([
-      ...state.queue.map((item) => item.id),
-      ...state.machines.flatMap((machine) =>
-        machine.starting.map((item) => item.id)
-      ),
-    ])
-    const pending = state.pending.filter((item) => !saved.has(item.id))
-    if (pending.length !== state.pending.length) {
-      update({ pending })
-    }
-  })
+export function receiveUnsent(machine: string, unsent: UnsentPrompt[]) {
+  setMachine(machine, { unsent })
+  const pending = getState().pending
+  const left = pending.filter(
+    (item) => !unsent.some((saved) => saved.id === item.id)
+  )
+  if (left.length !== pending.length) {
+    update({ pending: left })
+  }
 }
 
 export function addPending(
@@ -49,10 +41,12 @@ export function addPending(
         projectId: selection.projectId,
         sessionId: selection.sessionId,
         prompt,
-        queued:
+        status:
           delivery === 'queue' &&
           activityOf(state.machines, selection.machine, selection.sessionId)
-            ?.running === true,
+            ?.running === true
+            ? 'queued'
+            : 'sending',
       },
     ],
   })
@@ -65,42 +59,25 @@ export function takePending(id: string) {
   return pending.find((item) => item.id === id)
 }
 
-export function threadPrompts(
-  queue: UnsentPrompt[],
-  starting: StartingPrompt[],
-  pending: PendingPrompt[],
-  selection: Selection | null
-): UnsentPrompt[] {
+export function selectedUnsent(state: State) {
+  return (
+    state.machines.find((machine) => machine.id === state.selection?.machine)
+      ?.unsent ?? none
+  )
+}
+
+export function selectedPrompts(state: State): UnsentPrompt[] {
+  const selection = state.selection
   if (selection === null) {
     return []
   }
   return [
-    ...(selection.sessionId === null
-      ? starting.filter((item) => item.projectId === selection.projectId)
-      : queue),
-    ...pending
-      .filter((item) => inThread(item, selection))
-      .map((item) => ({
-        id: item.id,
-        prompt: item.prompt,
-        status: item.queued ? ('queued' as const) : ('sending' as const),
-      })),
-  ]
-}
-
-export function selectedPrompts(state: State) {
-  return threadPrompts(
-    state.queue,
-    selectedStarting(state),
-    state.pending,
-    state.selection
-  )
-}
-
-export function selectedStarting(state: State) {
-  return (
-    state.machines.find((machine) => machine.id === state.selection?.machine)
-      ?.starting ?? none
+    ...(state.loaded ? selectedUnsent(state) : []),
+    ...state.pending.filter((item) => item.machine === selection.machine),
+  ].filter(
+    (item) =>
+      item.sessionId === selection.sessionId &&
+      (item.sessionId !== null || item.projectId === selection.projectId)
   )
 }
 
@@ -120,12 +97,4 @@ export function unsentItems(prompts: UnsentPrompt[]) {
 
 export function unsentId(item: UserItem) {
   return item.id.startsWith(PREFIX) ? item.id.slice(PREFIX.length) : null
-}
-
-function inThread(pending: PendingPrompt, selection: Selection) {
-  return (
-    pending.machine === selection.machine &&
-    pending.sessionId === selection.sessionId &&
-    (pending.sessionId !== null || pending.projectId === selection.projectId)
-  )
 }

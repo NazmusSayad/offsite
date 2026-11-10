@@ -46,7 +46,6 @@ export function openSession(
     before: null,
     partial: '',
     requests: [],
-    queue: [],
     settings:
       selection.sessionId === null
         ? previous?.sessionId === null && previous.machine === selection.machine
@@ -115,7 +114,6 @@ export function closeSession() {
     before: null,
     partial: '',
     requests: [],
-    queue: [],
     context: null,
   })
   syncUrl()

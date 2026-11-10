@@ -11,7 +11,6 @@ import { loadDrafts } from '@/features/composer/drafts'
 import { startTerminal } from '@/features/terminal/session'
 import { logger, startLogging } from '@/lib/log'
 import { refreshPushSubscription } from '@/lib/notifications'
-import { watchPending } from '@/lib/pending'
 import { router } from '@/lib/router'
 import { openSession } from '@/lib/sessions'
 
@@ -74,7 +73,6 @@ listen({
   },
 })
 start()
-watchPending()
 void startTerminal()
 router.routeTree.update({ component: App })
 createRoot(root).render(

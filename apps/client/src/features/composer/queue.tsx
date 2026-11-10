@@ -6,19 +6,17 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useState } from 'react'
+import { useShallow } from 'zustand/shallow'
 import { Button } from '@/components/ui/button'
 import { timeLeft } from '@/lib/format'
-import { selectedStarting, threadPrompts } from '@/lib/pending'
+import { selectedPrompts, selectedUnsent } from '@/lib/pending'
 import { steer, unqueue } from '@/lib/sessions'
 import { selectedRunning, useStore } from '@/lib/store'
 import { useSelectedUsage } from '@/lib/usage'
 
 export function QueuedMessages() {
-  const queue = useStore((state) => state.queue)
-  const starting = useStore(selectedStarting)
-  const pending = useStore((state) => state.pending)
-  const selection = useStore((state) => state.selection)
-  const rows = threadPrompts(queue, starting, pending, selection).filter(
+  const unsent = useStore(selectedUnsent)
+  const rows = useStore(useShallow(selectedPrompts)).filter(
     (item) => item.status === 'queued'
   )
 
@@ -42,7 +40,7 @@ export function QueuedMessages() {
               ? `${item.prompt.images.length} image(s)`
               : item.prompt.text}
           </span>
-          {queue.some((saved) => saved.id === item.id) && (
+          {unsent.some((saved) => saved.id === item.id) && (
             <>
               <Button
                 variant="ghost-muted"

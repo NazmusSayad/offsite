@@ -17,7 +17,6 @@ import type {
   Item,
   PermissionRequest,
   Prompt,
-  StartingPrompt,
   UnsentPrompt,
 } from '@offsite/core/items'
 import type { Project } from '@offsite/core/projects'
@@ -50,11 +49,7 @@ export type Selection = {
   sessionId: string | null
 }
 
-export type PendingPrompt = Selection & {
-  id: string
-  prompt: Prompt
-  queued: boolean
-}
+export type PendingPrompt = UnsentPrompt & { machine: string }
 
 export type SettingsPage =
   | 'General'
@@ -102,7 +97,7 @@ export type Machine = {
   terminals: TerminalTab[]
   bookmarks: BookmarkRef[]
   bookmarkList: Bookmark[] | null
-  starting: StartingPrompt[]
+  unsent: UnsentPrompt[]
 }
 
 export type MachineProject = Project & { machine: string }
@@ -139,7 +134,6 @@ export type State = {
   before: number | null
   partial: string
   requests: PermissionRequest[]
-  queue: UnsentPrompt[]
   pending: PendingPrompt[]
   settings: SessionSettings
   draft: Prompt | null

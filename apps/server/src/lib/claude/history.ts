@@ -8,7 +8,6 @@ import {
 } from '@anthropic-ai/claude-agent-sdk'
 import type { Item } from '@offsite/core/items'
 import type { ServerEvent } from '@offsite/core/protocol'
-import { unsentFor } from '../../services/unsent.ts'
 import { claudeBaseDir } from '../../storage/config.ts'
 import { runs } from '../live.ts'
 import { contextTokens, type Message, toMessage } from './content.ts'
@@ -243,7 +242,6 @@ export async function history(
       ...live.slice(compacted + 1).filter((item) => !seen.has(item.uuid)),
     ]),
     requests: [...(run?.pending.values() ?? [])].map((item) => item.request),
-    queue: unsentFor(sessionId),
     settings: run?.settings ?? null,
     context:
       run?.context ?? (tokens === null ? null : { tokens, window: null }),

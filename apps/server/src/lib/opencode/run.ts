@@ -16,10 +16,9 @@ import type {
 } from '@opencode/client'
 import {
   failQueued,
+  queuedFor,
   Handover,
-  nextQueued,
   setUnsentStatus,
-  unsentFor,
 } from '../../services/unsent.ts'
 import { errorItem } from '../codex/index.ts'
 import { publish } from '../hub.ts'
@@ -137,9 +136,7 @@ export class OpenCodeRun {
   }
 
   steer(id: string) {
-    const item = unsentFor(this.sessionId).find(
-      (queued) => queued.id === id && queued.status === 'queued'
-    )
+    const item = queuedFor(this.sessionId).find((queued) => queued.id === id)
     if (item === undefined) {
       return
     }
@@ -421,7 +418,7 @@ export class OpenCodeRun {
     this.partial = ''
     this.compacting = false
     this.handover.confirmAll()
-    const next = nextQueued(this.sessionId)
+    const next = queuedFor(this.sessionId).at(0)
     if (next !== undefined) {
       this.handover
         .hand(next.id, () => this.startTurn(next.prompt))

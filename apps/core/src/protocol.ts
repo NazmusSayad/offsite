@@ -25,7 +25,6 @@ import type {
   Item,
   PermissionRequest,
   Prompt,
-  StartingPrompt,
   UnsentPrompt,
 } from './items.ts'
 import type {
@@ -70,7 +69,7 @@ export type SyncSnapshot = ConfigWithDefaults & {
   hostname: string
   projects: Project[]
   sessions: Session[]
-  starting: StartingPrompt[]
+  unsent: UnsentPrompt[]
   providers: ProviderStatus[]
   activity: Record<string, SessionActivity>
   terminals: TerminalTab[]
@@ -397,7 +396,6 @@ export type ServerEvent =
       provider: Provider
       items: Item[]
       requests: PermissionRequest[]
-      queue: UnsentPrompt[]
       settings: SessionSettings | null
       context: ContextUsage | null
       before: number | null
@@ -407,8 +405,7 @@ export type ServerEvent =
   | { type: 'delta'; sessionId: string; text: string }
   | { type: 'request'; sessionId: string; request: PermissionRequest }
   | { type: 'requestDone'; sessionId: string; requestId: string }
-  | { type: 'queue'; sessionId: string; queue: UnsentPrompt[] }
-  | { type: 'starting'; starting: StartingPrompt[] }
+  | { type: 'unsent'; unsent: UnsentPrompt[] }
   | { type: 'settings'; sessionId: string; settings: SessionSettings }
   | { type: 'context'; sessionId: string; context: ContextUsage | null }
   | { type: 'notification'; sessionId: string; message: string }

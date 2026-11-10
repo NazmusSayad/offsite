@@ -1,11 +1,9 @@
 import type { UnsentPrompt } from '@offsite/core/items'
 import type { RpcMethods } from '@offsite/core/protocol'
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
-import { broadcast, publish } from '../lib/hub.ts'
+import { and, asc, eq, inArray } from 'drizzle-orm'
+import { broadcast } from '../lib/hub.ts'
 import { db } from '../storage/db.ts'
 import { unsentPrompts } from '../storage/schema.ts'
-
-type Row = typeof unsentPrompts.$inferSelect
 
 export function saveUnsent(request: RpcMethods['sessions.send']['params']) {
   db.insert(unsentPrompts)
@@ -22,35 +20,32 @@ export function saveUnsent(request: RpcMethods['sessions.send']['params']) {
       set: { status: 'sending' },
     })
     .run()
-  publishUnsent(request.sessionId)
+  broadcastUnsent()
 }
 
 export function findUnsent(id: string) {
   return db.select().from(unsentPrompts).where(eq(unsentPrompts.id, id)).get()
 }
 
-export function unsentFor(sessionId: string) {
+export function allUnsent(): UnsentPrompt[] {
   return db
     .select()
     .from(unsentPrompts)
-    .where(eq(unsentPrompts.sessionId, sessionId))
     .orderBy(asc(unsentPrompts.createdAt))
     .all()
-    .map(toPrompt)
+    .map((row) => ({
+      id: row.id,
+      sessionId: row.sessionId,
+      projectId: row.projectId,
+      prompt: row.request.prompt,
+      status: row.status,
+    }))
 }
 
-export function startingPrompts() {
-  return db
-    .select()
-    .from(unsentPrompts)
-    .where(isNull(unsentPrompts.sessionId))
-    .orderBy(asc(unsentPrompts.createdAt))
-    .all()
-    .map((row) => ({ ...toPrompt(row), projectId: row.projectId }))
-}
-
-export function nextQueued(sessionId: string) {
-  return unsentFor(sessionId).find((item) => item.status === 'queued')
+export function queuedFor(sessionId: string) {
+  return allUnsent().filter(
+    (item) => item.sessionId === sessionId && item.status === 'queued'
+  )
 }
 
 export function moveUnsent(id: string, sessionId: string, projectId: string) {
@@ -58,30 +53,22 @@ export function moveUnsent(id: string, sessionId: string, projectId: string) {
     .set({ sessionId, projectId })
     .where(eq(unsentPrompts.id, id))
     .run()
-  publishUnsent(null)
-  publishUnsent(sessionId)
+  broadcastUnsent()
 }
 
-export function setUnsentStatus(id: string, status: Row['status']) {
-  const row = findUnsent(id)
-  if (row === undefined) {
-    return
-  }
+export function setUnsentStatus(id: string, status: UnsentPrompt['status']) {
   db.update(unsentPrompts).set({ status }).where(eq(unsentPrompts.id, id)).run()
-  publishUnsent(row.sessionId)
+  broadcastUnsent()
 }
 
 export function removeUnsent(id: string) {
-  const row = findUnsent(id)
-  if (row === undefined) {
-    return
-  }
   db.delete(unsentPrompts).where(eq(unsentPrompts.id, id)).run()
-  publishUnsent(row.sessionId)
+  broadcastUnsent()
 }
 
 export function removeSessionUnsent(sessionId: string) {
   db.delete(unsentPrompts).where(eq(unsentPrompts.sessionId, sessionId)).run()
+  broadcastUnsent()
 }
 
 export function failQueued(sessionId: string) {
@@ -94,7 +81,7 @@ export function failQueued(sessionId: string) {
       )
     )
     .run()
-  publishUnsent(sessionId)
+  broadcastUnsent()
 }
 
 export function failInterrupted() {
@@ -128,18 +115,6 @@ export class Handover {
   }
 }
 
-function toPrompt(row: Row): UnsentPrompt {
-  return { id: row.id, prompt: row.request.prompt, status: row.status }
-}
-
-function publishUnsent(sessionId: string | null) {
-  if (sessionId === null) {
-    broadcast({ type: 'starting', starting: startingPrompts() })
-    return
-  }
-  publish(sessionId, {
-    type: 'queue',
-    sessionId,
-    queue: unsentFor(sessionId),
-  })
+function broadcastUnsent() {
+  broadcast({ type: 'unsent', unsent: allUnsent() })
 }

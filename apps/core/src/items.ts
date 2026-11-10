@@ -4,11 +4,11 @@ export type Prompt = { text: string; images: ImageAttachment[] }
 
 export type UnsentPrompt = {
   id: string
+  sessionId: string | null
+  projectId: string
   prompt: Prompt
   status: 'sending' | 'queued' | 'failed'
 }
-
-export type StartingPrompt = UnsentPrompt & { projectId: string }
 
 export type ItemStatus = 'running' | 'completed' | 'failed' | 'stopped'
 

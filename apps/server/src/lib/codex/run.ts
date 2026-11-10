@@ -5,10 +5,9 @@ import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
 import { storedAccount } from '../../services/accounts.ts'
 import {
   failQueued,
+  queuedFor,
   Handover,
-  nextQueued,
   setUnsentStatus,
-  unsentFor,
 } from '../../services/unsent.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
@@ -143,9 +142,7 @@ export class CodexRun implements ThreadListener {
   }
 
   steer(id: string) {
-    const item = unsentFor(this.sessionId).find(
-      (queued) => queued.id === id && queued.status === 'queued'
-    )
+    const item = queuedFor(this.sessionId).find((queued) => queued.id === id)
     if (item === undefined) {
       return
     }
@@ -434,7 +431,7 @@ export class CodexRun implements ThreadListener {
     this.compacting = false
     this.turnId = null
     this.handover.confirmAll()
-    const next = nextQueued(this.sessionId)
+    const next = queuedFor(this.sessionId).at(0)
     if (next !== undefined) {
       this.handover
         .hand(next.id, () => this.startTurn(next.prompt))

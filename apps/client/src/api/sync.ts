@@ -23,6 +23,7 @@ import {
 import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
 import { claimNotifications, notify, push } from '@/lib/notifications'
+import { receiveUnsent } from '@/lib/pending'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
 import { withBump } from '@/lib/sent-sessions'
@@ -97,7 +98,6 @@ export function start() {
     before: null,
     partial: '',
     requests: [],
-    queue: [],
     pending: [],
     settings: (selection === null || selection.sessionId === null
       ? null
@@ -212,12 +212,12 @@ async function resync(machine: string) {
       activity: snapshot.activity,
       providers: snapshot.providers,
       terminals: snapshot.terminals,
-      starting: snapshot.starting,
       appIcon: snapshot.appIcon,
       lastMessageAtByAccount: snapshot.lastSent,
       lastPickedEffortByModel: snapshot.lastEfforts,
     })
     receiveBookmarks(machine, snapshot.bookmarks)
+    receiveUnsent(machine, snapshot.unsent)
     setProjects(machine, snapshot.projects)
     setSessions(machine, snapshot.sessions)
     receiveConfig(machine, snapshot.config)
@@ -380,8 +380,8 @@ function receive(machine: string, event: ServerEvent) {
     case 'worktreeStage':
       update({ worktreeStage: event.stage })
       return
-    case 'starting':
-      setMachine(machine, { starting: event.starting })
+    case 'unsent':
+      receiveUnsent(machine, event.unsent)
       return
     case 'started': {
       if (
@@ -409,7 +409,6 @@ function receive(machine: string, event: ServerEvent) {
         before: null,
         partial: '',
         requests: [],
-        queue: [],
       })
       syncUrl(true)
       return
@@ -442,7 +441,6 @@ function receive(machine: string, event: ServerEvent) {
         earlier: [],
         before: event.before,
         requests: event.requests,
-        queue: event.queue,
         settings:
           event.settings ??
           (state.settings.provider === event.provider
@@ -482,9 +480,6 @@ function receive(machine: string, event: ServerEvent) {
       update({
         requests: state.requests.filter((item) => item.id !== event.requestId),
       })
-      return
-    case 'queue':
-      update({ queue: event.queue })
       return
     case 'settings': {
       const settings = {

@@ -12,7 +12,7 @@ import { readBookmarks } from './bookmarks.ts'
 import { projects } from './projects.ts'
 import { providerStatuses, refreshAll, sessions } from './sessions.ts'
 import { terminalTabs } from './terminal/terminal.ts'
-import { startingPrompts } from './unsent.ts'
+import { allUnsent } from './unsent.ts'
 
 export function syncSnapshot(): SyncSnapshot {
   refreshAll()
@@ -24,7 +24,7 @@ export function syncSnapshot(): SyncSnapshot {
     hostname: os.hostname(),
     projects: projects(),
     sessions: sessions(),
-    starting: startingPrompts(),
+    unsent: allUnsent(),
     providers: providerStatuses(),
     activity: activity(),
     terminals: terminalTabs(),

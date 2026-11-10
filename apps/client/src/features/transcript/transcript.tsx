@@ -15,6 +15,7 @@ import {
   useState,
 } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { useShallow } from 'zustand/shallow'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -39,7 +40,7 @@ import {
   UserMessage,
 } from '@/features/transcript/user-message'
 import { clock, fullTime } from '@/lib/format'
-import { selectedStarting, threadPrompts, unsentItems } from '@/lib/pending'
+import { selectedPrompts, unsentItems } from '@/lib/pending'
 import { loadEarlier } from '@/lib/sessions'
 import {
   projectOf,
@@ -59,9 +60,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   const before = useStore((state) => state.before)
   const partial = useStore((state) => state.partial)
   const requests = useStore((state) => state.requests)
-  const pending = useStore((state) => state.pending)
-  const queue = useStore((state) => state.queue)
-  const starting = useStore(selectedStarting)
+  const prompts = useStore(useShallow(selectedPrompts))
   const activity = useStore(selectedActivity)
   const scroller = useRef<HTMLDivElement>(null)
   const content = useRef<HTMLDivElement>(null)
@@ -119,12 +118,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   const rows = [
     ...olderRows,
     ...mainRows(
-      loaded
-        ? [
-            ...items,
-            ...unsentItems(threadPrompts(queue, starting, pending, selection)),
-          ]
-        : items,
+      loaded ? [...items, ...unsentItems(prompts)] : items,
       running,
       partial
     ),

@@ -12,10 +12,9 @@ import type { PermissionRequest, Prompt } from '@offsite/core/items'
 import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
 import {
   failQueued,
-  nextQueued,
+  queuedFor,
   removeUnsent,
   setUnsentStatus,
-  unsentFor,
 } from '../../services/unsent.ts'
 import { cachedUsage, recordLimits } from '../../services/usage.ts'
 import { publish } from '../hub.ts'
@@ -123,9 +122,7 @@ export class Run {
   }
 
   steer(id: string) {
-    const item = unsentFor(this.sessionId).find(
-      (queued) => queued.id === id && queued.status === 'queued'
-    )
+    const item = queuedFor(this.sessionId).find((queued) => queued.id === id)
     if (item === undefined) {
       return
     }
@@ -409,7 +406,7 @@ export class Run {
   private finishTurn() {
     this.partial = ''
     this.compacting = false
-    const next = nextQueued(this.sessionId)
+    const next = queuedFor(this.sessionId).at(0)
     if (next !== undefined) {
       this.push(next.prompt)
       removeUnsent(next.id)
