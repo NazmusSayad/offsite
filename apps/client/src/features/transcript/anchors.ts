@@ -1,5 +1,20 @@
-import { isPlain, plainText } from '@offsite/core/bookmarks'
 import { diffChars } from 'diff'
+
+function isPlain(char: string) {
+  return !/[\s*_`#>~|\\[\]()-]/.test(char)
+}
+
+function plainText(text: string) {
+  let plain = ''
+  const offsets: number[] = []
+  for (let index = 0; index < text.length; index++) {
+    if (isPlain(text[index])) {
+      plain += text[index]
+      offsets.push(index)
+    }
+  }
+  return { plain, offsets }
+}
 
 function renderedText(root: Element) {
   let plain = ''
@@ -36,8 +51,9 @@ function align(from: string, to: string) {
 }
 
 export function sourceRange(root: Element, source: string, range: Range) {
+  const plain = plainText(source)
   const rendered = renderedText(root)
-  const map = align(rendered.plain, plainText(source).plain)
+  const map = align(rendered.plain, plain.plain)
   const mapped = rendered.places.flatMap((place, index) => {
     const target = map[index]
     return range.comparePoint(place.node, place.offset) === 0 &&
@@ -51,8 +67,7 @@ export function sourceRange(root: Element, source: string, range: Range) {
   if (first === undefined || last === undefined) {
     return null
   }
-  const offsets = plainText(source).offsets
-  return { start: offsets[first], end: offsets[last] + 1 }
+  return { start: plain.offsets[first], end: plain.offsets[last] + 1 }
 }
 
 export function renderedRange(

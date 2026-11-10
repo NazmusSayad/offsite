@@ -18,8 +18,7 @@ export async function sendDraft(
   delivery: PromptDelivery,
   status: 'active' | 'snoozed' | null
 ) {
-  const state = getState()
-  const selection = state.selection
+  const selection = getState().selection
   if (selection === null) {
     throw new Error('no session selected')
   }
