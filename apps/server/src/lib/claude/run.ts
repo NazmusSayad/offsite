@@ -68,6 +68,7 @@ export class Run {
   failed = false
   tasks: Record<string, TaskStatus> = {}
   private readonly inbox: SDKUserMessage[] = []
+  private readonly steering = new Map<string, { id: string; prompt: Prompt }>()
   private wake: (() => void) | null = null
   private idleTimer: NodeJS.Timeout | undefined
   private stopping = false
@@ -103,15 +104,19 @@ export class Run {
 
   submit(id: string, prompt: Prompt, delivery: 'queue' | 'steer') {
     if (!this.running) {
-      this.push(prompt, undefined)
+      this.push(prompt)
       removeUnsent(id)
       return
     }
     switch (delivery) {
-      case 'steer':
-        this.push(prompt, 'next')
-        removeUnsent(id)
+      case 'steer': {
+        const uuid = randomUUID()
+        this.inbox.push(toUserInput(prompt, uuid, 'next'))
+        this.wake?.()
+        this.steering.set(uuid, { id, prompt })
+        setUnsentStatus(id, 'sending')
         return
+      }
       case 'queue':
         setUnsentStatus(id, 'queued')
     }
@@ -176,10 +181,10 @@ export class Run {
     this.query.close()
   }
 
-  private push(prompt: Prompt, priority: 'next' | undefined) {
+  private push(prompt: Prompt) {
     clearTimeout(this.idleTimer)
     const uuid = randomUUID()
-    this.inbox.push(toUserInput(prompt, uuid, priority))
+    this.inbox.push(toUserInput(prompt, uuid, undefined))
     this.wake?.()
     this.add(promptMessage(prompt, uuid))
     this.running = true
@@ -227,6 +232,9 @@ export class Run {
       runs.delete(this.sessionId)
     }
     this.running = false
+    for (const steered of this.steering.values()) {
+      setUnsentStatus(steered.id, 'failed')
+    }
     failQueued(this.sessionId)
     broadcastActivity()
   }
@@ -252,7 +260,17 @@ export class Run {
         }
         return
       }
-      case 'user':
+      case 'user': {
+        if ('isReplay' in message) {
+          const steered = this.steering.get(message.uuid)
+          if (steered === undefined) {
+            return
+          }
+          this.steering.delete(message.uuid)
+          this.add(promptMessage(steered.prompt, message.uuid))
+          removeUnsent(steered.id)
+          return
+        }
         if (message.isSynthetic) {
           return
         }
@@ -264,6 +282,7 @@ export class Run {
           )
         )
         return
+      }
       case 'stream_event':
         if (
           message.parent_tool_use_id === null &&
@@ -392,7 +411,7 @@ export class Run {
     this.compacting = false
     const next = nextQueued(this.sessionId)
     if (next !== undefined) {
-      this.push(next.prompt, undefined)
+      this.push(next.prompt)
       removeUnsent(next.id)
       return
     }

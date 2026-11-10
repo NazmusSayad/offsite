@@ -176,6 +176,7 @@ export function runOptions(options: {
     allowDangerouslySkipPermissions: true,
     includePartialMessages: true,
     perTaskStopAffordance: true,
+    extraArgs: { 'replay-user-messages': null },
   }
 }
 
