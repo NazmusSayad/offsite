@@ -100,13 +100,10 @@ function BookmarkList() {
   return (
     <ul className="max-h-[70dvh] divide-y overflow-y-auto border-t">
       {entries.map(({ machine, bookmark }) => (
-        <li
-          key={bookmark.id}
-          className="hover:bg-accent/50 flex items-center gap-3 px-5 py-3"
-        >
+        <li key={bookmark.id} className="hover:bg-accent/50 relative">
           <button
             type="button"
-            className="flex min-w-0 flex-1 items-start gap-3 text-left disabled:opacity-60"
+            className="flex w-full min-w-0 items-start gap-3 py-3 ps-5 pe-14 text-left disabled:opacity-60"
             disabled={bookmark.session === null}
             onClick={() => openBookmark(machine, bookmark)}
           >
@@ -155,11 +152,12 @@ function BookmarkList() {
               </span>
             </span>
           </button>
-          <div className="flex shrink-0 flex-col items-center gap-0.5">
+          <div className="pointer-events-none absolute top-1/2 right-3 flex -translate-y-1/2 flex-col items-center justify-center gap-0.5">
             <Button
               type="button"
               size="icon-xs"
               variant="ghost-muted"
+              className="pointer-events-auto"
               aria-label="Remove bookmark"
               onClick={() =>
                 void call(machine, 'bookmarks.remove', {
@@ -169,7 +167,7 @@ function BookmarkList() {
             >
               <HugeiconsIcon icon={BookmarkRemove02Icon} className="size-5" />
             </Button>
-            <span className="text-muted-foreground text-2xs tabular-nums">
+            <span className="text-muted-foreground text-2xs flex w-0 justify-center text-center! text-nowrap tabular-nums">
               {timeAgo(bookmark.createdAt)}
             </span>
           </div>
