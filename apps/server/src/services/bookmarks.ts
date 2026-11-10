@@ -28,6 +28,18 @@ export function addBookmark(value: unknown) {
   if (!result.success) {
     throw new Error(z.prettifyError(result.error))
   }
+  const target = result.data
+  if (
+    readBookmarks().some(
+      (bookmark) =>
+        bookmark.sessionId === target.sessionId &&
+        bookmark.itemId === target.itemId &&
+        bookmark.start === target.start &&
+        bookmark.end === target.end
+    )
+  ) {
+    return null
+  }
   db.insert(bookmarksTable)
     .values({ ...result.data, id: randomUUID(), createdAt: Date.now() })
     .run()

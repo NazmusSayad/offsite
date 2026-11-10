@@ -123,10 +123,10 @@ function BookmarkList() {
                 </span>
               )}
               {bookmark.message !== null && (
-                <span className="line-clamp-3 text-sm [overflow-wrap:anywhere] whitespace-pre-wrap">
+                <span className="line-clamp-3 text-sm [overflow-wrap:anywhere]">
                   {bookmark.start === null
-                    ? bookmark.message.text.replace(/\*\*|__|`/g, '')
-                    : `“${bookmark.message.text.replace(/\*\*|__|`/g, '')}”`}
+                    ? previewText(bookmark.message.text)
+                    : `“${previewText(bookmark.message.text)}”`}
                 </span>
               )}
               <span className="text-muted-foreground flex min-w-0 gap-1.5 text-xs">
@@ -149,26 +149,28 @@ function BookmarkList() {
                     )?.name ?? ''}
                   </span>
                 )}
-                <span className="shrink-0 tabular-nums">
-                  · {timeAgo(bookmark.createdAt)}
-                </span>
               </span>
             </span>
           </button>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost-muted"
-            className="absolute top-1/2 right-3 -translate-y-1/2"
-            aria-label="Remove bookmark"
-            onClick={() =>
-              void call(machine, 'bookmarks.remove', { id: bookmark.id }).catch(
-                showError
-              )
-            }
-          >
-            <HugeiconsIcon icon={BookmarkRemove02Icon} className="size-5" />
-          </Button>
+          <div className="pointer-events-none absolute top-1/2 right-3 flex -translate-y-1/2 flex-col items-center">
+            <Button
+              type="button"
+              size="icon-xs"
+              variant="ghost-muted"
+              className="pointer-events-auto"
+              aria-label="Remove bookmark"
+              onClick={() =>
+                void call(machine, 'bookmarks.remove', {
+                  id: bookmark.id,
+                }).catch(showError)
+              }
+            >
+              <HugeiconsIcon icon={BookmarkRemove02Icon} className="size-5" />
+            </Button>
+            <span className="text-muted-foreground text-2xs tabular-nums">
+              {timeAgo(bookmark.createdAt)}
+            </span>
+          </div>
         </li>
       ))}
     </ul>
@@ -191,4 +193,11 @@ function bookmarkIcon(bookmark: Bookmark) {
     case 'assistant':
       return Robot01Icon
   }
+}
+
+function previewText(text: string) {
+  return text
+    .replace(/\*\*|__|`/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
