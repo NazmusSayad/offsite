@@ -46,7 +46,7 @@ export function MobileMenu(props: { buttonClassName: string }) {
   )
 
   return (
-    <div className="mr-1.5 flex items-center gap-0.75">
+    <div className="flex items-center gap-0.75">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -77,6 +77,7 @@ export function MobileMenu(props: { buttonClassName: string }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
       <Popover open={terminalsOpen} onOpenChange={setTerminalsOpen}>
         <ContextMenu onOpenChange={(open) => open && setTerminalsOpen(false)}>
           <ContextMenuTrigger asChild disabled={online.length === 0}>
