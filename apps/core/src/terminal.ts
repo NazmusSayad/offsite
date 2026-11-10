@@ -19,7 +19,14 @@ export type TerminalRequest =
   | { type: 'renameTab'; id: number; name: string }
   | { type: 'assignTab'; id: number; projectId: string | null }
   | { type: 'select'; view: string; tabId: number }
-  | { type: 'resize'; id: number; cols: number; rows: number }
+  | {
+      type: 'resize'
+      id: number
+      cols: number
+      rows: number
+      width: number
+      height: number
+    }
 
 export type TerminalEvent =
   | { type: 'active'; layout: TerminalLayout; instance: string }

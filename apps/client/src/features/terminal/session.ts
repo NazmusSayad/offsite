@@ -467,7 +467,14 @@ export function isFindShortcut(event: KeyboardEvent) {
 }
 
 function reportSize(id: number, terminal: Terminal) {
-  send({ type: 'resize', id, cols: terminal.cols, rows: terminal.rows })
+  send({
+    type: 'resize',
+    id,
+    cols: terminal.cols,
+    rows: terminal.rows,
+    width: terminal.pixelWidth,
+    height: terminal.pixelHeight,
+  })
 }
 
 export function getSession(id: number) {

@@ -27,7 +27,10 @@ const log = logger.withTag('terminal')
 
 type Connection = {
   client: Client
-  sizes: Map<number, { cols: number; rows: number }>
+  sizes: Map<
+    number,
+    { cols: number; rows: number; width: number; height: number }
+  >
 }
 
 type Terminal = {
@@ -151,9 +154,14 @@ function resize(
   connection.sizes.set(message.id, {
     cols: message.cols,
     rows: message.rows,
+    width: message.width,
+    height: message.height,
   })
   terminal.owner = connection
-  terminal.pty.resize(message.cols, message.rows)
+  terminal.pty.resize(message.cols, message.rows, {
+    width: message.width,
+    height: message.height,
+  })
 }
 
 async function request(
@@ -223,7 +231,10 @@ function input(connection: Connection, bytes: Buffer) {
     const size = connection.sizes.get(frame.id)
     if (terminal.owner !== connection && size !== undefined) {
       terminal.owner = connection
-      terminal.pty.resize(size.cols, size.rows)
+      terminal.pty.resize(size.cols, size.rows, {
+        width: size.width,
+        height: size.height,
+      })
     }
   } else {
     log.warn(`ignoring terminal input of unknown kind ${frame.kind}`)
