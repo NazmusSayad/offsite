@@ -237,11 +237,23 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
         <li className={cn('mx-0.5 h-8 shrink-0', options.first && 'mt-auto')}>
           <button
             aria-expanded={options.open}
-            className="text-sidebar-muted-foreground/60 flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs font-medium"
+            className={cn(
+              'flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-2 text-left text-xs',
+              options.open
+                ? 'text-sidebar-foreground font-semibold'
+                : 'text-sidebar-muted-foreground/60 font-medium'
+            )}
             onClick={options.onToggle}
           >
             <span className="shrink-0">{options.label}</span>
-            <span className="bg-sidebar-border/60 h-px min-w-2 flex-1" />
+            <span
+              className={cn(
+                'h-px min-w-2 flex-1',
+                options.open
+                  ? 'bg-sidebar-foreground/25'
+                  : 'bg-sidebar-border/60'
+              )}
+            />
             <HugeiconsIcon
               icon={ChevronDownIcon}
               className={cn(
