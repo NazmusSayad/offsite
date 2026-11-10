@@ -79,7 +79,9 @@ function MobileSessionItemView(props: {
     'running'
   )
   const working =
-    !waiting && (props.activity?.running === true || backgroundRunning)
+    !waiting &&
+    (props.activity?.running === true ||
+      props.activity?.holdsCompletion === true)
   const busy = props.activity?.running === true || backgroundRunning
   const done = !waiting && !working && props.unseen
   const recede = !props.selected && !waiting && !done
@@ -316,11 +318,7 @@ function MobileSessionItemView(props: {
                   )}
                 />
                 {titleText}
-                <SessionStatus
-                  activity={props.activity}
-                  backgroundRunning={backgroundRunning}
-                  done={done}
-                />
+                <SessionStatus activity={props.activity} done={done} />
               </div>
               <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
                 <MachineLogo

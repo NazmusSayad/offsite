@@ -44,7 +44,7 @@ export function StatusChips(props: {
       unseen.includes(machineKey(session.machine, session.id)) &&
       activity?.waiting !== true &&
       activity?.running !== true &&
-      !Object.values(activity?.tasks ?? {}).includes('running')
+      activity?.holdsCompletion !== true
     )
   })
   const problems = errors.length + offline.length
@@ -123,7 +123,7 @@ function ChipList(props: { kind: 'done' | 'waiting' | 'merged' | 'problems' }) {
       unseen.includes(machineKey(session.machine, session.id)) &&
       activity?.waiting !== true &&
       activity?.running !== true &&
-      !Object.values(activity?.tasks ?? {}).includes('running')
+      activity?.holdsCompletion !== true
     )
   })
   const doneRows = done.map((session) => (

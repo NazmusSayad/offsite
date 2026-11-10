@@ -336,7 +336,7 @@ export function useAttentionBadge() {
           activity?.waiting === true ||
           (state.unseen.includes(machineKey(session.machine, session.id)) &&
             activity?.running !== true &&
-            !Object.values(activity?.tasks ?? {}).includes('running'))
+            activity?.holdsCompletion !== true)
         )
       }).length
   )

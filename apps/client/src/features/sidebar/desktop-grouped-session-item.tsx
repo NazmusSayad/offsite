@@ -56,7 +56,9 @@ export function DesktopGroupedSessionItem(props: {
     'running'
   )
   const working =
-    !waiting && (props.activity?.running === true || backgroundRunning)
+    !waiting &&
+    (props.activity?.running === true ||
+      props.activity?.holdsCompletion === true)
   const busy = props.activity?.running === true || backgroundRunning
   const done = !waiting && !working && props.unseen
   const recede = !props.selected && !waiting && !done
@@ -238,11 +240,7 @@ export function DesktopGroupedSessionItem(props: {
                   className="text-secondary-label size-3 shrink-0"
                 />
               )}
-              <SessionStatus
-                activity={props.activity}
-                backgroundRunning={backgroundRunning}
-                done={done}
-              />
+              <SessionStatus activity={props.activity} done={done} />
               <span className="text-secondary-label shrink-0 text-xs tabular-nums">
                 {timeAgo(session.updatedAt)}
               </span>
