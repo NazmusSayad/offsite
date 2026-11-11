@@ -115,6 +115,8 @@ export type State = {
   paletteOpen: boolean
   editor: { machine: string; projectId: string } | null
   exporting: MachineSession | null
+  moving: MachineSession | null
+  removingWorktree: { machine: string; projectId: string } | null
   settingsOpen: boolean
   settingsPage: SettingsPage
   settingsAccount: string | null
@@ -138,7 +140,7 @@ export type State = {
   settings: SessionSettings
   draft: Prompt | null
   replacing: Selection | null
-  worktree: string | null
+  worktree: { name: string; base: string | null } | null
   worktreeStage: WorktreeStage | null
   context: ContextUsage | null
   capabilities: Capabilities | null

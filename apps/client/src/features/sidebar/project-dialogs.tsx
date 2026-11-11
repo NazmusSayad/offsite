@@ -332,7 +332,9 @@ export function EditProjectDialog(props: {
                 onChange={(event) => setSetup(event.target.value)}
               />
               <p className="text-muted-foreground text-xs">
-                Runs in each new worktree before the agent starts
+                Runs in a terminal tab of each new worktree while the agent
+                starts. $OFFSITE_ROOT is the project folder and
+                $OFFSITE_WORKTREE is the worktree folder.
               </p>
             </div>
             {error !== null && (

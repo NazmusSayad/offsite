@@ -21,7 +21,7 @@ import { clock, fullTime } from '@/lib/format'
 import { logger } from '@/lib/log'
 import { selectedPrompts, unsentId } from '@/lib/pending'
 import { resend, unqueue } from '@/lib/sessions'
-import { projectOf, useStore } from '@/lib/store'
+import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 const log = logger.withTag('transcript')
@@ -185,18 +185,9 @@ function SendingLabel() {
   const stage = useStore((state) =>
     state.selection?.sessionId === null ? state.worktreeStage : null
   )
-  const setup = useStore((state) =>
-    state.selection === null
-      ? null
-      : (projectOf(state, state.selection.machine, state.selection.projectId)
-          ?.worktreeSetup ?? null)
-  )
   return (
     <p className="text-muted-foreground text-xs">
-      <Shimmer
-        text={stage === null ? 'Sending' : stageText(stage, setup)}
-        active
-      />
+      <Shimmer text={stage === null ? 'Sending' : stageText(stage)} active />
     </p>
   )
 }

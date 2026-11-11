@@ -20,6 +20,7 @@ import {
 } from '../lib/codex/index.ts'
 import { type Client, publish } from '../lib/hub.ts'
 import { runs } from '../lib/live.ts'
+import { keyedLock } from '../lib/locks.ts'
 import {
   OpenCodeRun,
   openCodeAgent,
@@ -31,9 +32,10 @@ import { assertEnabled, providerName } from './accounts.ts'
 import {
   addScratchProject,
   addWorktreeProject,
+  deleteWorktreeProject,
   projectPath,
   removeScratchProject,
-  removeWorktreeProject,
+  restoreWorktreeFolder,
 } from './projects.ts'
 import {
   listedUpdatedAt,
@@ -47,8 +49,9 @@ import {
   saveUnsent,
   setUnsentStatus,
 } from './unsent.ts'
+import { setUpWorktree } from './worktree-sessions.ts'
 
-const locks = new Map<string, Promise<void>>()
+export const locked = keyedLock()
 const emptied = new Set<string>()
 
 export function stopAll() {
@@ -286,18 +289,33 @@ async function deliver(
     }
     const project = await addWorktreeProject(
       request.projectId,
-      request.worktree.name,
-      request.prompt.text,
+      {
+        name: request.worktree.name,
+        prompt: request.prompt.text,
+        base: request.worktree.base,
+      },
       (stage) => client.send({ type: 'worktreeStage', stage })
     )
+    if (project.warning !== null) {
+      client.send({ type: 'warning', message: project.warning })
+    }
     const run = await startRun(project.cwd, request.settings).catch(
       async (error: unknown) => {
-        await removeWorktreeProject(project)
+        await deleteWorktreeProject(project.id)
         throw error
       }
     )
     await submitFirst(client, run, request, project.id)
+    if (setUpWorktree(project.id)) {
+      client.send({ type: 'setup', projectId: project.id })
+    }
     return
+  }
+  if (
+    (await restoreWorktreeFolder(request.projectId)) &&
+    setUpWorktree(request.projectId)
+  ) {
+    client.send({ type: 'setup', projectId: request.projectId })
   }
   const cwd = projectPath(request.projectId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
@@ -368,21 +386,6 @@ async function sendExisting(
     emptied.delete(sessionId)
     await updateSession(sessionId, { title: request.prompt.text.trim() })
   }
-}
-
-async function locked<T>(sessionId: string, task: () => Promise<T>) {
-  const previous = locks.get(sessionId) ?? Promise.resolve()
-  const result = previous.then(task)
-  const done = result.then(
-    () => undefined,
-    () => undefined
-  )
-  locks.set(sessionId, done)
-  await done
-  if (locks.get(sessionId) === done) {
-    locks.delete(sessionId)
-  }
-  return result
 }
 
 async function runFor(

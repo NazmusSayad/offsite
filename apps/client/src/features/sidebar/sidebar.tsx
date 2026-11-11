@@ -115,6 +115,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
           branch: null,
           updatedAt: Date.now(),
           status: 'active' as const,
+          claudeWorktree: false,
         }
       : null
   const draft =
