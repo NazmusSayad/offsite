@@ -168,18 +168,20 @@ export function ProjectMenuItems(props: {
 
   function manageButton(machine: (typeof machines)[number]) {
     return (
-      <DropdownMenuItem
-        className="text-muted-foreground grid size-7 min-h-0 shrink-0 place-items-center rounded-sm p-0"
+      <button
+        className="text-muted-foreground hover:bg-accent hover:text-accent-foreground grid size-7 shrink-0 cursor-pointer place-items-center rounded-sm disabled:pointer-events-none disabled:opacity-50"
         title={`Manage projects on ${machine.name}`}
         aria-label={`Manage projects on ${machine.name}`}
+        tabIndex={-1}
         disabled={machine.status !== 'online'}
-        onSelect={() => {
+        onClick={() => {
+          props.onClose()
           showSettingsPage('Projects')
           update({ settingsMachine: machine.id })
         }}
       >
         <HugeiconsIcon icon={SlidersHorizontalIcon} className="size-3.5" />
-      </DropdownMenuItem>
+      </button>
     )
   }
 
@@ -337,15 +339,19 @@ export function ProjectMenuItems(props: {
                     chatChip(group.machine)}
                   <div className="flex shrink-0 items-center">
                     {manageButton(group.machine)}
-                    <DropdownMenuItem
-                      className="text-muted-foreground grid size-7 min-h-0 shrink-0 place-items-center rounded-sm p-0"
+                    <button
+                      className="text-muted-foreground hover:bg-accent hover:text-accent-foreground grid size-7 shrink-0 cursor-pointer place-items-center rounded-sm disabled:pointer-events-none disabled:opacity-50"
                       title={`Add project to ${group.machine.name}`}
                       aria-label={`Add project to ${group.machine.name}`}
+                      tabIndex={-1}
                       disabled={group.machine.status !== 'online'}
-                      onSelect={() => props.onAddProject(group.machine.id)}
+                      onClick={() => {
+                        props.onClose()
+                        props.onAddProject(group.machine.id)
+                      }}
                     >
                       <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
-                    </DropdownMenuItem>
+                    </button>
                   </div>
                 </div>
               )}
