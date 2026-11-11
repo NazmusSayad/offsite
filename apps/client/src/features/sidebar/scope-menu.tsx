@@ -112,7 +112,6 @@ export function ProjectMenuItems(props: {
   const sessions = useStore((state) => state.sessions)
   const unseen = useStore((state) => state.unseen)
   const [query, setQuery] = useState('')
-  const [expanded, setExpanded] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const search = query.trim().toLowerCase()
@@ -134,12 +133,8 @@ export function ProjectMenuItems(props: {
       )
       return {
         machine,
-        projects:
-          search === '' && !expanded.includes(machine.id)
-            ? ranked.top
-            : [...ranked.top, ...ranked.more],
-        more:
-          search === '' && !expanded.includes(machine.id) ? ranked.more : [],
+        projects: search === '' ? ranked.top : [...ranked.top, ...ranked.more],
+        more: search === '' ? ranked.more : [],
       }
     })
     .filter((group) =>
@@ -309,16 +304,18 @@ export function ProjectMenuItems(props: {
               value=""
               onSelect={() => props.onScope(null)}
             >
-              <HugeiconsIcon
-                icon={CenterFocusIcon}
-                className="text-muted-foreground size-5 shrink-0"
-              />
+              <span className="relative flex shrink-0">
+                <HugeiconsIcon
+                  icon={CenterFocusIcon}
+                  className="text-muted-foreground size-5 shrink-0"
+                />
+                {attention.length > 0 && (
+                  <span className="text-foreground border-popover absolute -right-1.5 -bottom-1.5 grid h-3.5 min-w-3.5 place-items-center rounded-full border bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-0.5 text-[9px] leading-none font-medium tabular-nums">
+                    {attention.length}
+                  </span>
+                )}
+              </span>
               <span className="min-w-0 flex-1 truncate">Inbox</span>
-              {attention.length > 0 && (
-                <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
-                  {attention.length}
-                </span>
-              )}
             </DropdownMenuRadioItem>
           )}
 
@@ -370,18 +367,7 @@ export function ProjectMenuItems(props: {
                   onClose={props.onClose}
                 />
               ))}
-              {group.more.length > 0 && touch.matches && (
-                <DropdownMenuItem
-                  title="More projects"
-                  onSelect={(event) => {
-                    event.preventDefault()
-                    setExpanded([...expanded, group.machine.id])
-                  }}
-                >
-                  <MoreProjectsLabel projects={group.more} className="size-5" />
-                </DropdownMenuItem>
-              )}
-              {group.more.length > 0 && !touch.matches && (
+              {group.more.length > 0 && (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger title="More projects">
                     <MoreProjectsLabel

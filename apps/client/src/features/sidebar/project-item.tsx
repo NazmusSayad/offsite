@@ -40,17 +40,19 @@ export function ProjectItem(props: {
         props.onEdit(project)
       }}
     >
-      <ProjectIcon
-        machine={project.machine}
-        projectId={project.id}
-        className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
-      />
+      <span className="relative flex shrink-0">
+        <ProjectIcon
+          machine={project.machine}
+          projectId={project.id}
+          className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
+        />
+        {count > 0 && (
+          <span className="text-foreground border-popover absolute -right-1.5 -bottom-1.5 grid h-3.5 min-w-3.5 place-items-center rounded-full border bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-0.5 text-[9px] leading-none font-medium tabular-nums">
+            {count}
+          </span>
+        )}
+      </span>
       <span className="min-w-0 flex-1 truncate">{project.name}</span>
-      {count > 0 && (
-        <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
-          {count}
-        </span>
-      )}
       <div className="-my-0.5 flex shrink-0 items-center gap-0.5">
         <button
           className={cn(

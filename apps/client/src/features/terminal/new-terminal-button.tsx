@@ -1,4 +1,4 @@
-import { GitBranchIcon } from '@hugeicons/core-free-icons'
+import { Add01Icon, GitBranchIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { homePath, rankProjects, withWorktrees } from '@/api/projects'
 import { MoreProjectsLabel, ProjectIcon } from '@/components/icons'
@@ -154,6 +154,12 @@ function ProjectItems(props: {
             className="size-4"
           />
           <span className="max-w-60 truncate">{project.name}</span>
+          {props.contextMenu !== true && (
+            <HugeiconsIcon
+              icon={Add01Icon}
+              className="text-muted-foreground ml-auto hidden size-4 pointer-coarse:block"
+            />
+          )}
         </menu.Item>
       )
   )
