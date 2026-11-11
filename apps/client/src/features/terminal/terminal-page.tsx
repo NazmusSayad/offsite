@@ -223,7 +223,7 @@ function GroupRow(props: { group: Group; worktrees: Group[] }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
-                side="right"
+                side={touch.matches ? 'bottom' : 'right'}
                 className="max-h-80 max-w-96 min-w-56 overflow-y-auto"
                 onCloseAutoFocus={(event) => event.preventDefault()}
                 {...hover.area}

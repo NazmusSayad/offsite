@@ -38,12 +38,12 @@ export function RepoStatus(props: { repo: GitRepo; target: Target }) {
   const repo = props.repo
   const [discarding, setDiscarding] = useState(false)
   return (
-    <div className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1.5 pl-2 tabular-nums">
+    <div className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1.5 pl-2 whitespace-nowrap tabular-nums @max-sm:flex-1 @max-sm:justify-end @max-sm:pl-0">
       {repo.changed > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="hover:bg-accent hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground flex h-6 cursor-pointer items-center gap-1.5 rounded-md px-1.5 outline-none"
+              className="hover:bg-accent hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground flex h-6 cursor-pointer items-center gap-1.5 rounded-md px-1.5 outline-none @max-sm:mr-auto"
               title={`${repo.changed} uncommitted ${repo.changed === 1 ? 'file' : 'files'}, ${repo.added} lines added and ${repo.removed} removed`}
             >
               <HugeiconsIcon icon={FileEditIcon} className="size-3.5" />

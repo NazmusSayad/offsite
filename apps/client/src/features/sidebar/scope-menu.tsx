@@ -112,6 +112,7 @@ export function ProjectMenuItems(props: {
   const sessions = useStore((state) => state.sessions)
   const unseen = useStore((state) => state.unseen)
   const [query, setQuery] = useState('')
+  const [expanded, setExpanded] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const search = query.trim().toLowerCase()
@@ -133,8 +134,12 @@ export function ProjectMenuItems(props: {
       )
       return {
         machine,
-        projects: search === '' ? ranked.top : [...ranked.top, ...ranked.more],
-        more: search === '' ? ranked.more : [],
+        projects:
+          search === '' && !expanded.includes(machine.id)
+            ? ranked.top
+            : [...ranked.top, ...ranked.more],
+        more:
+          search === '' && !expanded.includes(machine.id) ? ranked.more : [],
       }
     })
     .filter((group) =>
@@ -365,7 +370,18 @@ export function ProjectMenuItems(props: {
                   onClose={props.onClose}
                 />
               ))}
-              {group.more.length > 0 && (
+              {group.more.length > 0 && touch.matches && (
+                <DropdownMenuItem
+                  title="More projects"
+                  onSelect={(event) => {
+                    event.preventDefault()
+                    setExpanded([...expanded, group.machine.id])
+                  }}
+                >
+                  <MoreProjectsLabel projects={group.more} className="size-5" />
+                </DropdownMenuItem>
+              )}
+              {group.more.length > 0 && !touch.matches && (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger title="More projects">
                     <MoreProjectsLabel

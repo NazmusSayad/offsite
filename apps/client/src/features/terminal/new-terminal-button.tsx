@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
 import { type MachineProject, useStore } from '@/lib/store'
-import { cn } from '@/lib/utils'
+import { cn, touch } from '@/lib/utils'
 import { useHoverMenu } from './hover-menu'
 import { createTab } from './page'
 
@@ -89,7 +89,7 @@ export function MoreTerminalProjects(props: { machine: string }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        side="right"
+        side={touch.matches ? 'bottom' : 'right'}
         className="max-h-80 overflow-y-auto"
         onCloseAutoFocus={(event) => event.preventDefault()}
         {...hover.area}
