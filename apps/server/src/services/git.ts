@@ -297,7 +297,7 @@ export async function commitMessage(cwd: string, staged: boolean) {
     staged
       ? (await git(cwd, ['diff', '--cached', '--no-color', '--no-ext-diff']))
           .stdout
-      : await repoDiff(cwd, '')
+      : await repoDiff(cwd)
   ).slice(0, DIFF_LIMIT)
   if (diff === '') {
     throw new Error('There is nothing to commit')
@@ -315,12 +315,12 @@ export async function projectDiff(cwd: string) {
   if (repos.length === 0) {
     throw new Error(`${cwd} is not a git repository and has none inside it`)
   }
-  const diffs = await Promise.all(
-    repos.map((repo) =>
-      repoDiff(path.join(cwd, repo), repo === '' ? '' : `${repo}/`)
-    )
+  return Promise.all(
+    repos.map(async (repo) => ({
+      repo,
+      patch: await repoDiff(path.join(cwd, repo)),
+    }))
   )
-  return diffs.join('')
 }
 
 export function git(cwd: string, args: string[]) {
@@ -369,7 +369,7 @@ async function lineChanges(repo: string) {
   let added = 0
   let removed = 0
   let hunk = false
-  for (const line of (await repoDiff(repo, '')).split('\n')) {
+  for (const line of (await repoDiff(repo)).split('\n')) {
     if (line.startsWith('diff --git ')) {
       hunk = false
     } else if (line.startsWith('@@')) {
@@ -423,7 +423,7 @@ async function isRepo(cwd: string) {
   }
 }
 
-async function repoDiff(repo: string, prefix: string) {
+async function repoDiff(repo: string) {
   const tracked = await git(repo, [
     '--no-optional-locks',
     'diff',
@@ -431,8 +431,8 @@ async function repoDiff(repo: string, prefix: string) {
     '--no-color',
     '--no-ext-diff',
     '--relative',
-    `--src-prefix=a/${prefix}`,
-    `--dst-prefix=b/${prefix}`,
+    '--src-prefix=a/',
+    '--dst-prefix=b/',
   ])
   const untracked = await git(repo, [
     'ls-files',
@@ -444,7 +444,7 @@ async function repoDiff(repo: string, prefix: string) {
     .split('\0')
     .filter(Boolean)
     .slice(0, UNTRACKED_LIMIT)
-    .map((file) => newFilePatch(repo, file, prefix))
+    .map((file) => newFilePatch(repo, file))
   return [tracked.stdout, ...added].join('')
 }
 
@@ -486,9 +486,8 @@ function childRepos(root: string, dir: string, depth: number): string[] {
     })
 }
 
-function newFilePatch(cwd: string, file: string, prefix: string) {
-  const name = `${prefix}${file}`
-  const header = `diff --git a/${name} b/${name}\nnew file\n--- /dev/null\n+++ b/${name}\n`
+function newFilePatch(cwd: string, file: string) {
+  const header = `diff --git a/${file} b/${file}\nnew file\n--- /dev/null\n+++ b/${file}\n`
   const full = path.join(cwd, file)
   const stats = lstatSync(full)
   if (stats.isSymbolicLink()) {

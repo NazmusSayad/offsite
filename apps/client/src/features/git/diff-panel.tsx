@@ -3,6 +3,7 @@ import {
   ChevronRightIcon,
   ChevronsDownUpIcon,
   Coffee02Icon,
+  RepositoryIcon,
   LayoutTwoColumnIcon,
   RefreshCwIcon,
   Rows3Icon,
@@ -13,7 +14,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs'
 import { FileDiff } from '@pierre/diffs/react'
 import { sumBy } from 'es-toolkit'
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useLocalStorage } from 'usehooks-ts'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
@@ -37,7 +38,9 @@ export function DiffPanel(props: {
   onClose: () => void
   mobile: boolean
 }) {
-  const [files, setFiles] = useState<FileDiffMetadata[] | null>(null)
+  const [groups, setGroups] = useState<
+    { repo: string; files: FileDiffMetadata[] }[] | null
+  >(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
   const latest = useRef<{ patch: string | null; count: number }>({
@@ -61,24 +64,31 @@ export function DiffPanel(props: {
       }
       loading = true
       try {
-        const patch = await call(props.machine, 'git.diff', {
+        const diffs = await call(props.machine, 'git.diff', {
           projectId: props.projectId,
         })
         if (!current) {
           return
         }
         setError(null)
+        const patch = JSON.stringify(diffs)
         if (patch === latest.current.patch) {
           return
         }
         latest.current = { patch, count: latest.current.count + 1 }
-        setFiles(
-          patch.trim() === ''
-            ? []
-            : parsePatchFiles(
-                patch,
-                `${props.projectId}:${latest.current.count}`
-              ).flatMap((patch) => patch.files)
+        setGroups(
+          diffs
+            .map((item) => ({
+              repo: item.repo,
+              files:
+                item.patch.trim() === ''
+                  ? []
+                  : parsePatchFiles(
+                      item.patch,
+                      `${props.projectId}:${latest.current.count}:${item.repo}`
+                    ).flatMap((patch) => patch.files),
+            }))
+            .filter((group) => group.files.length > 0)
         )
       } catch (caught) {
         if (current) {
@@ -103,7 +113,7 @@ export function DiffPanel(props: {
     }
   }, [props.machine, props.projectId, props.running, version])
 
-  const list = files ?? []
+  const list = (groups ?? []).flatMap((group) => group.files)
   const added = sumBy(list, (file) =>
     sumBy(file.hunks, (hunk) => hunk.additionLines)
   )
@@ -185,12 +195,12 @@ export function DiffPanel(props: {
             {error}
           </p>
         )}
-        {error === null && files === null && (
+        {error === null && groups === null && (
           <p className="text-muted-foreground p-4 text-center text-xs">
             Loading…
           </p>
         )}
-        {error === null && files?.length === 0 && (
+        {error === null && groups?.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
             <HugeiconsIcon
               icon={Coffee02Icon}
@@ -207,58 +217,87 @@ export function DiffPanel(props: {
           </div>
         )}
         {error === null &&
-          list.map((file) => {
-            const closed = diff.collapsed !== flipped.includes(file.name)
-            function toggleFile() {
-              flip(
-                flipped.includes(file.name)
-                  ? flipped.filter((name) => name !== file.name)
-                  : [...flipped, file.name]
-              )
-            }
-            return (
-              <div
-                key={file.name}
-                onClick={(event) => {
-                  const title = event.nativeEvent
-                    .composedPath()
-                    .some(
-                      (target) =>
-                        target instanceof Element &&
-                        target.hasAttribute('data-title')
-                    )
-                  if (title) {
-                    toggleFile()
-                  }
-                }}
-              >
-                <FileDiff
-                  fileDiff={file}
-                  options={{
-                    theme: codeTheme,
-                    themeType: 'dark',
-                    unsafeCSS: diffCss,
-                    collapsed: closed,
-                    lineDiffType: 'word-alt',
-                    overflow: diff.wrap ? 'wrap' : 'scroll',
-                    diffStyle: diff.split ? 'split' : 'unified',
-                  }}
-                  renderHeaderPrefix={() => (
-                    <button
-                      className="text-muted-foreground hover:text-foreground flex size-5 cursor-pointer items-center justify-center"
-                      aria-label={closed ? 'Expand file' : 'Collapse file'}
-                      onClick={toggleFile}
-                    >
-                      <HugeiconsIcon
-                        icon={closed ? ChevronRightIcon : ChevronDownIcon}
-                        className="size-3.5"
-                      />
-                    </button>
-                  )}
-                />
-              </div>
-            )
-          })}
+          groups?.map((group) => (
+            <Fragment key={group.repo}>
+              {group.repo !== '' && (
+                <div className="border-border/60 text-foreground flex h-8 items-center gap-2 border-b px-3 text-xs font-medium">
+                  <HugeiconsIcon
+                    icon={RepositoryIcon}
+                    className="text-muted-foreground size-3.5 shrink-0"
+                  />
+                  <span className="min-w-0 truncate">{group.repo}</span>
+                  <span className="text-2xs ml-auto inline-flex shrink-0 items-center gap-1 font-mono tabular-nums">
+                    <span className="text-diff-addition">
+                      +
+                      {sumBy(group.files, (file) =>
+                        sumBy(file.hunks, (hunk) => hunk.additionLines)
+                      )}
+                    </span>
+                    <span className="text-diff-deletion">
+                      -
+                      {sumBy(group.files, (file) =>
+                        sumBy(file.hunks, (hunk) => hunk.deletionLines)
+                      )}
+                    </span>
+                  </span>
+                </div>
+              )}
+              {group.files.map((file) => {
+                const key =
+                  group.repo === '' ? file.name : `${group.repo}/${file.name}`
+                const closed = diff.collapsed !== flipped.includes(key)
+                function toggleFile() {
+                  flip(
+                    flipped.includes(key)
+                      ? flipped.filter((name) => name !== key)
+                      : [...flipped, key]
+                  )
+                }
+                return (
+                  <div
+                    key={key}
+                    onClick={(event) => {
+                      const title = event.nativeEvent
+                        .composedPath()
+                        .some(
+                          (target) =>
+                            target instanceof Element &&
+                            target.hasAttribute('data-title')
+                        )
+                      if (title) {
+                        toggleFile()
+                      }
+                    }}
+                  >
+                    <FileDiff
+                      fileDiff={file}
+                      options={{
+                        theme: codeTheme,
+                        themeType: 'dark',
+                        unsafeCSS: diffCss,
+                        collapsed: closed,
+                        lineDiffType: 'word-alt',
+                        overflow: diff.wrap ? 'wrap' : 'scroll',
+                        diffStyle: diff.split ? 'split' : 'unified',
+                      }}
+                      renderHeaderPrefix={() => (
+                        <button
+                          className="text-muted-foreground hover:text-foreground flex size-5 cursor-pointer items-center justify-center"
+                          aria-label={closed ? 'Expand file' : 'Collapse file'}
+                          onClick={toggleFile}
+                        >
+                          <HugeiconsIcon
+                            icon={closed ? ChevronRightIcon : ChevronDownIcon}
+                            className="size-3.5"
+                          />
+                        </button>
+                      )}
+                    />
+                  </div>
+                )
+              })}
+            </Fragment>
+          ))}
       </div>
     </div>
   )

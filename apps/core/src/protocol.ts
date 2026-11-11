@@ -310,7 +310,10 @@ export type RpcMethods = {
     result: { text: string; truncated: boolean } | null
   }
   'git.status': { params: { projectId: string }; result: GitRepo[] }
-  'git.diff': { params: { projectId: string }; result: string }
+  'git.diff': {
+    params: { projectId: string }
+    result: { repo: string; patch: string }[]
+  }
   'git.commit': {
     params: { projectId: string; repo: string; message: string; push: boolean }
     result: { message: string }
