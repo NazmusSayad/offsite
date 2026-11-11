@@ -19,7 +19,6 @@ export async function installFromBrowser(manager: PackageManager) {
 export async function setUp(manager: PackageManager, command: string[]) {
   const settings = {
     manager,
-    path: process.env.PATH ?? '',
     command,
     arguments: args.serverArguments,
   }

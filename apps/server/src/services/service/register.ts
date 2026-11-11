@@ -143,7 +143,7 @@ async function registerWindows() {
     '  <Actions Context="Author">',
     '    <Exec>',
     '      <Command>conhost.exe</Command>',
-    `      <Arguments>--headless powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${escapeXml(scriptFile)}"</Arguments>`,
+    `      <Arguments>--headless powershell.exe -ExecutionPolicy Bypass -File "${escapeXml(scriptFile)}"</Arguments>`,
     '    </Exec>',
     '  </Actions>',
     '</Task>',

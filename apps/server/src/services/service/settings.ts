@@ -25,7 +25,6 @@ const SETTINGS = path.join('service', 'settings.json')
 
 const settingsSchema = z.object({
   manager: z.enum(packageManagers),
-  path: z.string(),
   command: z.array(z.string()),
   arguments: z.array(z.string()),
 })
@@ -42,12 +41,17 @@ export function writeServiceSettings(settings: ServiceSettings) {
   writeJson(SETTINGS, settings)
 }
 
-export async function runTool(name: string, toolArguments: string[]) {
+export async function runTool(
+  name: string,
+  toolArguments: string[],
+  extraEnv: Record<string, string> = {}
+) {
+  const env = { ...process.env, ...extraEnv }
   if (process.platform === 'win32') {
-    const result = await runLine([name, ...toolArguments].join(' '))
+    const result = await runLine([name, ...toolArguments].join(' '), { env })
     return result.stdout
   }
-  const result = await runFile(name, toolArguments)
+  const result = await runFile(name, toolArguments, { env })
   return result.stdout
 }
 
@@ -91,7 +95,6 @@ function script(settings: ServiceSettings) {
   const line = [...settings.command, ...settings.arguments, '--service']
   if (process.platform === 'win32') {
     return [
-      `$env:PATH = ${powershellQuote(settings.path)}`,
       'while ($true) {',
       `  New-Item -ItemType Directory -Force -Path ${powershellQuote(logsDir)} | Out-Null`,
       `  & ${line.map(powershellQuote).join(' ')} 2>&1 | ForEach-Object { "$_" } | Out-File -FilePath ${powershellQuote(logFile)} -Append -Encoding utf8`,
@@ -100,12 +103,23 @@ function script(settings: ServiceSettings) {
       '',
     ].join('\r\n')
   }
+  const findShell =
+    process.platform === 'darwin'
+      ? 'shell=$(dscl . -read "/Users/$(id -un)" UserShell | sed \'s/^UserShell: //\')'
+      : 'shell=$(getent passwd "$(id -un)" | cut -d: -f7)'
+  const command = `exec ${line.map(shellQuote).join(' ')}`
   return [
     '#!/bin/sh',
-    `export PATH=${shellQuote(settings.path)}`,
+    `mkdir -p ${shellQuote(logsDir)}`,
+    findShell,
+    'if [ -z "$shell" ]; then',
+    `  echo "offsite could not find your login shell" >> ${shellQuote(logFile)}`,
+    '  exit 1',
+    'fi',
+    'cd "$HOME"',
     'while true; do',
     `  mkdir -p ${shellQuote(logsDir)}`,
-    `  ${line.map(shellQuote).join(' ')} >> ${shellQuote(logFile)} 2>&1`,
+    `  "$shell" -l -i -c ${shellQuote(command)} < /dev/null >> ${shellQuote(logFile)} 2>&1`,
     '  sleep 5',
     'done',
     '',

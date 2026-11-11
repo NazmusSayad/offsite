@@ -60,13 +60,13 @@ async function prune() {
 async function check(settings: ServiceSettings) {
   try {
     const latest = await latestVersion()
-    if (latest !== version) {
+    if (newer(latest, version)) {
       if (available !== latest) {
         available = latest
         broadcast({ type: 'service', service: serviceState() })
       }
       const installed = await install(settings)
-      if (installed !== version) {
+      if (newer(installed, version)) {
         ready = installed
         log.info(`offsite ${installed} is installed, restarting once idle`)
         void waitForIdle()
@@ -89,7 +89,7 @@ export async function updateNow() {
   }
   if (ready === null) {
     const installed = await install(settings)
-    if (installed === version) {
+    if (!newer(installed, version)) {
       throw new Error(
         `the update finished, but offsite ${version} is still installed`
       )
@@ -113,8 +113,23 @@ function install(settings: ServiceSettings) {
 
 async function installLatest(settings: ServiceSettings) {
   log.info(`updating offsite with ${settings.manager}`)
-  await runTool(settings.manager, updateArguments(settings.manager))
+  await runTool(
+    settings.manager,
+    updateArguments(settings.manager),
+    settings.manager === 'mise' ? { MISE_FETCH_REMOTE_VERSIONS_CACHE: '0' } : {}
+  )
   return (await runOffsite(settings, ['--version'])).trim()
+}
+
+function newer(candidate: string, current: string) {
+  const next = candidate.split('-')[0].split('.').map(Number)
+  const now = current.split('-')[0].split('.').map(Number)
+  for (let index = 0; index < 3; index++) {
+    if (next[index] !== now[index]) {
+      return next[index] > now[index]
+    }
+  }
+  return current.includes('-') && !candidate.includes('-')
 }
 
 async function latestVersion() {
@@ -136,7 +151,13 @@ function updateArguments(manager: ServiceSettings['manager']) {
     case 'pnpm':
       return ['add', '-g', 'offsite@latest', '--config.minimum-release-age=0']
     case 'bun':
-      return ['add', '-g', 'offsite@latest', '--minimum-release-age=0']
+      return [
+        'add',
+        '-g',
+        'offsite@latest',
+        '--minimum-release-age=0',
+        '--no-cache',
+      ]
   }
 }
 
