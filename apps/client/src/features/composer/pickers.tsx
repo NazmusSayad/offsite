@@ -269,11 +269,14 @@ function ModelMenu(props: {
     }
     const provider = picked.provider
     const machine = machineOf(getState(), selection.machine)
+    const sameModel =
+      provider === settings.provider && option.value === settings.model
     const choice = {
       accountId: picked.accountId,
       model: option.value,
-      effort:
-        lastPickedEffort(machine, provider, option.value) ?? option.effort,
+      effort: sameModel
+        ? settings.effort
+        : (lastPickedEffort(machine, provider, option.value) ?? option.effort),
     }
     saveLastPickedModel(
       selection.machine,
