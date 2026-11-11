@@ -13,6 +13,7 @@ import {
   moveDraft,
   saveDraftSettings,
 } from '@/features/composer/drafts'
+import { settleDisconnected } from '@/features/composer/send'
 import { setOpen as setTerminalOpen } from '@/features/terminal/session'
 import {
   providerSettings,
@@ -219,6 +220,7 @@ async function resync(machine: string) {
     })
     receiveBookmarks(machine, snapshot.bookmarks)
     receiveUnsent(machine, snapshot.unsent)
+    settleDisconnected(machine)
     setProjects(machine, snapshot.projects)
     setSessions(machine, snapshot.sessions)
     receiveConfig(machine, snapshot.config)

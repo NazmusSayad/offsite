@@ -63,6 +63,8 @@ let nextId = 0
 
 export class ConnectionError extends Error {}
 
+export class DisconnectedError extends ConnectionError {}
+
 export function startConnections() {
   window.setInterval(() => {
     for (const machine of connections.keys()) {
@@ -324,7 +326,7 @@ function retry(machine: string, connection: Connection, attempt: number) {
 function disconnect(machine: string, connection: Connection) {
   for (const waiter of connection.pending.values()) {
     waiter.reject(
-      new ConnectionError(`Disconnected from ${new URL(connection.url).host}`)
+      new DisconnectedError(`Disconnected from ${new URL(connection.url).host}`)
     )
   }
   connection.pending.clear()

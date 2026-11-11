@@ -1,8 +1,9 @@
 import type { PromptDelivery } from '@offsite/core/config'
+import { DisconnectedError } from '@/api/connection'
 import { uploadFile } from '@/api/upload'
 import { addPending, takePending } from '@/lib/pending'
 import { sendPrompt } from '@/lib/sessions'
-import { draftKey, getState, showError } from '@/lib/store'
+import { draftKey, getState, type PendingPrompt, showError } from '@/lib/store'
 import { restoredDraft } from './attached-images'
 import {
   editDraft,
@@ -44,23 +45,47 @@ export async function sendDraft(
   void deliver(id, sendPrompt(id, prompt, delivery, selection, status))
 }
 
+const disconnected = new Set<string>()
+
 async function deliver(id: string, request: Promise<void>) {
   try {
     await request
   } catch (error) {
-    const failed = takePending(id)
-    if (failed !== undefined) {
-      const key = draftKey(failed)
-      if (hasPrompt(getDraft(key))) {
-        stashPrompt(key)
-      }
-      editDraft(key, (current) => ({
-        ...current,
-        ...restoredDraft(failed.prompt),
-      }))
+    if (error instanceof DisconnectedError) {
+      disconnected.add(id)
+      return
     }
+    restoreDraft(takePending(id))
     showError(error)
     return
   }
   takePending(id)
+}
+
+export function settleDisconnected(machine: string) {
+  for (const id of disconnected) {
+    const item = getState().pending.find((pending) => pending.id === id)
+    if (item === undefined) {
+      disconnected.delete(id)
+      continue
+    }
+    if (item.machine === machine) {
+      disconnected.delete(id)
+      restoreDraft(takePending(id))
+    }
+  }
+}
+
+function restoreDraft(failed: PendingPrompt | undefined) {
+  if (failed === undefined) {
+    return
+  }
+  const key = draftKey(failed)
+  if (hasPrompt(getDraft(key))) {
+    stashPrompt(key)
+  }
+  editDraft(key, (current) => ({
+    ...current,
+    ...restoredDraft(failed.prompt),
+  }))
 }
