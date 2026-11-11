@@ -41,6 +41,7 @@ export function WorktreeBar(props: {
   machine: string
   projectId: string
   repos: GitRepo[]
+  onRefresh: () => void
 }) {
   const worktree = useStore((state) => state.worktree)
   const stage = useStore((state) => state.worktreeStage)
@@ -104,7 +105,16 @@ export function WorktreeBar(props: {
                 worktree !== null && 'min-w-0'
               )}
             >
-              {worktree === null && <RepoStatus repo={repo} />}
+              {worktree === null && (
+                <RepoStatus
+                  repo={repo}
+                  target={{
+                    machine: props.machine,
+                    projectId: props.projectId,
+                    onRefresh: props.onRefresh,
+                  }}
+                />
+              )}
               {worktree !== null && (
                 <>
                   <DropdownMenu>

@@ -54,7 +54,10 @@ const log = logger.withTag('composer')
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 const maxImageSize = 5 * 1024 * 1024
 
-export function Composer(props: { repos: GitRepo[] }) {
+export function Composer(props: {
+  repos: GitRepo[]
+  onRefreshGit: () => void
+}) {
   const selection = useStore((state) => state.selection)
   const loaded = useStore((state) => state.loaded)
   const blank = useStore(
@@ -495,6 +498,7 @@ export function Composer(props: { repos: GitRepo[] }) {
             machine={machine}
             projectId={projectId}
             repos={props.repos}
+            onRefresh={props.onRefreshGit}
           />
         )}
       </Wrapper>
