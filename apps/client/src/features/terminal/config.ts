@@ -1,17 +1,10 @@
 import type { Platform, TerminalIdentity } from '@offsite/core/config'
 import type { TerminalOptions } from '@/lib/ghostty/terminal'
-import type { TerminalPrefs } from '@/lib/prefs'
+import { fontFamily, type TerminalPrefs } from '@/lib/prefs'
 import { currentScheme } from '@/lib/theme'
 
 const iterm2Version = '3.6.8'
 const ghosttyVersion = '1.3.1'
-
-export const builtinFonts = [
-  { family: 'FiraCode Nerd Font', label: 'Fira Code' },
-  { family: 'JetBrainsMono Nerd Font', label: 'JetBrains Mono' },
-  { family: 'CaskaydiaCove Nerd Font', label: 'Cascadia Code' },
-  { family: 'Hack Nerd Font', label: 'Hack' },
-]
 
 export const platforms: { value: Platform; label: string }[] = [
   { value: 'macos', label: 'macOS' },
@@ -20,7 +13,7 @@ export const platforms: { value: Platform; label: string }[] = [
 ]
 
 export async function applyStyle(config: TerminalPrefs) {
-  const font = `${config.font.size}px ${config.font.family}`
+  const font = `${config.font.size}px ${fontFamily(config.font.family)}`
   await Promise.all([
     document.fonts.load(font),
     document.fonts.load(`bold ${font}`),
@@ -38,7 +31,7 @@ export function terminalOptions(
 ): TerminalOptions {
   const scheme = currentScheme()
   return {
-    fontFamily: config.font.family,
+    fontFamily: fontFamily(config.font.family),
     fontSize: config.font.size,
     lineHeight: config.font.lineHeight,
     ligatures: config.font.ligatures,

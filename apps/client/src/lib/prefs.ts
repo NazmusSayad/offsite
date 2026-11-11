@@ -13,7 +13,7 @@ const prefsSchema = z.strictObject({
     .strictObject({
       font: z
         .strictObject({
-          family: z.string().default('FiraCode Nerd Font'),
+          family: z.string().default(''),
           size: z.number().default(14),
           lineHeight: z.number().default(1.35),
           ligatures: z.boolean().default(true),
@@ -54,7 +54,7 @@ const prefsSchema = z.strictObject({
     .strictObject({
       font: z
         .strictObject({
-          family: z.string().default('FiraCode Nerd Font'),
+          family: z.string().default(''),
           size: z.number().default(15.3),
           lineHeight: z.number().default(1.8),
           ligatures: z.boolean().default(true),
@@ -119,4 +119,8 @@ export function loadPrefs(): Prefs {
 
 export function savePrefs(prefs: Prefs) {
   localStorage.setItem(storageKey, JSON.stringify(prefs))
+}
+
+export function fontFamily(family: string) {
+  return family === '' ? 'FiraCode Nerd Font' : family
 }

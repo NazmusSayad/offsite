@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import {
   Select,
   SelectContent,
@@ -7,16 +6,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { builtinFonts } from '@/features/terminal/config'
 import type { EditorPrefs, Prefs } from '@/lib/prefs'
 import { updatePrefs } from '@/lib/store'
 import { NumberInput, Row, Section, TextInput } from './controls'
 
 export function EditorPage(props: { prefs: Prefs }) {
   const editor = props.prefs.editor
-  const [customFont, setCustomFont] = useState(
-    !builtinFonts.some((font) => font.family === editor.font.family)
-  )
 
   function commit(next: EditorPrefs) {
     updatePrefs({ ...props.prefs, editor: next })
@@ -33,37 +28,12 @@ export function EditorPage(props: { prefs: Prefs }) {
     <>
       <Section title="Font">
         <Row label="Family">
-          <Select
-            value={customFont ? 'custom' : editor.font.family}
-            onValueChange={(family) => {
-              setCustomFont(family === 'custom')
-              if (family !== 'custom') {
-                update('font', { family })
-              }
-            }}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {builtinFonts.map((font) => (
-                <SelectItem key={font.family} value={font.family}>
-                  {font.label}
-                </SelectItem>
-              ))}
-              <SelectItem value="custom">Custom</SelectItem>
-            </SelectContent>
-          </Select>
+          <TextInput
+            placeholder="Fira Code"
+            value={editor.font.family}
+            onCommit={(family) => update('font', { family })}
+          />
         </Row>
-        {customFont && (
-          <Row label="Custom family">
-            <TextInput
-              placeholder="Installed font name"
-              value={editor.font.family}
-              onCommit={(family) => update('font', { family })}
-            />
-          </Row>
-        )}
         <Row label="Size">
           <NumberInput
             value={editor.font.size}

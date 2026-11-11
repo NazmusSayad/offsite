@@ -12,7 +12,7 @@ import {
   bundledThemesInfo,
   createHighlighter,
 } from 'shiki'
-import type { EditorPrefs } from '@/lib/prefs'
+import { type EditorPrefs, fontFamily } from '@/lib/prefs'
 import { currentScheme } from '@/lib/theme'
 
 self.MonacoEnvironment = {
@@ -173,7 +173,7 @@ export function editorOptions(
   prefs: EditorPrefs
 ): monaco.editor.IEditorOptions & monaco.editor.IGlobalEditorOptions {
   return {
-    fontFamily: prefs.font.family,
+    fontFamily: fontFamily(prefs.font.family),
     fontSize: prefs.font.size,
     lineHeight: prefs.font.lineHeight,
     fontLigatures: !prefs.font.ligatures
@@ -227,6 +227,8 @@ export function editorOptions(
 }
 
 export async function loadEditorFont(prefs: EditorPrefs) {
-  await document.fonts.load(`${prefs.font.size}px ${prefs.font.family}`)
+  await document.fonts.load(
+    `${prefs.font.size}px ${fontFamily(prefs.font.family)}`
+  )
   monaco.editor.remeasureFonts()
 }

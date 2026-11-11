@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import {
   Select,
   SelectContent,
@@ -8,7 +7,6 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { imagePasteKeys } from '@/features/terminal/clipboard'
-import { builtinFonts } from '@/features/terminal/config'
 import type { Prefs, TerminalPrefs } from '@/lib/prefs'
 import { updatePrefs } from '@/lib/store'
 import { isMac, isWindows } from '@/lib/utils'
@@ -18,9 +16,6 @@ type Behavior = TerminalPrefs['behavior']
 
 export function TerminalPage(props: { prefs: Prefs }) {
   const terminal = props.prefs.terminal
-  const [customFont, setCustomFont] = useState(
-    !builtinFonts.some((font) => font.family === terminal.font.family)
-  )
 
   function commit(next: TerminalPrefs) {
     updatePrefs({ ...props.prefs, terminal: next })
@@ -36,37 +31,12 @@ export function TerminalPage(props: { prefs: Prefs }) {
     <>
       <Section title="Font">
         <Row label="Family">
-          <Select
-            value={customFont ? 'custom' : terminal.font.family}
-            onValueChange={(family) => {
-              setCustomFont(family === 'custom')
-              if (family !== 'custom') {
-                update('font', { family })
-              }
-            }}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {builtinFonts.map((font) => (
-                <SelectItem key={font.family} value={font.family}>
-                  {font.label}
-                </SelectItem>
-              ))}
-              <SelectItem value="custom">Custom</SelectItem>
-            </SelectContent>
-          </Select>
+          <TextInput
+            placeholder="Fira Code"
+            value={terminal.font.family}
+            onCommit={(family) => update('font', { family })}
+          />
         </Row>
-        {customFont && (
-          <Row label="Custom family">
-            <TextInput
-              placeholder="Installed font name"
-              value={terminal.font.family}
-              onCommit={(family) => update('font', { family })}
-            />
-          </Row>
-        )}
         <Row label="Size">
           <NumberInput
             value={terminal.font.size}
