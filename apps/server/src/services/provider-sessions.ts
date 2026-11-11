@@ -54,6 +54,14 @@ async function locate(
 ): Promise<ProviderSession | null> {
   switch (provider) {
     case 'claude': {
+      if (paths.size > 1) {
+        const item = await getSessionInfo(id)
+        const projectId =
+          item?.cwd === undefined ? undefined : paths.get(item.cwd)
+        if (item !== undefined && projectId !== undefined) {
+          return fromClaude(item, projectId)
+        }
+      }
       const found = (
         await Promise.all(
           [...paths].map(async ([cwd, projectId]) => {
