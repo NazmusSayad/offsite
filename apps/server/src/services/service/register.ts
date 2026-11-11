@@ -166,6 +166,12 @@ async function unregisterWindows() {
   }
   await succeeds('schtasks', ['/end', '/tn', NAME])
   await run('schtasks', ['/delete', '/tn', NAME, '/f'])
+  const script = scriptFile.replaceAll("'", "''")
+  await run('powershell.exe', [
+    '-NoProfile',
+    '-Command',
+    `Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.Contains('${script}') } | ForEach-Object { taskkill /T /F /PID $_.ProcessId | Out-Null }`,
+  ])
 }
 
 async function succeeds(command: string, commandArguments: string[]) {
