@@ -15,9 +15,7 @@ import {
   addAccount,
   capabilities,
   linkAccount,
-  publishAccounts,
   removeAccount,
-  stopProvider,
   updateAccount,
 } from '../services/accounts.ts'
 import * as bookmarks from '../services/bookmarks.ts'
@@ -83,8 +81,8 @@ import {
   refreshAll,
   searchableSessions,
   updateSession,
-  watchSessions,
 } from '../services/sessions.ts'
+import { saveSettings } from '../services/settings.ts'
 import { syncSnapshot } from '../services/snapshot.ts'
 import {
   commitFiles,
@@ -104,7 +102,7 @@ import {
 } from '../services/terminal/terminal.ts'
 import { removeUnsent } from '../services/unsent.ts'
 import { readUsage } from '../services/usage.ts'
-import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
+import { configInfo } from '../storage/config.ts'
 import { saveAppIcon } from '../storage/state.ts'
 import { worktreeHandlers } from './worktree-handlers.ts'
 
@@ -123,28 +121,7 @@ const handlers: Handlers = {
   sync: () => syncSnapshot(),
   'config.get': () => configInfo(),
   'appIcon.save': (params) => saveAppIcon(params),
-  'config.save': async (params) => {
-    const before = readConfig()
-    const saved = saveConfig(params)
-    for (const provider of ['claude', 'codex', 'opencode'] as const) {
-      if (before[provider].enabled && !saved[provider].enabled) {
-        await stopProvider(provider)
-      }
-    }
-    if (
-      JSON.stringify(saved.claude.baseDir) ===
-        JSON.stringify(before.claude.baseDir) &&
-      saved.claude.enabled === before.claude.enabled &&
-      saved.codex.enabled === before.codex.enabled &&
-      saved.opencode.enabled === before.opencode.enabled
-    ) {
-      return saved
-    }
-    watchSessions()
-    refreshAll()
-    void publishAccounts()
-    return saved
-  },
+  'config.save': (params) => saveSettings(params),
   'projects.add': async (params) => {
     const project = await addProject(params.path)
     refreshAll()

@@ -6,6 +6,7 @@ import readline from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
 import { openEnv } from '../../services/open/open.ts'
 import { logger } from '../log.ts'
+import { offsitePlugin } from '../plugin.ts'
 import { publishCodexLimits } from './accounts.ts'
 import type { RateLimitSnapshot, ThreadItem } from './types.ts'
 
@@ -51,6 +52,19 @@ export function stopAppServers() {
   for (const server of servers.values()) {
     server.stop()
   }
+}
+
+export async function updateSkillRoots() {
+  await Promise.all(
+    [...servers.values()].map((server) =>
+      server.request('skills/extraRoots/set', skillRoots())
+    )
+  )
+}
+
+function skillRoots() {
+  const plugin = offsitePlugin()
+  return { extraRoots: plugin === null ? [] : [path.join(plugin, 'skills')] }
 }
 
 export function stopAppServer(home: string) {
@@ -100,22 +114,27 @@ export class AppServer {
     this.child.on('exit', (code) =>
       this.exit(new Error(`Codex stopped (exit code ${code})`))
     )
-    this.ready = this.call(
-      'initialize',
-      {
-        clientInfo: { name: 'offsite', title: 'OffSite', version: '0.0.0' },
-        capabilities: { experimentalApi: true, requestAttestation: false },
-      },
-      START_TIMEOUT
-    ).then(
-      () => this.write({ method: 'initialized' }),
-      (error: unknown) => {
-        log.warn(`the Codex app server for ${home} did not start:`, error)
-        this.child.kill()
-        throw error
-      }
-    )
+    this.ready = this.start()
     this.armIdleTimer()
+  }
+
+  private async start() {
+    try {
+      await this.call(
+        'initialize',
+        {
+          clientInfo: { name: 'offsite', title: 'OffSite', version: '0.0.0' },
+          capabilities: { experimentalApi: true, requestAttestation: false },
+        },
+        START_TIMEOUT
+      )
+      this.write({ method: 'initialized' })
+      await this.call('skills/extraRoots/set', skillRoots(), START_TIMEOUT)
+    } catch (error) {
+      log.warn(`the Codex app server for ${this.home} did not start:`, error)
+      this.child.kill()
+      throw error
+    }
   }
 
   async request<T>(method: string, params: Params): Promise<T> {

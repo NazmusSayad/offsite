@@ -23,6 +23,7 @@ import { sessions } from '../../services/sessions.ts'
 import { claudeBaseDir } from '../../storage/config.ts'
 import { broadcast } from '../hub.ts'
 import { logger } from '../log.ts'
+import { offsitePlugin } from '../plugin.ts'
 import { isRecord } from './content.ts'
 import { isFullyLinked, isLinked } from './links.ts'
 
@@ -83,11 +84,13 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
   if (path.resolve(configDir) === path.join(os.homedir(), '.claude')) {
     delete env.CLAUDE_CONFIG_DIR
   }
+  const plugin = offsitePlugin()
   return {
     cwd,
     env,
     pathToClaudeCodeExecutable: executable,
     systemPrompt: { type: 'preset', preset: 'claude_code' },
+    plugins: plugin === null ? [] : [{ type: 'local', path: plugin }],
     hooks: {
       PostToolUse: [
         {

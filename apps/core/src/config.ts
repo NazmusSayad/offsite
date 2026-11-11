@@ -87,6 +87,7 @@ export type Config = {
   autoSkipQuestionTimeout: number | null
   autoPermissionMode: 'bypass' | 'allow' | 'deny'
   autoPermissionTimeout: number | null
+  offsiteSkills: boolean
   terminal: TerminalConfig
   dictation: DictationConfig
 }

@@ -29,7 +29,7 @@ import {
 import { broadcast } from '../lib/hub.ts'
 import { runs } from '../lib/live.ts'
 import { logger } from '../lib/log.ts'
-import { disconnectOpenCode } from '../lib/opencode/client.ts'
+import { stopOpenCode } from '../lib/opencode/client.ts'
 import {
   openCodeCapabilities,
   openCodeInstalled,
@@ -99,7 +99,7 @@ export async function stopProvider(provider: Provider) {
     stopAppServers()
   }
   if (provider === 'opencode') {
-    disconnectOpenCode()
+    stopOpenCode()
   }
   if (provider === 'claude') {
     for (const account of storedAccounts()) {

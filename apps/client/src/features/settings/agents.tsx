@@ -1,3 +1,5 @@
+import { InformationCircleIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import type { Config } from '@offsite/core/config'
 import { updateConfig } from '@/api/machine-config'
 import {
@@ -7,6 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Tooltip } from '@/components/ui/tooltip'
 import { Row, Section } from './controls'
 
 const presets = [10, 15, 30, 45, 60, 120, 180, 300, 600, 900, 1800, 3600]
@@ -78,6 +82,27 @@ export function AgentsSection(props: { machine: string; config: Config }) {
             }
           />
         </div>
+      </Row>
+      <Row
+        label={
+          <span className="flex items-center gap-1.5">
+            OffSite skills
+            <Tooltip label="Teaches agents to show images, videos, audio and diagrams in OffSite. Turning it off or on restarts OpenCode.">
+              <span onClick={(event) => event.preventDefault()}>
+                <HugeiconsIcon
+                  icon={InformationCircleIcon}
+                  aria-label="About OffSite skills"
+                  className="text-muted-foreground size-3.5"
+                />
+              </span>
+            </Tooltip>
+          </span>
+        }
+      >
+        <Switch
+          checked={config.offsiteSkills}
+          onCheckedChange={(offsiteSkills) => save({ offsiteSkills })}
+        />
       </Row>
     </Section>
   )
