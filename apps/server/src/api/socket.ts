@@ -20,6 +20,7 @@ import {
   updateAccount,
 } from '../services/accounts.ts'
 import * as bookmarks from '../services/bookmarks.ts'
+import { localBranches } from '../services/branches.ts'
 import { runtime, sessionContext } from '../services/debug.ts'
 import { ping, transcribe, workflows } from '../services/dictation.ts'
 import { exportSession } from '../services/export.ts'
@@ -103,7 +104,6 @@ import {
 } from '../services/terminal/terminal.ts'
 import { removeUnsent } from '../services/unsent.ts'
 import { readUsage } from '../services/usage.ts'
-import { localBranches } from '../services/worktrees.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
 import {
   saveLastPickedEffort,

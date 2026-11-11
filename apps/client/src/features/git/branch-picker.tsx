@@ -89,7 +89,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   const repoPath = target.repo.path
   const onRefresh = target.onRefresh
   const [branches, setBranches] = useState<
-    { name: string; local: boolean }[] | null
+    { name: string; local: boolean; worktree: string | null }[] | null
   >(null)
   const [remotes, setRemotes] = useState<string[] | null>(null)
   const [query, setQuery] = useState('')
@@ -144,6 +144,12 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
       (error: unknown) => log.error('could not fetch', error)
     )
   }, [machine, projectId, repoPath, onRefresh])
+
+  function busy(branch: string) {
+    return (
+      (branches ?? []).find((item) => item.name === branch)?.worktree ?? null
+    )
+  }
 
   async function sync() {
     setSyncing(true)
@@ -217,7 +223,12 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             className="placeholder:text-muted-foreground/70 h-6.5 w-full bg-transparent ps-5 text-sm outline-none"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key !== 'Enter' || name === '' || branches === null) {
+              if (
+                event.key !== 'Enter' ||
+                name === '' ||
+                branches === null ||
+                busy(name) !== null
+              ) {
                 return
               }
               event.preventDefault()
@@ -256,7 +267,12 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
         {matches.map((branch) => (
           <button
             key={branch.name}
-            disabled={switching}
+            disabled={switching || branch.worktree !== null}
+            title={
+              branch.worktree === null
+                ? undefined
+                : `Open in the worktree ${branch.worktree}. A branch can be open in only one worktree at a time`
+            }
             className={cn(
               'hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50',
               branch.name === target.repo.branch &&
@@ -271,6 +287,12 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             }}
           >
             <span className="min-w-0 flex-1 truncate">{branch.name}</span>
+            {branch.worktree !== null && (
+              <span className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs">
+                <HugeiconsIcon icon={GitForkIcon} className="size-3.5" />
+                In another worktree
+              </span>
+            )}
             {!branch.local && (
               <span
                 className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs"
@@ -297,7 +319,9 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
         {remoteMatches.map((branch) => (
           <button
             key={branch}
-            disabled={switching}
+            disabled={
+              switching || busy(branch.slice(branch.indexOf('/') + 1)) !== null
+            }
             className="hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50"
             onClick={() =>
               void switchTo(branch.slice(branch.indexOf('/') + 1), false)

@@ -6,7 +6,7 @@ import type { WorktreeDetails, WorktreeStage } from '@offsite/core/git'
 import { keyedLock } from '../lib/locks.ts'
 import { home } from '../storage/storage.ts'
 import { chosenName, generatedName, type Named } from './branch-names.ts'
-import { git, gitError, listBranches } from './git.ts'
+import { git, gitError } from './git.ts'
 
 const FETCH_TIMEOUT = 60_000
 const LOCAL_LIMIT = 10
@@ -94,32 +94,6 @@ export async function moveIntoWorktree(
       warning: named.warning,
     }
   })
-}
-
-export async function localBranches(repo: string) {
-  const branches = (await listBranches(repo, false)).map((name) => ({
-    name,
-    local: true,
-  }))
-  const base = await knownDefaultBase(repo)
-  if (base === null) {
-    return branches
-  }
-  const name = defaultBranchName(base)
-  return [
-    { name, local: branches.some((branch) => branch.name === name) },
-    ...branches.filter((branch) => branch.name !== name),
-  ]
-}
-
-function defaultBranchName(ref: string) {
-  if (ref.startsWith('refs/heads/')) {
-    return ref.slice('refs/heads/'.length)
-  }
-  if (ref.startsWith('refs/remotes/origin/')) {
-    return ref.slice('refs/remotes/origin/'.length)
-  }
-  throw new Error(`${ref} is not a branch`)
 }
 
 export async function uncommittedFiles(repo: string) {
@@ -341,7 +315,7 @@ async function defaultBaseOf(top: string) {
   return `refs/heads/${current}`
 }
 
-async function knownDefaultBase(top: string) {
+export async function knownDefaultBase(top: string) {
   if ((await remoteNames(top)).includes('origin')) {
     if (await refExists(top, 'refs/remotes/origin/HEAD')) {
       return (
@@ -399,7 +373,7 @@ async function remoteNames(top: string) {
     .filter((name) => name !== '')
 }
 
-async function currentBranch(folder: string) {
+export async function currentBranch(folder: string) {
   try {
     return (
       await git(folder, ['symbolic-ref', '--short', '-q', 'HEAD'])
