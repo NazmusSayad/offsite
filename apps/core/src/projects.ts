@@ -6,7 +6,7 @@ export type Project = {
   name: string
   logo: string | null
   pinned: boolean
-  activeAt: number | null
+  score: number
   scratch: boolean
   parentId: string | null
   worktreeSetup: string | null

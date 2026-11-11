@@ -27,13 +27,11 @@ export function worktreeBranch(project: {
   return project.worktreeBranch ?? 'Worktree'
 }
 
-export function rankProjects<
-  T extends { pinned: boolean; activeAt: number | null },
->(projects: T[]) {
+export function rankProjects<T extends { pinned: boolean; score: number }>(
+  projects: T[]
+) {
   const sorted = [...projects].sort(
-    (a, b) =>
-      Number(b.pinned) - Number(a.pinned) ||
-      (b.activeAt ?? 0) - (a.activeAt ?? 0)
+    (a, b) => Number(b.pinned) - Number(a.pinned) || b.score - a.score
   )
   const shown = Math.max(5, projects.filter((project) => project.pinned).length)
   return { top: sorted.slice(0, shown), more: sorted.slice(shown) }

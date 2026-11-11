@@ -3,10 +3,10 @@ import type { SyncSnapshot } from '@offsite/core/protocol'
 import { activity } from '../lib/live.ts'
 import { configInfo } from '../storage/config.ts'
 import {
-  readLastPickedEfforts,
-  readLastMessageTimes,
-  readLastPickedModels,
-} from '../storage/last-used.ts'
+  readLastEfforts,
+  readLastModels,
+  readLastSent,
+} from '../storage/interactions.ts'
 import { readAppIcon } from '../storage/state.ts'
 import { readBookmarks } from './bookmarks.ts'
 import { projects } from './projects.ts'
@@ -18,9 +18,9 @@ export function syncSnapshot(): SyncSnapshot {
   refreshAll()
   return {
     ...configInfo(),
-    lastUsed: readLastPickedModels(),
-    lastSent: readLastMessageTimes(),
-    lastEfforts: readLastPickedEfforts(),
+    lastUsed: readLastModels(),
+    lastSent: readLastSent(),
+    lastEfforts: readLastEfforts(),
     hostname: os.hostname(),
     projects: projects(),
     sessions: sessions(),

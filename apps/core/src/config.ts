@@ -50,6 +50,7 @@ export type LastPickedEffortForModel = {
   provider: Provider
   model: string
   effort: string | null
+  usedAt: number
 }
 
 export type GenerationModel = {

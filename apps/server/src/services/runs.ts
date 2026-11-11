@@ -27,16 +27,17 @@ import {
   openCodeHistory,
   rewindOpenCode,
 } from '../lib/opencode/index.ts'
-import { saveLastMessageTime } from '../storage/last-used.ts'
+import { savePrompt } from '../storage/interactions.ts'
 import { assertEnabled, providerName } from './accounts.ts'
 import {
   addScratchProject,
   addWorktreeProject,
   deleteWorktreeProject,
   projectPath,
-  recordProjectActivity,
+  publishProjects,
   removeScratchProject,
   restoreWorktreeFolder,
+  rootProject,
 } from './projects.ts'
 import {
   listedUpdatedAt,
@@ -264,9 +265,6 @@ async function deliver(
   request: RpcMethods['sessions.send']['params']
 ) {
   assertEnabled(request.settings.provider, request.settings.accountId)
-  if (request.settings.accountId !== null) {
-    saveLastMessageTime(request.settings.accountId)
-  }
   if (request.projectId === NO_PROJECT) {
     if (request.sessionId !== null) {
       throw new Error('A started chat always has a project')
@@ -349,7 +347,7 @@ async function submitFirst(
   moveUnsent(request.id, sessionId, projectId)
   await run.submit(request.id, request.prompt, request.delivery)
   recordInteraction(sessionId, run.provider, request.status)
-  recordProjectActivity(projectId)
+  recordPrompt(request.settings, projectId, sessionId)
 }
 
 async function sendExisting(
@@ -384,11 +382,26 @@ async function sendExisting(
   }
   await run.submit(request.id, request.prompt, request.delivery)
   recordInteraction(sessionId, provider, request.status)
-  recordProjectActivity(request.projectId)
+  recordPrompt(request.settings, request.projectId, sessionId)
   if (emptied.has(sessionId) && request.prompt.text.trim() !== '') {
     emptied.delete(sessionId)
     await updateSession(sessionId, { title: request.prompt.text.trim() })
   }
+}
+
+function recordPrompt(
+  settings: SessionSettings,
+  projectId: string,
+  sessionId: string
+) {
+  const root = rootProject(projectId)
+  savePrompt({
+    settings,
+    project: root.id,
+    worktree: root.id === projectId ? null : projectId,
+    session: sessionId,
+  })
+  publishProjects()
 }
 
 async function runFor(

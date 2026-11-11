@@ -30,32 +30,72 @@ export function lastPickedEffort(
   model: string
 ) {
   return (
-    machine.lastPickedEffortByModel.find(
-      (item) => item.provider === provider && item.model === model
+    maxBy(
+      getState()
+        .machines.filter(
+          (item) => item.id === machine.id || item.status === 'online'
+        )
+        .flatMap((item) => item.lastPickedEffortByModel)
+        .filter((item) => item.provider === provider && item.model === model),
+      (item) => item.usedAt
     )?.effort ?? null
   )
 }
 
-export function saveLastPickedEffort(
+function lastPickedModels(machine: Machine) {
+  return getState()
+    .machines.filter(
+      (item) => item.id === machine.id || item.status === 'online'
+    )
+    .flatMap((source) =>
+      (source.lastPickedModelByProvider ?? []).flatMap((row) => {
+        const accountId = sameAccount(
+          source,
+          machine,
+          row.provider,
+          row.accountId
+        )
+        return accountId === undefined ? [] : [{ ...row, accountId }]
+      })
+    )
+}
+
+function sameAccount(
+  source: Machine,
+  target: Machine,
   provider: Provider,
-  model: string,
-  effort: string | null
+  accountId: string | null
 ) {
-  for (const machine of getState().machines) {
-    if (machine.status === 'online') {
-      call(machine.id, 'lastEffort.save', { provider, model, effort }).catch(
-        (error: unknown) => log.error('could not save the last effort', error)
-      )
-    }
+  if (source.id === target.id) {
+    return accountId
   }
+  if (provider === 'opencode') {
+    return target.openCode.available ? null : undefined
+  }
+  const identity = (
+    provider === 'claude' ? source.claudeAccounts : source.codexAccounts
+  ).find((item) => item.id === accountId)?.identity
+  if (identity === undefined || identity === null) {
+    return undefined
+  }
+  return (
+    provider === 'claude' ? target.claudeAccounts : target.codexAccounts
+  ).find(
+    (item) =>
+      item.enabled &&
+      item.identity !== null &&
+      item.identity.accountId === identity.accountId &&
+      item.identity.organizationId === identity.organizationId
+  )?.id
 }
 
 export function providerSettings(
   machine: Machine,
   provider: Provider
 ): SessionSettings {
-  const row = machine.lastPickedModelByProvider?.find(
-    (item) => item.provider === provider
+  const row = maxBy(
+    lastPickedModels(machine).filter((item) => item.provider === provider),
+    (item) => item.usedAt
   )
   const mode =
     provider === 'claude'
@@ -84,10 +124,7 @@ export function providerSettings(
 }
 
 export function newThreadSettings(machine: Machine): SessionSettings {
-  const latest = maxBy(
-    machine.lastPickedModelByProvider ?? [],
-    (item) => item.usedAt
-  )
+  const latest = maxBy(lastPickedModels(machine), (item) => item.usedAt)
   if (latest === undefined) {
     return {
       provider: DEFAULT_PROVIDER,
@@ -99,59 +136,6 @@ export function newThreadSettings(machine: Machine): SessionSettings {
     }
   }
   return providerSettings(machine, latest.provider)
-}
-
-export function saveLastPickedModel(
-  machine: string,
-  provider: Provider,
-  accountId: string | null,
-  model: string
-) {
-  call(machine, 'lastUsed.save', { provider, accountId, model }).catch(
-    (error: unknown) => log.error('could not save the last model', error)
-  )
-  const others = getState().machines.filter(
-    (item) => item.id !== machine && item.status === 'online'
-  )
-  if (provider === 'opencode') {
-    for (const other of others.filter((item) => item.openCode.available)) {
-      call(other.id, 'lastUsed.save', {
-        provider,
-        accountId: null,
-        model,
-      }).catch((error: unknown) =>
-        log.error('could not save the last model', error)
-      )
-    }
-    return
-  }
-  const current = machineOf(getState(), machine)
-  const identity = (
-    provider === 'claude' ? current.claudeAccounts : current.codexAccounts
-  ).find((item) => item.id === accountId)?.identity
-  if (identity === undefined || identity === null) {
-    return
-  }
-  for (const other of others) {
-    const match = (
-      provider === 'claude' ? other.claudeAccounts : other.codexAccounts
-    ).find(
-      (item) =>
-        item.enabled &&
-        item.identity !== null &&
-        item.identity.accountId === identity.accountId &&
-        item.identity.organizationId === identity.organizationId
-    )
-    if (match !== undefined) {
-      call(other.id, 'lastUsed.save', {
-        provider,
-        accountId: match.id,
-        model,
-      }).catch((error: unknown) =>
-        log.error('could not save the last model', error)
-      )
-    }
-  }
 }
 
 export function changeSettings(patch: Partial<SessionSettings>) {

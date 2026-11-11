@@ -16,6 +16,7 @@ import type {
 import { eq, max, or } from 'drizzle-orm'
 import { broadcast } from '../lib/hub.ts'
 import { db } from '../storage/db.ts'
+import { projectScores } from '../storage/interactions.ts'
 import { projects as projectsTable } from '../storage/schema.ts'
 import { home, scratchAvailable } from '../storage/storage.ts'
 import { git } from './git.ts'
@@ -33,6 +34,7 @@ import {
 const scratchRoot = path.join(home, 'scratch')
 
 export function projects(): Project[] {
+  const scores = projectScores()
   return db
     .select({
       id: projectsTable.id,
@@ -40,7 +42,6 @@ export function projects(): Project[] {
       name: projectsTable.name,
       logo: projectsTable.logo,
       pinned: projectsTable.pinned,
-      activeAt: projectsTable.activeAt,
       scratch: projectsTable.scratch,
       parentId: projectsTable.parentId,
       worktreeSetup: projectsTable.worktreeSetup,
@@ -49,6 +50,7 @@ export function projects(): Project[] {
     .from(projectsTable)
     .orderBy(projectsTable.position)
     .all()
+    .map((project) => ({ ...project, score: scores.get(project.id) ?? 0 }))
 }
 
 export function projectPath(id: string) {
@@ -78,7 +80,7 @@ export async function addProject(input: string) {
     })
     .onConflictDoNothing({ target: projectsTable.path })
     .run()
-  publish()
+  publishProjects()
   const project = projects().find((item) => item.path === folder)
   if (project === undefined) {
     throw new Error(`Could not add ${folder}`)
@@ -119,14 +121,14 @@ export async function addScratchProject(text: string) {
     db.insert(projectsTable)
       .values({ id, path: folder, name: 'Chat', scratch: true })
       .run()
-    publish()
+    publishProjects()
     return { id, path: folder }
   }
 }
 
 export async function removeScratchProject(id: string, folder: string) {
   db.delete(projectsTable).where(eq(projectsTable.id, id)).run()
-  publish()
+  publishProjects()
   try {
     await rmdir(folder)
   } catch (error) {
@@ -243,7 +245,7 @@ export async function deleteWorktreeProject(projectId: string) {
     project.worktreeBranch
   )
   db.delete(projectsTable).where(eq(projectsTable.id, project.id)).run()
-  publish()
+  publishProjects()
 }
 
 export async function restoreWorktreeFolder(projectId: string) {
@@ -300,7 +302,7 @@ function insertWorktree(root: Project, cwd: string, branch: string | null) {
       worktreeBranch: branch,
     })
     .run()
-  publish()
+  publishProjects()
   return id
 }
 
@@ -390,7 +392,7 @@ export async function updateProject(id: string, patch: ProjectPatch) {
       .where(eq(projectsTable.id, id))
       .run()
   }
-  publish()
+  publishProjects()
   return null
 }
 
@@ -398,15 +400,7 @@ export function removeProject(id: string) {
   db.delete(projectsTable)
     .where(or(eq(projectsTable.id, id), eq(projectsTable.parentId, id)))
     .run()
-  publish()
-}
-
-export function recordProjectActivity(projectId: string) {
-  db.update(projectsTable)
-    .set({ activeAt: Date.now() })
-    .where(eq(projectsTable.id, rootProject(projectId).id))
-    .run()
-  publish()
+  publishProjects()
 }
 
 export async function directories(input: string): Promise<DirectoryListing> {
@@ -434,7 +428,7 @@ function nextPosition() {
   return last === undefined || last.position === null ? 0 : last.position + 1
 }
 
-function publish() {
+export function publishProjects() {
   broadcast({ type: 'projects', projects: projects() })
 }
 

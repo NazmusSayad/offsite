@@ -87,11 +87,6 @@ export type RpcMethods = {
   sync: { params: void; result: SyncSnapshot }
   'config.get': { params: void; result: ConfigWithDefaults }
   'config.save': { params: Config; result: Config }
-  'lastUsed.save': {
-    params: Pick<LastPickedModelForProvider, 'provider' | 'accountId' | 'model'>
-    result: null
-  }
-  'lastEffort.save': { params: LastPickedEffortForModel; result: null }
   'appIcon.save': { params: AppIconId; result: AppIconId }
   'projects.add': { params: { path: string }; result: Project }
   'projects.update': {

@@ -19,8 +19,6 @@ import {
   changeSettings,
   lastPickedEffort,
   providerSettings,
-  saveLastPickedEffort,
-  saveLastPickedModel,
 } from '@/lib/accounts'
 import {
   getState,
@@ -70,7 +68,6 @@ export function Pickers() {
             onChange={(value) => {
               const effort = value === 'default' ? null : value
               changeSettings({ effort })
-              saveLastPickedEffort(settings.provider, model.value, effort)
             }}
           />
         </>
@@ -272,12 +269,6 @@ function ModelMenu(props: {
         ? settings.effort
         : (lastPickedEffort(machine, provider, option.value) ?? option.effort),
     }
-    saveLastPickedModel(
-      selection.machine,
-      provider,
-      picked.accountId,
-      option.value
-    )
     if (provider === settings.provider) {
       changeSettings(choice)
     } else {

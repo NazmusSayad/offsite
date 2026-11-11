@@ -1,12 +1,6 @@
 import type { RpcMethods } from '@offsite/core/protocol'
 import type { SessionPick } from '@offsite/core/search'
-import {
-  integer,
-  primaryKey,
-  real,
-  snakeCase,
-  text,
-} from 'drizzle-orm/sqlite-core'
+import { integer, real, snakeCase, text } from 'drizzle-orm/sqlite-core'
 
 export const projects = snakeCase.table('projects', {
   id: text().primaryKey(),
@@ -15,7 +9,6 @@ export const projects = snakeCase.table('projects', {
   logo: text(),
   position: integer().notNull().default(0),
   pinned: integer({ mode: 'boolean' }).notNull().default(false),
-  activeAt: integer(),
   scratch: integer({ mode: 'boolean' }).notNull().default(false),
   parentId: text(),
   worktreeSetup: text(),
@@ -68,27 +61,17 @@ export const pushSubscriptions = snakeCase.table('push_subscriptions', {
   server: text().notNull(),
 })
 
-export const lastPickedModels = snakeCase.table('last_used_models', {
-  provider: text({ enum: ['claude', 'codex', 'opencode'] }).primaryKey(),
-  accountId: text(),
-  model: text().notNull(),
-  usedAt: integer().notNull(),
+export const interactions = snakeCase.table('interactions', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  provider: text({ enum: ['claude', 'codex', 'opencode'] }).notNull(),
+  account: text(),
+  model: text(),
+  effort: text(),
+  project: text().notNull(),
+  projectWorktree: text(),
+  projectSession: text().notNull(),
+  createdAt: integer().notNull(),
 })
-
-export const lastMessageTimes = snakeCase.table('last_sent', {
-  accountId: text().primaryKey(),
-  sentAt: integer().notNull(),
-})
-
-export const lastPickedEfforts = snakeCase.table(
-  'last_efforts',
-  {
-    provider: text({ enum: ['claude', 'codex', 'opencode'] }).notNull(),
-    model: text().notNull(),
-    effort: text(),
-  },
-  (table) => [primaryKey({ columns: [table.provider, table.model] })]
-)
 
 export const bookmarks = snakeCase.table('bookmarks', {
   id: text().primaryKey(),

@@ -104,10 +104,6 @@ import {
 import { removeUnsent } from '../services/unsent.ts'
 import { readUsage } from '../services/usage.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
-import {
-  saveLastPickedEffort,
-  saveLastPickedModel,
-} from '../storage/last-used.ts'
 import { saveAppIcon } from '../storage/state.ts'
 import { worktreeHandlers } from './worktree-handlers.ts'
 
@@ -125,8 +121,6 @@ const handlers: Handlers = {
   ping: () => null,
   sync: () => syncSnapshot(),
   'config.get': () => configInfo(),
-  'lastUsed.save': (params) => saveLastPickedModel(params),
-  'lastEffort.save': (params) => saveLastPickedEffort(params),
   'appIcon.save': (params) => saveAppIcon(params),
   'config.save': async (params) => {
     const before = readConfig()
