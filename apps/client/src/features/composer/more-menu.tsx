@@ -239,10 +239,10 @@ function MoreMenuContent(props: {
             onClick={() => {
               props.onClose()
               sendPrompt(
+                crypto.randomUUID(),
                 { text: '/compact', images: [] },
                 'queue',
                 getState().selection,
-                getState().settings,
                 null
               ).catch(showError)
             }}

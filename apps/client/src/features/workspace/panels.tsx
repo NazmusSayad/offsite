@@ -46,7 +46,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { useEditorShortcut } from '@/features/files/use-editor-shortcut'
-import { RestartDialog } from '@/features/sidebar/restart-dialog'
+import {
+  type DebugAction,
+  DebugDialogs,
+} from '@/features/sidebar/debug-dialogs'
 import { SessionMenuItems } from '@/features/sidebar/session-menu-items'
 import {
   getState as terminalState,
@@ -171,7 +174,7 @@ export function PanelMenu(
   )
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
-  const [restarting, setRestarting] = useState(false)
+  const [debug, setDebug] = useState<DebugAction | null>(null)
 
   return (
     <div className="flex shrink-0 items-center gap-1">
@@ -240,7 +243,7 @@ export function PanelMenu(
               session={session}
               mobile={props.mobile}
               onWarn={() => setWarning(true)}
-              onRestart={() => setRestarting(true)}
+              onDebug={setDebug}
               onRename={() => setTitle(session.title)}
             />
           )}
@@ -297,11 +300,11 @@ export function PanelMenu(
         </AlertDialogContent>
       </AlertDialog>
       {session !== undefined && (
-        <AlertDialog open={restarting} onOpenChange={setRestarting}>
-          <AlertDialogContent>
-            <RestartDialog session={session} />
-          </AlertDialogContent>
-        </AlertDialog>
+        <DebugDialogs
+          session={session}
+          action={debug}
+          onActionChange={setDebug}
+        />
       )}
     </div>
   )
@@ -311,7 +314,7 @@ function ThreadMenuItems(props: {
   session: MachineSession
   mobile: boolean
   onWarn: () => void
-  onRestart: () => void
+  onDebug: (action: DebugAction) => void
   onRename: () => void
 }) {
   const session = props.session
@@ -341,7 +344,7 @@ function ThreadMenuItems(props: {
           }
           void deactivateSession(session.machine, session.id, scope)
         }}
-        onRestart={props.onRestart}
+        onDebug={props.onDebug}
         onRename={props.onRename}
       />
     </>

@@ -1,3 +1,4 @@
+import type { RpcMethods } from '@offsite/core/protocol'
 import type { SessionPick } from '@offsite/core/search'
 import {
   integer,
@@ -17,6 +18,7 @@ export const projects = snakeCase.table('projects', {
   scratch: integer({ mode: 'boolean' }).notNull().default(false),
   parentId: text(),
   worktreeSetup: text(),
+  worktreeBranch: text(),
 })
 
 export const sessions = snakeCase.table('sessions', {
@@ -26,6 +28,12 @@ export const sessions = snakeCase.table('sessions', {
   status: text({
     enum: ['active', 'pinned', 'snoozed', 'minimized'],
   }).notNull(),
+})
+
+export const sessionPlaces = snakeCase.table('session_places', {
+  sessionId: text().primaryKey(),
+  projectId: text().notNull(),
+  claudeWorktree: integer({ mode: 'boolean' }).notNull().default(false),
 })
 
 export const sessionOpens = snakeCase.table('session_opens', {
@@ -80,3 +88,23 @@ export const lastPickedEfforts = snakeCase.table(
   },
   (table) => [primaryKey({ columns: [table.provider, table.model] })]
 )
+
+export const bookmarks = snakeCase.table('bookmarks', {
+  id: text().primaryKey(),
+  sessionId: text().notNull(),
+  itemId: text(),
+  start: integer(),
+  end: integer(),
+  createdAt: integer().notNull(),
+})
+
+export const unsentPrompts = snakeCase.table('unsent_prompts', {
+  id: text().primaryKey(),
+  sessionId: text(),
+  projectId: text().notNull(),
+  request: text({ mode: 'json' })
+    .$type<RpcMethods['sessions.send']['params']>()
+    .notNull(),
+  status: text({ enum: ['sending', 'queued', 'failed'] }).notNull(),
+  createdAt: integer().notNull(),
+})

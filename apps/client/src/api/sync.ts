@@ -4,18 +4,27 @@ import {
 } from '@offsite/core/config'
 import type { Project } from '@offsite/core/projects'
 import type { ServerEvent } from '@offsite/core/protocol'
-import type { Session } from '@offsite/core/sessions'
 import { isEqual } from 'es-toolkit'
 import { toast } from 'sonner'
-import { getDraftSettings, saveDraftSettings } from '@/features/composer/drafts'
+import {
+  getDraft,
+  getDraftSettings,
+  hasPrompt,
+  moveDraft,
+  saveDraftSettings,
+} from '@/features/composer/drafts'
+import { settleDisconnected } from '@/features/composer/send'
+import { setOpen as setTerminalOpen } from '@/features/terminal/session'
 import {
   providerSettings,
   refreshAccounts,
   refreshCapabilities,
   setAccounts,
 } from '@/lib/accounts'
+import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
 import { claimNotifications, notify, push } from '@/lib/notifications'
+import { receiveUnsent } from '@/lib/pending'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
 import { closeSession, loadSession, openSession } from '@/lib/sessions'
@@ -39,6 +48,7 @@ import {
 } from '@/lib/url'
 import { receiveLimits, receiveUsage } from '@/lib/usage'
 import { call, connectMachine, listen } from './connection'
+import { flushDelta, queueDelta } from './delta'
 import { receiveConfig, receiveLastPickedModels } from './machine-config'
 import {
   addMachine,
@@ -52,13 +62,9 @@ import {
   restoreProjects,
   shareMachines,
 } from './machines'
+import { setSessions } from './session-list'
 
 const log = logger.withTag('sync')
-
-const DELTA_DELAY = 50
-
-let pendingDelta: { machine: string; sessionId: string; text: string } | null =
-  null
 
 export function start() {
   const stored = loadMachines()
@@ -76,11 +82,14 @@ export function start() {
     settingsPage: 'General',
     editor: null,
     exporting: null,
+    removingWorktree: null,
     settingsAccount: null,
     settingsEditedMachine: null,
     settingsListing: true,
     settingsMachine: stored.at(0)?.id ?? null,
     usageOpen: false,
+    bookmarksOpen: false,
+    focus: null,
     usage: {},
     unseen: [],
     generatingTitles: [],
@@ -91,7 +100,7 @@ export function start() {
     before: null,
     partial: '',
     requests: [],
-    queue: [],
+    pending: [],
     settings: (selection === null || selection.sessionId === null
       ? null
       : getDraftSettings(draftKey(selection))) ?? {
@@ -209,6 +218,9 @@ async function resync(machine: string) {
       lastMessageAtByAccount: snapshot.lastSent,
       lastPickedEffortByModel: snapshot.lastEfforts,
     })
+    receiveBookmarks(machine, snapshot.bookmarks)
+    receiveUnsent(machine, snapshot.unsent)
+    settleDisconnected(machine)
     setProjects(machine, snapshot.projects)
     setSessions(machine, snapshot.sessions)
     receiveConfig(machine, snapshot.config)
@@ -231,43 +243,6 @@ function setProjects(machine: string, projects: Project[]) {
     ],
   })
   persistMachines()
-}
-
-function setSessions(machine: string, sessions: Session[]) {
-  const state = getState()
-  const selection = state.selection
-  const listed = state.sessions
-    .filter((item) => item.machine === machine && item.status !== 'inactive')
-    .map((item) => item.id)
-    .sort()
-    .join(' ')
-  const opened = state.sessions.find(
-    (item) =>
-      item.machine === machine &&
-      item.id === selection?.sessionId &&
-      !sessions.some((session) => session.id === item.id)
-  )
-  const next = [
-    ...state.sessions.filter((item) => item.machine !== machine),
-    ...sessions.map((session) => ({ ...session, machine })),
-    ...(opened === undefined
-      ? []
-      : [{ ...opened, status: 'inactive' as const }]),
-  ]
-  const inactiveVersion =
-    sessions
-      .map((session) => session.id)
-      .sort()
-      .join(' ') === listed
-      ? state.inactiveVersion
-      : state.inactiveVersion + 1
-  if (
-    inactiveVersion === state.inactiveVersion &&
-    isEqual(next, state.sessions)
-  ) {
-    return
-  }
-  update({ sessions: next, inactiveVersion })
 }
 
 function reopenThread(machine: string) {
@@ -350,6 +325,9 @@ function receive(machine: string, event: ServerEvent) {
     case 'appIcon':
       setMachine(machine, { appIcon: event.appIcon })
       return
+    case 'bookmarks':
+      receiveBookmarks(machine, event.bookmarks)
+      return
     case 'projects':
       setProjects(machine, event.projects)
       return
@@ -368,7 +346,18 @@ function receive(machine: string, event: ServerEvent) {
     case 'worktreeStage':
       update({ worktreeStage: event.stage })
       return
-    case 'started':
+    case 'warning':
+      toast(event.message)
+      return
+    case 'setup':
+      if (selected && state.selection?.projectId === event.projectId) {
+        setTerminalOpen(true)
+      }
+      return
+    case 'unsent':
+      receiveUnsent(machine, event.unsent)
+      return
+    case 'started': {
       if (
         state.selection === null ||
         !selected ||
@@ -377,22 +366,27 @@ function receive(machine: string, event: ServerEvent) {
       ) {
         return
       }
+      const typed = draftKey(state.selection)
+      const started = {
+        machine,
+        projectId: event.projectId,
+        sessionId: event.sessionId,
+      }
+      if (hasPrompt(getDraft(typed))) {
+        moveDraft(typed, draftKey(started))
+      }
       update({
-        selection: {
-          machine,
-          projectId: event.projectId,
-          sessionId: event.sessionId,
-        },
+        selection: started,
         loaded: true,
         items: [],
         earlier: [],
         before: null,
         partial: '',
         requests: [],
-        queue: [],
       })
       syncUrl(true)
       return
+    }
     case 'notification':
       push(machine, event.sessionId, event.message)
       return
@@ -421,7 +415,6 @@ function receive(machine: string, event: ServerEvent) {
         earlier: [],
         before: event.before,
         requests: event.requests,
-        queue: event.queue,
         settings:
           event.settings ??
           (state.settings.provider === event.provider
@@ -462,9 +455,6 @@ function receive(machine: string, event: ServerEvent) {
         requests: state.requests.filter((item) => item.id !== event.requestId),
       })
       return
-    case 'queue':
-      update({ queue: event.queue })
-      return
     case 'settings': {
       const settings = {
         ...event.settings,
@@ -473,38 +463,5 @@ function receive(machine: string, event: ServerEvent) {
       update({ settings })
       saveDraftSettings(machineKey(machine, event.sessionId), settings)
     }
-  }
-}
-
-function queueDelta(machine: string, sessionId: string, text: string) {
-  const selection = getState().selection
-  if (selection?.machine !== machine || selection.sessionId !== sessionId) {
-    return
-  }
-  if (
-    pendingDelta !== null &&
-    (pendingDelta.machine !== machine || pendingDelta.sessionId !== sessionId)
-  ) {
-    flushDelta()
-  }
-  if (pendingDelta === null) {
-    pendingDelta = { machine, sessionId, text: '' }
-    setTimeout(flushDelta, DELTA_DELAY)
-  }
-  pendingDelta.text += text
-}
-
-function flushDelta() {
-  if (pendingDelta === null) {
-    return
-  }
-  const delta = pendingDelta
-  pendingDelta = null
-  const state = getState()
-  if (
-    state.selection?.machine === delta.machine &&
-    state.selection.sessionId === delta.sessionId
-  ) {
-    update({ partial: state.partial + delta.text })
   }
 }

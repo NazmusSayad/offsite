@@ -118,6 +118,9 @@ export function restoreMachine(machine: StoredMachine): Machine {
     activity: {},
     providers: [],
     terminals: [],
+    bookmarks: [],
+    bookmarkList: null,
+    unsent: [],
   }
 }
 
@@ -126,6 +129,7 @@ export function restoreProjects(machine: StoredMachine): MachineProject[] {
     ...project,
     parentId: project.parentId ?? null,
     worktreeSetup: project.worktreeSetup ?? null,
+    worktreeBranch: project.worktreeBranch ?? null,
     machine: machine.id,
   }))
 }
@@ -322,6 +326,7 @@ export function persistMachines() {
         scratch: project.scratch,
         parentId: project.parentId,
         worktreeSetup: project.worktreeSetup,
+        worktreeBranch: project.worktreeBranch,
       })),
   }))
   saveMachines(machines)

@@ -1,5 +1,10 @@
 import type { AppIconId } from '@offsite/core/app-icons'
 import type {
+  Bookmark,
+  BookmarkRef,
+  BookmarkTarget,
+} from '@offsite/core/bookmarks'
+import type {
   Config,
   ConfigWithDefaults,
   LastPickedEffortForModel,
@@ -12,7 +17,7 @@ import type {
   Item,
   PermissionRequest,
   Prompt,
-  QueuedPrompt,
+  UnsentPrompt,
 } from '@offsite/core/items'
 import type { Project } from '@offsite/core/projects'
 import type {
@@ -43,6 +48,8 @@ export type Selection = {
   projectId: string
   sessionId: string | null
 }
+
+export type PendingPrompt = UnsentPrompt & { machine: string }
 
 export type SettingsPage =
   | 'General'
@@ -88,6 +95,9 @@ export type Machine = {
   activity: Record<string, SessionActivity>
   providers: ProviderStatus[]
   terminals: TerminalTab[]
+  bookmarks: BookmarkRef[]
+  bookmarkList: Bookmark[] | null
+  unsent: UnsentPrompt[]
 }
 
 export type MachineProject = Project & { machine: string }
@@ -105,6 +115,7 @@ export type State = {
   paletteOpen: boolean
   editor: { machine: string; projectId: string } | null
   exporting: MachineSession | null
+  removingWorktree: { machine: string; projectId: string } | null
   settingsOpen: boolean
   settingsPage: SettingsPage
   settingsAccount: string | null
@@ -112,6 +123,8 @@ export type State = {
   settingsListing: boolean
   settingsMachine: string | null
   usageOpen: boolean
+  bookmarksOpen: boolean
+  focus: BookmarkTarget | null
   usage: Record<string, Usage>
   unseen: string[]
   generatingTitles: string[]
@@ -122,11 +135,11 @@ export type State = {
   before: number | null
   partial: string
   requests: PermissionRequest[]
-  queue: QueuedPrompt[]
+  pending: PendingPrompt[]
   settings: SessionSettings
   draft: Prompt | null
   replacing: Selection | null
-  worktree: string | null
+  worktree: { name: string; base: string | null } | null
   worktreeStage: WorktreeStage | null
   context: ContextUsage | null
   capabilities: Capabilities | null
@@ -243,6 +256,10 @@ export function showSettings(settingsOpen: boolean) {
 
 export function showUsage(usageOpen: boolean) {
   update({ usageOpen, paletteOpen: false })
+}
+
+export function showBookmarks(bookmarksOpen: boolean) {
+  update({ bookmarksOpen, paletteOpen: false })
 }
 
 export function showSettingsPage(settingsPage: SettingsPage) {

@@ -1,5 +1,7 @@
 import {
   AiContentGenerator02Icon,
+  BookmarkAdd02Icon,
+  BookmarkRemove02Icon,
   ArrowExpandDiagonal01Icon,
   SunriseIcon,
   Delete02Icon,
@@ -10,7 +12,6 @@ import {
   PinIcon,
   PinOffIcon,
   PlayIcon,
-  RefreshIcon,
   TickDouble01Icon,
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
@@ -26,6 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
+import { toggleBookmark, useBookmarked } from '@/lib/bookmarks'
 import { providerNames } from '@/lib/format'
 import { editSession, regenerateTitle, removeSession } from '@/lib/sessions'
 import {
@@ -35,6 +37,8 @@ import {
   showExport,
   useStore,
 } from '@/lib/store'
+import type { DebugAction } from './debug-dialogs'
+import { DebugMenu } from './debug-menu'
 
 const restore = {
   snoozed: { icon: SunriseIcon, label: 'Unsnooze' },
@@ -48,7 +52,7 @@ export function SessionMenuItems(props: {
   context: boolean
   mobile: boolean
   onDeactivate: () => void
-  onRestart: (() => void) | null
+  onDebug: ((action: DebugAction) => void) | null
   onRename: () => void
 }) {
   const session = props.session
@@ -60,6 +64,13 @@ export function SessionMenuItems(props: {
     (state) =>
       projectOf(state, session.machine, session.projectId)?.scratch === true
   )
+  const target = {
+    sessionId: session.id,
+    itemId: null,
+    start: null,
+    end: null,
+  }
+  const bookmarked = useBookmarked(session.machine, target)
   const Item = props.context ? ContextMenuItem : DropdownMenuItem
   const Separator = props.context ? ContextMenuSeparator : DropdownMenuSeparator
 
@@ -119,12 +130,19 @@ export function SessionMenuItems(props: {
           Pin
         </Item>
       )}
+      <Item onSelect={() => toggleBookmark(session.machine, target)}>
+        <HugeiconsIcon
+          icon={bookmarked ? BookmarkRemove02Icon : BookmarkAdd02Icon}
+        />
+        {bookmarked ? 'Remove bookmark' : 'Bookmark'}
+      </Item>
       <Separator />
-      {session.provider === 'claude' && props.onRestart !== null && (
-        <Item onSelect={props.onRestart}>
-          <HugeiconsIcon icon={RefreshIcon} />
-          Restart Claude
-        </Item>
+      {props.onDebug !== null && (
+        <DebugMenu
+          session={session}
+          context={props.context}
+          onDebug={props.onDebug}
+        />
       )}
       <Item
         disabled={generatingTitle}

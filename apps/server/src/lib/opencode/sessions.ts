@@ -111,7 +111,6 @@ export async function openCodeHistory(
     provider: 'opencode',
     items: messages.flatMap((message) => messageItems(message, null)),
     requests: [...(run?.pending.values() ?? [])].map((item) => item.request),
-    queue: run?.queue ?? [],
     settings: run?.settings ?? null,
     context: run?.context ?? (await contextOf(client, cwd, messages)),
     before: null,

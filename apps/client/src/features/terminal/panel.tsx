@@ -15,6 +15,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { withWorktrees, worktreeBranch } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -371,11 +372,10 @@ function TabSwitcherItems(props: {
 
 function TabMenuItems(props: { tab: TerminalTab; onRename: () => void }) {
   const allProjects = useStore((state) => state.projects)
-  const projects = allProjects.filter(
-    (project) =>
-      project.machine === terminalMachine() &&
-      !project.scratch &&
-      project.parentId === null
+  const projects = withWorktrees(
+    allProjects.filter(
+      (project) => project.machine === terminalMachine() && !project.scratch
+    )
   )
   const tab = props.tab
 
@@ -406,6 +406,11 @@ function TabMenuItems(props: { tab: TerminalTab; onRename: () => void }) {
             {projects.map((project) => (
               <ContextMenuRadioItem key={project.id} value={project.id}>
                 <span className="max-w-60 truncate">{project.name}</span>
+                {worktreeBranch(project) !== null && (
+                  <span className="text-muted-foreground max-w-40 truncate text-xs">
+                    {worktreeBranch(project)}
+                  </span>
+                )}
               </ContextMenuRadioItem>
             ))}
           </ContextMenuRadioGroup>

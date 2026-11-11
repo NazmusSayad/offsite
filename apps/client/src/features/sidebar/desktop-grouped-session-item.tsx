@@ -124,7 +124,7 @@ export function DesktopGroupedSessionItem(props: {
           context={false}
           mobile={false}
           onDeactivate={deactivate}
-          onRestart={null}
+          onDebug={null}
           onRename={() => setTitle(session.title)}
         />
       </DropdownMenuContent>
@@ -148,7 +148,7 @@ export function DesktopGroupedSessionItem(props: {
         context={true}
         mobile={false}
         onDeactivate={deactivate}
-        onRestart={null}
+        onDebug={null}
         onRename={() => setTitle(session.title)}
       />
     </ContextMenuContent>

@@ -32,10 +32,11 @@ import { claudeBaseDir, readConfig } from '../storage/config.ts'
 import { db } from '../storage/db.ts'
 import {
   sessionOpens as sessionOpensTable,
+  sessionPlaces,
   sessions as sessionsTable,
 } from '../storage/schema.ts'
 import { providerName } from './accounts.ts'
-import { projectPath, projects, removeUnusedProject } from './projects.ts'
+import { projectPath, projects } from './projects.ts'
 import { type Found, info, timeLimit } from './provider-sessions.ts'
 import {
   fileChanged,
@@ -49,6 +50,7 @@ import {
   threadsReady,
   updateThreads,
 } from './threads.ts'
+import { removeSessionUnsent } from './unsent.ts'
 
 const log = logger.withTag('sessions')
 
@@ -160,7 +162,7 @@ function withStatus(items: Found[]): Session[] {
   })
 }
 
-function enabledProviders() {
+export function enabledProviders() {
   return allProviders.filter((provider) => readConfig()[provider].enabled)
 }
 
@@ -446,7 +448,7 @@ export async function updateSession(id: string, patch: SessionPatch) {
   }
 }
 
-export async function removeSession(id: string, projectId: string) {
+export async function removeSession(id: string) {
   const provider = providerOf(id)
   const run = runs.get(id)
   if (run !== undefined) {
@@ -465,22 +467,10 @@ export async function removeSession(id: string, projectId: string) {
   }
   db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
   db.delete(sessionOpensTable).where(eq(sessionOpensTable.sessionId, id)).run()
+  db.delete(sessionPlaces).where(eq(sessionPlaces.sessionId, id)).run()
+  removeSessionUnsent(id)
   listed[provider] = listed[provider].filter((item) => item.id !== id)
   forgetThread(provider, id)
-  const project = projects().find((item) => item.id === projectId)
-  if (
-    project === undefined ||
-    (!project.scratch && project.parentId === null)
-  ) {
-    return
-  }
-  await threadsReady()
-  if (enabledProviders().some((owner) => threadFailed(owner))) {
-    return
-  }
-  if (!knownThreads().some((item) => item.projectId === project.id)) {
-    await removeUnusedProject(project)
-  }
 }
 
 export async function fork(

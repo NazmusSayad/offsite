@@ -365,6 +365,10 @@
     @apply pointer-events-none;
   }
 
+  ::highlight(bookmark) {
+    background-color: color-mix(in srgb, var(--primary) 30%, transparent);
+  }
+
   ::highlight(transcript-find) {
     background-color: color-mix(in srgb, var(--warning) 35%, transparent);
   }

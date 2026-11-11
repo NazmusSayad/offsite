@@ -242,7 +242,6 @@ export async function history(
       ...live.slice(compacted + 1).filter((item) => !seen.has(item.uuid)),
     ]),
     requests: [...(run?.pending.values() ?? [])].map((item) => item.request),
-    queue: run?.queue ?? [],
     settings: run?.settings ?? null,
     context:
       run?.context ?? (tokens === null ? null : { tokens, window: null }),

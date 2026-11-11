@@ -2,7 +2,9 @@
 
 Never alter a provider (Claude Code, Codex, OpenCode) or anything around it: its tools, configuration, sessions, files, or database. Use only what the provider offers through its own CLI, SDK, or API. Never store session history in offsite. The provider owns the history, and offsite reads it from the provider.
 
-One exception: search may run `rg` read-only over Claude Code session files to find candidate sessions. The Claude SDK must confirm every result.
+One exception: offsite may store a message it received from the browser until the provider takes it, including messages waiting in the queue, and must delete it once the provider has it. A message that never reached the provider stays as "Not sent" until it is resent or removed.
+
+Another exception: search may run `rg` read-only over Claude Code session files to find candidate sessions. The Claude SDK must confirm every result.
 
 Another exception: accounts may read the account holder's name, account ID and organization ID read-only, because no provider exposes them: `oauthAccount.displayName`, `oauthAccount.accountUuid` and `oauthAccount.organizationUuid` from Claude Code's `.claude.json`, and the `name`, `chatgpt_user_id` and `chatgpt_account_id` claims of the ID token in Codex's `auth.json`. Read nothing else from those files.
 

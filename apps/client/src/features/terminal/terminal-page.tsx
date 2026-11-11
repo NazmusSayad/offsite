@@ -11,6 +11,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { withWorktrees, worktreeBranch } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import {
   ContextMenu,
@@ -24,7 +25,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { MachineLogo } from '@/constants/machine-icons'
-import { type Machine, useStore } from '@/lib/store'
+import { type Machine, type MachineProject, useStore } from '@/lib/store'
 import { useTerminalPage, useTerminalView } from '@/lib/url'
 import { cn } from '@/lib/utils'
 import { closeTabs } from './close-tab'
@@ -230,16 +231,15 @@ function useGroups(): Group[] {
     const tabs = machine.status === 'online' ? machine.terminals : []
     const projectIds = [
       ...new Set([
-        ...projects
-          .filter(
+        ...withWorktrees(
+          projects.filter(
             (project) =>
               machine.status === 'online' &&
               project.machine === machine.id &&
               !project.hidden &&
-              !project.scratch &&
-              project.parentId === null
+              !project.scratch
           )
-          .map((project) => project.id),
+        ).map((project) => project.id),
         ...tabs.flatMap((tab) =>
           tab.projectId === null ? [] : [tab.projectId]
         ),
@@ -255,15 +255,24 @@ function useGroups(): Group[] {
       ...projectIds.map((projectId) => ({
         machine,
         view: projectId,
-        name:
+        name: groupName(
           projects.find(
             (project) =>
               project.machine === machine.id && project.id === projectId
-          )?.name ?? 'Removed project',
+          )
+        ),
         count: tabs.filter((tab) => tab.projectId === projectId).length,
       })),
     ]
   })
+}
+
+function groupName(project: MachineProject | undefined) {
+  if (project === undefined) {
+    return 'Removed project'
+  }
+  const branch = worktreeBranch(project)
+  return branch === null ? project.name : `${project.name} · ${branch}`
 }
 
 function alerted(group: Group, machine: string | null) {

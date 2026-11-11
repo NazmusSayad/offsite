@@ -1,5 +1,6 @@
 import {
   Add01Icon,
+  Bookmark02Icon,
   Delete02Icon,
   LimitationIcon,
   Menu01Icon,
@@ -31,7 +32,8 @@ import {
 import { closeTabs } from '@/features/terminal/close-tab'
 import { NewTerminalItems } from '@/features/terminal/new-terminal-button'
 import { TerminalGroups } from '@/features/terminal/terminal-page'
-import { showSettings, showUsage, useStore } from '@/lib/store'
+import { LastUsageMeter } from '@/features/usage/usage-meters'
+import { showBookmarks, showSettings, showUsage, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 export function MobileMenu(props: { buttonClassName: string }) {
@@ -44,7 +46,7 @@ export function MobileMenu(props: { buttonClassName: string }) {
   )
 
   return (
-    <div className="mr-1.5 flex items-center gap-0.75">
+    <div className="flex items-center gap-0.75">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -63,6 +65,12 @@ export function MobileMenu(props: { buttonClassName: string }) {
           <DropdownMenuItem onSelect={() => showUsage(true)}>
             <HugeiconsIcon icon={LimitationIcon} />
             Usage
+            <LastUsageMeter />
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => showBookmarks(true)}>
+            <HugeiconsIcon icon={Bookmark02Icon} />
+            Bookmarks
+            <BookmarkCount />
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => showSettings(true)}>
             <HugeiconsIcon icon={Settings01Icon} />
@@ -70,6 +78,7 @@ export function MobileMenu(props: { buttonClassName: string }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
       <Popover open={terminalsOpen} onOpenChange={setTerminalsOpen}>
         <ContextMenu onOpenChange={(open) => open && setTerminalsOpen(false)}>
           <ContextMenuTrigger asChild disabled={online.length === 0}>
@@ -108,6 +117,20 @@ export function MobileMenu(props: { buttonClassName: string }) {
         </PopoverContent>
       </Popover>
     </div>
+  )
+}
+
+function BookmarkCount() {
+  const total = useStore((state) =>
+    state.machines
+      .filter((machine) => machine.status === 'online')
+      .reduce((sum, machine) => sum + machine.bookmarks.length, 0)
+  )
+
+  return (
+    <span className="bg-foreground/5 text-muted-foreground ms-auto flex h-5 min-w-5 items-center justify-center rounded-[6px] px-1.25 text-[11px] font-medium tabular-nums">
+      {total}
+    </span>
   )
 }
 

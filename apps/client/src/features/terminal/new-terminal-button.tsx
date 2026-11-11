@@ -1,3 +1,4 @@
+import { withWorktrees, worktreeBranch } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { ContextMenuItem } from '@/components/ui/context-menu'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
@@ -17,27 +18,31 @@ export function NewTerminalItems(props: { contextMenu?: boolean }) {
         <MachineLogo icon={machine.icon} />
         <span className="max-w-60 truncate">{machine.name}</span>
       </Item>,
-      ...projects
-        .filter(
+      ...withWorktrees(
+        projects.filter(
           (project) =>
             project.machine === machine.id &&
             !project.hidden &&
-            !project.scratch &&
-            project.parentId === null
+            !project.scratch
         )
-        .map((project) => (
-          <Item
-            key={`${machine.id}:${project.id}`}
-            className="pl-7"
-            onSelect={() => void createTab(machine.id, project.id)}
-          >
-            <ProjectIcon
-              machine={machine.id}
-              projectId={project.id}
-              className="size-4"
-            />
-            <span className="max-w-60 truncate">{project.name}</span>
-          </Item>
-        )),
+      ).map((project) => (
+        <Item
+          key={`${machine.id}:${project.id}`}
+          className="pl-7"
+          onSelect={() => void createTab(machine.id, project.id)}
+        >
+          <ProjectIcon
+            machine={machine.id}
+            projectId={project.id}
+            className="size-4"
+          />
+          <span className="max-w-60 truncate">{project.name}</span>
+          {worktreeBranch(project) !== null && (
+            <span className="text-muted-foreground max-w-40 truncate text-xs">
+              {worktreeBranch(project)}
+            </span>
+          )}
+        </Item>
+      )),
     ])
 }

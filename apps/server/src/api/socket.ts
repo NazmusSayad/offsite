@@ -5,7 +5,7 @@ import type { RpcCall, RpcMethod, RpcMethods } from '@offsite/core/protocol'
 import type { WebSocket } from 'ws'
 import { earlier, image } from '../lib/claude/index.ts'
 import { type Client, clients } from '../lib/hub.ts'
-import { activity, runs } from '../lib/live.ts'
+import { runs } from '../lib/live.ts'
 import { logger } from '../lib/log.ts'
 import { openSite } from '../lib/proxy/sites.ts'
 import {
@@ -19,6 +19,9 @@ import {
   stopProvider,
   updateAccount,
 } from '../services/accounts.ts'
+import * as bookmarks from '../services/bookmarks.ts'
+import { localBranches } from '../services/branches.ts'
+import { runtime, sessionContext } from '../services/debug.ts'
 import { ping, transcribe, workflows } from '../services/dictation.ts'
 import { exportSession } from '../services/export.ts'
 import {
@@ -55,30 +58,34 @@ import {
   addProject,
   directories,
   projectPath,
-  projects,
-  projectWorktrees,
   removeProject,
   reorderProjects,
   updateProject,
 } from '../services/projects.ts'
 import { claimNotifier, subscribe, unsubscribe } from '../services/push.ts'
-import { agentHistory, open, restart, rewind, send } from '../services/runs.ts'
+import {
+  agentHistory,
+  open,
+  resend,
+  restart,
+  rewind,
+  send,
+  stop,
+} from '../services/runs.ts'
 import { generateSessionTitle } from '../services/session-title.ts'
 import {
   findSession,
   fork,
   inactiveSessions,
-  providerStatuses,
   publishSessions,
   recordInteraction,
   recordOpen,
   refreshAll,
-  removeSession,
   searchableSessions,
-  sessions,
   updateSession,
   watchSessions,
 } from '../services/sessions.ts'
+import { syncSnapshot } from '../services/snapshot.ts'
 import {
   commitFiles,
   history,
@@ -94,22 +101,20 @@ import {
   detachTerminal,
   terminalInput,
   terminalRequest,
-  terminalTabs,
 } from '../services/terminal/terminal.ts'
+import { removeUnsent } from '../services/unsent.ts'
 import { readUsage } from '../services/usage.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
 import {
-  readLastPickedEfforts,
-  readLastMessageTimes,
-  readLastPickedModels,
   saveLastPickedEffort,
   saveLastPickedModel,
 } from '../storage/last-used.ts'
-import { readAppIcon, saveAppIcon } from '../storage/state.ts'
+import { saveAppIcon } from '../storage/state.ts'
+import { worktreeHandlers } from './worktree-handlers.ts'
 
 const log = logger.withTag('socket')
 
-type Handlers = {
+export type Handlers = {
   [M in RpcMethod]: (
     params: RpcMethods[M]['params'],
     client: Client
@@ -117,23 +122,9 @@ type Handlers = {
 }
 
 const handlers: Handlers = {
+  ...worktreeHandlers,
   ping: () => null,
-  sync: () => {
-    refreshAll()
-    return {
-      ...configInfo(),
-      lastUsed: readLastPickedModels(),
-      lastSent: readLastMessageTimes(),
-      lastEfforts: readLastPickedEfforts(),
-      hostname: os.hostname(),
-      projects: projects(),
-      sessions: sessions(),
-      providers: providerStatuses(),
-      activity: activity(),
-      terminals: terminalTabs(),
-      appIcon: readAppIcon(),
-    }
-  },
+  sync: () => syncSnapshot(),
   'config.get': () => configInfo(),
   'lastUsed.save': (params) => saveLastPickedModel(params),
   'lastEffort.save': (params) => saveLastPickedEffort(params),
@@ -173,7 +164,6 @@ const handlers: Handlers = {
   },
   'projects.reorder': (params) => reorderProjects(params.ids),
   'projects.logoFiles': (params) => logoFiles(projectPath(params.id)),
-  'projects.worktrees': (params) => projectWorktrees(params.projectId),
   'directories.list': (params) => directories(params.path),
   'sessions.update': async (params) => {
     try {
@@ -185,14 +175,6 @@ const handlers: Handlers = {
   },
   'sessions.generateTitle': async (params) => {
     await generateSessionTitle(params.id, params.projectId)
-    return null
-  },
-  'sessions.remove': async (params) => {
-    try {
-      await removeSession(params.id, params.projectId)
-    } finally {
-      publishSessions()
-    }
     return null
   },
   'sessions.open': async (params, client) => {
@@ -223,7 +205,11 @@ const handlers: Handlers = {
     return null
   },
   'sessions.unqueue': (params) => {
-    runs.get(params.sessionId)?.unqueue(params.id)
+    removeUnsent(params.id)
+    return null
+  },
+  'sessions.resend': async (params, client) => {
+    await resend(client, params.id)
     return null
   },
   'sessions.steer': (params) => {
@@ -238,6 +224,13 @@ const handlers: Handlers = {
     await restart(params.sessionId)
     return null
   },
+  'sessions.stop': async (params) => {
+    await stop(params.sessionId)
+    return null
+  },
+  'sessions.runtime': (params) => runtime(params.sessionId),
+  'sessions.context': (params) =>
+    sessionContext(params.sessionId, params.projectId),
   'sessions.stopTask': async (params) => {
     await runs.get(params.sessionId)?.stopTask(params.taskId)
     return null
@@ -265,6 +258,9 @@ const handlers: Handlers = {
     publishSessions()
     return result
   },
+  'bookmarks.list': () => bookmarks.listBookmarks(),
+  'bookmarks.add': (params) => bookmarks.addBookmark(params),
+  'bookmarks.remove': (params) => bookmarks.removeBookmark(params.id),
   'accounts.list': () => accounts(),
   'accounts.add': (params) =>
     addAccount(params.provider, params.name, params.configDir),
@@ -384,7 +380,7 @@ const handlers: Handlers = {
   'git.branches': (params) =>
     pullRequestBranches(path.join(projectPath(params.projectId), params.repo)),
   'git.localBranches': (params) =>
-    listBranches(path.join(projectPath(params.projectId), params.repo), false),
+    localBranches(path.join(projectPath(params.projectId), params.repo)),
   'git.remoteBranches': (params) =>
     listBranches(path.join(projectPath(params.projectId), params.repo), true),
   'git.switch': async (params) => {

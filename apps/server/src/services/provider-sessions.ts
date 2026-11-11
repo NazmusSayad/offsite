@@ -18,8 +18,13 @@ import {
   openCodeSession,
   openCodeSessions,
 } from '../lib/opencode/index.ts'
+import { db } from '../storage/db.ts'
+import { sessionPlaces } from '../storage/schema.ts'
+import { projects } from './projects.ts'
 
 export type Found = Omit<Session, 'status'>
+
+type ProviderSession = Omit<Found, 'claudeWorktree'>
 
 const TIME_LIMIT = 10_000
 
@@ -38,15 +43,36 @@ export async function info(
   id: string,
   paths: Map<string, string>
 ): Promise<Found | null> {
+  const found = await locate(provider, id, paths)
+  return found === null ? null : placed([found])[0]
+}
+
+async function locate(
+  provider: Provider,
+  id: string,
+  paths: Map<string, string>
+): Promise<ProviderSession | null> {
   switch (provider) {
     case 'claude': {
-      const found = await Promise.all(
-        [...paths].map(async ([cwd, projectId]) => {
-          const item = await getSessionInfo(id, { dir: cwd })
-          return item === undefined ? null : fromClaude(item, projectId)
-        })
-      )
-      return found.find((item) => item !== null) ?? null
+      if (paths.size > 1) {
+        const item = await getSessionInfo(id)
+        const projectId =
+          item?.cwd === undefined ? undefined : paths.get(item.cwd)
+        if (item !== undefined && projectId !== undefined) {
+          return fromClaude(item, projectId)
+        }
+      }
+      const found = (
+        await Promise.all(
+          [...paths].map(async ([cwd, projectId]) => {
+            const item = await getSessionInfo(id, { dir: cwd })
+            return item === undefined
+              ? null
+              : { exact: item.cwd === cwd, item: fromClaude(item, projectId) }
+          })
+        )
+      ).filter((entry) => entry !== null)
+      return (found.find((entry) => entry.exact) ?? found.at(0))?.item ?? null
     }
     case 'codex': {
       if (!codexInstalled()) {
@@ -86,7 +112,7 @@ export async function info(
   }
 }
 
-function fromClaude(item: SDKSessionInfo, projectId: string): Found {
+function fromClaude(item: SDKSessionInfo, projectId: string): ProviderSession {
   return {
     id: item.sessionId,
     provider: 'claude',
@@ -100,7 +126,10 @@ function fromClaude(item: SDKSessionInfo, projectId: string): Found {
   }
 }
 
-async function fromCodex(thread: Thread, projectId: string): Promise<Found> {
+async function fromCodex(
+  thread: Thread,
+  projectId: string
+): Promise<ProviderSession> {
   let title =
     thread.name?.trim() ||
     thread.preview.replaceAll(/\[Image: source: [^\]]+\]/g, '').trim()
@@ -123,7 +152,10 @@ async function fromCodex(thread: Thread, projectId: string): Promise<Found> {
   }
 }
 
-function fromOpenCode(session: SessionInfo, projectId: string): Found {
+function fromOpenCode(
+  session: SessionInfo,
+  projectId: string
+): ProviderSession {
   return {
     id: session.id,
     provider: 'opencode',
@@ -138,6 +170,36 @@ export async function find(
   provider: Provider,
   paths: Map<string, string>
 ): Promise<Found[] | null> {
+  const found = await list(provider, paths)
+  return found === null ? null : placed(found)
+}
+
+function placed(items: ProviderSession[]) {
+  const places = new Map(
+    db
+      .select()
+      .from(sessionPlaces)
+      .all()
+      .map((record) => [record.sessionId, record])
+  )
+  const known = new Set(projects().map((project) => project.id))
+  return items.map((item) => {
+    const place = places.get(item.id)
+    if (place === undefined) {
+      return { ...item, claudeWorktree: false }
+    }
+    return {
+      ...item,
+      projectId: known.has(place.projectId) ? place.projectId : item.projectId,
+      claudeWorktree: place.claudeWorktree,
+    }
+  })
+}
+
+async function list(
+  provider: Provider,
+  paths: Map<string, string>
+): Promise<ProviderSession[] | null> {
   switch (provider) {
     case 'claude':
       return (

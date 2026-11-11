@@ -135,7 +135,7 @@ function DesktopSessionItemView(props: {
           context={false}
           mobile={false}
           onDeactivate={deactivate}
-          onRestart={null}
+          onDebug={null}
           onRename={() => setTitle(session.title)}
         />
       </DropdownMenuContent>
@@ -159,7 +159,7 @@ function DesktopSessionItemView(props: {
         context={true}
         mobile={false}
         onDeactivate={deactivate}
-        onRestart={null}
+        onDebug={null}
         onRename={() => setTitle(session.title)}
       />
     </ContextMenuContent>

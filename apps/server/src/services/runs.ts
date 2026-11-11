@@ -20,6 +20,7 @@ import {
 } from '../lib/codex/index.ts'
 import { type Client, publish } from '../lib/hub.ts'
 import { runs } from '../lib/live.ts'
+import { keyedLock } from '../lib/locks.ts'
 import {
   OpenCodeRun,
   openCodeAgent,
@@ -31,9 +32,10 @@ import { assertEnabled, providerName } from './accounts.ts'
 import {
   addScratchProject,
   addWorktreeProject,
+  deleteWorktreeProject,
   projectPath,
   removeScratchProject,
-  removeWorktreeProject,
+  restoreWorktreeFolder,
 } from './projects.ts'
 import {
   listedUpdatedAt,
@@ -41,8 +43,15 @@ import {
   recordInteraction,
   updateSession,
 } from './sessions.ts'
+import {
+  findUnsent,
+  moveUnsent,
+  saveUnsent,
+  setUnsentStatus,
+} from './unsent.ts'
+import { setUpWorktree } from './worktree-sessions.ts'
 
-const locks = new Map<string, Promise<void>>()
+export const locked = keyedLock()
 const emptied = new Set<string>()
 
 export function stopAll() {
@@ -188,6 +197,24 @@ export function restart(sessionId: string) {
   })
 }
 
+export function stop(sessionId: string) {
+  return locked(sessionId, async () => {
+    const run = runs.get(sessionId)
+    if (run === undefined) {
+      return
+    }
+    if (run.provider !== 'claude') {
+      throw new Error('Only Claude Code threads can be stopped')
+    }
+    if (run.running) {
+      await run.interrupt()
+    }
+    run.stop()
+    await run.closed
+    publish(sessionId, await history(sessionId, run.cwd))
+  })
+}
+
 export async function open(
   client: Client,
   sessionId: string,
@@ -203,6 +230,35 @@ export async function open(
 }
 
 export async function send(
+  client: Client,
+  request: RpcMethods['sessions.send']['params']
+) {
+  saveUnsent(request)
+  try {
+    await deliver(client, request)
+  } catch (error) {
+    setUnsentStatus(request.id, 'failed')
+    throw error
+  }
+}
+
+export async function resend(client: Client, id: string) {
+  const row = findUnsent(id)
+  if (row === undefined) {
+    throw new Error('This message no longer exists')
+  }
+  if (row.status !== 'failed') {
+    throw new Error('This message is already being sent')
+  }
+  await send(client, {
+    ...row.request,
+    sessionId: row.sessionId,
+    projectId: row.projectId,
+    worktree: row.sessionId === null ? row.request.worktree : null,
+  })
+}
+
+async function deliver(
   client: Client,
   request: RpcMethods['sessions.send']['params']
 ) {
@@ -233,18 +289,33 @@ export async function send(
     }
     const project = await addWorktreeProject(
       request.projectId,
-      request.worktree.name,
-      request.prompt.text,
+      {
+        name: request.worktree.name,
+        prompt: request.prompt.text,
+        base: request.worktree.base,
+      },
       (stage) => client.send({ type: 'worktreeStage', stage })
     )
+    if (project.warning !== null) {
+      client.send({ type: 'warning', message: project.warning })
+    }
     const run = await startRun(project.cwd, request.settings).catch(
       async (error: unknown) => {
-        await removeWorktreeProject(project)
+        await deleteWorktreeProject(project.id)
         throw error
       }
     )
     await submitFirst(client, run, request, project.id)
+    if (setUpWorktree(project.id)) {
+      client.send({ type: 'setup', projectId: project.id })
+    }
     return
+  }
+  if (
+    (await restoreWorktreeFolder(request.projectId)) &&
+    setUpWorktree(request.projectId)
+  ) {
+    client.send({ type: 'setup', projectId: request.projectId })
   }
   const cwd = projectPath(request.projectId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
@@ -274,7 +345,8 @@ async function submitFirst(
     projectId,
     from: request.projectId,
   })
-  await run.submit(request.prompt, request.delivery)
+  moveUnsent(request.id, sessionId, projectId)
+  await run.submit(request.id, request.prompt, request.delivery)
   recordInteraction(sessionId, run.provider, request.status)
 }
 
@@ -308,27 +380,12 @@ async function sendExisting(
   } else {
     await open(client, sessionId, request.projectId)
   }
-  await run.submit(request.prompt, request.delivery)
+  await run.submit(request.id, request.prompt, request.delivery)
   recordInteraction(sessionId, provider, request.status)
   if (emptied.has(sessionId) && request.prompt.text.trim() !== '') {
     emptied.delete(sessionId)
     await updateSession(sessionId, { title: request.prompt.text.trim() })
   }
-}
-
-async function locked<T>(sessionId: string, task: () => Promise<T>) {
-  const previous = locks.get(sessionId) ?? Promise.resolve()
-  const result = previous.then(task)
-  const done = result.then(
-    () => undefined,
-    () => undefined
-  )
-  locks.set(sessionId, done)
-  await done
-  if (locks.get(sessionId) === done) {
-    locks.delete(sessionId)
-  }
-  return result
 }
 
 async function runFor(

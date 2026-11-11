@@ -89,7 +89,6 @@ export async function codexHistory(sessionId: string): Promise<ServerEvent> {
       ...[...(run?.items.values() ?? [])].filter((item) => !ids.has(item.id)),
     ],
     requests: [...(run?.pending.values() ?? [])].map((item) => item.request),
-    queue: run?.queue ?? [],
     settings: run?.settings ?? null,
     context: run?.context ?? null,
     before: null,

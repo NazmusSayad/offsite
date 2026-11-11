@@ -5,7 +5,7 @@ import { useSearch } from '@tanstack/react-router'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import { Fragment, useCallback, useState, useSyncExternalStore } from 'react'
 import { machineKey } from '@/api/machines'
-import { useProjectName } from '@/api/projects'
+import { useProjectName, useWorktreeBranch } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
@@ -104,6 +104,10 @@ function MobileChat(props: { selection: Selection }) {
       state.generatingTitles.includes(machineKey(session.machine, session.id))
   )
   const projectTitle = useProjectName(
+    props.selection.machine,
+    props.selection.projectId
+  )
+  const branch = useWorktreeBranch(
     props.selection.machine,
     props.selection.projectId
   )
@@ -211,6 +215,7 @@ function MobileChat(props: { selection: Selection }) {
               <MachineLogo icon={machine.icon} className="size-3.5 shrink-0" />
               <span className="truncate">
                 {machine.name} / {projectTitle}
+                {branch !== null && ` · ${branch}`}
               </span>
             </div>
           )}

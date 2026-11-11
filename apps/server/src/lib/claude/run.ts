@@ -8,12 +8,14 @@ import {
   type SDKUserMessage,
 } from '@anthropic-ai/claude-agent-sdk'
 import type { SessionSettings } from '@offsite/core/config'
-import type {
-  PermissionRequest,
-  Prompt,
-  QueuedPrompt,
-} from '@offsite/core/items'
+import type { PermissionRequest, Prompt } from '@offsite/core/items'
 import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
+import {
+  failQueued,
+  queuedFor,
+  removeUnsent,
+  setUnsentStatus,
+} from '../../services/unsent.ts'
 import { cachedUsage, recordLimits } from '../../services/usage.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
@@ -31,6 +33,7 @@ import {
 } from './content.ts'
 import { toItems, toRequest } from './items.ts'
 import { permissionResult } from './permission.ts'
+import { followStart, followWorktree } from './worktree-follow.ts'
 
 const IDLE_LIMIT = 10 * 60 * 1000
 
@@ -52,7 +55,6 @@ export class Run {
   readonly closed: Promise<void>
   readonly resumeAt: string | null
   cut: string | null = null
-  queue: QueuedPrompt[] = []
   settings: SessionSettings
   context: ContextUsage | null = null
   partial = ''
@@ -66,6 +68,8 @@ export class Run {
   failed = false
   tasks: Record<string, TaskStatus> = {}
   private readonly inbox: SDKUserMessage[] = []
+  private readonly steering = new Map<string, { id: string; prompt: Prompt }>()
+  private readonly worktreeTools = new Map<string, string>()
   private wake: (() => void) | null = null
   private idleTimer: NodeJS.Timeout | undefined
   private stopping = false
@@ -99,33 +103,32 @@ export class Run {
     this.closed = this.read()
   }
 
-  submit(prompt: Prompt, delivery: 'queue' | 'steer') {
+  submit(id: string, prompt: Prompt, delivery: 'queue' | 'steer') {
     if (!this.running) {
-      this.push(prompt, undefined)
+      this.push(prompt)
+      removeUnsent(id)
       return
     }
     switch (delivery) {
-      case 'steer':
-        this.push(prompt, 'next')
+      case 'steer': {
+        const uuid = randomUUID()
+        this.inbox.push(toUserInput(prompt, uuid, 'next'))
+        this.wake?.()
+        this.steering.set(uuid, { id, prompt })
+        setUnsentStatus(id, 'sending')
         return
+      }
       case 'queue':
-        this.queue = [...this.queue, { id: randomUUID(), prompt }]
-        this.publishQueue()
+        setUnsentStatus(id, 'queued')
     }
-  }
-
-  unqueue(id: string) {
-    this.queue = this.queue.filter((item) => item.id !== id)
-    this.publishQueue()
   }
 
   steer(id: string) {
-    const item = this.queue.find((queued) => queued.id === id)
+    const item = queuedFor(this.sessionId).find((queued) => queued.id === id)
     if (item === undefined) {
       return
     }
-    this.unqueue(id)
-    this.submit(item.prompt, 'steer')
+    this.submit(id, item.prompt, 'steer')
   }
 
   async configure(settings: SessionSettings) {
@@ -177,10 +180,10 @@ export class Run {
     this.query.close()
   }
 
-  private push(prompt: Prompt, priority: 'next' | undefined) {
+  private push(prompt: Prompt) {
     clearTimeout(this.idleTimer)
     const uuid = randomUUID()
-    this.inbox.push(toUserInput(prompt, uuid, priority))
+    this.inbox.push(toUserInput(prompt, uuid, undefined))
     this.wake?.()
     this.add(promptMessage(prompt, uuid))
     this.running = true
@@ -228,6 +231,10 @@ export class Run {
       runs.delete(this.sessionId)
     }
     this.running = false
+    for (const steered of this.steering.values()) {
+      setUnsentStatus(steered.id, 'failed')
+    }
+    failQueued(this.sessionId)
     broadcastActivity()
   }
 
@@ -236,6 +243,7 @@ export class Run {
       case 'assistant': {
         if (message.parent_tool_use_id === null) {
           this.partial = ''
+          followWorktree(this.sessionId, this.cwd, this.worktreeTools, message)
         }
         this.add(toMessage('assistant', message, Date.now()))
         const tokens = contextTokens(message.message)
@@ -252,7 +260,17 @@ export class Run {
         }
         return
       }
-      case 'user':
+      case 'user': {
+        if ('isReplay' in message) {
+          const steered = this.steering.get(message.uuid)
+          if (steered === undefined) {
+            return
+          }
+          this.steering.delete(message.uuid)
+          this.add(promptMessage(steered.prompt, message.uuid))
+          removeUnsent(steered.id)
+          return
+        }
         if (message.isSynthetic) {
           return
         }
@@ -263,7 +281,9 @@ export class Run {
             Date.now()
           )
         )
+        followWorktree(this.sessionId, this.cwd, this.worktreeTools, message)
         return
+      }
       case 'stream_event':
         if (
           message.parent_tool_use_id === null &&
@@ -317,6 +337,7 @@ export class Run {
               ...this.settings,
               mode: message.permissionMode,
             })
+            void followStart(this.sessionId, this.cwd, message.cwd)
             return
           case 'background_tasks_changed': {
             this.agentTasks = message.tasks.filter(
@@ -390,11 +411,10 @@ export class Run {
   private finishTurn() {
     this.partial = ''
     this.compacting = false
-    const [next, ...rest] = this.queue
+    const next = queuedFor(this.sessionId).at(0)
     if (next !== undefined) {
-      this.queue = rest
-      this.publishQueue()
-      this.push(next.prompt, undefined)
+      this.push(next.prompt)
+      removeUnsent(next.id)
       return
     }
     this.running = false
@@ -494,14 +514,6 @@ export class Run {
       type: 'settings',
       sessionId: this.sessionId,
       settings,
-    })
-  }
-
-  private publishQueue() {
-    publish(this.sessionId, {
-      type: 'queue',
-      sessionId: this.sessionId,
-      queue: this.queue,
     })
   }
 }

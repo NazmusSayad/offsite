@@ -12,7 +12,8 @@ export async function generateText(
   setting: 'commitMessage' | 'titleGeneration',
   cwd: string,
   instructions: string,
-  prompt: string
+  prompt: string,
+  abortController?: AbortController
 ) {
   const settings = readConfig()[setting]
   const provider = settings.provider
@@ -47,6 +48,7 @@ export async function generateText(
         ...claudeOptions(accountId, directory),
         strictMcpConfig: true,
         settings: { disableAllHooks: true },
+        abortController,
       },
       model,
       instructions,

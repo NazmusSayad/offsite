@@ -7,12 +7,14 @@ import {
   CloudIcon,
   CloudUploadIcon,
   GitBranchIcon,
+  GitForkIcon,
   PlusSignIcon,
   SearchIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
@@ -20,8 +22,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { setOpen as setTerminalOpen } from '@/features/terminal/session'
 import { logger } from '@/lib/log'
-import { showError } from '@/lib/store'
+import { openSession } from '@/lib/sessions'
+import { getState, projectOf, showError, useStore } from '@/lib/store'
 import { cn, touch } from '@/lib/utils'
 
 const log = logger.withTag('git')
@@ -84,7 +88,9 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   const projectId = target.projectId
   const repoPath = target.repo.path
   const onRefresh = target.onRefresh
-  const [branches, setBranches] = useState<string[] | null>(null)
+  const [branches, setBranches] = useState<
+    { name: string; local: boolean; worktree: string | null }[] | null
+  >(null)
   const [remotes, setRemotes] = useState<string[] | null>(null)
   const [query, setQuery] = useState('')
   const [switching, setSwitching] = useState(false)
@@ -92,12 +98,41 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   const action = syncAction(target.repo)
   const name = query.trim()
   const matches = (branches ?? []).filter((branch) =>
-    branch.toLowerCase().includes(name.toLowerCase())
+    branch.name.toLowerCase().includes(name.toLowerCase())
   )
   const remoteMatches = (remotes ?? []).filter((branch) =>
     branch.toLowerCase().includes(name.toLowerCase())
   )
-  const exists = (branches ?? []).includes(name)
+  const exists = (branches ?? []).some((branch) => branch.name === name)
+  const session = useStore((state) =>
+    state.sessions.find(
+      (item) =>
+        item.machine === machine &&
+        item.projectId === projectId &&
+        item.machine === state.selection?.machine &&
+        item.id === state.selection.sessionId
+    )
+  )
+  const scratch = useStore(
+    (state) => projectOf(state, machine, projectId)?.scratch === true
+  )
+  const movable =
+    session !== undefined &&
+    session.provider === 'claude' &&
+    !session.claudeWorktree &&
+    !scratch
+  const [changes, setChanges] = useState<string[] | null>(null)
+  const [moving, setMoving] = useState(false)
+
+  useEffect(() => {
+    if (!movable) {
+      return
+    }
+    call(machine, 'sessions.moveChanges', { projectId }).then(
+      setChanges,
+      (error: unknown) => log.error('could not list uncommitted files', error)
+    )
+  }, [machine, projectId, movable])
 
   useEffect(() => {
     call(machine, 'git.localBranches', { projectId, repo: repoPath }).then(
@@ -109,6 +144,12 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
       (error: unknown) => log.error('could not fetch', error)
     )
   }, [machine, projectId, repoPath, onRefresh])
+
+  function busy(branch: string) {
+    return (
+      (branches ?? []).find((item) => item.name === branch)?.worktree ?? null
+    )
+  }
 
   async function sync() {
     setSyncing(true)
@@ -141,6 +182,32 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
     }
   }
 
+  async function move(sessionId: string) {
+    setMoving(true)
+    try {
+      const result = await call(machine, 'sessions.move', {
+        sessionId,
+        name: name === '' ? null : name,
+      })
+      props.onClose()
+      toast(`Moved this chat to the new worktree ${result.branch}`)
+      const selection = getState().selection
+      if (selection?.machine === machine && selection.sessionId === sessionId) {
+        openSession(
+          { machine, projectId: result.projectId, sessionId },
+          null,
+          true
+        )
+        if (result.setup) {
+          setTerminalOpen(true)
+        }
+      }
+    } catch (error) {
+      showError(error)
+      setMoving(false)
+    }
+  }
+
   return (
     <>
       <div className="shrink-0 px-3 pt-2.5">
@@ -152,11 +219,16 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
           <input
             value={query}
             placeholder="Search or create a branch..."
-            disabled={switching}
+            disabled={switching || moving}
             className="placeholder:text-muted-foreground/70 h-6.5 w-full bg-transparent ps-5 text-sm outline-none"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key !== 'Enter' || name === '' || branches === null) {
+              if (
+                event.key !== 'Enter' ||
+                name === '' ||
+                branches === null ||
+                busy(name) !== null
+              ) {
                 return
               }
               event.preventDefault()
@@ -194,23 +266,43 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
         )}
         {matches.map((branch) => (
           <button
-            key={branch}
-            disabled={switching}
+            key={branch.name}
+            disabled={switching || branch.worktree !== null}
+            title={
+              branch.worktree === null
+                ? undefined
+                : `Open in the worktree ${branch.worktree}. A branch can be open in only one worktree at a time`
+            }
             className={cn(
               'hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50',
-              branch === target.repo.branch &&
+              branch.name === target.repo.branch &&
                 'text-foreground bg-foreground/[0.08]'
             )}
             onClick={() => {
-              if (branch === target.repo.branch) {
+              if (branch.name === target.repo.branch) {
                 props.onClose()
                 return
               }
-              void switchTo(branch, false)
+              void switchTo(branch.name, false)
             }}
           >
-            <span className="min-w-0 flex-1 truncate">{branch}</span>
-            {branch === target.repo.branch && (
+            <span className="min-w-0 flex-1 truncate">{branch.name}</span>
+            {branch.worktree !== null && (
+              <span className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs">
+                <HugeiconsIcon icon={GitForkIcon} className="size-3.5" />
+                In another worktree
+              </span>
+            )}
+            {!branch.local && (
+              <span
+                className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs"
+                title="Not on this machine yet. Switching to it creates it from the remote"
+              >
+                <HugeiconsIcon icon={CloudIcon} className="size-3.5" />
+                Remote
+              </span>
+            )}
+            {branch.name === target.repo.branch && (
               <HugeiconsIcon
                 icon={CheckIcon}
                 strokeWidth={2.25}
@@ -227,7 +319,9 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
         {remoteMatches.map((branch) => (
           <button
             key={branch}
-            disabled={switching}
+            disabled={
+              switching || busy(branch.slice(branch.indexOf('/') + 1)) !== null
+            }
             className="hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50"
             onClick={() =>
               void switchTo(branch.slice(branch.indexOf('/') + 1), false)
@@ -250,6 +344,32 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
         )}
       </div>
       <div className="border-border/70 shrink-0 border-t px-2 py-1.5">
+        {movable && !(name !== '' && exists) && (
+          <button
+            disabled={switching || moving}
+            className="hover:bg-accent hover:text-accent-foreground flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50"
+            onClick={() => void move(session.id)}
+          >
+            <HugeiconsIcon
+              icon={moving ? CircleDashedIcon : GitForkIcon}
+              className={cn('size-3.5 shrink-0', moving && 'animate-spin')}
+            />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate">
+                Move chat to new worktree{' '}
+                {name !== '' && <span className="font-medium">{name}</span>}
+              </span>
+              {changes !== null && (
+                <span className="text-muted-foreground truncate text-xs">
+                  {changes.length === 0 && 'No uncommitted files'}
+                  {changes.length === 1 && '1 uncommitted file moves with it'}
+                  {changes.length > 1 &&
+                    `${changes.length} uncommitted files move with it`}
+                </span>
+              )}
+            </span>
+          </button>
+        )}
         <button
           className="text-muted-foreground hover:bg-accent hover:text-accent-foreground flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm"
           onClick={() => {

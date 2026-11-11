@@ -26,7 +26,29 @@ export type PullRequestDraft =
       body: string
     }
 
-export type WorktreeStage = 'pull' | 'create' | 'setup'
+export type WorktreeStage = 'fetch' | 'name' | 'create'
+
+export type WorktreeChoice = {
+  projectId: string | null
+  folder: string
+  branch: string | null
+  worktree: boolean
+}
+
+export type WorktreeBases = {
+  defaultBase: string
+  local: string[]
+  remote: string[]
+  worktrees: WorktreeChoice[]
+}
+
+export type WorktreeDetails = {
+  folder: string
+  branch: string | null
+  changes: number
+  commits: number
+  ignored: string[]
+}
 
 export type GitStatus = 'M' | 'T' | 'A' | 'D' | 'R' | 'C' | 'U' | '!'
 

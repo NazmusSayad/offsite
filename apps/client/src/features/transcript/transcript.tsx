@@ -1,7 +1,6 @@
 import {
   AlertDiamondIcon,
   ArrowDown01Icon,
-  GitForkIcon,
   Minimize02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -16,12 +15,18 @@ import {
   useState,
 } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { useShallow } from 'zustand/shallow'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Wrapper } from '@/components/wrapper'
 import { AgentLine, ReceivedMessage } from '@/features/transcript/agent-pill'
+import {
+  MessageBookmarkButton,
+  useBookmarks,
+} from '@/features/transcript/bookmarks'
 import { ThreadFindBar } from '@/features/transcript/find-bar'
+import { ForkButton } from '@/features/transcript/fork-button'
 import { PlanCard } from '@/features/transcript/plan-card'
 import { QuestionCard } from '@/features/transcript/question-card'
 import { QuoteButton } from '@/features/transcript/quote-button'
@@ -35,7 +40,8 @@ import {
   UserMessage,
 } from '@/features/transcript/user-message'
 import { clock, fullTime } from '@/lib/format'
-import { forkFrom, loadEarlier } from '@/lib/sessions'
+import { selectedPrompts, unsentItems } from '@/lib/pending'
+import { loadEarlier } from '@/lib/sessions'
 import {
   projectOf,
   selectedActivity,
@@ -54,6 +60,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   const before = useStore((state) => state.before)
   const partial = useStore((state) => state.partial)
   const requests = useStore((state) => state.requests)
+  const prompts = useStore(useShallow(selectedPrompts))
   const activity = useStore(selectedActivity)
   const scroller = useRef<HTMLDivElement>(null)
   const content = useRef<HTMLDivElement>(null)
@@ -108,7 +115,14 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     [earlier, items, activity]
   )
   const olderRows = mainRows(earlier, false, '')
-  const rows = [...olderRows, ...mainRows(items, running, partial)]
+  const rows = [
+    ...olderRows,
+    ...mainRows(
+      loaded ? [...items, ...unsentItems(prompts)] : items,
+      running,
+      partial
+    ),
+  ]
   const topIndex = rows.findIndex((row) => row.key === top?.key)
   const start = finding
     ? 0
@@ -186,6 +200,8 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     jumpTo.current = key
     setTop({ key, above: 1 })
   }
+
+  useBookmarks({ content, scroller, rows, onJump: jump })
 
   const toggle = useCallback((key: string) => {
     setExpanded((current) =>
@@ -360,7 +376,7 @@ function RowContent(props: {
     case 'assistant':
       return (
         <>
-          <div data-quotable>
+          <div data-quotable data-message-text>
             <Markdown
               text={
                 row.text === '' && !row.streaming
@@ -371,9 +387,10 @@ function RowContent(props: {
             />
           </div>
           {row.meta && (
-            <div className="mt-1.5 flex items-center gap-2 text-xs tabular-nums opacity-0 transition-opacity duration-200 group-hover/assistant:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
+            <div className="mt-1.5 flex items-center gap-2 text-xs tabular-nums opacity-0 transition-opacity duration-200 select-none group-hover/assistant:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
               <div className="flex items-center gap-0.5">
                 <MessageCopyButton text={row.text} />
+                <MessageBookmarkButton itemId={row.key} />
                 {props.fork && <ForkButton uuid={row.message} />}
               </div>
               {row.time !== null && (
@@ -476,27 +493,3 @@ export const RowView = memo(RowContent, (previous, next) =>
         omit(next, ['agents', 'tasks'])
       )
 )
-
-function ForkButton(props: { uuid: string }) {
-  const [busy, setBusy] = useState(false)
-  return (
-    <Tooltip label="Fork from this response">
-      <Button
-        type="button"
-        size="icon-micro"
-        variant="ghost-muted"
-        disabled={busy}
-        aria-label="Fork from this response"
-        onClick={() => {
-          setBusy(true)
-          void forkFrom(props.uuid).finally(() => setBusy(false))
-        }}
-      >
-        <HugeiconsIcon
-          icon={GitForkIcon}
-          className={cn('size-4', busy && 'animate-pulse')}
-        />
-      </Button>
-    </Tooltip>
-  )
-}

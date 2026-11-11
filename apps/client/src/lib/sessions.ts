@@ -1,4 +1,4 @@
-import type { PromptDelivery, SessionSettings } from '@offsite/core/config'
+import type { PromptDelivery } from '@offsite/core/config'
 import type { PermissionDecision, Prompt } from '@offsite/core/items'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { SessionPatch } from '@offsite/core/sessions'
@@ -12,6 +12,7 @@ import {
   refreshSettings,
 } from './accounts'
 import { router } from './router'
+import { bumpSession } from './sent-sessions'
 import {
   draftKey,
   getState,
@@ -45,7 +46,6 @@ export function openSession(
     before: null,
     partial: '',
     requests: [],
-    queue: [],
     settings:
       selection.sessionId === null
         ? previous?.sessionId === null && previous.machine === selection.machine
@@ -114,7 +114,6 @@ export function closeSession() {
     before: null,
     partial: '',
     requests: [],
-    queue: [],
     context: null,
   })
   syncUrl()
@@ -193,10 +192,10 @@ export function openTerminalPage(machine: string, view: string) {
 }
 
 export async function sendPrompt(
+  id: string,
   prompt: Prompt,
   delivery: PromptDelivery,
   selection: Selection | null,
-  settings: SessionSettings,
   status: 'active' | 'snoozed' | null
 ) {
   if (selection === null) {
@@ -206,20 +205,28 @@ export async function sendPrompt(
     void Notification.requestPermission()
   }
   update({ sentAt: Date.now() })
-  const name = getState().worktree?.trim()
+  const revert = bumpSession(selection, status)
+  const worktree = getState().worktree
   try {
     await call(selection.machine, 'sessions.send', {
+      id,
       sessionId: selection.sessionId,
       projectId: selection.projectId,
       prompt,
-      settings,
+      settings: getState().settings,
       delivery,
       status,
       worktree:
-        selection.sessionId !== null || name === undefined
+        selection.sessionId !== null || worktree === null
           ? null
-          : { name: name === '' ? null : name },
+          : {
+              name: worktree.name.trim() === '' ? null : worktree.name.trim(),
+              base: worktree.base,
+            },
     })
+  } catch (error) {
+    revert()
+    throw error
   } finally {
     update({ worktreeStage: null })
   }
@@ -241,13 +248,20 @@ export async function sendPrompt(
 
 export function unqueue(id: string) {
   const selection = getState().selection
-  if (selection === null || selection.sessionId === null) {
+  if (selection === null) {
     return
   }
-  call(selection.machine, 'sessions.unqueue', {
-    sessionId: selection.sessionId,
-    id,
-  }).catch(showError)
+  call(selection.machine, 'sessions.unqueue', { id }).catch(showError)
+}
+
+export function resend(id: string) {
+  const selection = getState().selection
+  if (selection === null) {
+    return
+  }
+  void call(selection.machine, 'sessions.resend', { id })
+    .catch(showError)
+    .finally(() => update({ worktreeStage: null }))
 }
 
 export function steer(id: string) {
@@ -273,6 +287,10 @@ export function interrupt() {
 
 export function restartSession(machine: string, sessionId: string) {
   call(machine, 'sessions.restart', { sessionId }).catch(showError)
+}
+
+export function stopClaude(machine: string, sessionId: string) {
+  call(machine, 'sessions.stop', { sessionId }).catch(showError)
 }
 
 export function stopTask(machine: string, sessionId: string, taskId: string) {
@@ -476,7 +494,12 @@ export async function removeSession(
     startChat(machine, selection.projectId, true)
   }
   try {
-    await call(machine, 'sessions.remove', { id, projectId })
+    const result = await call(machine, 'sessions.remove', { id, projectId })
+    if (result.unusedWorktree !== null) {
+      update({
+        removingWorktree: { machine, projectId: result.unusedWorktree },
+      })
+    }
   } catch (error) {
     showError(error)
   }

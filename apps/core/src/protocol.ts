@@ -1,4 +1,5 @@
 import type { AppIconId } from './app-icons.ts'
+import type { Bookmark, BookmarkRef, BookmarkTarget } from './bookmarks.ts'
 import type {
   Config,
   ConfigWithDefaults,
@@ -16,6 +17,9 @@ import type {
   PullRequestBranches,
   PullRequestDraft,
   SourceControlRepo,
+  WorktreeBases,
+  WorktreeChoice,
+  WorktreeDetails,
   WorktreeStage,
 } from './git.ts'
 import type {
@@ -24,7 +28,7 @@ import type {
   Item,
   PermissionRequest,
   Prompt,
-  QueuedPrompt,
+  UnsentPrompt,
 } from './items.ts'
 import type {
   DirectoryListing,
@@ -51,7 +55,9 @@ import type {
   RewindRequest,
   RewindResult,
   Session,
+  SessionContext,
   SessionPatch,
+  SessionRuntime,
 } from './sessions.ts'
 import type {
   BusyResult,
@@ -68,10 +74,12 @@ export type SyncSnapshot = ConfigWithDefaults & {
   hostname: string
   projects: Project[]
   sessions: Session[]
+  unsent: UnsentPrompt[]
   providers: ProviderStatus[]
   activity: Record<string, SessionActivity>
   terminals: TerminalTab[]
   appIcon: AppIconId
+  bookmarks: BookmarkRef[]
 }
 
 export type RpcMethods = {
@@ -95,8 +103,21 @@ export type RpcMethods = {
   'projects.logoFiles': { params: { id: string }; result: string[] }
   'projects.worktrees': {
     params: { projectId: string }
-    result: { projectId: string; branch: string | null; worktree: boolean }[]
+    result: WorktreeChoice[]
   }
+  'projects.addWorktree': {
+    params: { projectId: string; folder: string }
+    result: string
+  }
+  'projects.bases': {
+    params: { projectId: string; query: string }
+    result: WorktreeBases
+  }
+  'projects.worktreeDetails': {
+    params: { projectId: string }
+    result: WorktreeDetails
+  }
+  'projects.removeWorktree': { params: { projectId: string }; result: null }
   'directories.list': { params: { path: string }; result: DirectoryListing }
   'sessions.update': {
     params: { id: string; patch: SessionPatch }
@@ -108,7 +129,15 @@ export type RpcMethods = {
   }
   'sessions.remove': {
     params: { id: string; projectId: string }
-    result: null
+    result: { unusedWorktree: string | null }
+  }
+  'sessions.moveChanges': {
+    params: { projectId: string }
+    result: string[]
+  }
+  'sessions.move': {
+    params: { sessionId: string; name: string | null }
+    result: { projectId: string; branch: string; setup: boolean }
   }
   'sessions.open': {
     params: {
@@ -157,26 +186,34 @@ export type RpcMethods = {
   }
   'sessions.send': {
     params: {
+      id: string
       sessionId: string | null
       projectId: string
       prompt: Prompt
       settings: SessionSettings
       delivery: PromptDelivery
       status: 'active' | 'snoozed' | null
-      worktree: { name: string | null } | null
+      worktree: { name: string | null; base: string | null } | null
     }
     result: null
   }
-  'sessions.unqueue': {
-    params: { sessionId: string; id: string }
-    result: null
-  }
+  'sessions.unqueue': { params: { id: string }; result: null }
+  'sessions.resend': { params: { id: string }; result: null }
   'sessions.steer': {
     params: { sessionId: string; id: string }
     result: null
   }
   'sessions.interrupt': { params: { sessionId: string }; result: null }
   'sessions.restart': { params: { sessionId: string }; result: null }
+  'sessions.stop': { params: { sessionId: string }; result: null }
+  'sessions.runtime': {
+    params: { sessionId: string }
+    result: SessionRuntime | null
+  }
+  'sessions.context': {
+    params: { sessionId: string; projectId: string }
+    result: SessionContext
+  }
   'sessions.stopTask': {
     params: { sessionId: string; taskId: string }
     result: null
@@ -199,6 +236,9 @@ export type RpcMethods = {
     params: { sessionId: string; projectId: string; messageId: string }
     result: { sessionId: string }
   }
+  'bookmarks.list': { params: void; result: Bookmark[] }
+  'bookmarks.add': { params: BookmarkTarget; result: null }
+  'bookmarks.remove': { params: { id: string }; result: null }
   'accounts.list': { params: void; result: Accounts }
   'accounts.add': {
     params: { provider: Account['provider']; name: string; configDir: string }
@@ -319,7 +359,7 @@ export type RpcMethods = {
   }
   'git.localBranches': {
     params: { projectId: string; repo: string }
-    result: string[]
+    result: { name: string; local: boolean; worktree: string | null }[]
   }
   'git.remoteBranches': {
     params: { projectId: string; repo: string }
@@ -377,6 +417,7 @@ export type ServerEvent =
   | { type: 'lastSent'; lastSent: LastMessageAtForAccount[] }
   | { type: 'lastEfforts'; lastEfforts: LastPickedEffortForModel[] }
   | { type: 'appIcon'; appIcon: AppIconId }
+  | { type: 'bookmarks'; bookmarks: BookmarkRef[] }
   | { type: 'projects'; projects: Project[] }
   | { type: 'sessions'; sessions: Session[] }
   | { type: 'threads' }
@@ -384,13 +425,14 @@ export type ServerEvent =
   | ({ type: 'accounts' } & Accounts)
   | { type: 'started'; sessionId: string; projectId: string; from: string }
   | { type: 'worktreeStage'; stage: WorktreeStage }
+  | { type: 'warning'; message: string }
+  | { type: 'setup'; projectId: string }
   | {
       type: 'history'
       sessionId: string
       provider: Provider
       items: Item[]
       requests: PermissionRequest[]
-      queue: QueuedPrompt[]
       settings: SessionSettings | null
       context: ContextUsage | null
       before: number | null
@@ -400,7 +442,7 @@ export type ServerEvent =
   | { type: 'delta'; sessionId: string; text: string }
   | { type: 'request'; sessionId: string; request: PermissionRequest }
   | { type: 'requestDone'; sessionId: string; requestId: string }
-  | { type: 'queue'; sessionId: string; queue: QueuedPrompt[] }
+  | { type: 'unsent'; unsent: UnsentPrompt[] }
   | { type: 'settings'; sessionId: string; settings: SessionSettings }
   | { type: 'context'; sessionId: string; context: ContextUsage | null }
   | { type: 'notification'; sessionId: string; message: string }
