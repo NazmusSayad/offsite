@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build && node ../../scripts/compress-client.mts"
   },
   "dependencies": {
     "@iconify-json/material-icon-theme": "^1.2.75",

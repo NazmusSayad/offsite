@@ -73,6 +73,7 @@ const refreshing = new Map<Provider, { again: boolean }>()
 const timers = new Map<Provider, NodeJS.Timeout>()
 const providers = new Map<string, Provider>()
 let watchers: FSWatcher[] = []
+let publishedSessions = ''
 
 export function sessions(): Session[] {
   const known = new Set(projects().map((project) => project.id))
@@ -244,7 +245,13 @@ export function recordOpen(id: string, query: string | null) {
 }
 
 export function publishSessions() {
-  broadcast({ type: 'sessions', sessions: sessions() })
+  const list = sessions()
+  const json = JSON.stringify(list)
+  if (json === publishedSessions) {
+    return
+  }
+  publishedSessions = json
+  broadcast({ type: 'sessions', sessions: list })
 }
 
 export function refreshAll() {

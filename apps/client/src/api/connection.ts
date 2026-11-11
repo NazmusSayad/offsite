@@ -32,8 +32,13 @@ type Connection = {
   failures: number
   pending: Map<
     number,
-    { resolve: (result: unknown) => void; reject: (error: Error) => void }
+    {
+      key: string | null
+      resolve: (result: unknown) => void
+      reject: (error: Error) => void
+    }
   >
+  reused: Map<string, { hash: string; result: unknown }>
 }
 
 const RECONNECT_DELAY = 1000
@@ -54,6 +59,12 @@ const longCalls: RpcMethod[] = [
   'git.pullRequest',
   'git.createPullRequest',
   'dictation.transcribe',
+]
+const reusedCalls: RpcMethod[] = [
+  'git.status',
+  'git.changes',
+  'git.diff',
+  'tasks.output',
 ]
 
 const log = logger.withTag('connection')
@@ -109,6 +120,7 @@ export function connectMachine(machine: string, urls: string[]) {
     timer: undefined,
     failures: 0,
     pending: new Map(),
+    reused: new Map(),
   }
   connections.set(machine, connection)
   void openSocket(machine, connection, 0)
@@ -165,7 +177,21 @@ export function call<M extends RpcMethod>(
   }
   nextId += 1
   const id = nextId
-  connection.socket.send(JSON.stringify({ id, method, params }))
+  const key = reusedCalls.includes(method)
+    ? `${method} ${JSON.stringify(params)}`
+    : null
+  connection.socket.send(
+    JSON.stringify(
+      key === null
+        ? { id, method, params }
+        : {
+            id,
+            method,
+            params,
+            known: connection.reused.get(key)?.hash ?? null,
+          }
+    )
+  )
   const timeout = longCalls.includes(method) ? LONG_CALL_TIMEOUT : CALL_TIMEOUT
   return new Promise<RpcMethods[M]['result']>((resolve, reject) => {
     const timer = window.setTimeout(() => {
@@ -177,6 +203,7 @@ export function call<M extends RpcMethod>(
       )
     }, timeout)
     connection.pending.set(id, {
+      key,
       resolve: (result) => {
         window.clearTimeout(timer)
         resolve(result as RpcMethods[M]['result'])
@@ -395,7 +422,25 @@ function settle(connection: Connection, reply: RpcReply) {
   connection.pending.delete(reply.id)
   if ('error' in reply) {
     waiter.reject(new Error(reply.error))
-  } else {
-    waiter.resolve(reply.result)
+    return
   }
+  if ('unchanged' in reply) {
+    const saved =
+      waiter.key === null ? undefined : connection.reused.get(waiter.key)
+    if (saved === undefined) {
+      waiter.reject(
+        new Error('the machine said nothing changed, but nothing was saved')
+      )
+      return
+    }
+    waiter.resolve(saved.result)
+    return
+  }
+  if (waiter.key !== null && reply.hash !== undefined) {
+    connection.reused.set(waiter.key, {
+      hash: reply.hash,
+      result: reply.result,
+    })
+  }
+  waiter.resolve(reply.result)
 }

@@ -391,11 +391,17 @@ export type RpcMethods = {
 export type RpcMethod = keyof RpcMethods
 
 export type RpcCall = {
-  [M in RpcMethod]: { id: number; method: M; params: RpcMethods[M]['params'] }
+  [M in RpcMethod]: {
+    id: number
+    method: M
+    params: RpcMethods[M]['params']
+    known?: string | null
+  }
 }[RpcMethod]
 
 export type RpcReply =
-  | { type: 'reply'; id: number; result: unknown }
+  | { type: 'reply'; id: number; result: unknown; hash?: string }
+  | { type: 'reply'; id: number; unchanged: true }
   | { type: 'reply'; id: number; error: string }
 
 export type ServerMessage =

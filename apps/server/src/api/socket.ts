@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import { NO_PROJECT } from '@offsite/core/projects'
@@ -473,7 +474,18 @@ async function answer(client: Client, text: string) {
       client: Client
     ) => unknown
     const result = await handler(call.params, client)
-    client.send({ type: 'reply', id: call.id, result })
+    if (call.known === undefined) {
+      client.send({ type: 'reply', id: call.id, result })
+      return
+    }
+    const hash = createHash('sha1')
+      .update(JSON.stringify(result))
+      .digest('base64')
+    if (hash === call.known) {
+      client.send({ type: 'reply', id: call.id, unchanged: true })
+    } else {
+      client.send({ type: 'reply', id: call.id, result, hash })
+    }
   } catch (error) {
     log.warn(`${call.method} from ${client.address} failed:`, error)
     client.send({
