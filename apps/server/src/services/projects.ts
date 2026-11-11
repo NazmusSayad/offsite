@@ -39,7 +39,8 @@ export function projects(): Project[] {
       path: projectsTable.path,
       name: projectsTable.name,
       logo: projectsTable.logo,
-      hidden: projectsTable.hidden,
+      pinned: projectsTable.pinned,
+      activeAt: projectsTable.activeAt,
       scratch: projectsTable.scratch,
       parentId: projectsTable.parentId,
       worktreeSetup: projectsTable.worktreeSetup,
@@ -383,9 +384,9 @@ export async function updateProject(id: string, patch: ProjectPatch) {
       .where(eq(projectsTable.id, id))
       .run()
   }
-  if (patch.hidden !== undefined) {
+  if (patch.pinned !== undefined) {
     db.update(projectsTable)
-      .set({ hidden: patch.hidden })
+      .set({ pinned: patch.pinned })
       .where(eq(projectsTable.id, id))
       .run()
   }
@@ -400,27 +401,12 @@ export function removeProject(id: string) {
   publish()
 }
 
-export function reorderProjects(ids: string[]) {
-  const current = projects()
-    .filter((project) => !project.scratch && project.parentId === null)
-    .map((project) => project.id)
-  if (
-    ids.length !== current.length ||
-    !current.every((id) => ids.includes(id))
-  ) {
-    throw new Error('The projects changed, try again')
-  }
-  db.transaction((transaction) => {
-    ids.forEach((id, position) => {
-      transaction
-        .update(projectsTable)
-        .set({ position })
-        .where(eq(projectsTable.id, id))
-        .run()
-    })
-  })
+export function recordProjectActivity(projectId: string) {
+  db.update(projectsTable)
+    .set({ activeAt: Date.now() })
+    .where(eq(projectsTable.id, rootProject(projectId).id))
+    .run()
   publish()
-  return null
 }
 
 export async function directories(input: string): Promise<DirectoryListing> {

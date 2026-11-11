@@ -1,6 +1,7 @@
 import {
   ChatGptIcon,
   MessageSquareDashedIcon,
+  MoreHorizontalIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { NO_PROJECT } from '@offsite/core/projects'
@@ -56,6 +57,40 @@ export function ProjectIcon(props: {
       logo={project?.logo ?? null}
       className={props.className}
     />
+  )
+}
+
+export function MoreProjectsLabel(props: {
+  projects: { machine: string; id: string }[]
+  className: string
+}) {
+  return (
+    <>
+      <span
+        className={cn(
+          'text-muted-foreground grid shrink-0 place-items-center',
+          props.className
+        )}
+      >
+        <HugeiconsIcon icon={MoreHorizontalIcon} className="size-4" />
+      </span>
+      <span className="flex shrink-0 items-center -space-x-1.5">
+        {props.projects.slice(0, 3).map((project) => (
+          <ProjectIcon
+            key={project.id}
+            machine={project.machine}
+            projectId={project.id}
+            className={cn(
+              'bg-popover ring-popover rounded-[5px] ring-2 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]',
+              props.className
+            )}
+          />
+        ))}
+      </span>
+      <span className="text-muted-foreground min-w-0 flex-1 truncate">
+        {props.projects.length} more
+      </span>
+    </>
   )
 }
 

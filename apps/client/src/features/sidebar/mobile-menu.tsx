@@ -109,7 +109,7 @@ export function MobileMenu(props: { buttonClassName: string }) {
         </ContextMenu>
         <PopoverContent
           align="start"
-          className="w-56 p-1"
+          className="w-64 p-1"
           onCloseAutoFocus={(event) => event.preventDefault()}
           onClick={() => setTerminalsOpen(false)}
         >

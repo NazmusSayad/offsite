@@ -5,7 +5,8 @@ export type Project = {
   path: string
   name: string
   logo: string | null
-  hidden: boolean
+  pinned: boolean
+  activeAt: number | null
   scratch: boolean
   parentId: string | null
   worktreeSetup: string | null
@@ -15,7 +16,7 @@ export type Project = {
 export type ProjectPatch = {
   name?: string
   logo?: string | null
-  hidden?: boolean
+  pinned?: boolean
   scratch?: false
   worktreeSetup?: string
 }

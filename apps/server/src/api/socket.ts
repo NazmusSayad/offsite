@@ -59,7 +59,6 @@ import {
   directories,
   projectPath,
   removeProject,
-  reorderProjects,
   updateProject,
 } from '../services/projects.ts'
 import { claimNotifier, subscribe, unsubscribe } from '../services/push.ts'
@@ -162,7 +161,6 @@ const handlers: Handlers = {
     refreshAll()
     return null
   },
-  'projects.reorder': (params) => reorderProjects(params.ids),
   'projects.logoFiles': (params) => logoFiles(projectPath(params.id)),
   'directories.list': (params) => directories(params.path),
   'sessions.update': async (params) => {

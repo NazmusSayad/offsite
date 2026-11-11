@@ -1,39 +1,34 @@
-import { Settings01Icon } from '@hugeicons/core-free-icons'
+import { PinIcon, Settings01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { Reorder } from 'motion/react'
 import { useState } from 'react'
 import { useLocalStorage } from 'usehooks-ts'
-import { reorderProjects, updateProject } from '@/api/projects'
+import { homePath, rankProjects, updateProject } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
 import {
   EditProjectDialog,
   FolderDialog,
 } from '@/features/sidebar/project-dialogs'
 import { type MachineProject, showError, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { ReorderRow } from './machines'
 
 export function ProjectsPage(props: { machine: string; homeDir: string }) {
   const registered = useStore((state) => state.projects)
-  const [order, setOrder] = useState<string[] | null>(null)
   const [editing, setEditing] = useState<MachineProject | null>(null)
   const [adding, setAdding] = useState(false)
   const [scope, setScope] = useLocalStorage<{
     machine: string
     projectId: string
   } | null>('sidebarScope', null)
-  const projects = registered
-    .filter(
+  const ranked = rankProjects(
+    registered.filter(
       (project) =>
         project.machine === props.machine &&
         !project.scratch &&
         project.parentId === null
     )
-    .sort((a, b) =>
-      order === null ? 0 : order.indexOf(a.id) - order.indexOf(b.id)
-    )
+  )
+  const projects = [...ranked.top, ...ranked.more]
 
   return (
     <>
@@ -42,29 +37,11 @@ export function ProjectsPage(props: { machine: string; homeDir: string }) {
           No projects yet
         </p>
       )}
-      <Reorder.Group
-        as="div"
-        axis="y"
-        values={projects.map((project) => project.id)}
-        onReorder={setOrder}
-      >
+      <div>
         {projects.map((project) => (
-          <ReorderRow
+          <div
             key={project.id}
-            value={project.id}
-            disabled={false}
-            className="min-h-13 px-1 outline-none"
-            onDragEnd={async () => {
-              if (order === null) {
-                return
-              }
-              try {
-                await reorderProjects(props.machine, order)
-              } catch (error) {
-                showError(error)
-              }
-              setOrder(null)
-            }}
+            className="flex min-h-13 items-center gap-3 px-1 py-2.5"
           >
             <ProjectIcon
               machine={project.machine}
@@ -72,14 +49,7 @@ export function ProjectsPage(props: { machine: string; homeDir: string }) {
               className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
             />
             <span className="min-w-0 flex-1" title={project.path}>
-              <span
-                className={cn(
-                  'block truncate text-sm',
-                  project.hidden && 'text-muted-foreground'
-                )}
-              >
-                {project.name}
-              </span>
+              <span className="block truncate text-sm">{project.name}</span>
               <span className="text-muted-foreground block truncate font-mono text-xs">
                 {homePath(project.path, props.homeDir)}
               </span>
@@ -93,19 +63,26 @@ export function ProjectsPage(props: { machine: string; homeDir: string }) {
             >
               <HugeiconsIcon icon={Settings01Icon} />
             </Button>
-            <Switch
-              size="sm"
-              checked={!project.hidden}
-              onCheckedChange={(shown) =>
+            <Button
+              size="icon-sm"
+              variant="ghost-muted"
+              className={cn(project.pinned && 'bg-accent text-foreground')}
+              title={project.pinned ? 'Unpin project' : 'Pin project'}
+              aria-label={
+                project.pinned ? `Unpin ${project.name}` : `Pin ${project.name}`
+              }
+              aria-pressed={project.pinned}
+              onClick={() =>
                 updateProject(project.machine, project.id, {
-                  hidden: !shown,
+                  pinned: !project.pinned,
                 }).catch(showError)
               }
-              aria-label={`Show ${project.name}`}
-            />
-          </ReorderRow>
+            >
+              <HugeiconsIcon icon={PinIcon} />
+            </Button>
+          </div>
         ))}
-      </Reorder.Group>
+      </div>
       <div className="flex gap-2">
         <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
           Add project…
@@ -135,14 +112,4 @@ export function ProjectsPage(props: { machine: string; homeDir: string }) {
       )}
     </>
   )
-}
-
-function homePath(path: string, home: string) {
-  if (path === home) {
-    return '~'
-  }
-  if (path.startsWith(`${home}/`) || path.startsWith(`${home}\\`)) {
-    return `~${path.slice(home.length)}`
-  }
-  return path
 }

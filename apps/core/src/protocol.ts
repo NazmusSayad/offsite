@@ -99,7 +99,6 @@ export type RpcMethods = {
     result: null
   }
   'projects.remove': { params: { id: string }; result: null }
-  'projects.reorder': { params: { ids: string[] }; result: null }
   'projects.logoFiles': { params: { id: string }; result: string[] }
   'projects.worktrees': {
     params: { projectId: string }

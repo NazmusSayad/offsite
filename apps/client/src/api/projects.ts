@@ -27,6 +27,28 @@ export function worktreeBranch(project: {
   return project.worktreeBranch ?? 'Worktree'
 }
 
+export function rankProjects<
+  T extends { pinned: boolean; activeAt: number | null },
+>(projects: T[]) {
+  const sorted = [...projects].sort(
+    (a, b) =>
+      Number(b.pinned) - Number(a.pinned) ||
+      (b.activeAt ?? 0) - (a.activeAt ?? 0)
+  )
+  const shown = Math.max(5, projects.filter((project) => project.pinned).length)
+  return { top: sorted.slice(0, shown), more: sorted.slice(shown) }
+}
+
+export function homePath(path: string, home: string) {
+  if (path === home) {
+    return '~'
+  }
+  if (path.startsWith(`${home}/`) || path.startsWith(`${home}\\`)) {
+    return `~${path.slice(home.length)}`
+  }
+  return path
+}
+
 export function withWorktrees<
   T extends { id: string; parentId: string | null },
 >(projects: T[]) {
@@ -52,8 +74,4 @@ export async function updateProject(
 
 export async function removeProject(machine: string, id: string) {
   await call(machine, 'projects.remove', { id })
-}
-
-export async function reorderProjects(machine: string, ids: string[]) {
-  await call(machine, 'projects.reorder', { ids })
 }

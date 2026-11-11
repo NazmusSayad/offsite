@@ -34,6 +34,7 @@ import {
   addWorktreeProject,
   deleteWorktreeProject,
   projectPath,
+  recordProjectActivity,
   removeScratchProject,
   restoreWorktreeFolder,
 } from './projects.ts'
@@ -348,6 +349,7 @@ async function submitFirst(
   moveUnsent(request.id, sessionId, projectId)
   await run.submit(request.id, request.prompt, request.delivery)
   recordInteraction(sessionId, run.provider, request.status)
+  recordProjectActivity(projectId)
 }
 
 async function sendExisting(
@@ -382,6 +384,7 @@ async function sendExisting(
   }
   await run.submit(request.id, request.prompt, request.delivery)
   recordInteraction(sessionId, provider, request.status)
+  recordProjectActivity(request.projectId)
   if (emptied.has(sessionId) && request.prompt.text.trim() !== '') {
     emptied.delete(sessionId)
     await updateSession(sessionId, { title: request.prompt.text.trim() })

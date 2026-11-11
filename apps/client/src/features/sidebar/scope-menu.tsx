@@ -3,7 +3,6 @@ import {
   CenterFocusIcon,
   ChevronDownIcon,
   SearchIcon,
-  Settings01Icon,
   SlidersHorizontalIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -11,15 +10,20 @@ import { NO_PROJECT } from '@offsite/core/projects'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { machineKey } from '@/api/machines'
-import { ProjectIcon } from '@/components/icons'
+import { rankProjects } from '@/api/projects'
+import { MoreProjectsLabel, ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
@@ -31,6 +35,7 @@ import {
   useStore,
 } from '@/lib/store'
 import { touch } from '@/lib/utils'
+import { MoreProjects, ProjectItem } from './project-item'
 
 export function ScopeMenu(props: {
   scope: { machine: string; projectId: string } | null
@@ -116,17 +121,22 @@ export function ProjectMenuItems(props: {
     }
   }, [])
   const groups = machines
-    .map((machine) => ({
-      machine,
-      projects: registered.filter(
-        (project) =>
-          project.machine === machine.id &&
-          !project.hidden &&
-          !project.scratch &&
-          project.parentId === null &&
-          project.name.toLowerCase().includes(search)
-      ),
-    }))
+    .map((machine) => {
+      const ranked = rankProjects(
+        registered.filter(
+          (project) =>
+            project.machine === machine.id &&
+            !project.scratch &&
+            project.parentId === null &&
+            project.name.toLowerCase().includes(search)
+        )
+      )
+      return {
+        machine,
+        projects: search === '' ? ranked.top : [...ranked.top, ...ranked.more],
+        more: search === '' ? ranked.more : [],
+      }
+    })
     .filter((group) =>
       search === ''
         ? machines.length > 1 || group.projects.length > 0
@@ -339,61 +349,37 @@ export function ProjectMenuItems(props: {
                   </div>
                 </div>
               )}
-              {group.projects.map((project) => {
-                const count = attention.filter(
-                  (session) =>
-                    session.machine === project.machine &&
-                    session.projectId === project.id
-                ).length
-                return (
-                  <DropdownMenuRadioItem
-                    key={machineKey(project.machine, project.id)}
-                    value={machineKey(project.machine, project.id)}
-                    title={project.path}
-                    data-project=""
-                    className="group/project"
-                    onSelect={() =>
-                      props.onScope({
-                        machine: project.machine,
-                        projectId: project.id,
-                      })
-                    }
-                    onContextMenu={(event) => {
-                      event.preventDefault()
-                      props.onClose()
-                      props.onEdit(project)
-                    }}
-                  >
-                    <ProjectIcon
-                      machine={project.machine}
-                      projectId={project.id}
-                      className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
+              {group.projects.map((project) => (
+                <ProjectItem
+                  key={machineKey(project.machine, project.id)}
+                  project={project}
+                  attention={attention}
+                  onScope={props.onScope}
+                  onEdit={props.onEdit}
+                  onClose={props.onClose}
+                />
+              ))}
+              {group.more.length > 0 && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger title="More projects">
+                    <MoreProjectsLabel
+                      projects={group.more}
+                      className="size-5"
                     />
-                    <span className="min-w-0 flex-1 truncate">
-                      {project.name}
-                    </span>
-                    {count > 0 && (
-                      <span className="text-foreground grid h-4 min-w-4 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_22%,var(--background))] px-1 text-[10px] leading-none font-medium tabular-nums">
-                        {count}
-                      </span>
-                    )}
-                    <div className="-my-0.5 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-data-highlighted/project:opacity-100 pointer-coarse:hidden">
-                      <button
-                        className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 grid size-5 cursor-pointer place-items-center rounded-sm [&_svg]:size-3.5"
-                        title="Configure project"
-                        aria-label={`Configure ${project.name}`}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          props.onClose()
-                          props.onEdit(project)
-                        }}
-                      >
-                        <HugeiconsIcon icon={Settings01Icon} />
-                      </button>
-                    </div>
-                  </DropdownMenuRadioItem>
-                )
-              })}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent className="max-h-80 w-64 overflow-y-auto">
+                      <MoreProjects
+                        machine={group.machine.id}
+                        attention={attention}
+                        onScope={props.onScope}
+                        onEdit={props.onEdit}
+                        onClose={props.onClose}
+                      />
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+              )}
             </Fragment>
           ))}
           {machines.length === 1 && search === '' && (
