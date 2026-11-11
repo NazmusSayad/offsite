@@ -137,7 +137,7 @@ export type RpcMethods = {
   }
   'sessions.move': {
     params: { sessionId: string; name: string | null }
-    result: { projectId: string; setup: boolean }
+    result: { projectId: string; branch: string; setup: boolean }
   }
   'sessions.open': {
     params: {

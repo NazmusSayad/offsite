@@ -59,6 +59,10 @@ export function moveToWorktree(
       })
     }
     publish(sessionId, await history(sessionId, project.cwd))
-    return { projectId: project.id, setup: setUpWorktree(project.id) }
+    return {
+      projectId: project.id,
+      branch: project.branch,
+      setup: setUpWorktree(project.id),
+    }
   })
 }

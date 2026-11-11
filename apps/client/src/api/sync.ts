@@ -81,7 +81,6 @@ export function start() {
     settingsPage: 'General',
     editor: null,
     exporting: null,
-    moving: null,
     removingWorktree: null,
     settingsAccount: null,
     settingsEditedMachine: null,

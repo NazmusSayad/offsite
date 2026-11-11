@@ -7,7 +7,6 @@ import {
   Delete02Icon,
   FileExportIcon,
   FolderAddIcon,
-  GitForkIcon,
   MinimizeIcon,
   PencilEdit02Icon,
   PinIcon,
@@ -36,7 +35,6 @@ import {
   projectOf,
   showError,
   showExport,
-  update,
   useStore,
 } from '@/lib/store'
 import type { DebugAction } from './debug-dialogs'
@@ -161,12 +159,6 @@ export function SessionMenuItems(props: {
         <HugeiconsIcon icon={FileExportIcon} />
         Export
       </Item>
-      {session.provider === 'claude' && !scratch && !session.claudeWorktree && (
-        <Item onSelect={() => update({ moving: session })}>
-          <HugeiconsIcon icon={GitForkIcon} />
-          Move to new worktree
-        </Item>
-      )}
       {scratch && (
         <Item
           onSelect={() =>

@@ -10,145 +10,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { setOpen as setTerminalOpen } from '@/features/terminal/session'
-import { openSession } from '@/lib/sessions'
-import {
-  getState,
-  type MachineSession,
-  showError,
-  update,
-  useStore,
-} from '@/lib/store'
+import { showError, update, useStore } from '@/lib/store'
 
 export function MoveDialogs() {
-  const moving = useStore((state) => state.moving)
   const removing = useStore((state) => state.removingWorktree)
   return (
-    <>
-      <Dialog
-        open={moving !== null}
-        onOpenChange={(open) => !open && update({ moving: null })}
-      >
-        <DialogContent className="sm:max-w-md">
-          {moving !== null && <MoveContent session={moving} />}
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={removing !== null}
-        onOpenChange={(open) => !open && update({ removingWorktree: null })}
-      >
-        <DialogContent className="sm:max-w-md">
-          {removing !== null && (
-            <RemoveContent
-              machine={removing.machine}
-              projectId={removing.projectId}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
-  )
-}
-
-function MoveContent(props: { session: MachineSession }) {
-  const session = props.session
-  const [name, setName] = useState('')
-  const [files, setFiles] = useState<string[] | null>(null)
-  const [moving, setMoving] = useState(false)
-
-  useEffect(() => {
-    call(session.machine, 'sessions.moveChanges', {
-      projectId: session.projectId,
-    })
-      .then(setFiles)
-      .catch((error: unknown) => {
-        showError(error)
-        update({ moving: null })
-      })
-  }, [session.machine, session.projectId])
-
-  async function move() {
-    setMoving(true)
-    try {
-      const result = await call(session.machine, 'sessions.move', {
-        sessionId: session.id,
-        name: name.trim() === '' ? null : name.trim(),
-      })
-      update({ moving: null })
-      const selection = getState().selection
-      if (
-        selection?.machine === session.machine &&
-        selection.sessionId === session.id
-      ) {
-        openSession(
-          {
-            machine: session.machine,
-            projectId: result.projectId,
-            sessionId: session.id,
-          },
-          null,
-          true
-        )
-        if (result.setup) {
-          setTerminalOpen(true)
-        }
-      }
-    } catch (error) {
-      showError(error)
-      setMoving(false)
-    }
-  }
-
-  return (
-    <>
-      <DialogHeader>
-        <DialogTitle>Move to a new worktree</DialogTitle>
-        <DialogDescription>
-          The chat continues in a new worktree made from the current commit.
-          Uncommitted changes move with it. The project folder keeps its branch.
-        </DialogDescription>
-      </DialogHeader>
-      <Input
-        value={name}
-        spellCheck={false}
-        placeholder="Branch name, or leave empty to name it from the title"
-        onChange={(event) => setName(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' && files !== null && !moving) {
-            void move()
-          }
-        }}
-      />
-      <div className="text-muted-foreground text-xs">
-        {files === null && 'Checking uncommitted changes…'}
-        {files !== null && files.length === 0 && 'No uncommitted changes'}
-        {files !== null && files.length > 0 && (
-          <>
-            <p className="mb-1">
-              {files.length === 1
-                ? '1 uncommitted file moves'
-                : `${files.length} uncommitted files move`}
-            </p>
-            <ul className="max-h-40 overflow-y-auto font-mono">
-              {files.map((file) => (
-                <li key={file} className="truncate" title={file}>
-                  {file}
-                </li>
-              ))}
-            </ul>
-          </>
+    <Dialog
+      open={removing !== null}
+      onOpenChange={(open) => !open && update({ removingWorktree: null })}
+    >
+      <DialogContent className="sm:max-w-md">
+        {removing !== null && (
+          <RemoveContent
+            machine={removing.machine}
+            projectId={removing.projectId}
+          />
         )}
-      </div>
-      <DialogFooter>
-        <Button variant="outline" onClick={() => update({ moving: null })}>
-          Cancel
-        </Button>
-        <Button disabled={files === null || moving} onClick={() => void move()}>
-          {moving ? 'Moving…' : 'Move'}
-        </Button>
-      </DialogFooter>
-    </>
+      </DialogContent>
+    </Dialog>
   )
 }
 

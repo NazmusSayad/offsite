@@ -115,7 +115,6 @@ export type State = {
   paletteOpen: boolean
   editor: { machine: string; projectId: string } | null
   exporting: MachineSession | null
-  moving: MachineSession | null
   removingWorktree: { machine: string; projectId: string } | null
   settingsOpen: boolean
   settingsPage: SettingsPage
