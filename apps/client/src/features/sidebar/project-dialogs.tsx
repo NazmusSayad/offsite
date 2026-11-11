@@ -293,7 +293,11 @@ export function EditProjectDialog(props: {
                     </Button>
                   </div>
                   <p className="text-muted-foreground text-xs">
-                    PNG, JPG, WebP, SVG or ICO. SVG and ICO up to 384 KB
+                    PNG, JPG, WebP, SVG or ICO
+                    <br />
+                    <span className="text-muted-foreground/80 text-[0.625rem]">
+                      (SVG and ICO up to 384 KB)
+                    </span>
                   </p>
                 </div>
               </div>
