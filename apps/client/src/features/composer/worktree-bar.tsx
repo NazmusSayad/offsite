@@ -66,7 +66,7 @@ export function WorktreeBar(props: { machine: string; projectId: string }) {
 
   return (
     <div className="absolute inset-x-0 top-full">
-      <div className="composer-glass relative mx-auto -mt-[calc(1rem+1px)] flex w-[calc(100%-2.75rem)] items-center gap-0.5 rounded-b-2xl border border-t-0 border-(--composer-outline) px-1 pt-[calc(1rem+1px+0.25rem)] pb-1 text-xs/4">
+      <div className="composer-glass relative mx-auto -mt-[calc(1rem+1px)] flex w-[calc(100%-2.75rem)] flex-wrap items-center gap-0.5 rounded-b-2xl border border-t-0 border-(--composer-outline) px-1 pt-[calc(1rem+1px+0.25rem)] pb-1 text-xs/4">
         {stage !== null && (
           <span className="text-muted-foreground flex h-6 min-w-0 items-center gap-1.5 px-2">
             <HugeiconsIcon
@@ -78,46 +78,53 @@ export function WorktreeBar(props: { machine: string; projectId: string }) {
         )}
         {stage === null && (
           <>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className={cn(
-                    'text-muted-foreground hover:text-foreground flex h-6 max-w-56 cursor-pointer items-center gap-1.5 rounded-full px-2 outline-none',
-                    worktree === null && 'text-foreground bg-foreground/[0.07]'
-                  )}
-                  title="Choose where the agent works"
-                >
-                  <HugeiconsIcon
-                    icon={GitBranchIcon}
-                    className="size-3.5 shrink-0"
+            <div className="flex min-w-0 items-center gap-0.5">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={cn(
+                      'text-muted-foreground hover:text-foreground flex h-6 max-w-56 min-w-0 cursor-pointer items-center gap-1.5 rounded-full px-2 outline-none',
+                      worktree === null &&
+                        'text-foreground bg-foreground/[0.07]'
+                    )}
+                    title="Choose where the agent works"
+                  >
+                    <HugeiconsIcon
+                      icon={GitBranchIcon}
+                      className="size-3.5 shrink-0"
+                    />
+                    <span className="truncate">
+                      {repo.branch ?? 'Detached'}
+                    </span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-72">
+                  <WorktreeMenu
+                    machine={props.machine}
+                    projectId={props.projectId}
                   />
-                  <span className="truncate">{repo.branch ?? 'Detached'}</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72">
-                <WorktreeMenu
-                  machine={props.machine}
-                  projectId={props.projectId}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <button
+                className={cn(
+                  'text-muted-foreground hover:text-foreground flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-2',
+                  worktree !== null && 'text-foreground bg-foreground/[0.07]'
+                )}
+                title="Start in a new worktree"
+                onClick={() =>
+                  update({
+                    worktree:
+                      worktree === null ? { name: '', base: null } : null,
+                  })
+                }
+              >
+                <HugeiconsIcon
+                  icon={GitForkIcon}
+                  className="size-3.5 shrink-0"
                 />
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <button
-              className={cn(
-                'text-muted-foreground hover:text-foreground flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-2',
-                worktree !== null && 'text-foreground bg-foreground/[0.07]'
-              )}
-              title="Start in a new worktree"
-              onClick={() =>
-                update({
-                  worktree: worktree === null ? { name: '', base: null } : null,
-                })
-              }
-            >
-              <HugeiconsIcon icon={GitForkIcon} className="size-3.5 shrink-0" />
-              New worktree
-            </button>
-            {worktree !== null && (
-              <>
+                New worktree
+              </button>
+              {worktree !== null && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
@@ -142,18 +149,20 @@ export function WorktreeBar(props: { machine: string; projectId: string }) {
                     />
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <input
-                  value={worktree.name}
-                  placeholder="Branch name, or leave empty to name it from the message"
-                  spellCheck={false}
-                  className="placeholder:text-muted-foreground/70 h-6 min-w-0 flex-1 bg-transparent px-2 outline-none"
-                  onChange={(event) =>
-                    update({
-                      worktree: { ...worktree, name: event.target.value },
-                    })
-                  }
-                />
-              </>
+              )}
+            </div>
+            {worktree !== null && (
+              <input
+                value={worktree.name}
+                placeholder="Branch name, or leave empty to name it from the message"
+                spellCheck={false}
+                className="placeholder:text-muted-foreground/70 h-6 min-w-40 flex-1 bg-transparent px-2 outline-none"
+                onChange={(event) =>
+                  update({
+                    worktree: { ...worktree, name: event.target.value },
+                  })
+                }
+              />
             )}
           </>
         )}
