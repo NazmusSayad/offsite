@@ -138,6 +138,7 @@ async function registerWindows() {
     '    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>',
     '    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>',
     '    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>',
+    '    <Priority>5</Priority>',
     '    <Enabled>true</Enabled>',
     '  </Settings>',
     '  <Actions Context="Author">',

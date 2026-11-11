@@ -48,14 +48,15 @@ export async function install() {
     console.error(error instanceof Error ? error.message : error)
     process.exit(1)
   }
-  await stopService()
   const pid = runningPid()
-  if (pid !== null) {
+  const running = runningSchema.safeParse(readJson('server.json'))
+  if (pid !== null && !(running.success && running.data.service)) {
     console.error(
       `offsite is already running for ${home} (pid ${pid}); stop it, then run offsite install again`
     )
     process.exit(1)
   }
+  await stopService()
   try {
     await setUp(manager, command)
   } catch (error) {
