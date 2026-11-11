@@ -120,7 +120,16 @@ export function TerminalPanel(props: {
               </button>
             ) : (
               <>
-                <DropdownMenu open={tabsOpen} onOpenChange={setTabsOpen}>
+                <DropdownMenu
+                  open={tabsOpen}
+                  onOpenChange={(next) => {
+                    if (next && tabs.length === 1) {
+                      create()
+                      return
+                    }
+                    setTabsOpen(next)
+                  }}
+                >
                   <DropdownMenuTrigger asChild>
                     <button className="text-foreground relative flex min-w-0 flex-1 items-center gap-3.5 self-stretch pr-3 pl-2 text-[13px]">
                       <span className="text-muted-foreground relative flex-none">
@@ -132,6 +141,13 @@ export function TerminalPanel(props: {
                           <span className="text-foreground/75 ring-background absolute -top-1.5 -right-2 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_14%,var(--background))] px-0.5 text-[9px] leading-none font-medium tabular-nums ring-2">
                             {tabs.length}
                           </span>
+                        )}
+                        {tabs.length === 1 && (
+                          <HugeiconsIcon
+                            icon={Add01Icon}
+                            strokeWidth={3}
+                            className="bg-background absolute -right-1.5 -bottom-1 size-2.5 rounded-full"
+                          />
                         )}
                       </span>
                       <span className="truncate">{tabTitle(selected)}</span>
