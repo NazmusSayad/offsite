@@ -9,6 +9,7 @@ export type Project = {
   scratch: boolean
   parentId: string | null
   worktreeSetup: string | null
+  worktreeBranch: string | null
 }
 
 export type ProjectPatch = {

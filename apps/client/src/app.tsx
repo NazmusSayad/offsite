@@ -6,6 +6,7 @@ import { SettingsDialog } from '@/features/settings/dialog'
 import { MobileSettings } from '@/features/settings/mobile'
 import { ExportDialog } from '@/features/sidebar/export-dialog'
 import { Palette } from '@/features/sidebar/palette'
+import { MoveDialogs } from '@/features/sidebar/worktree-dialogs'
 import { DesktopLayout } from '@/features/workspace/desktop'
 import { MobileLayout } from '@/features/workspace/mobile'
 import { useAttentionBadge } from '@/lib/notifications'
@@ -48,6 +49,7 @@ export function App() {
         </Suspense>
       )}
       {exporting !== null && <ExportDialog session={exporting} />}
+      <MoveDialogs />
       <GitErrorDialog />
       <Toaster
         position={desktop ? 'bottom-right' : 'top-center'}

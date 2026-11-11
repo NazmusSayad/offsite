@@ -4,7 +4,6 @@ import {
 } from '@offsite/core/config'
 import type { Project } from '@offsite/core/projects'
 import type { ServerEvent } from '@offsite/core/protocol'
-import type { Session } from '@offsite/core/sessions'
 import { isEqual } from 'es-toolkit'
 import { toast } from 'sonner'
 import {
@@ -14,6 +13,7 @@ import {
   moveDraft,
   saveDraftSettings,
 } from '@/features/composer/drafts'
+import { setOpen as setTerminalOpen } from '@/features/terminal/session'
 import {
   providerSettings,
   refreshAccounts,
@@ -26,7 +26,6 @@ import { claimNotifications, notify, push } from '@/lib/notifications'
 import { receiveUnsent } from '@/lib/pending'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
-import { withBump } from '@/lib/sent-sessions'
 import { closeSession, loadSession, openSession } from '@/lib/sessions'
 import {
   createAppStore,
@@ -62,6 +61,7 @@ import {
   restoreProjects,
   shareMachines,
 } from './machines'
+import { setSessions } from './session-list'
 
 const log = logger.withTag('sync')
 
@@ -81,6 +81,8 @@ export function start() {
     settingsPage: 'General',
     editor: null,
     exporting: null,
+    moving: null,
+    removingWorktree: null,
     settingsAccount: null,
     settingsEditedMachine: null,
     settingsListing: true,
@@ -242,43 +244,6 @@ function setProjects(machine: string, projects: Project[]) {
   persistMachines()
 }
 
-function setSessions(machine: string, sessions: Session[]) {
-  const state = getState()
-  const selection = state.selection
-  const listed = state.sessions
-    .filter((item) => item.machine === machine && item.status !== 'inactive')
-    .map((item) => item.id)
-    .sort()
-    .join(' ')
-  const opened = state.sessions.find(
-    (item) =>
-      item.machine === machine &&
-      item.id === selection?.sessionId &&
-      !sessions.some((session) => session.id === item.id)
-  )
-  const next = [
-    ...state.sessions.filter((item) => item.machine !== machine),
-    ...sessions.map((session) => withBump({ ...session, machine })),
-    ...(opened === undefined
-      ? []
-      : [withBump({ ...opened, status: 'inactive' as const })]),
-  ]
-  const inactiveVersion =
-    sessions
-      .map((session) => session.id)
-      .sort()
-      .join(' ') === listed
-      ? state.inactiveVersion
-      : state.inactiveVersion + 1
-  if (
-    inactiveVersion === state.inactiveVersion &&
-    isEqual(next, state.sessions)
-  ) {
-    return
-  }
-  update({ sessions: next, inactiveVersion })
-}
-
 function reopenThread(machine: string) {
   const selection = getState().selection
   if (selection?.machine === machine && selection.sessionId !== null) {
@@ -379,6 +344,14 @@ function receive(machine: string, event: ServerEvent) {
       return
     case 'worktreeStage':
       update({ worktreeStage: event.stage })
+      return
+    case 'warning':
+      toast(event.message)
+      return
+    case 'setup':
+      if (selected && state.selection?.projectId === event.projectId) {
+        setTerminalOpen(true)
+      }
       return
     case 'unsent':
       receiveUnsent(machine, event.unsent)

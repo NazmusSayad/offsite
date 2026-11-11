@@ -206,7 +206,7 @@ export async function sendPrompt(
   }
   update({ sentAt: Date.now() })
   const revert = bumpSession(selection, status)
-  const name = getState().worktree?.trim()
+  const worktree = getState().worktree
   try {
     await call(selection.machine, 'sessions.send', {
       id,
@@ -217,9 +217,12 @@ export async function sendPrompt(
       delivery,
       status,
       worktree:
-        selection.sessionId !== null || name === undefined
+        selection.sessionId !== null || worktree === null
           ? null
-          : { name: name === '' ? null : name },
+          : {
+              name: worktree.name.trim() === '' ? null : worktree.name.trim(),
+              base: worktree.base,
+            },
     })
   } catch (error) {
     revert()
@@ -256,7 +259,9 @@ export function resend(id: string) {
   if (selection === null) {
     return
   }
-  call(selection.machine, 'sessions.resend', { id }).catch(showError)
+  void call(selection.machine, 'sessions.resend', { id })
+    .catch(showError)
+    .finally(() => update({ worktreeStage: null }))
 }
 
 export function steer(id: string) {
@@ -489,7 +494,12 @@ export async function removeSession(
     startChat(machine, selection.projectId, true)
   }
   try {
-    await call(machine, 'sessions.remove', { id, projectId })
+    const result = await call(machine, 'sessions.remove', { id, projectId })
+    if (result.unusedWorktree !== null) {
+      update({
+        removingWorktree: { machine, projectId: result.unusedWorktree },
+      })
+    }
   } catch (error) {
     showError(error)
   }

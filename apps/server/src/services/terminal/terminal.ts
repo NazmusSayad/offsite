@@ -265,15 +265,47 @@ async function createTab(projectId: string | null) {
       )
     }
   }
+  try {
+    openTab(projectId, directory, null, {})
+  } catch (error) {
+    log.error(`could not start a terminal:`, error)
+  }
+}
+
+export function startSetup(
+  projectId: string,
+  command: string,
+  environment: Record<string, string>
+) {
+  const pty = openTab(projectId, projectPath(projectId), 'Setup', environment)
+  const started = pty.onData(() => {
+    started.dispose()
+    pty.write(`${command}\r`)
+  })
+  publish()
+}
+
+export function closeProjectTerminals(projectId: string) {
+  const ids = tabs
+    .filter((tab) => tab.projectId === projectId)
+    .map((tab) => tab.id)
+  for (const id of ids) {
+    closeTab(id)
+  }
+  if (ids.length > 0) {
+    publish()
+  }
+}
+
+function openTab(
+  projectId: string | null,
+  directory: string,
+  customName: string | null,
+  environment: Record<string, string>
+) {
   nextTab += 1
   const id = nextTab
-  let pty: IPty
-  try {
-    pty = startShell(directory)
-  } catch (error) {
-    log.error(`could not start terminal ${id}:`, error)
-    return
-  }
+  const pty = startShell(directory, environment)
   const terminal: Terminal = {
     pty,
     history: [],
@@ -284,7 +316,7 @@ async function createTab(projectId: string | null) {
   }
   log.info(`started terminal ${id} with pid ${pty.pid} in ${directory}`)
   terminals.set(id, terminal)
-  tabs.push({ id, projectId, customName: null })
+  tabs.push({ id, projectId, customName })
   active.set(projectId ?? GLOBAL_TERMINALS, id)
   pty.onData((data) => output(id, terminal, Buffer.from(data)))
   if (connections.size === 0) {
@@ -300,6 +332,7 @@ async function createTab(projectId: string | null) {
       publish()
     }
   })
+  return pty
 }
 
 function closeTab(id: number) {

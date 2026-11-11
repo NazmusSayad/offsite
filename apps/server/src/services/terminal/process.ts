@@ -19,7 +19,7 @@ const shellNames =
     ? ['pwsh', 'powershell', 'cmd']
     : ['zsh', 'bash', 'fish', 'pwsh']
 
-export function startShell(cwd: string) {
+export function startShell(cwd: string, environment: Record<string, string>) {
   const options = launch()
   const env: Record<string, string> = {}
   let file: string
@@ -52,7 +52,7 @@ export function startShell(cwd: string) {
   }
   env.TERM = 'xterm-256color'
   env.COLORTERM = 'truecolor'
-  Object.assign(env, options.environment)
+  Object.assign(env, options.environment, environment)
   return spawn(file, args, {
     name: 'xterm-256color',
     cols: 80,

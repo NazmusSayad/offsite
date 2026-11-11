@@ -18,6 +18,7 @@ export const projects = snakeCase.table('projects', {
   scratch: integer({ mode: 'boolean' }).notNull().default(false),
   parentId: text(),
   worktreeSetup: text(),
+  worktreeBranch: text(),
 })
 
 export const sessions = snakeCase.table('sessions', {
@@ -27,6 +28,12 @@ export const sessions = snakeCase.table('sessions', {
   status: text({
     enum: ['active', 'pinned', 'snoozed', 'minimized'],
   }).notNull(),
+})
+
+export const sessionPlaces = snakeCase.table('session_places', {
+  sessionId: text().primaryKey(),
+  projectId: text().notNull(),
+  claudeWorktree: integer({ mode: 'boolean' }).notNull().default(false),
 })
 
 export const sessionOpens = snakeCase.table('session_opens', {

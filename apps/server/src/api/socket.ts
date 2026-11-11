@@ -57,7 +57,6 @@ import {
   addProject,
   directories,
   projectPath,
-  projectWorktrees,
   removeProject,
   reorderProjects,
   updateProject,
@@ -81,7 +80,6 @@ import {
   recordInteraction,
   recordOpen,
   refreshAll,
-  removeSession,
   searchableSessions,
   updateSession,
   watchSessions,
@@ -111,10 +109,11 @@ import {
   saveLastPickedModel,
 } from '../storage/last-used.ts'
 import { saveAppIcon } from '../storage/state.ts'
+import { worktreeHandlers } from './worktree-handlers.ts'
 
 const log = logger.withTag('socket')
 
-type Handlers = {
+export type Handlers = {
   [M in RpcMethod]: (
     params: RpcMethods[M]['params'],
     client: Client
@@ -122,6 +121,7 @@ type Handlers = {
 }
 
 const handlers: Handlers = {
+  ...worktreeHandlers,
   ping: () => null,
   sync: () => syncSnapshot(),
   'config.get': () => configInfo(),
@@ -163,7 +163,6 @@ const handlers: Handlers = {
   },
   'projects.reorder': (params) => reorderProjects(params.ids),
   'projects.logoFiles': (params) => logoFiles(projectPath(params.id)),
-  'projects.worktrees': (params) => projectWorktrees(params.projectId),
   'directories.list': (params) => directories(params.path),
   'sessions.update': async (params) => {
     try {
@@ -175,14 +174,6 @@ const handlers: Handlers = {
   },
   'sessions.generateTitle': async (params) => {
     await generateSessionTitle(params.id, params.projectId)
-    return null
-  },
-  'sessions.remove': async (params) => {
-    try {
-      await removeSession(params.id, params.projectId)
-    } finally {
-      publishSessions()
-    }
     return null
   },
   'sessions.open': async (params, client) => {

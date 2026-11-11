@@ -33,6 +33,7 @@ import {
 } from './content.ts'
 import { toItems, toRequest } from './items.ts'
 import { permissionResult } from './permission.ts'
+import { followStart, followWorktree } from './worktree-follow.ts'
 
 const IDLE_LIMIT = 10 * 60 * 1000
 
@@ -68,6 +69,7 @@ export class Run {
   tasks: Record<string, TaskStatus> = {}
   private readonly inbox: SDKUserMessage[] = []
   private readonly steering = new Map<string, { id: string; prompt: Prompt }>()
+  private readonly worktreeTools = new Map<string, string>()
   private wake: (() => void) | null = null
   private idleTimer: NodeJS.Timeout | undefined
   private stopping = false
@@ -241,6 +243,7 @@ export class Run {
       case 'assistant': {
         if (message.parent_tool_use_id === null) {
           this.partial = ''
+          followWorktree(this.sessionId, this.cwd, this.worktreeTools, message)
         }
         this.add(toMessage('assistant', message, Date.now()))
         const tokens = contextTokens(message.message)
@@ -278,6 +281,7 @@ export class Run {
             Date.now()
           )
         )
+        followWorktree(this.sessionId, this.cwd, this.worktreeTools, message)
         return
       }
       case 'stream_event':
@@ -333,6 +337,7 @@ export class Run {
               ...this.settings,
               mode: message.permissionMode,
             })
+            void followStart(this.sessionId, this.cwd, message.cwd)
             return
           case 'background_tasks_changed': {
             this.agentTasks = message.tasks.filter(

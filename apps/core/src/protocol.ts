@@ -17,6 +17,9 @@ import type {
   PullRequestBranches,
   PullRequestDraft,
   SourceControlRepo,
+  WorktreeBases,
+  WorktreeChoice,
+  WorktreeDetails,
   WorktreeStage,
 } from './git.ts'
 import type {
@@ -100,8 +103,21 @@ export type RpcMethods = {
   'projects.logoFiles': { params: { id: string }; result: string[] }
   'projects.worktrees': {
     params: { projectId: string }
-    result: { projectId: string; branch: string | null; worktree: boolean }[]
+    result: WorktreeChoice[]
   }
+  'projects.addWorktree': {
+    params: { projectId: string; folder: string }
+    result: string
+  }
+  'projects.bases': {
+    params: { projectId: string; query: string }
+    result: WorktreeBases
+  }
+  'projects.worktreeDetails': {
+    params: { projectId: string }
+    result: WorktreeDetails
+  }
+  'projects.removeWorktree': { params: { projectId: string }; result: null }
   'directories.list': { params: { path: string }; result: DirectoryListing }
   'sessions.update': {
     params: { id: string; patch: SessionPatch }
@@ -113,7 +129,15 @@ export type RpcMethods = {
   }
   'sessions.remove': {
     params: { id: string; projectId: string }
-    result: null
+    result: { unusedWorktree: string | null }
+  }
+  'sessions.moveChanges': {
+    params: { projectId: string }
+    result: string[]
+  }
+  'sessions.move': {
+    params: { sessionId: string; name: string | null }
+    result: { projectId: string; setup: boolean }
   }
   'sessions.open': {
     params: {
@@ -169,7 +193,7 @@ export type RpcMethods = {
       settings: SessionSettings
       delivery: PromptDelivery
       status: 'active' | 'snoozed' | null
-      worktree: { name: string | null } | null
+      worktree: { name: string | null; base: string | null } | null
     }
     result: null
   }
@@ -401,6 +425,8 @@ export type ServerEvent =
   | ({ type: 'accounts' } & Accounts)
   | { type: 'started'; sessionId: string; projectId: string; from: string }
   | { type: 'worktreeStage'; stage: WorktreeStage }
+  | { type: 'warning'; message: string }
+  | { type: 'setup'; projectId: string }
   | {
       type: 'history'
       sessionId: string

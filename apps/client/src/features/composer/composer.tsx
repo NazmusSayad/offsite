@@ -46,6 +46,7 @@ import { sendDraft } from './send'
 import { DictateButton, SendControls } from './send-controls'
 import { isStashShortcut, toggleStash } from './stash'
 import { WorktreeBar } from './worktree-bar'
+import { ClaudeWorktreeNotice } from './worktree-notice'
 
 const log = logger.withTag('composer')
 
@@ -257,6 +258,7 @@ export function Composer() {
           />
         )}
         {suggestions.length === 0 && <UsageResetBanner />}
+        {suggestions.length === 0 && <ClaudeWorktreeNotice />}
         {suggestions.length === 0 && <QueuedMessages />}
         {request !== undefined && suggestions.length === 0 && (
           <PermissionPrompt
