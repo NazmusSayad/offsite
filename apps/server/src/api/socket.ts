@@ -103,6 +103,7 @@ import {
 } from '../services/terminal/terminal.ts'
 import { removeUnsent } from '../services/unsent.ts'
 import { readUsage } from '../services/usage.ts'
+import { localBranches } from '../services/worktrees.ts'
 import { configInfo, readConfig, saveConfig } from '../storage/config.ts'
 import {
   saveLastPickedEffort,
@@ -379,7 +380,7 @@ const handlers: Handlers = {
   'git.branches': (params) =>
     pullRequestBranches(path.join(projectPath(params.projectId), params.repo)),
   'git.localBranches': (params) =>
-    listBranches(path.join(projectPath(params.projectId), params.repo), false),
+    localBranches(path.join(projectPath(params.projectId), params.repo)),
   'git.remoteBranches': (params) =>
     listBranches(path.join(projectPath(params.projectId), params.repo), true),
   'git.switch': async (params) => {

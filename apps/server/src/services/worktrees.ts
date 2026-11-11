@@ -6,7 +6,7 @@ import type { WorktreeDetails, WorktreeStage } from '@offsite/core/git'
 import { keyedLock } from '../lib/locks.ts'
 import { home } from '../storage/storage.ts'
 import { chosenName, generatedName, type Named } from './branch-names.ts'
-import { git, gitError } from './git.ts'
+import { git, gitError, listBranches } from './git.ts'
 
 const FETCH_TIMEOUT = 60_000
 const LOCAL_LIMIT = 10
@@ -94,6 +94,32 @@ export async function moveIntoWorktree(
       warning: named.warning,
     }
   })
+}
+
+export async function localBranches(repo: string) {
+  const branches = (await listBranches(repo, false)).map((name) => ({
+    name,
+    local: true,
+  }))
+  const base = await knownDefaultBase(repo)
+  if (base === null) {
+    return branches
+  }
+  const name = defaultBranchName(base)
+  return [
+    { name, local: branches.some((branch) => branch.name === name) },
+    ...branches.filter((branch) => branch.name !== name),
+  ]
+}
+
+function defaultBranchName(ref: string) {
+  if (ref.startsWith('refs/heads/')) {
+    return ref.slice('refs/heads/'.length)
+  }
+  if (ref.startsWith('refs/remotes/origin/')) {
+    return ref.slice('refs/remotes/origin/'.length)
+  }
+  throw new Error(`${ref} is not a branch`)
 }
 
 export async function uncommittedFiles(repo: string) {
@@ -304,6 +330,18 @@ async function fetchRemoteBranch(top: string, ref: string) {
 }
 
 async function defaultBaseOf(top: string) {
+  const base = await knownDefaultBase(top)
+  if (base !== null) {
+    return base
+  }
+  const current = await currentBranch(top)
+  if (current === null) {
+    throw new Error('Could not find a main or master branch')
+  }
+  return `refs/heads/${current}`
+}
+
+async function knownDefaultBase(top: string) {
   if ((await remoteNames(top)).includes('origin')) {
     if (await refExists(top, 'refs/remotes/origin/HEAD')) {
       return (
@@ -321,11 +359,7 @@ async function defaultBaseOf(top: string) {
       return `refs/heads/${branch}`
     }
   }
-  const current = await currentBranch(top)
-  if (current === null) {
-    throw new Error('Could not find a main or master branch')
-  }
-  return `refs/heads/${current}`
+  return null
 }
 
 async function branchRefs(top: string, namespace: string) {

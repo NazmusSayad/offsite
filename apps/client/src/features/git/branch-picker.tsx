@@ -88,7 +88,9 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   const projectId = target.projectId
   const repoPath = target.repo.path
   const onRefresh = target.onRefresh
-  const [branches, setBranches] = useState<string[] | null>(null)
+  const [branches, setBranches] = useState<
+    { name: string; local: boolean }[] | null
+  >(null)
   const [remotes, setRemotes] = useState<string[] | null>(null)
   const [query, setQuery] = useState('')
   const [switching, setSwitching] = useState(false)
@@ -96,12 +98,12 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   const action = syncAction(target.repo)
   const name = query.trim()
   const matches = (branches ?? []).filter((branch) =>
-    branch.toLowerCase().includes(name.toLowerCase())
+    branch.name.toLowerCase().includes(name.toLowerCase())
   )
   const remoteMatches = (remotes ?? []).filter((branch) =>
     branch.toLowerCase().includes(name.toLowerCase())
   )
-  const exists = (branches ?? []).includes(name)
+  const exists = (branches ?? []).some((branch) => branch.name === name)
   const session = useStore((state) =>
     state.sessions.find(
       (item) =>
@@ -253,23 +255,32 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
         )}
         {matches.map((branch) => (
           <button
-            key={branch}
+            key={branch.name}
             disabled={switching}
             className={cn(
               'hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50',
-              branch === target.repo.branch &&
+              branch.name === target.repo.branch &&
                 'text-foreground bg-foreground/[0.08]'
             )}
             onClick={() => {
-              if (branch === target.repo.branch) {
+              if (branch.name === target.repo.branch) {
                 props.onClose()
                 return
               }
-              void switchTo(branch, false)
+              void switchTo(branch.name, false)
             }}
           >
-            <span className="min-w-0 flex-1 truncate">{branch}</span>
-            {branch === target.repo.branch && (
+            <span className="min-w-0 flex-1 truncate">{branch.name}</span>
+            {!branch.local && (
+              <span
+                className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs"
+                title="Not on this machine yet. Switching to it creates it from the remote"
+              >
+                <HugeiconsIcon icon={CloudIcon} className="size-3.5" />
+                Remote
+              </span>
+            )}
+            {branch.name === target.repo.branch && (
               <HugeiconsIcon
                 icon={CheckIcon}
                 strokeWidth={2.25}

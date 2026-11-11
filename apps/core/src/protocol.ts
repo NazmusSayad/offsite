@@ -359,7 +359,7 @@ export type RpcMethods = {
   }
   'git.localBranches': {
     params: { projectId: string; repo: string }
-    result: string[]
+    result: { name: string; local: boolean }[]
   }
   'git.remoteBranches': {
     params: { projectId: string; repo: string }
