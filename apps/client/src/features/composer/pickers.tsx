@@ -5,12 +5,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Model, Provider } from '@offsite/core/providers'
-import {
-  type Dispatch,
-  type SetStateAction,
-  useRef,
-  useState,
-} from 'react'
+import { type Dispatch, type SetStateAction, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { ProviderIcon } from '@/components/icons'
@@ -38,7 +33,6 @@ import { cn, touch } from '@/lib/utils'
 import { useModelLoading } from './model-loading'
 import { moveFocus } from './move-focus'
 import { control, controlSm, Picker, refocusComposer } from './picker'
-
 
 export function Pickers() {
   const settings = useStore((state) => state.settings)

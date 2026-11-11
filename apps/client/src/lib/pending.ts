@@ -4,7 +4,6 @@ import type { UserItem } from '@/features/transcript/timeline'
 import {
   activityOf,
   getState,
-  type PendingPrompt,
   type Selection,
   setMachine,
   type State,
