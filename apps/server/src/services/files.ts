@@ -365,7 +365,7 @@ export async function taskOutput(sessionId: string, file: string) {
   }
 }
 
-function resolveProjectFile(cwd: string, file: string) {
+export function resolveProjectFile(cwd: string, file: string) {
   const root = realpathSync(cwd)
   const resolved = path.resolve(root, file)
   if (!existsSync(resolved)) {

@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import sharp from 'sharp'
-import { listFiles } from './files.ts'
+import { listFiles, resolveProjectFile } from './files.ts'
 import { git, projectRepos } from './git.ts'
 
 const LOGO_LIMIT = 512 * 1024
@@ -81,6 +81,15 @@ export async function logoFiles(folder: string) {
   return [...new Set(listed.flat())].filter(
     (file) => PICKABLE_FILE.test(file) && existsSync(path.join(folder, file))
   )
+}
+
+export async function readLogo(folder: string, file: string) {
+  const type = LOGO_FILES.get(path.extname(file).toLowerCase())
+  if (type === undefined) {
+    throw new Error(`${file} is not a PNG, JPEG, WebP, SVG or ICO image`)
+  }
+  const data = await readFile(resolveProjectFile(folder, file))
+  return prepareLogo(`data:${type};base64,${data.toString('base64')}`)
 }
 
 export async function prepareLogo(logo: string) {

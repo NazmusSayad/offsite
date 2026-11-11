@@ -52,7 +52,7 @@ import {
   switchBranch,
   sync,
 } from '../services/git.ts'
-import { logoFiles } from '../services/logos.ts'
+import { logoFiles, readLogo } from '../services/logos.ts'
 import { searchMessages } from '../services/message-search.ts'
 import {
   addProject,
@@ -156,6 +156,8 @@ const handlers: Handlers = {
     return null
   },
   'projects.logoFiles': (params) => logoFiles(projectPath(params.id)),
+  'projects.logoFile': (params) =>
+    readLogo(projectPath(params.id), params.path),
   'directories.list': (params) => directories(params.path),
   'sessions.update': async (params) => {
     try {

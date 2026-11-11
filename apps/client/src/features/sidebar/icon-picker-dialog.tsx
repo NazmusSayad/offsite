@@ -16,6 +16,7 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { mediaUrl } from '@/lib/media'
 import { errorMessage } from '@/lib/utils'
 
 export function IconPickerDialog(props: {
@@ -46,7 +47,7 @@ export function IconPickerDialog(props: {
           .sort((a, b) => a.localeCompare(b))
           .map((name) => `${prefix}${name}`)
       : new Fzf(files ?? [], {
-          limit: 50,
+          limit: 25,
           casing: 'case-insensitive',
           tiebreakers: [
             (a, b) => fileNameMatches(b) - fileNameMatches(a),
@@ -141,27 +142,21 @@ export function IconPickerDialog(props: {
               className="hover:bg-muted flex h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors"
               onClick={async () => {
                 try {
-                  const preview = await call(props.machine, 'files.read', {
-                    projectId: props.projectId,
-                    path: file,
-                  })
-                  if (preview.kind === 'image') {
-                    props.onPick(
-                      `data:${preview.mediaType};base64,${preview.data}`
-                    )
-                  } else if (preview.kind === 'large') {
-                    setError(`${file} is too large`)
-                  } else {
-                    setError(`${file} is not an image`)
-                  }
+                  props.onPick(
+                    await call(props.machine, 'projects.logoFile', {
+                      id: props.projectId,
+                      path: file,
+                    })
+                  )
                 } catch (failure) {
                   setError(errorMessage(failure))
                 }
               }}
             >
-              <HugeiconsIcon
-                icon={Image01Icon}
-                className="text-muted-foreground size-4 flex-none"
+              <Thumbnail
+                machine={props.machine}
+                projectId={props.projectId}
+                path={file}
               />
               <span className="truncate font-mono text-xs">
                 {search === '' ? file.slice(prefix.length) : file}
@@ -189,6 +184,55 @@ export function IconPickerDialog(props: {
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+function Thumbnail(props: {
+  machine: string
+  projectId: string
+  path: string
+}) {
+  const [src, setSrc] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    mediaUrl(props.machine, props.projectId, props.path).then(
+      (url) => {
+        if (!cancelled) {
+          setSrc(url)
+        }
+      },
+      () => {
+        if (!cancelled) {
+          setFailed(true)
+        }
+      }
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [props.machine, props.projectId, props.path])
+
+  if (failed) {
+    return (
+      <HugeiconsIcon
+        icon={Image01Icon}
+        className="text-muted-foreground size-6 flex-none p-1"
+      />
+    )
+  }
+  if (src === null) {
+    return <span className="bg-muted size-6 flex-none rounded-sm" />
+  }
+  return (
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      className="size-6 flex-none rounded-sm object-contain"
+      onError={() => setFailed(true)}
+    />
   )
 }
 

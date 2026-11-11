@@ -95,6 +95,7 @@ export type RpcMethods = {
   }
   'projects.remove': { params: { id: string }; result: null }
   'projects.logoFiles': { params: { id: string }; result: string[] }
+  'projects.logoFile': { params: { id: string; path: string }; result: string }
   'projects.worktrees': {
     params: { projectId: string }
     result: WorktreeChoice[]
