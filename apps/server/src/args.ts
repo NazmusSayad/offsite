@@ -1,12 +1,22 @@
 import os from 'node:os'
 import path from 'node:path'
-import { Command } from '@commander-js/extra-typings'
+import { Command, Option } from '@commander-js/extra-typings'
 
-let command = 'web' as 'web' | 'serve' | 'pair' | 'unpair'
+let command = 'web' as
+  | 'web'
+  | 'serve'
+  | 'pair'
+  | 'unpair'
+  | 'install'
+  | 'uninstall'
+  | 'status'
 let name = null as string | null
+
+export const version = (process.env.OFFSITE_VERSION ?? 'dev').replace(/^v/, '')
 
 const program = new Command('offsite')
   .description('Starts the server and the web app')
+  .version(version)
   .option('--host <host>', 'Address to listen on', '127.0.0.1')
   .option('--port <port>', 'Port to listen on', '47841')
   .option(
@@ -21,6 +31,7 @@ const program = new Command('offsite')
     '--connect <addresses>',
     'Add this machine to the web app with these comma separated addresses; needs --no-auth'
   )
+  .addOption(new Option('--service').hideHelp())
   .configureHelp({ showGlobalOptions: true })
 
 program
@@ -48,6 +59,29 @@ program
   .description('Picks paired browsers to unpair')
   .action(() => {
     command = 'unpair'
+  })
+
+program
+  .command('install')
+  .description(
+    'Starts offsite at login with these options and keeps it updated'
+  )
+  .action(() => {
+    command = 'install'
+  })
+
+program
+  .command('uninstall')
+  .description('Stops offsite from starting at login and updating itself')
+  .action(() => {
+    command = 'uninstall'
+  })
+
+program
+  .command('status')
+  .description('Shows whether offsite is running, and if it is idle or busy')
+  .action(() => {
+    command = 'status'
   })
 
 program.parse()
@@ -82,13 +116,28 @@ const connect =
         return url.origin
       })
 
+const portGiven = program.getOptionValueSource('port') === 'cli'
+
 export const args = {
   ...options,
   dir: path.resolve(options.dir),
   command,
   name,
   connect,
-  portGiven: program.getOptionValueSource('port') === 'cli',
+  portGiven,
+  service: options.service === true,
+  serverArguments: [
+    '--dir',
+    path.resolve(options.dir),
+    ...(program.getOptionValueSource('host') === 'cli'
+      ? ['--host', options.host]
+      : []),
+    ...(portGiven ? ['--port', options.port] : []),
+    ...(options.auth ? [] : ['--no-auth']),
+    ...(options.pair ? [] : ['--no-pair']),
+    ...(options.pwa === true ? ['--pwa'] : []),
+    ...(options.connect === undefined ? [] : ['--connect', options.connect]),
+  ],
 }
 
 export const serverDir = path.join(import.meta.dirname, '..')

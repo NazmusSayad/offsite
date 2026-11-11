@@ -53,7 +53,7 @@ export function installOpen(host: string, port: number) {
   }
 }
 
-function loopback(host: string) {
+export function loopback(host: string) {
   if (host === '0.0.0.0') {
     return '127.0.0.1'
   }

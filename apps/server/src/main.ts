@@ -26,9 +26,12 @@ import {
   sniffType,
   streamFile,
 } from './services/files.ts'
-import { installOpen, openSecret } from './services/open/open.ts'
+import { installOpen, loopback, openSecret } from './services/open/open.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
+import { install, status, uninstall } from './services/service/commands.ts'
+import { answerStatus, statusSecret } from './services/service/status.ts'
+import { startService } from './services/service/update.ts'
 import { refreshAll, watchSessions } from './services/sessions.ts'
 import { failInterrupted } from './services/unsent.ts'
 import { contentTypes, publicDir, serveFile } from './services/web-app.ts'
@@ -85,6 +88,21 @@ if (args.command === 'unpair') {
   process.exit(0)
 }
 
+if (args.command === 'install') {
+  await install()
+  process.exit(0)
+}
+
+if (args.command === 'uninstall') {
+  await uninstall()
+  process.exit(0)
+}
+
+if (args.command === 'status') {
+  await status()
+  process.exit(0)
+}
+
 lockHome()
 log.info(
   `starting offsite ${args.command} with pid ${process.pid} on ${address}, dir ${args.dir}, auth ${args.auth ? 'on' : 'off'}`
@@ -137,6 +155,10 @@ function answerRequest(request: IncomingMessage, response: ServerResponse) {
   }
   if (url.pathname.startsWith('/api/proxy/')) {
     serveProxy(request, response)
+    return
+  }
+  if (url.pathname === `/api/status/${statusSecret}`) {
+    void answerStatus(response)
     return
   }
   if (url.pathname === `/api/open/${openSecret}`) {
@@ -209,7 +231,14 @@ if (args.auth) {
 }
 
 server.listen(port, args.host, () => {
-  writeJson('server.json', { port })
+  writeJson('server.json', {
+    port,
+    status: `http://${loopback(args.host)}:${port}/api/status/${statusSecret}`,
+    service: args.service,
+  })
+  if (args.service) {
+    startService()
+  }
   startPush(`${args.host}:${port}`)
   if (args.connect === null && args.pair && (code !== null || !args.auth)) {
     const links = pairingLinks(code)

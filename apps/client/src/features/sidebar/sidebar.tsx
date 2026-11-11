@@ -25,6 +25,7 @@ import {
 } from '@/features/sidebar/project-dialogs'
 import { ProjectGroup } from '@/features/sidebar/project-group'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
+import { ServiceBanners } from '@/features/sidebar/service-banner'
 import { FittedStatusChips, StatusChips } from '@/features/sidebar/status-chips'
 import { useInactiveSessions } from '@/features/sidebar/use-inactive-sessions'
 import { CloseAllDialog } from '@/features/terminal/dialogs'
@@ -406,6 +407,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
               )}
           </ul>
         </nav>
+        <ServiceBanners />
         {!props.mobile && (
           <div
             role="separator"

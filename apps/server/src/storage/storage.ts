@@ -48,6 +48,23 @@ function lock() {
       throw error
     }
   }
+  const pid = runningPid()
+  if (pid !== null) {
+    console.error(`offsite is already running for ${home} (pid ${pid})`)
+    log.error(`offsite is already running for ${home} (pid ${pid})`)
+    process.exit(1)
+  }
+  try {
+    unlinkSync(lockFile)
+  } catch (error) {
+    if (!hasCode(error, 'ENOENT')) {
+      throw error
+    }
+  }
+  lock()
+}
+
+export function runningPid() {
   let content
   let modified
   try {
@@ -55,7 +72,7 @@ function lock() {
     modified = statSync(lockFile).mtimeMs
   } catch (error) {
     if (hasCode(error, 'ENOENT')) {
-      return lock()
+      return null
     }
     throw error
   }
@@ -63,12 +80,9 @@ function lock() {
   const validPid = Number.isInteger(pid) && pid > 0
   const writtenThisBoot = modified > Date.now() - os.uptime() * 1000
   if (validPid && writtenThisBoot && pid !== process.pid && isRunning(pid)) {
-    console.error(`offsite is already running for ${home} (pid ${pid})`)
-    log.error(`offsite is already running for ${home} (pid ${pid})`)
-    process.exit(1)
+    return pid
   }
-  unlinkSync(lockFile)
-  lock()
+  return null
 }
 
 function isRunning(pid: number) {

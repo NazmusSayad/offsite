@@ -1,0 +1,185 @@
+import { execFile } from 'node:child_process'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { promisify } from 'node:util'
+import { scriptFile } from './settings.ts'
+
+const run = promisify(execFile)
+const NAME = 'offsite'
+
+const unitFile = path.join(
+  process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), '.config'),
+  'systemd',
+  'user',
+  `${NAME}.service`
+)
+const plistFile = path.join(
+  os.homedir(),
+  'Library',
+  'LaunchAgents',
+  `${NAME}.plist`
+)
+
+export async function register() {
+  switch (process.platform) {
+    case 'linux':
+      return registerLinux()
+    case 'darwin':
+      return registerMac()
+    case 'win32':
+      return registerWindows()
+    default:
+      throw new Error(`offsite install doesn't support ${process.platform}`)
+  }
+}
+
+export async function unregister() {
+  switch (process.platform) {
+    case 'linux':
+      return unregisterLinux()
+    case 'darwin':
+      return unregisterMac()
+    case 'win32':
+      return unregisterWindows()
+    default:
+      throw new Error(`offsite uninstall doesn't support ${process.platform}`)
+  }
+}
+
+async function registerLinux() {
+  mkdirSync(path.dirname(unitFile), { recursive: true })
+  writeFileSync(
+    unitFile,
+    [
+      '[Unit]',
+      'Description=offsite',
+      '',
+      '[Service]',
+      `ExecStart=/bin/sh "${scriptFile.replaceAll('%', '%%')}"`,
+      '',
+      '[Install]',
+      'WantedBy=default.target',
+      '',
+    ].join('\n')
+  )
+  await run('systemctl', ['--user', 'daemon-reload'])
+  await run('systemctl', ['--user', 'enable', `${NAME}.service`])
+  await run('systemctl', ['--user', 'restart', `${NAME}.service`])
+  try {
+    await run('loginctl', ['enable-linger'])
+  } catch {
+    console.warn(
+      `Could not keep offsite running after logout; run: sudo loginctl enable-linger ${os.userInfo().username}`
+    )
+  }
+}
+
+async function unregisterLinux() {
+  if (!existsSync(unitFile)) {
+    return
+  }
+  await run('systemctl', ['--user', 'disable', '--now', `${NAME}.service`])
+  rmSync(unitFile)
+  await run('systemctl', ['--user', 'daemon-reload'])
+}
+
+async function registerMac() {
+  mkdirSync(path.dirname(plistFile), { recursive: true })
+  writeFileSync(
+    plistFile,
+    [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+      '<plist version="1.0">',
+      '<dict>',
+      `  <key>Label</key><string>${NAME}</string>`,
+      '  <key>ProgramArguments</key>',
+      `  <array><string>/bin/sh</string><string>${escapeXml(scriptFile)}</string></array>`,
+      '  <key>RunAtLoad</key><true/>',
+      '</dict>',
+      '</plist>',
+      '',
+    ].join('\n')
+  )
+  await run('launchctl', ['bootstrap', macDomain(), plistFile])
+}
+
+async function unregisterMac() {
+  if (!existsSync(plistFile)) {
+    return
+  }
+  if (await succeeds('launchctl', ['print', `${macDomain()}/${NAME}`])) {
+    await run('launchctl', ['bootout', `${macDomain()}/${NAME}`])
+  }
+  rmSync(plistFile)
+}
+
+function macDomain() {
+  return `gui/${os.userInfo().uid}`
+}
+
+async function registerWindows() {
+  const user =
+    process.env.USERDOMAIN === undefined
+      ? os.userInfo().username
+      : `${process.env.USERDOMAIN}\\${os.userInfo().username}`
+  const xml = [
+    '<?xml version="1.0" encoding="UTF-16"?>',
+    '<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">',
+    '  <Triggers>',
+    `    <LogonTrigger><Enabled>true</Enabled><UserId>${escapeXml(user)}</UserId></LogonTrigger>`,
+    '  </Triggers>',
+    '  <Principals>',
+    `    <Principal id="Author"><UserId>${escapeXml(user)}</UserId><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal>`,
+    '  </Principals>',
+    '  <Settings>',
+    '    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>',
+    '    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>',
+    '    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>',
+    '    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>',
+    '    <Enabled>true</Enabled>',
+    '  </Settings>',
+    '  <Actions Context="Author">',
+    '    <Exec>',
+    '      <Command>conhost.exe</Command>',
+    `      <Arguments>--headless powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${escapeXml(scriptFile)}"</Arguments>`,
+    '    </Exec>',
+    '  </Actions>',
+    '</Task>',
+    '',
+  ].join('\r\n')
+  const file = path.join(os.tmpdir(), `offsite-task-${process.pid}.xml`)
+  writeFileSync(file, `﻿${xml}`, 'utf16le')
+  try {
+    await run('schtasks', ['/create', '/tn', NAME, '/xml', file, '/f'])
+  } finally {
+    rmSync(file)
+  }
+  await run('schtasks', ['/run', '/tn', NAME])
+}
+
+async function unregisterWindows() {
+  if (!(await succeeds('schtasks', ['/query', '/tn', NAME]))) {
+    return
+  }
+  await succeeds('schtasks', ['/end', '/tn', NAME])
+  await run('schtasks', ['/delete', '/tn', NAME, '/f'])
+}
+
+async function succeeds(command: string, commandArguments: string[]) {
+  try {
+    await run(command, commandArguments)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function escapeXml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+}
