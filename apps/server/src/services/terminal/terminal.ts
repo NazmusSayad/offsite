@@ -277,12 +277,16 @@ export function startSetup(
   command: string,
   environment: Record<string, string>
 ) {
-  const pty = openTab(projectId, projectPath(projectId), 'Setup', environment)
-  const started = pty.onData(() => {
-    started.dispose()
-    pty.write(`${command}\r`)
-  })
-  publish()
+  try {
+    const pty = openTab(projectId, projectPath(projectId), 'Setup', environment)
+    const started = pty.onData(() => {
+      started.dispose()
+      pty.write(`${command}\r`)
+    })
+    publish()
+  } catch (error) {
+    log.error(`could not start the setup terminal:`, error)
+  }
 }
 
 export function closeProjectTerminals(projectId: string) {

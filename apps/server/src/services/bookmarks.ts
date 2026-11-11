@@ -6,11 +6,14 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { earlier } from '../lib/claude/index.ts'
 import { broadcast } from '../lib/hub.ts'
+import { logger } from '../lib/log.ts'
 import { db } from '../storage/db.ts'
 import { bookmarks as bookmarksTable } from '../storage/schema.ts'
 import { projectPath } from './projects.ts'
 import { sessionHistory } from './runs.ts'
 import { findSession } from './sessions.ts'
+
+const log = logger.withTag('bookmarks')
 
 const targetSchema = z.strictObject({
   sessionId: z.string(),
@@ -59,14 +62,14 @@ export async function listBookmarks(): Promise<Bookmark[]> {
   const loaded = new Map(
     await Promise.all(
       sessionIds.map(async (sessionId) => {
-        const session = await findSession(sessionId)
+        const session = await readSession(sessionId)
         const wanted = refs.flatMap((ref) =>
           ref.sessionId === sessionId && ref.itemId !== null ? [ref.itemId] : []
         )
         const items =
           session === null || wanted.length === 0
             ? []
-            : await sessionItems(session, wanted)
+            : await readItems(session, wanted)
         return [sessionId, { session, items }] as const
       })
     )
@@ -82,6 +85,24 @@ export async function listBookmarks(): Promise<Bookmark[]> {
       message: messageOf(ref, found.items),
     }
   })
+}
+
+async function readSession(sessionId: string) {
+  try {
+    return await findSession(sessionId)
+  } catch (error) {
+    log.warn(`could not read bookmarked session ${sessionId}:`, error)
+    return null
+  }
+}
+
+async function readItems(session: Session, wanted: string[]) {
+  try {
+    return await sessionItems(session, wanted)
+  } catch (error) {
+    log.warn(`could not read the messages of session ${session.id}:`, error)
+    return []
+  }
 }
 
 async function sessionItems(session: Session, wanted: string[]) {
@@ -108,7 +129,8 @@ function messageOf(ref: BookmarkRef, items: Item[]): Bookmark['message'] {
     return null
   }
   if (item.kind !== 'user' && item.kind !== 'assistant') {
-    throw new Error(`a ${item.kind} item cannot be bookmarked`)
+    log.warn(`bookmark ${ref.id} points to a ${item.kind} item`)
+    return null
   }
   const text =
     ref.start !== null && ref.end !== null

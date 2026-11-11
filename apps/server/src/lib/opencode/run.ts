@@ -140,6 +140,7 @@ export class OpenCodeRun {
     if (item === undefined) {
       return
     }
+    setUnsentStatus(id, 'sending')
     this.submit(id, item.prompt, 'steer').catch((error: unknown) => {
       this.fail(error)
       setUnsentStatus(id, 'failed')
