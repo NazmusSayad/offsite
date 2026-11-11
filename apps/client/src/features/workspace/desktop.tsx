@@ -321,7 +321,7 @@ export function DesktopLayout() {
                   key={`${selection.machine} ${selection.sessionId ?? selection.projectId}`}
                 >
                   <Transcript onOpenTask={openTask} />
-                  <Composer />
+                  <Composer repos={git.repos} />
                 </Fragment>
               )}
             </div>

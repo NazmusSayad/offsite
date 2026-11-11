@@ -258,7 +258,7 @@ function MobileChat(props: { selection: Selection }) {
           key={`${props.selection.machine} ${props.selection.sessionId ?? props.selection.projectId}`}
         >
           <Transcript onOpenTask={openTask} />
-          <Composer />
+          <Composer repos={git.repos} />
         </Fragment>
       </div>
       <DialogPrimitive.Root open={open} onOpenChange={() => showPanel(null)}>

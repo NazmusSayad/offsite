@@ -1,7 +1,10 @@
 import {
+  ArrowDown01Icon,
   CircleDashedIcon,
+  CloudIcon,
+  FolderGit2Icon,
+  GitBranchPlusIcon,
   GitBranchIcon,
-  GitForkIcon,
   SearchIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -21,44 +24,27 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { logger } from '@/lib/log'
 import { openSession } from '@/lib/sessions'
-import { getState, machineOf, update, useStore } from '@/lib/store'
+import { getState, update, useStore } from '@/lib/store'
 import { cn, errorMessage, touch } from '@/lib/utils'
+import { RepoStatus } from './repo-status'
 
 const log = logger.withTag('worktree')
 
-export function WorktreeBar(props: { machine: string; projectId: string }) {
+const NEW_WORKTREE = 'new-worktree'
+
+export function WorktreeBar(props: {
+  machine: string
+  projectId: string
+  repos: GitRepo[]
+}) {
   const worktree = useStore((state) => state.worktree)
   const stage = useStore((state) => state.worktreeStage)
-  const status = useStore((state) => machineOf(state, props.machine).status)
-  const [repos, setRepos] = useState<GitRepo[] | null>(null)
-  const repo = repos?.find((item) => item.path === '')
-
-  useEffect(() => {
-    if (status !== 'online') {
-      return
-    }
-    let current = true
-    async function load() {
-      try {
-        const found = await call(props.machine, 'git.status', {
-          projectId: props.projectId,
-        })
-        if (current) {
-          setRepos(found)
-        }
-      } catch (error) {
-        log.error('could not load the git status', error)
-      }
-    }
-    void load()
-    return () => {
-      current = false
-    }
-  }, [props.machine, props.projectId, status])
+  const repo = props.repos.find((item) => item.path === '')
 
   if (repo === undefined) {
     return null
@@ -66,9 +52,9 @@ export function WorktreeBar(props: { machine: string; projectId: string }) {
 
   return (
     <div className="absolute inset-x-0 top-full">
-      <div className="composer-glass relative mx-auto -mt-[calc(1rem+1px)] flex w-[calc(100%-2.75rem)] flex-wrap items-center gap-0.5 rounded-b-2xl border border-t-0 border-(--composer-outline) px-1 pt-[calc(1rem+1px+0.25rem)] pb-1 text-xs/4">
+      <div className="composer-glass @container relative mx-auto -mt-[calc(1rem+1px)] w-[calc(100%-2.75rem)] rounded-b-2xl border border-t-0 border-(--composer-outline) px-1 pt-[calc(1rem+1px+0.25rem)] pb-1 text-xs/4">
         {stage !== null && (
-          <span className="text-muted-foreground flex h-6 min-w-0 items-center gap-1.5 px-2">
+          <span className="text-muted-foreground flex h-7 min-w-0 items-center gap-1.5 px-2">
             <HugeiconsIcon
               icon={CircleDashedIcon}
               className="size-3.5 shrink-0 animate-spin"
@@ -77,101 +63,110 @@ export function WorktreeBar(props: { machine: string; projectId: string }) {
           </span>
         )}
         {stage === null && (
-          <>
-            <div className="flex min-w-0 items-center gap-0.5">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="text-foreground/90 hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-ring/40 flex h-6 max-w-56 min-w-0 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2 outline-none focus-visible:ring-2"
+                  title="Choose where the agent works"
+                >
+                  <HugeiconsIcon
+                    icon={worktree === null ? GitBranchIcon : GitBranchPlusIcon}
+                    className="text-muted-foreground size-3.5 shrink-0"
+                  />
+                  <span
                     className={cn(
-                      'text-muted-foreground hover:text-foreground flex h-6 max-w-56 min-w-0 cursor-pointer items-center gap-1.5 rounded-full px-2 outline-none',
-                      worktree === null &&
-                        'text-foreground bg-foreground/[0.07]'
+                      'truncate',
+                      worktree !== null && '@max-sm:hidden'
                     )}
-                    title="Choose where the agent works"
                   >
+                    {worktree === null
+                      ? (repo.branch ?? 'Detached HEAD')
+                      : 'New worktree'}
+                  </span>
+                  <HugeiconsIcon
+                    icon={ArrowDown01Icon}
+                    className="text-muted-foreground size-3.5 shrink-0"
+                  />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-80">
+                <LocationMenu
+                  machine={props.machine}
+                  projectId={props.projectId}
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <div
+              key={worktree === null ? 'local' : 'worktree'}
+              className={cn(
+                'animate-in fade-in-0 flex h-7 flex-1 items-center gap-1 duration-150 motion-reduce:animate-none',
+                worktree !== null && 'min-w-0'
+              )}
+            >
+              {worktree === null && <RepoStatus repo={repo} />}
+              {worktree !== null && (
+                <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-ring/30 flex h-6 max-w-48 min-w-0 shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 outline-none focus-visible:ring-2"
+                        title="Choose the branch the worktree starts from"
+                      >
+                        <span className="text-muted-foreground hidden shrink-0 @md:inline">
+                          from
+                        </span>
+                        <span className="truncate">
+                          {worktree.base === null
+                            ? 'default branch'
+                            : shortRef(worktree.base)}
+                        </span>
+                        <HugeiconsIcon
+                          icon={ArrowDown01Icon}
+                          className="text-muted-foreground size-3.5 shrink-0"
+                        />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="start"
+                      className="flex w-72 flex-col overflow-hidden p-0"
+                    >
+                      <BaseMenu
+                        machine={props.machine}
+                        projectId={props.projectId}
+                      />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <label className="focus-within:bg-accent/60 hover:bg-accent/40 flex h-6 min-w-0 flex-1 cursor-text items-center gap-1.5 rounded-md px-2">
                     <HugeiconsIcon
                       icon={GitBranchIcon}
-                      className="size-3.5 shrink-0"
+                      className="text-muted-foreground size-3.5 shrink-0"
                     />
-                    <span className="truncate">
-                      {repo.branch ?? 'Detached'}
-                    </span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-72">
-                  <WorktreeMenu
-                    machine={props.machine}
-                    projectId={props.projectId}
-                  />
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <button
-                className={cn(
-                  'text-muted-foreground hover:text-foreground flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-2',
-                  worktree !== null && 'text-foreground bg-foreground/[0.07]'
-                )}
-                title="Start in a new worktree"
-                onClick={() =>
-                  update({
-                    worktree:
-                      worktree === null ? { name: '', base: null } : null,
-                  })
-                }
-              >
-                <HugeiconsIcon
-                  icon={GitForkIcon}
-                  className="size-3.5 shrink-0"
-                />
-                New worktree
-              </button>
-              {worktree !== null && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      className="text-muted-foreground hover:text-foreground flex h-6 max-w-40 shrink-0 cursor-pointer items-center rounded-full px-2 outline-none"
-                      title="Choose the branch the worktree starts from"
-                    >
-                      <span className="truncate">
-                        from{' '}
-                        {worktree.base === null
-                          ? 'default branch'
-                          : shortRef(worktree.base)}
-                      </span>
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="start"
-                    className="flex w-72 flex-col overflow-hidden p-0"
-                  >
-                    <BaseMenu
-                      machine={props.machine}
-                      projectId={props.projectId}
+                    <input
+                      value={worktree.name}
+                      placeholder="Branch name (auto if empty)"
+                      aria-label="New branch name"
+                      spellCheck={false}
+                      className="placeholder:text-muted-foreground/70 min-w-0 flex-1 bg-transparent text-ellipsis outline-none"
+                      onChange={(event) =>
+                        update({
+                          worktree: { ...worktree, name: event.target.value },
+                        })
+                      }
                     />
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </label>
+                </>
               )}
             </div>
-            {worktree !== null && (
-              <input
-                value={worktree.name}
-                placeholder="Branch name, or leave empty to name it from the message"
-                spellCheck={false}
-                className="placeholder:text-muted-foreground/70 h-6 min-w-40 flex-1 bg-transparent px-2 outline-none"
-                onChange={(event) =>
-                  update({
-                    worktree: { ...worktree, name: event.target.value },
-                  })
-                }
-              />
-            )}
-          </>
+          </div>
         )}
       </div>
     </div>
   )
 }
 
-function WorktreeMenu(props: { machine: string; projectId: string }) {
+function LocationMenu(props: { machine: string; projectId: string }) {
+  const worktree = useStore((state) => state.worktree)
   const [worktrees, setWorktrees] = useState<WorktreeChoice[] | null>(null)
 
   useEffect(() => {
@@ -200,25 +195,51 @@ function WorktreeMenu(props: { machine: string; projectId: string }) {
   }
 
   return (
-    <DropdownMenuRadioGroup value={props.projectId}>
-      <DropdownMenuLabel>Work in</DropdownMenuLabel>
+    <DropdownMenuRadioGroup
+      value={worktree === null ? props.projectId : NEW_WORKTREE}
+    >
       {worktrees.map((item) => (
         <DropdownMenuRadioItem
           key={item.folder}
           value={item.projectId ?? item.folder}
           title={item.folder}
-          onSelect={() =>
+          onSelect={() => {
+            if (item.projectId === props.projectId) {
+              update({ worktree: null })
+              return
+            }
             void openWorktree(props.machine, props.projectId, item)
-          }
+          }}
         >
+          <HugeiconsIcon
+            icon={item.worktree ? FolderGit2Icon : GitBranchIcon}
+            className="text-muted-foreground size-3.5"
+          />
           <span className="min-w-0 flex-1 truncate">
-            {item.branch ?? 'Detached'}
+            {item.branch ?? 'Detached HEAD'}
           </span>
-          <span className="text-muted-foreground max-w-28 truncate text-xs">
-            {item.worktree ? folderName(item.folder) : 'Project folder'}
-          </span>
+          {item.worktree && (
+            <span className="text-muted-foreground max-w-28 shrink-0 truncate text-xs">
+              {folderName(item.folder)}
+            </span>
+          )}
         </DropdownMenuRadioItem>
       ))}
+      <DropdownMenuSeparator />
+      <DropdownMenuRadioItem
+        value={NEW_WORKTREE}
+        onSelect={() => {
+          if (worktree === null) {
+            update({ worktree: { name: '', base: null } })
+          }
+        }}
+      >
+        <HugeiconsIcon
+          icon={GitBranchPlusIcon}
+          className="text-muted-foreground size-3.5"
+        />
+        <span className="min-w-0 flex-1 truncate">New worktree</span>
+      </DropdownMenuRadioItem>
     </DropdownMenuRadioGroup>
   )
 }
@@ -263,13 +284,6 @@ function BaseMenu(props: { machine: string; projectId: string }) {
     if (bases === null) {
       return
     }
-    const checkedOut = ref.startsWith('refs/heads/')
-      ? bases.worktrees.find((item) => item.branch === shortRef(ref))
-      : undefined
-    if (checkedOut !== undefined) {
-      void openWorktree(props.machine, props.projectId, checkedOut)
-      return
-    }
     const current = getState().worktree
     if (current === null) {
       return
@@ -283,25 +297,20 @@ function BaseMenu(props: { machine: string; projectId: string }) {
   }
 
   function item(ref: string, note: string | null) {
-    const checkedOut =
-      ref.startsWith('refs/heads/') &&
-      bases?.worktrees.some((entry) => entry.branch === shortRef(ref)) === true
     return (
       <DropdownMenuItem
         key={ref}
         data-base
-        title={
-          checkedOut
-            ? `${shortRef(ref)} is already checked out, open that folder`
-            : `Start a new branch from ${shortRef(ref)}`
-        }
+        title={`Start a new branch from the ${ref.startsWith('refs/remotes/') ? 'remote' : 'local'} branch ${shortRef(ref)}`}
         onSelect={() => pick(ref)}
       >
+        <HugeiconsIcon
+          icon={ref.startsWith('refs/remotes/') ? CloudIcon : GitBranchIcon}
+          className="text-muted-foreground size-3.5 shrink-0"
+        />
         <span className="min-w-0 flex-1 truncate">{shortRef(ref)}</span>
-        {(note !== null || checkedOut) && (
-          <span className="text-muted-foreground text-xs">
-            {checkedOut ? 'Open' : note}
-          </span>
+        {note !== null && (
+          <span className="text-muted-foreground text-xs">{note}</span>
         )}
       </DropdownMenuItem>
     )
@@ -309,7 +318,7 @@ function BaseMenu(props: { machine: string; projectId: string }) {
 
   return (
     <div
-      className="flex min-h-0 flex-col"
+      className="flex min-h-0 flex-col select-none"
       onKeyDownCapture={(event) => {
         if (
           event.target !== inputRef.current &&
@@ -366,15 +375,11 @@ function BaseMenu(props: { machine: string; projectId: string }) {
           <>
             {query.trim() === '' && item(bases.defaultBase, 'Default')}
             {bases.local.length > 0 && (
-              <DropdownMenuLabel>
-                {query.trim() === '' ? 'Recent local branches' : 'Local'}
-              </DropdownMenuLabel>
+              <DropdownMenuLabel>Local branches</DropdownMenuLabel>
             )}
             {bases.local.map((ref) => item(ref, null))}
             {bases.remote.length > 0 && (
-              <DropdownMenuLabel>
-                {query.trim() === '' ? 'Your latest remote branches' : 'Remote'}
-              </DropdownMenuLabel>
+              <DropdownMenuLabel>Remote branches</DropdownMenuLabel>
             )}
             {bases.remote.map((ref) => item(ref, null))}
             {query.trim() !== '' &&

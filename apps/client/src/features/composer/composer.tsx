@@ -1,5 +1,6 @@
 import { PaperclipIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import type { GitRepo } from '@offsite/core/git'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
@@ -53,7 +54,7 @@ const log = logger.withTag('composer')
 const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 const maxImageSize = 5 * 1024 * 1024
 
-export function Composer() {
+export function Composer(props: { repos: GitRepo[] }) {
   const selection = useStore((state) => state.selection)
   const loaded = useStore((state) => state.loaded)
   const blank = useStore(
@@ -489,7 +490,12 @@ export function Composer() {
           </div>
         </div>
         {hero && selection?.sessionId === null && projectId !== NO_PROJECT && (
-          <WorktreeBar key={key} machine={machine} projectId={projectId} />
+          <WorktreeBar
+            key={key}
+            machine={machine}
+            projectId={projectId}
+            repos={props.repos}
+          />
         )}
       </Wrapper>
     </div>
