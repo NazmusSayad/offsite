@@ -18,6 +18,7 @@ import {
   MarkdownTable,
 } from '@/components/markdown/markdown-blocks'
 import { CodeBlock } from '@/components/markdown/markdown-code'
+import { remarkUnclosedHtml } from '@/components/markdown/markdown-html'
 import { LocalMedia, Media } from '@/components/markdown/markdown-media'
 import { remarkWindowsPaths } from '@/components/markdown/markdown-paths'
 import {
@@ -222,6 +223,7 @@ function MarkdownView(props: {
             ? []
             : [remarkSkills(props.skills)]),
           ...(props.images === true ? [remarkImages()] : []),
+          ...(props.rawHtml === false ? [] : [remarkUnclosedHtml]),
         ]}
         rehypePlugins={
           props.rawHtml === false ? [] : [rehypeRaw, [rehypeSanitize, schema]]
