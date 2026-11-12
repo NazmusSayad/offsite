@@ -1,3 +1,5 @@
+'use client'
+
 import { CheckIcon, CopyIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
@@ -13,7 +15,7 @@ export function CopyCommand() {
         setCopied(true)
         setTimeout(() => setCopied(false), 1600)
       }}
-      className="bg-foreground text-background flex h-11 cursor-pointer items-center gap-3 rounded-full pr-4 pl-5 font-mono text-sm font-medium transition hover:bg-white active:scale-[0.98]"
+      className="bg-foreground text-background flex h-11 cursor-pointer items-center gap-3 rounded-(--radius) pr-4 pl-5 font-mono text-sm font-medium shadow-xs inset-shadow-[0_1px_rgb(255_255_255/16%)] transition hover:opacity-90 active:scale-[0.98]"
     >
       <span>
         <span className="text-background/45">$</span> npx offsite

@@ -43,7 +43,7 @@
   --danger: #ee5d69;
   --green: #97c775;
   --yellow: #b68353;
-  --radius: 0.625rem;
+  --radius: 0.55rem;
   --control-radius: 0.5rem;
   --sidebar-content-inset: 0.5rem;
   --sidebar-row-content-inset: 0.625rem;
@@ -132,7 +132,7 @@
 
 @supports (corner-shape: squircle) {
   :root {
-    --radius: 1rem;
+    --radius: 0.9rem;
   }
 
   [class*='rounded-']:not(.rounded-full) {

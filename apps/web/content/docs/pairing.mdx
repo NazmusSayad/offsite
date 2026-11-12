@@ -1,0 +1,44 @@
+---
+title: Pairing
+description: Open OffSite on your phone or another browser.
+---
+
+OffSite only talks to browsers you have paired. The first time you start it, it prints a pairing link, and the browser that opens it is paired.
+
+## Pair another browser
+
+With OffSite running, run:
+
+```sh
+npx offsite pair
+```
+
+It prints a link. Open it in the browser you want to pair within 5 minutes. Each link works once.
+
+Give the browser a name to recognize it by later:
+
+```sh
+npx offsite pair --name Phone
+```
+
+## Open it on your phone
+
+By default OffSite listens on `127.0.0.1`, which only your own machine can reach. To use it from your phone, start it with `--host` set to an address your phone can reach, such as your machine's address on your network:
+
+```sh
+npx offsite --host 192.168.1.20
+```
+
+Then create a pairing link with the same `--host`, and open it on your phone:
+
+```sh
+npx offsite pair --host 192.168.1.20
+```
+
+## Unpair a browser
+
+```sh
+npx offsite unpair
+```
+
+It lists your paired browsers so you can pick which ones to unpair. A running OffSite disconnects them within seconds.

@@ -1,0 +1,44 @@
+---
+title: CLI reference
+description: Every command and option.
+---
+
+## Commands
+
+| Command             | What it does                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------ |
+| `offsite`           | Starts the server and the web app                                                    |
+| `offsite serve`     | Starts only the server, without the web app                                          |
+| `offsite pair`      | Creates a pairing code for another browser and prints its link                       |
+| `offsite unpair`    | Picks paired browsers to unpair                                                      |
+| `offsite install`   | Starts OffSite at login with these options, on port `2020` unless you pass `--port`  |
+| `offsite uninstall` | Stops OffSite from starting at login and updating itself                             |
+| `offsite update`    | Updates OffSite with the package manager the service uses, then restarts the service |
+| `offsite status`    | Shows whether OffSite is running, and if it is idle or busy                          |
+
+## Options
+
+| Option                  | Default      | What it does                                                         |
+| ----------------------- | ------------ | -------------------------------------------------------------------- |
+| `--host <host>`         | `127.0.0.1`  | Address to listen on                                                 |
+| `--port <port>`         | `47841`      | Port to listen on                                                    |
+| `--dir <dir>`           | `~/.offsite` | Folder for settings and accounts                                     |
+| `--no-auth`             |              | Accept connections without pairing                                   |
+| `--no-pair`             |              | Don't create a pairing code or print pairing links                   |
+| `--pwa`                 |              | Serve the web app as an installable app that works offline           |
+| `--connect <addresses>` |              | Add this machine to the web app with these comma separated addresses |
+| `--name <name>`         |              | With `offsite pair`, the name to recognize the browser by            |
+
+`--connect` needs `--no-auth`, and `--no-pair` can't be used with `--no-auth`.
+
+<Callout type="warn">
+  With `--no-auth`, anyone who can reach the port can control your machine.
+</Callout>
+
+## Separate instances
+
+Give each instance its own port and `--dir`:
+
+```sh
+npx offsite --port 47900 --dir ~/.offsite-work
+```

@@ -1,0 +1,83 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+
+@theme {
+  --font-sans: 'Geist Variable', -apple-system, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-line: var(--line);
+  --color-surface: var(--surface);
+  --color-accent: var(--accent);
+}
+
+:root {
+  --radius: 0.55rem;
+  --background: #fafaf9;
+  --foreground: #17171a;
+  --muted: #5f6066;
+  --subtle: #95969c;
+  --line: rgb(0 0 0 / 9%);
+  --surface: #ffffff;
+  --accent: #0b84d8;
+  --color-fd-background: var(--background);
+
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dark {
+  --background: #0a0a0b;
+  --foreground: #f4f4f5;
+  --muted: #a1a1a8;
+  --subtle: #64646c;
+  --line: rgb(255 255 255 / 9%);
+  --surface: #111215;
+  --accent: #1f9cf0;
+  --color-fd-background: var(--background);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: #fff;
+  }
+}
+
+@supports (corner-shape: squircle) {
+  :root {
+    --radius: 0.9rem;
+  }
+
+  [class*='rounded-']:not(.rounded-full) {
+    corner-shape: squircle;
+  }
+}
+
+@utility reveal {
+  @media (prefers-reduced-motion: no-preference) {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+      opacity 900ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      transform 900ms cubic-bezier(0.2, 0.7, 0.2, 1);
+    transition-delay: var(--delay, 0ms);
+
+    &.in-view {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}

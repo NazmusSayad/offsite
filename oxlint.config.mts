@@ -105,14 +105,6 @@ export default defineConfig({
       env: { serviceworker: true },
     },
     {
-      files: ['**/*.astro'],
-      env: { browser: true },
-      globals: { Astro: 'readonly' },
-      rules: {
-        'oxfmt/oxfmt': 'off',
-      },
-    },
-    {
       files: ['**/*.{ts,tsx,mts,cts}'],
       rules: {
         'constructor-super': 'off',
@@ -186,6 +178,13 @@ export default defineConfig({
           { '**/*.*': 'KEBAB_CASE' },
           { ignoreMiddleExtensions: true },
         ],
+      },
+    },
+    {
+      files: ['apps/web/src/app/**'],
+      rules: {
+        'import/no-default-export': 'off',
+        'check-file/folder-naming-convention': 'off',
       },
     },
     {
