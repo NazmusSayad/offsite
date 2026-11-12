@@ -100,11 +100,10 @@ function install(settings: ServiceSettings) {
 
 async function installLatest(settings: ServiceSettings) {
   log.info(`updating offsite with ${settings.manager}`)
-  await runTool(
-    settings.manager,
-    updateArguments(settings.manager),
-    settings.manager === 'mise' ? { MISE_FETCH_REMOTE_VERSIONS_CACHE: '0' } : {}
-  )
+  if (settings.manager === 'mise') {
+    await runTool('mise', ['cache', 'clear'])
+  }
+  await runTool(settings.manager, updateArguments(settings.manager))
   return runOffsite(['--version'])
 }
 

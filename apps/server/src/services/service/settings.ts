@@ -43,17 +43,12 @@ export function writeServiceSettings(settings: ServiceSettings) {
   writeJson(SETTINGS, settings)
 }
 
-export async function runTool(
-  name: string,
-  toolArguments: string[],
-  extraEnv: Record<string, string> = {}
-) {
-  const env = { ...process.env, ...extraEnv }
+export async function runTool(name: string, toolArguments: string[]) {
   if (process.platform === 'win32') {
-    const result = await runLine([name, ...toolArguments].join(' '), { env })
+    const result = await runLine([name, ...toolArguments].join(' '))
     return result.stdout
   }
-  const result = await runFile(name, toolArguments, { env })
+  const result = await runFile(name, toolArguments)
   return result.stdout
 }
 
