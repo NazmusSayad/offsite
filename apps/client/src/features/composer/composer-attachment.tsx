@@ -50,7 +50,7 @@ function AttachmentChip(props: ReactNodeViewProps) {
     <NodeViewWrapper
       as="span"
       contentEditable={false}
-      className="bg-muted border-border/70 mx-0.5 inline-flex h-6 max-w-60 items-center gap-1 rounded-md border p-0.5 align-middle text-xs"
+      className="bg-muted border-border/70 mx-0.5 inline-flex h-5.5 max-w-60 items-center gap-1 rounded-md border p-0.5 align-top text-xs"
     >
       {image === undefined ? (
         <span className="flex min-w-0 items-center gap-1 ps-0.5">
@@ -69,7 +69,7 @@ function AttachmentChip(props: ReactNodeViewProps) {
           <img
             src={`data:${image.mediaType};base64,${image.data}`}
             alt=""
-            className="size-4.5 shrink-0 rounded-sm object-cover"
+            className="size-4 shrink-0 rounded-sm object-cover"
           />
           <span className="truncate">Image #{image.number}</span>
         </button>
@@ -78,7 +78,7 @@ function AttachmentChip(props: ReactNodeViewProps) {
         type="button"
         title="Remove"
         aria-label="Remove"
-        className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground grid size-4.5 shrink-0 cursor-pointer place-items-center rounded-sm"
+        className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground grid size-4 shrink-0 cursor-pointer place-items-center rounded-sm"
         onClick={() => {
           const start = props.getPos()
           if (start === undefined) {
