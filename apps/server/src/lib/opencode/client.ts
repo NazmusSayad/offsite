@@ -253,6 +253,16 @@ function sessionOf(event: V2Event) {
   if (event.type === 'form.created') {
     return event.data.form.sessionID
   }
+  if (event.type === 'shell.created') {
+    const sessionId: unknown = event.data.info.metadata.sessionID
+    return typeof sessionId === 'string' ? sessionId : null
+  }
+  if (event.type === 'shell.exited') {
+    return (
+      openCodeRuns().find((run) => event.data.id in run.tasks)?.sessionId ??
+      null
+    )
+  }
   const data: unknown = 'data' in event ? event.data : null
   if (isRecord(data) && typeof data.sessionID === 'string') {
     return data.sessionID

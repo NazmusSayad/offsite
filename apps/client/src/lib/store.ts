@@ -208,6 +208,24 @@ export function activityOf(
   return machines.find((item) => item.id === machine)?.activity[sessionId]
 }
 
+export function threadState(
+  activity: SessionActivity | undefined,
+  unseen: boolean
+) {
+  const waiting = activity?.waiting === true
+  const working =
+    !waiting &&
+    (activity?.running === true || activity?.holdsCompletion === true)
+  return {
+    waiting,
+    working,
+    done: !waiting && !working && unseen,
+    busy:
+      activity?.running === true ||
+      Object.values(activity?.tasks ?? {}).includes('running'),
+  }
+}
+
 export function selectedActivity(state: State) {
   const selection = state.selection
   if (selection === null) {

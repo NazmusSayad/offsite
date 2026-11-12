@@ -64,6 +64,7 @@ import {
   type Selection,
   showEditor,
   updatePrefs,
+  threadState,
   useStore,
 } from '@/lib/store'
 import { cn, mod } from '@/lib/utils'
@@ -322,13 +323,13 @@ function ThreadMenuItems(props: {
     machine: string
     projectId: string
   } | null>('sidebarScope')
-  const busy = useStore((state) => {
-    const activity = activityOf(state.machines, session.machine, session.id)
-    return (
-      activity?.running === true ||
-      Object.values(activity?.tasks ?? {}).includes('running')
-    )
-  })
+  const busy = useStore(
+    (state) =>
+      threadState(
+        activityOf(state.machines, session.machine, session.id),
+        false
+      ).busy
+  )
 
   return (
     <>

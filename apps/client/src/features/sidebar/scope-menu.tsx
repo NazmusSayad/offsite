@@ -32,6 +32,7 @@ import {
   type MachineProject,
   showSettingsPage,
   update,
+  threadState,
   useStore,
 } from '@/lib/store'
 import { touch } from '@/lib/utils'
@@ -143,13 +144,11 @@ export function ProjectMenuItems(props: {
         : group.projects.length > 0
     )
   const attention = sessions.filter((session) => {
-    const activity = activityOf(machines, session.machine, session.id)
-    return (
-      activity?.running === true ||
-      activity?.waiting === true ||
-      activity?.holdsCompletion === true ||
+    const thread = threadState(
+      activityOf(machines, session.machine, session.id),
       unseen.includes(machineKey(session.machine, session.id))
     )
+    return thread.waiting || thread.working || thread.done
   })
 
   function projectAt(machine: string, projectId: string) {

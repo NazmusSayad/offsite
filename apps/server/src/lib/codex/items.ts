@@ -4,6 +4,7 @@ import type {
   ItemImage,
   ItemStatus,
 } from '@offsite/core/items'
+import type { TaskStatus } from '@offsite/core/sessions'
 import { isRecord } from '../claude/content.ts'
 import { saveImage } from '../images.ts'
 import type { Status, ThreadItem, Turn, UserInput } from './types.ts'
@@ -284,4 +285,17 @@ function contentText(content: unknown[]) {
 
 function record(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : { value }
+}
+
+export function taskStatus(status: Status): TaskStatus {
+  switch (status) {
+    case 'inProgress':
+      return 'running'
+    case 'completed':
+      return 'completed'
+    case 'failed':
+      return 'failed'
+    case 'declined':
+      return 'stopped'
+  }
 }

@@ -25,7 +25,12 @@ import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import { logger } from '../log.ts'
 import { openCode } from './client.ts'
-import { formAnswer, formQuestions, messageItems } from './items.ts'
+import {
+  formAnswer,
+  formQuestions,
+  messageItems,
+  shellStatus,
+} from './items.ts'
 import { files, sendPrompt } from './prompts.ts'
 import { permissionRequest } from './requests.ts'
 import { contextOf, modelRef, sessionSettings } from './sessions.ts'
@@ -296,6 +301,18 @@ export class OpenCodeRun {
       case 'form.cancelled':
         this.settle(event.data.id)
         return
+      case 'shell.created':
+        this.tasks = { ...this.tasks, [event.data.info.id]: 'running' }
+        broadcastActivity()
+        return
+      case 'shell.exited':
+        this.tasks = {
+          ...this.tasks,
+          [event.data.id]: shellStatus(event.data.status, event.data.exit),
+        }
+        broadcastActivity()
+        this.armIdleTimer()
+        return
       default:
         clearTimeout(this.refreshTimer)
         this.refreshTimer = setTimeout(() => this.refresh(), 100)
@@ -480,7 +497,7 @@ export class OpenCodeRun {
 
   private armIdleTimer() {
     clearTimeout(this.idleTimer)
-    if (this.running) {
+    if (this.running || Object.values(this.tasks).includes('running')) {
       return
     }
     this.idleTimer = setTimeout(() => {

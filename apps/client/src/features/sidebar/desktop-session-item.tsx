@@ -34,7 +34,12 @@ import {
 import { MachineLogo } from '@/constants/machine-icons'
 import { timeAgo } from '@/lib/format'
 import { deactivateSession, editSession } from '@/lib/sessions'
-import { machineOf, type MachineSession, useStore } from '@/lib/store'
+import {
+  machineOf,
+  type MachineSession,
+  threadState,
+  useStore,
+} from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { SessionMenuItems } from './session-menu-items'
 import { SessionStatus } from './session-status'
@@ -62,24 +67,15 @@ function DesktopSessionItemView(props: {
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
   const field = useRef<HTMLInputElement>(null)
-  const waiting = props.activity?.waiting === true
-  const backgroundRunning = Object.values(props.activity?.tasks ?? {}).includes(
-    'running'
-  )
-  const working =
-    !waiting &&
-    (props.activity?.running === true ||
-      props.activity?.holdsCompletion === true)
-  const busy = props.activity?.running === true || backgroundRunning
-  const done = !waiting && !working && props.unseen
-  const recede = !props.selected && !waiting && !done
+  const thread = threadState(props.activity, props.unseen)
+  const recede = !props.selected && !thread.waiting && !thread.done
 
   function makeInactive() {
     void deactivateSession(session.machine, session.id, props.scope)
   }
 
   function deactivate() {
-    if (busy) {
+    if (thread.busy) {
       setWarning(true)
       return
     }
@@ -171,8 +167,8 @@ function DesktopSessionItemView(props: {
         className={cn(
           'min-w-0 flex-1 truncate text-sm',
           recede ? 'text-foreground/70 font-normal' : 'font-medium',
-          !recede && (props.unseen || waiting) && 'text-foreground',
-          !recede && !props.unseen && !waiting && 'text-foreground/90'
+          !recede && (props.unseen || thread.waiting) && 'text-foreground',
+          !recede && !props.unseen && !thread.waiting && 'text-foreground/90'
         )}
       >
         <SessionTitle session={session} awaitingTitle={!props.saved} />
@@ -225,7 +221,7 @@ function DesktopSessionItemView(props: {
             className={cn(
               surface,
               rowState,
-              working &&
+              thread.working &&
                 !props.selected &&
                 'opacity-70 transition-opacity focus-within:opacity-100 hover:opacity-100'
             )}
@@ -250,7 +246,7 @@ function DesktopSessionItemView(props: {
                   )}
                 />
                 {titleText}
-                <SessionStatus activity={props.activity} done={done} />
+                <SessionStatus activity={props.activity} done={thread.done} />
               </div>
               <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
                 <MachineLogo

@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/context-menu'
 import { timeAgo } from '@/lib/format'
 import { deactivateSession, editSession } from '@/lib/sessions'
-import type { MachineSession } from '@/lib/store'
+import { type MachineSession, threadState } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { secondarySwipe } from './mobile-session-item'
 import { SessionMenuItems } from './session-menu-items'
@@ -50,24 +50,15 @@ export function MobileGroupedSessionItem(props: {
   const field = useRef<HTMLInputElement>(null)
   const swipe = useRef<{ x: number; y: number; swiping: boolean } | null>(null)
   const swiped = useRef(false)
-  const waiting = props.activity?.waiting === true
-  const backgroundRunning = Object.values(props.activity?.tasks ?? {}).includes(
-    'running'
-  )
-  const working =
-    !waiting &&
-    (props.activity?.running === true ||
-      props.activity?.holdsCompletion === true)
-  const busy = props.activity?.running === true || backgroundRunning
-  const done = !waiting && !working && props.unseen
-  const recede = !props.selected && !waiting && !done
+  const thread = threadState(props.activity, props.unseen)
+  const recede = !props.selected && !thread.waiting && !thread.done
 
   function makeInactive() {
     void deactivateSession(session.machine, session.id, null)
   }
 
   function deactivate() {
-    if (busy) {
+    if (thread.busy) {
       setWarning(true)
       return
     }
@@ -215,8 +206,8 @@ export function MobileGroupedSessionItem(props: {
         className={cn(
           'min-w-0 flex-1 truncate text-sm',
           recede ? 'text-secondary-label font-normal' : 'font-medium',
-          !recede && (props.unseen || waiting) && 'text-foreground',
-          !recede && !props.unseen && !waiting && 'text-foreground/90'
+          !recede && (props.unseen || thread.waiting) && 'text-foreground',
+          !recede && !props.unseen && !thread.waiting && 'text-foreground/90'
         )}
       >
         <SessionTitle session={session} awaitingTitle={!props.saved} />
@@ -268,7 +259,7 @@ export function MobileGroupedSessionItem(props: {
               surface,
               rowState,
               'flex h-9 items-center gap-2 px-2.5',
-              working && !props.selected && offset === 0 && 'opacity-70',
+              thread.working && !props.selected && offset === 0 && 'opacity-70',
               offset !== 0 && 'bg-sidebar'
             )}
             style={
@@ -296,7 +287,7 @@ export function MobileGroupedSessionItem(props: {
                 className="text-secondary-label size-3 shrink-0"
               />
             )}
-            <SessionStatus activity={props.activity} done={done} />
+            <SessionStatus activity={props.activity} done={thread.done} />
             <span className="text-secondary-label shrink-0 text-xs tabular-nums">
               {timeAgo(session.updatedAt)}
             </span>

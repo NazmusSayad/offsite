@@ -4,7 +4,7 @@ import { call, isConnected } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { logger } from '@/lib/log'
 import { providerNames } from './format'
-import { activityOf, getState, machineOf, useStore } from './store'
+import { activityOf, getState, machineOf, threadState, useStore } from './store'
 
 const log = logger.withTag('notifications')
 
@@ -331,13 +331,11 @@ export function useAttentionBadge() {
   const count = useStore(
     (state) =>
       state.sessions.filter((session) => {
-        const activity = activityOf(state.machines, session.machine, session.id)
-        return (
-          activity?.waiting === true ||
-          (state.unseen.includes(machineKey(session.machine, session.id)) &&
-            activity?.running !== true &&
-            activity?.holdsCompletion !== true)
+        const thread = threadState(
+          activityOf(state.machines, session.machine, session.id),
+          state.unseen.includes(machineKey(session.machine, session.id))
         )
+        return thread.waiting || thread.done
       }).length
   )
   useEffect(() => {

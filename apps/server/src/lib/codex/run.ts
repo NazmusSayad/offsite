@@ -21,7 +21,7 @@ import {
   type Params,
   type ThreadListener,
 } from './app-server.ts'
-import { errorItem, imageInputs, itemId, toItems } from './items.ts'
+import { errorItem, imageInputs, itemId, taskStatus, toItems } from './items.ts'
 import { modePreset, threadPreset } from './presets.ts'
 import { reply, toRequest } from './requests.ts'
 import type { ThreadItem, ThreadStarted, Turn, UserInput } from './types.ts'
@@ -256,6 +256,11 @@ export class CodexRun implements ThreadListener {
             return
           }
         }
+        if (thread.type === 'commandExecution') {
+          this.tasks = { ...this.tasks, [thread.id]: taskStatus(thread.status) }
+          broadcastActivity()
+          this.armIdleTimer()
+        }
         for (const item of toItems(
           params.turnId as string,
           thread,
@@ -485,7 +490,7 @@ export class CodexRun implements ThreadListener {
 
   private armIdleTimer() {
     clearTimeout(this.idleTimer)
-    if (this.running) {
+    if (this.running || Object.values(this.tasks).includes('running')) {
       return
     }
     this.idleTimer = setTimeout(() => {

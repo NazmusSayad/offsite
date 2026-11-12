@@ -39,7 +39,9 @@ export function SessionStatus(props: {
         className="size-4 shrink-0 animate-spin"
       />
     </span>
-  ) : props.activity?.holdsCompletion === true ? (
+  ) : props.activity?.holdsCompletion === true ||
+    (!props.done &&
+      Object.values(props.activity?.tasks ?? {}).includes('running')) ? (
     props.activity?.backgroundAgent === true ? (
       <span title="Agent running in background" className="text-info flex">
         <HugeiconsIcon

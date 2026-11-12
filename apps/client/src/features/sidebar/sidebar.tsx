@@ -37,6 +37,7 @@ import {
   type MachineSession,
   showPalette,
   showSettingsPage,
+  threadState,
   useStore,
 } from '@/lib/store'
 import { cn, drag, mod } from '@/lib/utils'
@@ -79,14 +80,12 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
           groupProject(session.machine, session.projectId) === scope.projectId)
     )
     .sort((a, b) => b.updatedAt - a.updatedAt)
-  const snoozed = shown.filter((session) => {
-    const activity = activityOf(machines, session.machine, session.id)
-    return (
+  const snoozed = shown.filter(
+    (session) =>
       session.status === 'snoozed' &&
-      activity?.waiting !== true &&
-      (activity?.running === true || activity?.holdsCompletion === true)
-    )
-  })
+      threadState(activityOf(machines, session.machine, session.id), false)
+        .working
+  )
   const active = [
     ...shown.filter((session) => session.status === 'pinned'),
     ...shown.filter(

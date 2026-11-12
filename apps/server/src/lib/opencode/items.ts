@@ -1,10 +1,12 @@
 import type { Item, ItemStatus, Question, TodoStep } from '@offsite/core/items'
+import type { TaskStatus } from '@offsite/core/sessions'
 import type {
   FormField,
   FormInfo,
   SessionMessageAssistant,
   SessionMessageAssistantTool,
   SessionMessageInfo,
+  ShellInfo,
   ToolContent,
 } from '@opencode/client'
 import { isRecord } from '../claude/content.ts'
@@ -367,4 +369,20 @@ function list(value: unknown): unknown[] {
 
 function record(value: unknown): Record<string, unknown> {
   return isRecord(value) ? value : {}
+}
+
+export function shellStatus(
+  status: ShellInfo['status'],
+  exit: number | undefined
+): TaskStatus {
+  switch (status) {
+    case 'exited':
+      return exit === 0 ? 'completed' : 'failed'
+    case 'timeout':
+      return 'failed'
+    case 'killed':
+      return 'stopped'
+    case 'running':
+      throw new Error('OpenCode reported a running shell as exited')
+  }
 }

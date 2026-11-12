@@ -18,6 +18,7 @@ import {
   activityOf,
   dismissErrors,
   type MachineSession,
+  threadState,
   useStore,
 } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -38,15 +39,13 @@ export function StatusChips(props: {
     (session) =>
       activityOf(machines, session.machine, session.id)?.waiting === true
   )
-  const done = sessions.filter((session) => {
-    const activity = activityOf(machines, session.machine, session.id)
-    return (
-      unseen.includes(machineKey(session.machine, session.id)) &&
-      activity?.waiting !== true &&
-      activity?.running !== true &&
-      activity?.holdsCompletion !== true
-    )
-  })
+  const done = sessions.filter(
+    (session) =>
+      threadState(
+        activityOf(machines, session.machine, session.id),
+        unseen.includes(machineKey(session.machine, session.id))
+      ).done
+  )
   const problems = errors.length + offline.length
   const showDone = !props.hideDone && done.length > 0
   if (problems === 0 && waiting.length === 0 && !showDone) {
@@ -226,15 +225,13 @@ function ChipList(props: {
     (session) =>
       activityOf(machines, session.machine, session.id)?.waiting === true
   )
-  const done = sessions.filter((session) => {
-    const activity = activityOf(machines, session.machine, session.id)
-    return (
-      unseen.includes(machineKey(session.machine, session.id)) &&
-      activity?.waiting !== true &&
-      activity?.running !== true &&
-      activity?.holdsCompletion !== true
-    )
-  })
+  const done = sessions.filter(
+    (session) =>
+      threadState(
+        activityOf(machines, session.machine, session.id),
+        unseen.includes(machineKey(session.machine, session.id))
+      ).done
+  )
   const doneRows = done.map((session) => (
     <Thread
       key={machineKey(session.machine, session.id)}
