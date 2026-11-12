@@ -83,7 +83,21 @@ export function UserMessage(props: {
   )
   return (
     <div className="group flex flex-col items-end gap-1">
-      <div className="bg-message text-message-foreground relative max-w-[80%] rounded-2xl px-3 py-2">
+      <div
+        className={cn(
+          'bg-message text-message-foreground relative max-w-[80%] rounded-2xl px-3 py-2',
+          outboxPromptId !== null && !failed && 'isolate'
+        )}
+      >
+        {outboxPromptId !== null && !failed && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-2xl bg-[color-mix(in_srgb,var(--text)_12%,var(--message))]"
+          >
+            <div className="message-sweep" />
+            <div className="bg-message absolute inset-px rounded-[calc(1rem-1px)]" />
+          </div>
+        )}
         {item.images.length > 0 && !inline && (
           <div className="mb-2 grid max-w-[210px] grid-cols-2 gap-2">
             {item.images.map((image, index) => (
@@ -189,12 +203,12 @@ export function UserMessage(props: {
       </div>
       <div
         className={cn(
-          'flex w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 select-none transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100',
+          'flex h-6 w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 select-none transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100',
           outboxPromptId !== null && 'opacity-100'
         )}
       >
         <div className="flex shrink-0 items-center gap-2">
-          {outboxPromptId !== null && !failed && <SendingLabel />}
+          {outboxPromptId !== null && !failed && <WorktreeStageLabel />}
           {outboxPromptId !== null && failed && (
             <div className="flex items-center gap-0.5">
               <p className="text-error me-1 text-xs">Not sent</p>
@@ -246,13 +260,16 @@ export function UserMessage(props: {
   )
 }
 
-function SendingLabel() {
+function WorktreeStageLabel() {
   const stage = useStore((state) =>
     state.selection?.sessionId === null ? state.worktreeStage : null
   )
+  if (stage === null) {
+    return null
+  }
   return (
     <p className="text-muted-foreground text-xs">
-      <Shimmer text={stage === null ? 'Sending' : stageText(stage)} active />
+      <Shimmer text={stageText(stage)} active />
     </p>
   )
 }

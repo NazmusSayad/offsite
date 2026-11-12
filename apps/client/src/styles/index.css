@@ -284,6 +284,31 @@
   }
 }
 
+@keyframes message-sweep {
+  from {
+    translate: calc(-50% - 8rem) 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+
+@utility message-sweep {
+  @media (prefers-reduced-motion: no-preference) and (forced-colors: none) {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: calc(200% + 16rem);
+    background: linear-gradient(
+      90deg,
+      transparent calc(50% - 8rem),
+      white 50%,
+      transparent calc(50% + 8rem)
+    );
+    animation: message-sweep 1.6s linear infinite;
+  }
+}
+
 @keyframes agent-dot {
   0%,
   100% {
