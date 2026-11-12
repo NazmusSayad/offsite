@@ -8,6 +8,7 @@ import { MobileSettings } from '@/features/settings/mobile'
 import { ExportDialog } from '@/features/sidebar/export-dialog'
 import { Palette } from '@/features/sidebar/palette'
 import { MoveDialogs } from '@/features/sidebar/worktree-dialogs'
+import { TerminalPalette } from '@/features/terminal/terminal-palette'
 import { DesktopLayout } from '@/features/workspace/desktop'
 import { MobileLayout } from '@/features/workspace/mobile'
 import { useAttentionBadge } from '@/lib/notifications'
@@ -41,6 +42,7 @@ export function App() {
     <div className="flex h-dvh text-sm">
       {desktop ? <DesktopLayout /> : <MobileLayout />}
       <Palette />
+      <TerminalPalette />
       {desktop ? <SettingsDialog /> : <MobileSettings />}
       {editor !== null && (
         <Suspense>

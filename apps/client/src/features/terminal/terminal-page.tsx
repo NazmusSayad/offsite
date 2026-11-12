@@ -440,7 +440,7 @@ function useGroups(): Group[] {
   })
 }
 
-function groupName(project: MachineProject | undefined) {
+export function groupName(project: MachineProject | undefined) {
   if (project === undefined) {
     return 'Removed project'
   }

@@ -15,6 +15,16 @@ const closeTabKey = isMac ? 'meta+w' : 'ctrl+shift+w'
 const nextTabKey = 'ctrl+tab'
 const previousTabKey = 'ctrl+shift+tab'
 
+export function isFindShortcut(event: KeyboardEvent) {
+  if (event.key.toLowerCase() !== 'f') {
+    return false
+  }
+  if (isMac) {
+    return event.metaKey && !event.ctrlKey && !event.altKey
+  }
+  return event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey
+}
+
 export function focusTerminal() {
   const tabId = currentView()?.tabId ?? null
   if (getState().open && tabId !== null) {

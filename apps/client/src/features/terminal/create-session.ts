@@ -15,7 +15,6 @@ import {
 import {
   currentOptions,
   getState,
-  isFindShortcut,
   send,
   sendInput,
   sendReply,
@@ -23,6 +22,7 @@ import {
   terminalConfig,
   terminalMachine,
 } from './session'
+import { isFindShortcut } from './shortcuts'
 
 function isShiftEnter(event: KeyboardEvent) {
   return (

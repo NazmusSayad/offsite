@@ -9,6 +9,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
+import { HotkeyHint } from '@/components/hotkey-hint'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -93,6 +94,7 @@ export function MobileMenu(props: { buttonClassName: string }) {
                 disabled={online.length === 0}
               >
                 <HugeiconsIcon icon={SquareTerminalIcon} />
+                <HotkeyHint keyName="T" placement="below" />
                 {terminals > 0 && (
                   <span className="text-foreground/75 border-sidebar pointer-events-none absolute -top-0.5 -right-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full border bg-[color-mix(in_srgb,var(--foreground)_8%,var(--background))] px-0.5 text-[9px] leading-none font-medium tabular-nums">
                     {terminals}

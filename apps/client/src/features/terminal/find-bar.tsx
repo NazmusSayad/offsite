@@ -7,7 +7,8 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { closeFind, find, isFindShortcut, onFindResults } from './session'
+import { closeFind, find, onFindResults } from './session'
+import { isFindShortcut } from './shortcuts'
 
 export function FindBar(props: { id: number }) {
   const input = useRef<HTMLInputElement>(null)

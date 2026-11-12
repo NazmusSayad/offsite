@@ -30,7 +30,7 @@ import {
   terminalPage,
   terminalView,
 } from '@/lib/url'
-import { errorMessage, isMac } from '@/lib/utils'
+import { errorMessage } from '@/lib/utils'
 import { forgetTab, unseenAttention } from './attention'
 import { applyStyle, terminalOptions } from './config'
 import { createSession } from './create-session'
@@ -263,6 +263,14 @@ export function tabTitle(tab: TerminalTab) {
   return (tab.customName ?? state.titles[tab.id]) || 'Terminal'
 }
 
+export function machineTabTitle(target: string, tab: TerminalTab) {
+  return target === machine ? tabTitle(tab) : (tab.customName ?? 'Terminal')
+}
+
+export function machineTabAlerted(target: string, id: number) {
+  return target === machine && state.alerts.includes(id)
+}
+
 export function setOpen(open: boolean) {
   if (open) {
     requestTab()
@@ -302,7 +310,7 @@ function followUrl() {
   }
 }
 
-function showTab(target: string, projectId: string, tabId: number) {
+export function showTab(target: string, projectId: string, tabId: number) {
   if (projectId === GLOBAL_TERMINALS) {
     showGroup(target, GLOBAL_TERMINALS)
   } else {
@@ -454,16 +462,6 @@ function sync(tabs: TerminalTab[]) {
       sessions.set(id, createSession(id))
     }
   }
-}
-
-export function isFindShortcut(event: KeyboardEvent) {
-  if (event.key.toLowerCase() !== 'f') {
-    return false
-  }
-  if (isMac) {
-    return event.metaKey && !event.ctrlKey && !event.altKey
-  }
-  return event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey
 }
 
 function reportSize(id: number, terminal: Terminal) {

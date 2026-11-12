@@ -171,7 +171,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
     }
   }
 
-  useHotkeys(['mod+n', 'mod+t'], startThread, {
+  useHotkeys('mod+n', startThread, {
     enableOnFormTags: true,
     enableOnContentEditable: true,
     preventDefault: true,

@@ -90,6 +90,20 @@ export function usePanelOptions(
       onSelect: () => props.onPanel(props.panel === 'diff' ? null : 'diff'),
     },
     {
+      id: 'tasks',
+      label: 'Tasks',
+      title: 'Tasks',
+      hotkey: null,
+      icon: TaskDaily01Icon,
+      pressed: props.panel === 'tasks',
+      dot:
+        taskCounts.length > 0
+          ? { color: tasksColor, status: taskCounts.join(' · ') }
+          : null,
+      attention: tasksColor,
+      onSelect: () => props.onPanel(props.panel === 'tasks' ? null : 'tasks'),
+    },
+    {
       id: 'terminal',
       label: 'Terminal',
       title: `Terminal (${mod}+\`)`,
@@ -108,20 +122,6 @@ export function usePanelOptions(
           ? 'text-muted-foreground'
           : null,
       onSelect: () => props.onTerminal(!props.terminal),
-    },
-    {
-      id: 'tasks',
-      label: 'Tasks',
-      title: 'Tasks',
-      hotkey: null,
-      icon: TaskDaily01Icon,
-      pressed: props.panel === 'tasks',
-      dot:
-        taskCounts.length > 0
-          ? { color: tasksColor, status: taskCounts.join(' · ') }
-          : null,
-      attention: tasksColor,
-      onSelect: () => props.onPanel(props.panel === 'tasks' ? null : 'tasks'),
     },
     {
       id: 'browser',
