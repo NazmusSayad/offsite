@@ -238,7 +238,6 @@ export async function send(
   request: RpcMethods['sessions.send']['params']
 ) {
   addToOutbox(request)
-  await new Promise((resolve) => setTimeout(resolve, 8000))
   try {
     await deliver(client, request)
   } catch (error) {
