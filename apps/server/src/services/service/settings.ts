@@ -1,5 +1,12 @@
 import { execFile, exec } from 'node:child_process'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { packageManagers } from '@offsite/core/service'
@@ -19,13 +26,14 @@ export const scriptFile = path.join(
   serviceDir,
   process.platform === 'win32' ? 'start.ps1' : 'start.sh'
 )
+export const startedFile = path.join(serviceDir, 'started')
 const logsDir = path.join(home, 'logs')
 const logFile = path.join(logsDir, 'service.log')
 const SETTINGS = path.join('service', 'settings.json')
+const TRIES = 6
 
 const settingsSchema = z.object({
   manager: z.enum(packageManagers),
-  command: z.array(z.string()),
   arguments: z.array(z.string()),
 })
 
@@ -55,23 +63,36 @@ export async function runTool(
   return result.stdout
 }
 
-export async function runOffsite(settings: ServiceSettings, extra: string[]) {
+export async function runOffsite(extra: string[]) {
+  const line = ['offsite', ...extra]
   if (process.platform === 'win32') {
-    const line = [...settings.command, ...extra].map(powershellQuote).join(' ')
     const result = await runFile('powershell.exe', [
-      '-NoProfile',
       '-ExecutionPolicy',
       'Bypass',
       '-Command',
-      `& ${line}`,
+      `& ${line.map(powershellQuote).join(' ')}`,
     ])
-    return result.stdout
+    return lastLine(result.stdout)
   }
-  const result = await runFile(settings.command[0], [
-    ...settings.command.slice(1),
-    ...extra,
+  const shell = os.userInfo().shell
+  if (shell === null) {
+    throw new Error('offsite could not find your login shell')
+  }
+  const builtin = path.join('/bin', path.basename(shell))
+  const run =
+    process.platform === 'darwin' && existsSync(builtin) ? builtin : shell
+  const running = runFile(run, [
+    '-l',
+    '-i',
+    '-c',
+    `exec ${line.map(shellQuote).join(' ')}`,
   ])
-  return result.stdout
+  running.child.stdin?.end()
+  return lastLine((await running).stdout)
+}
+
+function lastLine(output: string) {
+  return output.trim().split(/\r?\n/).at(-1) ?? ''
 }
 
 export function writeScript(settings: ServiceSettings) {
@@ -92,12 +113,20 @@ export function writeScript(settings: ServiceSettings) {
 }
 
 function script(settings: ServiceSettings) {
-  const line = [...settings.command, ...settings.arguments, '--service']
+  const line = ['offsite', ...settings.arguments, '--service']
+  const stopped = `offsite didn't start ${TRIES} times in a row, so the service stopped; fix the problem, then run offsite install`
   if (process.platform === 'win32') {
     return [
+      '$failures = 0',
       'while ($true) {',
       `  New-Item -ItemType Directory -Force -Path ${powershellQuote(logsDir)} | Out-Null`,
+      `  Remove-Item -Force -ErrorAction SilentlyContinue -Path ${powershellQuote(startedFile)}`,
       `  & ${line.map(powershellQuote).join(' ')} 2>&1 | ForEach-Object { "$_" } | Out-File -FilePath ${powershellQuote(logFile)} -Append -Encoding utf8`,
+      `  if (Test-Path -Path ${powershellQuote(startedFile)}) { $failures = 0 } else { $failures++ }`,
+      `  if ($failures -ge ${TRIES}) {`,
+      `    ${powershellQuote(stopped)} | Out-File -FilePath ${powershellQuote(logFile)} -Append -Encoding utf8`,
+      '    exit 1',
+      '  }',
       '  Start-Sleep -Seconds 5',
       '}',
       '',
@@ -105,21 +134,31 @@ function script(settings: ServiceSettings) {
   }
   const findShell =
     process.platform === 'darwin'
-      ? 'shell=$(dscl . -read "/Users/$(id -un)" UserShell | sed \'s/^UserShell: //\')'
-      : 'shell=$(getent passwd "$(id -un)" | cut -d: -f7)'
+      ? [
+          'shell=$(dscl . -read "/Users/$(id -un)" UserShell | sed \'s/^UserShell: //\')',
+          'if [ -x "/bin/${shell##*/}" ]; then shell="/bin/${shell##*/}"; fi',
+        ]
+      : ['shell=$(getent passwd "$(id -un)" | cut -d: -f7)']
   const command = `exec ${line.map(shellQuote).join(' ')}`
   return [
     '#!/bin/sh',
     `mkdir -p ${shellQuote(logsDir)}`,
-    findShell,
+    ...findShell,
     'if [ -z "$shell" ]; then',
     `  echo "offsite could not find your login shell" >> ${shellQuote(logFile)}`,
     '  exit 1',
     'fi',
     'cd "$HOME"',
+    'failures=0',
     'while true; do',
     `  mkdir -p ${shellQuote(logsDir)}`,
+    `  rm -f ${shellQuote(startedFile)}`,
     `  "$shell" -l -i -c ${shellQuote(command)} < /dev/null >> ${shellQuote(logFile)} 2>&1`,
+    `  if [ -e ${shellQuote(startedFile)} ]; then failures=0; else failures=$((failures + 1)); fi`,
+    `  if [ "$failures" -ge ${TRIES} ]; then`,
+    `    echo ${shellQuote(stopped)} >> ${shellQuote(logFile)}`,
+    '    exit 1',
+    '  fi',
     '  sleep 5',
     'done',
     '',

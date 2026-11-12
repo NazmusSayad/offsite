@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs'
 import type { ServiceState } from '@offsite/core/service'
 import { z } from 'zod'
 import { args, version } from '../../args.ts'
@@ -9,19 +10,17 @@ import {
   runOffsite,
   runTool,
   type ServiceSettings,
+  startedFile,
   writeScript,
 } from './settings.ts'
-import { busyReasons } from './status.ts'
 
 const CHECK_INTERVAL = 30 * 60_000
-const IDLE_INTERVAL = 60_000
 const REGISTRY_TIMEOUT = 30_000
 const RESTART_DELAY = 1000
 const log = logger.withTag('service')
 const latestSchema = z.object({ version: z.string() })
 
 let available: string | null = null
-let ready: string | null = null
 let installing: Promise<string> | null = null
 
 export function serviceState(): ServiceState {
@@ -29,6 +28,7 @@ export function serviceState(): ServiceState {
 }
 
 export function startService() {
+  writeFileSync(startedFile, '')
   const settings = readServiceSettings()
   if (settings === null) {
     log.warn('started by the service, but its settings are missing')
@@ -43,10 +43,10 @@ export function startService() {
     void prune()
   }
   if (version === 'dev') {
-    log.info('a dev build never updates itself')
+    log.info('a dev build never checks for updates')
     return
   }
-  void check(settings)
+  void check()
 }
 
 async function prune() {
@@ -57,27 +57,17 @@ async function prune() {
   }
 }
 
-async function check(settings: ServiceSettings) {
+async function check() {
   try {
     const latest = await latestVersion()
-    if (newer(latest, version)) {
-      if (available !== latest) {
-        available = latest
-        broadcast({ type: 'service', service: serviceState() })
-      }
-      const installed = await install(settings)
-      if (newer(installed, version)) {
-        ready = installed
-        log.info(`offsite ${installed} is installed, restarting once idle`)
-        void waitForIdle()
-        return
-      }
-      log.warn(`the update finished, but offsite ${version} is still installed`)
+    if (newer(latest, version) && available !== latest) {
+      available = latest
+      broadcast({ type: 'service', service: serviceState() })
     }
   } catch (error) {
-    log.warn('could not update offsite:', error)
+    log.warn('could not check for an offsite update:', error)
   }
-  setTimeout(() => void check(settings), CHECK_INTERVAL)
+  setTimeout(() => void check(), CHECK_INTERVAL)
 }
 
 export async function updateNow() {
@@ -87,16 +77,13 @@ export async function updateNow() {
       "offsite isn't installed, so nothing would start the new version"
     )
   }
-  if (ready === null) {
-    const installed = await install(settings)
-    if (!newer(installed, version)) {
-      throw new Error(
-        `the update finished, but offsite ${version} is still installed`
-      )
-    }
-    ready = installed
+  const installed = await install(settings)
+  if (!newer(installed, version)) {
+    throw new Error(
+      `the update finished, but a new terminal still runs offsite ${installed}; check that the offsite on your PATH is the one ${settings.manager} installs`
+    )
   }
-  log.info(`restarting into offsite ${ready} on request`)
+  log.info(`restarting into offsite ${installed} on request`)
   restartSoon()
 }
 
@@ -118,7 +105,7 @@ async function installLatest(settings: ServiceSettings) {
     updateArguments(settings.manager),
     settings.manager === 'mise' ? { MISE_FETCH_REMOTE_VERSIONS_CACHE: '0' } : {}
   )
-  return (await runOffsite(settings, ['--version'])).trim()
+  return runOffsite(['--version'])
 }
 
 function newer(candidate: string, current: string) {
@@ -159,23 +146,6 @@ function updateArguments(manager: ServiceSettings['manager']) {
         '--no-cache',
       ]
   }
-}
-
-async function waitForIdle() {
-  let reasons
-  try {
-    reasons = await busyReasons()
-  } catch (error) {
-    log.warn('could not tell if offsite is idle:', error)
-    setTimeout(() => void waitForIdle(), IDLE_INTERVAL)
-    return
-  }
-  if (reasons.length > 0) {
-    setTimeout(() => void waitForIdle(), IDLE_INTERVAL)
-    return
-  }
-  log.info('idle, exiting so the service starts the new version')
-  restart()
 }
 
 function restart() {

@@ -8,7 +8,7 @@ import { args } from '../../args.ts'
 import { home, readJson, runningPid } from '../../storage/storage.ts'
 import { unregister } from './register.ts'
 import { readServiceSettings, serviceDir } from './settings.ts'
-import { setUp, startCommand } from './setup.ts'
+import { findOffsite, setUp } from './setup.ts'
 
 const STATUS_TIMEOUT = 10_000
 const STOP_TIMEOUT = 15_000
@@ -41,9 +41,8 @@ export async function install() {
     console.log('Nothing installed')
     return
   }
-  let command
   try {
-    command = await startCommand(manager)
+    await findOffsite()
   } catch (error) {
     console.error(error instanceof Error ? error.message : error)
     process.exit(1)
@@ -58,13 +57,13 @@ export async function install() {
   }
   await stopService()
   try {
-    await setUp(manager, command)
+    await setUp(manager)
   } catch (error) {
     console.error('Could not start offsite at login:', error)
     process.exit(1)
   }
   console.log(
-    `offsite now starts at login and updates itself with ${manager}; its output goes to ${path.join(home, 'logs', 'service.log')}`
+    `offsite now starts at login, and Update now in the sidebar updates it with ${manager}; its output goes to ${path.join(home, 'logs', 'service.log')}`
   )
   if (args.auth) {
     console.log('Run offsite pair to pair a browser')
@@ -76,9 +75,7 @@ export async function uninstall() {
   await stopService()
   rmSync(serviceDir, { recursive: true, force: true })
   console.log(
-    installed
-      ? 'offsite no longer starts at login or updates itself'
-      : "offsite wasn't installed"
+    installed ? 'offsite no longer starts at login' : "offsite wasn't installed"
   )
 }
 
@@ -87,7 +84,7 @@ export async function status() {
   console.log(
     settings === null
       ? 'Not installed; run offsite install to start it at login'
-      : `Installed; starts at login and updates itself with ${settings.manager}`
+      : `Installed; starts at login and updates with ${settings.manager}`
   )
   const pid = runningPid()
   if (pid === null) {

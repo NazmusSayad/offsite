@@ -70,8 +70,8 @@ function ServiceBanner(props: {
       </p>
       <p className="text-sidebar-muted-foreground mt-0.5">
         {update === null
-          ? 'Start it at login and keep it updated.'
-          : `Update ${props.name} now, or it updates itself once nothing is running.`}
+          ? 'Start it at login and update it from here.'
+          : `Update ${props.name} when you're ready; it restarts to finish.`}
       </p>
       <Button size="xs" className="mt-2.5" onClick={() => setOpen(true)}>
         {update === null ? 'Install' : 'Update now'}
@@ -151,7 +151,7 @@ function ServiceDialog(props: {
         </DialogTitle>
         <DialogDescription>
           {installing
-            ? 'offsite will start at login, start again if it stops, and update itself.'
+            ? 'offsite will start at login and start again if it stops. When an update is out, update it from the sidebar.'
             : 'offsite installs the update, then restarts.'}
         </DialogDescription>
       </DialogHeader>
