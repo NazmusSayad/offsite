@@ -311,11 +311,17 @@ function ImageChip(props: {
         </HoverCardTrigger>
         {data !== null && (
           <HoverCardContent className="p-1">
-            <img
-              src={`data:${props.mediaType};base64,${data}`}
-              alt={name}
-              className="block max-h-80 max-w-80 rounded-md object-contain"
-            />
+            <button
+              type="button"
+              className="block cursor-zoom-in"
+              onClick={() => setOpen(true)}
+            >
+              <img
+                src={`data:${props.mediaType};base64,${data}`}
+                alt={name}
+                className="block max-h-80 max-w-80 rounded-md object-contain"
+              />
+            </button>
           </HoverCardContent>
         )}
       </HoverCard>
