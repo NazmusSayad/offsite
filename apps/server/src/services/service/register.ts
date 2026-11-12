@@ -192,11 +192,10 @@ async function registerWindows() {
 }
 
 async function unregisterWindows() {
-  if (!(await succeeds('schtasks', ['/query', '/tn', NAME]))) {
-    return
+  if (await succeeds('schtasks', ['/query', '/tn', NAME])) {
+    await succeeds('schtasks', ['/end', '/tn', NAME])
+    await run('schtasks', ['/delete', '/tn', NAME, '/f'])
   }
-  await succeeds('schtasks', ['/end', '/tn', NAME])
-  await run('schtasks', ['/delete', '/tn', NAME, '/f'])
   const script = scriptFile.replaceAll("'", "''")
   await run('powershell.exe', [
     '-NoProfile',

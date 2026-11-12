@@ -138,7 +138,7 @@ function script() {
     process.platform === 'darwin'
       ? 'shell=$(dscl . -read "/Users/$(id -un)" UserShell | sed \'s/^UserShell: //\')'
       : 'shell=$(getent passwd "$(id -un)" | cut -d: -f7)'
-  const command = `exec ${line.map(shellQuote).join(' ')}`
+  const command = `cd; exec ${line.map(shellQuote).join(' ')}`
   return [
     '#!/bin/sh',
     'base=$(cd "$(dirname "$0")/.." && pwd)',

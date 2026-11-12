@@ -158,7 +158,6 @@ export const args = {
       ? ['--host', options.host]
       : []),
     ...(options.auth ? [] : ['--no-auth']),
-    ...(options.pair ? [] : ['--no-pair']),
     ...(options.pwa === true ? ['--pwa'] : []),
     ...(options.connect === undefined ? [] : ['--connect', options.connect]),
   ],

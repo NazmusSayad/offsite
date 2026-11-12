@@ -7,7 +7,12 @@ import { z } from 'zod'
 import { args, SERVICE_PORT, version } from '../../args.ts'
 import { home, readJson, runningPid } from '../../storage/storage.ts'
 import { unregister } from './register.ts'
-import { readServiceSettings, serviceDir, settingsFile } from './settings.ts'
+import {
+  readServiceSettings,
+  type ServiceSettings,
+  serviceDir,
+  settingsFile,
+} from './settings.ts'
 import { findOffsite, setUp } from './setup.ts'
 import { install as installUpdate, latestVersion, newer } from './update.ts'
 
@@ -150,10 +155,29 @@ export async function update() {
     process.exit(1)
   }
   const latest = await latestVersion()
-  if (!newer(latest, version)) {
-    console.log(`offsite ${version} is the latest`)
+  const installed = newer(latest, version)
+    ? await updateTo(latest, settings)
+    : version
+  const service = await runningService()
+  if (service === null) {
+    console.log(
+      installed === version
+        ? `offsite ${version} is the latest`
+        : `offsite ${installed} is installed`
+    )
     return
   }
+  if (!newer(installed, service.version)) {
+    console.log(`offsite ${service.version} is the latest`)
+    return
+  }
+  process.kill(service.pid)
+  console.log(
+    `offsite ${installed} is installed; the service is restarting with it`
+  )
+}
+
+async function updateTo(latest: string, settings: ServiceSettings) {
   console.log(
     `Updating offsite ${version} to ${latest} with ${settings.manager}…`
   )
@@ -164,16 +188,22 @@ export async function update() {
     )
     process.exit(1)
   }
+  return installed
+}
+
+async function runningService() {
   const pid = runningPid()
   const running = runningSchema.safeParse(readJson('server.json'))
-  if (pid !== null && running.success && running.data.service) {
-    process.kill(pid)
-    console.log(
-      `offsite ${installed} is installed; the service is restarting with it`
-    )
-    return
+  if (pid === null || !running.success || !running.data.service) {
+    return null
   }
-  console.log(`offsite ${installed} is installed`)
+  const response = await fetch(running.data.status, {
+    signal: AbortSignal.timeout(STATUS_TIMEOUT),
+  })
+  if (!response.ok) {
+    throw new Error(`the running service answered ${response.status}`)
+  }
+  return { pid, version: statusSchema.parse(await response.json()).version }
 }
 
 async function stopService() {

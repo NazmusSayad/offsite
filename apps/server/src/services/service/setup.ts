@@ -1,8 +1,10 @@
+import { rmSync } from 'node:fs'
 import { args } from '../../args.ts'
 import { register, unregister } from './register.ts'
 import {
   runOffsite,
   type ServiceSettings,
+  serviceDir,
   serviceSettingsSchema,
   writeScript,
   writeServiceSettings,
@@ -25,7 +27,13 @@ export async function installFromBrowser(input: ServiceSettings) {
 export async function setUp(settings: ServiceSettings) {
   writeServiceSettings(settings)
   writeScript()
-  await register()
+  try {
+    await register()
+  } catch (error) {
+    rmSync(serviceDir, { recursive: true, force: true })
+    await unregister()
+    throw error
+  }
 }
 
 export async function findOffsite() {

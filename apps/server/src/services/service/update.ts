@@ -73,8 +73,9 @@ export async function checkNow() {
   }
   const latest = await latestVersion()
   const isNewer = newer(latest, version)
-  if (args.service && isNewer && available !== latest) {
-    available = latest
+  const next = isNewer ? latest : null
+  if (args.service && available !== next) {
+    available = next
     broadcast({ type: 'service', service: serviceState() })
   }
   return { latest, newer: isNewer }
