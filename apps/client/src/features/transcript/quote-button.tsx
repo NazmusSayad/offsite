@@ -4,7 +4,8 @@ import type { BookmarkTarget } from '@offsite/core/bookmarks'
 import { type RefObject, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
-import { editDraft } from '@/features/composer/drafts'
+import { moveComposerCaret } from '@/features/composer/composer-input'
+import { editDraft, getDraft } from '@/features/composer/drafts'
 import { sourceRange } from '@/features/transcript/anchors'
 import { toggleBookmark } from '@/lib/bookmarks'
 import { draftKey, getState } from '@/lib/store'
@@ -292,12 +293,7 @@ function quoteInComposer(text: string) {
         ? `${quoted}\n\n`
         : `${current.text.trimEnd()}\n\n${quoted}\n\n`,
   }))
-  requestAnimationFrame(() => {
-    const input = document.querySelector<HTMLTextAreaElement>('[data-composer]')
-    if (input === null) {
-      throw new Error('the composer is not mounted')
-    }
-    input.focus()
-    input.setSelectionRange(input.value.length, input.value.length)
-  })
+  requestAnimationFrame(() =>
+    moveComposerCaret(getDraft(draftKey(selection)).text.length, true)
+  )
 }

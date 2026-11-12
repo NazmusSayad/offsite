@@ -20,6 +20,7 @@ import { type StoredAccount, storedAccount } from '../../services/accounts.ts'
 import { openEnv } from '../../services/open/open.ts'
 import { notifierConnected, sendPush } from '../../services/push.ts'
 import { sessions } from '../../services/sessions.ts'
+import { cachedUsage, recordLimits } from '../../services/usage.ts'
 import { claudeBaseDir } from '../../storage/config.ts'
 import { broadcast } from '../hub.ts'
 import { logger } from '../log.ts'
@@ -206,6 +207,7 @@ export async function claudeCapabilities(
       name: command.name,
       description: command.description,
       hint: command.argumentHint,
+      inline: command.builtin !== true,
     })),
     agents: [],
   }
@@ -250,6 +252,16 @@ export function forgetClaude(accountId: string) {
       probes.delete(key)
     }
   }
+}
+
+export function recordEventLimits(
+  accountId: string | null,
+  info: SDKRateLimitInfo
+) {
+  if (accountId === null) {
+    throw new Error('Rate limit event for a run without an account')
+  }
+  recordLimits(accountId, eventLimits(info, cachedUsage(accountId).limits))
 }
 
 export function eventLimits(info: SDKRateLimitInfo, current: RateLimit[]) {

@@ -5,8 +5,9 @@ import { readBase64 } from '@/api/upload'
 import { logger } from '@/lib/log'
 import { draftKey, getState, useStore } from '@/lib/store'
 import { errorMessage, touch } from '@/lib/utils'
+import { composerCaret, moveComposerCaret } from './composer-input'
 import { toWav } from './dictation-audio'
-import { editDraft } from './drafts'
+import { editDraft, getDraft } from './drafts'
 
 const log = logger.withTag('dictation')
 
@@ -314,23 +315,15 @@ function insert(value: string, key: string) {
     }))
     return
   }
-  const input = document.querySelector<HTMLTextAreaElement>('[data-composer]')
-  if (input === null) {
-    throw new Error('The composer is not mounted')
-  }
-  const at = input.selectionStart
-  const before = /(^|\s)$/.test(input.value.slice(0, at)) ? '' : ' '
-  const after = /^\s/.test(input.value.slice(at)) ? '' : ' '
+  const at = composerCaret()
+  const text = getDraft(key).text
+  const before = /(^|\s)$/.test(text.slice(0, at)) ? '' : ' '
+  const after = /^\s/.test(text.slice(at)) ? '' : ' '
   const inserted = `${before}${value}${after}`
   const position = at + inserted.length
   editDraft(key, (current) => ({
     ...current,
     text: `${current.text.slice(0, at)}${inserted}${current.text.slice(at)}`,
   }))
-  requestAnimationFrame(() => {
-    if (!touch.matches) {
-      input.focus()
-    }
-    input.setSelectionRange(position, position)
-  })
+  requestAnimationFrame(() => moveComposerCaret(position, !touch.matches))
 }

@@ -11,6 +11,7 @@ import {
   getDraft,
   hasPrompt,
   loadDraftFile,
+  usedAttachments,
 } from './drafts'
 import { stashPrompt } from './stash'
 
@@ -24,8 +25,9 @@ export async function sendDraft(
     throw new Error('no session selected')
   }
   const draft = getDraft(key)
+  const used = usedAttachments(draft)
   let text = draft.text.trim()
-  for (const file of draft.files) {
+  for (const file of used.files) {
     const saved = await loadDraftFile(file.id)
     if (saved === undefined) {
       throw new Error(`${file.name} is no longer saved, attach it again`)
@@ -35,7 +37,7 @@ export async function sendDraft(
   }
   const prompt = {
     text,
-    images: draft.images.map((image) => ({
+    images: used.images.map((image) => ({
       mediaType: image.mediaType,
       data: image.data,
     })),

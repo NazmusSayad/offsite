@@ -5,6 +5,7 @@ import {
   CloudUploadIcon,
   GitBranchIcon,
   GitCommitHorizontalIcon,
+  GitForkIcon,
   GitPullRequestIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -20,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { showError } from '@/lib/store'
+import { projectOf, showError, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import {
   BranchDialog,
@@ -322,6 +323,11 @@ export function GitCommandDialog(props: { git: GitCommands }) {
 export function GitActions(props: GitTarget) {
   const git = useGitCommands(props)
   const [syncing, setSyncing] = useState(false)
+  const worktree = useStore(
+    (state) =>
+      (projectOf(state, props.machine, props.projectId)?.parentId ?? null) !==
+      null
+  )
   const branches = [
     ...new Set(props.repos.map((repo) => repo.branch ?? 'detached')),
   ]
@@ -369,7 +375,10 @@ export function GitActions(props: GitTarget) {
           className="text-muted-foreground hidden max-w-48 items-center gap-1 text-xs sm:flex"
           title={branchesTitle}
         >
-          <HugeiconsIcon icon={GitBranchIcon} className="size-3.5 shrink-0" />
+          <HugeiconsIcon
+            icon={worktree ? GitForkIcon : GitBranchIcon}
+            className="size-3.5 shrink-0"
+          />
           <span className="truncate">{branchesLabel}</span>
         </span>
       )}

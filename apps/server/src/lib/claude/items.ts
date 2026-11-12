@@ -7,6 +7,7 @@ import type {
   TodoStep,
 } from '@offsite/core/items'
 import { type Block, isRecord, type Message, userText } from './content.ts'
+import { stackedCommand } from './skills.ts'
 
 type ToolUse = Extract<Block, { type: 'tool_use' }>
 
@@ -218,14 +219,32 @@ export function toItems(messages: Message[]): Item[] {
     if (texts.length === 0 && images.length === 0) {
       continue
     }
+    const body = texts.map((part) => part.text).join('\n')
+    const format = texts[0]?.format ?? 'text'
+    const previous = items.at(-1)
+    if (
+      format === 'command' &&
+      previous?.kind === 'user' &&
+      previous.format === 'command'
+    ) {
+      const stacked = stackedCommand(previous.text, body)
+      if (stacked !== null) {
+        items[items.length - 1] = {
+          ...previous,
+          text: stacked,
+          images: [...previous.images, ...images],
+        }
+        continue
+      }
+    }
     items.push({
       id: message.uuid,
       parent: message.parent,
       time: message.time,
       kind: 'user',
-      text: texts.map((part) => part.text).join('\n'),
+      text: body,
       images,
-      format: texts[0]?.format ?? 'text',
+      format,
     })
   }
   return items

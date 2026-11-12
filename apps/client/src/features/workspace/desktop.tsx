@@ -11,7 +11,7 @@ import {
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocalStorage } from 'usehooks-ts'
 import { machineKey } from '@/api/machines'
-import { useProjectName, useWorktreeBranch } from '@/api/projects'
+import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
@@ -123,10 +123,6 @@ export function DesktopLayout() {
     selection?.machine ?? '',
     selection?.projectId ?? ''
   )
-  const branch = useWorktreeBranch(
-    selection?.machine ?? '',
-    selection?.projectId ?? ''
-  )
   useHotkeys(
     ['meta+backquote', 'ctrl+backquote'],
     (event) => {
@@ -211,14 +207,6 @@ export function DesktopLayout() {
                     className="size-3.5"
                   />
                   <span className="max-w-40 truncate">{projectTitle}</span>
-                  {branch !== null && (
-                    <span
-                      className="text-muted-foreground/70 max-w-40 truncate font-normal"
-                      title="Worktree branch"
-                    >
-                      {branch}
-                    </span>
-                  )}
                 </li>
                 <li aria-hidden className="text-icon-muted shrink-0">
                   /

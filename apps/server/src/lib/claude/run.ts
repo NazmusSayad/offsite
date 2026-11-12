@@ -16,11 +16,15 @@ import {
   removeUnsent,
   setUnsentStatus,
 } from '../../services/unsent.ts'
-import { cachedUsage, recordLimits } from '../../services/usage.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import { logger } from '../log.ts'
-import { claudeEffort, claudeMode, eventLimits, runOptions } from './claude.ts'
+import {
+  claudeEffort,
+  claudeMode,
+  recordEventLimits,
+  runOptions,
+} from './claude.ts'
 import {
   contextTokens,
   type Message,
@@ -28,11 +32,11 @@ import {
   promptMessage,
   resultNotice,
   toMessage,
-  toUserInput,
   turnFailed,
 } from './content.ts'
 import { toItems, toRequest } from './items.ts'
 import { permissionResult } from './permission.ts'
+import { type Input, skillInputs } from './skills.ts'
 import { followStart, followWorktree } from './worktree-follow.ts'
 
 const IDLE_LIMIT = 10 * 60 * 1000
@@ -67,7 +71,8 @@ export class Run {
   agentTasks = 0
   failed = false
   tasks: Record<string, TaskStatus> = {}
-  private readonly inbox: SDKUserMessage[] = []
+  private readonly inbox: Input[] = []
+  private readonly silent = new Set<string>()
   private readonly steering = new Map<string, { id: string; prompt: Prompt }>()
   private readonly worktreeTools = new Map<string, string>()
   private wake: (() => void) | null = null
@@ -112,7 +117,7 @@ export class Run {
     switch (delivery) {
       case 'steer': {
         const uuid = randomUUID()
-        this.inbox.push(toUserInput(prompt, uuid, 'next'))
+        this.inbox.push({ prompt, uuid, priority: 'next' })
         this.wake?.()
         this.steering.set(uuid, { id, prompt })
         setUnsentStatus(id, 'sending')
@@ -183,7 +188,7 @@ export class Run {
   private push(prompt: Prompt) {
     clearTimeout(this.idleTimer)
     const uuid = randomUUID()
-    this.inbox.push(toUserInput(prompt, uuid, undefined))
+    this.inbox.push({ prompt, uuid, priority: undefined })
     this.wake?.()
     this.add(promptMessage(prompt, uuid))
     this.running = true
@@ -203,7 +208,7 @@ export class Run {
     while (true) {
       const next = this.inbox.shift()
       if (next !== undefined) {
-        yield next
+        yield* skillInputs(this.query, next, this.silent)
         continue
       }
       await new Promise<void>((resolve) => {
@@ -298,18 +303,16 @@ export class Run {
           })
         }
         return
-      case 'rate_limit_event': {
-        const accountId = this.settings.accountId
-        if (accountId === null) {
-          throw new Error('Rate limit event for a run without an account')
-        }
-        recordLimits(
-          accountId,
-          eventLimits(message.rate_limit_info, cachedUsage(accountId).limits)
-        )
+      case 'rate_limit_event':
+        recordEventLimits(this.settings.accountId, message.rate_limit_info)
         return
-      }
       case 'result': {
+        if (
+          message.user_message_uuid !== undefined &&
+          this.silent.delete(message.user_message_uuid)
+        ) {
+          return
+        }
         const failure = resultNotice(message)
         if (failure !== null) {
           this.add(failure)

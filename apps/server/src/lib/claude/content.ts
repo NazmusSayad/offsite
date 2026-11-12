@@ -1,14 +1,9 @@
-import { randomUUID, type UUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import type {
   SDKResultMessage,
-  SDKUserMessage,
   TerminalReason,
 } from '@anthropic-ai/claude-agent-sdk'
 import type { Prompt } from '@offsite/core/items'
-
-const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
-
-type ImageType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
 
 export type Block =
   | { type: 'text'; text: string }
@@ -68,40 +63,6 @@ export function toMessage(
       ? toBlocks(item.message.content, answersOf(item.tool_use_result))
       : [],
     parent: item.parent_tool_use_id,
-  }
-}
-
-export function toUserInput(
-  prompt: Prompt,
-  uuid: UUID,
-  priority: 'next' | undefined
-): SDKUserMessage {
-  for (const image of prompt.images) {
-    if (!imageTypes.includes(image.mediaType)) {
-      throw new Error(`${image.mediaType} images are not supported`)
-    }
-  }
-  return {
-    type: 'user',
-    message: {
-      role: 'user',
-      content: [
-        ...(prompt.text === ''
-          ? []
-          : [{ type: 'text' as const, text: prompt.text }]),
-        ...prompt.images.map((image) => ({
-          type: 'image' as const,
-          source: {
-            type: 'base64' as const,
-            media_type: image.mediaType as ImageType,
-            data: image.data,
-          },
-        })),
-      ],
-    },
-    parent_tool_use_id: null,
-    uuid,
-    ...(priority === undefined ? {} : { priority }),
   }
 }
 

@@ -40,6 +40,11 @@ type BranchTarget = {
 export function BranchPicker(props: BranchTarget) {
   const [open, setOpen] = useState(false)
   const action = syncAction(props.repo)
+  const worktree = useStore(
+    (state) =>
+      (projectOf(state, props.machine, props.projectId)?.parentId ?? null) !==
+      null
+  )
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -49,7 +54,13 @@ export function BranchPicker(props: BranchTarget) {
           title="Switch or create a branch"
         >
           <HugeiconsIcon
-            icon={action === null ? GitBranchIcon : action.icon}
+            icon={
+              action !== null
+                ? action.icon
+                : worktree
+                  ? GitForkIcon
+                  : GitBranchIcon
+            }
             className="size-3.5 shrink-0"
           />
           <span className="truncate">{props.repo.branch ?? 'detached'}</span>

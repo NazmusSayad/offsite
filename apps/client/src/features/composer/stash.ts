@@ -2,6 +2,7 @@ import { toast } from 'sonner'
 import { getState } from '@/lib/store'
 import { mod } from '@/lib/utils'
 import { lastImageNumber } from './attached-images'
+import { moveComposerCaret } from './composer-input'
 import {
   getDraft,
   getStash,
@@ -19,14 +20,7 @@ export function stashPrompt(key: string) {
 
 export function restorePrompt(key: string, id: string) {
   const text = restoreStash(key, id, lastImageNumber(getState().items, []))
-  requestAnimationFrame(() => {
-    const input = document.querySelector<HTMLTextAreaElement>('[data-composer]')
-    if (input === null) {
-      throw new Error('the composer is not mounted')
-    }
-    input.focus()
-    input.setSelectionRange(text.length, text.length)
-  })
+  requestAnimationFrame(() => moveComposerCaret(text.length, true))
 }
 
 export function toggleStash(key: string) {

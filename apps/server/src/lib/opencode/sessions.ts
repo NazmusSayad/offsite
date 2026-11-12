@@ -52,11 +52,13 @@ export async function openCodeCapabilities(
         name: 'compact',
         description: 'Summarize the conversation to free up context',
         hint: '',
+        inline: false,
       },
       ...[...commands.data, ...skills.data].map((command) => ({
         name: command.name,
         description: command.description ?? '',
         hint: '',
+        inline: false,
       })),
     ],
     agents: agents.data
