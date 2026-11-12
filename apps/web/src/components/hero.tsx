@@ -1,189 +1,106 @@
-import {
-  ChatGptIcon,
-  GithubIcon,
-  SmartPhone01Icon,
-} from '@hugeicons/core-free-icons'
+import { ChatGptIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import Image from 'next/image'
 import Link from 'next/link'
-import type { ReactNode } from 'react'
-import { GITHUB_URL, NPM_URL } from '@/lib/layout'
+import { GITHUB_URL } from '@/lib/layout'
 import { CopyCommand } from './copy-command'
 import { ClaudeIcon, OpenCodeIcon } from './icons'
-import { BrowserFrame, TerminalFrame } from './window-frame'
+import { Phone } from './phone'
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-3 z-30 px-3">
-      <div className="bg-background/60 ring-line mx-auto flex h-14 max-w-6xl items-center justify-between rounded-full pr-2 pl-5 shadow-[0_8px_30px_-12px_rgb(0_0_0/25%)] ring-1 backdrop-blur-xl">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 font-semibold tracking-tight"
-        >
-          <img src="/icon.svg" alt="" className="size-6" />
-          OffSite
+    <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+      <Link
+        href="/"
+        className="flex items-center gap-2.5 font-semibold tracking-tight"
+      >
+        <img src="/icon.svg" alt="" className="size-6" />
+        OffSite
+      </Link>
+      <nav className="text-muted flex items-center gap-7 text-[15px]">
+        <Link href="/docs" className="hover:text-foreground transition-colors">
+          Docs
         </Link>
-        <nav className="text-muted flex items-center gap-1 text-sm">
-          <Link
-            href="/docs"
-            className="hover:text-foreground rounded-full px-3 py-1.5 transition-colors"
-          >
-            Docs
-          </Link>
-          <a
-            href={NPM_URL}
-            className="hover:text-foreground hidden rounded-full px-3 py-1.5 transition-colors sm:block"
-          >
-            npm
-          </a>
-          <a
-            href={GITHUB_URL}
-            className="bg-foreground text-background ml-2 flex items-center gap-2 rounded-full px-4 py-2 transition-opacity hover:opacity-90"
-          >
-            <HugeiconsIcon icon={GithubIcon} className="size-4" />
-            GitHub
-          </a>
-        </nav>
-      </div>
+        <a
+          href={GITHUB_URL}
+          className="hover:text-foreground transition-colors"
+        >
+          GitHub
+        </a>
+      </nav>
     </header>
   )
 }
 
 export function Hero() {
   return (
-    <section className="relative px-6 pt-16 md:pt-24">
-      <div
-        aria-hidden="true"
-        className="mesh-glow pointer-events-none absolute inset-x-0 -top-16 h-[52rem] blur-2xl [mask-image:linear-gradient(to_bottom,black_35%,transparent)]"
-      />
-      <div className="relative mx-auto max-w-4xl text-center">
-        <h1 className="text-[2.5rem] leading-[1.06] font-medium tracking-[-0.04em] text-balance md:text-[4.25rem]">
-          <span className="whitespace-nowrap">
-            Claude Code
-            <InlineMark>
-              <ClaudeIcon className="size-[0.62em]" />
-            </InlineMark>
-            <span className="-ml-[0.1em]">,</span>
-          </span>{' '}
-          <span className="whitespace-nowrap">
-            Codex
-            <InlineMark>
-              <HugeiconsIcon icon={ChatGptIcon} className="size-[0.62em]" />
-            </InlineMark>
-          </span>{' '}
-          and{' '}
-          <span className="whitespace-nowrap">
-            OpenCode
-            <InlineMark>
-              <OpenCodeIcon className="h-[0.56em]" />
-            </InlineMark>
-          </span>{' '}
-          <span className="text-foreground/55 block">in your browser.</span>
+    <section className="overflow-x-clip px-6 pt-16 pb-24 md:pt-24">
+      <div className="mx-auto max-w-3xl text-center">
+        <h1 className="text-[2.6rem] leading-[1.05] font-semibold tracking-[-0.04em] text-balance md:text-[4.25rem]">
+          Claude Code, Codex and OpenCode in your browser
         </h1>
-        <p className="text-foreground/65 mx-auto mt-6 max-w-xl text-lg leading-relaxed text-balance">
-          OffSite opens the same sessions as their CLIs. Start a task in the
-          terminal, check on it from your phone, and finish it back at your
-          desk.
+        <p className="text-muted mx-auto mt-6 max-w-xl text-lg leading-relaxed text-balance">
+          The same sessions as the CLI. Start a task in your terminal, check on
+          it from your phone, and pick it up anywhere.
         </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <CopyCommand />
           <Link
-            href="/docs"
-            className="bg-surface/70 ring-line hover:bg-surface flex h-11 items-center rounded-full px-5 text-sm font-medium ring-1 backdrop-blur transition-colors"
+            href="/docs/getting-started"
+            className="border-line bg-surface hover:bg-foreground/5 flex h-11 items-center rounded-(--radius) border px-5 text-sm font-medium shadow-xs/5 transition-colors"
           >
             Read the docs
           </Link>
         </div>
-        <p className="text-foreground/45 mt-4 text-[13px]">
-          Runs on your machine · Free and MIT licensed
-        </p>
       </div>
 
-      <div className="relative mx-auto mt-16 max-w-5xl md:mt-20">
-        <BrowserFrame className="[mask-image:linear-gradient(to_bottom,black_60%,transparent)]">
-          <Image
-            src="/app-hero.webp"
-            width={2880}
-            height={1800}
-            priority
-            sizes="(min-width: 1024px) 1024px, 100vw"
-            alt="OffSite in a browser: the thread list on the left, a Claude Code thread in the middle, and the composer with model and effort pickers at the bottom"
-            className="aspect-[16/10] w-full object-cover object-left-top"
-          />
-        </BrowserFrame>
-        <TerminalFrame className="absolute top-24 -left-16 hidden w-80 xl:block">
-          <p>
-            <span className="text-[#f5b544]">$</span> claude
-          </p>
-          <p className="text-[#9aa0a8]">
-            <span className="text-[#666c75]">&gt;</span> Add a download button
-            to the file preview
-          </p>
-          <p className="text-[#666c75]">
-            Working
-            <span
-              aria-hidden="true"
-              className="blink ml-1 inline-block h-[1.05em] w-[0.5em] translate-y-[0.2em] rounded-[1px] bg-[#f5b544]"
-            />
-          </p>
-        </TerminalFrame>
+      <div className="reveal relative mx-auto mt-16 max-w-5xl md:mt-20">
         <Image
-          src="/app-mobile.webp"
-          width={1179}
-          height={1977}
-          sizes="200px"
-          alt="The same thread on a phone"
-          className="phone absolute top-[30%] -right-2 w-28 sm:w-36 md:-right-12 md:w-44"
+          src="/app-hero.webp"
+          width={2880}
+          height={1800}
+          priority
+          sizes="(min-width: 1024px) 1024px, 100vw"
+          alt="A thread open in OffSite in the browser"
+          className="w-full rounded-(--radius) shadow-[0_40px_120px_-40px_rgb(0_0_0/45%)] ring-1 ring-black/10 dark:ring-white/10"
         />
+        <div className="absolute -bottom-12 -left-14 hidden w-[34%] overflow-hidden rounded-(--radius) bg-[#15181c] shadow-[0_30px_80px_-20px_rgb(0_0_0/60%)] ring-1 ring-black/10 lg:block dark:ring-white/10">
+          <div className="flex h-8 items-center gap-1.5 border-b border-white/8 px-3">
+            <span className="size-2 rounded-full bg-white/15" />
+            <span className="size-2 rounded-full bg-white/15" />
+            <span className="size-2 rounded-full bg-white/15" />
+            <span className="ml-2 font-mono text-[11px] text-white/45">
+              claude --resume
+            </span>
+          </div>
+          <div className="aspect-[4/3] overflow-hidden">
+            <Image
+              src="/cli-resume.webp"
+              width={1286}
+              height={1800}
+              sizes="350px"
+              alt="The same thread resumed in the Claude Code CLI"
+              className="w-full"
+            />
+          </div>
+        </div>
+        <Phone className="absolute -right-3 -bottom-14 w-[24%] md:-right-12 md:w-[19%]" />
       </div>
 
-      <ul className="border-line relative mx-auto grid max-w-5xl grid-cols-2 gap-x-6 gap-y-6 border-t pt-6 text-sm md:-mt-10 md:grid-cols-4">
-        <li>
-          <p className="flex items-center gap-2 font-medium">
-            <ClaudeIcon className="size-4" />
-            Claude Code
-          </p>
-          <p className="text-subtle mt-1">
-            Same sessions as <code className="font-mono">claude</code>
-          </p>
-        </li>
-        <li>
-          <p className="flex items-center gap-2 font-medium">
-            <HugeiconsIcon icon={ChatGptIcon} className="size-4" />
-            Codex
-          </p>
-          <p className="text-subtle mt-1">
-            Same sessions as <code className="font-mono">codex</code>
-          </p>
-        </li>
-        <li>
-          <p className="flex items-center gap-2 font-medium">
-            <OpenCodeIcon className="h-4" />
-            OpenCode
-          </p>
-          <p className="text-subtle mt-1">
-            Same sessions as <code className="font-mono">opencode</code>
-          </p>
-        </li>
-        <li>
-          <p className="flex items-center gap-2 font-medium">
-            <HugeiconsIcon icon={SmartPhone01Icon} className="size-4" />
-            Your phone
-          </p>
-          <p className="text-subtle mt-1">Paired with one link</p>
-        </li>
-      </ul>
+      <div className="text-muted mx-auto mt-28 flex max-w-3xl flex-wrap items-center justify-center gap-x-10 gap-y-4 text-[15px] font-medium">
+        <span className="flex items-center gap-2.5">
+          <ClaudeIcon className="size-5" />
+          Claude Code
+        </span>
+        <span className="flex items-center gap-2.5">
+          <HugeiconsIcon icon={ChatGptIcon} className="size-5" />
+          Codex
+        </span>
+        <span className="flex items-center gap-2.5">
+          <OpenCodeIcon className="size-4" />
+          OpenCode
+        </span>
+      </div>
     </section>
-  )
-}
-
-function InlineMark(props: { children: ReactNode }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="bg-surface ring-line mx-[0.12em] inline-grid size-[0.95em] translate-y-[-0.06em] place-items-center rounded-[0.24em] align-middle shadow-[0_8px_20px_-10px_rgb(0_0_0/35%)] ring-1"
-    >
-      {props.children}
-    </span>
   )
 }
