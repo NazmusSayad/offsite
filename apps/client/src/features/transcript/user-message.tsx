@@ -21,6 +21,7 @@ import { clock, fullTime } from '@/lib/format'
 import { logger } from '@/lib/log'
 import { selectedPrompts, unsentId } from '@/lib/pending'
 import { resend, unqueue } from '@/lib/sessions'
+import { skillPill, skillRanges } from '@/lib/skills'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -46,8 +47,12 @@ export function UserMessage(props: {
     prompt.trim() !== '' &&
     (prompt.length > 600 || prompt.split('\n').length > 8)
   const collapsed = canCollapse && !expanded
-  const slash =
-    item.format === 'command' ? /^(\/\S+)(.*)$/s.exec(item.text) : null
+  const capabilities = useStore((state) => state.capabilities)
+  const found = skillRanges(item.text, capabilities?.commands ?? [])
+  const ranges =
+    item.format === 'command' && found.length === 0
+      ? [{ start: 0, end: item.text.search(/\s|$/) }]
+      : found
   const unsent = unsentId(item)
   const failed = useStore(
     (state) =>
@@ -90,15 +95,18 @@ export function UserMessage(props: {
                   : undefined
               }
             >
-              {item.format === 'command' && slash === null && (
+              {item.format === 'command' && !item.text.startsWith('/') && (
                 <span className="font-mono text-sm">{item.text}</span>
               )}
-              {slash !== null && (
+              {item.format === 'command' && item.text.startsWith('/') && (
                 <p className="text-foreground text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap">
-                  <span className="bg-info/15 text-info rounded-md px-1.5 py-0.5">
-                    {slash[1]}
-                  </span>
-                  {slash[2]}
+                  {ranges.map((range, index) => [
+                    item.text.slice(ranges[index - 1]?.end ?? 0, range.start),
+                    <span key={range.start} className={skillPill}>
+                      {item.text.slice(range.start, range.end)}
+                    </span>,
+                  ])}
+                  {item.text.slice(ranges.at(-1)?.end ?? 0)}
                 </p>
               )}
               {item.format === 'output' && (
@@ -112,6 +120,9 @@ export function UserMessage(props: {
                   className="text-foreground"
                   lineBreaks
                   rawHtml={false}
+                  skills={ranges.map((range) =>
+                    item.text.slice(range.start + 1, range.end)
+                  )}
                 />
               )}
             </div>

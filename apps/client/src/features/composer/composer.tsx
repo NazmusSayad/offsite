@@ -29,6 +29,12 @@ import {
   lastUserText,
   restoredDraft,
 } from './attached-images'
+import {
+  ComposerInput,
+  focusComposer,
+  moveComposerCaret,
+  replaceComposerText,
+} from './composer-input'
 import { ComposerMenu, type Suggestion, suggestionsFor } from './composer-menu'
 import { useDictation } from './dictation'
 import {
@@ -83,7 +89,6 @@ export function Composer(props: {
   const [active, setActive] = useState(0)
   const [menuClosed, setMenuClosed] = useState(false)
   const [files, setFiles] = useState<string[]>([])
-  const input = useRef<HTMLTextAreaElement>(null)
   const picker = useRef<HTMLInputElement>(null)
   const pasteInline = useRef(false)
   const machine = selection?.machine ?? ''
@@ -105,13 +110,11 @@ export function Composer(props: {
   const dictation = useDictation()
 
   useEffect(() => {
-    const element = input.current
-    if (element === null || touch.matches) {
+    if (touch.matches) {
       return
     }
-    element.focus()
-    element.setSelectionRange(element.value.length, element.value.length)
-  }, [selection])
+    moveComposerCaret(getDraft(key).text.length, true)
+  }, [selection, key])
 
   useEffect(() => {
     if (draft === null) {
@@ -121,7 +124,7 @@ export function Composer(props: {
     editDraft(key, (current) => ({ ...current, ...restored }))
     setCaret(restored.text.length)
     setDraft(null)
-    input.current?.focus()
+    focusComposer()
   }, [draft, key])
 
   useEffect(() => {
@@ -135,12 +138,17 @@ export function Composer(props: {
   }, [machine, projectId, status])
 
   const before = text.slice(0, caret)
-  const trigger =
-    /^\/\S*$/.exec(before)?.[0] ?? /(?:^|\s)(@\S*)$/.exec(before)?.[1] ?? null
+  const trigger = /(?:^|\s)([/@]\S*)$/.exec(before)?.[1] ?? null
   const suggestions =
     trigger === null || menuClosed
       ? []
-      : suggestionsFor(trigger, capabilities?.commands ?? [], files)
+      : suggestionsFor(
+          trigger,
+          (capabilities?.commands ?? []).filter(
+            (command) => before === trigger || command.inline
+          ),
+          files
+        )
   const activeIndex = Math.min(active, suggestions.length - 1)
   const empty =
     (text.trim() === '' && images.length === 0) ||
@@ -166,12 +174,7 @@ export function Composer(props: {
     if (trigger === null) {
       return
     }
-    const start = caret - trigger.length
-    const position = start + item.insert.length + 1
-    edit(`${text.slice(0, start)}${item.insert} ${text.slice(caret)}`, position)
-    requestAnimationFrame(() =>
-      input.current?.setSelectionRange(position, position)
-    )
+    replaceComposerText(caret - trigger.length, caret, `${item.insert} `)
   }
 
   async function submit(swap: boolean, flipSnooze: boolean) {
@@ -215,9 +218,7 @@ export function Composer(props: {
         }))
         position += marker.length
         setCaret(position)
-        requestAnimationFrame(() =>
-          input.current?.setSelectionRange(position, position)
-        )
+        requestAnimationFrame(() => moveComposerCaret(position, false))
         continue
       }
       if (file.size > UPLOAD_LIMIT) {
@@ -238,9 +239,7 @@ export function Composer(props: {
       }))
       position += marker.length
       setCaret(position)
-      requestAnimationFrame(() =>
-        input.current?.setSelectionRange(position, position)
-      )
+      requestAnimationFrame(() => moveComposerCaret(position, false))
     }
   }
 
@@ -258,7 +257,7 @@ export function Composer(props: {
           <ProjectHeading
             machine={machine}
             projectId={projectId}
-            onCloseMenu={() => input.current?.focus()}
+            onCloseMenu={focusComposer}
           />
         )}
         {suggestions.length === 0 && <UsageResetBanner />}
@@ -292,7 +291,7 @@ export function Composer(props: {
             if (!(event.target instanceof Element)) {
               return
             }
-            if (event.target.closest('input, textarea')) {
+            if (event.target.closest('input, textarea, [contenteditable]')) {
               return
             }
             if (
@@ -300,7 +299,7 @@ export function Composer(props: {
               event.target.closest('button, a') === null
             ) {
               event.preventDefault()
-              input.current?.focus()
+              focusComposer()
               return
             }
             if (touch.matches) {
@@ -320,101 +319,81 @@ export function Composer(props: {
             )}
           >
             {images.length > 0 && <AttachedImages draftKey={key} />}
-            <textarea
-              ref={input}
-              data-composer
-              rows={1}
-              spellCheck={false}
-              autoCorrect="off"
-              data-gramm="false"
-              data-gramm_editor="false"
-              data-enable-grammarly="false"
-              data-lt-active="false"
-              value={text}
-              onChange={(event) =>
-                edit(event.target.value, event.target.selectionStart)
-              }
-              onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
+            <ComposerInput
+              text={text}
+              compact={images.length > 0}
+              onEdit={edit}
+              onCaret={setCaret}
               onPaste={(event) => {
-                const text = event.clipboardData.getData('text/plain')
+                const text = event.clipboardData?.getData('text/plain') ?? ''
                 const inline = pasteInline.current
                 pasteInline.current = false
                 if (text !== '') {
-                  event.preventDefault()
                   const file = inline ? null : largePaste(text, attachedFiles)
-                  if (file !== null) {
-                    void attach([file])
-                    return
+                  if (file === null) {
+                    return false
                   }
-                  document.execCommand('insertText', false, text)
-                  return
+                  void attach([file])
+                  return true
                 }
-                const pasted = [...event.clipboardData.files]
+                const pasted = [...(event.clipboardData?.files ?? [])]
                 if (pasted.length === 0) {
-                  return
+                  return false
                 }
-                event.preventDefault()
                 void attach(pasted)
+                return true
               }}
               onKeyDown={(event) => {
-                if (event.nativeEvent.isComposing) {
-                  return
-                }
-                pasteInline.current = isPasteInline(event.nativeEvent)
-                if (isStashShortcut(event.nativeEvent)) {
-                  event.preventDefault()
+                pasteInline.current = isPasteInline(event)
+                if (isStashShortcut(event)) {
                   toggleStash(key)
-                  return
+                  return true
                 }
                 if (suggestions.length > 0) {
                   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                    event.preventDefault()
                     const step = event.key === 'ArrowDown' ? 1 : -1
                     setActive(
                       (activeIndex + step + suggestions.length) %
                         suggestions.length
                     )
-                    return
+                    return true
                   }
                   if (
                     (event.key === 'Enter' && !event.shiftKey) ||
                     event.key === 'Tab'
                   ) {
-                    event.preventDefault()
                     pick(suggestions[activeIndex])
-                    return
+                    return true
                   }
                   if (event.key === 'Escape') {
-                    event.preventDefault()
                     setMenuClosed(true)
-                    return
+                    return true
                   }
                 }
                 if (
                   event.key === 'Enter' &&
-                  (!event.shiftKey || isSnoozeShortcut(event.nativeEvent)) &&
+                  (!event.shiftKey || isSnoozeShortcut(event)) &&
                   !touch.matches
                 ) {
-                  event.preventDefault()
-                  const flipSnooze = isSnoozeShortcut(event.nativeEvent)
+                  const flipSnooze = isSnoozeShortcut(event)
                   void submit(
                     !flipSnooze && (event.metaKey || event.ctrlKey),
                     flipSnooze
                   )
-                  return
+                  return true
                 }
                 if (event.key === 'ArrowUp' && text === '') {
                   const last = lastUserText(getState().items)
                   if (last === null) {
-                    return
+                    return false
                   }
-                  event.preventDefault()
                   edit(last, last.length)
-                  return
+                  return true
                 }
                 if (event.key === 'Escape' && running) {
                   interrupt()
                 }
+                return false
               }}
               placeholder={
                 noAccount
@@ -425,12 +404,6 @@ export function Composer(props: {
                       ? `Queue a follow-up… (${mod}+Enter to send now)`
                       : 'Ask anything, @tag files/folders, or / for commands'
               }
-              className={cn(
-                'placeholder:text-placeholder/75 block [field-sizing:content] w-full resize-none bg-transparent px-2.5 text-sm leading-relaxed outline-none sm:px-4',
-                images.length > 0
-                  ? 'max-h-52 min-h-19.5'
-                  : 'max-h-55.5 min-h-20 pt-2 sm:max-h-56 sm:pt-4 md:pt-3.5 [@media(min-height:840px)]:min-h-23 sm:[@media(min-height:840px)]:min-h-23.5'
-              )}
             />
           </div>
           <div

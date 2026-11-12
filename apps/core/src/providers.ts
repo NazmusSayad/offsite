@@ -77,7 +77,12 @@ export type Model = {
   effort: string | null
 }
 
-export type SlashCommand = { name: string; description: string; hint: string }
+export type SlashCommand = {
+  name: string
+  description: string
+  hint: string
+  inline: boolean
+}
 
 export type Agent = { id: string; name: string; description: string }
 

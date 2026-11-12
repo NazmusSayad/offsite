@@ -117,11 +117,13 @@ export async function codexCapabilities(
         name: 'compact',
         description: 'Summarize the conversation to free up context',
         hint: '',
+        inline: false,
       },
       ...(await skills(server, cwd)).map((skill) => ({
         name: skill.name,
         description: skill.description,
         hint: '',
+        inline: false,
       })),
     ],
     agents: [],
