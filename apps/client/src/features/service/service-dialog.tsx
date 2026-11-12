@@ -83,7 +83,7 @@ export function ServiceDialog(props: {
         })
       }
       props.onClose()
-      toast(`${machine?.name} is restarting`)
+      toast('offsite is restarting')
     } catch (failure) {
       setError(errorMessage(failure))
       setWorking(false)
@@ -94,9 +94,9 @@ export function ServiceDialog(props: {
     <>
       <DialogHeader className="px-6 pt-4 pr-12">
         <DialogTitle className="text-base">
-          {update === null
-            ? `Start ${machine.name} at login`
-            : `Update ${machine.name} to offsite ${update}`}
+          {update !== null && `Update offsite to ${update}`}
+          {update === null &&
+            (service.installed ? 'offsite service' : 'Install offsite service')}
         </DialogTitle>
       </DialogHeader>
       <div className="flex flex-col gap-4 px-6 pt-4 pb-6 text-sm empty:hidden">

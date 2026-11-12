@@ -25,7 +25,7 @@ export function ServiceBanners() {
         <ServiceBanner
           key={machine.id}
           machine={machine.id}
-          name={machine.name}
+          name={shown.length > 1 ? machine.name : null}
           update={machine.service?.installed ? machine.service.update : null}
         />
       ))}
@@ -35,7 +35,7 @@ export function ServiceBanners() {
 
 function ServiceBanner(props: {
   machine: string
-  name: string
+  name: string | null
   update: string | null
 }) {
   const [open, setOpen] = useState(false)
@@ -44,21 +44,19 @@ function ServiceBanner(props: {
     <>
       <button
         type="button"
-        className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 flex h-9 items-center gap-2 rounded-lg border px-(--sidebar-row-content-inset) text-sm font-medium transition-colors"
+        className="border-primary/50 bg-primary/15 text-sidebar-foreground hover:bg-primary/25 flex h-9 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors"
         onClick={() => setOpen(true)}
       >
         <HugeiconsIcon
           icon={props.update === null ? PowerServiceIcon : CircleArrowUp01Icon}
           className="size-4 shrink-0"
         />
-        <span className="min-w-0 flex-1 truncate text-left">
+        <span className="truncate">
           {props.update === null
-            ? `Start ${props.name} at login`
-            : `Update ${props.name}`}
+            ? 'Install offsite service'
+            : `Update offsite to ${props.update}`}
+          {props.name !== null && ` · ${props.name}`}
         </span>
-        {props.update !== null && (
-          <span className="shrink-0 text-xs opacity-75">{props.update}</span>
-        )}
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent

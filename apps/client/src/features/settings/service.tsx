@@ -18,7 +18,7 @@ export function ServiceSection(props: { machine: string }) {
 
   return (
     <Section title="Service">
-      <Row label="Start at login">
+      <Row label="offsite service">
         <Button size="xs" variant="outline" onClick={() => setOpen(true)}>
           {installed ? 'Edit' : 'Install'}
         </Button>
