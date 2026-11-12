@@ -131,6 +131,7 @@ export function DesktopLayout() {
     },
     {
       enableOnFormTags: true,
+      enableOnContentEditable: true,
       preventDefault: true,
       eventListenerOptions: { capture: true },
     }
@@ -143,6 +144,7 @@ export function DesktopLayout() {
     },
     {
       enableOnFormTags: true,
+      enableOnContentEditable: true,
       preventDefault: true,
       eventListenerOptions: { capture: true },
     }

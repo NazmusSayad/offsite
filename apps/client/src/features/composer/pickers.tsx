@@ -123,6 +123,7 @@ function ModelPicker() {
   const account = choices.find((item) => item.key === current)
   useHotkeys(['mod+shift+m', 'mod+period'], () => setOpen(!open), {
     enableOnFormTags: true,
+    enableOnContentEditable: true,
     preventDefault: true,
   })
 

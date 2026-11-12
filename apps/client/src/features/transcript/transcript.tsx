@@ -164,7 +164,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
         document.querySelector<HTMLInputElement>('[data-thread-find]')?.select()
       )
     },
-    { enableOnFormTags: true }
+    { enableOnFormTags: true, enableOnContentEditable: true }
   )
 
   // oxlint-disable-next-line react-hooks/exhaustive-deps

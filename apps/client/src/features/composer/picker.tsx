@@ -38,6 +38,7 @@ export function Picker(props: {
   const [open, setOpen] = useState(false)
   useHotkeys(props.shortcut, () => setOpen(!open), {
     enableOnFormTags: true,
+    enableOnContentEditable: true,
     preventDefault: true,
   })
 

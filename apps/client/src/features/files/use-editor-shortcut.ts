@@ -10,6 +10,7 @@ export function useEditorShortcut(onToggle: () => void, enabled: boolean) {
     {
       enabled,
       enableOnFormTags: true,
+      enableOnContentEditable: true,
       preventDefault: true,
       eventListenerOptions: { capture: true },
     }

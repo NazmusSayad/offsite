@@ -119,6 +119,7 @@ export function SettingsDialog() {
   const open = useStore((state) => state.settingsOpen)
   useHotkeys('mod+comma', () => showSettings(!open), {
     enableOnFormTags: true,
+    enableOnContentEditable: true,
     preventDefault: true,
   })
 

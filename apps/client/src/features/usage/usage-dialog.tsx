@@ -15,6 +15,7 @@ export function UsageDialog() {
   const open = useStore((state) => state.usageOpen)
   useHotkeys('mod+u', () => showUsage(!open), {
     enableOnFormTags: true,
+    enableOnContentEditable: true,
     preventDefault: true,
   })
 

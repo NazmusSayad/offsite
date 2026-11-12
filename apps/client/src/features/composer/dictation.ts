@@ -76,6 +76,7 @@ export function useDictation() {
 
   useHotkeys('mod+shift+d', () => void toggle(), {
     enableOnFormTags: true,
+    enableOnContentEditable: true,
     preventDefault: true,
   })
 

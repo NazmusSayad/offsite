@@ -31,6 +31,7 @@ export function App() {
   useAttentionBadge()
   useHotkeys(paletteKeys, () => showPalette(!getState().paletteOpen), {
     enableOnFormTags: true,
+    enableOnContentEditable: true,
     preventDefault: true,
   })
 

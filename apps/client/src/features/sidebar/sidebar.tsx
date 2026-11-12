@@ -160,6 +160,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
 
   useHotkeys(['mod+n', 'mod+t'], startThread, {
     enableOnFormTags: true,
+    enableOnContentEditable: true,
     preventDefault: true,
   })
 
@@ -196,7 +197,12 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
         select(session.machine, session.projectId, session.id)
       }
     },
-    { enableOnFormTags: true, preventDefault: true, enabled: !props.mobile }
+    {
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+      preventDefault: true,
+      enabled: !props.mobile,
+    }
   )
 
   function resize(event: React.PointerEvent<HTMLDivElement>) {

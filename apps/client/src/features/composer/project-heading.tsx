@@ -38,6 +38,7 @@ export function ProjectHeading(props: {
     {
       enabled: sessionId === null,
       enableOnFormTags: true,
+      enableOnContentEditable: true,
       preventDefault: true,
       eventListenerOptions: { capture: true },
     }

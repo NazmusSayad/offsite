@@ -56,6 +56,7 @@ export function ScopeMenu(props: {
   const [picking, setPicking] = useState(false)
   useHotkeys('mod+p', () => setPicking(!picking), {
     enableOnFormTags: true,
+    enableOnContentEditable: true,
     preventDefault: true,
   })
 
