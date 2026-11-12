@@ -79,7 +79,7 @@ export function SendControls(props: {
         >
           <HugeiconsIcon
             icon={SendHorizontalIcon}
-            className="size-4.5 translate-x-[0.5px] -translate-y-[0.5px] -rotate-45 transition-[rotate,translate] duration-150 group-hover:translate-x-0 group-hover:-translate-y-[0.75px] group-hover:-rotate-90 group-disabled:translate-x-[0.75px] group-disabled:translate-y-0 group-disabled:rotate-0 motion-reduce:transition-none"
+            className="size-4.5 translate-x-[0.75px]"
             strokeWidth={1.25}
           />
         </button>
