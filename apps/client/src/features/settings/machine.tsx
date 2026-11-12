@@ -24,6 +24,7 @@ import { platforms } from '@/features/terminal/config'
 import { AgentsSection } from './agents'
 import { Row, Section, TextInput } from './controls'
 import { GenerationModelSection } from './generation-model'
+import { ServiceSection } from './service'
 import { ShellInput } from './shell-input'
 
 export function MachinePage(props: {
@@ -59,6 +60,7 @@ export function MachinePage(props: {
           />
         </Row>
       </Section>
+      <ServiceSection machine={props.machine} />
       <ShellSection
         key={props.machine}
         machine={props.machine}

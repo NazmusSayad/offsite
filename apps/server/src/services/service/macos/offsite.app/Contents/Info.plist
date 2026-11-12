@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>agents.offsite.service</string>
+  <key>CFBundleName</key>
+  <string>offsite</string>
+  <key>CFBundleExecutable</key>
+  <string>offsite</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleVersion</key>
+  <string>1</string>
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Programs you run in offsite may use the microphone.</string>
+  <key>NSCameraUsageDescription</key>
+  <string>Programs you run in offsite may use the camera.</string>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>Programs you run in offsite may control other apps.</string>
+  <key>NSDesktopFolderUsageDescription</key>
+  <string>Programs you run in offsite may use files on your Desktop.</string>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>Programs you run in offsite may use files in Documents.</string>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>Programs you run in offsite may use files in Downloads.</string>
+  <key>NSRemovableVolumesUsageDescription</key>
+  <string>Programs you run in offsite may use files on removable drives.</string>
+  <key>NSNetworkVolumesUsageDescription</key>
+  <string>Programs you run in offsite may use files on network drives.</string>
+  <key>NSContactsUsageDescription</key>
+  <string>Programs you run in offsite may use your contacts.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key>
+  <string>Programs you run in offsite may use your calendars.</string>
+  <key>NSRemindersFullAccessUsageDescription</key>
+  <string>Programs you run in offsite may use your reminders.</string>
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>Programs you run in offsite may use your photos.</string>
+  <key>NSLocationUsageDescription</key>
+  <string>Programs you run in offsite may use your location.</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>Programs you run in offsite may use speech recognition.</string>
+  <key>NSBluetoothAlwaysUsageDescription</key>
+  <string>Programs you run in offsite may use Bluetooth.</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>Programs you run in offsite may use your local network.</string>
+</dict>
+</plist>

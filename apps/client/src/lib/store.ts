@@ -27,6 +27,7 @@ import type {
   ProviderStatus,
   Usage,
 } from '@offsite/core/providers'
+import type { ServiceState } from '@offsite/core/service'
 import type {
   SessionActivity,
   ContextUsage,
@@ -86,6 +87,7 @@ export type Machine = {
   lastMessageAtByAccount: LastMessageAtForAccount[]
   lastPickedEffortByModel: LastPickedEffortForModel[]
   appIcon: AppIconId | null
+  service: ServiceState | null
   configError: string | null
   system: Omit<ConfigWithDefaults, 'config'> | null
   claudeAccounts: Account[]

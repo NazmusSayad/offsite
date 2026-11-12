@@ -48,6 +48,7 @@ import type {
 } from './providers.ts'
 import type { PushRegistration } from './push.ts'
 import type { MessageMatch, SearchSession } from './search.ts'
+import type { ServiceSettings, ServiceState } from './service.ts'
 import type {
   SessionActivity,
   ContextUsage,
@@ -80,6 +81,7 @@ export type SyncSnapshot = ConfigWithDefaults & {
   terminals: TerminalTab[]
   appIcon: AppIconId
   bookmarks: BookmarkRef[]
+  service: ServiceState
 }
 
 export type RpcMethods = {
@@ -88,6 +90,13 @@ export type RpcMethods = {
   'config.get': { params: void; result: ConfigWithDefaults }
   'config.save': { params: Config; result: Config }
   'appIcon.save': { params: AppIconId; result: AppIconId }
+  'service.busy': { params: void; result: string[] }
+  'service.install': { params: ServiceSettings; result: null }
+  'service.update': { params: void; result: null }
+  'service.check': {
+    params: void
+    result: { latest: string; newer: boolean }
+  }
   'projects.add': { params: { path: string }; result: Project }
   'projects.update': {
     params: { id: string; patch: ProjectPatch }
@@ -421,6 +430,7 @@ export type ServerEvent =
   | { type: 'lastSent'; lastSent: LastMessageAtForAccount[] }
   | { type: 'lastEfforts'; lastEfforts: LastPickedEffortForModel[] }
   | { type: 'appIcon'; appIcon: AppIconId }
+  | { type: 'service'; service: ServiceState }
   | { type: 'bookmarks'; bookmarks: BookmarkRef[] }
   | { type: 'projects'; projects: Project[] }
   | { type: 'sessions'; sessions: Session[] }

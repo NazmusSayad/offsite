@@ -104,6 +104,7 @@ import { removeUnsent } from '../services/unsent.ts'
 import { readUsage } from '../services/usage.ts'
 import { configInfo } from '../storage/config.ts'
 import { saveAppIcon } from '../storage/state.ts'
+import { serviceHandlers } from './service-handlers.ts'
 import { worktreeHandlers } from './worktree-handlers.ts'
 
 const log = logger.withTag('socket')
@@ -117,6 +118,7 @@ export type Handlers = {
 
 const handlers: Handlers = {
   ...worktreeHandlers,
+  ...serviceHandlers,
   ping: () => null,
   sync: () => syncSnapshot(),
   'config.get': () => configInfo(),

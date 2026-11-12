@@ -109,6 +109,7 @@ export function restoreMachine(machine: StoredMachine): Machine {
     lastMessageAtByAccount: [],
     lastPickedEffortByModel: [],
     appIcon: null,
+    service: null,
     configError: null,
     system: null,
     claudeAccounts: [],

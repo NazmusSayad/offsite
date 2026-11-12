@@ -10,6 +10,7 @@ import {
 import { readAppIcon } from '../storage/state.ts'
 import { readBookmarks } from './bookmarks.ts'
 import { projects } from './projects.ts'
+import { serviceState } from './service/update.ts'
 import { providerStatuses, refreshAll, sessions } from './sessions.ts'
 import { terminalTabs } from './terminal/terminal.ts'
 import { allUnsent } from './unsent.ts'
@@ -30,5 +31,6 @@ export function syncSnapshot(): SyncSnapshot {
     terminals: terminalTabs(),
     appIcon: readAppIcon(),
     bookmarks: readBookmarks(),
+    service: serviceState(),
   }
 }

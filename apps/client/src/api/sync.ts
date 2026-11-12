@@ -215,6 +215,7 @@ async function resync(machine: string) {
       providers: snapshot.providers,
       terminals: snapshot.terminals,
       appIcon: snapshot.appIcon,
+      service: snapshot.service,
       lastMessageAtByAccount: snapshot.lastSent,
       lastPickedEffortByModel: snapshot.lastEfforts,
     })
@@ -324,6 +325,9 @@ function receive(machine: string, event: ServerEvent) {
       return
     case 'appIcon':
       setMachine(machine, { appIcon: event.appIcon })
+      return
+    case 'service':
+      setMachine(machine, { service: event.service })
       return
     case 'bookmarks':
       receiveBookmarks(machine, event.bookmarks)
