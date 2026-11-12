@@ -4,14 +4,29 @@ type MarkdownNode = {
   type: string
   value?: string
   children?: MarkdownNode[]
-  data?: { hName: string; hProperties: { className: string } }
+  data?: { hName: string; hProperties: Record<string, string> }
 }
 
 export function remarkSkills(names: string[]) {
-  const pattern = new RegExp(
-    `(?<!\\S)(${names.map((name) => `/${name.replaceAll('.', '\\.')}`).join('|')})(?!\\S)`,
-    'g'
+  return remarkWrap(
+    new RegExp(
+      `(?<!\\S)(${names.map((name) => `/${name.replaceAll('.', '\\.')}`).join('|')})(?!\\S)`,
+      'g'
+    ),
+    () => ({ className: skillPill })
   )
+}
+
+export function remarkImages() {
+  return remarkWrap(/\[Image #(\d+)\]/g, (match) => ({
+    dataImage: match[1],
+  }))
+}
+
+function remarkWrap(
+  pattern: RegExp,
+  properties: (match: RegExpExecArray) => Record<string, string>
+) {
   return () => (tree: MarkdownNode) => {
     function visit(node: MarkdownNode) {
       if (node.children === undefined) {
@@ -33,7 +48,7 @@ export function remarkSkills(names: string[]) {
           }
           parts.push({
             type: 'skill',
-            data: { hName: 'span', hProperties: { className: skillPill } },
+            data: { hName: 'span', hProperties: properties(match) },
             children: [{ type: 'text', value: match[0] }],
           })
           offset = match.index + match[0].length
@@ -47,8 +62,6 @@ export function remarkSkills(names: string[]) {
         return parts
       })
     }
-    if (names.length > 0) {
-      visit(tree)
-    }
+    visit(tree)
   }
 }

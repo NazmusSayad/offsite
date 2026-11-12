@@ -5,10 +5,15 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
 import { Tooltip } from '@/components/ui/tooltip'
 import { ViewableImage } from '@/components/viewable-image'
 import { stageText } from '@/features/composer/worktree-bar'
@@ -26,6 +31,10 @@ import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 const log = logger.withTag('transcript')
+
+const ImageViewer = lazy(async () => ({
+  default: (await import('@/components/image-viewer')).ImageViewer,
+}))
 
 const IMAGE_LIMIT = 20
 const fade =
@@ -53,6 +62,17 @@ export function UserMessage(props: {
     item.format === 'command' && found.length === 0
       ? [{ start: 0, end: item.text.search(/\s|$/) }]
       : found
+  const numbers = [
+    ...new Set(
+      [...item.text.matchAll(/\[Image #(\d+)\]/g)].map((match) =>
+        Number(match[1])
+      )
+    ),
+  ].sort((first, second) => first - second)
+  const inline =
+    item.format === 'text' &&
+    item.images.length > 0 &&
+    numbers.length === item.images.length
   const unsent = unsentId(item)
   const failed = useStore(
     (state) =>
@@ -64,7 +84,7 @@ export function UserMessage(props: {
   return (
     <div className="group flex flex-col items-end gap-1">
       <div className="bg-message text-message-foreground relative max-w-[80%] rounded-2xl px-3 py-2">
-        {item.images.length > 0 && (
+        {item.images.length > 0 && !inline && (
           <div className="mb-2 grid max-w-[210px] grid-cols-2 gap-2">
             {item.images.map((image, index) => (
               <div
@@ -123,6 +143,30 @@ export function UserMessage(props: {
                   skills={ranges.map((range) =>
                     item.text.slice(range.start + 1, range.end)
                   )}
+                  images={inline}
+                  components={{
+                    span: (span) => {
+                      const index = numbers.indexOf(
+                        Number(span.node?.properties.dataImage)
+                      )
+                      if (!inline || index === -1) {
+                        return (
+                          <span className={span.className}>
+                            {span.children}
+                          </span>
+                        )
+                      }
+                      return (
+                        <ImageChip
+                          itemId={item.id}
+                          index={index}
+                          number={numbers[index]}
+                          mediaType={item.images[index].mediaType}
+                          data={item.images[index].data}
+                        />
+                      )
+                    },
+                  }}
                 />
               )}
             </div>
@@ -234,29 +278,100 @@ export function MessageCopyButton(props: { text: string }) {
   )
 }
 
+function ImageChip(props: {
+  itemId: string
+  index: number
+  number: number
+  mediaType: string
+  data: string | null
+}) {
+  const data = usePromptImage(props.itemId, props.index, props.data)
+  const [open, setOpen] = useState(false)
+  const name = `Image #${props.number}`
+  return (
+    <>
+      <HoverCard openDelay={150} closeDelay={50}>
+        <HoverCardTrigger asChild>
+          <button
+            type="button"
+            className="bg-background/60 border-border/70 mx-0.5 inline-flex h-6 cursor-zoom-in items-center gap-1 rounded-md border p-0.5 pe-1.5 align-middle text-xs"
+            onClick={() => setOpen(true)}
+          >
+            {data === null ? (
+              <span className="bg-muted size-4.5 shrink-0 rounded-sm" />
+            ) : (
+              <img
+                src={`data:${props.mediaType};base64,${data}`}
+                alt=""
+                className="size-4.5 shrink-0 rounded-sm object-cover"
+              />
+            )}
+            {name}
+          </button>
+        </HoverCardTrigger>
+        {data !== null && (
+          <HoverCardContent className="p-1">
+            <img
+              src={`data:${props.mediaType};base64,${data}`}
+              alt={name}
+              className="block max-h-80 max-w-80 rounded-md object-contain"
+            />
+          </HoverCardContent>
+        )}
+      </HoverCard>
+      {open && data !== null && (
+        <Suspense>
+          <ImageViewer
+            src={`data:${props.mediaType};base64,${data}`}
+            alt=""
+            name={name}
+            onClose={() => setOpen(false)}
+          />
+        </Suspense>
+      )}
+    </>
+  )
+}
+
 function PromptImage(props: {
   itemId: string
   index: number
   mediaType: string
   data: string | null
 }) {
+  const data = usePromptImage(props.itemId, props.index, props.data)
+  if (data === null) {
+    return null
+  }
+  return (
+    <ViewableImage
+      src={`data:${props.mediaType};base64,${data}`}
+      alt=""
+      name="Image"
+      className="block size-full"
+      imageClassName="block size-full object-cover"
+    />
+  )
+}
+
+function usePromptImage(itemId: string, index: number, data: string | null) {
   const selection = useStore((state) => state.selection)
   const machine = selection?.machine ?? null
   const sessionId = selection?.sessionId ?? null
   const [loaded, setLoaded] = useState<string | null>(null)
 
   useEffect(() => {
-    if (props.data !== null || machine === null || sessionId === null) {
+    if (data !== null || machine === null || sessionId === null) {
       return
     }
     let current = true
-    const key = JSON.stringify([machine, sessionId, props.itemId, props.index])
+    const key = JSON.stringify([machine, sessionId, itemId, index])
     let request = images.get(key)
     if (request === undefined) {
       request = call(machine, 'sessions.image', {
         sessionId,
-        itemId: props.itemId,
-        index: props.index,
+        itemId,
+        index,
       })
       images.set(key, request)
       if (images.size > IMAGE_LIMIT) {
@@ -275,19 +390,7 @@ function PromptImage(props: {
     return () => {
       current = false
     }
-  }, [props.data, props.itemId, props.index, machine, sessionId])
+  }, [data, itemId, index, machine, sessionId])
 
-  const data = props.data ?? loaded
-  if (data === null) {
-    return null
-  }
-  return (
-    <ViewableImage
-      src={`data:${props.mediaType};base64,${data}`}
-      alt=""
-      name="Image"
-      className="block size-full"
-      imageClassName="block size-full object-cover"
-    />
-  )
+  return data ?? loaded
 }

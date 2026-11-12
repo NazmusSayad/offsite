@@ -20,7 +20,10 @@ import {
 import { CodeBlock } from '@/components/markdown/markdown-code'
 import { LocalMedia, Media } from '@/components/markdown/markdown-media'
 import { remarkWindowsPaths } from '@/components/markdown/markdown-paths'
-import { remarkSkills } from '@/components/markdown/markdown-skills'
+import {
+  remarkImages,
+  remarkSkills,
+} from '@/components/markdown/markdown-skills'
 import { streamingParser } from '@/components/markdown/markdown-stream'
 import { mediaKind } from '@/lib/media'
 import { openBrowser } from '@/lib/url'
@@ -197,6 +200,7 @@ function MarkdownView(props: {
   rawHtml?: boolean
   components?: Components
   skills?: string[]
+  images?: boolean
 }) {
   const [parser] = useState(streamingParser)
   return (
@@ -214,7 +218,10 @@ function MarkdownView(props: {
           remarkWindowsPaths,
           ...(props.lineBreaks === true ? [remarkBreaks] : []),
           ...(props.streaming === true ? [parser] : []),
-          ...(props.skills === undefined ? [] : [remarkSkills(props.skills)]),
+          ...(props.skills === undefined || props.skills.length === 0
+            ? []
+            : [remarkSkills(props.skills)]),
+          ...(props.images === true ? [remarkImages()] : []),
         ]}
         rehypePlugins={
           props.rawHtml === false ? [] : [rehypeRaw, [rehypeSanitize, schema]]
