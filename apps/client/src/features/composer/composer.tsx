@@ -22,7 +22,6 @@ import {
 } from '@/lib/store'
 import { cn, mod, touch } from '@/lib/utils'
 import {
-  AttachedImages,
   isPasteInline,
   largePaste,
   lastImageNumber,
@@ -151,20 +150,13 @@ export function Composer(props: {
         )
   const activeIndex = Math.min(active, suggestions.length - 1)
   const empty =
-    (text.trim() === '' && images.length === 0) ||
+    text.trim() === '' ||
     sending ||
     noAccount ||
     (waiting && selection?.sessionId === null)
 
   function edit(value: string, position: number) {
-    editDraft(key, (current) => ({
-      ...current,
-      text: value,
-      images: current.images.filter((image) =>
-        value.includes(`[Image #${image.number}]`)
-      ),
-      files: current.files.filter((file) => value.includes(fileMarker(file))),
-    }))
+    editDraft(key, (current) => ({ ...current, text: value }))
     setCaret(position)
     setActive(0)
     setMenuClosed(false)
@@ -206,7 +198,10 @@ export function Composer(props: {
       if (imageTypes.includes(file.type) && file.size <= maxImageSize) {
         const data = await readBase64(file)
         const number =
-          lastImageNumber(getState().items, [getDraft(key).text]) + 1
+          Math.max(
+            lastImageNumber(getState().items, [getDraft(key).text]),
+            ...getDraft(key).images.map((image) => image.number)
+          ) + 1
         const image = { number, mediaType: file.type, data }
         const at = position
         const marker = `${space}[Image #${number}] `
@@ -312,16 +307,13 @@ export function Composer(props: {
             void attach([...event.dataTransfer.files])
           }}
         >
-          <div
-            className={cn(
-              'pb-1 md:pb-2',
-              images.length > 0 && 'pt-2 sm:pt-4 md:pt-3.5'
-            )}
-          >
-            {images.length > 0 && <AttachedImages draftKey={key} />}
+          <div className="pb-1 md:pb-2">
             <ComposerInput
               text={text}
-              compact={images.length > 0}
+              markers={[
+                ...images.map((image) => `[Image #${image.number}]`),
+                ...attachedFiles.map(fileMarker),
+              ]}
               onEdit={edit}
               onCaret={setCaret}
               onPaste={(event) => {

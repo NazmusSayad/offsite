@@ -133,11 +133,16 @@ export function fileMarker(file: { number: number; name: string }) {
 }
 
 export function hasPrompt(draft: Omit<Draft, 'settings'>) {
-  return (
-    draft.text.trim() !== '' ||
-    draft.images.length > 0 ||
-    draft.files.length > 0
-  )
+  return draft.text.trim() !== ''
+}
+
+export function usedAttachments(draft: Omit<Draft, 'settings'>) {
+  return {
+    images: draft.images.filter((image) =>
+      draft.text.includes(`[Image #${image.number}]`)
+    ),
+    files: draft.files.filter((file) => draft.text.includes(fileMarker(file))),
+  }
 }
 
 export function stashDraft(key: string) {
@@ -148,8 +153,7 @@ export function stashDraft(key: string) {
         id: crypto.randomUUID(),
         createdAt: Date.now(),
         text: draft.text,
-        images: draft.images,
-        files: draft.files,
+        ...usedAttachments(draft),
       },
       ...state.stash,
     ],
