@@ -50,6 +50,7 @@ import { MachinesPage } from './machines'
 import { NotificationsPage } from './notifications'
 import { ProjectsPage } from './projects'
 import { ProviderPage } from './provider'
+import { ServiceButton } from './service'
 import { ShortcutsPage } from './shortcuts'
 import { TerminalPage } from './terminal'
 
@@ -190,6 +191,11 @@ function SettingsPanel() {
           )}
           {machinePages.map(navButton)}
         </div>
+        {machine !== null && (
+          <div className="flex flex-none sm:mt-auto sm:pt-3">
+            <ServiceButton machine={machine.id} />
+          </div>
+        )}
       </nav>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-7">
         <div className="mb-5 flex h-9 items-center">
