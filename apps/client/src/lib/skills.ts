@@ -1,6 +1,6 @@
 import type { SlashCommand } from '@offsite/core/providers'
 
-export const skillPill = 'bg-info/15 text-info rounded-md px-1.5 py-0.5'
+export const skillPill = 'bg-info/15 text-info rounded-md py-0.5 pr-0.75 pl-1'
 
 export function skillRanges(text: string, commands: SlashCommand[]) {
   const ranges: { start: number; end: number }[] = []
