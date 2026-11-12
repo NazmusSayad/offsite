@@ -25,6 +25,7 @@ export function ProjectGroup(props: {
   projectId: string
   sessions: MachineSession[]
   started: MachineSession | null
+  ordered: MachineSession[]
   mobile: boolean
 }) {
   const name = useProjectName(props.machine, props.projectId)
@@ -38,9 +39,6 @@ export function ProjectGroup(props: {
     selection.machine === props.machine &&
     selection.projectId === props.projectId
   const Draft = props.mobile ? MobileGroupedDraftRow : DesktopGroupedDraftRow
-  const Item = props.mobile
-    ? MobileGroupedSessionItem
-    : DesktopGroupedSessionItem
 
   function newThread() {
     openSession({
@@ -75,26 +73,36 @@ export function ProjectGroup(props: {
         </button>
       </li>
       {drafting && <Draft onSelect={newThread} />}
-      {props.sessions.map((session) => (
-        <Item
-          key={machineKey(session.machine, session.id)}
-          session={session}
-          selected={
+      {props.sessions.map((session) => {
+        const item = {
+          session,
+          selected:
             selection?.machine === session.machine &&
-            selection.sessionId === session.id
-          }
-          activity={activityOf(machines, session.machine, session.id)}
-          unseen={unseen.includes(machineKey(session.machine, session.id))}
-          saved={session !== props.started}
-          onSelect={() =>
+            selection.sessionId === session.id,
+          activity: activityOf(machines, session.machine, session.id),
+          unseen: unseen.includes(machineKey(session.machine, session.id)),
+          saved: session !== props.started,
+          onSelect: () =>
             openSession({
               machine: session.machine,
               projectId: session.projectId,
               sessionId: session.id,
-            })
-          }
-        />
-      ))}
+            }),
+        }
+        const index = props.ordered.indexOf(session)
+        return props.mobile ? (
+          <MobileGroupedSessionItem
+            key={machineKey(session.machine, session.id)}
+            {...item}
+          />
+        ) : (
+          <DesktopGroupedSessionItem
+            key={machineKey(session.machine, session.id)}
+            {...item}
+            hotkey={index >= 0 && index < 9 ? String(index + 1) : null}
+          />
+        )
+      })}
     </>
   )
 }

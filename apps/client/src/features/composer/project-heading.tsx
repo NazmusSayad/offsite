@@ -1,6 +1,7 @@
 import { NO_PROJECT } from '@offsite/core/projects'
 import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { HotkeyHint } from '@/components/hotkey-hint'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,6 +63,7 @@ export function ProjectHeading(props: {
                   {projectless ? 'without a project' : project?.name}
                 </span>
                 ?
+                <HotkeyHint keyName=";" placement="above" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent

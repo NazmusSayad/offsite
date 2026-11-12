@@ -78,6 +78,7 @@ export function start() {
     projects: stored.flatMap(restoreProjects),
     prefs: loadPrefs(),
     paletteOpen: false,
+    hotkeyHints: false,
     settingsOpen: false,
     settingsPage: 'General',
     editor: null,

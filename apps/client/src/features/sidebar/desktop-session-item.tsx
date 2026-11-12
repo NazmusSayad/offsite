@@ -10,6 +10,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { memo, useRef, useState } from 'react'
 import { useProjectName } from '@/api/projects'
+import { HotkeyHint } from '@/components/hotkey-hint'
 import { ProjectIcon } from '@/components/icons'
 import {
   AlertDialog,
@@ -58,6 +59,7 @@ function DesktopSessionItemView(props: {
   saved: boolean
   scope: { machine: string; projectId: string } | null
   onSelect: (machine: string, projectId: string, sessionId: string) => void
+  hotkey: string | null
 }) {
   const session = props.session
   const projectTitle = useProjectName(session.machine, session.projectId)
@@ -247,6 +249,9 @@ function DesktopSessionItemView(props: {
                 />
                 {titleText}
                 <SessionStatus activity={props.activity} done={thread.done} />
+                {props.hotkey !== null && (
+                  <HotkeyHint keyName={props.hotkey} placement="row" />
+                )}
               </div>
               <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
                 <MachineLogo

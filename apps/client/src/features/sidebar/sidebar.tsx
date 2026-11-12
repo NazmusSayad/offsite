@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useLocalStorage } from 'usehooks-ts'
 import { machineKey } from '@/api/machines'
+import { HotkeyHint } from '@/components/hotkey-hint'
 import { BookmarksDialog } from '@/features/bookmarks/bookmarks-dialog'
 import {
   DesktopDraftRow,
@@ -134,6 +135,18 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
     ),
   ]
 
+  const ordered = grouped
+    ? groups.flatMap((group) =>
+        listed.filter(
+          (session) =>
+            machineKey(
+              session.machine,
+              groupProject(session.machine, session.projectId)
+            ) === group[0]
+        )
+      )
+    : listed
+
   const Draft = props.mobile ? MobileDraftRow : DesktopDraftRow
 
   function groupProject(machine: string, projectId: string) {
@@ -177,17 +190,6 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
       'mod+9',
     ],
     (event) => {
-      const ordered = grouped
-        ? groups.flatMap((group) =>
-            listed.filter(
-              (session) =>
-                machineKey(
-                  session.machine,
-                  groupProject(session.machine, session.projectId)
-                ) === group[0]
-            )
-          )
-        : listed
       const digit = /^(?:Digit|Numpad)([1-9])$/.exec(event.code)
       if (digit === null) {
         throw new Error(`unexpected session shortcut key ${event.code}`)
@@ -214,20 +216,28 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   }
 
   function row(session: MachineSession) {
-    const Item = props.mobile ? MobileSessionItem : DesktopSessionItem
-    return (
-      <Item
+    const item = {
+      session,
+      selected:
+        selection?.machine === session.machine &&
+        selection.sessionId === session.id,
+      activity: activityOf(machines, session.machine, session.id),
+      unseen: unseen.includes(machineKey(session.machine, session.id)),
+      saved: session !== started,
+      scope,
+      onSelect: select,
+    }
+    const index = ordered.indexOf(session)
+    return props.mobile ? (
+      <MobileSessionItem
         key={machineKey(session.machine, session.id)}
-        session={session}
-        selected={
-          selection?.machine === session.machine &&
-          selection.sessionId === session.id
-        }
-        activity={activityOf(machines, session.machine, session.id)}
-        unseen={unseen.includes(machineKey(session.machine, session.id))}
-        saved={session !== started}
-        scope={scope}
-        onSelect={select}
+        {...item}
+      />
+    ) : (
+      <DesktopSessionItem
+        key={machineKey(session.machine, session.id)}
+        {...item}
+        hotkey={index >= 0 && index < 9 ? String(index + 1) : null}
       />
     )
   }
@@ -312,6 +322,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
               onClick={() => showPalette(true)}
             >
               <HugeiconsIcon icon={SearchIcon} />
+              <HotkeyHint keyName="K" placement="below-end" />
             </button>
             <button
               className={cn(iconButton, 'size-7 [&>svg]:size-4.5')}
@@ -319,6 +330,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
               onClick={startThread}
             >
               <HugeiconsIcon icon={SquarePenIcon} />
+              <HotkeyHint keyName="N" placement="below-start" />
             </button>
           </div>
         </div>
@@ -338,6 +350,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
                       ) === key
                   )}
                   started={started}
+                  ordered={ordered}
                   mobile={props.mobile}
                 />
               ))

@@ -8,6 +8,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { useRef, useState } from 'react'
+import { HotkeyHint } from '@/components/hotkey-hint'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +47,7 @@ export function DesktopGroupedSessionItem(props: {
   unseen: boolean
   saved: boolean
   onSelect: () => void
+  hotkey: string | null
 }) {
   const session = props.session
   const [title, setTitle] = useState<string | null>(null)
@@ -235,6 +237,9 @@ export function DesktopGroupedSessionItem(props: {
               <span className="text-secondary-label shrink-0 text-xs tabular-nums">
                 {timeAgo(session.updatedAt)}
               </span>
+              {props.hotkey !== null && (
+                <HotkeyHint keyName={props.hotkey} placement="row" />
+              )}
             </span>
             {props.saved && (
               <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">

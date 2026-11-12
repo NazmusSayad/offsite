@@ -1,18 +1,10 @@
-import {
-  Asterisk02Icon,
-  BrowserIcon,
-  GitCompareIcon,
-  MoreVerticalIcon,
-  VisualStudioCodeIcon,
-  SquareTerminalIcon,
-  TaskDaily01Icon,
-} from '@hugeicons/core-free-icons'
-import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
+import { Asterisk02Icon, MoreVerticalIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
-import { sumBy } from 'es-toolkit'
-import { type ReactNode, useState, useSyncExternalStore } from 'react'
+import { type ReactNode, useState } from 'react'
 import { FaAngleRight } from 'react-icons/fa6'
 import { useReadLocalStorage } from 'usehooks-ts'
+import { HotkeyHint } from '@/components/hotkey-hint'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,12 +43,6 @@ import {
   DebugDialogs,
 } from '@/features/sidebar/debug-dialogs'
 import { SessionMenuItems } from '@/features/sidebar/session-menu-items'
-import {
-  getState as terminalState,
-  subscribe as subscribeTerminal,
-} from '@/features/terminal/session'
-import { selectedTasks } from '@/features/transcript/tasks'
-import type { Prefs } from '@/lib/prefs'
 import { deactivateSession, editSession } from '@/lib/sessions'
 import {
   activityOf,
@@ -67,25 +53,15 @@ import {
   threadState,
   useStore,
 } from '@/lib/store'
-import { cn, mod } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+import { usePanelOptions } from './panel-options'
 
 export type Panel = 'diff' | 'tasks' | 'browser'
-
-type MenuOption = {
-  id: Prefs['toolbar'][number]
-  label: string
-  title: string
-  icon: IconSvgElement
-  pressed: boolean
-  dot: { color: string | null; status: ReactNode } | null
-  attention: string | null
-  onSelect: () => void
-}
 
 const toggle =
   'text-foreground hover:bg-accent data-[pressed=true]:bg-accent relative grid h-7 min-w-7 cursor-pointer place-items-center rounded-lg border border-transparent [&_svg]:size-4 [&_svg]:opacity-80'
 
-type ToggleProps = {
+export type ToggleProps = {
   selection: Selection
   panel: Panel | null
   terminal: boolean
@@ -123,6 +99,12 @@ export function PanelToggles(props: ToggleProps & { children: ReactNode }) {
                 onClick={option.onSelect}
               >
                 <HugeiconsIcon icon={option.icon} />
+                {option.hotkey !== null && (
+                  <HotkeyHint
+                    keyName={option.hotkey.keyName}
+                    placement={option.hotkey.placement}
+                  />
+                )}
                 {option.dot !== null && option.dot.color !== null && (
                   <span
                     className={cn(
@@ -387,120 +369,4 @@ function StopWorkDialog(props: { session: MachineSession | undefined }) {
       </AlertDialogFooter>
     </>
   )
-}
-
-function usePanelOptions(props: ToggleProps): [MenuOption, ...MenuOption[]] {
-  const terminalAlert = useSyncExternalStore(
-    subscribeTerminal,
-    () => terminalState().alerts.length > 0
-  )
-  const terminalTabs = useSyncExternalStore(
-    subscribeTerminal,
-    () =>
-      terminalState().layout.tabs.filter(
-        (tab) => tab.projectId === props.selection.projectId
-      ).length
-  )
-  const agents = useStore(
-    (state) =>
-      selectedTasks(state).agents.filter((item) => item.status === 'Running')
-        .length
-  )
-  const tasks = useStore(
-    (state) =>
-      selectedTasks(state).tasks.filter((item) => item.status === 'Running')
-        .length
-  )
-  const tasksColor =
-    agents > 0 ? 'text-info' : tasks > 0 ? 'text-muted-foreground' : null
-  const taskCounts = [
-    agents > 0 ? `${agents} ${agents === 1 ? 'agent' : 'agents'}` : null,
-    tasks > 0 ? `${tasks} ${tasks === 1 ? 'task' : 'tasks'}` : null,
-  ].filter((label) => label !== null)
-  const changed = props.repos.some((repo) => repo.changed > 0)
-  const added = sumBy(props.repos, (repo) => repo.added)
-  const removed = sumBy(props.repos, (repo) => repo.removed)
-
-  return [
-    {
-      id: 'diff',
-      label: 'Diff',
-      title: 'Diff',
-      icon: GitCompareIcon,
-      pressed: props.panel === 'diff',
-      dot: changed
-        ? {
-            color: 'text-warning',
-            status:
-              added + removed > 0 ? (
-                <>
-                  <span className="text-diff-addition">+{added}</span>
-                  <span className="text-diff-deletion">-{removed}</span>
-                </>
-              ) : (
-                'Changes'
-              ),
-          }
-        : null,
-      attention: changed ? 'text-warning' : null,
-      onSelect: () => props.onPanel(props.panel === 'diff' ? null : 'diff'),
-    },
-    {
-      id: 'terminal',
-      label: 'Terminal',
-      title: `Terminal (${mod}+\`)`,
-      icon: SquareTerminalIcon,
-      pressed: props.terminal,
-      dot:
-        terminalTabs > 0
-          ? terminalAlert
-            ? { color: 'text-info', status: 'Needs you' }
-            : { color: 'text-muted-foreground', status: `${terminalTabs} open` }
-          : null,
-      attention: terminalAlert
-        ? 'text-info'
-        : terminalTabs > 0
-          ? 'text-muted-foreground'
-          : null,
-      onSelect: () => props.onTerminal(!props.terminal),
-    },
-    {
-      id: 'tasks',
-      label: 'Tasks',
-      title: 'Tasks',
-      icon: TaskDaily01Icon,
-      pressed: props.panel === 'tasks',
-      dot:
-        taskCounts.length > 0
-          ? { color: tasksColor, status: taskCounts.join(' · ') }
-          : null,
-      attention: tasksColor,
-      onSelect: () => props.onPanel(props.panel === 'tasks' ? null : 'tasks'),
-    },
-    {
-      id: 'browser',
-      label: 'Browser',
-      title: 'Browser',
-      icon: BrowserIcon,
-      pressed: props.panel === 'browser',
-      dot: null,
-      attention: null,
-      onSelect: () =>
-        props.onPanel(props.panel === 'browser' ? null : 'browser'),
-    },
-    {
-      id: 'editor',
-      label: 'Editor',
-      title: 'Editor',
-      icon: VisualStudioCodeIcon,
-      pressed: false,
-      dot: null,
-      attention: null,
-      onSelect: () =>
-        showEditor({
-          machine: props.selection.machine,
-          projectId: props.selection.projectId,
-        }),
-    },
-  ]
 }

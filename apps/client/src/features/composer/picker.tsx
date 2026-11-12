@@ -1,5 +1,6 @@
 import { type ReactNode, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { HotkeyHint } from '@/components/hotkey-hint'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +31,7 @@ export function refocusComposer(event: Event) {
 export function Picker(props: {
   title: string
   shortcut: string[]
+  hint: string
   trigger: ReactNode
   value: string
   options: { value: string; label: string }[]
@@ -47,6 +49,7 @@ export function Picker(props: {
       <DropdownMenuTrigger asChild>
         <button className={cn(control, controlSm)} title={props.title}>
           {props.trigger}
+          <HotkeyHint keyName={props.hint} placement="above" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

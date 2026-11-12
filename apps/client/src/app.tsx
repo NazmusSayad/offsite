@@ -1,5 +1,6 @@
 import { lazy, Suspense, useSyncExternalStore } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { useHotkeyHints } from '@/components/hotkey-hint'
 import { Toaster } from '@/components/ui/sonner'
 import { GitErrorDialog } from '@/features/git/git-toast'
 import { SettingsDialog } from '@/features/settings/dialog'
@@ -29,6 +30,7 @@ export function App() {
   const editor = useStore((state) => state.editor)
   const exporting = useStore((state) => state.exporting)
   useAttentionBadge()
+  useHotkeyHints()
   useHotkeys(paletteKeys, () => showPalette(!getState().paletteOpen), {
     enableOnFormTags: true,
     enableOnContentEditable: true,

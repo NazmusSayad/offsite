@@ -115,6 +115,7 @@ export type State = {
   projects: MachineProject[]
   prefs: Prefs
   paletteOpen: boolean
+  hotkeyHints: boolean
   editor: { machine: string; projectId: string } | null
   exporting: MachineSession | null
   removingWorktree: { machine: string; projectId: string } | null

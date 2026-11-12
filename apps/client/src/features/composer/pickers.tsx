@@ -8,6 +8,7 @@ import type { Model, Provider } from '@offsite/core/providers'
 import { type Dispatch, type SetStateAction, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { HotkeyHint } from '@/components/hotkey-hint'
 import { ProviderIcon } from '@/components/icons'
 import {
   Popover,
@@ -52,6 +53,7 @@ export function Pickers() {
           <Picker
             title="Effort"
             shortcut={['mod+shift+e', 'mod+slash']}
+            hint="/"
             trigger={
               <span className="capitalize">{settings.effort ?? 'Default'}</span>
             }
@@ -160,6 +162,7 @@ function ModelPicker() {
               )}
           </span>
           <span className="max-w-40 truncate">{label}</span>
+          <HotkeyHint keyName="." placement="above" />
         </button>
       </PopoverTrigger>
       <PopoverContent

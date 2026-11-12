@@ -11,6 +11,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { machineKey } from '@/api/machines'
 import { rankProjects } from '@/api/projects'
+import { HotkeyHint } from '@/components/hotkey-hint'
 import { MoreProjectsLabel, ProjectIcon } from '@/components/icons'
 import {
   DropdownMenu,
@@ -85,6 +86,7 @@ export function ScopeMenu(props: {
             icon={ChevronDownIcon}
             className="text-sidebar-muted-foreground size-3.5 shrink-0"
           />
+          <HotkeyHint keyName="P" placement="below" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="flex w-64 flex-col overflow-hidden p-0">
