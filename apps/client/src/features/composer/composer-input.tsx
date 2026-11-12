@@ -47,6 +47,7 @@ export function ComposerInput(props: {
   text: string
   markers: string[]
   placeholder: string
+  collapsible: boolean
   onEdit: (text: string, caret: number) => void
   onCaret: (caret: number) => void
   onKeyDown: (event: KeyboardEvent) => boolean
@@ -137,7 +138,10 @@ export function ComposerInput(props: {
       editor={editor}
       className={cn(
         'grid overflow-y-auto text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap',
-        'max-h-55.5 min-h-20 sm:max-h-56 [@media(min-height:840px)]:min-h-23 sm:[@media(min-height:840px)]:min-h-23.5'
+        'max-h-55.5 sm:max-h-56 sm:min-h-20 sm:[@media(min-height:840px)]:min-h-23.5',
+        props.collapsible &&
+          'min-h-[calc(3lh+0.5rem)] transition-[min-height,max-height] duration-200 ease-out max-sm:not-focus-within:max-h-11 max-sm:not-focus-within:min-h-11 motion-reduce:transition-none',
+        !props.collapsible && 'min-h-20 [@media(min-height:840px)]:min-h-23'
       )}
     />
   )
