@@ -1,0 +1,11 @@
+{
+  "title": "Docs",
+  "pages": [
+    "index",
+    "getting-started",
+    "pairing",
+    "run-at-login",
+    "media",
+    "cli"
+  ]
+}

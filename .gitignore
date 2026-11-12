@@ -2,3 +2,7 @@ node_modules/
 dist/
 .playwright-cli/
 .astro/
+.next/
+.source/
+next-env.d.ts
+*.tsbuildinfo

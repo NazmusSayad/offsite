@@ -1,0 +1,33 @@
+---
+title: Getting started
+description: Start OffSite and open it in your browser.
+---
+
+## Requirements
+
+- Node.js
+- Claude Code on your `PATH`. OffSite won't start without it.
+- Codex and OpenCode, if you want to use them.
+
+## Start OffSite
+
+```sh
+npx offsite
+```
+
+OffSite prints a link:
+
+```txt
+offsite is running at http://127.0.0.1:47841/pair#…
+```
+
+Open it in your browser. That browser is now paired, and every other browser is refused until you pair it. See [Pairing](/docs/pairing) to add your phone or another browser.
+
+## Use it with the CLI
+
+OffSite opens the same sessions as `claude`, `codex` and `opencode`. A thread you start in the browser can be resumed in the CLI, and the other way around.
+
+<Callout type="warn">
+  Keep a session open in one place at a time. Switch as often as you like, just
+  not both at once.
+</Callout>

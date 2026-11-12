@@ -1,0 +1,36 @@
+---
+title: Run at login
+description: Keep OffSite running in the background.
+---
+
+## Install
+
+```sh
+npx offsite install
+```
+
+OffSite now starts when you log in, with the options you passed to `install`. It runs on port `2020` unless you pass `--port`.
+
+## Check on it
+
+```sh
+npx offsite status
+```
+
+Shows whether OffSite is running, and if it is idle or busy.
+
+## Update
+
+```sh
+npx offsite update
+```
+
+Updates OffSite with the package manager the service uses, then restarts it.
+
+## Uninstall
+
+```sh
+npx offsite uninstall
+```
+
+Stops OffSite from starting at login and updating itself.
