@@ -127,8 +127,9 @@ export const args = {
   portGiven,
   service: options.service === true,
   serverArguments: [
-    '--dir',
-    path.resolve(options.dir),
+    ...(program.getOptionValueSource('dir') === 'cli'
+      ? ['--dir', path.resolve(options.dir)]
+      : []),
     ...(program.getOptionValueSource('host') === 'cli'
       ? ['--host', options.host]
       : []),

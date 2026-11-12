@@ -1,9 +1,17 @@
 import { execFile } from 'node:child_process'
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { scriptFile } from './settings.ts'
+import { serverDir } from '../../args.ts'
+import { scriptFile, serviceDir } from './settings.ts'
 
 const run = promisify(execFile)
 const NAME = 'offsite'
@@ -14,6 +22,16 @@ const unitFile = path.join(
   'user',
   `${NAME}.service`
 )
+const launcherSource = path.join(
+  serverDir,
+  'src',
+  'services',
+  'service',
+  'macos',
+  'offsite.app'
+)
+const launcher = path.join(serviceDir, 'offsite.app')
+const launcherProgram = path.join(launcher, 'Contents', 'MacOS', 'offsite')
 const plistFile = path.join(
   os.homedir(),
   'Library',
@@ -85,6 +103,9 @@ async function unregisterLinux() {
 }
 
 async function registerMac() {
+  rmSync(launcher, { recursive: true, force: true })
+  cpSync(launcherSource, launcher, { recursive: true })
+  chmodSync(launcherProgram, 0o755)
   mkdirSync(path.dirname(plistFile), { recursive: true })
   writeFileSync(
     plistFile,
@@ -95,7 +116,7 @@ async function registerMac() {
       '<dict>',
       `  <key>Label</key><string>${NAME}</string>`,
       '  <key>ProgramArguments</key>',
-      `  <array><string>/bin/sh</string><string>${escapeXml(scriptFile)}</string></array>`,
+      `  <array><string>${escapeXml(launcherProgram)}</string><string>${escapeXml(scriptFile)}</string></array>`,
       '  <key>RunAtLoad</key><true/>',
       '</dict>',
       '</plist>',
