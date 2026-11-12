@@ -46,6 +46,8 @@ export function UserMessage(props: {
     prompt.trim() !== '' &&
     (prompt.length > 600 || prompt.split('\n').length > 8)
   const collapsed = canCollapse && !expanded
+  const slash =
+    item.format === 'command' ? /^(\/\S+)(.*)$/s.exec(item.text) : null
   const unsent = unsentId(item)
   const failed = useStore(
     (state) =>
@@ -88,8 +90,14 @@ export function UserMessage(props: {
                   : undefined
               }
             >
-              {item.format === 'command' && (
+              {item.format === 'command' && slash === null && (
                 <span className="font-mono text-sm">{item.text}</span>
+              )}
+              {slash !== null && (
+                <p className="text-foreground text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap">
+                  <span className="font-mono">{slash[1]}</span>
+                  {slash[2]}
+                </p>
               )}
               {item.format === 'output' && (
                 <pre className="text-muted-foreground font-mono text-xs whitespace-pre-wrap">
