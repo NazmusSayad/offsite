@@ -95,7 +95,9 @@ export function UserMessage(props: {
               )}
               {slash !== null && (
                 <p className="text-foreground text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap">
-                  <span className="font-mono">{slash[1]}</span>
+                  <span className="bg-info/15 text-info rounded-md px-1.5 py-0.5">
+                    {slash[1]}
+                  </span>
                   {slash[2]}
                 </p>
               )}
