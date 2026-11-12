@@ -66,6 +66,13 @@ export async function unregister() {
 }
 
 async function registerLinux() {
+  try {
+    await run('loginctl', ['enable-linger'])
+  } catch {
+    console.warn(
+      `Could not keep offsite running after logout; run: sudo loginctl enable-linger ${os.userInfo().username}`
+    )
+  }
   mkdirSync(path.dirname(unitFile), { recursive: true })
   writeFileSync(
     unitFile,
@@ -81,25 +88,28 @@ async function registerLinux() {
       '',
     ].join('\n')
   )
-  await run('systemctl', ['--user', 'daemon-reload'])
-  await run('systemctl', ['--user', 'enable', `${NAME}.service`])
-  await run('systemctl', ['--user', 'restart', `${NAME}.service`])
-  try {
-    await run('loginctl', ['enable-linger'])
-  } catch {
-    console.warn(
-      `Could not keep offsite running after logout; run: sudo loginctl enable-linger ${os.userInfo().username}`
-    )
-  }
+  await systemctl(['daemon-reload'])
+  await systemctl(['enable', `${NAME}.service`])
+  await systemctl(['restart', `${NAME}.service`])
 }
 
 async function unregisterLinux() {
   if (!existsSync(unitFile)) {
     return
   }
-  await run('systemctl', ['--user', 'disable', '--now', `${NAME}.service`])
+  await systemctl(['disable', '--now', `${NAME}.service`])
   rmSync(unitFile)
-  await run('systemctl', ['--user', 'daemon-reload'])
+  await systemctl(['daemon-reload'])
+}
+
+function systemctl(commandArguments: string[]) {
+  return run('systemctl', ['--user', ...commandArguments], {
+    env: {
+      ...process.env,
+      XDG_RUNTIME_DIR:
+        process.env.XDG_RUNTIME_DIR ?? `/run/user/${os.userInfo().uid}`,
+    },
+  })
 }
 
 async function registerMac() {

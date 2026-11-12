@@ -67,13 +67,22 @@ async function prune() {
   }
 }
 
+export async function checkNow() {
+  if (version === 'dev') {
+    throw new Error("a dev build doesn't check for updates")
+  }
+  const latest = await latestVersion()
+  const isNewer = newer(latest, version)
+  if (args.service && isNewer && available !== latest) {
+    available = latest
+    broadcast({ type: 'service', service: serviceState() })
+  }
+  return { latest, newer: isNewer }
+}
+
 async function check() {
   try {
-    const latest = await latestVersion()
-    if (newer(latest, version) && available !== latest) {
-      available = latest
-      broadcast({ type: 'service', service: serviceState() })
-    }
+    await checkNow()
   } catch (error) {
     log.warn('could not check for an offsite update:', error)
   }
@@ -101,7 +110,7 @@ export function restartSoon() {
   setTimeout(restart, RESTART_DELAY)
 }
 
-function install(settings: ServiceSettings) {
+export function install(settings: ServiceSettings) {
   installing ??= installLatest(settings).finally(() => {
     installing = null
   })
@@ -117,7 +126,7 @@ async function installLatest(settings: ServiceSettings) {
   return runOffsite(['--version'])
 }
 
-function newer(candidate: string, current: string) {
+export function newer(candidate: string, current: string) {
   const next = candidate.split('-')[0].split('.').map(Number)
   const now = current.split('-')[0].split('.').map(Number)
   for (let index = 0; index < 3; index++) {
@@ -128,7 +137,7 @@ function newer(candidate: string, current: string) {
   return current.includes('-') && !candidate.includes('-')
 }
 
-async function latestVersion() {
+export async function latestVersion() {
   const response = await fetch('https://registry.npmjs.org/offsite/latest', {
     signal: AbortSignal.timeout(REGISTRY_TIMEOUT),
   })

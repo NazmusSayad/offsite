@@ -4,11 +4,12 @@ import { setTimeout } from 'node:timers/promises'
 import { packageManagers } from '@offsite/core/service'
 import { consola } from 'consola'
 import { z } from 'zod'
-import { args, SERVICE_PORT } from '../../args.ts'
+import { args, SERVICE_PORT, version } from '../../args.ts'
 import { home, readJson, runningPid } from '../../storage/storage.ts'
 import { unregister } from './register.ts'
 import { readServiceSettings, serviceDir, settingsFile } from './settings.ts'
 import { findOffsite, setUp } from './setup.ts'
+import { install as installUpdate, latestVersion, newer } from './update.ts'
 
 const STATUS_TIMEOUT = 10_000
 const STOP_TIMEOUT = 15_000
@@ -134,6 +135,45 @@ export async function status() {
   for (const reason of state.busy) {
     console.log(`  ${reason}`)
   }
+}
+
+export async function update() {
+  const settings = readServiceSettings()
+  if (settings === null) {
+    console.error(
+      "offsite isn't installed as a service; update it with your package manager"
+    )
+    process.exit(1)
+  }
+  if (version === 'dev') {
+    console.error("a dev build can't update itself")
+    process.exit(1)
+  }
+  const latest = await latestVersion()
+  if (!newer(latest, version)) {
+    console.log(`offsite ${version} is the latest`)
+    return
+  }
+  console.log(
+    `Updating offsite ${version} to ${latest} with ${settings.manager}…`
+  )
+  const installed = await installUpdate(settings)
+  if (!newer(installed, version)) {
+    console.error(
+      `the update finished, but a new terminal still runs offsite ${installed}; check that the offsite on your PATH is the one ${settings.manager} installs`
+    )
+    process.exit(1)
+  }
+  const pid = runningPid()
+  const running = runningSchema.safeParse(readJson('server.json'))
+  if (pid !== null && running.success && running.data.service) {
+    process.kill(pid)
+    console.log(
+      `offsite ${installed} is installed; the service is restarting with it`
+    )
+    return
+  }
+  console.log(`offsite ${installed} is installed`)
 }
 
 async function stopService() {

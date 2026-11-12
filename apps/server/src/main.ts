@@ -29,7 +29,12 @@ import {
 import { installOpen, loopback, openSecret } from './services/open/open.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
-import { install, status, uninstall } from './services/service/commands.ts'
+import {
+  install,
+  status,
+  uninstall,
+  update,
+} from './services/service/commands.ts'
 import { answerStatus, statusSecret } from './services/service/status.ts'
 import { startService } from './services/service/update.ts'
 import { refreshAll, watchSessions } from './services/sessions.ts'
@@ -100,6 +105,11 @@ if (args.command === 'uninstall') {
 
 if (args.command === 'status') {
   await status()
+  process.exit(0)
+}
+
+if (args.command === 'update') {
+  await update()
   process.exit(0)
 }
 

@@ -93,6 +93,10 @@ export type RpcMethods = {
   'service.busy': { params: void; result: string[] }
   'service.install': { params: ServiceSettings; result: null }
   'service.update': { params: void; result: null }
+  'service.check': {
+    params: void
+    result: { latest: string; newer: boolean }
+  }
   'projects.add': { params: { path: string }; result: Project }
   'projects.update': {
     params: { id: string; patch: ProjectPatch }

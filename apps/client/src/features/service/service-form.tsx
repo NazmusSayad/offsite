@@ -3,7 +3,6 @@ import { type ReactNode, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
-import { DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -16,10 +15,11 @@ import { Switch } from '@/components/ui/switch'
 import { useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 
-export function ServiceDialog(props: {
+export function ServiceForm(props: {
   machine: string
   update: boolean
-  onClose: () => void
+  onDone: () => void
+  onCancel?: () => void
 }) {
   const machine = useStore((state) =>
     state.machines.find((item) => item.id === props.machine)
@@ -29,10 +29,9 @@ export function ServiceDialog(props: {
   const [manager, setManager] = useState<PackageManager | null>(
     service?.manager ?? null
   )
-  const [options, setOptions] = useState(() => {
-    const read = readOptions(service?.arguments ?? [])
-    return service?.installed ? read : { ...read, auth: true }
-  })
+  const [options, setOptions] = useState(() =>
+    readOptions(service?.arguments ?? [])
+  )
   const [busy, setBusy] = useState<string[] | null>(null)
   const [working, setWorking] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -58,9 +57,7 @@ export function ServiceDialog(props: {
 
   if (machine === undefined || service === null) {
     return (
-      <DialogHeader className="px-6 py-4">
-        <DialogTitle className="text-base">This machine is offline</DialogTitle>
-      </DialogHeader>
+      <p className="text-muted-foreground text-sm">This machine is offline</p>
     )
   }
 
@@ -82,8 +79,8 @@ export function ServiceDialog(props: {
           arguments: writeOptions(options),
         })
       }
-      props.onClose()
-      toast('offsite is restarting')
+      props.onDone()
+      toast(`OffSite - ${machine?.name} is restarting`)
     } catch (failure) {
       setError(errorMessage(failure))
       setWorking(false)
@@ -91,98 +88,91 @@ export function ServiceDialog(props: {
   }
 
   return (
-    <>
-      <DialogHeader className="px-6 pt-4 pr-12">
-        <DialogTitle className="text-base">
-          {update !== null && `Update offsite to ${update}`}
-          {update === null &&
-            (service.installed ? 'offsite service' : 'Install offsite service')}
-        </DialogTitle>
-      </DialogHeader>
-      <div className="flex flex-col gap-4 px-6 pt-4 pb-6 text-sm empty:hidden">
-        {update === null && (
-          <>
-            <label className="flex flex-col gap-2">
-              <span className="font-medium">Package manager</span>
-              <Select
-                value={manager ?? undefined}
-                onValueChange={(value: PackageManager) => setManager(value)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Pick one" />
-                </SelectTrigger>
-                <SelectContent>
-                  {packageManagers.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-            <div className="grid grid-cols-[1fr_6.5rem] gap-3">
-              <Field label="Host">
-                <Input
-                  className="font-mono"
-                  value={options.host}
-                  onChange={(event) =>
-                    setOptions({ ...options, host: event.target.value })
-                  }
-                />
-              </Field>
-              <Field label="Port">
-                <Input
-                  type="number"
-                  min={1}
-                  max={65535}
-                  className="font-mono"
-                  value={options.port}
-                  onChange={(event) =>
-                    setOptions({ ...options, port: event.target.value })
-                  }
-                />
-              </Field>
-            </div>
-            <Toggle
-              label="Authentication"
-              checked={options.auth}
-              onChange={(auth) => setOptions({ ...options, auth })}
-            />
-            {!options.auth && (
-              <Field label="Auto-connect URLs">
-                <Input
-                  className="font-mono"
-                  placeholder="https://example.com"
-                  value={options.connect}
-                  onChange={(event) =>
-                    setOptions({ ...options, connect: event.target.value })
-                  }
-                />
-              </Field>
-            )}
-            <Toggle
-              label="Install as app (PWA)"
-              checked={options.pwa}
-              onChange={(pwa) => setOptions({ ...options, pwa })}
-            />
-          </>
-        )}
-        {busy !== null && busy.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <p className="text-destructive font-medium">Restarting stops:</p>
-            <ul className="text-muted-foreground list-disc pl-5">
-              {busy.map((reason, index) => (
-                <li key={`${index} ${reason}`}>{reason}</li>
-              ))}
-            </ul>
+    <div className="flex flex-col gap-4 text-sm">
+      {update === null && (
+        <>
+          <label className="flex flex-col gap-2">
+            <span className="font-medium">Package manager</span>
+            <Select
+              value={manager ?? undefined}
+              onValueChange={(value: PackageManager) => setManager(value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Pick one" />
+              </SelectTrigger>
+              <SelectContent>
+                {packageManagers.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+          <div className="grid grid-cols-[1fr_6.5rem] gap-3">
+            <Field label="Host">
+              <Input
+                className="font-mono"
+                value={options.host}
+                onChange={(event) =>
+                  setOptions({ ...options, host: event.target.value })
+                }
+              />
+            </Field>
+            <Field label="Port">
+              <Input
+                type="number"
+                min={1}
+                max={65535}
+                className="font-mono"
+                value={options.port}
+                onChange={(event) =>
+                  setOptions({ ...options, port: event.target.value })
+                }
+              />
+            </Field>
           </div>
+          <Toggle
+            label="Authentication"
+            checked={options.auth}
+            onChange={(auth) => setOptions({ ...options, auth })}
+          />
+          {!options.auth && (
+            <Field label="Auto-connect URLs">
+              <Input
+                className="font-mono"
+                placeholder="https://example.com"
+                value={options.connect}
+                onChange={(event) =>
+                  setOptions({ ...options, connect: event.target.value })
+                }
+              />
+            </Field>
+          )}
+          <Toggle
+            label="Install as app (PWA)"
+            checked={options.pwa}
+            onChange={(pwa) => setOptions({ ...options, pwa })}
+          />
+        </>
+      )}
+      {busy !== null && busy.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-destructive font-medium">Restarting stops:</p>
+          <ul className="text-muted-foreground list-disc pl-5">
+            {busy.map((reason, index) => (
+              <li key={`${index} ${reason}`}>{reason}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {error !== null && <p className="text-destructive">{error}</p>}
+      <div className="flex justify-end gap-2 pt-2">
+        {props.onCancel !== undefined && (
+          <Button type="button" variant="outline" onClick={props.onCancel}>
+            Cancel
+          </Button>
         )}
-        {error !== null && <p className="text-destructive">{error}</p>}
-      </div>
-      <DialogFooter className="bg-muted/40 border-t px-6 py-4">
-        <Button type="button" variant="outline" onClick={props.onClose}>
-          Cancel
-        </Button>
         <Button
           type="button"
           variant={busy !== null && busy.length > 0 ? 'destructive' : 'default'}
@@ -193,8 +183,8 @@ export function ServiceDialog(props: {
         >
           {working ? `${action === 'Save' ? 'Sav' : action}ing…` : action}
         </Button>
-      </DialogFooter>
-    </>
+      </div>
+    </div>
   )
 }
 

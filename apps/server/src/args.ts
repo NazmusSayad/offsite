@@ -12,6 +12,7 @@ let command = 'web' as
   | 'install'
   | 'uninstall'
   | 'status'
+  | 'update'
 let name = null as string | null
 
 export const SERVICE_PORT = '2020'
@@ -79,6 +80,15 @@ program
   .description('Stops offsite from starting at login and updating itself')
   .action(() => {
     command = 'uninstall'
+  })
+
+program
+  .command('update')
+  .description(
+    'Updates offsite with the package manager the service uses, then restarts the service'
+  )
+  .action(() => {
+    command = 'update'
   })
 
 program
