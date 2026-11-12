@@ -82,7 +82,7 @@ export const bookmarks = snakeCase.table('bookmarks', {
   createdAt: integer().notNull(),
 })
 
-export const unsentPrompts = snakeCase.table('unsent_prompts', {
+export const outbox = snakeCase.table('outbox', {
   id: text().primaryKey(),
   sessionId: text(),
   projectId: text().notNull(),

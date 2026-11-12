@@ -31,6 +31,7 @@ import { FittedStatusChips, StatusChips } from '@/features/sidebar/status-chips'
 import { useInactiveSessions } from '@/features/sidebar/use-inactive-sessions'
 import { CloseAllDialog } from '@/features/terminal/dialogs'
 import { UsageDialog } from '@/features/usage/usage-dialog'
+import { chatSessionId, outboxChats } from '@/lib/outbox'
 import { lastProject, openSession, startChat } from '@/lib/sessions'
 import {
   activityOf,
@@ -52,6 +53,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   const selection = useStore((state) => state.selection)
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
+  const outbox = useStore((state) => state.outbox)
   const projects = useStore((state) => state.projects)
   const provider = useStore((state) => state.settings.provider)
   const unseen = useStore((state) => state.unseen)
@@ -73,7 +75,8 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   const [inactiveLimit, setInactiveLimit] = useState(DONE_PAGE)
   const [storedWidth, setWidth] = useLocalStorage('sidebarWidth', 256)
   const width = Math.max(256, storedWidth)
-  const shown = sessions
+  const chats = outboxChats(machines, outbox)
+  const shown = [...chats, ...sessions]
     .filter(
       (session) =>
         scope === null ||
@@ -84,8 +87,9 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   const snoozed = shown.filter(
     (session) =>
       session.status === 'snoozed' &&
-      threadState(activityOf(machines, session.machine, session.id), false)
-        .working
+      (chatSessionId(session.id) === null ||
+        threadState(activityOf(machines, session.machine, session.id), false)
+          .working)
   )
   const active = [
     ...shown.filter((session) => session.status === 'pinned'),
@@ -120,7 +124,15 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
         }
       : null
   const draft =
-    selection !== null && selection.sessionId === null ? selection : null
+    selection !== null &&
+    selection.sessionId === null &&
+    !chats.some(
+      (chat) =>
+        chat.machine === selection.machine &&
+        chat.projectId === selection.projectId
+    )
+      ? selection
+      : null
   const listed = started === null ? active : [started, ...active]
   const grouped = groupActiveByProject && scope === null
   const groups = [
@@ -220,10 +232,12 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
       session,
       selected:
         selection?.machine === session.machine &&
-        selection.sessionId === session.id,
+        selection.sessionId === chatSessionId(session.id) &&
+        (selection.sessionId !== null ||
+          selection.projectId === session.projectId),
       activity: activityOf(machines, session.machine, session.id),
       unseen: unseen.includes(machineKey(session.machine, session.id)),
-      saved: session !== started,
+      saved: session !== started && chatSessionId(session.id) !== null,
       scope,
       onSelect: select,
     }
@@ -470,5 +484,9 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
 }
 
 function select(machine: string, projectId: string, sessionId: string | null) {
-  openSession({ machine, projectId, sessionId })
+  openSession({
+    machine,
+    projectId,
+    sessionId: sessionId === null ? null : chatSessionId(sessionId),
+  })
 }

@@ -248,7 +248,11 @@ function DesktopSessionItemView(props: {
                   )}
                 />
                 {titleText}
-                <SessionStatus activity={props.activity} done={thread.done} />
+                <SessionStatus
+                  session={session}
+                  activity={props.activity}
+                  done={thread.done}
+                />
                 {props.hotkey !== null && (
                   <HotkeyHint keyName={props.hotkey} placement="row" />
                 )}

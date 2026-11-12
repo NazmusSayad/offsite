@@ -40,7 +40,7 @@ import {
   UserMessage,
 } from '@/features/transcript/user-message'
 import { clock, fullTime } from '@/lib/format'
-import { selectedPrompts, unsentItems } from '@/lib/pending'
+import { selectedPrompts, outboxItems } from '@/lib/outbox'
 import { loadEarlier } from '@/lib/sessions'
 import {
   projectOf,
@@ -118,7 +118,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   const rows = [
     ...olderRows,
     ...mainRows(
-      loaded ? [...items, ...unsentItems(prompts)] : items,
+      loaded ? [...items, ...outboxItems(prompts)] : items,
       running,
       partial
     ),

@@ -53,6 +53,7 @@ import {
 } from '../services/git.ts'
 import { logoFiles, readLogo } from '../services/logos.ts'
 import { searchMessages } from '../services/message-search.ts'
+import { removeFromOutbox } from '../services/outbox.ts'
 import {
   addProject,
   directories,
@@ -100,7 +101,6 @@ import {
   terminalInput,
   terminalRequest,
 } from '../services/terminal/terminal.ts'
-import { removeUnsent } from '../services/unsent.ts'
 import { readUsage } from '../services/usage.ts'
 import { configInfo } from '../storage/config.ts'
 import { saveAppIcon } from '../storage/state.ts'
@@ -179,7 +179,7 @@ const handlers: Handlers = {
     return null
   },
   'sessions.unqueue': (params) => {
-    removeUnsent(params.id)
+    removeFromOutbox(params.id)
     return null
   },
   'sessions.resend': async (params, client) => {

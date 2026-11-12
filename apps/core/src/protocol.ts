@@ -28,7 +28,7 @@ import type {
   Item,
   PermissionRequest,
   Prompt,
-  UnsentPrompt,
+  OutboxPrompt,
 } from './items.ts'
 import type {
   DirectoryListing,
@@ -75,7 +75,7 @@ export type SyncSnapshot = ConfigWithDefaults & {
   hostname: string
   projects: Project[]
   sessions: Session[]
-  unsent: UnsentPrompt[]
+  outbox: OutboxPrompt[]
   providers: ProviderStatus[]
   activity: Record<string, SessionActivity>
   terminals: TerminalTab[]
@@ -456,7 +456,7 @@ export type ServerEvent =
   | { type: 'delta'; sessionId: string; text: string }
   | { type: 'request'; sessionId: string; request: PermissionRequest }
   | { type: 'requestDone'; sessionId: string; requestId: string }
-  | { type: 'unsent'; unsent: UnsentPrompt[] }
+  | { type: 'outbox'; outbox: OutboxPrompt[] }
   | { type: 'settings'; sessionId: string; settings: SessionSettings }
   | { type: 'context'; sessionId: string; context: ContextUsage | null }
   | { type: 'notification'; sessionId: string; message: string }

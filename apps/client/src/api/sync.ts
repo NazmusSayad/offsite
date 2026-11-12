@@ -24,7 +24,7 @@ import {
 import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
 import { claimNotifications, notify, push } from '@/lib/notifications'
-import { receiveUnsent } from '@/lib/pending'
+import { receiveOutbox } from '@/lib/outbox'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
 import { closeSession, loadSession, openSession } from '@/lib/sessions'
@@ -101,7 +101,7 @@ export function start() {
     before: null,
     partial: '',
     requests: [],
-    pending: [],
+    outbox: [],
     settings: (selection === null || selection.sessionId === null
       ? null
       : getDraftSettings(draftKey(selection))) ?? {
@@ -221,7 +221,7 @@ async function resync(machine: string) {
       lastPickedEffortByModel: snapshot.lastEfforts,
     })
     receiveBookmarks(machine, snapshot.bookmarks)
-    receiveUnsent(machine, snapshot.unsent)
+    receiveOutbox(machine, snapshot.outbox)
     settleDisconnected(machine)
     setProjects(machine, snapshot.projects)
     setSessions(machine, snapshot.sessions)
@@ -359,8 +359,8 @@ function receive(machine: string, event: ServerEvent) {
         setTerminalOpen(true)
       }
       return
-    case 'unsent':
-      receiveUnsent(machine, event.unsent)
+    case 'outbox':
+      receiveOutbox(machine, event.outbox)
       return
     case 'started': {
       if (

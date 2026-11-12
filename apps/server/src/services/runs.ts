@@ -30,6 +30,12 @@ import {
 import { savePrompt } from '../storage/interactions.ts'
 import { assertEnabled, providerName } from './accounts.ts'
 import {
+  findInOutbox,
+  moveOutboxPrompt,
+  addToOutbox,
+  setOutboxStatus,
+} from './outbox.ts'
+import {
   addScratchProject,
   addWorktreeProject,
   deleteWorktreeProject,
@@ -42,15 +48,11 @@ import {
 import {
   listedUpdatedAt,
   providerOf,
+  publishSessions,
   recordInteraction,
   updateSession,
 } from './sessions.ts'
-import {
-  findUnsent,
-  moveUnsent,
-  saveUnsent,
-  setUnsentStatus,
-} from './unsent.ts'
+import { addStarting } from './starting-sessions.ts'
 import { setUpWorktree } from './worktree-sessions.ts'
 
 export const locked = keyedLock()
@@ -235,17 +237,18 @@ export async function send(
   client: Client,
   request: RpcMethods['sessions.send']['params']
 ) {
-  saveUnsent(request)
+  addToOutbox(request)
+  await new Promise((resolve) => setTimeout(resolve, 8000))
   try {
     await deliver(client, request)
   } catch (error) {
-    setUnsentStatus(request.id, 'failed')
+    setOutboxStatus(request.id, 'failed')
     throw error
   }
 }
 
 export async function resend(client: Client, id: string) {
-  const row = findUnsent(id)
+  const row = findInOutbox(id)
   if (row === undefined) {
     throw new Error('This message no longer exists')
   }
@@ -344,9 +347,19 @@ async function submitFirst(
     projectId,
     from: request.projectId,
   })
-  moveUnsent(request.id, sessionId, projectId)
-  await run.submit(request.id, request.prompt, request.delivery)
   recordInteraction(sessionId, run.provider, request.status)
+  addStarting({
+    id: sessionId,
+    provider: run.provider,
+    title: request.prompt.text === '' ? 'New thread' : request.prompt.text,
+    projectId,
+    branch: null,
+    updatedAt: Date.now(),
+    claudeWorktree: false,
+  })
+  publishSessions()
+  moveOutboxPrompt(request.id, sessionId, projectId)
+  await run.submit(request.id, request.prompt, request.delivery)
   recordPrompt(request.settings, projectId, sessionId)
 }
 

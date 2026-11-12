@@ -13,9 +13,9 @@ import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
 import {
   failQueued,
   queuedFor,
-  removeUnsent,
-  setUnsentStatus,
-} from '../../services/unsent.ts'
+  removeFromOutbox,
+  setOutboxStatus,
+} from '../../services/outbox.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import { logger } from '../log.ts'
@@ -111,7 +111,7 @@ export class Run {
   submit(id: string, prompt: Prompt, delivery: 'queue' | 'steer') {
     if (!this.running) {
       this.push(prompt)
-      removeUnsent(id)
+      removeFromOutbox(id)
       return
     }
     switch (delivery) {
@@ -120,11 +120,11 @@ export class Run {
         this.inbox.push({ prompt, uuid, priority: 'next' })
         this.wake?.()
         this.steering.set(uuid, { id, prompt })
-        setUnsentStatus(id, 'sending')
+        setOutboxStatus(id, 'sending')
         return
       }
       case 'queue':
-        setUnsentStatus(id, 'queued')
+        setOutboxStatus(id, 'queued')
     }
   }
 
@@ -237,7 +237,7 @@ export class Run {
     }
     this.running = false
     for (const steered of this.steering.values()) {
-      setUnsentStatus(steered.id, 'failed')
+      setOutboxStatus(steered.id, 'failed')
     }
     failQueued(this.sessionId)
     broadcastActivity()
@@ -273,7 +273,7 @@ export class Run {
           }
           this.steering.delete(message.uuid)
           this.add(promptMessage(steered.prompt, message.uuid))
-          removeUnsent(steered.id)
+          removeFromOutbox(steered.id)
           return
         }
         if (message.isSynthetic) {
@@ -417,7 +417,7 @@ export class Run {
     const next = queuedFor(this.sessionId).at(0)
     if (next !== undefined) {
       this.push(next.prompt)
-      removeUnsent(next.id)
+      removeFromOutbox(next.id)
       return
     }
     this.running = false

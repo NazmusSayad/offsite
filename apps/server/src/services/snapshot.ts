@@ -9,11 +9,11 @@ import {
 } from '../storage/interactions.ts'
 import { readAppIcon } from '../storage/state.ts'
 import { readBookmarks } from './bookmarks.ts'
+import { outboxPrompts } from './outbox.ts'
 import { projects } from './projects.ts'
 import { serviceState } from './service/update.ts'
 import { providerStatuses, refreshAll, sessions } from './sessions.ts'
 import { terminalTabs } from './terminal/terminal.ts'
-import { allUnsent } from './unsent.ts'
 
 export function syncSnapshot(): SyncSnapshot {
   refreshAll()
@@ -25,7 +25,7 @@ export function syncSnapshot(): SyncSnapshot {
     hostname: os.hostname(),
     projects: projects(),
     sessions: sessions(),
-    unsent: allUnsent(),
+    outbox: outboxPrompts(),
     providers: providerStatuses(),
     activity: activity(),
     terminals: terminalTabs(),

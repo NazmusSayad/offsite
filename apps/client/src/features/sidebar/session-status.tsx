@@ -1,4 +1,5 @@
 import {
+  AlertCircleIcon,
   BadgeQuestionMarkIcon,
   CheckmarkCircle03Icon,
   CircleDashedIcon,
@@ -8,13 +9,20 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
+import { notSent } from '@/lib/outbox'
+import { type MachineSession, useStore } from '@/lib/store'
 
 export function SessionStatus(props: {
+  session: MachineSession
   activity: SessionActivity | undefined
   done: boolean
 }) {
-  return props.activity?.approval === true &&
-    props.activity?.question === true ? (
+  const failed = useStore((state) => notSent(state, props.session))
+  return failed ? (
+    <span title="Not sent" className="text-error flex">
+      <HugeiconsIcon icon={AlertCircleIcon} className="size-4 shrink-0" />
+    </span>
+  ) : props.activity?.approval === true && props.activity?.question === true ? (
     <span
       title="Waiting for approval and an answer"
       className="text-question flex"

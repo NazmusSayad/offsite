@@ -24,7 +24,7 @@ import { Shimmer } from '@/features/transcript/tool-row'
 import { useCopy } from '@/lib/clipboard'
 import { clock, fullTime } from '@/lib/format'
 import { logger } from '@/lib/log'
-import { selectedPrompts, unsentId } from '@/lib/pending'
+import { selectedPrompts, outboxId } from '@/lib/outbox'
 import { resend, unqueue } from '@/lib/sessions'
 import { skillPill, skillRanges } from '@/lib/skills'
 import { useStore } from '@/lib/store'
@@ -73,12 +73,12 @@ export function UserMessage(props: {
     item.format === 'text' &&
     item.images.length > 0 &&
     numbers.length === item.images.length
-  const unsent = unsentId(item)
+  const outboxPromptId = outboxId(item)
   const failed = useStore(
     (state) =>
-      unsent !== null &&
+      outboxPromptId !== null &&
       selectedPrompts(state).some(
-        (other) => other.id === unsent && other.status === 'failed'
+        (other) => other.id === outboxPromptId && other.status === 'failed'
       )
   )
   return (
@@ -190,19 +190,19 @@ export function UserMessage(props: {
       <div
         className={cn(
           'flex w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 select-none transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100',
-          unsent !== null && 'opacity-100'
+          outboxPromptId !== null && 'opacity-100'
         )}
       >
         <div className="flex shrink-0 items-center gap-2">
-          {unsent !== null && !failed && <SendingLabel />}
-          {unsent !== null && failed && (
+          {outboxPromptId !== null && !failed && <SendingLabel />}
+          {outboxPromptId !== null && failed && (
             <div className="flex items-center gap-0.5">
               <p className="text-error me-1 text-xs">Not sent</p>
               <Button
                 variant="ghost-muted"
                 size="icon-micro"
                 title="Resend"
-                onClick={() => resend(unsent)}
+                onClick={() => resend(outboxPromptId)}
               >
                 <HugeiconsIcon icon={RefreshIcon} className="size-3.5" />
               </Button>
@@ -210,7 +210,7 @@ export function UserMessage(props: {
                 variant="ghost-muted"
                 size="icon-micro"
                 title="Remove"
-                onClick={() => unqueue(unsent)}
+                onClick={() => unqueue(outboxPromptId)}
               >
                 <HugeiconsIcon icon={XIcon} className="size-3.5" />
               </Button>
@@ -223,7 +223,7 @@ export function UserMessage(props: {
               </p>
             </Tooltip>
           )}
-          {prompt !== '' && unsent === null && (
+          {prompt !== '' && outboxPromptId === null && (
             <div className="flex items-center gap-0.5">
               {props.rewind && (
                 <RewindMenu

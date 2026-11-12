@@ -314,7 +314,11 @@ function MobileSessionItemView(props: {
                   )}
                 />
                 {titleText}
-                <SessionStatus activity={props.activity} done={thread.done} />
+                <SessionStatus
+                  session={session}
+                  activity={props.activity}
+                  done={thread.done}
+                />
               </div>
               <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
                 <MachineLogo

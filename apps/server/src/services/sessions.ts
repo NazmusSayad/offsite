@@ -36,8 +36,10 @@ import {
   sessions as sessionsTable,
 } from '../storage/schema.ts'
 import { providerName } from './accounts.ts'
+import { clearSessionOutbox } from './outbox.ts'
 import { projectPath, projects } from './projects.ts'
 import { type Found, info, timeLimit } from './provider-sessions.ts'
+import { forgetStarting, startingSessions } from './starting-sessions.ts'
 import {
   fileChanged,
   forgetThread,
@@ -50,7 +52,6 @@ import {
   threadsReady,
   updateThreads,
 } from './threads.ts'
-import { removeSessionUnsent } from './unsent.ts'
 
 const log = logger.withTag('sessions')
 
@@ -77,10 +78,11 @@ let publishedSessions = ''
 
 export function sessions(): Session[] {
   const known = new Set(projects().map((project) => project.id))
+  const found = allProviders.flatMap((provider) => listed[provider])
   return withStatus(
-    allProviders
-      .flatMap((provider) => listed[provider])
-      .filter((item) => known.has(item.projectId))
+    [...found, ...startingSessions(found)].filter((item) =>
+      known.has(item.projectId)
+    )
   ).filter((session) => session.status !== 'inactive')
 }
 
@@ -311,6 +313,7 @@ async function list(provider: Provider) {
       statuses[provider] = { provider, state: 'ready', error: null }
       for (const item of found) {
         providers.set(item.id, provider)
+        forgetStarting(item.id)
       }
     }
   } catch (error) {
@@ -475,7 +478,7 @@ export async function removeSession(id: string) {
   db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
   db.delete(sessionOpensTable).where(eq(sessionOpensTable.sessionId, id)).run()
   db.delete(sessionPlaces).where(eq(sessionPlaces.sessionId, id)).run()
-  removeSessionUnsent(id)
+  clearSessionOutbox(id)
   listed[provider] = listed[provider].filter((item) => item.id !== id)
   forgetThread(provider, id)
 }

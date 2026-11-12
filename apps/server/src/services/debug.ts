@@ -2,9 +2,9 @@ import type { SessionContext, SessionRuntime } from '@offsite/core/sessions'
 import { skills } from '../lib/codex/index.ts'
 import { runs } from '../lib/live.ts'
 import { openCode } from '../lib/opencode/client.ts'
+import { queuedFor } from './outbox.ts'
 import { projectPath } from './projects.ts'
 import { sessionHistory } from './runs.ts'
-import { queuedFor } from './unsent.ts'
 
 export function runtime(sessionId: string): SessionRuntime | null {
   const run = runs.get(sessionId)

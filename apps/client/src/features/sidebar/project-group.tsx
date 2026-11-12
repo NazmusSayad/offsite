@@ -12,6 +12,7 @@ import {
   MobileGroupedDraftRow,
   MobileGroupedSessionItem,
 } from '@/features/sidebar/mobile-grouped-session-item'
+import { chatSessionId } from '@/lib/outbox'
 import { openSession } from '@/lib/sessions'
 import {
   activityOf,
@@ -37,7 +38,8 @@ export function ProjectGroup(props: {
     selection !== null &&
     selection.sessionId === null &&
     selection.machine === props.machine &&
-    selection.projectId === props.projectId
+    selection.projectId === props.projectId &&
+    !props.sessions.some((session) => chatSessionId(session.id) === null)
   const Draft = props.mobile ? MobileGroupedDraftRow : DesktopGroupedDraftRow
 
   function newThread() {
@@ -78,15 +80,18 @@ export function ProjectGroup(props: {
           session,
           selected:
             selection?.machine === session.machine &&
-            selection.sessionId === session.id,
+            selection.sessionId === chatSessionId(session.id) &&
+            (selection.sessionId !== null ||
+              selection.projectId === session.projectId),
           activity: activityOf(machines, session.machine, session.id),
           unseen: unseen.includes(machineKey(session.machine, session.id)),
-          saved: session !== props.started,
+          saved:
+            session !== props.started && chatSessionId(session.id) !== null,
           onSelect: () =>
             openSession({
               machine: session.machine,
               projectId: session.projectId,
-              sessionId: session.id,
+              sessionId: chatSessionId(session.id),
             }),
         }
         const index = props.ordered.indexOf(session)

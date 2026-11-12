@@ -233,7 +233,11 @@ export function DesktopGroupedSessionItem(props: {
                   className="text-secondary-label size-3 shrink-0"
                 />
               )}
-              <SessionStatus activity={props.activity} done={thread.done} />
+              <SessionStatus
+                session={session}
+                activity={props.activity}
+                done={thread.done}
+              />
               <span className="text-secondary-label shrink-0 text-xs tabular-nums">
                 {timeAgo(session.updatedAt)}
               </span>

@@ -1,0 +1,1 @@
+ALTER TABLE `unsent_prompts` RENAME TO `outbox`;

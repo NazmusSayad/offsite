@@ -27,6 +27,7 @@ import {
   streamFile,
 } from './services/files.ts'
 import { installOpen, loopback, openSecret } from './services/open/open.ts'
+import { failInterrupted } from './services/outbox.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
 import {
@@ -38,7 +39,6 @@ import {
 import { answerStatus, statusSecret } from './services/service/status.ts'
 import { startService } from './services/service/update.ts'
 import { refreshAll, watchSessions } from './services/sessions.ts'
-import { failInterrupted } from './services/unsent.ts'
 import { contentTypes, publicDir, serveFile } from './services/web-app.ts'
 import {
   addCode,

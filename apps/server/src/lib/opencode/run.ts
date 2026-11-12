@@ -18,8 +18,8 @@ import {
   failQueued,
   queuedFor,
   Handover,
-  setUnsentStatus,
-} from '../../services/unsent.ts'
+  setOutboxStatus,
+} from '../../services/outbox.ts'
 import { errorItem } from '../codex/index.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
@@ -136,7 +136,7 @@ export class OpenCodeRun {
         )
         return
       case 'queue':
-        setUnsentStatus(id, 'queued')
+        setOutboxStatus(id, 'queued')
     }
   }
 
@@ -145,10 +145,10 @@ export class OpenCodeRun {
     if (item === undefined) {
       return
     }
-    setUnsentStatus(id, 'sending')
+    setOutboxStatus(id, 'sending')
     this.submit(id, item.prompt, 'steer').catch((error: unknown) => {
       this.fail(error)
-      setUnsentStatus(id, 'failed')
+      setOutboxStatus(id, 'failed')
     })
   }
 
@@ -403,14 +403,14 @@ export class OpenCodeRun {
       source === undefined
         ? undefined
         : this.items.get(`${source.messageID}:${source.id}`)
-    this.addPending({
+    this.addToOutbox({
       kind: 'permission',
       request: permissionRequest(permission, item),
     })
   }
 
   private askForm(form: FormInfo) {
-    this.addPending({
+    this.addToOutbox({
       kind: 'form',
       request: {
         id: form.id,
@@ -421,7 +421,7 @@ export class OpenCodeRun {
     })
   }
 
-  private addPending(pending: Pending) {
+  private addToOutbox(pending: Pending) {
     const request = scheduleAutoResolve(this.sessionId, pending.request)
     this.pending.set(request.id, { ...pending, request })
     publish(this.sessionId, {
@@ -442,7 +442,7 @@ export class OpenCodeRun {
         .hand(next.id, () => this.startTurn(next.prompt))
         .catch((error: unknown) => {
           this.fail(error)
-          setUnsentStatus(next.id, 'failed')
+          setOutboxStatus(next.id, 'failed')
         })
       return
     }

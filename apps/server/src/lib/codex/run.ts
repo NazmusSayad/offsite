@@ -7,8 +7,8 @@ import {
   failQueued,
   queuedFor,
   Handover,
-  setUnsentStatus,
-} from '../../services/unsent.ts'
+  setOutboxStatus,
+} from '../../services/outbox.ts'
 import { publish } from '../hub.ts'
 import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
 import { logger } from '../log.ts'
@@ -137,7 +137,7 @@ export class CodexRun implements ThreadListener {
         return
       }
       case 'queue':
-        setUnsentStatus(id, 'queued')
+        setOutboxStatus(id, 'queued')
     }
   }
 
@@ -146,10 +146,10 @@ export class CodexRun implements ThreadListener {
     if (item === undefined) {
       return
     }
-    setUnsentStatus(id, 'sending')
+    setOutboxStatus(id, 'sending')
     this.submit(id, item.prompt, 'steer').catch((error: unknown) => {
       this.fail(error)
-      setUnsentStatus(id, 'failed')
+      setOutboxStatus(id, 'failed')
     })
   }
 
@@ -443,7 +443,7 @@ export class CodexRun implements ThreadListener {
         .hand(next.id, () => this.startTurn(next.prompt))
         .catch((error: unknown) => {
           this.fail(error)
-          setUnsentStatus(next.id, 'failed')
+          setOutboxStatus(next.id, 'failed')
         })
       return
     }

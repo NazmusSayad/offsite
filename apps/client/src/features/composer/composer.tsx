@@ -8,7 +8,7 @@ import { readBase64, UPLOAD_LIMIT } from '@/api/upload'
 import { Button } from '@/components/ui/button'
 import { Wrapper } from '@/components/wrapper'
 import { logger } from '@/lib/log'
-import { selectedPrompts } from '@/lib/pending'
+import { selectedPrompts } from '@/lib/outbox'
 import { interrupt } from '@/lib/sessions'
 import {
   draftKey,

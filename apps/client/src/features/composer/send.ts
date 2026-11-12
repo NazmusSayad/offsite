@@ -1,9 +1,14 @@
 import type { PromptDelivery } from '@offsite/core/config'
 import { DisconnectedError } from '@/api/connection'
 import { uploadFile } from '@/api/upload'
-import { addPending, takePending } from '@/lib/pending'
+import { addToOutbox, takeFromOutbox } from '@/lib/outbox'
 import { sendPrompt } from '@/lib/sessions'
-import { draftKey, getState, type PendingPrompt, showError } from '@/lib/store'
+import {
+  draftKey,
+  getState,
+  type MachineOutboxPrompt,
+  showError,
+} from '@/lib/store'
 import { restoredDraft } from './attached-images'
 import {
   editDraft,
@@ -43,7 +48,7 @@ export async function sendDraft(
     })),
   }
   editDraft(key, (current) => ({ ...current, text: '', images: [], files: [] }))
-  const id = addPending(selection, prompt, delivery)
+  const id = addToOutbox(selection, prompt, delivery, status)
   void deliver(id, sendPrompt(id, prompt, delivery, selection, status))
 }
 
@@ -57,28 +62,28 @@ async function deliver(id: string, request: Promise<void>) {
       disconnected.add(id)
       return
     }
-    restoreDraft(takePending(id))
+    restoreDraft(takeFromOutbox(id))
     showError(error)
     return
   }
-  takePending(id)
+  takeFromOutbox(id)
 }
 
 export function settleDisconnected(machine: string) {
   for (const id of disconnected) {
-    const item = getState().pending.find((pending) => pending.id === id)
+    const item = getState().outbox.find((other) => other.id === id)
     if (item === undefined) {
       disconnected.delete(id)
       continue
     }
     if (item.machine === machine) {
       disconnected.delete(id)
-      restoreDraft(takePending(id))
+      restoreDraft(takeFromOutbox(id))
     }
   }
 }
 
-function restoreDraft(failed: PendingPrompt | undefined) {
+function restoreDraft(failed: MachineOutboxPrompt | undefined) {
   if (failed === undefined) {
     return
   }

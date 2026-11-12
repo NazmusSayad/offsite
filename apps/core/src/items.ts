@@ -1,13 +1,18 @@
+import type { Provider } from './providers.ts'
+
 export type ImageAttachment = { mediaType: string; data: string }
 
 export type Prompt = { text: string; images: ImageAttachment[] }
 
-export type UnsentPrompt = {
+export type OutboxPrompt = {
   id: string
   sessionId: string | null
   projectId: string
+  provider: Provider
   prompt: Prompt
   status: 'sending' | 'queued' | 'failed'
+  snoozed: boolean
+  createdAt: number
 }
 
 export type ItemStatus = 'running' | 'completed' | 'failed' | 'stopped'

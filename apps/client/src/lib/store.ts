@@ -17,7 +17,7 @@ import type {
   Item,
   PermissionRequest,
   Prompt,
-  UnsentPrompt,
+  OutboxPrompt,
 } from '@offsite/core/items'
 import type { Project } from '@offsite/core/projects'
 import type {
@@ -50,7 +50,7 @@ export type Selection = {
   sessionId: string | null
 }
 
-export type PendingPrompt = UnsentPrompt & { machine: string }
+export type MachineOutboxPrompt = OutboxPrompt & { machine: string }
 
 export type SettingsPage =
   | 'General'
@@ -99,7 +99,7 @@ export type Machine = {
   terminals: TerminalTab[]
   bookmarks: BookmarkRef[]
   bookmarkList: Bookmark[] | null
-  unsent: UnsentPrompt[]
+  outbox: OutboxPrompt[]
 }
 
 export type MachineProject = Project & { machine: string }
@@ -138,7 +138,7 @@ export type State = {
   before: number | null
   partial: string
   requests: PermissionRequest[]
-  pending: PendingPrompt[]
+  outbox: MachineOutboxPrompt[]
   settings: SessionSettings
   draft: Prompt | null
   replacing: Selection | null

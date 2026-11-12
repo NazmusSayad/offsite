@@ -9,13 +9,13 @@ import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/shallow'
 import { Button } from '@/components/ui/button'
 import { timeLeft } from '@/lib/format'
-import { selectedPrompts, selectedUnsent } from '@/lib/pending'
+import { selectedPrompts, savedOutbox } from '@/lib/outbox'
 import { steer, unqueue } from '@/lib/sessions'
 import { selectedRunning, useStore } from '@/lib/store'
 import { useSelectedUsage } from '@/lib/usage'
 
 export function QueuedMessages() {
-  const unsent = useStore(selectedUnsent)
+  const saved = useStore(savedOutbox)
   const rows = useStore(useShallow(selectedPrompts)).filter(
     (item) => item.status === 'queued'
   )
@@ -40,7 +40,7 @@ export function QueuedMessages() {
               ? `${item.prompt.images.length} image(s)`
               : item.prompt.text}
           </span>
-          {unsent.some((saved) => saved.id === item.id) && (
+          {saved.some((other) => other.id === item.id) && (
             <>
               <Button
                 variant="ghost-muted"
