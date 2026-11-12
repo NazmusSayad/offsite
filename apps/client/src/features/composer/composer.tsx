@@ -310,7 +310,7 @@ export function Composer(props: {
           <div className="pb-1 md:pb-2">
             <ComposerInput
               text={text}
-              collapsible={!hero}
+              newThread={hero}
               markers={[
                 ...images.map((image) => `[Image #${image.number}]`),
                 ...attachedFiles.map(fileMarker),

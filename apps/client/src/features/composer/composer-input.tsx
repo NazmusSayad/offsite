@@ -47,7 +47,7 @@ export function ComposerInput(props: {
   text: string
   markers: string[]
   placeholder: string
-  collapsible: boolean
+  newThread: boolean
   onEdit: (text: string, caret: number) => void
   onCaret: (caret: number) => void
   onKeyDown: (event: KeyboardEvent) => boolean
@@ -70,7 +70,11 @@ export function ComposerInput(props: {
         'data-enable-grammarly': 'false',
         'data-lt-active': 'false',
         class: cn(
-          'px-2.5 pt-2 outline-none sm:px-4 sm:pt-4 md:pt-3.5',
+          'box-content px-2.5 pt-2 outline-none sm:px-4 sm:pt-4 md:pt-3.5',
+          props.newThread &&
+            'min-h-[3lh] sm:[@media(min-height:840px)]:min-h-[4lh]',
+          !props.newThread &&
+            'min-h-[2lh] sm:[@media(min-height:840px)]:min-h-[3lh]',
           props.text === '' &&
             'before:text-placeholder/75 before:pointer-events-none before:float-left before:h-0 before:content-[attr(data-placeholder)]'
         ),
@@ -138,10 +142,7 @@ export function ComposerInput(props: {
       editor={editor}
       className={cn(
         'grid overflow-y-auto text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap',
-        'max-h-55.5 sm:max-h-56 sm:min-h-20 sm:[@media(min-height:840px)]:min-h-23.5',
-        props.collapsible &&
-          'min-h-[calc(3lh+0.5rem)] transition-[min-height,max-height] duration-200 ease-out max-sm:not-focus-within:max-h-11 max-sm:not-focus-within:min-h-11 motion-reduce:transition-none',
-        !props.collapsible && 'min-h-20 [@media(min-height:840px)]:min-h-23'
+        'max-h-55.5 sm:max-h-56'
       )}
     />
   )
