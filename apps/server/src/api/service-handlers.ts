@@ -9,7 +9,7 @@ export const serviceHandlers: Pick<
 > = {
   'service.busy': () => busyReasons(),
   'service.install': async (params) => {
-    await installFromBrowser(params.manager)
+    await installFromBrowser(params)
     return null
   },
   'service.update': async () => {

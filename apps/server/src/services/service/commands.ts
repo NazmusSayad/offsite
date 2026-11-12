@@ -4,10 +4,10 @@ import { setTimeout } from 'node:timers/promises'
 import { packageManagers } from '@offsite/core/service'
 import { consola } from 'consola'
 import { z } from 'zod'
-import { args } from '../../args.ts'
+import { args, SERVICE_PORT } from '../../args.ts'
 import { home, readJson, runningPid } from '../../storage/storage.ts'
 import { unregister } from './register.ts'
-import { readServiceSettings, serviceDir } from './settings.ts'
+import { readServiceSettings, serviceDir, settingsFile } from './settings.ts'
 import { findOffsite, setUp } from './setup.ts'
 
 const STATUS_TIMEOUT = 10_000
@@ -55,17 +55,30 @@ export async function install() {
     )
     process.exit(1)
   }
+  const saved = readServiceSettings()
+  const flags = [
+    ...(args.portGiven ? ['--port', args.port] : []),
+    ...args.serverArguments,
+  ]
+  const serviceArguments =
+    flags.length === 0 && saved !== null
+      ? saved.arguments
+      : args.portGiven
+        ? flags
+        : ['--port', SERVICE_PORT, ...flags]
   await stopService()
   try {
-    await setUp(manager)
+    await setUp({ manager, arguments: serviceArguments })
   } catch (error) {
     console.error('Could not start offsite at login:', error)
     process.exit(1)
   }
   console.log(
-    `offsite now starts at login, and Update now in the sidebar updates it with ${manager}; its output goes to ${path.join(home, 'logs', 'service.log')}`
+    `offsite starts at login with: offsite ${serviceArguments.join(' ')}`
   )
-  if (args.auth) {
+  console.log(`Settings: ${settingsFile}`)
+  console.log(`Log: ${path.join(home, 'logs', 'service.log')}`)
+  if (!serviceArguments.includes('--no-auth')) {
     console.log('Run offsite pair to pair a browser')
   }
 }

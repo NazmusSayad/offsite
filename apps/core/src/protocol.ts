@@ -48,7 +48,7 @@ import type {
 } from './providers.ts'
 import type { PushRegistration } from './push.ts'
 import type { MessageMatch, SearchSession } from './search.ts'
-import type { PackageManager, ServiceState } from './service.ts'
+import type { ServiceSettings, ServiceState } from './service.ts'
 import type {
   SessionActivity,
   ContextUsage,
@@ -91,7 +91,7 @@ export type RpcMethods = {
   'config.save': { params: Config; result: Config }
   'appIcon.save': { params: AppIconId; result: AppIconId }
   'service.busy': { params: void; result: string[] }
-  'service.install': { params: { manager: PackageManager }; result: null }
+  'service.install': { params: ServiceSettings; result: null }
   'service.update': { params: void; result: null }
   'projects.add': { params: { path: string }; result: Project }
   'projects.update': {

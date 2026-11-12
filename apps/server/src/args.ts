@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { Command, Option } from '@commander-js/extra-typings'
+import { z } from 'zod'
 
 let command = 'web' as
   | 'web'
@@ -11,6 +13,8 @@ let command = 'web' as
   | 'uninstall'
   | 'status'
 let name = null as string | null
+
+export const SERVICE_PORT = '2020'
 
 export const version = (process.env.OFFSITE_VERSION ?? 'dev').replace(/^v/, '')
 
@@ -31,7 +35,7 @@ const program = new Command('offsite')
     '--connect <addresses>',
     'Add this machine to the web app with these comma separated addresses; needs --no-auth'
   )
-  .addOption(new Option('--service').hideHelp())
+  .addOption(new Option('--service <dir>').hideHelp())
   .configureHelp({ showGlobalOptions: true })
 
 program
@@ -64,7 +68,7 @@ program
 program
   .command('install')
   .description(
-    'Starts offsite at login with these options and keeps it updated'
+    `Starts offsite at login with these options, on port ${SERVICE_PORT} unless you pass --port`
   )
   .action(() => {
     command = 'install'
@@ -84,7 +88,17 @@ program
     command = 'status'
   })
 
-program.parse()
+const serviceAt = process.argv.indexOf('--service')
+
+program.parse(
+  serviceAt === -1
+    ? process.argv
+    : [
+        ...process.argv.slice(0, 2),
+        ...savedArguments(process.argv[serviceAt + 1]),
+        ...process.argv.slice(2),
+      ]
+)
 
 const options = program.opts()
 
@@ -120,20 +134,19 @@ const portGiven = program.getOptionValueSource('port') === 'cli'
 
 export const args = {
   ...options,
-  dir: path.resolve(options.dir),
+  dir: path.resolve(
+    options.service === undefined ? options.dir : options.service
+  ),
   command,
   name,
   connect,
   portGiven,
-  service: options.service === true,
+  service: options.service !== undefined,
+  pair: options.pair && options.service === undefined,
   serverArguments: [
-    ...(program.getOptionValueSource('dir') === 'cli'
-      ? ['--dir', path.resolve(options.dir)]
-      : []),
     ...(program.getOptionValueSource('host') === 'cli'
       ? ['--host', options.host]
       : []),
-    ...(portGiven ? ['--port', options.port] : []),
     ...(options.auth ? [] : ['--no-auth']),
     ...(options.pair ? [] : ['--no-pair']),
     ...(options.pwa === true ? ['--pwa'] : []),
@@ -142,3 +155,22 @@ export const args = {
 }
 
 export const serverDir = path.join(import.meta.dirname, '..')
+
+function savedArguments(dir: string | undefined) {
+  if (dir === undefined) {
+    console.error('--service needs the offsite folder')
+    process.exit(1)
+  }
+  const file = path.resolve(dir, 'service', 'settings.json')
+  try {
+    return z
+      .object({ arguments: z.array(z.string()) })
+      .parse(JSON.parse(readFileSync(file, 'utf8'))).arguments
+  } catch (error) {
+    console.error(
+      `offsite couldn't read the arguments in ${file}:`,
+      error instanceof Error ? error.message : error
+    )
+    process.exit(1)
+  }
+}

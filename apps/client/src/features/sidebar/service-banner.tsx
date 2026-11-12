@@ -1,29 +1,12 @@
 import {
-  type PackageManager,
-  packageManagers,
-  type ServiceState,
-} from '@offsite/core/service'
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import { call } from '@/api/connection'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  CircleArrowUp01Icon,
+  PowerServiceIcon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
+import { useState } from 'react'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { ServiceDialog } from '@/features/service/service-dialog'
 import { useStore } from '@/lib/store'
-import { errorMessage } from '@/lib/utils'
 
 export function ServiceBanners() {
   const machines = useStore((state) => state.machines)
@@ -37,18 +20,15 @@ export function ServiceBanners() {
     return null
   }
   return (
-    <div className="flex shrink-0 flex-col gap-2 px-(--sidebar-content-inset) pb-(--sidebar-content-inset)">
-      {shown.map(
-        (machine) =>
-          machine.service !== null && (
-            <ServiceBanner
-              key={machine.id}
-              machine={machine.id}
-              name={machine.name}
-              service={machine.service}
-            />
-          )
-      )}
+    <div className="flex shrink-0 flex-col gap-px px-(--sidebar-content-inset) pb-(--sidebar-content-inset)">
+      {shown.map((machine) => (
+        <ServiceBanner
+          key={machine.id}
+          machine={machine.id}
+          name={machine.name}
+          update={machine.service?.installed ? machine.service.update : null}
+        />
+      ))}
     </div>
   )
 }
@@ -56,176 +36,42 @@ export function ServiceBanners() {
 function ServiceBanner(props: {
   machine: string
   name: string
-  service: ServiceState
+  update: string | null
 }) {
   const [open, setOpen] = useState(false)
-  const update = props.service.installed ? props.service.update : null
 
   return (
-    <div className="border-sidebar-border rounded-lg border px-3 py-2.5 text-xs">
-      <p className="text-sidebar-foreground font-medium">
-        {update === null
-          ? `Keep offsite running on ${props.name}`
-          : `offsite ${update} is available`}
-      </p>
-      <p className="text-sidebar-muted-foreground mt-0.5">
-        {update === null
-          ? 'Start it at login and update it from here.'
-          : `Update ${props.name} when you're ready; it restarts to finish.`}
-      </p>
-      <Button size="xs" className="mt-2.5" onClick={() => setOpen(true)}>
-        {update === null ? 'Install' : 'Update now'}
-      </Button>
+    <>
+      <button
+        type="button"
+        className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 flex h-9 items-center gap-2 rounded-lg border px-(--sidebar-row-content-inset) text-sm font-medium transition-colors"
+        onClick={() => setOpen(true)}
+      >
+        <HugeiconsIcon
+          icon={props.update === null ? PowerServiceIcon : CircleArrowUp01Icon}
+          className="size-4 shrink-0"
+        />
+        <span className="min-w-0 flex-1 truncate text-left">
+          {props.update === null
+            ? `Start ${props.name} at login`
+            : `Update ${props.name}`}
+        </span>
+        {props.update !== null && (
+          <span className="shrink-0 text-xs opacity-75">{props.update}</span>
+        )}
+      </button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogContent
+          aria-describedby={undefined}
+          className="gap-0 overflow-hidden p-0 sm:max-w-md"
+        >
           <ServiceDialog
             machine={props.machine}
-            name={props.name}
-            update={update}
+            update={props.update !== null}
             onClose={() => setOpen(false)}
           />
         </DialogContent>
       </Dialog>
-    </div>
-  )
-}
-
-function ServiceDialog(props: {
-  machine: string
-  name: string
-  update: string | null
-  onClose: () => void
-}) {
-  const [manager, setManager] = useState<PackageManager | null>(null)
-  const [busy, setBusy] = useState<string[] | null>(null)
-  const [working, setWorking] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const installing = props.update === null
-
-  useEffect(() => {
-    let current = true
-    void (async () => {
-      try {
-        const reasons = await call(props.machine, 'service.busy', undefined)
-        if (current) {
-          setBusy(reasons)
-        }
-      } catch (failure) {
-        if (current) {
-          setError(errorMessage(failure))
-        }
-      }
-    })()
-    return () => {
-      current = false
-    }
-  }, [props.machine])
-
-  async function confirm() {
-    setWorking(true)
-    setError(null)
-    try {
-      if (installing) {
-        if (manager === null) {
-          throw new Error('Pick a package manager first')
-        }
-        await call(props.machine, 'service.install', { manager })
-      } else {
-        await call(props.machine, 'service.update', undefined)
-      }
-      props.onClose()
-      toast(`${props.name} is restarting`)
-    } catch (failure) {
-      setError(errorMessage(failure))
-      setWorking(false)
-    }
-  }
-
-  return (
-    <>
-      <DialogHeader className="gap-1 px-6 pt-4 pr-12">
-        <DialogTitle className="text-base">
-          {installing
-            ? `Install offsite on ${props.name}`
-            : `Update ${props.name} to offsite ${props.update}`}
-        </DialogTitle>
-        <DialogDescription>
-          {installing
-            ? 'offsite will start at login and start again if it stops. When an update is out, update it from the sidebar.'
-            : 'offsite installs the update, then restarts.'}
-        </DialogDescription>
-      </DialogHeader>
-      <div className="flex flex-col gap-4 p-6 text-sm">
-        {installing && (
-          <label className="flex flex-col gap-2">
-            <span className="font-medium">
-              Package manager you installed offsite with
-            </span>
-            <Select
-              value={manager ?? undefined}
-              onValueChange={(value: PackageManager) => setManager(value)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Pick one" />
-              </SelectTrigger>
-              <SelectContent>
-                {packageManagers.map((item) => (
-                  <SelectItem key={item} value={item}>
-                    {item}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-        )}
-        {busy === null && error === null && (
-          <p className="text-muted-foreground">Checking what’s running…</p>
-        )}
-        {busy !== null && busy.length === 0 && (
-          <p className="text-muted-foreground">
-            Nothing is running, so nothing stops when offsite restarts.
-          </p>
-        )}
-        {busy !== null && busy.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <p className="text-destructive font-medium">
-              Restarting offsite now stops:
-            </p>
-            <ul className="text-muted-foreground list-disc pl-5">
-              {busy.map((reason, index) => (
-                <li key={`${index} ${reason}`}>{reason}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {working && !installing && (
-          <p className="text-muted-foreground">
-            Installing the update; this can take a minute…
-          </p>
-        )}
-        {error !== null && <p className="text-destructive">{error}</p>}
-      </div>
-      <DialogFooter className="bg-muted/40 border-t px-6 py-4">
-        <Button type="button" variant="outline" onClick={props.onClose}>
-          Cancel
-        </Button>
-        <Button
-          type="button"
-          variant={busy !== null && busy.length > 0 ? 'destructive' : 'default'}
-          disabled={
-            working || busy === null || (installing && manager === null)
-          }
-          onClick={() => void confirm()}
-        >
-          {installing
-            ? working
-              ? 'Installing…'
-              : 'Install and restart'
-            : working
-              ? 'Updating…'
-              : 'Update and restart'}
-        </Button>
-      </DialogFooter>
     </>
   )
 }

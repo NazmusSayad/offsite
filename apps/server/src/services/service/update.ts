@@ -24,7 +24,17 @@ let available: string | null = null
 let installing: Promise<string> | null = null
 
 export function serviceState(): ServiceState {
-  return { installed: args.service, update: available }
+  const settings = args.service ? readServiceSettings() : null
+  return {
+    installed: args.service,
+    update: available,
+    manager: settings?.manager ?? null,
+    arguments: settings?.arguments ?? [
+      '--port',
+      args.port,
+      ...args.serverArguments,
+    ],
+  }
 }
 
 export function startService() {
@@ -34,7 +44,7 @@ export function startService() {
     log.warn('started by the service, but its settings are missing')
     return
   }
-  if (writeScript(settings)) {
+  if (writeScript()) {
     log.info(
       'updated the start script; the service uses it from its next start'
     )

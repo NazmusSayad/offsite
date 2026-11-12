@@ -1,26 +1,30 @@
-import type { PackageManager } from '@offsite/core/service'
 import { args } from '../../args.ts'
 import { register, unregister } from './register.ts'
-import { runOffsite, writeScript, writeServiceSettings } from './settings.ts'
+import {
+  runOffsite,
+  type ServiceSettings,
+  serviceSettingsSchema,
+  writeScript,
+  writeServiceSettings,
+} from './settings.ts'
 import { restartSoon } from './update.ts'
 
-export async function installFromBrowser(manager: PackageManager) {
+export async function installFromBrowser(input: ServiceSettings) {
+  const settings = serviceSettingsSchema.parse(input)
   if (args.service) {
-    throw new Error('offsite is already installed')
+    writeServiceSettings(settings)
+    restartSoon()
+    return
   }
   await findOffsite()
   await unregister()
-  await setUp(manager)
+  await setUp(settings)
   restartSoon()
 }
 
-export async function setUp(manager: PackageManager) {
-  const settings = {
-    manager,
-    arguments: args.serverArguments,
-  }
+export async function setUp(settings: ServiceSettings) {
   writeServiceSettings(settings)
-  writeScript(settings)
+  writeScript()
   await register()
 }
 

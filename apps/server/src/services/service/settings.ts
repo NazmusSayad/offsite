@@ -21,20 +21,21 @@ export const scriptFile = path.join(
   process.platform === 'win32' ? 'start.ps1' : 'start.sh'
 )
 export const startedFile = path.join(serviceDir, 'started')
+export const settingsFile = path.join(home, 'service', 'settings.json')
 const logsDir = path.join(home, 'logs')
 const logFile = path.join(logsDir, 'service.log')
 const SETTINGS = path.join('service', 'settings.json')
 const TRIES = 6
 
-const settingsSchema = z.object({
+export const serviceSettingsSchema = z.object({
   manager: z.enum(packageManagers),
   arguments: z.array(z.string()),
 })
 
-export type ServiceSettings = z.infer<typeof settingsSchema>
+export type ServiceSettings = z.infer<typeof serviceSettingsSchema>
 
 export function readServiceSettings() {
-  return readSettings(SETTINGS, settingsSchema.nullable(), null)
+  return readSettings(SETTINGS, serviceSettingsSchema.nullable(), null)
 }
 
 export function writeServiceSettings(settings: ServiceSettings) {
@@ -81,8 +82,8 @@ function lastLine(output: string) {
   return output.trim().split(/\r?\n/).at(-1) ?? ''
 }
 
-export function writeScript(settings: ServiceSettings) {
-  const content = script(settings)
+export function writeScript() {
+  const content = script()
   try {
     if (readFileSync(scriptFile, 'utf8') === content) {
       return false
@@ -98,8 +99,15 @@ export function writeScript(settings: ServiceSettings) {
   return true
 }
 
-function script(settings: ServiceSettings) {
-  const line = ['offsite', ...settings.arguments, '--service']
+function script() {
+  const fromHome = path.relative(os.homedir(), home)
+  const dir =
+    fromHome.startsWith('..') || path.isAbsolute(fromHome)
+      ? home
+      : fromHome === ''
+        ? '.'
+        : fromHome
+  const line = ['offsite', '--service', dir]
   const stopped = `offsite didn't start ${TRIES} times in a row, so the service stopped; fix the problem, then run offsite install`
   const logs = path.relative(home, logsDir)
   const log = path.relative(home, logFile)
@@ -107,6 +115,7 @@ function script(settings: ServiceSettings) {
   if (process.platform === 'win32') {
     return [
       '$base = Split-Path -Parent $PSScriptRoot',
+      'Set-Location -Path $HOME',
       `$logs = Join-Path $base ${powershellQuote(logs)}`,
       `$log = Join-Path $base ${powershellQuote(log)}`,
       `$started = Join-Path $base ${powershellQuote(started)}`,
