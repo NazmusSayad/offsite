@@ -268,6 +268,7 @@ function MobileChat(props: { selection: Selection }) {
           >
             <DialogPrimitive.Title className="sr-only">
               {panel === 'diff' && 'Diff'}
+              {panel === 'pulls' && 'Pull requests'}
               {panel === 'tasks' && 'Tasks'}
               {panel === 'browser' && 'Browser'}
               {panel === null && 'Terminal'}

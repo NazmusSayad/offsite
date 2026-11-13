@@ -1,6 +1,7 @@
 import {
   BrowserIcon,
   GitCompareIcon,
+  GitPullRequestIcon,
   SquareTerminalIcon,
   TaskDaily01Icon,
   VisualStudioCodeIcon,
@@ -88,6 +89,17 @@ export function usePanelOptions(
         : null,
       attention: changed ? 'text-warning' : null,
       onSelect: () => props.onPanel(props.panel === 'diff' ? null : 'diff'),
+    },
+    {
+      id: 'pulls',
+      label: 'Pull requests',
+      title: 'Pull requests',
+      hotkey: null,
+      icon: GitPullRequestIcon,
+      pressed: props.panel === 'pulls',
+      dot: null,
+      attention: null,
+      onSelect: () => props.onPanel(props.panel === 'pulls' ? null : 'pulls'),
     },
     {
       id: 'tasks',

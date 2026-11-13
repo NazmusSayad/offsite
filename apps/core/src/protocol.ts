@@ -46,6 +46,12 @@ import type {
   RateLimit,
   Usage,
 } from './providers.ts'
+import type {
+  PullRequestAction,
+  PullRequestDetails,
+  PullRequestFilter,
+  PullRequestList,
+} from './pull-requests.ts'
 import type { PushRegistration } from './push.ts'
 import type { MessageMatch, SearchSession } from './search.ts'
 import type { ServiceSettings, ServiceState } from './service.ts'
@@ -391,6 +397,27 @@ export type RpcMethods = {
       body: string
     }
     result: { url: string }
+  }
+  'pulls.list': {
+    params: { projectId: string; repo: string; filter: PullRequestFilter }
+    result: PullRequestList
+  }
+  'pulls.view': {
+    params: { projectId: string; repo: string; number: number }
+    result: PullRequestDetails
+  }
+  'pulls.diff': {
+    params: { projectId: string; repo: string; number: number }
+    result: string
+  }
+  'pulls.run': {
+    params: {
+      projectId: string
+      repo: string
+      number: number
+      action: PullRequestAction
+    }
+    result: null
   }
   'push.subscribe': { params: PushRegistration; result: null }
   'push.unsubscribe': { params: { endpoint: string }; result: null }
