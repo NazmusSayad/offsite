@@ -20,8 +20,14 @@ const dir = freeDir()
 const webPort = await getPort({ port: portNumbers(4040, 65535) })
 const port = await getPort({ port: portNumbers(webPort + 1, 65535) })
 
+const server = `http://${loopback.includes(':') ? `[${loopback}]` : loopback}:${port}`
+const connect = [
+  ...(options.connect === undefined ? [] : options.connect.split(',')),
+  server,
+].join(',')
+
 console.log(
-  `offsite dev: ${dir}, web on port ${webPort}, server on port ${port}`
+  `offsite dev: ${dir}, web on port ${webPort}, server on port ${port}, connect ${connect}`
 )
 
 const apps = path.join(import.meta.dirname, '..', 'apps')
@@ -43,8 +49,8 @@ try {
         cwd: path.join(apps, 'client'),
         prefixColor: 'magenta',
         env: {
-          OFFSITE_DEV_SERVER: `http://${loopback}:${port}`,
-          OFFSITE_CONNECT: options.connect ?? `http://${loopback}:${port}`,
+          OFFSITE_DEV_SERVER: server,
+          OFFSITE_CONNECT: connect,
         },
       },
     ],
