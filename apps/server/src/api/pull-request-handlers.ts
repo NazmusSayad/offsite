@@ -6,11 +6,17 @@ import {
   runPullRequestAction,
   viewPullRequest,
 } from '../services/pull-requests.ts'
+import { reviewGuide, writeReviewGuide } from '../services/review-guide.ts'
 import type { Handlers } from './socket.ts'
 
 export const pullRequestHandlers: Pick<
   Handlers,
-  'pulls.list' | 'pulls.view' | 'pulls.diff' | 'pulls.run'
+  | 'pulls.list'
+  | 'pulls.view'
+  | 'pulls.diff'
+  | 'pulls.run'
+  | 'pulls.guide'
+  | 'pulls.writeGuide'
 > = {
   'pulls.list': (params) =>
     listPullRequests(
@@ -24,6 +30,16 @@ export const pullRequestHandlers: Pick<
     ),
   'pulls.diff': (params) =>
     pullRequestDiff(
+      path.join(projectPath(params.projectId), params.repo),
+      params.number
+    ),
+  'pulls.guide': (params) =>
+    reviewGuide(
+      path.join(projectPath(params.projectId), params.repo),
+      params.number
+    ),
+  'pulls.writeGuide': (params) =>
+    writeReviewGuide(
       path.join(projectPath(params.projectId), params.repo),
       params.number
     ),

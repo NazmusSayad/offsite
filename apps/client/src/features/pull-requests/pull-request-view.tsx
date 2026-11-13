@@ -19,6 +19,7 @@ import { errorMessage } from '@/lib/utils'
 import { PullRequestActions } from './pull-request-actions'
 import { StateBadge } from './pull-request-badges'
 import { PullRequestFiles } from './pull-request-files'
+import { PullRequestGuide } from './pull-request-guide'
 import { PullRequestOverview } from './pull-request-overview'
 
 const VIEW_REFRESH = 30_000
@@ -41,7 +42,9 @@ export function PullRequestView(props: {
   const [details, setDetails] = useState<PullRequestDetails | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
-  const [tab, setTab] = useState<'overview' | 'files' | 'commits'>('overview')
+  const [tab, setTab] = useState<'overview' | 'guide' | 'files' | 'commits'>(
+    'overview'
+  )
   const [busy, setBusy] = useState<string | null>(null)
 
   useEffect(() => {
@@ -137,6 +140,15 @@ export function PullRequestView(props: {
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title="Refresh"
+            aria-label="Refresh"
+            onClick={() => setVersion(version + 1)}
+          >
+            <HugeiconsIcon icon={RefreshCwIcon} className="size-4" />
+          </Button>
           {details !== null && (
             <Button size="icon-sm" variant="ghost" asChild>
               <a
@@ -150,15 +162,6 @@ export function PullRequestView(props: {
               </a>
             </Button>
           )}
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            title="Refresh"
-            aria-label="Refresh"
-            onClick={() => setVersion(version + 1)}
-          >
-            <HugeiconsIcon icon={RefreshCwIcon} className="size-4" />
-          </Button>
         </div>
       </div>
       {details === null && (
@@ -222,6 +225,13 @@ export function PullRequestView(props: {
                 </button>
                 <button
                   className={segment}
+                  aria-pressed={tab === 'guide'}
+                  onClick={() => setTab('guide')}
+                >
+                  Guide
+                </button>
+                <button
+                  className={segment}
                   aria-pressed={tab === 'files'}
                   onClick={() => setTab('files')}
                 >
@@ -241,6 +251,14 @@ export function PullRequestView(props: {
                 details={details}
                 busy={busy !== null}
                 onPerform={perform}
+              />
+            )}
+            {tab === 'guide' && (
+              <PullRequestGuide
+                machine={props.machine}
+                projectId={props.projectId}
+                repo={props.repo}
+                number={props.number}
               />
             )}
             {tab === 'files' && (

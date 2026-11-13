@@ -274,7 +274,7 @@ export async function runPullRequestAction(
   throw new Error(`unknown pull request action ${JSON.stringify(action)}`)
 }
 
-async function gh(cwd: string, args: string[]) {
+export async function gh(cwd: string, args: string[]) {
   try {
     return (
       await run('gh', args, {

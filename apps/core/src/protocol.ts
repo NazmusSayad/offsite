@@ -51,6 +51,7 @@ import type {
   PullRequestDetails,
   PullRequestFilter,
   PullRequestList,
+  ReviewGuideState,
 } from './pull-requests.ts'
 import type { PushRegistration } from './push.ts'
 import type { MessageMatch, SearchSession } from './search.ts'
@@ -418,6 +419,14 @@ export type RpcMethods = {
       action: PullRequestAction
     }
     result: null
+  }
+  'pulls.guide': {
+    params: { projectId: string; repo: string; number: number }
+    result: ReviewGuideState
+  }
+  'pulls.writeGuide': {
+    params: { projectId: string; repo: string; number: number }
+    result: ReviewGuideState
   }
   'push.subscribe': { params: PushRegistration; result: null }
   'push.unsubscribe': { params: { endpoint: string }; result: null }

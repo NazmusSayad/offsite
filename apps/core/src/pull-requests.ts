@@ -64,3 +64,28 @@ export type PullRequestAction =
   | { kind: 'approve' }
   | { kind: 'requestChanges'; body: string }
   | { kind: 'comment'; body: string }
+
+export type ReviewGuideStop = {
+  title: string
+  summary: string
+  attention: {
+    kind: 'tradeoff' | 'contract' | 'product' | 'risk' | 'accessibility'
+    note: string
+  } | null
+  excerpts: { path: string; caption: string; patch: string }[]
+  files: { path: string; note: string }[]
+  notes: { path: string; line: number; title: string; body: string }[]
+  questions: string[]
+}
+
+export type ReviewGuide = {
+  head: string
+  createdAt: number
+  stops: ReviewGuideStop[]
+}
+
+export type ReviewGuideState = {
+  guides: ReviewGuide[]
+  head: string
+  running: boolean
+}

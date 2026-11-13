@@ -58,6 +58,8 @@ const longCalls: RpcMethod[] = [
   'git.push',
   'git.pullRequest',
   'git.createPullRequest',
+  'pulls.run',
+  'pulls.writeGuide',
   'dictation.transcribe',
   'service.install',
   'service.update',
