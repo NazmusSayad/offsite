@@ -1,10 +1,4 @@
-import {
-  PinIcon,
-  PlayIcon,
-  SquarePenIcon,
-  TickDouble01Icon,
-  ZzzIcon,
-} from '@hugeicons/core-free-icons'
+import { PinIcon, SquarePenIcon, ZzzIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { useRef, useState } from 'react'
@@ -27,10 +21,14 @@ import { timeAgo } from '@/lib/format'
 import { deactivateSession, editSession } from '@/lib/sessions'
 import { type MachineSession, threadState } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { secondarySwipe } from './mobile-session-item'
 import { SessionMenuItems } from './session-menu-items'
 import { SessionStatus } from './session-status'
 import { SessionTitle } from './session-title'
+import {
+  secondarySwipe,
+  SwipeBackground,
+  swipeThreshold,
+} from './swipe-background'
 
 const surface =
   'relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none touch-pan-y [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
@@ -47,11 +45,14 @@ export function MobileGroupedSessionItem(props: {
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
   const [offset, setOffset] = useState(0)
+  const [width, setWidth] = useState(0)
+  const [released, setReleased] = useState<number | null>(null)
   const field = useRef<HTMLInputElement>(null)
   const swipe = useRef<{ x: number; y: number; swiping: boolean } | null>(null)
   const swiped = useRef(false)
   const thread = threadState(props.activity, props.unseen)
   const recede = !props.selected && !thread.waiting && !thread.done
+  const moving = offset !== 0 || released !== null
 
   function makeInactive() {
     void deactivateSession(session.machine, session.id, null)
@@ -68,19 +69,42 @@ export function MobileGroupedSessionItem(props: {
   function release(event: React.PointerEvent<HTMLDivElement>) {
     const start = swipe.current
     swipe.current = null
-    setOffset(0)
     if (start === null || !start.swiping) {
+      setOffset(0)
       return
     }
     swiped.current = true
-    if (event.clientX - start.x > event.currentTarget.offsetWidth * 0.4) {
+    const dx = event.clientX - start.x
+    if (dx === 0) {
+      setOffset(0)
+      return
+    }
+    setReleased(dx)
+    if (Math.abs(dx) > width * swipeThreshold) {
+      setOffset(Math.sign(dx) * width)
+      return
+    }
+    setOffset(0)
+  }
+
+  function settle(event: React.TransitionEvent<HTMLDivElement>) {
+    if (
+      event.target !== event.currentTarget ||
+      event.propertyName !== 'transform' ||
+      released === null
+    ) {
+      return
+    }
+    setReleased(null)
+    setOffset(0)
+    if (offset > 0) {
       if (session.status === 'inactive') {
         void editSession(session.machine, session.id, { status: 'active' })
       } else {
         deactivate()
       }
     }
-    if (event.clientX - start.x < -event.currentTarget.offsetWidth * 0.4) {
+    if (offset < 0) {
       void editSession(session.machine, session.id, {
         status: secondarySwipe[session.status].status,
       })
@@ -96,10 +120,11 @@ export function MobileGroupedSessionItem(props: {
       props.onSelect()
     },
     onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!props.saved || event.pointerType !== 'touch') {
+      if (!props.saved || event.pointerType !== 'touch' || released !== null) {
         return
       }
       swiped.current = false
+      setWidth(event.currentTarget.offsetWidth)
       swipe.current = {
         x: event.clientX,
         y: event.clientY,
@@ -124,37 +149,20 @@ export function MobileGroupedSessionItem(props: {
       setOffset(dx)
     },
     onPointerUp: release,
+    onTransitionEnd: settle,
     onPointerCancel: () => {
       swipe.current = null
       setOffset(0)
     },
   }
 
-  const swipeBackground = offset !== 0 && (
-    <div
-      className={cn(
-        'absolute inset-0 flex items-center rounded-md px-4 text-white',
-        offset > 0 && session.status !== 'inactive' && 'bg-success',
-        offset > 0 && session.status === 'inactive' && 'bg-[#56b6c2]',
-        offset < 0 && session.status === 'active' && 'bg-[#c678dd]',
-        offset < 0 && session.status === 'snoozed' && 'bg-[#d19a66]',
-        offset < 0 && session.status === 'minimized' && 'bg-info',
-        offset < 0 && session.status === 'inactive' && 'bg-[#5c6370]',
-        offset < 0 && session.status === 'pinned' && 'bg-[#e06c75]',
-        offset < 0 && 'justify-end'
-      )}
-    >
-      <HugeiconsIcon
-        icon={
-          offset < 0
-            ? secondarySwipe[session.status].icon
-            : session.status === 'inactive'
-              ? PlayIcon
-              : TickDouble01Icon
-        }
-        className="size-6"
-      />
-    </div>
+  const swipeBackground = moving && (
+    <SwipeBackground
+      status={session.status}
+      offset={released ?? offset}
+      width={width}
+      className="inset-0"
+    />
   )
 
   const stopDialog = (
@@ -259,13 +267,17 @@ export function MobileGroupedSessionItem(props: {
               surface,
               rowState,
               'flex h-9 items-center gap-2 px-2.5',
-              thread.working && !props.selected && offset === 0 && 'opacity-70',
-              offset !== 0 && 'bg-sidebar'
+              thread.working && !props.selected && !moving && 'opacity-70',
+              moving && 'bg-sidebar',
+              released !== null &&
+                offset === 0 &&
+                'transition-transform duration-[360ms] ease-[cubic-bezier(.34,1.45,.64,1)]',
+              released !== null &&
+                offset !== 0 &&
+                'transition-transform duration-200 ease-in'
             )}
             style={
-              offset !== 0
-                ? { transform: `translateX(${offset}px)` }
-                : undefined
+              moving ? { transform: `translateX(${offset}px)` } : undefined
             }
             {...swipeHandlers}
             onKeyDown={(event) => {
