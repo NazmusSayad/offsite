@@ -1,4 +1,10 @@
-export const packageManagers = ['mise', 'npm', 'pnpm', 'bun'] as const
+export const packageManagers = [
+  'mise-github',
+  'mise-npm',
+  'npm',
+  'pnpm',
+  'bun',
+] as const
 
 export type PackageManager = (typeof packageManagers)[number]
 

@@ -1,5 +1,5 @@
 import { writeFileSync } from 'node:fs'
-import type { ServiceState } from '@offsite/core/service'
+import type { PackageManager, ServiceState } from '@offsite/core/service'
 import { z } from 'zod'
 import { args, version } from '../../args.ts'
 import { broadcast } from '../../lib/hub.ts'
@@ -19,6 +19,20 @@ const REGISTRY_TIMEOUT = 30_000
 const RESTART_DELAY = 1000
 const log = logger.withTag('service')
 const latestSchema = z.object({ version: z.string() })
+const releaseSchema = z.object({
+  tag_name: z.string(),
+  assets: z.array(z.object({ name: z.string() })),
+})
+const REPOSITORY = 'NazmusSayad/offsite'
+const miseTools = {
+  'mise-github': `github:${REPOSITORY}`,
+  'mise-npm': 'npm:offsite',
+}
+const systems: Partial<Record<NodeJS.Platform, string>> = {
+  darwin: 'macos',
+  linux: 'linux',
+  win32: 'windows',
+}
 
 let available: string | null = null
 let installing: Promise<string> | null = null
@@ -49,8 +63,8 @@ export function startService() {
       'updated the start script; the service uses it from its next start'
     )
   }
-  if (settings.manager === 'mise') {
-    void prune()
+  if (settings.manager === 'mise-github' || settings.manager === 'mise-npm') {
+    void prune(miseTools[settings.manager])
   }
   if (version === 'dev') {
     log.info('a dev build never checks for updates')
@@ -59,9 +73,9 @@ export function startService() {
   void check()
 }
 
-async function prune() {
+async function prune(tool: string) {
   try {
-    await runTool('mise', ['prune', '--tools', '--yes', 'npm:offsite'])
+    await runTool('mise', ['prune', '--tools', '--yes', tool])
   } catch (error) {
     log.warn('could not remove old offsite versions with mise:', error)
   }
@@ -71,7 +85,13 @@ export async function checkNow() {
   if (version === 'dev') {
     throw new Error("a dev build doesn't check for updates")
   }
-  const latest = await latestVersion()
+  const settings = readServiceSettings()
+  if (settings === null) {
+    throw new Error(
+      "offsite isn't installed, so it doesn't know where its updates come from"
+    )
+  }
+  const latest = await latestVersion(settings.manager)
   const isNewer = newer(latest, version)
   const next = isNewer ? latest : null
   if (args.service && available !== next) {
@@ -120,10 +140,15 @@ export function install(settings: ServiceSettings) {
 
 async function installLatest(settings: ServiceSettings) {
   log.info(`updating offsite with ${settings.manager}`)
-  if (settings.manager === 'mise') {
+  const mise =
+    settings.manager === 'mise-github' || settings.manager === 'mise-npm'
+  if (mise) {
     await runTool('mise', ['cache', 'clear'])
   }
-  await runTool(settings.manager, updateArguments(settings.manager))
+  await runTool(
+    mise ? 'mise' : settings.manager,
+    updateArguments(settings.manager)
+  )
   return runOffsite(['--version'])
 }
 
@@ -138,7 +163,41 @@ export function newer(candidate: string, current: string) {
   return current.includes('-') && !candidate.includes('-')
 }
 
-export async function latestVersion() {
+export async function latestVersion(manager: PackageManager) {
+  switch (manager) {
+    case 'mise-github':
+      return latestRelease()
+    case 'mise-npm':
+    case 'npm':
+    case 'pnpm':
+    case 'bun':
+      return latestPackage()
+  }
+}
+
+async function latestRelease() {
+  const response = await fetch(
+    `https://api.github.com/repos/${REPOSITORY}/releases/latest`,
+    { signal: AbortSignal.timeout(REGISTRY_TIMEOUT) }
+  )
+  if (!response.ok) {
+    throw new Error(`GitHub answered ${response.status}`)
+  }
+  const release = releaseSchema.parse(await response.json())
+  const system = systems[process.platform]
+  if (system === undefined) {
+    throw new Error(`offsite has no build for ${process.platform}`)
+  }
+  const asset = `offsite-${system}-${process.arch}.`
+  if (!release.assets.some((item) => item.name.startsWith(asset))) {
+    throw new Error(
+      `offsite ${release.tag_name} has no build for ${system} ${process.arch} yet`
+    )
+  }
+  return release.tag_name.replace(/^v/, '')
+}
+
+async function latestPackage() {
   const response = await fetch('https://registry.npmjs.org/offsite/latest', {
     signal: AbortSignal.timeout(REGISTRY_TIMEOUT),
   })
@@ -150,8 +209,9 @@ export async function latestVersion() {
 
 function updateArguments(manager: ServiceSettings['manager']) {
   switch (manager) {
-    case 'mise':
-      return ['upgrade', 'npm:offsite', '--minimum-release-age', '0s']
+    case 'mise-github':
+    case 'mise-npm':
+      return ['upgrade', miseTools[manager], '--minimum-release-age', '0s']
     case 'npm':
       return ['install', '-g', 'offsite@latest', '--min-release-age=0']
     case 'pnpm':

@@ -23,7 +23,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
 
-  publish:
+  build:
     needs: test
     runs-on: ubuntu-latest
 
@@ -35,16 +35,68 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
         env:
           OFFSITE_VERSION: ${{ github.event.release.tag_name }}
-
-      - run: npm install -g npm@latest version-patch
       - run: node scripts/build-npm.mts
+      - run: npm install -g version-patch
       - run: version-patch node "${{ github.event.release.tag_name }}" --prefix v --pkg-file dist/npm/package.json
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: npm
+          path: dist/npm
+          include-hidden-files: true
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v5
+        with:
+          name: npm
+          path: dist/npm
+
+      - run: npm install -g npm@latest
 
       - run: npm publish --access public --tag ${{ github.event.release.prerelease && 'next' || 'latest' }}
         working-directory: dist/npm
+
+  binary:
+    needs: build
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+      - uses: actions/download-artifact@v5
+        with:
+          name: npm
+          path: dist/npm
+
+      - run: node scripts/build-binary.mts
+
+      - run: gh release upload "$TAG" dist/binary/offsite-* --clobber
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}

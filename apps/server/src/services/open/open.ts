@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { isSea } from 'node:sea'
 import { serverDir } from '../../args.ts'
 import { home } from '../../storage/storage.ts'
 
@@ -28,11 +29,14 @@ export function installOpen(host: string, port: number) {
     script,
     readFileSync(path.join(serverDir, 'src/services/open/open.mjs'))
   )
+  const node = isSea()
+    ? `${quote(process.execPath)} --node-script`
+    : quote(process.execPath)
   for (const name of ['open', 'xdg-open', 'wslview']) {
     const wrapper = path.join(folder, name)
     writeFileSync(
       wrapper,
-      `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(script)} ${name} "$@"\n`
+      `#!/bin/sh\nexec ${node} ${quote(script)} ${name} "$@"\n`
     )
     chmodSync(wrapper, 0o755)
   }

@@ -16,6 +16,7 @@ import {
 } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { isSea } from 'node:sea'
 import { promisify } from 'node:util'
 import type { LinkAction, LinkEntry, LinkPlan } from '@offsite/core/providers'
 import { claudeBaseDir } from '../../storage/config.ts'
@@ -277,7 +278,7 @@ try {
       '-NoProfile',
       '-NonInteractive',
       '-Command',
-      `$ProgressPreference = 'SilentlyContinue'; try { $process = Start-Process -FilePath ${quote(process.execPath)} -ArgumentList '-e',${quote(code)} -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ErrorAction Stop } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }; exit $process.ExitCode`,
+      `$ProgressPreference = 'SilentlyContinue'; try { $process = Start-Process -FilePath ${quote(process.execPath)} -ArgumentList ${isSea() ? "'--node-eval'" : "'-e'"},${quote(code)} -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ErrorAction Stop } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }; exit $process.ExitCode`,
     ])
   } catch (error) {
     if (existsSync(errorFile)) {

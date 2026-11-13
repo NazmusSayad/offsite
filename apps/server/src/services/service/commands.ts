@@ -154,7 +154,7 @@ export async function update() {
     console.error("a dev build can't update itself")
     process.exit(1)
   }
-  const latest = await latestVersion()
+  const latest = await latestVersion(settings.manager)
   const installed = newer(latest, version)
     ? await updateTo(latest, settings)
     : version

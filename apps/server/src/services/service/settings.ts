@@ -34,8 +34,18 @@ export const serviceSettingsSchema = z.object({
 
 export type ServiceSettings = z.infer<typeof serviceSettingsSchema>
 
+const oldMiseSchema = z.looseObject({ manager: z.literal('mise') })
+
 export function readServiceSettings() {
-  return readSettings(SETTINGS, serviceSettingsSchema.nullable(), null)
+  return readSettings(
+    SETTINGS,
+    serviceSettingsSchema.nullable(),
+    null,
+    (value) => {
+      const old = oldMiseSchema.safeParse(value)
+      return old.success ? { ...old.data, manager: 'mise-npm' } : value
+    }
+  )
 }
 
 export function writeServiceSettings(settings: ServiceSettings) {
