@@ -11,8 +11,6 @@ import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import type { MachineSession } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-export const swipeThreshold = 0.4
-
 export const secondarySwipe = {
   active: { status: 'snoozed', icon: ZzzIcon, color: '#c678dd' },
   snoozed: { status: 'active', icon: SunriseIcon, color: '#d19a66' },
@@ -31,7 +29,7 @@ export const secondarySwipe = {
 export function SwipeBackground(props: {
   status: MachineSession['status']
   offset: number
-  width: number
+  threshold: number
   className: string
 }) {
   const action =
@@ -40,11 +38,8 @@ export function SwipeBackground(props: {
       : props.status === 'inactive'
         ? { icon: PlayIcon, color: '#56b6c2' }
         : { icon: TickDouble01Icon, color: 'var(--success)' }
-  const armed = Math.abs(props.offset) > props.width * swipeThreshold
-  const progress = Math.min(
-    Math.abs(props.offset) / (props.width * swipeThreshold),
-    1
-  )
+  const armed = Math.abs(props.offset) > props.threshold
+  const progress = Math.min(Math.abs(props.offset) / props.threshold, 1)
   return (
     <div
       className={cn(

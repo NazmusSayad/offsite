@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { MachineSession } from '@/lib/store'
-import { SwipeBackground, swipeThreshold } from './swipe-background'
+import { SwipeBackground } from './swipe-background'
 
 export function SwipeRow(props: {
   status: MachineSession['status']
@@ -10,6 +10,7 @@ export function SwipeRow(props: {
 }) {
   const [offset, setOffset] = useState(0)
   const [width, setWidth] = useState(0)
+  const [height, setHeight] = useState(0)
   const [released, setReleased] = useState<{
     offset: number
     status: MachineSession['status']
@@ -32,7 +33,7 @@ export function SwipeRow(props: {
       return
     }
     const status = props.status
-    const committed = Math.abs(dx) > width * swipeThreshold
+    const committed = Math.abs(dx) > height
     const animation = committed
       ? event.currentTarget.animate(
           [
@@ -78,7 +79,7 @@ export function SwipeRow(props: {
         <SwipeBackground
           status={released === null ? props.status : released.status}
           offset={released === null ? offset : released.offset}
-          width={width}
+          threshold={height}
           className="inset-0"
         />
       )}
@@ -101,6 +102,7 @@ export function SwipeRow(props: {
           }
           swiped.current = false
           setWidth(event.currentTarget.offsetWidth)
+          setHeight(event.currentTarget.offsetHeight)
           swipe.current = {
             x: event.clientX,
             y: event.clientY,
