@@ -1,6 +1,7 @@
-import { GitMergeIcon, GithubIcon, GlobeIcon } from '@hugeicons/core-free-icons'
+import { GlobeIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { memo, useEffect, useState } from 'react'
+import { memo, useState } from 'react'
+import { VscGithubInverted } from 'react-icons/vsc'
 import ReactMarkdown, {
   type Components,
   defaultUrlTransform,
@@ -9,7 +10,6 @@ import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
-import { call } from '@/api/connection'
 import {
   MarkdownBlockquote,
   remarkGithubAlerts,
@@ -30,9 +30,7 @@ import {
   remarkSkills,
 } from '@/components/markdown/markdown-skills'
 import { streamingParser } from '@/components/markdown/markdown-stream'
-import { logger } from '@/lib/log'
 import { mediaKind } from '@/lib/media'
-import { getState } from '@/lib/store'
 import { openBrowser, isPullRequestUrl, openPullRequest } from '@/lib/url'
 import { cn } from '@/lib/utils'
 
@@ -49,7 +47,6 @@ const schema = {
 }
 
 const failedHosts = new Set<string>()
-const log = logger.withTag('markdown')
 
 const components: Components = {
   blockquote({ node, children }) {
@@ -121,11 +118,7 @@ const components: Components = {
         {plain === '' ? (
           children
         ) : (
-          <ExternalLinkText
-            host={host}
-            text={plain}
-            pull={href !== undefined && isPullRequestUrl(href) ? href : null}
-          />
+          <ExternalLinkText host={host} text={plain} />
         )}
       </a>
     )
@@ -314,18 +307,14 @@ function externalHost(href: string | undefined) {
 
 const ExternalLinkText = memo(ExternalLinkTextView)
 
-function ExternalLinkTextView(props: {
-  host: string
-  text: string
-  pull: string | null
-}) {
+function ExternalLinkTextView(props: { host: string; text: string }) {
   const leading =
     /^https?:\/\//i.exec(props.text)?.[0].length ??
     Math.min(props.text.length, 1)
   return (
     <>
       <span className="whitespace-nowrap">
-        <LinkFavicon host={props.host} pull={props.pull} />
+        <LinkFavicon host={props.host} />
         {props.text.slice(0, leading)}
       </span>
       {Array.from(props.text.slice(leading), (character, index) => (
@@ -338,42 +327,18 @@ function ExternalLinkTextView(props: {
   )
 }
 
-function LinkFavicon(props: { host: string; pull: string | null }) {
+function LinkFavicon(props: { host: string }) {
   const [failed, setFailed] = useState(failedHosts.has(props.host))
-  const [merged, setMerged] = useState(false)
   const hostname = props.host.toLowerCase()
   const github = hostname === 'github.com' || hostname.endsWith('.github.com')
 
-  useEffect(() => {
-    const selection = getState().selection
-    if (props.pull === null || selection === null) {
-      return
-    }
-    let current = true
-    call(selection.machine, 'pulls.state', { url: props.pull }).then(
-      (state) => {
-        if (current) {
-          setMerged(state === 'MERGED')
-        }
-      },
-      (caught: unknown) =>
-        log.warn('could not load the pull request state', caught)
-    )
-    return () => {
-      current = false
-    }
-  }, [props.pull])
-
   return (
     <span
-      className="relative ms-[0.25em] me-[0.2em] inline-flex size-[14px] [vertical-align:-0.125em]"
+      className="ms-[0.25em] me-[0.2em] inline-flex size-[14px] [vertical-align:-0.125em]"
       aria-hidden
     >
       {github ? (
-        <HugeiconsIcon
-          icon={GithubIcon}
-          className="block size-full shrink-0 select-none"
-        />
+        <VscGithubInverted className="block size-full shrink-0 select-none" />
       ) : failed ? (
         <HugeiconsIcon
           icon={GlobeIcon}
@@ -391,15 +356,6 @@ function LinkFavicon(props: { host: string; pull: string | null }) {
             setFailed(true)
           }}
         />
-      )}
-      {merged && (
-        <span className="ring-background absolute -right-[4px] -bottom-[3px] grid size-[10px] place-items-center rounded-full bg-violet-500 ring-[1.5px]">
-          <HugeiconsIcon
-            icon={GitMergeIcon}
-            strokeWidth={2.5}
-            className="size-[7px] text-white"
-          />
-        </span>
       )}
     </span>
   )

@@ -18,7 +18,6 @@ const LIST_LIMIT = 50
 const run = promisify(execFile)
 const lists = githubCache<string>(30_000, 50)
 const views = githubCache<string>(15_000, 50)
-const states = githubCache<string>(60_000, 200)
 const diffs = githubCache<string>(Infinity, 30)
 const repoNames = githubCache<string>(10 * 60_000, 20)
 const mergeSettings = githubCache<string>(10 * 60_000, 20)
@@ -155,34 +154,13 @@ export async function listPullRequests(
   }
 }
 
-export async function pullRequestState(
-  target: string
-): Promise<PullRequestState> {
-  const state = (
-    await states.get(target, false, () =>
-      gh(os.homedir(), [
-        'pr',
-        'view',
-        target,
-        '--json',
-        'state',
-        '--jq',
-        '.state',
-      ])
-    )
-  ).trim()
-  if (state === 'OPEN' || state === 'CLOSED' || state === 'MERGED') {
-    return state
-  }
-  throw new Error(`GitHub returned an unknown pull request state: ${state}`)
-}
-
 export async function viewPullRequest(
-  cwd: string,
+  local: string | null,
   target: string,
   fresh: boolean
 ): Promise<PullRequestDetails> {
   const repo = repoOf(target)
+  const cwd = local ?? os.homedir()
   const results = await Promise.all([
     views.get(target, fresh, () =>
       gh(cwd, ['pr', 'view', target, '--json', DETAIL_FIELDS.join(',')])
@@ -199,7 +177,7 @@ export async function viewPullRequest(
     viewers.get(repo.host, false, () =>
       gh(cwd, ['api', '--hostname', repo.host, 'user', '--jq', '.login'])
     ),
-    currentBranch(cwd),
+    local === null ? null : currentBranch(local),
   ])
   const raw: RawDetails = JSON.parse(results[0])
   const settings: {
@@ -222,6 +200,7 @@ export async function viewPullRequest(
     headOid: raw.headRefOid,
     viewer: results[2].trim(),
     current: results[3],
+    local: local !== null,
     body: raw.body,
     createdAt: Date.parse(raw.createdAt),
     mergeState: raw.mergeStateStatus,
@@ -247,9 +226,9 @@ export async function viewPullRequest(
   }
 }
 
-export function pullRequestDiff(cwd: string, target: string, head: string) {
+export function pullRequestDiff(target: string, head: string) {
   return diffs.get(`${target}@${head}`, false, () =>
-    gh(cwd, ['pr', 'diff', target, '--color', 'never'])
+    gh(os.homedir(), ['pr', 'diff', target, '--color', 'never'])
   )
 }
 
@@ -366,7 +345,7 @@ async function currentBranch(cwd: string) {
   return branch === '' ? null : branch
 }
 
-function repoOf(url: string) {
+export function repoOf(url: string) {
   const match = /^https:\/\/([^/]+)\/([^/]+)\/([^/]+)\/pull\/\d+$/.exec(url)
   if (match === null) {
     throw new Error(`${url} is not a pull request URL`)

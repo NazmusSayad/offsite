@@ -38,7 +38,6 @@ const attentionLabels: Record<
 export function PullRequestGuide(props: {
   machine: string
   projectId: string
-  repo: string
   url: string
   head: string
   view: 'guidebook' | 'changes'
@@ -59,7 +58,6 @@ export function PullRequestGuide(props: {
       setState(
         await call(props.machine, 'pulls.writeGuide', {
           projectId: props.projectId,
-          repo: props.repo,
           url: props.url,
         })
       )
@@ -87,7 +85,6 @@ export function PullRequestGuide(props: {
         setWriting(true)
         const written = await call(props.machine, 'pulls.writeGuide', {
           projectId: props.projectId,
-          repo: props.repo,
           url: props.url,
         })
         if (current) {
@@ -107,7 +104,7 @@ export function PullRequestGuide(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.projectId, props.repo, props.url])
+  }, [props.machine, props.projectId, props.url])
 
   const guides = state?.guides ?? []
   const guide =
@@ -242,8 +239,6 @@ export function PullRequestGuide(props: {
         !writing && (
           <PullRequestFiles
             machine={props.machine}
-            projectId={props.projectId}
-            repo={props.repo}
             url={props.url}
             head={props.head}
             title={props.title}

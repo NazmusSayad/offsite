@@ -56,7 +56,7 @@ import {
 import { cn } from '@/lib/utils'
 import { usePanelOptions } from './panel-options'
 
-export type Panel = 'diff' | 'pulls' | 'tasks' | 'browser'
+export type Panel = 'diff' | 'pulls' | 'pull' | 'tasks' | 'browser'
 
 const toggle =
   'text-foreground hover:bg-accent data-[pressed=true]:bg-accent relative grid h-7 min-w-7 cursor-pointer place-items-center rounded-lg border border-transparent [&_svg]:size-4 [&_svg]:opacity-80'

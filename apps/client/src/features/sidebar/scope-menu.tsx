@@ -1,5 +1,5 @@
 import {
-  Activity01Icon,
+  Analytics01Icon,
   Add01Icon,
   CenterFocusIcon,
   ChevronDownIcon,
@@ -38,6 +38,7 @@ import {
   threadState,
   useStore,
 } from '@/lib/store'
+import { useActivityPage } from '@/lib/url'
 import { touch } from '@/lib/utils'
 import { MoreProjects, ProjectItem } from './project-item'
 
@@ -117,6 +118,7 @@ export function ProjectMenuItems(props: {
   const registered = useStore((state) => state.projects)
   const sessions = useStore((state) => state.sessions)
   const unseen = useStore((state) => state.unseen)
+  const activity = useActivityPage()
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -293,9 +295,11 @@ export function ProjectMenuItems(props: {
       <div ref={listRef} className="min-h-0 overflow-y-auto p-1">
         <DropdownMenuRadioGroup
           value={
-            props.scope === null
-              ? ''
-              : machineKey(props.scope.machine, props.scope.projectId)
+            activity
+              ? 'activity'
+              : props.scope === null
+                ? ''
+                : machineKey(props.scope.machine, props.scope.projectId)
           }
         >
           {search !== '' && groups.length === 0 && (
@@ -325,13 +329,13 @@ export function ProjectMenuItems(props: {
           )}
 
           {props.inbox && search === '' && (
-            <DropdownMenuItem onSelect={openActivityPage}>
+            <DropdownMenuRadioItem value="activity" onSelect={openActivityPage}>
               <HugeiconsIcon
-                icon={Activity01Icon}
+                icon={Analytics01Icon}
                 className="text-muted-foreground size-5 shrink-0"
               />
               <span className="min-w-0 flex-1 truncate">Activity</span>
-            </DropdownMenuItem>
+            </DropdownMenuRadioItem>
           )}
 
           {props.inbox && search === '' && groups.length > 0 && (

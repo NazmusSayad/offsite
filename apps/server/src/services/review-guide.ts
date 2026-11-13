@@ -164,7 +164,7 @@ async function createGuide(
     files: { path: string; additions: number; deletions: number }[]
   }
 ): Promise<ReviewGuide> {
-  const patch = await pullRequestDiff(cwd, target, pull.headRefOid)
+  const patch = await pullRequestDiff(target, pull.headRefOid)
   const cut = patch.length > DIFF_LIMIT
   const prompt = [
     `<pr_title>${pull.title}</pr_title>`,

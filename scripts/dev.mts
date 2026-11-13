@@ -17,8 +17,8 @@ const loopback =
     : options.host
 
 const dir = freeDir()
-const webPort = await getPort({ port: portNumbers(4040, 65535) })
-const port = await getPort({ port: portNumbers(webPort + 1, 65535) })
+const webPort = await getPort({ port: portNumbers(7000, 9999) })
+const port = await getPort({ port: portNumbers(webPort + 1, 9999) })
 
 const server = `http://${loopback.includes(':') ? `[${loopback}]` : loopback}:${port}`
 const connect = [

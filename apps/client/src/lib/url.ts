@@ -126,10 +126,7 @@ export function openPullRequest(href: string) {
     window.open(url, '_blank', 'noopener,noreferrer')
     return
   }
-  pushSearch(
-    { panel: 'pulls', pull: url },
-    wide.matches ? undefined : 'overlay'
-  )
+  pushSearch({ panel: 'pull', pull: url }, wide.matches ? undefined : 'overlay')
 }
 
 const layers: Array<() => void> = []

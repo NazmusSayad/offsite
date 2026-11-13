@@ -83,7 +83,10 @@ export function DesktopLayout() {
   const [compact, setCompact] = useState(false)
   const panel = useSearch({
     from: '__root__',
-    select: (search) => search.panel ?? null,
+    select: (search) =>
+      search.panel === 'pull' && search.pull === undefined
+        ? null
+        : (search.panel ?? null),
   })
   const lastPanel = useRef<Panel>('diff')
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
@@ -160,7 +163,7 @@ export function DesktopLayout() {
     }
   )
   useEffect(() => {
-    if (panel !== null) {
+    if (panel !== null && panel !== 'pull') {
       lastPanel.current = panel
     }
   }, [panel])
@@ -362,44 +365,46 @@ export function DesktopLayout() {
               </aside>
             )}
           </div>
-          {selection !== null && panel !== null && !projectless && (
-            <div
-              className="relative flex shrink-0"
-              style={{ width: panelWidth }}
-            >
+          {selection !== null &&
+            panel !== null &&
+            (!projectless || panel === 'pull') && (
               <div
-                role="separator"
-                aria-orientation="vertical"
-                className="group absolute inset-y-0 -left-1 z-20 w-2 cursor-col-resize select-none"
-                onPointerDown={(event) =>
-                  drag(event, (next) => {
-                    const max = Math.max(
-                      360,
-                      Math.floor(window.innerWidth * 0.7)
-                    )
-                    const value = Math.min(
-                      max,
-                      Math.max(360, window.innerWidth - next.clientX)
-                    )
-                    setPanelWidth(value)
-                  })
-                }
+                className="relative flex shrink-0"
+                style={{ width: panelWidth }}
               >
-                <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  className="group absolute inset-y-0 -left-1 z-20 w-2 cursor-col-resize select-none"
+                  onPointerDown={(event) =>
+                    drag(event, (next) => {
+                      const max = Math.max(
+                        360,
+                        Math.floor(window.innerWidth * 0.7)
+                      )
+                      const value = Math.min(
+                        max,
+                        Math.max(360, window.innerWidth - next.clientX)
+                      )
+                      setPanelWidth(value)
+                    })
+                  }
+                >
+                  <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors" />
+                </div>
+                <div className="bg-background flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-lg border-t border-l">
+                  <PanelView
+                    panel={panel}
+                    selection={selection}
+                    running={running}
+                    selectedTask={selectedTask}
+                    onSelectTask={setSelectedTask}
+                    onPanel={setPanel}
+                    mobile={false}
+                  />
+                </div>
               </div>
-              <div className="bg-background flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-lg border-t border-l">
-                <PanelView
-                  panel={panel}
-                  selection={selection}
-                  running={running}
-                  selectedTask={selectedTask}
-                  onSelectTask={setSelectedTask}
-                  onPanel={setPanel}
-                  mobile={false}
-                />
-              </div>
-            </div>
-          )}
+            )}
         </div>
       </main>
       <GitCommandDialog git={commands} />
