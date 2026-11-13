@@ -99,6 +99,26 @@ export function openBrowser(target: string) {
   replaceSearch({ panel: 'browser', browse: `${project.path}/${target}` })
 }
 
+const pullRequestPattern =
+  /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:[/?#].*)?$/
+
+export function isPullRequestUrl(href: string) {
+  return pullRequestPattern.test(href)
+}
+
+export function openPullRequest(href: string) {
+  const match = pullRequestPattern.exec(href)
+  if (match === null) {
+    throw new Error(`${href} is not a GitHub pull request link`)
+  }
+  const url = `https://github.com/${match[1]}/${match[2]}/pull/${match[3]}`
+  if (getState().selection === null) {
+    window.open(url, '_blank', 'noopener,noreferrer')
+    return
+  }
+  replaceSearch({ panel: 'pulls', pull: url })
+}
+
 const layers: Array<() => void> = []
 let leaving = false
 let guarded = false

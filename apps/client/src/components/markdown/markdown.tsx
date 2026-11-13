@@ -27,7 +27,7 @@ import {
 } from '@/components/markdown/markdown-skills'
 import { streamingParser } from '@/components/markdown/markdown-stream'
 import { mediaKind } from '@/lib/media'
-import { openBrowser } from '@/lib/url'
+import { openBrowser, isPullRequestUrl, openPullRequest } from '@/lib/url'
 import { cn } from '@/lib/utils'
 
 const schema = {
@@ -100,7 +100,17 @@ const components: Components = {
           .join('')
       : ''
     return (
-      <a href={href} target="_blank" rel="noopener noreferrer">
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(event) => {
+          if (href !== undefined && isPullRequestUrl(href)) {
+            event.preventDefault()
+            openPullRequest(href)
+          }
+        }}
+      >
         {plain === '' ? (
           children
         ) : (

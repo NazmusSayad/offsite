@@ -53,7 +53,7 @@ import { cn, drag } from '@/lib/utils'
 const compactWidth = 800
 
 function setPanel(next: Panel | null) {
-  replaceSearch({ panel: next ?? undefined })
+  replaceSearch({ panel: next ?? undefined, pull: undefined })
 }
 
 export function DesktopLayout() {

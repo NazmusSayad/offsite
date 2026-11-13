@@ -37,7 +37,8 @@ export function PullRequestGuide(props: {
   machine: string
   projectId: string
   repo: string
-  number: number
+  url: string
+  head: string
 }) {
   const [state, setState] = useState<ReviewGuideState | null>(null)
   const [writing, setWriting] = useState(false)
@@ -53,7 +54,7 @@ export function PullRequestGuide(props: {
         await call(props.machine, 'pulls.writeGuide', {
           projectId: props.projectId,
           repo: props.repo,
-          number: props.number,
+          url: props.url,
         })
       )
     } catch (caught) {
@@ -68,9 +69,7 @@ export function PullRequestGuide(props: {
     async function load() {
       try {
         const result = await call(props.machine, 'pulls.guide', {
-          projectId: props.projectId,
-          repo: props.repo,
-          number: props.number,
+          url: props.url,
         })
         if (!current) {
           return
@@ -83,7 +82,7 @@ export function PullRequestGuide(props: {
         const written = await call(props.machine, 'pulls.writeGuide', {
           projectId: props.projectId,
           repo: props.repo,
-          number: props.number,
+          url: props.url,
         })
         if (current) {
           setState(written)
@@ -102,7 +101,7 @@ export function PullRequestGuide(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.projectId, props.repo, props.number])
+  }, [props.machine, props.projectId, props.repo, props.url])
 
   const guides = state?.guides ?? []
   const guide =
@@ -148,7 +147,7 @@ export function PullRequestGuide(props: {
       )}
       {state !== null && guide !== null && !writing && (
         <>
-          {guide.head !== state.head && (
+          {guide.head !== props.head && (
             <div className="border-warning/40 bg-warning/8 flex items-center gap-3 rounded-lg border px-3 py-2">
               <div className="grid min-w-0 flex-1 gap-0.5">
                 <span className="text-warning text-xs font-medium">
@@ -159,7 +158,7 @@ export function PullRequestGuide(props: {
                   request has new commits since then.
                 </span>
               </div>
-              {!guides.some((item) => item.head === state.head) && (
+              {!guides.some((item) => item.head === props.head) && (
                 <Button size="xs" onClick={() => void write()}>
                   Write for the latest commit
                 </Button>
@@ -182,14 +181,14 @@ export function PullRequestGuide(props: {
                     {guides.map((item) => (
                       <SelectItem key={item.head} value={item.head}>
                         Commit {item.head.slice(0, 7)} · {ago(item.createdAt)}
-                        {item.head === state.head && ' · latest'}
+                        {item.head === props.head && ' · latest'}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
-            {guide.head === state.head && (
+            {guide.head === props.head && (
               <Button size="xs" variant="outline" onClick={() => void write()}>
                 Write again
               </Button>

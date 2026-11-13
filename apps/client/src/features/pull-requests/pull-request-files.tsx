@@ -13,8 +13,8 @@ export function PullRequestFiles(props: {
   machine: string
   projectId: string
   repo: string
-  number: number
-  updatedAt: number
+  url: string
+  head: string
 }) {
   const [files, setFiles] = useState<FileDiffMetadata[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -27,7 +27,8 @@ export function PullRequestFiles(props: {
     call(props.machine, 'pulls.diff', {
       projectId: props.projectId,
       repo: props.repo,
-      number: props.number,
+      url: props.url,
+      head: props.head,
     }).then(
       (patch) => {
         if (current) {
@@ -37,7 +38,7 @@ export function PullRequestFiles(props: {
               ? []
               : parsePatchFiles(
                   patch,
-                  `pull ${props.repo} ${props.number} ${props.updatedAt}`
+                  `pull ${props.repo} ${props.url} ${props.head}`
                 ).flatMap((item) => item.files)
           )
         }
@@ -51,13 +52,7 @@ export function PullRequestFiles(props: {
     return () => {
       current = false
     }
-  }, [
-    props.machine,
-    props.projectId,
-    props.repo,
-    props.number,
-    props.updatedAt,
-  ])
+  }, [props.machine, props.projectId, props.repo, props.url, props.head])
 
   if (error !== null) {
     return (

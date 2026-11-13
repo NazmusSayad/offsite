@@ -158,10 +158,10 @@ function MobileChat(props: { selection: Selection }) {
     (next: Panel | null) => {
       setSelectedTask(null)
       if (next === null) {
-        replaceSearch({ panel: undefined, bottom: undefined })
+        replaceSearch({ panel: undefined, bottom: undefined, pull: undefined })
         return
       }
-      showOverlay({ panel: next, bottom: undefined })
+      showOverlay({ panel: next, bottom: undefined, pull: undefined })
     },
     [showOverlay]
   )

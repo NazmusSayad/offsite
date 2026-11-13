@@ -33,6 +33,9 @@ export type PullRequestCheck = {
 }
 
 export type PullRequestDetails = PullRequestSummary & {
+  headOid: string
+  viewer: string
+  current: string | null
   body: string
   createdAt: number
   mergeState: string
@@ -47,7 +50,6 @@ export type PullRequestDetails = PullRequestSummary & {
 
 export type PullRequestList = {
   repo: string
-  viewer: string
   current: string | null
   items: PullRequestSummary[]
 }
@@ -86,6 +88,42 @@ export type ReviewGuide = {
 
 export type ReviewGuideState = {
   guides: ReviewGuide[]
-  head: string
   running: boolean
+}
+
+export type PullRequestMethods = {
+  'pulls.list': {
+    params: {
+      projectId: string
+      repo: string
+      filter: PullRequestFilter
+      fresh: boolean
+    }
+    result: PullRequestList
+  }
+  'pulls.view': {
+    params: { projectId: string; repo: string; url: string; fresh: boolean }
+    result: PullRequestDetails
+  }
+  'pulls.diff': {
+    params: { projectId: string; repo: string; url: string; head: string }
+    result: string
+  }
+  'pulls.run': {
+    params: {
+      projectId: string
+      repo: string
+      url: string
+      action: PullRequestAction
+    }
+    result: null
+  }
+  'pulls.guide': {
+    params: { url: string }
+    result: ReviewGuideState
+  }
+  'pulls.writeGuide': {
+    params: { projectId: string; repo: string; url: string }
+    result: ReviewGuideState
+  }
 }

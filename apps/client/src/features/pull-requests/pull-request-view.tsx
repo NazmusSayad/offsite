@@ -8,7 +8,7 @@ import type {
   PullRequestAction,
   PullRequestDetails,
 } from '@offsite/core/pull-requests'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
@@ -31,9 +31,7 @@ export function PullRequestView(props: {
   machine: string
   projectId: string
   repo: string
-  number: number
-  current: string | null
-  viewer: string | null
+  url: string
   running: boolean
   mobile: boolean
   onBack: () => void
@@ -46,6 +44,7 @@ export function PullRequestView(props: {
     'overview'
   )
   const [busy, setBusy] = useState<string | null>(null)
+  const forced = useRef(false)
 
   useEffect(() => {
     let current = true
@@ -55,11 +54,14 @@ export function PullRequestView(props: {
         return
       }
       loading = true
+      const fresh = forced.current
+      forced.current = false
       try {
         const result = await call(props.machine, 'pulls.view', {
           projectId: props.projectId,
           repo: props.repo,
-          number: props.number,
+          url: props.url,
+          fresh,
         })
         if (current) {
           setDetails(result)
@@ -90,7 +92,7 @@ export function PullRequestView(props: {
     props.machine,
     props.projectId,
     props.repo,
-    props.number,
+    props.url,
     props.running,
     version,
   ])
@@ -101,7 +103,7 @@ export function PullRequestView(props: {
       await call(props.machine, 'pulls.run', {
         projectId: props.projectId,
         repo: props.repo,
-        number: props.number,
+        url: props.url,
         action,
       })
       toast(label)
@@ -135,7 +137,7 @@ export function PullRequestView(props: {
             </Button>
           )}
           <span className="text-foreground min-w-0 truncate text-xs font-medium">
-            #{props.number}
+            #{props.url.split('/').at(-1)}
             {details !== null && ` ${details.title}`}
           </span>
         </div>
@@ -145,7 +147,10 @@ export function PullRequestView(props: {
             variant="ghost"
             title="Refresh"
             aria-label="Refresh"
-            onClick={() => setVersion(version + 1)}
+            onClick={() => {
+              forced.current = true
+              setVersion(version + 1)
+            }}
           >
             <HugeiconsIcon icon={RefreshCwIcon} className="size-4" />
           </Button>
@@ -209,7 +214,7 @@ export function PullRequestView(props: {
                 </span>
                 <span>·</span>
                 <span>Updated {timeAgo(details.updatedAt)}</span>
-                {details.head === props.current && (
+                {details.head === details.current && (
                   <span className="bg-info/12 text-info rounded px-1.5 py-px text-[10px] font-medium">
                     Current branch
                   </span>
@@ -258,7 +263,8 @@ export function PullRequestView(props: {
                 machine={props.machine}
                 projectId={props.projectId}
                 repo={props.repo}
-                number={props.number}
+                url={details.url}
+                head={details.headOid}
               />
             )}
             {tab === 'files' && (
@@ -266,8 +272,8 @@ export function PullRequestView(props: {
                 machine={props.machine}
                 projectId={props.projectId}
                 repo={props.repo}
-                number={props.number}
-                updatedAt={details.updatedAt}
+                url={props.url}
+                head={details.headOid}
               />
             )}
             {tab === 'commits' && (
@@ -293,8 +299,6 @@ export function PullRequestView(props: {
           </div>
           <PullRequestActions
             details={details}
-            current={props.current}
-            viewer={props.viewer}
             busy={busy}
             onPerform={perform}
           />

@@ -16,6 +16,7 @@ const searchSchema = z.object({
     .optional()
     .catch(undefined),
   browse: z.string().optional().catch(undefined),
+  pull: z.string().optional().catch(undefined),
   bottom: z.literal('terminal').optional().catch(undefined),
   terminal: z.string().optional().catch(undefined),
 })

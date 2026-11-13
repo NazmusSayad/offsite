@@ -54,8 +54,6 @@ const methodLabels: Record<MergeMethod, { button: string; hint: string }> = {
 
 export function PullRequestActions(props: {
   details: PullRequestDetails
-  current: string | null
-  viewer: string | null
   busy: string | null
   onPerform: Perform
 }) {
@@ -89,12 +87,7 @@ export function PullRequestActions(props: {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
-          <MoreItems
-            details={details}
-            current={props.current}
-            viewer={props.viewer}
-            onPerform={props.onPerform}
-          />
+          <MoreItems details={details} onPerform={props.onPerform} />
         </DropdownMenuContent>
       </DropdownMenu>
       {details.state === 'OPEN' && details.draft && (
@@ -144,18 +137,13 @@ export function PullRequestActions(props: {
   )
 }
 
-function MoreItems(props: {
-  details: PullRequestDetails
-  current: string | null
-  viewer: string | null
-  onPerform: Perform
-}) {
+function MoreItems(props: { details: PullRequestDetails; onPerform: Perform }) {
   const details = props.details
   const clipboard = useCopy()
 
   return (
     <>
-      {details.state !== 'MERGED' && details.head !== props.current && (
+      {details.state !== 'MERGED' && details.head !== details.current && (
         <DropdownMenuItem
           onSelect={() =>
             void props.onPerform(
@@ -168,18 +156,16 @@ function MoreItems(props: {
           Check out branch
         </DropdownMenuItem>
       )}
-      {details.state === 'OPEN' &&
-        props.viewer !== null &&
-        details.author !== props.viewer && (
-          <DropdownMenuItem
-            onSelect={() =>
-              void props.onPerform({ kind: 'approve' }, 'Pull request approved')
-            }
-          >
-            <HugeiconsIcon icon={ThumbsUpIcon} />
-            Approve
-          </DropdownMenuItem>
-        )}
+      {details.state === 'OPEN' && details.author !== details.viewer && (
+        <DropdownMenuItem
+          onSelect={() =>
+            void props.onPerform({ kind: 'approve' }, 'Pull request approved')
+          }
+        >
+          <HugeiconsIcon icon={ThumbsUpIcon} />
+          Approve
+        </DropdownMenuItem>
+      )}
       {details.state === 'OPEN' && !details.draft && (
         <DropdownMenuItem
           onSelect={() =>

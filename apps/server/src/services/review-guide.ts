@@ -77,23 +77,13 @@ const outputSchema = z.object({
 
 type Hunk = { header: string; lines: string[] }
 
-export async function reviewGuide(
-  cwd: string,
-  number: number
-): Promise<ReviewGuideState> {
-  const pull: { url: string; headRefOid: string } = JSON.parse(
-    await gh(cwd, ['pr', 'view', String(number), '--json', 'url,headRefOid'])
-  )
-  return {
-    guides: savedGuides(pull.url),
-    head: pull.headRefOid,
-    running: running.has(pull.url),
-  }
+export function reviewGuide(url: string): ReviewGuideState {
+  return { guides: savedGuides(url), running: running.has(url) }
 }
 
 export async function writeReviewGuide(
   cwd: string,
-  number: number
+  target: string
 ): Promise<ReviewGuideState> {
   const pull: {
     url: string
@@ -105,19 +95,15 @@ export async function writeReviewGuide(
     await gh(cwd, [
       'pr',
       'view',
-      String(number),
+      target,
       '--json',
       'url,headRefOid,title,body,files',
     ])
   )
-  const pending = running.get(pull.url) ?? saveGuide(cwd, number, pull)
+  const pending = running.get(pull.url) ?? saveGuide(cwd, target, pull)
   running.set(pull.url, pending)
   await pending
-  return {
-    guides: savedGuides(pull.url),
-    head: pull.headRefOid,
-    running: false,
-  }
+  return { guides: savedGuides(pull.url), running: false }
 }
 
 function savedGuides(url: string) {
@@ -132,11 +118,11 @@ function savedGuides(url: string) {
 
 async function saveGuide(
   cwd: string,
-  number: number,
+  target: string,
   pull: Parameters<typeof createGuide>[2] & { url: string }
 ) {
   try {
-    const guide = await createGuide(cwd, number, pull)
+    const guide = await createGuide(cwd, target, pull)
     db.insert(reviewGuides)
       .values({ id: `${pull.url}@${guide.head}`, url: pull.url, guide })
       .onConflictDoUpdate({ target: reviewGuides.id, set: { guide } })
@@ -149,7 +135,7 @@ async function saveGuide(
 
 async function createGuide(
   cwd: string,
-  number: number,
+  target: string,
   pull: {
     headRefOid: string
     title: string
@@ -157,7 +143,7 @@ async function createGuide(
     files: { path: string; additions: number; deletions: number }[]
   }
 ): Promise<ReviewGuide> {
-  const patch = await pullRequestDiff(cwd, number)
+  const patch = await pullRequestDiff(cwd, target, pull.headRefOid)
   const cut = patch.length > DIFF_LIMIT
   const prompt = [
     `<pr_title>${pull.title}</pr_title>`,

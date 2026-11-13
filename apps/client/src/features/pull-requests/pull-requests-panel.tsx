@@ -8,7 +8,8 @@ import type {
   PullRequestFilter,
   PullRequestList,
 } from '@offsite/core/pull-requests'
-import { useEffect, useState } from 'react'
+import { useSearch } from '@tanstack/react-router'
+import { useEffect, useRef, useState } from 'react'
 import { useDebounceValue, useLocalStorage } from 'usehooks-ts'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
@@ -22,6 +23,7 @@ import {
 } from '@/components/ui/select'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { timeAgo } from '@/lib/format'
+import { replaceSearch } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
 import { ChecksBadge, ReviewBadge, StateIcon } from './pull-request-badges'
 import { PullRequestView } from './pull-request-view'
@@ -68,7 +70,11 @@ export function PullRequestsPanel(props: {
     error: string | null
   } | null>(null)
   const [version, setVersion] = useState(0)
-  const [selected, setSelected] = useState<number | null>(null)
+  const forced = useRef(false)
+  const selected = useSearch({
+    from: '__root__',
+    select: (search) => search.pull ?? null,
+  })
   const repo = chosenRepo ?? repos?.paths[0] ?? null
   const key = JSON.stringify([repo, filter.state, filter.scope, search])
 
@@ -109,11 +115,14 @@ export function PullRequestsPanel(props: {
         return
       }
       loading = true
+      const fresh = forced.current
+      forced.current = false
       try {
         const result = await call(props.machine, 'pulls.list', {
           projectId: props.projectId,
           repo: target,
           filter: { state: filter.state, scope: filter.scope, search },
+          fresh,
         })
         if (current) {
           setList({ key: loadKey, result, error: null })
@@ -156,13 +165,11 @@ export function PullRequestsPanel(props: {
         machine={props.machine}
         projectId={props.projectId}
         repo={repo}
-        number={selected}
-        current={list?.result?.current ?? null}
-        viewer={list?.result?.viewer ?? null}
+        url={selected}
         running={props.running}
         mobile={props.mobile}
         onBack={() => {
-          setSelected(null)
+          replaceSearch({ pull: undefined })
           setVersion(version + 1)
         }}
         onClose={props.onClose}
@@ -208,7 +215,10 @@ export function PullRequestsPanel(props: {
             variant="ghost"
             title="Refresh"
             aria-label="Refresh"
-            onClick={() => setVersion(version + 1)}
+            onClick={() => {
+              forced.current = true
+              setVersion(version + 1)
+            }}
           >
             <HugeiconsIcon
               icon={RefreshCwIcon}
@@ -301,7 +311,7 @@ export function PullRequestsPanel(props: {
               'hover:bg-accent flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 text-left',
               stale && 'opacity-60'
             )}
-            onClick={() => setSelected(item.number)}
+            onClick={() => replaceSearch({ pull: item.url })}
           >
             <StateIcon
               state={item.state}

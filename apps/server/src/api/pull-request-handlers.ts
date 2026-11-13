@@ -21,32 +21,31 @@ export const pullRequestHandlers: Pick<
   'pulls.list': (params) =>
     listPullRequests(
       path.join(projectPath(params.projectId), params.repo),
-      params.filter
+      params.filter,
+      params.fresh
     ),
   'pulls.view': (params) =>
     viewPullRequest(
       path.join(projectPath(params.projectId), params.repo),
-      params.number
+      params.url,
+      params.fresh
     ),
   'pulls.diff': (params) =>
     pullRequestDiff(
       path.join(projectPath(params.projectId), params.repo),
-      params.number
+      params.url,
+      params.head
     ),
-  'pulls.guide': (params) =>
-    reviewGuide(
-      path.join(projectPath(params.projectId), params.repo),
-      params.number
-    ),
+  'pulls.guide': (params) => reviewGuide(params.url),
   'pulls.writeGuide': (params) =>
     writeReviewGuide(
       path.join(projectPath(params.projectId), params.repo),
-      params.number
+      params.url
     ),
   'pulls.run': async (params) => {
     await runPullRequestAction(
       path.join(projectPath(params.projectId), params.repo),
-      params.number,
+      params.url,
       params.action
     )
     return null
