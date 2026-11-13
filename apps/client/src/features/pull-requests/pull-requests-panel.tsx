@@ -160,8 +160,8 @@ export function PullRequestsPanel(props: {
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-3 pl-3">
-        <div className="flex min-w-0 items-center gap-1">
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 border-b pr-3 pl-3">
+        <div className="flex max-w-1/2 min-w-0 shrink-0 items-center gap-1">
           <PanelCloseButton mobile={props.mobile} onClick={props.onClose} />
           <span className="text-foreground shrink-0 text-xs font-medium">
             Pull requests
@@ -171,6 +171,19 @@ export function PullRequestsPanel(props: {
               {result.repo}
             </span>
           )}
+        </div>
+        <div className="relative ml-4 min-w-0 flex-1">
+          <HugeiconsIcon
+            icon={Search01Icon}
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
+          />
+          <Input
+            className="h-7 pl-8 text-xs"
+            placeholder="Search, or label:bug review:approved"
+            aria-label="Search pull requests"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {repos !== null && repos.paths.length > 1 && (
@@ -205,19 +218,6 @@ export function PullRequestsPanel(props: {
         </div>
       </div>
       <div className="border-border/60 @container grid shrink-0 gap-2 border-b p-3">
-        <div className="relative">
-          <HugeiconsIcon
-            icon={Search01Icon}
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
-          />
-          <Input
-            className="h-8 pl-8 text-xs"
-            placeholder="Search, or label:bug review:approved"
-            aria-label="Search pull requests"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </div>
         <div className="flex flex-col gap-2 @sm:flex-row @sm:items-center">
           <div className="bg-input/40 flex min-w-0 items-center rounded-lg p-0.5 @sm:flex-1">
             {states.map((state) => (
