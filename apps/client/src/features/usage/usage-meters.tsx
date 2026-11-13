@@ -5,8 +5,8 @@ import { useStore } from '@/lib/store'
 import { hasUsage, usageKey, useUsage } from '@/lib/usage'
 import { cn } from '@/lib/utils'
 import { AccountUsage } from './account-usage'
-import { claudeMeter } from './claude-usage'
-import { codexMeter } from './codex-usage'
+import { claudeMeter, claudeRows } from './claude-usage'
+import { codexMeter, codexRows } from './codex-usage'
 
 export function UsageDetails(props: { machine: string; account: Account }) {
   const machines = useStore((state) => state.machines)
@@ -76,7 +76,7 @@ export function UsageMeter(props: {
   className?: string
 }) {
   const usage = useUsage(props.machine, props.account)
-  const meter = usageMeter(usage, props.account.provider)
+  const meter = usageMeter(usage)
   const short = meter.short ?? meter.long
   const long = meter.long ?? meter.short
 
@@ -119,15 +119,28 @@ export function UsageMeter(props: {
   )
 }
 
-export function usageMeter(
-  usage: Usage | undefined,
-  provider: Account['provider']
-) {
-  if (provider === 'claude') {
-    return claudeMeter(usage)
+export function usageMeter(usage: Usage | undefined) {
+  const limits = usage?.limits ?? null
+  if (limits === null) {
+    return { short: null, long: null }
   }
-  if (provider === 'codex') {
-    return codexMeter(usage)
+  switch (limits.provider) {
+    case 'claude':
+      return claudeMeter(limits)
+    case 'codex':
+      return codexMeter(limits)
   }
-  throw new Error(`Unknown provider ${String(provider)}`)
+}
+
+export function usageRows(usage: Usage | undefined) {
+  const limits = usage?.limits ?? null
+  if (limits === null) {
+    return []
+  }
+  switch (limits.provider) {
+    case 'claude':
+      return claudeRows(limits)
+    case 'codex':
+      return codexRows(limits)
+  }
 }

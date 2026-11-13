@@ -13,12 +13,13 @@ import { useSelectedAccount, useUsage } from '@/lib/usage'
 export function UsageLimitBadge() {
   const selected = useSelectedAccount()
   const usage = useUsage(selected.machine, selected.account)
+  const { short, long } = usageMeter(usage)
 
-  if (selected.machine === null || selected.account === undefined) {
-    return null
-  }
-  const { short, long } = usageMeter(usage, selected.account.provider)
-  if ((short === null || short >= 10) && (long === null || long >= 10)) {
+  if (
+    selected.machine === null ||
+    selected.account === undefined ||
+    ((short === null || short >= 10) && (long === null || long >= 10))
+  ) {
     return null
   }
 

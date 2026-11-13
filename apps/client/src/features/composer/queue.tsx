@@ -8,6 +8,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/shallow'
 import { Button } from '@/components/ui/button'
+import { usageRows } from '@/features/usage/usage-meters'
 import { timeLeft } from '@/lib/format'
 import { selectedPrompts, savedOutbox } from '@/lib/outbox'
 import { steer, unqueue } from '@/lib/sessions'
@@ -70,7 +71,9 @@ export function UsageResetBanner() {
   const running = useStore(selectedRunning)
   const usage = useSelectedUsage()
   const limit = running
-    ? usage?.limits.find((item) => item.rejected)
+    ? usageRows(usage)
+        .flatMap((row) => (row.limit === null ? [] : [row.limit]))
+        .find((item) => item.rejected)
     : undefined
   const [now, setNow] = useState(Date.now())
 

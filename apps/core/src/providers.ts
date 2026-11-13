@@ -1,14 +1,30 @@
 export type Provider = 'claude' | 'codex' | 'opencode'
 
 export type RateLimit = {
-  window: string
   utilization: number | null
   resetsAt: number | null
   rejected: boolean
 }
 
+export type ClaudeLimits = {
+  provider: 'claude'
+  session: RateLimit | null
+  weekly: RateLimit | null
+  fable: RateLimit | null
+}
+
+export type CodexLimit = RateLimit & { minutes: number }
+
+export type CodexLimits = {
+  provider: 'codex'
+  primary: CodexLimit | null
+  secondary: CodexLimit | null
+}
+
+export type Limits = ClaudeLimits | CodexLimits
+
 export type Usage = {
-  limits: RateLimit[]
+  limits: Limits | null
   fetchedAt: number | null
   updatedAt: number | null
   error: string | null

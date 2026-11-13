@@ -1,6 +1,6 @@
-import type { RateLimit } from '@offsite/core/providers'
+import type { CodexLimit, CodexLimits } from '@offsite/core/providers'
 import { type StoredAccount, storedAccounts } from '../../services/accounts.ts'
-import { recordLimits } from '../../services/usage.ts'
+import { cachedUsage, recordLimits } from '../../services/usage.ts'
 import { appServer, codexBaseDir } from './app-server.ts'
 import type { RateLimitSnapshot } from './types.ts'
 
@@ -10,7 +10,16 @@ export function publishCodexLimits(home: string, snapshot: RateLimitSnapshot) {
       account.provider === 'codex' &&
       (account.configDir ?? codexBaseDir) === home
     ) {
-      recordLimits(account.id, toLimits(snapshot))
+      const current = cachedUsage(account.id).limits
+      if (current !== null && current.provider !== 'codex') {
+        throw new Error(`Account ${account.id} has ${current.provider} limits`)
+      }
+      const next = toLimits(snapshot)
+      recordLimits(account.id, {
+        provider: 'codex',
+        primary: next.primary ?? current?.primary ?? null,
+        secondary: next.secondary ?? current?.secondary ?? null,
+      })
     }
   }
 }
@@ -22,17 +31,22 @@ export async function codexLimits(account: StoredAccount) {
   return toLimits(result.rateLimits)
 }
 
-function toLimits(snapshot: RateLimitSnapshot): RateLimit[] {
-  return [snapshot.primary, snapshot.secondary].flatMap((window) =>
-    window === null || window.windowDurationMins === null
-      ? []
-      : [
-          {
-            window: String(window.windowDurationMins),
-            utilization: window.usedPercent / 100,
-            resetsAt: window.resetsAt,
-            rejected: window.usedPercent >= 100,
-          },
-        ]
-  )
+function toLimits(snapshot: RateLimitSnapshot): CodexLimits {
+  return {
+    provider: 'codex',
+    primary: toLimit(snapshot.primary),
+    secondary: toLimit(snapshot.secondary),
+  }
+}
+
+function toLimit(window: RateLimitSnapshot['primary']): CodexLimit | null {
+  if (window === null || window.windowDurationMins === null) {
+    return null
+  }
+  return {
+    minutes: window.windowDurationMins,
+    utilization: window.usedPercent / 100,
+    resetsAt: window.resetsAt,
+    rejected: window.usedPercent >= 100,
+  }
 }

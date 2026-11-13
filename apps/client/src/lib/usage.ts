@@ -1,4 +1,4 @@
-import type { Account, RateLimit, Usage } from '@offsite/core/providers'
+import type { Account, Limits, RateLimit, Usage } from '@offsite/core/providers'
 import { useEffect } from 'react'
 import { call } from '@/api/connection'
 import { logger } from '@/lib/log'
@@ -20,9 +20,8 @@ export function hasUsage(account: Account) {
   return account.enabled && account.error === null && account.email !== null
 }
 
-export function leftOf(usage: Usage | undefined, window: string) {
-  const limit = usage?.limits.find((item) => item.window === window)
-  if (limit === undefined) {
+export function leftOf(limit: RateLimit | null) {
+  if (limit === null) {
     return null
   }
   if (limit.rejected) {
@@ -100,7 +99,7 @@ export function receiveUsage(
 export function receiveLimits(
   machine: Machine,
   accountId: string,
-  limits: RateLimit[]
+  limits: Limits
 ) {
   const account = findAccount(machine, accountId)
   if (account === undefined) {
@@ -108,7 +107,7 @@ export function receiveLimits(
   }
   const key = usageKey(machine.id, account)
   const current = getState().usage[key] ?? {
-    limits: [],
+    limits: null,
     fetchedAt: null,
     updatedAt: null,
     error: null,
@@ -116,20 +115,7 @@ export function receiveLimits(
   update({
     usage: {
       ...getState().usage,
-      [key]: {
-        ...current,
-        limits: [
-          ...current.limits.map(
-            (limit) =>
-              limits.find((item) => item.window === limit.window) ?? limit
-          ),
-          ...limits.filter(
-            (item) =>
-              !current.limits.some((limit) => limit.window === item.window)
-          ),
-        ],
-        updatedAt: Date.now(),
-      },
+      [key]: { ...current, limits, updatedAt: Date.now() },
     },
   })
 }

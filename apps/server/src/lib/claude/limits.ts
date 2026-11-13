@@ -1,6 +1,6 @@
 import os from 'node:os'
 import { query, type SDKRateLimitInfo } from '@anthropic-ai/claude-agent-sdk'
-import type { RateLimit } from '@offsite/core/providers'
+import type { ClaudeLimits, RateLimit } from '@offsite/core/providers'
 import type { StoredAccount } from '../../services/accounts.ts'
 import { cachedUsage, recordLimits } from '../../services/usage.ts'
 import { claudeOptions, idle } from './claude.ts'
@@ -13,41 +13,60 @@ export function recordEventLimits(
   if (accountId === null) {
     throw new Error('Rate limit event for a run without an account')
   }
-  recordLimits(accountId, eventLimits(info, cachedUsage(accountId).limits))
+  const current = cachedUsage(accountId).limits
+  if (current !== null && current.provider !== 'claude') {
+    throw new Error(`Account ${accountId} has ${current.provider} limits`)
+  }
+  recordLimits(accountId, eventLimits(info, current))
 }
 
-export function eventLimits(info: SDKRateLimitInfo, current: RateLimit[]) {
-  const changed = new Map<string, RateLimit>()
+export function eventLimits(
+  info: SDKRateLimitInfo,
+  current: ClaudeLimits | null
+): ClaudeLimits {
+  const limits: ClaudeLimits =
+    current === null
+      ? { provider: 'claude', session: null, weekly: null, fable: null }
+      : { ...current }
   const windows = (info as { unifiedWindows?: unknown }).unifiedWindows
-  if (isRecord(windows)) {
-    for (const [name, value] of Object.entries(windows)) {
-      if (isRecord(value)) {
-        changed.set(name, {
-          window: name,
-          utilization:
-            typeof value.utilization === 'number' ? value.utilization : null,
-          resetsAt: typeof value.resetsAt === 'number' ? value.resetsAt : null,
-          rejected:
-            current.find((limit) => limit.window === name)?.rejected ?? false,
-        })
-      }
+  if (isRecord(windows) && isRecord(windows.five_hour)) {
+    limits.session = windowLimit(windows.five_hour, limits.session)
+  }
+  if (isRecord(windows) && isRecord(windows.seven_day)) {
+    limits.weekly = windowLimit(windows.seven_day, limits.weekly)
+  }
+  if (info.rateLimitType === 'five_hour') {
+    limits.session = {
+      utilization: info.utilization ?? limits.session?.utilization ?? null,
+      resetsAt: info.resetsAt ?? limits.session?.resetsAt ?? null,
+      rejected: info.status === 'rejected',
     }
   }
-  if (info.rateLimitType !== undefined) {
-    const existing =
-      changed.get(info.rateLimitType) ??
-      current.find((limit) => limit.window === info.rateLimitType)
-    changed.set(info.rateLimitType, {
-      window: info.rateLimitType,
-      utilization: info.utilization ?? existing?.utilization ?? null,
-      resetsAt: info.resetsAt ?? existing?.resetsAt ?? null,
+  if (info.rateLimitType === 'seven_day') {
+    limits.weekly = {
+      utilization: info.utilization ?? limits.weekly?.utilization ?? null,
+      resetsAt: info.resetsAt ?? limits.weekly?.resetsAt ?? null,
       rejected: info.status === 'rejected',
-    })
+    }
   }
-  return [...changed.values()]
+  return limits
 }
 
-export async function claudeLimits(account: StoredAccount) {
+function windowLimit(
+  window: Record<string, unknown>,
+  current: RateLimit | null
+): RateLimit {
+  return {
+    utilization:
+      typeof window.utilization === 'number' ? window.utilization : null,
+    resetsAt: typeof window.resetsAt === 'number' ? window.resetsAt : null,
+    rejected: current?.rejected ?? false,
+  }
+}
+
+export async function claudeLimits(
+  account: StoredAccount
+): Promise<ClaudeLimits> {
   const closed = Promise.withResolvers<void>()
   const probe = query({
     prompt: idle(closed.promise),
@@ -60,36 +79,42 @@ export async function claudeLimits(account: StoredAccount) {
         skipBehaviors: true,
       })
     if (usage.rate_limits === null) {
-      return []
-    }
-    const windows = [
-      { name: 'five_hour', window: usage.rate_limits.five_hour },
-      { name: 'seven_day', window: usage.rate_limits.seven_day },
-      ...(usage.rate_limits.model_scoped ?? []).map((row) => ({
-        name: row.display_name,
-        window: row,
-      })),
-    ]
-    return windows.flatMap((entry): RateLimit[] => {
-      const window = entry.window
-      if (window === undefined || window === null) {
-        return []
+      return {
+        provider: 'claude',
+        session: null,
+        weekly: null,
+        fable: null,
       }
-      return [
-        {
-          window: entry.name,
-          utilization:
-            window.utilization === null ? null : window.utilization / 100,
-          resetsAt:
-            window.resets_at === null
-              ? null
-              : Date.parse(window.resets_at) / 1000,
-          rejected: window.utilization !== null && window.utilization >= 100,
-        },
-      ]
-    })
+    }
+    return {
+      provider: 'claude',
+      session: toLimit(usage.rate_limits.five_hour),
+      weekly: toLimit(usage.rate_limits.seven_day),
+      fable: toLimit(
+        usage.rate_limits.model_scoped?.find(
+          (row) => row.display_name === 'Fable'
+        )
+      ),
+    }
   } finally {
     closed.resolve()
     probe.close()
+  }
+}
+
+function toLimit(
+  window:
+    | { utilization: number | null; resets_at: string | null }
+    | null
+    | undefined
+): RateLimit | null {
+  if (window === undefined || window === null) {
+    return null
+  }
+  return {
+    utilization: window.utilization === null ? null : window.utilization / 100,
+    resetsAt:
+      window.resets_at === null ? null : Date.parse(window.resets_at) / 1000,
+    rejected: window.utilization !== null && window.utilization >= 100,
   }
 }
