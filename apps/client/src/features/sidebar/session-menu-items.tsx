@@ -40,13 +40,6 @@ import {
 import type { DebugAction } from './debug-dialogs'
 import { DebugMenu } from './debug-menu'
 
-const restore = {
-  snoozed: { icon: SunriseIcon, label: 'Unsnooze' },
-  minimized: { icon: ArrowExpandDiagonal01Icon, label: 'Restore' },
-  inactive: { icon: PlayIcon, label: 'Resume' },
-  pinned: { icon: PinOffIcon, label: 'Unpin' },
-} as const
-
 export function SessionMenuItems(props: {
   session: MachineSession
   context: boolean
@@ -76,60 +69,70 @@ export function SessionMenuItems(props: {
 
   return (
     <>
-      {session.status !== 'active' && (
+      <div className="grid grid-cols-3 gap-1">
         <Item
+          title={session.status === 'inactive' ? 'Resume' : 'Done'}
+          className="justify-center bg-green-500/10 py-2 focus:bg-green-500/20 *:[svg]:text-green-600! dark:*:[svg]:text-green-400!"
+          onSelect={() => {
+            if (session.status === 'inactive') {
+              void editSession(session.machine, session.id, {
+                status: 'active',
+              })
+              return
+            }
+            props.onDeactivate()
+          }}
+        >
+          <HugeiconsIcon
+            className="size-5"
+            icon={session.status === 'inactive' ? PlayIcon : TickDouble01Icon}
+          />
+        </Item>
+        <Item
+          title={session.status === 'snoozed' ? 'Unsnooze' : 'Snooze'}
+          className="justify-center bg-amber-500/10 py-2 focus:bg-amber-500/20 *:[svg]:text-amber-600! dark:*:[svg]:text-amber-400!"
           onSelect={() =>
             void editSession(session.machine, session.id, {
-              status: 'active',
+              status: session.status === 'snoozed' ? 'active' : 'snoozed',
             })
           }
         >
-          <HugeiconsIcon icon={restore[session.status].icon} />
-          {restore[session.status].label}
+          <HugeiconsIcon
+            className="size-5"
+            icon={session.status === 'snoozed' ? SunriseIcon : ZzzIcon}
+          />
         </Item>
-      )}
-      {session.status !== 'inactive' && (
-        <Item onSelect={props.onDeactivate}>
-          <HugeiconsIcon icon={TickDouble01Icon} />
-          Done
-        </Item>
-      )}
-      {session.status !== 'snoozed' && (
         <Item
+          title={session.status === 'minimized' ? 'Restore' : 'Minimize'}
+          className="justify-center bg-sky-500/10 py-2 focus:bg-sky-500/20 *:[svg]:text-sky-600! dark:*:[svg]:text-sky-400!"
           onSelect={() =>
             void editSession(session.machine, session.id, {
-              status: 'snoozed',
+              status: session.status === 'minimized' ? 'active' : 'minimized',
             })
           }
         >
-          <HugeiconsIcon icon={ZzzIcon} />
-          Snooze
+          <HugeiconsIcon
+            className="size-5"
+            icon={
+              session.status === 'minimized'
+                ? ArrowExpandDiagonal01Icon
+                : MinimizeIcon
+            }
+          />
         </Item>
-      )}
-      {session.status !== 'minimized' && (
-        <Item
-          onSelect={() =>
-            void editSession(session.machine, session.id, {
-              status: 'minimized',
-            })
-          }
-        >
-          <HugeiconsIcon icon={MinimizeIcon} />
-          Minimize
-        </Item>
-      )}
-      {session.status !== 'pinned' && (
-        <Item
-          onSelect={() =>
-            void editSession(session.machine, session.id, {
-              status: 'pinned',
-            })
-          }
-        >
-          <HugeiconsIcon icon={PinIcon} />
-          Pin
-        </Item>
-      )}
+      </div>
+      <Item
+        onSelect={() =>
+          void editSession(session.machine, session.id, {
+            status: session.status === 'pinned' ? 'active' : 'pinned',
+          })
+        }
+      >
+        <HugeiconsIcon
+          icon={session.status === 'pinned' ? PinOffIcon : PinIcon}
+        />
+        {session.status === 'pinned' ? 'Unpin' : 'Pin'}
+      </Item>
       <Item onSelect={() => toggleBookmark(session.machine, target)}>
         <HugeiconsIcon
           icon={bookmarked ? BookmarkRemove02Icon : BookmarkAdd02Icon}
