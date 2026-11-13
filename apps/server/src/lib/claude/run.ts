@@ -26,12 +26,7 @@ import {
 } from '../live.ts'
 import { logger } from '../log.ts'
 import { backgroundTasks } from './background-tasks.ts'
-import {
-  claudeEffort,
-  claudeMode,
-  recordEventLimits,
-  runOptions,
-} from './claude.ts'
+import { claudeEffort, claudeMode, runOptions } from './claude.ts'
 import {
   contextTokens,
   type Message,
@@ -42,6 +37,7 @@ import {
   turnFailed,
 } from './content.ts'
 import { toItems, toRequest } from './items.ts'
+import { recordEventLimits } from './limits.ts'
 import { permissionResult } from './permission.ts'
 import { type Input, skillInputs } from './skills.ts'
 import { followStart, followWorktree } from './worktree-follow.ts'

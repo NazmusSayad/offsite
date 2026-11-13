@@ -6,7 +6,7 @@ import readline from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
 import { logger } from '../log.ts'
 import { offsitePlugin } from '../plugin.ts'
-import { publishCodexLimits } from './accounts.ts'
+import { publishCodexLimits } from './limits.ts'
 import type { RateLimitSnapshot, ThreadItem } from './types.ts'
 
 const log = logger.withTag('codex')
