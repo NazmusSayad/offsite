@@ -17,11 +17,11 @@ import type {
   RateLimit,
 } from '@offsite/core/providers'
 import { type StoredAccount, storedAccount } from '../../services/accounts.ts'
-import { notifierConnected, sendPush } from '../../services/push.ts'
-import { sessions } from '../../services/sessions.ts'
+import { noticeSession, sendText } from '../../services/notice-sessions.ts'
+import { notify } from '../../services/notices.ts'
 import { cachedUsage, recordLimits } from '../../services/usage.ts'
 import { claudeBaseDir } from '../../storage/config.ts'
-import { broadcast } from '../hub.ts'
+import { runs } from '../live.ts'
 import { logger } from '../log.ts'
 import { offsitePlugin } from '../plugin.ts'
 import { isRecord } from './content.ts'
@@ -104,44 +104,42 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
                 throw new Error('Unexpected PushNotification hook input')
               }
               const message = input.tool_input.message
-              broadcast({
-                type: 'notification',
-                sessionId: input.session_id,
-                message,
-              })
-              if (notifierConnected()) {
-                return {
-                  hookSpecificOutput: {
-                    hookEventName: 'PostToolUse',
-                    updatedToolOutput: {
-                      message,
-                      localSent: true,
-                      disabledReason: 'no_transport',
-                    },
-                  },
-                }
+              const run = runs.get(input.session_id)
+              if (run === undefined) {
+                throw new Error(`Session ${input.session_id} is not running`)
               }
-              const session = sessions().find(
-                (item) => item.id === input.session_id
-              )
-              if (session === undefined) {
+              const session = noticeSession(input.session_id, run.settings)
+              if (session === null) {
                 throw new Error(`Session ${input.session_id} is not listed`)
               }
-              const pushSent = await sendPush({
-                kind: 'session',
+              const delivered = await notify({
                 title: session.title,
                 body: message,
-                projectId: session.projectId,
-                sessionId: session.id,
+                summary: message,
+                source: 'claude',
+                state: 'push',
+                image: null,
+                buttons: [
+                  {
+                    title: 'Looks good',
+                    kind: 'run',
+                    run: (client) => sendText(client, session, 'Looks good'),
+                  },
+                  { title: 'Reply', kind: 'open' },
+                ],
+                whileVisible: true,
+                session,
               })
               return {
                 hookSpecificOutput: {
                   hookEventName: 'PostToolUse',
                   updatedToolOutput: {
                     message,
-                    localSent: false,
-                    pushSent,
-                    ...(pushSent ? {} : { disabledReason: 'no_transport' }),
+                    localSent: delivered === 'local',
+                    pushSent: delivered === 'push',
+                    ...(delivered === 'none'
+                      ? { disabledReason: 'no_transport' }
+                      : {}),
                   },
                 },
               }

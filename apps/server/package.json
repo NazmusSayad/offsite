@@ -13,6 +13,7 @@
     "@opencode/client": "2.0.30",
     "commander": "^15.0.0",
     "consola": "^3.4.2",
+    "diff": "^9.0.0",
     "drizzle-orm": "1.0.0-rc.4",
     "effect": "4.0.1",
     "es-toolkit": "^1.52.0",

@@ -42,7 +42,7 @@ export function NotificationsPage(props: { prefs: Prefs }) {
         <Row label="Desktop notifications on this device">
           <NotificationSwitch />
         </Row>
-        <Row label="Push terminal alerts when no OffSite page is open">
+        <Row label="Push notifications when no OffSite page is open">
           <PushSwitch />
         </Row>
       </Section>

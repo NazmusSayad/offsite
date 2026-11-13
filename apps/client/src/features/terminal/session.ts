@@ -31,7 +31,7 @@ import {
   terminalView,
 } from '@/lib/url'
 import { errorMessage } from '@/lib/utils'
-import { forgetTab, unseenAttention } from './attention'
+import { unseenAttention } from './attention'
 import { applyStyle, terminalOptions } from './config'
 import { createSession } from './create-session'
 import { keepPageOpen, showGroup } from './page'
@@ -123,14 +123,6 @@ export async function startTerminal() {
     }
   })
   window.addEventListener('blur', () => setState({}))
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data.type !== 'select') {
-        return
-      }
-      showTab(event.data.machine, event.data.project, event.data.tabId)
-    })
-  }
   let previous = appState().prefs
   let previousIdentity = identity()
   subscribeApp(() => {
@@ -455,7 +447,6 @@ function sync(tabs: TerminalTab[]) {
     }
     terminal.dispose()
     sessions.delete(id)
-    forgetTab(id)
   })
   for (const id of ids) {
     if (!sessions.has(id)) {
