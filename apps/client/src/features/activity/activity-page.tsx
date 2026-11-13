@@ -118,29 +118,40 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
         />
       </header>
       <div className="min-h-0 flex-1 overflow-auto">
-        {agents.length === 0 && (
-          <p className="text-muted-foreground px-5 pt-[20vh] text-center text-sm">
-            No agents running
-          </p>
+        {agents.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-5 pt-[20vh]">
+            <p className="text-muted-foreground text-sm">No agents running</p>
+            {machines
+              .filter((machine) => machine.status !== 'online')
+              .map((machine) => (
+                <MachineTree
+                  key={machine.id}
+                  machine={machine}
+                  agents={[]}
+                  now={now}
+                />
+              ))}
+          </div>
+        ) : (
+          <div className="grid items-start gap-x-10 gap-y-8 px-5 pt-2 pb-10 md:grid-cols-[repeat(auto-fill,minmax(24rem,1fr))]">
+            {machines
+              .filter(
+                (machine) =>
+                  machine.status !== 'online' ||
+                  agents.some((agent) => agent.session.machine === machine.id)
+              )
+              .map((machine) => (
+                <MachineTree
+                  key={machine.id}
+                  machine={machine}
+                  agents={agents.filter(
+                    (agent) => agent.session.machine === machine.id
+                  )}
+                  now={now}
+                />
+              ))}
+          </div>
         )}
-        <div className="grid items-start gap-x-10 gap-y-8 px-5 pt-2 pb-10 md:grid-cols-[repeat(auto-fill,minmax(24rem,1fr))]">
-          {machines
-            .filter(
-              (machine) =>
-                machine.status !== 'online' ||
-                agents.some((agent) => agent.session.machine === machine.id)
-            )
-            .map((machine) => (
-              <MachineTree
-                key={machine.id}
-                machine={machine}
-                agents={agents.filter(
-                  (agent) => agent.session.machine === machine.id
-                )}
-                now={now}
-              />
-            ))}
-        </div>
       </div>
     </main>
   )

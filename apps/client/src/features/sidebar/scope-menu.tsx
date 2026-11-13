@@ -1,5 +1,5 @@
 import {
-  Activity01Icon,
+  Analytics01Icon,
   Add01Icon,
   CenterFocusIcon,
   ChevronDownIcon,
@@ -331,7 +331,7 @@ export function ProjectMenuItems(props: {
           {props.inbox && search === '' && (
             <DropdownMenuRadioItem value="activity" onSelect={openActivityPage}>
               <HugeiconsIcon
-                icon={Activity01Icon}
+                icon={Analytics01Icon}
                 className="text-muted-foreground size-5 shrink-0"
               />
               <span className="min-w-0 flex-1 truncate">Activity</span>
