@@ -31,6 +31,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { startCommit, startGitToast } from '@/features/git/git-toast'
+import { touch } from '@/lib/utils'
+import { keepFocusOnTouch, refocusComposer } from './picker'
 
 type Target = { machine: string; projectId: string; onRefresh: () => void }
 
@@ -40,7 +42,7 @@ export function RepoStatus(props: { repo: GitRepo; target: Target }) {
   return (
     <div className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1.5 pl-2 whitespace-nowrap tabular-nums @max-sm:flex-1 @max-sm:justify-end @max-sm:pl-0">
       {repo.changed > 0 && (
-        <DropdownMenu>
+        <DropdownMenu modal={!touch.matches}>
           <DropdownMenuTrigger asChild>
             <button
               className="hover:bg-accent hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground flex h-6 cursor-pointer items-center gap-1.5 rounded-md px-1.5 outline-none @max-sm:mr-auto"
@@ -58,7 +60,11 @@ export function RepoStatus(props: { repo: GitRepo; target: Target }) {
               <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent
+            align="end"
+            onOpenAutoFocus={keepFocusOnTouch}
+            onCloseAutoFocus={refocusComposer}
+          >
             <ChangesMenu
               repo={repo}
               target={props.target}
