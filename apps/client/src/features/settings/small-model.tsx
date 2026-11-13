@@ -1,4 +1,8 @@
-import type { Config, GenerationModel } from '@offsite/core/config'
+import {
+  type Config,
+  DEFAULT_SMALL_MODELS,
+  type SmallModel,
+} from '@offsite/core/config'
 import type { Account, Model } from '@offsite/core/providers'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
@@ -15,16 +19,14 @@ import { providerNames } from '@/lib/format'
 import { errorMessage } from '@/lib/utils'
 import { Row, Section } from './controls'
 
-export function GenerationModelSection(props: {
-  title: string
-  setting: 'commitMessage' | 'titleGeneration'
+export function SmallModelSection(props: {
   machine: string
   config: Config
   claudeAccounts: Account[]
   codexAccounts: Account[]
   openCode: { available: boolean }
 }) {
-  const settings = props.config[props.setting]
+  const settings = props.config.smallModel
   const [models, setModels] = useState<Model[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,11 +58,8 @@ export function GenerationModelSection(props: {
     }
   }, [props.machine, settings.provider, settings.accountId])
 
-  function save(value: GenerationModel) {
-    void updateConfig(props.machine, {
-      ...props.config,
-      [props.setting]: value,
-    })
+  function save(value: SmallModel) {
+    void updateConfig(props.machine, { ...props.config, smallModel: value })
   }
 
   function choose(value: string) {
@@ -78,11 +77,18 @@ export function GenerationModelSection(props: {
     if (account === undefined) {
       throw new Error('That account was removed')
     }
-    save({ provider: account.provider, accountId: account.id, model: null })
+    save({
+      provider: account.provider,
+      accountId: account.id,
+      model: DEFAULT_SMALL_MODELS[account.provider],
+    })
   }
 
   return (
-    <Section title={props.title}>
+    <Section
+      title="Small model"
+      note="Commits, pull requests, titles and branch names"
+    >
       <Row label="Account">
         <Select
           value={

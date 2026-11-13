@@ -27,7 +27,7 @@ export type Named = {
 
 export async function generatedName(cwd: string, text: string): Promise<Named> {
   const fallback = fallbackName(text)
-  const settings = readConfig().titleGeneration
+  const settings = readConfig().smallModel
   if (
     settings.provider === null ||
     settings.model === null ||
@@ -41,7 +41,7 @@ export async function generatedName(cwd: string, text: string): Promise<Named> {
   try {
     reply = await Promise.race([
       generateText(
-        'titleGeneration',
+        true,
         cwd,
         NAME_INSTRUCTIONS,
         text.slice(0, NAME_INPUT_LIMIT),
@@ -61,7 +61,7 @@ export async function generatedName(cwd: string, text: string): Promise<Named> {
     return {
       branch: fallback,
       generated: true,
-      warning: `Could not name the branch with the session title model, so it is named ${fallback}: ${error instanceof Error ? error.message : String(error)}`,
+      warning: `Could not name the branch with the small model, so it is named ${fallback}: ${error instanceof Error ? error.message : String(error)}`,
     }
   } finally {
     clearTimeout(timer)
@@ -74,7 +74,7 @@ export async function generatedName(cwd: string, text: string): Promise<Named> {
     return {
       branch: fallback,
       generated: true,
-      warning: `The session title model replied with ${JSON.stringify(branch.slice(0, 80))}, which is not a usable branch name, so it is named ${fallback}`,
+      warning: `The small model replied with ${JSON.stringify(branch.slice(0, 80))}, which is not a usable branch name, so it is named ${fallback}`,
     }
   }
   return { branch, generated: true, warning: null }

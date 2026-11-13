@@ -9,7 +9,7 @@ const modelSetting = z.strictObject({
   hidden: z.boolean(),
 })
 
-const generationModel = z
+const smallModel = z
   .strictObject({
     provider: z.enum(['claude', 'codex', 'opencode']).nullable().default(null),
     accountId: z.string().nullable().default(null),
@@ -67,7 +67,7 @@ function accountSchema(provider: 'claude' | 'codex') {
 const modelSettings = z.record(z.string(), modelSetting).default({})
 
 const configSchema: z.ZodType<Config> = z.strictObject({
-  version: z.literal(2).default(2),
+  version: z.literal(3).default(3),
   claude: z
     .strictObject({
       enabled: z.boolean().default(true),
@@ -96,8 +96,7 @@ const configSchema: z.ZodType<Config> = z.strictObject({
       windows: workingDir(path.win32.isAbsolute),
     })
     .prefault({}),
-  commitMessage: generationModel,
-  titleGeneration: generationModel,
+  smallModel,
   delivery: z.enum(['queue', 'steer']).default('steer'),
   autoSkipQuestionTimeout: z.number().positive().nullable().default(180),
   autoPermissionMode: z.enum(['bypass', 'allow', 'deny']).default('bypass'),
@@ -185,9 +184,12 @@ function migrate(value: unknown) {
     return value
   }
   if (!('version' in value)) {
-    return fromVersion1(value)
+    return fromVersion2(fromVersion1(value))
   }
   if (value.version === 2) {
+    return fromVersion2(value)
+  }
+  if (value.version === 3) {
     return value
   }
   throw new Error(
@@ -224,6 +226,22 @@ function fromVersion1(value: object) {
       enabled: enabled.opencode,
       models: providerModels.opencode,
     },
+  }
+}
+
+function fromVersion2(value: object) {
+  const { commitMessage, titleGeneration, ...rest } = value as Record<
+    string,
+    unknown
+  >
+  const titles = (titleGeneration ?? {}) as Record<string, unknown>
+  return {
+    ...rest,
+    version: 3,
+    smallModel:
+      titles.provider === undefined || titles.provider === null
+        ? commitMessage
+        : titleGeneration,
   }
 }
 

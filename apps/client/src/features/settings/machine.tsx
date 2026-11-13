@@ -23,9 +23,9 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { platforms } from '@/features/terminal/config'
 import { AgentsSection } from './agents'
 import { Row, Section, TextInput } from './controls'
-import { GenerationModelSection } from './generation-model'
 import { ServiceSection } from './service'
 import { ShellInput } from './shell-input'
+import { SmallModelSection } from './small-model'
 
 export function MachinePage(props: {
   machine: string
@@ -69,20 +69,8 @@ export function MachinePage(props: {
         defaultShell={props.defaultShell}
       />
       <AgentsSection machine={props.machine} config={props.config} />
-      <GenerationModelSection
-        key={`git-${props.machine}`}
-        title="Commit messages and pull requests"
-        setting="commitMessage"
-        machine={props.machine}
-        config={props.config}
-        claudeAccounts={props.claudeAccounts}
-        codexAccounts={props.codexAccounts}
-        openCode={props.openCode}
-      />
-      <GenerationModelSection
-        key={`titles-${props.machine}`}
-        title="Session titles"
-        setting="titleGeneration"
+      <SmallModelSection
+        key={`small-model-${props.machine}`}
         machine={props.machine}
         config={props.config}
         claudeAccounts={props.claudeAccounts}

@@ -9,22 +9,15 @@ import { readConfig } from '../storage/config.ts'
 import { assertEnabled } from './accounts.ts'
 
 export async function generateText(
-  setting: 'commitMessage' | 'titleGeneration',
+  isolated: boolean,
   cwd: string,
   instructions: string,
   prompt: string,
   abortController?: AbortController
 ) {
-  const settings = readConfig()[setting]
-  const provider = settings.provider
-  const accountId = settings.accountId
-  const model = settings.model
+  const { provider, accountId, model } = readConfig().smallModel
   if (provider === null || model === null) {
-    throw new Error(
-      setting === 'commitMessage'
-        ? 'Choose a model in Settings → Git'
-        : 'Choose a model in Settings → Session titles'
-    )
+    throw new Error('Choose a small model in Settings → General')
   }
   assertEnabled(provider, accountId)
   if (provider === 'codex') {
@@ -33,7 +26,7 @@ export async function generateText(
   if (provider === 'opencode') {
     return openCodeText(cwd, model, `${instructions}\n\n${prompt}`)
   }
-  if (setting === 'commitMessage') {
+  if (!isolated) {
     return claudeText(
       claudeOptions(accountId, cwd),
       model,
