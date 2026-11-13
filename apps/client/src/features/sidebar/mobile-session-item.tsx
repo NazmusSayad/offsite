@@ -1,15 +1,5 @@
-import {
-  ArrowExpandDiagonal01Icon,
-  MinimizeIcon,
-  PinIcon,
-  PinOffIcon,
-  PlayIcon,
-  SquarePenIcon,
-  SunriseIcon,
-  TickDouble01Icon,
-  ZzzIcon,
-} from '@hugeicons/core-free-icons'
-import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
+import { PinIcon, SquarePenIcon, ZzzIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { memo, useRef, useState } from 'react'
 import { useProjectName } from '@/api/projects'
@@ -42,20 +32,14 @@ import { cn } from '@/lib/utils'
 import { SessionMenuItems } from './session-menu-items'
 import { SessionStatus } from './session-status'
 import { SessionTitle } from './session-title'
+import {
+  secondarySwipe,
+  SwipeBackground,
+  swipeThreshold,
+} from './swipe-background'
 
 const surface =
   'relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none touch-pan-y [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
-
-export const secondarySwipe = {
-  active: { status: 'snoozed', icon: ZzzIcon },
-  snoozed: { status: 'active', icon: SunriseIcon },
-  minimized: { status: 'active', icon: ArrowExpandDiagonal01Icon },
-  inactive: { status: 'minimized', icon: MinimizeIcon },
-  pinned: { status: 'active', icon: PinOffIcon },
-} as const satisfies Record<
-  MachineSession['status'],
-  { status: MachineSession['status']; icon: IconSvgElement }
->
 
 export const MobileSessionItem = memo(MobileSessionItemView)
 
@@ -76,11 +60,17 @@ function MobileSessionItemView(props: {
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
   const [offset, setOffset] = useState(0)
+  const [width, setWidth] = useState(0)
+  const [released, setReleased] = useState<{
+    offset: number
+    status: MachineSession['status']
+  } | null>(null)
   const field = useRef<HTMLInputElement>(null)
   const swipe = useRef<{ x: number; y: number; swiping: boolean } | null>(null)
   const swiped = useRef(false)
   const thread = threadState(props.activity, props.unseen)
   const recede = !props.selected && !thread.waiting && !thread.done
+  const moving = offset !== 0 || released !== null
 
   function makeInactive() {
     void deactivateSession(session.machine, session.id, props.scope)
@@ -97,21 +87,53 @@ function MobileSessionItemView(props: {
   function release(event: React.PointerEvent<HTMLDivElement>) {
     const start = swipe.current
     swipe.current = null
-    setOffset(0)
     if (start === null || !start.swiping) {
+      setOffset(0)
       return
     }
     swiped.current = true
-    if (event.clientX - start.x > event.currentTarget.offsetWidth * 0.4) {
-      if (session.status === 'inactive') {
+    const dx = event.clientX - start.x
+    if (dx === 0) {
+      setOffset(0)
+      return
+    }
+    const target =
+      Math.abs(dx) > width * swipeThreshold ? Math.sign(dx) * width : 0
+    if (target === offset) {
+      complete(dx, session.status)
+      return
+    }
+    setReleased({ offset: dx, status: session.status })
+    setOffset(target)
+  }
+
+  function settle(event: React.TransitionEvent<HTMLDivElement>) {
+    if (
+      event.target !== event.currentTarget ||
+      event.propertyName !== 'transform' ||
+      released === null
+    ) {
+      return
+    }
+    complete(released.offset, released.status)
+  }
+
+  function complete(dx: number, status: MachineSession['status']) {
+    setReleased(null)
+    setOffset(0)
+    if (Math.abs(dx) <= width * swipeThreshold) {
+      return
+    }
+    if (dx > 0) {
+      if (status === 'inactive') {
         void editSession(session.machine, session.id, { status: 'active' })
       } else {
         deactivate()
       }
     }
-    if (event.clientX - start.x < -event.currentTarget.offsetWidth * 0.4) {
+    if (dx < 0) {
       void editSession(session.machine, session.id, {
-        status: secondarySwipe[session.status].status,
+        status: secondarySwipe[status].status,
       })
     }
   }
@@ -125,10 +147,11 @@ function MobileSessionItemView(props: {
       props.onSelect(session.machine, session.projectId, session.id)
     },
     onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!props.saved || event.pointerType !== 'touch') {
+      if (!props.saved || event.pointerType !== 'touch' || released !== null) {
         return
       }
       swiped.current = false
+      setWidth(event.currentTarget.offsetWidth)
       swipe.current = {
         x: event.clientX,
         y: event.clientY,
@@ -153,38 +176,20 @@ function MobileSessionItemView(props: {
       setOffset(dx)
     },
     onPointerUp: release,
+    onTransitionEnd: settle,
     onPointerCancel: () => {
       swipe.current = null
       setOffset(0)
     },
   }
 
-  const swipeBackground = offset !== 0 && (
-    <div
-      className={cn(
-        'absolute inset-x-0 flex items-center rounded-md px-4 text-white',
-        'inset-y-0.5',
-        offset > 0 && session.status !== 'inactive' && 'bg-success',
-        offset > 0 && session.status === 'inactive' && 'bg-[#56b6c2]',
-        offset < 0 && session.status === 'active' && 'bg-[#c678dd]',
-        offset < 0 && session.status === 'snoozed' && 'bg-[#d19a66]',
-        offset < 0 && session.status === 'minimized' && 'bg-info',
-        offset < 0 && session.status === 'inactive' && 'bg-[#5c6370]',
-        offset < 0 && session.status === 'pinned' && 'bg-[#e06c75]',
-        offset < 0 && 'justify-end'
-      )}
-    >
-      <HugeiconsIcon
-        icon={
-          offset < 0
-            ? secondarySwipe[session.status].icon
-            : session.status === 'inactive'
-              ? PlayIcon
-              : TickDouble01Icon
-        }
-        className="size-6"
-      />
-    </div>
+  const swipeBackground = moving && (
+    <SwipeBackground
+      status={released === null ? session.status : released.status}
+      offset={released === null ? offset : released.offset}
+      width={width}
+      className="inset-x-0 inset-y-0.5"
+    />
   )
 
   const stopDialog = (
@@ -288,13 +293,17 @@ function MobileSessionItemView(props: {
             className={cn(
               surface,
               rowState,
-              thread.working && !props.selected && offset === 0 && 'opacity-70',
-              offset !== 0 && 'bg-sidebar'
+              thread.working && !props.selected && !moving && 'opacity-70',
+              moving && 'bg-sidebar',
+              released !== null &&
+                offset === 0 &&
+                'transition-transform duration-[360ms] ease-[cubic-bezier(.34,1.45,.64,1)]',
+              released !== null &&
+                offset !== 0 &&
+                'transition-transform duration-200 ease-in'
             )}
             style={
-              offset !== 0
-                ? { transform: `translateX(${offset}px)` }
-                : undefined
+              moving ? { transform: `translateX(${offset}px)` } : undefined
             }
             {...swipeHandlers}
             onKeyDown={(event) => {
