@@ -55,3 +55,57 @@ export function remarkUnclosedHtml() {
     visit(tree)
   }
 }
+
+type HtmlNode = {
+  type: string
+  tagName?: string
+  value?: string
+  properties?: Record<string, unknown>
+  children?: HtmlNode[]
+}
+
+const imageBlocks = new Set([
+  'p',
+  'div',
+  'li',
+  'td',
+  'th',
+  'figure',
+  'center',
+  'blockquote',
+])
+
+export function rehypeStandaloneImages() {
+  return (tree: HtmlNode) => {
+    function visit(node: HtmlNode) {
+      if (
+        node.type === 'root' ||
+        (node.tagName !== undefined && imageBlocks.has(node.tagName))
+      ) {
+        const image = soleImage(node)
+        if (image !== null) {
+          image.properties = { ...image.properties, dataStandalone: true }
+        }
+      }
+      node.children?.forEach(visit)
+    }
+    visit(tree)
+  }
+}
+
+function soleImage(node: HtmlNode): HtmlNode | null {
+  const children = (node.children ?? []).filter(
+    (child) => !(child.type === 'text' && child.value?.trim() === '')
+  )
+  if (children.length !== 1) {
+    return null
+  }
+  const only = children[0]
+  if (only.tagName === 'img') {
+    return only
+  }
+  if (only.tagName === 'strong' || only.tagName === 'em') {
+    return soleImage(only)
+  }
+  return null
+}

@@ -227,7 +227,7 @@ export function PullRequestsPanel(props: {
           </Button>
         </div>
       </div>
-      <div className="border-border/60 grid shrink-0 gap-2 border-b p-3">
+      <div className="border-border/60 @container grid shrink-0 gap-2 border-b p-3">
         <div className="relative">
           <HugeiconsIcon
             icon={Search01Icon}
@@ -241,8 +241,8 @@ export function PullRequestsPanel(props: {
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <div className="bg-input/40 flex min-w-0 flex-1 items-center rounded-lg p-0.5">
+        <div className="flex flex-col gap-2 @sm:flex-row @sm:items-center">
+          <div className="bg-input/40 flex min-w-0 items-center rounded-lg p-0.5 @sm:flex-1">
             {states.map((state) => (
               <button
                 key={state.value}
@@ -264,7 +264,7 @@ export function PullRequestsPanel(props: {
               setFilter({ ...filter, scope: scope.value })
             }}
           >
-            <SelectTrigger size="sm" className="w-40 shrink-0">
+            <SelectTrigger size="sm" className="w-full @sm:w-40 @sm:shrink-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
