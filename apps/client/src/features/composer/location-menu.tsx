@@ -33,6 +33,7 @@ export function LocationMenu(props: {
   const [found, setFound] = useState<{
     worktrees: WorktreeChoice[]
     branches: string[]
+    defaultBranch: string | null
   } | null>(null)
 
   useEffect(() => {
@@ -54,6 +55,8 @@ export function LocationMenu(props: {
             branches: branches
               .filter((branch) => branch.local)
               .map((branch) => branch.name),
+            defaultBranch:
+              branches.find((branch) => branch.default)?.name ?? null,
           })
         }
       } catch (error) {
@@ -109,6 +112,11 @@ export function LocationMenu(props: {
         <span className="min-w-0 flex-1 truncate">
           {main.branch ?? 'Detached HEAD'}
         </span>
+        {main.branch === found.defaultBranch && (
+          <span className="text-muted-foreground shrink-0 text-xs">
+            Default
+          </span>
+        )}
       </DropdownMenuRadioItem>
       {branches.map((name) => (
         <DropdownMenuRadioItem
@@ -125,38 +133,14 @@ export function LocationMenu(props: {
             className="text-muted-foreground size-3.5"
           />
           <span className="min-w-0 flex-1 truncate">{name}</span>
+          {name === found.defaultBranch && (
+            <span className="text-muted-foreground shrink-0 text-xs">
+              Default
+            </span>
+          )}
         </DropdownMenuRadioItem>
       ))}
       <DropdownMenuSeparator />
-      {worktrees.length > 0 && (
-        <>
-          {worktrees.map((item) => (
-            <DropdownMenuRadioItem
-              key={item.folder}
-              value={item.projectId ?? item.folder}
-              onSelect={() => {
-                if (item.projectId === props.projectId) {
-                  update({ worktree: null })
-                  return
-                }
-                void openWorktree(props.machine, props.projectId, item)
-              }}
-            >
-              <HugeiconsIcon
-                icon={FolderGit2Icon}
-                className="text-muted-foreground size-3.5"
-              />
-              <span className="min-w-0 flex-1 truncate">
-                {item.branch ?? 'Detached HEAD'}
-              </span>
-              <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                {timeAgo(item.activeAt)}
-              </span>
-            </DropdownMenuRadioItem>
-          ))}
-          <DropdownMenuSeparator />
-        </>
-      )}
       <DropdownMenuRadioItem
         value={NEW_WORKTREE}
         onSelect={() => {
@@ -171,6 +155,30 @@ export function LocationMenu(props: {
         />
         <span className="min-w-0 flex-1 truncate">New worktree</span>
       </DropdownMenuRadioItem>
+      {worktrees.map((item) => (
+        <DropdownMenuRadioItem
+          key={item.folder}
+          value={item.projectId ?? item.folder}
+          onSelect={() => {
+            if (item.projectId === props.projectId) {
+              update({ worktree: null })
+              return
+            }
+            void openWorktree(props.machine, props.projectId, item)
+          }}
+        >
+          <HugeiconsIcon
+            icon={FolderGit2Icon}
+            className="text-muted-foreground size-3.5"
+          />
+          <span className="min-w-0 flex-1 truncate">
+            {item.branch ?? 'Detached HEAD'}
+          </span>
+          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+            {timeAgo(item.activeAt)}
+          </span>
+        </DropdownMenuRadioItem>
+      ))}
     </DropdownMenuRadioGroup>
   )
 }

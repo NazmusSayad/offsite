@@ -368,7 +368,12 @@ export type RpcMethods = PullRequestMethods & {
   }
   'git.localBranches': {
     params: { projectId: string; repo: string }
-    result: { name: string; local: boolean; worktree: string | null }[]
+    result: {
+      name: string
+      local: boolean
+      default: boolean
+      worktree: string | null
+    }[]
   }
   'git.remoteBranches': {
     params: { projectId: string; repo: string }
