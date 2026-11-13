@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { MachineLogo } from '@/constants/machine-icons'
 import { useStore } from '@/lib/store'
 import { useTerminalPage, useTerminalView } from '@/lib/url'
-import { cn, isMac } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { createTab } from './page'
 import {
   getState,
@@ -47,7 +47,7 @@ export function TerminalPalette() {
     preventDefault: true,
   })
   useHotkeys(
-    isMac ? ['meta+shift+backquote', 'meta+shift+t'] : 'ctrl+shift+backquote',
+    ['mod+shift+backquote', 'mod+shift+t'],
     (event) => {
       event.stopPropagation()
       setOpen(!open)

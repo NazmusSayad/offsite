@@ -125,7 +125,7 @@ export function DesktopLayout() {
     selection?.projectId ?? ''
   )
   useHotkeys(
-    ['meta+backquote', 'ctrl+backquote'],
+    'mod+backquote',
     (event) => {
       event.stopPropagation()
       setTerminal(!terminalState().open)

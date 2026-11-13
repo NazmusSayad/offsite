@@ -10,8 +10,9 @@ import {
   terminalConfig,
 } from './session'
 
-const newTabKey = isMac ? 'meta+t' : 'ctrl+shift+t'
-const closeTabKey = isMac ? 'meta+w' : 'ctrl+shift+w'
+const newTabKey = isMac ? 'meta+t' : 'ctrl+t'
+const closeTabKey = isMac ? 'meta+w' : 'ctrl+w'
+const closeTabShiftKey = isMac ? 'meta+shift+w' : 'ctrl+shift+w'
 const nextTabKey = 'ctrl+tab'
 const previousTabKey = 'ctrl+shift+tab'
 
@@ -22,7 +23,7 @@ export function isFindShortcut(event: KeyboardEvent) {
   if (isMac) {
     return event.metaKey && !event.ctrlKey && !event.altKey
   }
-  return event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey
+  return event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey
 }
 
 export function focusTerminal() {
@@ -34,7 +35,7 @@ export function focusTerminal() {
 
 export function useTerminalShortcuts() {
   return useHotkeys<HTMLDivElement>(
-    [newTabKey, closeTabKey, nextTabKey, previousTabKey],
+    [newTabKey, closeTabKey, closeTabShiftKey, nextTabKey, previousTabKey],
     (event, hotkey) => {
       event.preventDefault()
       event.stopPropagation()
@@ -52,7 +53,7 @@ export function useTerminalShortcuts() {
       if (current.tabId === null) {
         return
       }
-      if (hotkey.hotkey === closeTabKey) {
+      if (hotkey.hotkey === closeTabKey || hotkey.hotkey === closeTabShiftKey) {
         void closeTab(current.tabId)
         return
       }

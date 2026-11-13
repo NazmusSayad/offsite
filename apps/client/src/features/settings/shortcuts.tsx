@@ -1,7 +1,5 @@
-import { isMac, mod } from '@/lib/utils'
+import { mod } from '@/lib/utils'
 import { Row, Section } from './controls'
-
-const terminalMod = isMac ? '⌘' : 'Ctrl+Shift'
 
 const shortcuts = [
   ['Enter', 'Send, or queue or steer while the agent works'],
@@ -24,15 +22,15 @@ const shortcuts = [
   [`${mod}+1…9`, 'Open a session from the sidebar'],
   [`${mod}+N`, 'New thread'],
   [
-    isMac ? '⌘+T, ⌘+Shift+T or ⌘+Shift+`' : 'Ctrl+T or Ctrl+Shift+`',
+    `${mod}+T, ${mod}+Shift+T or ${mod}+Shift+\``,
     'Search terminals, or open a new one',
   ],
-  [isMac ? '⌘+` or Ctrl+`' : 'Ctrl+`', 'Toggle the terminal'],
+  [`${mod}+\``, 'Toggle the terminal'],
   [`${mod}+B or ${mod}+Shift+B`, 'Toggle the right panel'],
   [`${mod}+E or ${mod}+J`, 'Toggle the editor'],
-  [`${terminalMod}+T`, 'New terminal tab, in the terminal'],
-  [`${terminalMod}+W`, 'Close the terminal tab'],
-  [`${terminalMod}+F`, 'Find in the terminal'],
+  [`${mod}+T`, 'New terminal tab, in the terminal'],
+  [`${mod}+W or ${mod}+Shift+W`, 'Close the terminal tab'],
+  [`${mod}+F`, 'Find in the terminal'],
   ['Ctrl+Tab', 'Next terminal tab'],
   ['Ctrl+Shift+Tab', 'Previous terminal tab'],
 ]
