@@ -132,6 +132,8 @@ export type State = {
   unseen: string[]
   generatingTitles: string[]
   selection: Selection | null
+  view: number
+  startedPrompt: string | null
   loaded: boolean
   items: Item[]
   earlier: Item[]

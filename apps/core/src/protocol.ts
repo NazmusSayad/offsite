@@ -437,7 +437,13 @@ export type ServerEvent =
   | { type: 'threads' }
   | { type: 'providers'; providers: ProviderStatus[] }
   | ({ type: 'accounts' } & Accounts)
-  | { type: 'started'; sessionId: string; projectId: string; from: string }
+  | {
+      type: 'started'
+      id: string
+      sessionId: string
+      projectId: string
+      from: string
+    }
   | { type: 'worktreeStage'; stage: WorktreeStage }
   | { type: 'warning'; message: string }
   | { type: 'setup'; projectId: string }

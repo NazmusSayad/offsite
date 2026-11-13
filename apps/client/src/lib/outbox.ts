@@ -27,6 +27,21 @@ export function receiveOutbox(machine: string, outbox: OutboxPrompt[]) {
   }
 }
 
+export function moveStartedPrompt(
+  machine: string,
+  id: string,
+  sessionId: string,
+  projectId: string
+) {
+  const saved =
+    getState().machines.find((item) => item.id === machine)?.outbox ?? none
+  setMachine(machine, {
+    outbox: saved.map((item) =>
+      item.id === id ? { ...item, sessionId, projectId } : item
+    ),
+  })
+}
+
 export function addToOutbox(
   selection: Selection,
   prompt: Prompt,
