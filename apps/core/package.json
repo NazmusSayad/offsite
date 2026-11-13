@@ -2,7 +2,8 @@
   "name": "@offsite/core",
   "type": "module",
   "exports": {
-    "./*": "./src/*.ts"
+    "./*": "./src/*.ts",
+    "./icons/*": "./icons/*.ts"
   },
   "devDependencies": {
     "typescript": "^7.0.2"

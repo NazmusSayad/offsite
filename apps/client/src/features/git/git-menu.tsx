@@ -3,17 +3,17 @@ import {
   ChevronDownIcon,
   CircleDashedIcon,
   CloudUploadIcon,
-  GitBranchIcon,
   GitCommitHorizontalIcon,
-  GitForkIcon,
   GitPullRequestIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
+import { BranchIcon, WorktreeIcon } from '@offsite/core/icons/git'
 import { isEqual } from 'es-toolkit'
 import { useCallback, useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
+
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -30,7 +30,6 @@ import {
   syncAction,
 } from './branch-picker'
 import { type Action, eligible, GitDialog } from './git-dialog'
-import { startCommit, startGitToast } from './git-toast'
 
 const STATUS_REFRESH = 3000
 const FETCH_REFRESH = 180_000
@@ -153,30 +152,33 @@ export function useGitCommands(props: GitTarget) {
   const [action, setAction] = useState<Action | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [branchRepo, setBranchRepo] = useState<string | null>(null)
-  const [committing, setCommitting] = useState(false)
+  const [busy, setBusy] = useState<'commit' | 'push' | null>(null)
   const committable = eligible(props.repos, 'commit')
 
-  async function yoloCommit() {
-    if (committable.length === 1) {
-      setMenuOpen(false)
-      startCommit(props, committable[0].path, '', false)
-      return
-    }
-    setCommitting(true)
+  async function run(kind: 'commit' | 'push', repos: string[]) {
+    setBusy(kind)
     try {
-      for (const repo of committable) {
-        await call(props.machine, 'git.commit', {
-          projectId: props.projectId,
-          repo: repo.path,
-          message: '',
-          push: false,
-        })
+      for (const repo of repos) {
+        if (kind === 'commit') {
+          await call(props.machine, 'git.commit', {
+            projectId: props.projectId,
+            repo,
+            message: '',
+            push: false,
+          })
+        }
+        if (kind === 'push') {
+          await call(props.machine, 'git.push', {
+            projectId: props.projectId,
+            repo,
+          })
+        }
       }
       setMenuOpen(false)
     } catch (error) {
       showError(error)
     } finally {
-      setCommitting(false)
+      setBusy(null)
       props.onRefresh()
     }
   }
@@ -189,9 +191,9 @@ export function useGitCommands(props: GitTarget) {
     setMenuOpen,
     branchRepo,
     setBranchRepo,
-    committing,
+    busy,
     committable,
-    yoloCommit,
+    run,
   }
 }
 
@@ -203,20 +205,6 @@ export function GitMenuItems(props: { git: GitCommands; collapsed: boolean }) {
   const unpushed = repos.reduce((total, repo) => total + repo.ahead, 0)
   const pushable = eligible(repos, 'push')
 
-  function push(repo: string) {
-    void startGitToast({
-      labels: { working: 'Pushing…', done: 'Pushed', failed: 'Push failed' },
-      task: async () => {
-        await call(git.target.machine, 'git.push', {
-          projectId: git.target.projectId,
-          repo,
-        })
-        return null
-      },
-      onRefresh: git.target.onRefresh,
-    })
-  }
-
   return (
     <>
       {props.collapsed &&
@@ -225,7 +213,7 @@ export function GitMenuItems(props: { git: GitCommands; collapsed: boolean }) {
             key={repo.path}
             onSelect={() => git.setBranchRepo(repo.path)}
           >
-            <HugeiconsIcon icon={GitBranchIcon} />
+            <HugeiconsIcon icon={BranchIcon} />
             <span className="flex min-w-0 flex-1">
               <span className="text-muted-foreground truncate rounded-md border px-1.5 py-0.5 font-mono text-xs">
                 {repo.path === ''
@@ -248,17 +236,21 @@ export function GitMenuItems(props: { git: GitCommands; collapsed: boolean }) {
         </DropdownMenuItem>
       )}
       <DropdownMenuItem
-        disabled={pushable.length === 0 || git.committing}
-        onSelect={() => {
+        disabled={pushable.length === 0 || git.busy !== null}
+        onSelect={(event) => {
           if (pushable.length === 1) {
-            push(pushable[0].path)
+            event.preventDefault()
+            void git.run('push', [pushable[0].path])
             return
           }
           git.setAction('push')
         }}
       >
-        <HugeiconsIcon icon={CloudUploadIcon} />
-        Just Push
+        <HugeiconsIcon
+          icon={git.busy === 'push' ? CircleDashedIcon : CloudUploadIcon}
+          className={cn(git.busy === 'push' && 'animate-spin')}
+        />
+        {git.busy === 'push' ? 'Pushing…' : 'Just Push'}
         {unpushed > 0 && (
           <span className="text-muted-foreground ml-auto text-xs tabular-nums">
             ↑{unpushed}
@@ -266,17 +258,22 @@ export function GitMenuItems(props: { git: GitCommands; collapsed: boolean }) {
         )}
       </DropdownMenuItem>
       <DropdownMenuItem
-        disabled={git.committable.length === 0 || git.committing}
+        disabled={git.committable.length === 0 || git.busy !== null}
         onSelect={(event) => {
           event.preventDefault()
-          void git.yoloCommit()
+          void git.run(
+            'commit',
+            git.committable.map((repo) => repo.path)
+          )
         }}
       >
         <HugeiconsIcon
-          icon={git.committing ? CircleDashedIcon : GitCommitHorizontalIcon}
-          className={cn(git.committing && 'animate-spin')}
+          icon={
+            git.busy === 'commit' ? CircleDashedIcon : GitCommitHorizontalIcon
+          }
+          className={cn(git.busy === 'commit' && 'animate-spin')}
         />
-        {git.committing ? 'Committing…' : 'Yolo Commit'}
+        {git.busy === 'commit' ? 'Committing…' : 'Yolo Commit'}
       </DropdownMenuItem>
       <DropdownMenuItem
         disabled={eligible(repos, 'pullRequest').length === 0}
@@ -376,7 +373,7 @@ export function GitActions(props: GitTarget) {
           title={branchesTitle}
         >
           <HugeiconsIcon
-            icon={worktree ? GitForkIcon : GitBranchIcon}
+            icon={worktree ? WorktreeIcon : BranchIcon}
             className="size-3.5 shrink-0"
           />
           <span className="truncate">{branchesLabel}</span>
@@ -445,8 +442,8 @@ export function GitActions(props: GitTarget) {
               aria-label="Git actions"
             >
               <HugeiconsIcon
-                icon={git.committing ? CircleDashedIcon : ChevronDownIcon}
-                className={cn('size-4', git.committing && 'animate-spin')}
+                icon={git.busy !== null ? CircleDashedIcon : ChevronDownIcon}
+                className={cn('size-4', git.busy !== null && 'animate-spin')}
               />
             </Button>
           </DropdownMenuTrigger>

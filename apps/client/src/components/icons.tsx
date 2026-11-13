@@ -4,9 +4,9 @@ import {
   MoreHorizontalIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { CLAUDE_LOGO, OPENCODE_LOGO } from '@offsite/core/icons/providers'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { Provider } from '@offsite/core/providers'
-import { CLAUDE_LOGO, OPENCODE_LOGO } from '@/components/provider-logos'
 import { projectOf, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -90,6 +90,20 @@ export function MoreProjectsLabel(props: {
       </span>
       <span className="text-muted-foreground min-w-0 flex-1 truncate">
         {props.projects.length} more
+      </span>
+    </>
+  )
+}
+
+export function MoreLabel(props: { text: string; className: string }) {
+  return (
+    <>
+      <HugeiconsIcon
+        icon={MoreHorizontalIcon}
+        className={cn('text-muted-foreground shrink-0', props.className)}
+      />
+      <span className="text-muted-foreground min-w-0 flex-1 truncate">
+        {props.text}
       </span>
     </>
   )

@@ -3,6 +3,7 @@ import {
   ArrowDown02Icon,
   ArrowUp02Icon,
   CheckmarkCircle02Icon,
+  CircleDashedIcon,
   CloudOffIcon,
   CloudUploadIcon,
   FileEditIcon,
@@ -30,15 +31,37 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { startCommit, startGitToast } from '@/features/git/git-toast'
-import { touch } from '@/lib/utils'
+import { showError } from '@/lib/store'
+import { cn, touch } from '@/lib/utils'
 import { keepFocusOnTouch, refocusComposer } from './picker'
 
 type Target = { machine: string; projectId: string; onRefresh: () => void }
 
+type Labels = { working: string; done: string }
+
+type Run = (labels: Labels, task: () => Promise<unknown>) => void
+
 export function RepoStatus(props: { repo: GitRepo; target: Target }) {
   const repo = props.repo
   const [discarding, setDiscarding] = useState(false)
+  const [task, setTask] = useState<{
+    state: 'working' | 'done'
+    label: string
+  } | null>(null)
+
+  async function run(labels: Labels, work: () => Promise<unknown>) {
+    setTask({ state: 'working', label: labels.working })
+    try {
+      await work()
+      setTask({ state: 'done', label: labels.done })
+      setTimeout(() => setTask(null), 3000)
+    } catch (error) {
+      setTask(null)
+      showError(error)
+    } finally {
+      props.target.onRefresh()
+    }
+  }
   return (
     <div className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1.5 pl-2 whitespace-nowrap tabular-nums @max-sm:flex-1 @max-sm:justify-end @max-sm:pl-0">
       {repo.changed > 0 && (
@@ -68,6 +91,8 @@ export function RepoStatus(props: { repo: GitRepo; target: Target }) {
             <ChangesMenu
               repo={repo}
               target={props.target}
+              busy={task?.state === 'working'}
+              onRun={(labels, work) => void run(labels, work)}
               onDiscard={() => setDiscarding(true)}
             />
           </DropdownMenuContent>
@@ -75,10 +100,37 @@ export function RepoStatus(props: { repo: GitRepo; target: Target }) {
       )}
       <AlertDialog open={discarding} onOpenChange={setDiscarding}>
         <AlertDialogContent>
-          <DiscardDialog repo={repo} target={props.target} />
+          <DiscardDialog
+            repo={repo}
+            target={props.target}
+            onRun={(labels, work) => void run(labels, work)}
+          />
         </AlertDialogContent>
       </AlertDialog>
-      <SyncStatus repo={repo} target={props.target} />
+      {task !== null && (
+        <span className="flex items-center gap-1.5 pr-1.5">
+          <HugeiconsIcon
+            icon={
+              task.state === 'working'
+                ? CircleDashedIcon
+                : CheckmarkCircle02Icon
+            }
+            className={cn(
+              'size-3.5',
+              task.state === 'working' && 'animate-spin',
+              task.state === 'done' && 'text-success'
+            )}
+          />
+          {task.label}
+        </span>
+      )}
+      {task === null && (
+        <SyncStatus
+          repo={repo}
+          target={props.target}
+          onRun={(labels, work) => void run(labels, work)}
+        />
+      )}
     </div>
   )
 }
@@ -86,26 +138,46 @@ export function RepoStatus(props: { repo: GitRepo; target: Target }) {
 function ChangesMenu(props: {
   repo: GitRepo
   target: Target
+  busy: boolean
+  onRun: Run
   onDiscard: () => void
 }) {
+  function commit(push: boolean) {
+    props.onRun(
+      push
+        ? {
+            working: 'Committing and pushing…',
+            done: 'Committed and pushed',
+          }
+        : { working: 'Committing…', done: 'Committed' },
+      () =>
+        call(props.target.machine, 'git.commit', {
+          projectId: props.target.projectId,
+          repo: props.repo.path,
+          message: '',
+          push,
+        })
+    )
+  }
+
   return (
     <>
-      <DropdownMenuItem
-        onSelect={() => startCommit(props.target, props.repo.path, '', false)}
-      >
+      <DropdownMenuItem disabled={props.busy} onSelect={() => commit(false)}>
         <HugeiconsIcon icon={GitCommitIcon} />
         Commit
       </DropdownMenuItem>
       {props.repo.branch !== null && props.repo.remote && (
-        <DropdownMenuItem
-          onSelect={() => startCommit(props.target, props.repo.path, '', true)}
-        >
+        <DropdownMenuItem disabled={props.busy} onSelect={() => commit(true)}>
           <HugeiconsIcon icon={ArrowUp02Icon} />
           Commit and push
         </DropdownMenuItem>
       )}
       <DropdownMenuSeparator />
-      <DropdownMenuItem variant="destructive" onSelect={props.onDiscard}>
+      <DropdownMenuItem
+        variant="destructive"
+        disabled={props.busy}
+        onSelect={props.onDiscard}
+      >
         <HugeiconsIcon icon={Delete02Icon} />
         Discard changes…
       </DropdownMenuItem>
@@ -113,7 +185,7 @@ function ChangesMenu(props: {
   )
 }
 
-function DiscardDialog(props: { repo: GitRepo; target: Target }) {
+function DiscardDialog(props: { repo: GitRepo; target: Target; onRun: Run }) {
   const count = props.repo.changed
   return (
     <>
@@ -131,15 +203,13 @@ function DiscardDialog(props: { repo: GitRepo; target: Target }) {
         <AlertDialogAction
           variant="destructive"
           onClick={() =>
-            void startGitToast({
-              labels: {
+            props.onRun(
+              {
                 working: 'Discarding changes…',
                 done: 'Changes discarded',
-                failed: 'Discard failed',
               },
-              task: () => discardAll(props.target, props.repo.path),
-              onRefresh: props.target.onRefresh,
-            })
+              () => discardAll(props.target, props.repo.path)
+            )
           }
         >
           Discard changes
@@ -175,7 +245,6 @@ async function discardAll(target: Target, path: string) {
         .map((resource) => resource.path),
     },
   })
-  return null
 }
 
 async function changesOf(target: Target, path: string) {
@@ -190,7 +259,7 @@ async function changesOf(target: Target, path: string) {
   return repo
 }
 
-function SyncStatus(props: { repo: GitRepo; target: Target }) {
+function SyncStatus(props: { repo: GitRepo; target: Target; onRun: Run }) {
   const repo = props.repo
   if (repo.branch === null) {
     return (
@@ -219,10 +288,9 @@ function SyncStatus(props: { repo: GitRepo; target: Target }) {
         className="bg-warning/10 text-warning hover:bg-warning/20 flex h-5 cursor-pointer items-center gap-1 rounded-full px-2 outline-none"
         title={`${repo.branch} is not on the remote yet. Click to publish it`}
         onClick={() =>
-          runSync(props.target, repo.path, 'git.push', {
+          runSync(props.target, props.onRun, repo.path, 'git.push', {
             working: 'Publishing…',
             done: 'Published',
-            failed: 'Publish failed',
           })
         }
       >
@@ -248,25 +316,22 @@ function SyncStatus(props: { repo: GitRepo; target: Target }) {
       title={`${syncTitle(repo.behind, repo.ahead, repo.upstream)}. Click to ${repo.behind > 0 && repo.ahead > 0 ? 'pull and push' : repo.behind > 0 ? 'pull' : 'push'}`}
       onClick={() => {
         if (repo.behind > 0 && repo.ahead > 0) {
-          runSync(props.target, repo.path, 'git.sync', {
+          runSync(props.target, props.onRun, repo.path, 'git.sync', {
             working: 'Pulling and pushing…',
             done: 'Pulled and pushed',
-            failed: 'Pull and push failed',
           })
           return
         }
         if (repo.behind > 0) {
-          runSync(props.target, repo.path, 'git.sync', {
+          runSync(props.target, props.onRun, repo.path, 'git.sync', {
             working: 'Pulling…',
             done: 'Pulled',
-            failed: 'Pull failed',
           })
           return
         }
-        runSync(props.target, repo.path, 'git.push', {
+        runSync(props.target, props.onRun, repo.path, 'git.push', {
           working: 'Pushing…',
           done: 'Pushed',
-          failed: 'Push failed',
         })
       }}
     >
@@ -290,21 +355,17 @@ function SyncStatus(props: { repo: GitRepo; target: Target }) {
 
 function runSync(
   target: Target,
+  onRun: Run,
   repo: string,
   method: 'git.push' | 'git.sync',
-  labels: { working: string; done: string; failed: string }
+  labels: Labels
 ) {
-  void startGitToast({
-    labels,
-    task: async () => {
-      await call(target.machine, method, {
-        projectId: target.projectId,
-        repo,
-      })
-      return null
-    },
-    onRefresh: target.onRefresh,
-  })
+  onRun(labels, () =>
+    call(target.machine, method, {
+      projectId: target.projectId,
+      repo,
+    })
+  )
 }
 
 function syncTitle(behind: number, ahead: number, upstream: string) {

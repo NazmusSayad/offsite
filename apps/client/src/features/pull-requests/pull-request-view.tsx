@@ -9,7 +9,6 @@ import type {
   PullRequestDetails,
 } from '@offsite/core/pull-requests'
 import { useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
@@ -44,6 +43,7 @@ export function PullRequestView(props: {
     'overview'
   )
   const [busy, setBusy] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const forced = useRef(false)
 
   useEffect(() => {
@@ -106,7 +106,8 @@ export function PullRequestView(props: {
         url: props.url,
         action,
       })
-      toast(label)
+      setNotice(label)
+      setTimeout(() => setNotice(null), 3000)
       setVersion((value) => value + 1)
       return true
     } catch (caught) {
@@ -302,6 +303,7 @@ export function PullRequestView(props: {
           <PullRequestActions
             details={details}
             busy={busy}
+            notice={notice}
             onPerform={perform}
           />
         </>

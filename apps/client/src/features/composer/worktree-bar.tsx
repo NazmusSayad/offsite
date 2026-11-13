@@ -2,15 +2,18 @@ import {
   ArrowDown01Icon,
   CircleDashedIcon,
   CloudIcon,
-  GitBranchPlusIcon,
-  GitBranchIcon,
   SearchIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo, WorktreeBases, WorktreeStage } from '@offsite/core/git'
+import {
+  BranchIcon,
+  NewBranchIcon,
+  NewWorktreeIcon,
+} from '@offsite/core/icons/git'
 import { useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
 import { call } from '@/api/connection'
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,7 +75,7 @@ export function WorktreeBar(props: {
                   title="Choose where the agent works"
                 >
                   <HugeiconsIcon
-                    icon={worktree === null ? GitBranchIcon : GitBranchPlusIcon}
+                    icon={worktree === null ? BranchIcon : NewWorktreeIcon}
                     className="text-muted-foreground size-3.5 shrink-0"
                   />
                   <span
@@ -157,7 +160,7 @@ export function WorktreeBar(props: {
                   </DropdownMenu>
                   <label className="focus-within:bg-accent/60 hover:bg-accent/40 flex h-6 min-w-0 flex-1 cursor-text items-center gap-1.5 rounded-md px-2">
                     <HugeiconsIcon
-                      icon={GitBranchIcon}
+                      icon={NewBranchIcon}
                       className="text-muted-foreground size-3.5 shrink-0"
                     />
                     <input
@@ -186,6 +189,7 @@ export function WorktreeBar(props: {
 function BaseMenu(props: { machine: string; projectId: string }) {
   const [query, setQuery] = useState('')
   const [bases, setBases] = useState<WorktreeBases | null>(null)
+  const [failure, setFailure] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -205,11 +209,12 @@ function BaseMenu(props: { machine: string; projectId: string }) {
         })
         if (current) {
           setBases(found)
+          setFailure(null)
         }
       } catch (error) {
         log.error('could not load the branches', error)
         if (current) {
-          toast(errorMessage(error))
+          setFailure(errorMessage(error))
         }
       }
     }, 150)
@@ -244,7 +249,7 @@ function BaseMenu(props: { machine: string; projectId: string }) {
         onSelect={() => pick(ref)}
       >
         <HugeiconsIcon
-          icon={ref.startsWith('refs/remotes/') ? CloudIcon : GitBranchIcon}
+          icon={ref.startsWith('refs/remotes/') ? CloudIcon : BranchIcon}
           className="text-muted-foreground size-3.5 shrink-0"
         />
         <span className="min-w-0 flex-1 truncate">{shortRef(ref)}</span>
@@ -307,7 +312,12 @@ function BaseMenu(props: { machine: string; projectId: string }) {
         />
       </div>
       <div ref={listRef} className="max-h-80 min-h-0 overflow-y-auto p-1">
-        {bases === null && (
+        {failure !== null && (
+          <div className="text-destructive px-2 py-6 text-center text-sm">
+            {failure}
+          </div>
+        )}
+        {failure === null && bases === null && (
           <DropdownMenuItem disabled>Loading…</DropdownMenuItem>
         )}
         {bases !== null && (

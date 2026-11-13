@@ -2,7 +2,6 @@ import { lazy, Suspense, useSyncExternalStore } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useHotkeyHints } from '@/components/hotkey-hint'
 import { Toaster } from '@/components/ui/sonner'
-import { GitErrorDialog } from '@/features/git/git-toast'
 import { SettingsDialog } from '@/features/settings/dialog'
 import { MobileSettings } from '@/features/settings/mobile'
 import { ExportDialog } from '@/features/sidebar/export-dialog'
@@ -55,7 +54,6 @@ export function App() {
       )}
       {exporting !== null && <ExportDialog session={exporting} />}
       <MoveDialogs />
-      <GitErrorDialog />
       <Toaster
         position={desktop ? 'bottom-right' : 'top-center'}
         swipeDirections={

@@ -8,6 +8,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { Popover as PopoverPrimitive } from 'radix-ui'
 import { type ReactNode, useLayoutEffect, useRef, useState } from 'react'
 import { machineKey } from '@/api/machines'
+import { MoreLabel } from '@/components/icons'
 import {
   Popover,
   PopoverContent,
@@ -232,15 +233,28 @@ function ChipList(props: {
         unseen.includes(machineKey(session.machine, session.id))
       ).done
   )
-  const doneRows = done.map((session) => (
-    <Thread
-      key={machineKey(session.machine, session.id)}
-      session={session}
-      icon={CircleCheckIcon}
-      className="text-success"
-      detail="Done"
-    />
-  ))
+  const [allDone, setAllDone] = useState(false)
+  const doneRows = (
+    <>
+      {(allDone ? done : done.slice(0, 5)).map((session) => (
+        <Thread
+          key={machineKey(session.machine, session.id)}
+          session={session}
+          icon={CircleCheckIcon}
+          className="text-success"
+          detail="Done"
+        />
+      ))}
+      {!allDone && done.length > 5 && (
+        <button
+          className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left"
+          onClick={() => setAllDone(true)}
+        >
+          <MoreLabel text={`${done.length - 5} more done`} className="size-4" />
+        </button>
+      )}
+    </>
+  )
   const waitingRows = waiting.map((session) => (
     <Thread
       key={machineKey(session.machine, session.id)}

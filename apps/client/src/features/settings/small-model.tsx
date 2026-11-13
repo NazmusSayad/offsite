@@ -11,7 +11,9 @@ import { ProviderIcon } from '@/components/icons'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -148,11 +150,27 @@ export function SmallModelSection(props: {
               />
             </SelectTrigger>
             <SelectContent>
-              {(models ?? []).map((model) => (
-                <SelectItem key={model.value} value={model.value}>
-                  {model.name}
-                </SelectItem>
-              ))}
+              {settings.provider !== 'opencode' &&
+                (models ?? []).map((model) => (
+                  <SelectItem key={model.value} value={model.value}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              {settings.provider === 'opencode' &&
+                [
+                  ...new Set((models ?? []).map((model) => model.description)),
+                ].map((provider) => (
+                  <SelectGroup key={provider}>
+                    <SelectLabel>{provider}</SelectLabel>
+                    {(models ?? [])
+                      .filter((model) => model.description === provider)
+                      .map((model) => (
+                        <SelectItem key={model.value} value={model.value}>
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                  </SelectGroup>
+                ))}
             </SelectContent>
           </Select>
         </Row>

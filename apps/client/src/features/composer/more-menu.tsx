@@ -19,6 +19,7 @@ import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import type { PromptDelivery } from '@offsite/core/config'
 import type { Capabilities, Provider } from '@offsite/core/providers'
 import { useState } from 'react'
+import { MoreLabel } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -180,6 +181,61 @@ function MoreMenuContent(props: {
   const draft = useDraft(key)
   const [submenu, setSubmenu] = useState<'mode' | 'stash' | null>(null)
 
+  function modeItem(item: (typeof modes)[number]) {
+    return (
+      <DropdownMenuRadioItem
+        key={item.value}
+        value={item.value}
+        onSelect={() => changeSettings({ mode: item.value })}
+      >
+        <HugeiconsIcon icon={item.icon} />
+        {item.label}
+      </DropdownMenuRadioItem>
+    )
+  }
+
+  function stashItem(item: (typeof stash)[number]) {
+    const attachments = item.images.length + item.files.length
+    const firstLine = item.text.trim().split('\n')[0]
+    return (
+      <DropdownMenuItem
+        key={item.id}
+        className="items-start"
+        onSelect={() => restorePrompt(key, item.id)}
+        onKeyDown={(event) => {
+          if (event.key === 'Delete' || event.key === 'Backspace') {
+            event.preventDefault()
+            deleteStash(item.id)
+          }
+        }}
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate">
+            {firstLine === '' ? 'Attachments' : firstLine}
+          </span>
+          <span className="text-muted-foreground block text-xs">
+            {timeAgo(item.createdAt)}
+            {attachments > 0 &&
+              ` · ${attachments} attachment${attachments === 1 ? '' : 's'}`}
+          </span>
+        </span>
+        <Button
+          variant="ghost-muted"
+          size="icon-micro"
+          aria-label="Delete stashed prompt"
+          title="Delete"
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            deleteStash(item.id)
+          }}
+        >
+          <HugeiconsIcon icon={Cancel01Icon} />
+        </Button>
+      </DropdownMenuItem>
+    )
+  }
+
   return (
     <>
       <DropdownMenuSub
@@ -203,16 +259,22 @@ function MoreMenuContent(props: {
           <DropdownMenuSubContent className="w-56">
             <DropdownMenuLabel>{title}</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={settings.mode ?? ''}>
-              {modes.map((item) => (
-                <DropdownMenuRadioItem
-                  key={item.value}
-                  value={item.value}
-                  onSelect={() => changeSettings({ mode: item.value })}
-                >
-                  <HugeiconsIcon icon={item.icon} />
-                  {item.label}
-                </DropdownMenuRadioItem>
-              ))}
+              {modes.slice(0, 5).map(modeItem)}
+              {modes.length > 5 && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <MoreLabel
+                      text={`${modes.length - 5} more agents`}
+                      className="size-4"
+                    />
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent className="max-h-80 w-56 overflow-y-auto">
+                      {modes.slice(5).map(modeItem)}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+              )}
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>
         </DropdownMenuPortal>
@@ -293,47 +355,22 @@ function MoreMenuContent(props: {
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent className="max-h-80 w-72 overflow-y-auto">
-              {stash.map((item) => {
-                const attachments = item.images.length + item.files.length
-                const firstLine = item.text.trim().split('\n')[0]
-                return (
-                  <DropdownMenuItem
-                    key={item.id}
-                    className="items-start"
-                    onSelect={() => restorePrompt(key, item.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Delete' || event.key === 'Backspace') {
-                        event.preventDefault()
-                        deleteStash(item.id)
-                      }
-                    }}
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate">
-                        {firstLine === '' ? 'Attachments' : firstLine}
-                      </span>
-                      <span className="text-muted-foreground block text-xs">
-                        {timeAgo(item.createdAt)}
-                        {attachments > 0 &&
-                          ` · ${attachments} attachment${attachments === 1 ? '' : 's'}`}
-                      </span>
-                    </span>
-                    <Button
-                      variant="ghost-muted"
-                      size="icon-micro"
-                      aria-label="Delete stashed prompt"
-                      title="Delete"
-                      onClick={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        deleteStash(item.id)
-                      }}
-                    >
-                      <HugeiconsIcon icon={Cancel01Icon} />
-                    </Button>
-                  </DropdownMenuItem>
-                )
-              })}
+              {stash.slice(0, 5).map(stashItem)}
+              {stash.length > 5 && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <MoreLabel
+                      text={`${stash.length - 5} more stashed prompts`}
+                      className="size-4"
+                    />
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent className="max-h-80 w-72 overflow-y-auto">
+                      {stash.slice(5).map(stashItem)}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+              )}
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>

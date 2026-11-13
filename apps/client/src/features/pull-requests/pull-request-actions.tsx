@@ -1,7 +1,6 @@
 import {
   Cancel01Icon,
   Copy01Icon,
-  GitBranchIcon,
   GitCommitIcon,
   GitCompareArrowsIcon,
   GitMergeIcon,
@@ -10,6 +9,7 @@ import {
   ThumbsUpIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
+import { BranchIcon } from '@offsite/core/icons/git'
 import type {
   MergeMethod,
   PullRequestAction,
@@ -17,6 +17,7 @@ import type {
 } from '@offsite/core/pull-requests'
 import { useState } from 'react'
 import { useLocalStorage } from 'usehooks-ts'
+
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -64,24 +65,27 @@ const methodLabels: Record<
 export function PullRequestActions(props: {
   details: PullRequestDetails
   busy: string | null
+  notice: string | null
   onPerform: Perform
 }) {
   const details = props.details
   const [merging, setMerging] = useState(false)
   const status = mergeStatus(details)
+  const tone =
+    props.busy === null && props.notice !== null ? 'good' : status.tone
 
   return (
     <div className="border-border/60 bg-background flex shrink-0 items-center gap-2 border-t px-3 py-2">
       <span
         className={cn(
           'min-w-0 flex-1 truncate text-xs',
-          status.tone === 'good' && 'text-success',
-          status.tone === 'bad' && 'text-destructive',
-          status.tone === 'wait' && 'text-warning',
-          status.tone === 'none' && 'text-muted-foreground'
+          tone === 'good' && 'text-success',
+          tone === 'bad' && 'text-destructive',
+          tone === 'wait' && 'text-warning',
+          tone === 'none' && 'text-muted-foreground'
         )}
       >
-        {props.busy ?? status.text}
+        {props.busy ?? props.notice ?? status.text}
       </span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -161,7 +165,7 @@ function MoreItems(props: { details: PullRequestDetails; onPerform: Perform }) {
             )
           }
         >
-          <HugeiconsIcon icon={GitBranchIcon} />
+          <HugeiconsIcon icon={BranchIcon} />
           Check out branch
         </DropdownMenuItem>
       )}

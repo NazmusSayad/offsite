@@ -2,7 +2,6 @@ import {
   ChevronRightIcon,
   CloudDownloadIcon,
   CloudIcon,
-  GitBranchIcon,
   RefreshCwIcon,
   Tag01Icon,
 } from '@hugeicons/core-free-icons'
@@ -12,9 +11,11 @@ import type {
   GitResource,
   SourceControlRepo,
 } from '@offsite/core/git'
+import { BranchIcon } from '@offsite/core/icons/git'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { FileTypeIcon } from '@/components/file-icon'
+
 import { baseName, parentOf } from '@/features/files/explorer'
 import {
   commitTab,
@@ -419,7 +420,7 @@ function badge(ref: string, repo: SourceControlRepo) {
       )}
     >
       <HugeiconsIcon
-        icon={tag ? Tag01Icon : remote ? CloudIcon : GitBranchIcon}
+        icon={tag ? Tag01Icon : remote ? CloudIcon : BranchIcon}
         className="size-3 shrink-0"
       />
       <span className="truncate">{name}</span>
