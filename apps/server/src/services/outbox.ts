@@ -69,6 +69,14 @@ export function setOutboxStatus(id: string, status: OutboxPrompt['status']) {
   broadcastOutbox()
 }
 
+export function markAccepted(id: string) {
+  db.update(outboxTable)
+    .set({ status: 'accepted' })
+    .where(and(eq(outboxTable.id, id), eq(outboxTable.status, 'sending')))
+    .run()
+  broadcastOutbox()
+}
+
 export function removeFromOutbox(id: string) {
   db.delete(outboxTable).where(eq(outboxTable.id, id)).run()
   broadcastOutbox()
@@ -103,7 +111,7 @@ export function failQueued(sessionId: string) {
 export function failInterrupted() {
   db.update(outboxTable)
     .set({ status: 'failed' })
-    .where(inArray(outboxTable.status, ['sending', 'queued']))
+    .where(inArray(outboxTable.status, ['sending', 'accepted', 'queued']))
     .run()
 }
 
@@ -114,6 +122,7 @@ export class Handover {
     this.ids.push(id)
     try {
       await deliver()
+      markAccepted(id)
     } catch (error) {
       this.ids = this.ids.filter((other) => other !== id)
       throw error

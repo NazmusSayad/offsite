@@ -126,7 +126,10 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
       )
   )
   const sending =
-    !running && prompts.some((prompt) => prompt.status === 'sending')
+    !running &&
+    prompts.some(
+      (prompt) => prompt.status === 'sending' || prompt.status === 'accepted'
+    )
   const rows = [
     ...olderRows,
     ...mainRows(items, running, partial),

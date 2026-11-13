@@ -74,7 +74,9 @@ export function Composer(props: {
     selectedPrompts(state).some((item) => item.status !== 'queued')
   )
   const waiting = useStore((state) =>
-    selectedPrompts(state).some((item) => item.status === 'sending')
+    selectedPrompts(state).some(
+      (item) => item.status === 'sending' || item.status === 'accepted'
+    )
   )
   const draft = useStore((state) => state.draft)
   const capabilities = useStore((state) => state.capabilities)
