@@ -3,6 +3,7 @@ import { useMatchRoute, useParams, useSearch } from '@tanstack/react-router'
 import { useEffect, useEffectEvent } from 'react'
 import { router, type Search } from './router'
 import { getState, projectOf, type Selection, useStore } from './store'
+import { wide } from './utils'
 
 export function currentSearch() {
   return router.parseLocation(router.history.location).search
@@ -125,7 +126,10 @@ export function openPullRequest(href: string) {
     window.open(url, '_blank', 'noopener,noreferrer')
     return
   }
-  replaceSearch({ panel: 'pulls', pull: url })
+  pushSearch(
+    { panel: 'pulls', pull: url },
+    wide.matches ? undefined : 'overlay'
+  )
 }
 
 const layers: Array<() => void> = []

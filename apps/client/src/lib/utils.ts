@@ -9,6 +9,7 @@ export const isMac = navigator.userAgent.includes('Mac')
 export const isWindows = navigator.userAgent.includes('Windows')
 export const mod = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
 export const touch = window.matchMedia('(pointer: coarse)')
+export const wide = window.matchMedia('(min-width: 768px)')
 
 export function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)

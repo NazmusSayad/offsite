@@ -13,12 +13,12 @@ import { DesktopLayout } from '@/features/workspace/desktop'
 import { MobileLayout } from '@/features/workspace/mobile'
 import { useAttentionBadge } from '@/lib/notifications'
 import { getState, showEditor, showPalette, useStore } from '@/lib/store'
+import { wide } from '@/lib/utils'
 
 const EditorDialog = lazy(async () => ({
   default: (await import('@/features/files/editor-dialog')).EditorDialog,
 }))
 
-const wide = window.matchMedia('(min-width: 768px)')
 const paletteKeys = ['mod+k', 'mod+shift+p']
 
 function subscribeWide(listener: () => void) {
