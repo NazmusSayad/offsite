@@ -311,6 +311,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
                     onToggle={toggle}
                     onOpenTask={props.onOpenTask}
                     rewind={!older}
+                    resume={row === rows.at(-1)}
                     cwd={cwd}
                   />
                 </div>
@@ -339,6 +340,7 @@ function RowContent(props: {
   onToggle: (key: string) => void
   onOpenTask: (id: string) => void
   rewind: boolean
+  resume: boolean
 }) {
   const row = props.row
   switch (row.kind) {
@@ -437,7 +439,7 @@ function RowContent(props: {
           <span className="bg-border/70 h-px flex-1" />
           <span className="flex min-w-0 items-center gap-1 [overflow-wrap:anywhere]">
             {row.text}
-            {row.text === 'Interrupted' && <ResumeButton />}
+            {props.resume && row.text === 'Interrupted' && <ResumeButton />}
           </span>
           <span className="bg-border/70 h-px flex-1" />
         </div>

@@ -38,6 +38,7 @@ export function LocationMenu(props: {
   const [found, setFound] = useState<{
     worktrees: WorktreeChoice[]
     branches: string[]
+    defaultBranch: string | null
   } | null>(null)
 
   useEffect(() => {
@@ -59,6 +60,8 @@ export function LocationMenu(props: {
             branches: branches
               .filter((branch) => branch.local)
               .map((branch) => branch.name),
+            defaultBranch:
+              branches.find((branch) => branch.default)?.name ?? null,
           })
         }
       } catch (error) {
@@ -93,6 +96,8 @@ export function LocationMenu(props: {
       name !== main.branch && !worktrees.some((item) => item.branch === name)
   )
 
+  const defaultBranch = found.defaultBranch
+
   function branchItem(name: string) {
     return (
       <DropdownMenuRadioItem
@@ -109,6 +114,11 @@ export function LocationMenu(props: {
           className="text-muted-foreground size-3.5"
         />
         <span className="min-w-0 flex-1 truncate">{name}</span>
+        {name === defaultBranch && (
+          <span className="text-muted-foreground shrink-0 text-xs">
+            Default
+          </span>
+        )}
       </DropdownMenuRadioItem>
     )
   }
@@ -161,6 +171,11 @@ export function LocationMenu(props: {
         <span className="min-w-0 flex-1 truncate">
           {main.branch ?? 'Detached HEAD'}
         </span>
+        {main.branch === found.defaultBranch && (
+          <span className="text-muted-foreground shrink-0 text-xs">
+            Default
+          </span>
+        )}
       </DropdownMenuRadioItem>
       {branches.slice(0, 5).map(branchItem)}
       {branches.length > 5 && (
@@ -179,27 +194,6 @@ export function LocationMenu(props: {
         </DropdownMenuSub>
       )}
       <DropdownMenuSeparator />
-      {worktrees.length > 0 && (
-        <>
-          {worktrees.slice(0, 5).map(worktreeItem)}
-          {worktrees.length > 5 && (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <MoreLabel
-                  text={`${worktrees.length - 5} more worktrees`}
-                  className="size-3.5"
-                />
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent className="max-h-80 w-72 overflow-y-auto">
-                  {worktrees.slice(5).map(worktreeItem)}
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-          )}
-          <DropdownMenuSeparator />
-        </>
-      )}
       <DropdownMenuRadioItem
         value={NEW_WORKTREE}
         onSelect={() => {
@@ -214,6 +208,22 @@ export function LocationMenu(props: {
         />
         <span className="min-w-0 flex-1 truncate">New worktree</span>
       </DropdownMenuRadioItem>
+      {worktrees.slice(0, 5).map(worktreeItem)}
+      {worktrees.length > 5 && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <MoreLabel
+              text={`${worktrees.length - 5} more worktrees`}
+              className="size-3.5"
+            />
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent className="max-h-80 w-72 overflow-y-auto">
+              {worktrees.slice(5).map(worktreeItem)}
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+      )}
     </DropdownMenuRadioGroup>
   )
 }

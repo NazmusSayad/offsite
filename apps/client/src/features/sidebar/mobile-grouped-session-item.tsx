@@ -1,4 +1,4 @@
-import { PinIcon, SquarePenIcon, ZzzIcon } from '@hugeicons/core-free-icons'
+import { PinIcon, ZzzIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { useRef, useState } from 'react'
@@ -217,30 +217,6 @@ export function MobileGroupedSessionItem(props: {
         </ContextMenu>
       </SwipeRow>
       {stopDialog}
-    </li>
-  )
-}
-
-export function MobileGroupedDraftRow(props: { onSelect: () => void }) {
-  return (
-    <li className="list-none">
-      <div
-        role="button"
-        tabIndex={0}
-        className={cn(
-          surface,
-          'bg-sidebar-row-active text-sidebar-foreground flex h-9 items-center gap-2 px-2.5'
-        )}
-        onClick={props.onSelect}
-      >
-        <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
-          New thread
-        </span>
-        <HugeiconsIcon
-          icon={SquarePenIcon}
-          className="text-warning-foreground size-4 shrink-0"
-        />
-      </div>
     </li>
   )
 }

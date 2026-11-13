@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import os from 'node:os'
 import { promisify } from 'node:util'
 import type {
   MergeMethod,
@@ -154,11 +155,12 @@ export async function listPullRequests(
 }
 
 export async function viewPullRequest(
-  cwd: string,
+  local: string | null,
   target: string,
   fresh: boolean
 ): Promise<PullRequestDetails> {
   const repo = repoOf(target)
+  const cwd = local ?? os.homedir()
   const results = await Promise.all([
     views.get(target, fresh, () =>
       gh(cwd, ['pr', 'view', target, '--json', DETAIL_FIELDS.join(',')])
@@ -175,7 +177,7 @@ export async function viewPullRequest(
     viewers.get(repo.host, false, () =>
       gh(cwd, ['api', '--hostname', repo.host, 'user', '--jq', '.login'])
     ),
-    currentBranch(cwd),
+    local === null ? null : currentBranch(local),
   ])
   const raw: RawDetails = JSON.parse(results[0])
   const settings: {
@@ -198,6 +200,7 @@ export async function viewPullRequest(
     headOid: raw.headRefOid,
     viewer: results[2].trim(),
     current: results[3],
+    local: local !== null,
     body: raw.body,
     createdAt: Date.parse(raw.createdAt),
     mergeState: raw.mergeStateStatus,
@@ -223,9 +226,9 @@ export async function viewPullRequest(
   }
 }
 
-export function pullRequestDiff(cwd: string, target: string, head: string) {
+export function pullRequestDiff(target: string, head: string) {
   return diffs.get(`${target}@${head}`, false, () =>
-    gh(cwd, ['pr', 'diff', target, '--color', 'never'])
+    gh(os.homedir(), ['pr', 'diff', target, '--color', 'never'])
   )
 }
 
@@ -342,7 +345,7 @@ async function currentBranch(cwd: string) {
   return branch === '' ? null : branch
 }
 
-function repoOf(url: string) {
+export function repoOf(url: string) {
   const match = /^https:\/\/([^/]+)\/([^/]+)\/([^/]+)\/pull\/\d+$/.exec(url)
   if (match === null) {
     throw new Error(`${url} is not a pull request URL`)

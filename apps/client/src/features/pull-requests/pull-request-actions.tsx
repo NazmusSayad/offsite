@@ -1,10 +1,17 @@
 import {
+  AlertCircleIcon,
+  ArrowDown01Icon,
   Cancel01Icon,
+  CancelCircleIcon,
+  CheckmarkCircle02Icon,
+  Clock01Icon,
   Copy01Icon,
+  EyeIcon,
   GitCommitIcon,
   GitCompareArrowsIcon,
   GitMergeIcon,
   GitPullRequestDraftIcon,
+  Loading03Icon,
   MoreHorizontalIcon,
   ThumbsUpIcon,
 } from '@hugeicons/core-free-icons'
@@ -17,9 +24,9 @@ import type {
 } from '@offsite/core/pull-requests'
 import { useState } from 'react'
 import { useLocalStorage } from 'usehooks-ts'
-
 import {
   AlertDialog,
+  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -32,6 +39,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -63,90 +72,179 @@ const methodLabels: Record<
 }
 
 export function PullRequestActions(props: {
-  details: PullRequestDetails
+  details: PullRequestDetails | null
   busy: string | null
-  notice: string | null
   onPerform: Perform
 }) {
   const details = props.details
   const [merging, setMerging] = useState(false)
-  const status = mergeStatus(details)
-  const tone =
-    props.busy === null && props.notice !== null ? 'good' : status.tone
+  const [savedMethod, setSavedMethod] = useLocalStorage<MergeMethod>(
+    'pullRequestMergeMethod',
+    'squash'
+  )
+  const [cleanup, setCleanup] = useLocalStorage('pullRequestDeleteBranch', true)
+  const disabled = details === null || props.busy !== null
+  const method =
+    details === null || details.methods.includes(savedMethod)
+      ? savedMethod
+      : (details.methods[0] ?? null)
+  const mergeable =
+    details === null || (details.state === 'OPEN' && !details.draft)
+  const showCleanup = mergeable && details?.crossRepository !== true
 
   return (
     <div className="border-border/60 bg-background flex shrink-0 items-center gap-2 border-t px-3 py-2">
-      <span
-        className={cn(
-          'min-w-0 flex-1 truncate text-xs',
-          tone === 'good' && 'text-success',
-          tone === 'bad' && 'text-destructive',
-          tone === 'wait' && 'text-warning',
-          tone === 'none' && 'text-muted-foreground'
-        )}
-      >
-        {props.busy ?? props.notice ?? status.text}
-      </span>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+      {showCleanup && (
+        <label className="text-muted-foreground flex min-w-0 cursor-pointer items-center gap-1.5 text-xs has-disabled:cursor-default">
+          <Switch
+            size="sm"
+            checked={cleanup}
+            onCheckedChange={setCleanup}
+            disabled={disabled}
+          />
+          <span className="truncate">Clean up branch</span>
+        </label>
+      )}
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              title="More actions"
+              aria-label="More actions"
+              disabled={disabled}
+            >
+              <HugeiconsIcon icon={MoreHorizontalIcon} className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            {details !== null && (
+              <MoreItems details={details} onPerform={props.onPerform} />
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {details !== null && details.state === 'OPEN' && details.draft && (
           <Button
-            size="icon-sm"
-            variant="ghost"
-            title="More actions"
-            aria-label="More actions"
-            disabled={props.busy !== null}
+            size="sm"
+            disabled={disabled}
+            onClick={() =>
+              void props.onPerform({ kind: 'ready' }, 'Marked ready for review')
+            }
           >
-            <HugeiconsIcon icon={MoreHorizontalIcon} className="size-4" />
+            Ready for review
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
-          <MoreItems details={details} onPerform={props.onPerform} />
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {details.state === 'OPEN' && details.draft && (
-        <Button
-          size="sm"
-          disabled={props.busy !== null}
-          onClick={() =>
-            void props.onPerform({ kind: 'ready' }, 'Marked ready for review')
-          }
-        >
-          Ready for review
-        </Button>
-      )}
-      {details.state === 'OPEN' && !details.draft && (
-        <Button
-          size="sm"
-          disabled={props.busy !== null}
-          onClick={() => setMerging(true)}
-        >
-          Merge
-        </Button>
-      )}
-      {details.state === 'CLOSED' && (
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={props.busy !== null}
-          onClick={() =>
-            void props.onPerform({ kind: 'reopen' }, 'Pull request reopened')
-          }
-        >
-          Reopen
-        </Button>
-      )}
+        )}
+        {mergeable && method === null && (
+          <Button
+            size="sm"
+            disabled
+            title="This repository allows no merge method"
+          >
+            <HugeiconsIcon icon={GitMergeIcon} />
+            Merge
+          </Button>
+        )}
+        {mergeable && method !== null && (
+          <div className="flex">
+            <Button
+              size="sm"
+              className="rounded-r-none [&:active:not([aria-haspopup])]:scale-100"
+              disabled={disabled}
+              onClick={() => setMerging(true)}
+            >
+              <HugeiconsIcon icon={methodLabels[method].icon} />
+              {methodLabels[method].button}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  className="relative rounded-l-none px-1.5 before:absolute before:inset-y-1.5 before:-left-px before:w-px before:bg-white/20"
+                  disabled={disabled}
+                  title="Choose how to merge"
+                  aria-label="Choose how to merge"
+                >
+                  <HugeiconsIcon icon={ArrowDown01Icon} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                {details !== null && (
+                  <MethodItems
+                    methods={details.methods}
+                    method={method}
+                    onMethod={setSavedMethod}
+                  />
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+        {details !== null && details.state === 'CLOSED' && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={disabled}
+            onClick={() =>
+              void props.onPerform({ kind: 'reopen' }, 'Pull request reopened')
+            }
+          >
+            Reopen
+          </Button>
+        )}
+      </div>
       <AlertDialog open={merging} onOpenChange={setMerging}>
         <AlertDialogContent>
-          <MergeDialog
-            details={details}
-            onConfirm={(action, label) => {
-              setMerging(false)
-              void props.onPerform(action, label)
-            }}
-          />
+          {details !== null && method !== null && (
+            <MergeDialog
+              details={details}
+              method={method}
+              cleanup={cleanup && !details.crossRepository}
+              onConfirm={() =>
+                void props.onPerform(
+                  {
+                    kind: 'merge',
+                    method,
+                    deleteBranch: cleanup && !details.crossRepository,
+                  },
+                  `Merged #${details.number}`
+                )
+              }
+            />
+          )}
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+function MethodItems(props: {
+  methods: MergeMethod[]
+  method: MergeMethod
+  onMethod: (method: MergeMethod) => void
+}) {
+  return (
+    <DropdownMenuRadioGroup
+      value={props.method}
+      onValueChange={(value) => {
+        const method = props.methods.find((item) => item === value)
+        if (method === undefined) {
+          throw new Error(`unknown merge method ${value}`)
+        }
+        props.onMethod(method)
+      }}
+    >
+      {props.methods.map((item) => (
+        <DropdownMenuRadioItem key={item} value={item} className="items-start">
+          <span className="grid gap-0.5">
+            <span className="text-foreground">{methodLabels[item].button}</span>
+            <span className="text-muted-foreground text-xs">
+              {methodLabels[item].hint}
+            </span>
+          </span>
+        </DropdownMenuRadioItem>
+      ))}
+    </DropdownMenuRadioGroup>
   )
 }
 
@@ -156,19 +254,21 @@ function MoreItems(props: { details: PullRequestDetails; onPerform: Perform }) {
 
   return (
     <>
-      {details.state !== 'MERGED' && details.head !== details.current && (
-        <DropdownMenuItem
-          onSelect={() =>
-            void props.onPerform(
-              { kind: 'checkout' },
-              `Checked out ${details.head}`
-            )
-          }
-        >
-          <HugeiconsIcon icon={BranchIcon} />
-          Check out branch
-        </DropdownMenuItem>
-      )}
+      {details.state !== 'MERGED' &&
+        details.local &&
+        details.head !== details.current && (
+          <DropdownMenuItem
+            onSelect={() =>
+              void props.onPerform(
+                { kind: 'checkout' },
+                `Checked out ${details.head}`
+              )
+            }
+          >
+            <HugeiconsIcon icon={BranchIcon} />
+            Check out branch
+          </DropdownMenuItem>
+        )}
       {details.state === 'OPEN' && details.author !== details.viewer && (
         <DropdownMenuItem
           onSelect={() =>
@@ -213,20 +313,11 @@ function MoreItems(props: { details: PullRequestDetails; onPerform: Perform }) {
 
 function MergeDialog(props: {
   details: PullRequestDetails
-  onConfirm: (action: PullRequestAction, label: string) => void
+  method: MergeMethod
+  cleanup: boolean
+  onConfirm: () => void
 }) {
   const details = props.details
-  const [savedMethod, setSavedMethod] = useLocalStorage<MergeMethod>(
-    'pullRequestMergeMethod',
-    'squash'
-  )
-  const [deleteBranch, setDeleteBranch] = useLocalStorage(
-    'pullRequestDeleteBranch',
-    true
-  )
-  const method = details.methods.includes(savedMethod)
-    ? savedMethod
-    : (details.methods[0] ?? null)
   const waiting =
     details.checks === 'pending' ||
     details.checks === 'failing' ||
@@ -235,111 +326,92 @@ function MergeDialog(props: {
   return (
     <>
       <AlertDialogHeader>
-        <AlertDialogTitle>Merge #{details.number}?</AlertDialogTitle>
+        <AlertDialogTitle>
+          {methodLabels[props.method].button} #{details.number}?
+        </AlertDialogTitle>
         <AlertDialogDescription>
-          Merge <code>{details.head}</code> into <code>{details.base}</code>.
+          Merge <code>{details.head}</code> into <code>{details.base}</code>
+          {props.cleanup ? ', then delete the branch.' : '.'}
           {waiting &&
             ' If required checks or reviews are still missing, GitHub turns on auto-merge instead.'}
         </AlertDialogDescription>
       </AlertDialogHeader>
-      {method === null && (
-        <p className="text-destructive text-sm">
-          This repository does not allow any merge method.
-        </p>
-      )}
-      {method !== null && (
-        <div className="grid gap-3">
-          <div className="grid gap-1.5">
-            {details.methods.map((item) => (
-              <button
-                key={item}
-                type="button"
-                aria-pressed={item === method}
-                className="group border-border hover:bg-accent/50 aria-pressed:border-primary aria-pressed:bg-primary/6 flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-left"
-                onClick={() => setSavedMethod(item)}
-              >
-                <HugeiconsIcon
-                  icon={methodLabels[item].icon}
-                  className="text-muted-foreground group-aria-pressed:text-primary size-5 shrink-0"
-                />
-                <span className="grid gap-0.5">
-                  <span className="text-foreground text-sm font-medium">
-                    {methodLabels[item].button}
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    {methodLabels[item].hint}
-                  </span>
-                </span>
-              </button>
-            ))}
-          </div>
-          {!details.crossRepository && (
-            <label className="flex cursor-pointer items-center justify-between gap-3 text-sm">
-              <span className="min-w-0 truncate">
-                Delete{' '}
-                <span className="text-muted-foreground font-mono text-xs">
-                  {details.head}
-                </span>
-              </span>
-              <Switch
-                checked={deleteBranch}
-                onCheckedChange={setDeleteBranch}
-              />
-            </label>
-          )}
-        </div>
-      )}
       <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
-        {method !== null && (
-          <Button
-            onClick={() =>
-              props.onConfirm(
-                {
-                  kind: 'merge',
-                  method,
-                  deleteBranch: !details.crossRepository && deleteBranch,
-                },
-                `Merged #${details.number}`
-              )
-            }
-          >
-            <HugeiconsIcon icon={methodLabels[method].icon} />
-            {methodLabels[method].button}
-          </Button>
-        )}
+        <AlertDialogCancel>No</AlertDialogCancel>
+        <AlertDialogAction onClick={props.onConfirm}>
+          Yes, merge
+        </AlertDialogAction>
       </AlertDialogFooter>
     </>
+  )
+}
+
+export function MergeStatus(props: {
+  details: PullRequestDetails
+  busy: string | null
+  notice: string | null
+}) {
+  const status =
+    props.busy !== null
+      ? { text: props.busy, tone: 'none' as const, icon: Loading03Icon }
+      : props.notice !== null
+        ? {
+            text: props.notice,
+            tone: 'good' as const,
+            icon: CheckmarkCircle02Icon,
+          }
+        : mergeStatus(props.details)
+  if (status === null) {
+    return null
+  }
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2 py-px',
+        status.tone === 'good' && 'bg-success/8 text-success',
+        status.tone === 'bad' && 'bg-destructive/8 text-destructive',
+        status.tone === 'wait' && 'bg-warning/8 text-warning-foreground',
+        status.tone === 'none' && 'bg-muted/60 text-muted-foreground'
+      )}
+    >
+      <HugeiconsIcon
+        icon={status.icon}
+        className={cn(
+          'size-3.5 shrink-0',
+          props.busy !== null && 'animate-spin'
+        )}
+      />
+      {status.text}
+    </span>
   )
 }
 
 function mergeStatus(details: PullRequestDetails): {
   text: string
   tone: 'good' | 'bad' | 'wait' | 'none'
-} {
-  if (details.state === 'MERGED') {
-    return { text: 'Merged', tone: 'none' }
-  }
-  if (details.state === 'CLOSED') {
-    return { text: 'Closed without merging', tone: 'none' }
-  }
-  if (details.draft) {
-    return { text: 'Draft', tone: 'none' }
+  icon: IconSvgElement
+} | null {
+  if (details.state !== 'OPEN' || details.draft) {
+    return null
   }
   if (details.mergeable === 'CONFLICTING') {
-    return { text: 'Conflicts with the base branch', tone: 'bad' }
+    return {
+      text: 'Conflicts with the base branch',
+      tone: 'bad',
+      icon: AlertCircleIcon,
+    }
   }
   if (details.checks === 'failing') {
-    return { text: 'Some checks failed', tone: 'bad' }
+    return { text: 'Some checks failed', tone: 'bad', icon: CancelCircleIcon }
   }
   if (details.review === 'CHANGES_REQUESTED') {
-    return { text: 'Changes requested', tone: 'bad' }
+    return { text: 'Changes requested', tone: 'bad', icon: AlertCircleIcon }
   }
   if (details.checks === 'pending') {
-    return { text: 'Checks are running', tone: 'wait' }
+    return { text: 'Checks are running', tone: 'wait', icon: Clock01Icon }
   }
   if (details.review === 'REVIEW_REQUIRED') {
-    return { text: 'Review required', tone: 'wait' }
+    return { text: 'Review required', tone: 'wait', icon: EyeIcon }
   }
-  return { text: 'Ready to merge', tone: 'good' }
+  return { text: 'Ready to merge', tone: 'good', icon: CheckmarkCircle02Icon }
 }

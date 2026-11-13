@@ -67,7 +67,7 @@ export function WorktreeBar(props: {
           </span>
         )}
         {stage === null && (
-          <div className="flex flex-wrap items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1 @max-sm:justify-between">
             <DropdownMenu modal={!touch.matches}>
               <DropdownMenuTrigger asChild>
                 <button
@@ -78,12 +78,7 @@ export function WorktreeBar(props: {
                     icon={worktree === null ? BranchIcon : NewWorktreeIcon}
                     className="text-muted-foreground size-3.5 shrink-0"
                   />
-                  <span
-                    className={cn(
-                      'truncate',
-                      worktree !== null && '@max-sm:hidden'
-                    )}
-                  >
+                  <span className="truncate">
                     {worktree === null
                       ? (repo.branch ?? 'Detached HEAD')
                       : 'New worktree'}
@@ -111,7 +106,7 @@ export function WorktreeBar(props: {
               key={worktree === null ? 'local' : 'worktree'}
               className={cn(
                 'animate-in fade-in-0 flex h-7 flex-1 items-center gap-1 duration-150 motion-reduce:animate-none',
-                worktree !== null && 'min-w-0'
+                worktree !== null && 'min-w-0 @max-sm:contents'
               )}
             >
               {worktree === null && (
@@ -132,7 +127,7 @@ export function WorktreeBar(props: {
                         className="hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-ring/30 flex h-6 max-w-48 min-w-0 shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 outline-none focus-visible:ring-2"
                         title="Choose the branch the worktree starts from"
                       >
-                        <span className="text-muted-foreground hidden shrink-0 @md:inline">
+                        <span className="text-muted-foreground shrink-0">
                           from
                         </span>
                         <span className="truncate">
@@ -158,24 +153,26 @@ export function WorktreeBar(props: {
                       />
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <label className="focus-within:bg-accent/60 hover:bg-accent/40 flex h-6 min-w-0 flex-1 cursor-text items-center gap-1.5 rounded-md px-2">
-                    <HugeiconsIcon
-                      icon={NewBranchIcon}
-                      className="text-muted-foreground size-3.5 shrink-0"
-                    />
-                    <input
-                      value={worktree.name}
-                      placeholder="Branch name (auto if empty)"
-                      aria-label="New branch name"
-                      spellCheck={false}
-                      className="placeholder:text-muted-foreground/70 min-w-0 flex-1 bg-transparent text-ellipsis outline-none"
-                      onChange={(event) =>
-                        update({
-                          worktree: { ...worktree, name: event.target.value },
-                        })
-                      }
-                    />
-                  </label>
+                  <div className="@max-sm:composer-glass contents @max-sm:absolute @max-sm:inset-x-[2.75rem] @max-sm:top-[calc(100%+1px)] @max-sm:block @max-sm:rounded-b-xl @max-sm:border @max-sm:border-t-0 @max-sm:border-(--composer-outline) @max-sm:p-0.5">
+                    <label className="focus-within:bg-accent/60 hover:bg-accent/40 flex h-6 min-w-0 flex-1 cursor-text items-center gap-1.5 rounded-md px-2 @max-sm:h-5 @max-sm:rounded-b-[0.625rem]">
+                      <HugeiconsIcon
+                        icon={NewBranchIcon}
+                        className="text-muted-foreground size-3.5 shrink-0 @max-sm:hidden"
+                      />
+                      <input
+                        value={worktree.name}
+                        placeholder="Branch name (auto if empty)"
+                        aria-label="New branch name"
+                        spellCheck={false}
+                        className="placeholder:text-muted-foreground/70 min-w-0 flex-1 bg-transparent text-ellipsis outline-none @max-sm:text-center @max-sm:text-[0.6875rem]"
+                        onChange={(event) =>
+                          update({
+                            worktree: { ...worktree, name: event.target.value },
+                          })
+                        }
+                      />
+                    </label>
+                  </div>
                 </>
               )}
             </div>

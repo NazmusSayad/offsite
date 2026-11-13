@@ -1,4 +1,4 @@
-import { PinIcon, SquarePenIcon, ZzzIcon } from '@hugeicons/core-free-icons'
+import { PinIcon, ZzzIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { WorktreeIcon } from '@offsite/core/icons/git'
 import type { SessionActivity } from '@offsite/core/sessions'
@@ -273,52 +273,6 @@ function MobileSessionItemView(props: {
         </ContextMenu>
       </SwipeRow>
       {stopDialog}
-    </li>
-  )
-}
-
-export function MobileDraftRow(props: {
-  machine: string
-  projectId: string
-  onSelect: () => void
-}) {
-  const projectTitle = useProjectName(props.machine, props.projectId)
-  const machineIcon = useStore((state) => machineOf(state, props.machine).icon)
-  return (
-    <li className="list-none py-0.5">
-      <div
-        role="button"
-        tabIndex={0}
-        className={cn(surface, 'bg-sidebar-row-active text-sidebar-foreground')}
-        onClick={props.onSelect}
-      >
-        <div className="px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
-          <div className="flex h-6 min-w-0 items-center gap-2">
-            <ProjectIcon
-              machine={props.machine}
-              projectId={props.projectId}
-              className="size-5"
-            />
-            <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
-              New thread
-            </span>
-            <HugeiconsIcon
-              icon={SquarePenIcon}
-              className="text-warning-foreground size-4 shrink-0"
-            />
-          </div>
-          <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
-            <MachineLogo icon={machineIcon} className="size-3 shrink-0" />
-            <span className="min-w-0 flex-1 truncate font-medium">
-              {projectTitle}
-              <span className="text-muted-foreground/40 font-normal">
-                {' | Draft'}
-              </span>
-            </span>
-            <span className="shrink-0 tabular-nums">now</span>
-          </div>
-        </div>
-      </div>
     </li>
   )
 }

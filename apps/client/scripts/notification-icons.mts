@@ -9,17 +9,17 @@ import { CLAUDE_LOGO, OPENCODE_LOGO } from '../../core/icons/providers.ts'
 import { NOTICE_STATES } from '../../core/src/push.ts'
 
 const SIZE = 192
-const BADGE_X = 136
-const BADGE_Y = 56
-const BADGE_RADIUS = 56
-const BADGE_GAP = 10
+const STATUS_SIZE = 112
+const LOGO_X = 129
+const LOGO_Y = 129
+const LOGO_SIZE = 42
+const LOGO_GAP = 6
 const LOGO_COLOR = '#d1d8e6'
 
 const output = path.join(import.meta.dirname, '../public/notification-icons')
 
 const sources = {
   claude: {
-    scale: 0.78,
     svg: (size: number) =>
       renderToStaticMarkup(
         createElement(
@@ -35,11 +35,9 @@ const sources = {
       ),
   },
   codex: {
-    scale: 0.8,
     svg: (size: number) => hugeicon(icons.ChatGptIcon, LOGO_COLOR, size, 1.5),
   },
   opencode: {
-    scale: 0.62,
     svg: (size: number) =>
       renderToStaticMarkup(
         createElement(
@@ -81,18 +79,21 @@ function place(svg: string, x: number, y: number) {
 }
 
 function render(logo: (typeof sources)['claude'], state: keyof typeof badges) {
-  const logoSize = SIZE * logo.scale
-  const logoOffset = (SIZE - logoSize) / 2
-  const logoSvg = place(logo.svg(logoSize), logoOffset, logoOffset)
   const badge = badges[state]
-  const open = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">`
-  const mask = `<mask id="cut"><rect width="${SIZE}" height="${SIZE}" fill="#fff"/><circle cx="${BADGE_X}" cy="${BADGE_Y}" r="${BADGE_RADIUS + BADGE_GAP}" fill="#000"/></mask>`
-  const badgeSvg = place(
-    hugeicon(badge.icon, badge.color, BADGE_RADIUS * 2, 1.75),
-    BADGE_X - BADGE_RADIUS,
-    BADGE_Y - BADGE_RADIUS
+  const statusOffset = (SIZE - STATUS_SIZE) / 2
+  const statusSvg = place(
+    hugeicon(badge.icon, badge.color, STATUS_SIZE, 1.75),
+    statusOffset,
+    statusOffset
   )
-  return `${open}<defs>${mask}</defs><g mask="url(#cut)">${logoSvg}</g>${badgeSvg}</svg>`
+  const logoSvg = place(
+    logo.svg(LOGO_SIZE),
+    LOGO_X - LOGO_SIZE / 2,
+    LOGO_Y - LOGO_SIZE / 2
+  )
+  const open = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">`
+  const mask = `<mask id="cut"><rect width="${SIZE}" height="${SIZE}" fill="#fff"/><circle cx="${LOGO_X}" cy="${LOGO_Y}" r="${LOGO_SIZE / 2 + LOGO_GAP}" fill="#000"/></mask>`
+  return `${open}<defs>${mask}</defs><g mask="url(#cut)">${statusSvg}</g>${logoSvg}</svg>`
 }
 
 mkdirSync(output, { recursive: true })

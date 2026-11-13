@@ -1,6 +1,7 @@
-import { GithubIcon, GlobeIcon } from '@hugeicons/core-free-icons'
+import { GlobeIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { memo, useState } from 'react'
+import { VscGithubInverted } from 'react-icons/vsc'
 import ReactMarkdown, {
   type Components,
   defaultUrlTransform,
@@ -330,16 +331,14 @@ function LinkFavicon(props: { host: string }) {
   const [failed, setFailed] = useState(failedHosts.has(props.host))
   const hostname = props.host.toLowerCase()
   const github = hostname === 'github.com' || hostname.endsWith('.github.com')
+
   return (
     <span
       className="ms-[0.25em] me-[0.2em] inline-flex size-[14px] [vertical-align:-0.125em]"
       aria-hidden
     >
       {github ? (
-        <HugeiconsIcon
-          icon={GithubIcon}
-          className="block size-full shrink-0 select-none"
-        />
+        <VscGithubInverted className="block size-full shrink-0 select-none" />
       ) : failed ? (
         <HugeiconsIcon
           icon={GlobeIcon}

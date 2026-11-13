@@ -16,10 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { timeAgo } from '@/lib/format'
 import { useStore } from '@/lib/store'
 import { useCodeTheme } from '@/lib/theme'
 import { errorMessage } from '@/lib/utils'
+import { PullRequestFiles } from './pull-request-files'
 import diffCss from '@/features/git/diff.css?raw'
 
 const attentionLabels: Record<
@@ -36,9 +38,12 @@ const attentionLabels: Record<
 export function PullRequestGuide(props: {
   machine: string
   projectId: string
-  repo: string
   url: string
   head: string
+  view: 'guidebook' | 'changes'
+  title: string
+  fullscreen: boolean
+  onFullscreen: (fullscreen: boolean) => void
 }) {
   const [state, setState] = useState<ReviewGuideState | null>(null)
   const [writing, setWriting] = useState(false)
@@ -53,7 +58,6 @@ export function PullRequestGuide(props: {
       setState(
         await call(props.machine, 'pulls.writeGuide', {
           projectId: props.projectId,
-          repo: props.repo,
           url: props.url,
         })
       )
@@ -81,7 +85,6 @@ export function PullRequestGuide(props: {
         setWriting(true)
         const written = await call(props.machine, 'pulls.writeGuide', {
           projectId: props.projectId,
-          repo: props.repo,
           url: props.url,
         })
         if (current) {
@@ -101,7 +104,7 @@ export function PullRequestGuide(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.projectId, props.repo, props.url])
+  }, [props.machine, props.projectId, props.url])
 
   const guides = state?.guides ?? []
   const guide =
@@ -110,96 +113,141 @@ export function PullRequestGuide(props: {
       : (guides.find((item) => item.head === chosen) ?? null)
 
   return (
-    <div className="grid gap-4 p-4">
-      {error !== null && (
-        <p className="text-destructive bg-destructive/8 rounded-lg px-3 py-2 text-xs whitespace-pre-wrap">
-          {error}
-        </p>
-      )}
-      {state === null && error === null && (
-        <p className="text-muted-foreground text-center text-xs">Loading…</p>
-      )}
-      {writing && (
-        <p className="text-muted-foreground text-shimmer text-center text-sm">
-          Writing the guide. This can take a minute…
-        </p>
-      )}
-      {state !== null && guide === null && !writing && (
-        <div className="flex flex-col items-center gap-3 py-6 text-center">
-          <HugeiconsIcon
-            icon={Route01Icon}
-            className="text-muted-foreground/50 size-8"
-          />
-          <div className="grid max-w-80 gap-1">
-            <p className="text-foreground text-sm font-medium">
-              Review this pull request as a guided tour
-            </p>
-            <p className="text-muted-foreground text-xs">
-              The small model reads the description and the diff, and puts the
-              changes in a few stops in reading order. It marks only the points
-              where you must make a decision.
-            </p>
-          </div>
-          <Button size="sm" onClick={() => void write()}>
-            Write guide
-          </Button>
-        </div>
-      )}
-      {state !== null && guide !== null && !writing && (
-        <>
-          {guide.head !== props.head && (
-            <div className="border-warning/40 bg-warning/8 flex items-center gap-3 rounded-lg border px-3 py-2">
-              <div className="grid min-w-0 flex-1 gap-0.5">
-                <span className="text-warning text-xs font-medium">
-                  Outdated
-                </span>
-                <span className="text-foreground/90 text-xs">
-                  This guide is for commit {guide.head.slice(0, 7)}. The pull
-                  request has new commits since then.
-                </span>
+    <>
+      <div className="grid gap-4 p-4">
+        {error !== null && (
+          <p className="text-destructive bg-destructive/8 rounded-lg px-3 py-2 text-xs whitespace-pre-wrap">
+            {error}
+          </p>
+        )}
+        {state === null && error === null && (
+          <div aria-label="Loading guidebook" className="grid gap-4">
+            <Skeleton className="h-3.5 w-48" />
+            {Array.from({ length: 2 }, (_, index) => (
+              <div
+                key={index}
+                className="border-border/60 grid gap-3 rounded-lg border p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <Skeleton className="size-5 shrink-0 rounded-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-5/6" />
+                <Skeleton className="h-24 w-full" />
               </div>
-              {!guides.some((item) => item.head === props.head) && (
-                <Button size="xs" onClick={() => void write()}>
-                  Write for the latest commit
+            ))}
+          </div>
+        )}
+        {writing && (
+          <p className="text-muted-foreground text-shimmer text-center text-sm">
+            Writing the guidebook. This can take a minute…
+          </p>
+        )}
+        {state !== null && guide === null && !writing && (
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <HugeiconsIcon
+              icon={Route01Icon}
+              className="text-muted-foreground/50 size-8"
+            />
+            <div className="grid max-w-80 gap-1">
+              <p className="text-foreground text-sm font-medium">
+                Review this pull request as a guided tour
+              </p>
+              <p className="text-muted-foreground text-xs">
+                The small model reads the description and the diff, and puts the
+                changes in a few stops in reading order. It marks only the
+                points where you must make a decision, and groups the changed
+                files by kind.
+              </p>
+            </div>
+            <Button size="sm" onClick={() => void write()}>
+              Write guidebook
+            </Button>
+          </div>
+        )}
+        {state !== null && guide !== null && !writing && (
+          <>
+            {guide.head !== props.head && (
+              <div className="border-warning/40 bg-warning/8 flex items-center gap-3 rounded-lg border px-3 py-2">
+                <div className="grid min-w-0 flex-1 gap-0.5">
+                  <span className="text-warning text-xs font-medium">
+                    Outdated
+                  </span>
+                  <span className="text-foreground/90 text-xs">
+                    This guidebook is for commit {guide.head.slice(0, 7)}. The
+                    pull request has new commits since then.
+                  </span>
+                </div>
+                {!guides.some((item) => item.head === props.head) && (
+                  <Button size="xs" onClick={() => void write()}>
+                    Write for the latest commit
+                  </Button>
+                )}
+              </div>
+            )}
+            <div className="text-muted-foreground flex items-center gap-2 text-xs">
+              {guides.length === 1 && (
+                <span className="min-w-0 flex-1">
+                  Commit {guide.head.slice(0, 7)} · written{' '}
+                  {ago(guide.createdAt)}
+                </span>
+              )}
+              {guides.length > 1 && (
+                <div className="min-w-0 flex-1">
+                  <Select value={guide.head} onValueChange={setChosen}>
+                    <SelectTrigger size="sm" className="max-w-72">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {guides.map((item) => (
+                        <SelectItem key={item.head} value={item.head}>
+                          Commit {item.head.slice(0, 7)} · {ago(item.createdAt)}
+                          {item.head === props.head && ' · latest'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {guide.head === props.head && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={() => void write()}
+                >
+                  Write again
                 </Button>
               )}
             </div>
-          )}
-          <div className="text-muted-foreground flex items-center gap-2 text-xs">
-            {guides.length === 1 && (
-              <span className="min-w-0 flex-1">
-                Commit {guide.head.slice(0, 7)} · written {ago(guide.createdAt)}
-              </span>
+            {props.view === 'guidebook' &&
+              guide.stops.map((stop, index) => (
+                <GuideStop key={index} stop={stop} index={index} />
+              ))}
+            {props.view === 'changes' && guide.groups === undefined && (
+              <p className="text-muted-foreground text-center text-xs">
+                This guidebook was written before files were grouped. Write it
+                again to group the files.
+              </p>
             )}
-            {guides.length > 1 && (
-              <div className="min-w-0 flex-1">
-                <Select value={guide.head} onValueChange={setChosen}>
-                  <SelectTrigger size="sm" className="max-w-72">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {guides.map((item) => (
-                      <SelectItem key={item.head} value={item.head}>
-                        Commit {item.head.slice(0, 7)} · {ago(item.createdAt)}
-                        {item.head === props.head && ' · latest'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {guide.head === props.head && (
-              <Button size="xs" variant="outline" onClick={() => void write()}>
-                Write again
-              </Button>
-            )}
-          </div>
-          {guide.stops.map((stop, index) => (
-            <GuideStop key={index} stop={stop} index={index} />
-          ))}
-        </>
-      )}
-    </div>
+          </>
+        )}
+      </div>
+      {props.view === 'changes' &&
+        state !== null &&
+        guide?.groups !== undefined &&
+        !writing && (
+          <PullRequestFiles
+            machine={props.machine}
+            url={props.url}
+            head={props.head}
+            title={props.title}
+            fullscreen={props.fullscreen}
+            onFullscreen={props.onFullscreen}
+            groups={guide.groups}
+          />
+        )}
+    </>
   )
 }
 

@@ -8,7 +8,6 @@ import type {
   PullRequestFilter,
   PullRequestList,
 } from '@offsite/core/pull-requests'
-import { useSearch } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { useDebounceValue, useLocalStorage } from 'usehooks-ts'
 import { call } from '@/api/connection'
@@ -21,12 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { timeAgo } from '@/lib/format'
-import { replaceSearch } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
 import { ChecksBadge, ReviewBadge, StateIcon } from './pull-request-badges'
-import { PullRequestView } from './pull-request-view'
+import { openFromList } from './pull-request-view'
 
 const LIST_REFRESH = 60_000
 
@@ -71,10 +70,6 @@ export function PullRequestsPanel(props: {
   } | null>(null)
   const [version, setVersion] = useState(0)
   const forced = useRef(false)
-  const selected = useSearch({
-    from: '__root__',
-    select: (search) => search.pull ?? null,
-  })
   const repo = chosenRepo ?? repos?.paths[0] ?? null
   const key = JSON.stringify([repo, filter.state, filter.scope, search])
 
@@ -159,32 +154,14 @@ export function PullRequestsPanel(props: {
     version,
   ])
 
-  if (selected !== null && repo !== null) {
-    return (
-      <PullRequestView
-        machine={props.machine}
-        projectId={props.projectId}
-        repo={repo}
-        url={selected}
-        running={props.running}
-        mobile={props.mobile}
-        onBack={() => {
-          replaceSearch({ pull: undefined })
-          setVersion(version + 1)
-        }}
-        onClose={props.onClose}
-      />
-    )
-  }
-
   const stale = list !== null && list.key !== key
   const result = list?.result ?? null
   const error = repos?.error ?? (stale ? null : (list?.error ?? null))
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
-      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-3 pl-3">
-        <div className="flex min-w-0 items-center gap-1">
+      <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 border-b pr-3 pl-3">
+        <div className="flex max-w-1/2 min-w-0 shrink-0 items-center gap-1">
           <PanelCloseButton mobile={props.mobile} onClick={props.onClose} />
           <span className="text-foreground shrink-0 text-xs font-medium">
             Pull requests
@@ -194,6 +171,19 @@ export function PullRequestsPanel(props: {
               {result.repo}
             </span>
           )}
+        </div>
+        <div className="relative ml-4 min-w-0 flex-1">
+          <HugeiconsIcon
+            icon={Search01Icon}
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
+          />
+          <Input
+            className="h-7 pl-8 text-xs"
+            placeholder="Search, or label:bug review:approved"
+            aria-label="Search pull requests"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {repos !== null && repos.paths.length > 1 && (
@@ -228,19 +218,6 @@ export function PullRequestsPanel(props: {
         </div>
       </div>
       <div className="border-border/60 @container grid shrink-0 gap-2 border-b p-3">
-        <div className="relative">
-          <HugeiconsIcon
-            icon={Search01Icon}
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
-          />
-          <Input
-            className="h-8 pl-8 text-xs"
-            placeholder="Search, or label:bug review:approved"
-            aria-label="Search pull requests"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </div>
         <div className="flex flex-col gap-2 @sm:flex-row @sm:items-center">
           <div className="bg-input/40 flex min-w-0 items-center rounded-lg p-0.5 @sm:flex-1">
             {states.map((state) => (
@@ -289,9 +266,21 @@ export function PullRequestsPanel(props: {
           </p>
         )}
         {(repos === null || (repos.paths.length > 0 && list === null)) && (
-          <p className="text-muted-foreground p-4 text-center text-xs">
-            Loading…
-          </p>
+          <div aria-label="Loading pull requests">
+            {Array.from({ length: 6 }, (_, index) => (
+              <div key={index} className="flex items-start gap-2.5 px-2.5 py-2">
+                <Skeleton className="mt-0.5 size-4 shrink-0 rounded-full" />
+                <div className="grid min-w-0 flex-1 gap-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="ml-auto h-3 w-12" />
+                  </div>
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
         )}
         {error === null && result !== null && result.items.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
@@ -311,7 +300,7 @@ export function PullRequestsPanel(props: {
               'hover:bg-accent flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 text-left',
               stale && 'opacity-60'
             )}
-            onClick={() => replaceSearch({ pull: item.url })}
+            onClick={() => openFromList(item.url)}
           >
             <StateIcon
               state={item.state}

@@ -7,6 +7,7 @@ export async function localBranches(repo: string) {
   const branches = (await listBranches(repo, false)).map((name) => ({
     name,
     local: true,
+    default: false,
     worktree:
       name === current
         ? null
@@ -20,7 +21,7 @@ export async function localBranches(repo: string) {
   const name = defaultBranchName(base)
   const local = branches.find((branch) => branch.name === name)
   return [
-    local ?? { name, local: false, worktree: null },
+    { ...(local ?? { name, local: false, worktree: null }), default: true },
     ...branches.filter((branch) => branch.name !== name),
   ]
 }

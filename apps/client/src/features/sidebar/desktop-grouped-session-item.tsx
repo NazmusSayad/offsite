@@ -1,7 +1,6 @@
 import {
   EllipsisIcon,
   PinIcon,
-  SquarePenIcon,
   TickDouble01Icon,
   ZzzIcon,
 } from '@hugeicons/core-free-icons'
@@ -270,30 +269,6 @@ export function DesktopGroupedSessionItem(props: {
         {contextMenu}
       </ContextMenu>
       {stopDialog}
-    </li>
-  )
-}
-
-export function DesktopGroupedDraftRow(props: { onSelect: () => void }) {
-  return (
-    <li className="list-none">
-      <div
-        role="button"
-        tabIndex={0}
-        className={cn(
-          surface,
-          'bg-sidebar-row-active text-sidebar-foreground flex h-9 items-center gap-2 px-2.5'
-        )}
-        onClick={props.onSelect}
-      >
-        <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
-          New thread
-        </span>
-        <HugeiconsIcon
-          icon={SquarePenIcon}
-          className="text-warning-foreground size-4 shrink-0"
-        />
-      </div>
     </li>
   )
 }
