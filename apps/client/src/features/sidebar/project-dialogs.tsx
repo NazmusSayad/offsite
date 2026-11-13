@@ -26,6 +26,10 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  findIconMatches,
+  type IconMatching,
+} from '@/features/sidebar/icon-matches'
 import { IconPickerDialog } from '@/features/sidebar/icon-picker-dialog'
 import { projectName } from '@/lib/format'
 import { type Machine, type MachineProject, useStore } from '@/lib/store'
@@ -215,7 +219,9 @@ export function EditProjectDialog(props: {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [confirming, setConfirming] = useState(false)
-  const [picking, setPicking] = useState(false)
+  const [picking, setPicking] = useState<{
+    matching: IconMatching | null
+  } | null>(null)
   const picker = useRef<HTMLInputElement>(null)
 
   return (
@@ -286,7 +292,7 @@ export function EditProjectDialog(props: {
                       variant="outline"
                       size="sm"
                       title="Choose an image from the project on the server"
-                      onClick={() => setPicking(true)}
+                      onClick={() => setPicking({ matching: null })}
                     >
                       <HugeiconsIcon icon={Folder01Icon} />
                       Choose from project
@@ -312,7 +318,20 @@ export function EditProjectDialog(props: {
                   if (file === undefined) {
                     return
                   }
-                  setLogo(`data:${file.type};base64,${await readBase64(file)}`)
+                  const next = `data:${file.type};base64,${await readBase64(file)}`
+                  try {
+                    const matches = await findIconMatches(
+                      next,
+                      props.project.machine
+                    )
+                    if (matches.length === 0) {
+                      setLogo(next)
+                      return
+                    }
+                    setPicking({ matching: { logo: next, matches } })
+                  } catch (failure) {
+                    setError(errorMessage(failure))
+                  }
                 }}
               />
             </div>
@@ -379,14 +398,15 @@ export function EditProjectDialog(props: {
             </Button>
           </DialogFooter>
         </form>
-        {picking && (
+        {picking !== null && (
           <IconPickerDialog
             machine={props.project.machine}
             projectId={props.project.id}
-            onClose={() => setPicking(false)}
+            matching={picking.matching}
+            onClose={() => setPicking(null)}
             onPick={(next) => {
               setLogo(next)
-              setPicking(false)
+              setPicking(null)
             }}
           />
         )}

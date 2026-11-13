@@ -144,8 +144,8 @@ export async function updateNow() {
       "offsite isn't installed, so nothing would start the new version"
     )
   }
-  if (update === null) {
-    throw new Error('there is no offsite update to download')
+  if (update?.status !== 'available') {
+    throw new Error('there is no offsite update waiting to download')
   }
   const available = update.version
   setUpdate({
@@ -154,21 +154,19 @@ export async function updateNow() {
     output: null,
     percent: null,
   })
-  let installed
   try {
-    installed = await install(settings)
+    const installed = await install(settings)
+    if (!newer(installed, version)) {
+      throw new Error(
+        `the update finished, but a new terminal still runs offsite ${installed}; check that the offsite on your PATH is the one ${settings.manager} installs`
+      )
+    }
+    log.info(`downloaded offsite ${installed}; it runs from the next restart`)
+    setUpdate({ version: installed, status: 'ready' })
   } catch (error) {
     setUpdate({ version: available, status: 'available' })
     throw error
   }
-  if (!newer(installed, version)) {
-    setUpdate({ version: available, status: 'available' })
-    throw new Error(
-      `the update finished, but a new terminal still runs offsite ${installed}; check that the offsite on your PATH is the one ${settings.manager} installs`
-    )
-  }
-  log.info(`downloaded offsite ${installed}; it runs from the next restart`)
-  setUpdate({ version: installed, status: 'ready' })
 }
 
 export function restartNow() {
