@@ -1,4 +1,5 @@
 import {
+  Activity01Icon,
   Add01Icon,
   CenterFocusIcon,
   ChevronDownIcon,
@@ -28,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
+import { openActivityPage } from '@/features/activity/activity-page'
 import {
   activityOf,
   type MachineProject,
@@ -320,6 +322,16 @@ export function ProjectMenuItems(props: {
               </span>
               <span className="min-w-0 flex-1 truncate">Inbox</span>
             </DropdownMenuRadioItem>
+          )}
+
+          {props.inbox && search === '' && (
+            <DropdownMenuItem onSelect={openActivityPage}>
+              <HugeiconsIcon
+                icon={Activity01Icon}
+                className="text-muted-foreground size-5 shrink-0"
+              />
+              <span className="min-w-0 flex-1 truncate">Activity</span>
+            </DropdownMenuItem>
           )}
 
           {props.inbox && search === '' && groups.length > 0 && (

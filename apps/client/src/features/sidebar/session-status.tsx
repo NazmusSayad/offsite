@@ -50,7 +50,7 @@ export function SessionStatus(props: {
   ) : props.activity?.holdsCompletion === true ||
     (!props.done &&
       Object.values(props.activity?.tasks ?? {}).includes('running')) ? (
-    props.activity?.backgroundAgent === true ? (
+    props.activity !== undefined && props.activity.backgroundAgents > 0 ? (
       <span title="Agent running in background" className="text-info flex">
         <HugeiconsIcon
           icon={CircleDashedIcon}

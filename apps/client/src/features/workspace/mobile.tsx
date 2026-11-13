@@ -9,6 +9,7 @@ import { useProjectName, useWorktreeBranch } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
+import { ActivityPage } from '@/features/activity/activity-page'
 import { Composer } from '@/features/composer/composer'
 import { UsageLimitBadge } from '@/features/composer/usage-limit-badge'
 import {
@@ -39,15 +40,21 @@ import {
   selectedRunning,
   useStore,
 } from '@/lib/store'
-import { pushSearch, replaceSearch, useTerminalPage } from '@/lib/url'
+import {
+  pushSearch,
+  replaceSearch,
+  useActivityPage,
+  useTerminalPage,
+} from '@/lib/url'
 import { cn } from '@/lib/utils'
 
 export function MobileLayout() {
   const selection = useStore((state) => state.selection)
   const hasMachine = useStore((state) => state.machines.length > 0)
   const page = useTerminalPage()
+  const activity = useActivityPage()
 
-  if (!hasMachine && page === null && selection === null) {
+  if (!hasMachine && page === null && selection === null && !activity) {
     return (
       <main className="bg-background flex flex-1 overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <ConnectMachine />
@@ -57,7 +64,7 @@ export function MobileLayout() {
   return (
     <div className="relative flex min-w-0 flex-1">
       <div
-        inert={page !== null || selection !== null}
+        inert={page !== null || selection !== null || activity}
         className="bg-sidebar flex min-w-0 flex-1 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
       >
         <Sidebar className="min-w-0 flex-1 border-r-0" mobile />
@@ -72,6 +79,30 @@ export function MobileLayout() {
                 variant="ghost"
                 size="icon"
                 className="ml-2"
+                aria-label="Back"
+                title="Back"
+                onClick={() =>
+                  void router.navigate({ to: '/', search: {}, replace: true })
+                }
+              >
+                <HugeiconsIcon
+                  icon={ArrowLeft01Icon}
+                  className="text-foreground size-5"
+                  strokeWidth={2}
+                />
+              </Button>
+            }
+          />
+        </div>
+      )}
+      {activity && (
+        <div className="absolute inset-0 flex">
+          <ActivityPage
+            mobile
+            leading={
+              <Button
+                variant="ghost"
+                size="icon"
                 aria-label="Back"
                 title="Back"
                 onClick={() =>

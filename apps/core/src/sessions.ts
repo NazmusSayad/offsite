@@ -1,4 +1,5 @@
 import type { SessionSettings } from './config.ts'
+import type { Item, PermissionRequest, TodoStep } from './items.ts'
 import type { Provider } from './providers.ts'
 
 export type Session = {
@@ -64,9 +65,16 @@ export type SessionActivity = {
   question: boolean
   prompted: boolean
   compacting: boolean
-  backgroundAgent: boolean
+  backgroundAgents: number
   holdsCompletion: boolean
   tasks: Record<string, TaskStatus>
+  settings: SessionSettings
+  workingSince: number | null
+  requests: PermissionRequest[]
+  context: ContextUsage | null
+  step: Item | null
+  todos: TodoStep[] | null
+  work: Item[]
 }
 
 export const exportDetails = ['messages', 'steps', 'details', 'full'] as const
