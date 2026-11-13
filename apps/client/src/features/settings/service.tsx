@@ -1,3 +1,5 @@
+import { CircleDotDashedIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { call } from '@/api/connection'
@@ -9,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { ServiceForm } from '@/features/service/service-form'
+import { UpdateForm } from '@/features/service/update-form'
 import { useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 import { Row, Section } from './controls'
@@ -56,9 +59,23 @@ export function ServiceButton(props: { machine: string }) {
           className="flex-none sm:w-full"
           onClick={() => setOpen(true)}
         >
-          {service.installed
-            ? `Update to ${service.update}`
-            : 'Install OffSite'}
+          {!service.installed ? (
+            'Install OffSite'
+          ) : service.update?.status === 'downloading' ? (
+            <>
+              <HugeiconsIcon
+                icon={CircleDotDashedIcon}
+                className="animate-spin"
+              />
+              Downloading {service.update.version}…
+              {service.update.percent !== null &&
+                ` ${Math.round(service.update.percent)}%`}
+            </>
+          ) : service.update?.status === 'ready' ? (
+            `Restart to update to ${service.update.version}`
+          ) : (
+            `Update to ${service.update?.version}`
+          )}
         </Button>
       )}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -132,12 +149,19 @@ function ServiceEditor(props: {
         </DialogTitle>
       </DialogHeader>
       <div className="px-6 pt-4 pb-6">
-        <ServiceForm
-          machine={props.machine}
-          update={props.update}
-          onDone={props.onClose}
-          onCancel={props.onClose}
-        />
+        {props.update ? (
+          <UpdateForm
+            machine={props.machine}
+            onDone={props.onClose}
+            onCancel={props.onClose}
+          />
+        ) : (
+          <ServiceForm
+            machine={props.machine}
+            onDone={props.onClose}
+            onCancel={props.onClose}
+          />
+        )}
       </div>
     </>
   )

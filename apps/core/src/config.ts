@@ -3,6 +3,13 @@ import type { Provider } from './providers.ts'
 export const DEFAULT_PROVIDER = 'claude'
 export const DEFAULT_CLAUDE_PERMISSION_MODE = 'bypassPermissions'
 export const DEFAULT_CODEX_PERMISSION_MODE = 'full-access'
+export const DEFAULT_SMALL_MODELS: Record<
+  Exclude<Provider, 'opencode'>,
+  string
+> = {
+  claude: 'claude-haiku-5-5',
+  codex: 'gpt-6-luna',
+}
 
 export type ModelSetting = { hidden: boolean }
 
@@ -53,7 +60,7 @@ export type LastPickedEffortForModel = {
   usedAt: number
 }
 
-export type GenerationModel = {
+export type SmallModel = {
   provider: Provider | null
   accountId: string | null
   model: string | null
@@ -64,7 +71,7 @@ export type DictationConfig = {
 }
 
 export type Config = {
-  version: 2
+  version: 3
   claude: {
     enabled: boolean
     baseDir: Record<Platform, string | null>
@@ -81,8 +88,7 @@ export type Config = {
     models: Record<string, ModelSetting>
   }
   workingDir: Record<Platform, string | null>
-  commitMessage: GenerationModel
-  titleGeneration: GenerationModel
+  smallModel: SmallModel
   delivery: PromptDelivery
   autoSkipQuestionTimeout: number | null
   autoPermissionMode: 'bypass' | 'allow' | 'deny'

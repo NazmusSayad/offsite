@@ -1,4 +1,7 @@
-import { ArrowRight01Icon } from '@hugeicons/core-free-icons'
+import {
+  ArrowRight01Icon,
+  BubbleChatIncomeIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Item } from '@offsite/core/items'
 import { Markdown } from '@/components/markdown/markdown'
@@ -159,21 +162,38 @@ export function ReceivedMessage(props: {
 }) {
   const target = props.item.target
   return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <Line
-        label={
-          props.item.source === 'agent'
-            ? 'Message from agent'
-            : 'Message from session'
-        }
-        detail={props.item.sender}
-        pending={false}
-        onOpen={target === null ? null : () => props.onOpen(target)}
+    <fieldset className="border-border max-w-[85%] min-w-0 rounded-md border border-dashed px-3 pt-0.5 pb-2">
+      <legend className="text-muted-foreground -ms-1 flex max-w-full min-w-0 items-center gap-1.5 px-1 text-xs select-none">
+        {props.item.source === 'agent' ? (
+          <SubagentIcon className="size-3.5" />
+        ) : (
+          <HugeiconsIcon
+            icon={BubbleChatIncomeIcon}
+            className="size-3.5 shrink-0"
+          />
+        )}
+        {target === null ? (
+          <span className="text-foreground min-w-0 truncate font-medium">
+            {props.item.sender}
+          </span>
+        ) : (
+          <button
+            type="button"
+            title="Open in Tasks panel"
+            onClick={() => props.onOpen(target)}
+            className="text-foreground focus-visible:ring-ring/70 min-w-0 cursor-pointer truncate rounded-sm font-medium underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+          >
+            {props.item.sender}
+          </button>
+        )}
+      </legend>
+      <Markdown
+        text={props.item.text}
+        className="text-muted-foreground text-[13px]"
+        lineBreaks
+        rawHtml={false}
       />
-      <div className="bg-muted/40 text-muted-foreground rounded-lg border px-4 py-3 text-sm">
-        <Markdown text={props.item.text} lineBreaks rawHtml={false} />
-      </div>
-    </div>
+    </fieldset>
   )
 }
 

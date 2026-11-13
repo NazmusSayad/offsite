@@ -1,5 +1,9 @@
 import { writeFileSync } from 'node:fs'
-import type { PackageManager, ServiceState } from '@offsite/core/service'
+import type {
+  PackageManager,
+  ServiceState,
+  ServiceUpdate,
+} from '@offsite/core/service'
 import { z } from 'zod'
 import { args, version } from '../../args.ts'
 import { broadcast } from '../../lib/hub.ts'
@@ -11,12 +15,27 @@ import {
   runTool,
   type ServiceSettings,
   startedFile,
+  streamTool,
   writeScript,
 } from './settings.ts'
 
 const CHECK_INTERVAL = 30 * 60_000
 const REGISTRY_TIMEOUT = 30_000
 const RESTART_DELAY = 1000
+const PROGRESS_INTERVAL = 500
+const BYTES =
+  /([\d.]+)\s*(B|kB|KB|MB|GB|KiB|MiB|GiB)?\s*\/\s*([\d.]+)\s*(B|kB|KB|MB|GB|KiB|MiB|GiB)\b/
+const PERCENT = /(\d{1,3}(?:\.\d+)?)\s*%/
+const units: Record<string, number> = {
+  B: 1,
+  kB: 1e3,
+  KB: 1e3,
+  MB: 1e6,
+  GB: 1e9,
+  KiB: 1024,
+  MiB: 1024 ** 2,
+  GiB: 1024 ** 3,
+}
 const log = logger.withTag('service')
 const latestSchema = z.object({ version: z.string() })
 const releaseSchema = z.object({
@@ -34,14 +53,15 @@ const systems: Partial<Record<NodeJS.Platform, string>> = {
   win32: 'windows',
 }
 
-let available: string | null = null
+let update: ServiceUpdate | null = null
+let progressTimer: NodeJS.Timeout | undefined
 let installing: Promise<string> | null = null
 
 export function serviceState(): ServiceState {
   const settings = args.service ? readServiceSettings() : null
   return {
     installed: args.service,
-    update: available,
+    update,
     manager: settings?.manager ?? null,
     arguments: settings?.arguments ?? [
       '--port',
@@ -93,12 +113,19 @@ export async function checkNow() {
   }
   const latest = await latestVersion(settings.manager)
   const isNewer = newer(latest, version)
-  const next = isNewer ? latest : null
-  if (args.service && available !== next) {
-    available = next
-    broadcast({ type: 'service', service: serviceState() })
+  if (args.service && update?.status !== 'downloading') {
+    const next = isNewer ? latest : null
+    const ready = update?.status === 'ready' && !newer(latest, update.version)
+    if (!ready && (update?.version ?? null) !== next) {
+      setUpdate(next === null ? null : { version: next, status: 'available' })
+    }
   }
   return { latest, newer: isNewer }
+}
+
+function setUpdate(next: ServiceUpdate | null) {
+  update = next
+  broadcast({ type: 'service', service: serviceState() })
 }
 
 async function check() {
@@ -117,13 +144,38 @@ export async function updateNow() {
       "offsite isn't installed, so nothing would start the new version"
     )
   }
-  const installed = await install(settings)
+  if (update === null) {
+    throw new Error('there is no offsite update to download')
+  }
+  const available = update.version
+  setUpdate({
+    version: available,
+    status: 'downloading',
+    output: null,
+    percent: null,
+  })
+  let installed
+  try {
+    installed = await install(settings)
+  } catch (error) {
+    setUpdate({ version: available, status: 'available' })
+    throw error
+  }
   if (!newer(installed, version)) {
+    setUpdate({ version: available, status: 'available' })
     throw new Error(
       `the update finished, but a new terminal still runs offsite ${installed}; check that the offsite on your PATH is the one ${settings.manager} installs`
     )
   }
-  log.info(`restarting into offsite ${installed} on request`)
+  log.info(`downloaded offsite ${installed}; it runs from the next restart`)
+  setUpdate({ version: installed, status: 'ready' })
+}
+
+export function restartNow() {
+  if (!args.service) {
+    throw new Error("offsite isn't installed, so nothing would start it again")
+  }
+  log.info('restarting on request')
   restartSoon()
 }
 
@@ -145,11 +197,38 @@ async function installLatest(settings: ServiceSettings) {
   if (mise) {
     await runTool('mise', ['cache', 'clear'])
   }
-  await runTool(
+  await streamTool(
     mise ? 'mise' : settings.manager,
-    updateArguments(settings.manager)
+    updateArguments(settings.manager),
+    showProgress
   )
   return runOffsite(['--version'])
+}
+
+function showProgress(line: string) {
+  if (update?.status !== 'downloading') {
+    return
+  }
+  update = {
+    ...update,
+    output: line,
+    percent: readPercent(line) ?? update.percent,
+  }
+  progressTimer ??= setTimeout(() => {
+    progressTimer = undefined
+    broadcast({ type: 'service', service: serviceState() })
+  }, PROGRESS_INTERVAL)
+}
+
+function readPercent(line: string) {
+  const bytes = BYTES.exec(line)
+  if (bytes !== null) {
+    const total = Number(bytes[3]) * units[bytes[4]]
+    const done = Number(bytes[1]) * units[bytes[2] ?? bytes[4]]
+    return total > 0 ? Math.min(100, (done / total) * 100) : null
+  }
+  const percent = PERCENT.exec(line)
+  return percent === null ? null : Math.min(100, Number(percent[1]))
 }
 
 export function newer(candidate: string, current: string) {
@@ -213,7 +292,13 @@ function updateArguments(manager: ServiceSettings['manager']) {
     case 'mise-npm':
       return ['upgrade', miseTools[manager], '--minimum-release-age', '0s']
     case 'npm':
-      return ['install', '-g', 'offsite@latest', '--min-release-age=0']
+      return [
+        'install',
+        '-g',
+        'offsite@latest',
+        '--min-release-age=0',
+        '--loglevel=http',
+      ]
     case 'pnpm':
       return ['add', '-g', 'offsite@latest', '--config.minimum-release-age=0']
     case 'bun':
