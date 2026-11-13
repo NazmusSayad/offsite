@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/select'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { timeAgo } from '@/lib/format'
-import { replaceSearch } from '@/lib/url'
+import { router } from '@/lib/router'
+import { pushSearch, replaceSearch } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
 import { ChecksBadge, ReviewBadge, StateIcon } from './pull-request-badges'
 import { PullRequestView } from './pull-request-view'
@@ -71,6 +72,7 @@ export function PullRequestsPanel(props: {
   } | null>(null)
   const [version, setVersion] = useState(0)
   const forced = useRef(false)
+  const openedFromList = useRef<string | null>(null)
   const selected = useSearch({
     from: '__root__',
     select: (search) => search.pull ?? null,
@@ -169,7 +171,11 @@ export function PullRequestsPanel(props: {
         running={props.running}
         mobile={props.mobile}
         onBack={() => {
-          replaceSearch({ pull: undefined })
+          if (openedFromList.current === selected) {
+            router.history.back()
+          } else {
+            replaceSearch({ pull: undefined })
+          }
           setVersion(version + 1)
         }}
         onClose={props.onClose}
@@ -311,7 +317,13 @@ export function PullRequestsPanel(props: {
               'hover:bg-accent flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 text-left',
               stale && 'opacity-60'
             )}
-            onClick={() => replaceSearch({ pull: item.url })}
+            onClick={() => {
+              openedFromList.current = item.url
+              pushSearch(
+                { pull: item.url },
+                router.history.location.state.layer
+              )
+            }}
           >
             <StateIcon
               state={item.state}
