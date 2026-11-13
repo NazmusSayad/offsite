@@ -1,9 +1,10 @@
 import { CircleDotDashedIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
+import { BusyReasons, useBusyReasons } from '@/features/service/busy-reasons'
 import { useStore } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 
@@ -120,28 +121,9 @@ function RestartForm(props: {
   const name = useStore(
     (state) => state.machines.find((item) => item.id === props.machine)?.name
   )
-  const [busy, setBusy] = useState<string[] | null>(null)
   const [working, setWorking] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let active = true
-    void (async () => {
-      try {
-        const reasons = await call(props.machine, 'service.busy', undefined)
-        if (active) {
-          setBusy(reasons)
-        }
-      } catch (failure) {
-        if (active) {
-          setError(errorMessage(failure))
-        }
-      }
-    })()
-    return () => {
-      active = false
-    }
-  }, [props.machine])
+  const busy = useBusyReasons(props.machine, setError)
 
   async function restart() {
     setWorking(true)
@@ -162,16 +144,7 @@ function RestartForm(props: {
         OffSite {props.version} is downloaded. Restart to apply it now, or later
         when you are done.
       </p>
-      {busy !== null && busy.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-destructive font-medium">Restarting stops:</p>
-          <ul className="text-muted-foreground list-disc pl-5">
-            {busy.map((reason, index) => (
-              <li key={`${index} ${reason}`}>{reason}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <BusyReasons busy={busy} />
       {error !== null && <p className="text-destructive">{error}</p>}
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={props.onDone}>
