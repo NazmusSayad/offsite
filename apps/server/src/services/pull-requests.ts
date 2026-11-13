@@ -18,7 +18,6 @@ const LIST_LIMIT = 50
 const run = promisify(execFile)
 const lists = githubCache<string>(30_000, 50)
 const views = githubCache<string>(15_000, 50)
-const states = githubCache<string>(60_000, 200)
 const diffs = githubCache<string>(Infinity, 30)
 const repoNames = githubCache<string>(10 * 60_000, 20)
 const mergeSettings = githubCache<string>(10 * 60_000, 20)
@@ -153,28 +152,6 @@ export async function listPullRequests(
     current: results[2],
     items: raw.map(summary),
   }
-}
-
-export async function pullRequestState(
-  target: string
-): Promise<PullRequestState> {
-  const state = (
-    await states.get(target, false, () =>
-      gh(os.homedir(), [
-        'pr',
-        'view',
-        target,
-        '--json',
-        'state',
-        '--jq',
-        '.state',
-      ])
-    )
-  ).trim()
-  if (state === 'OPEN' || state === 'CLOSED' || state === 'MERGED') {
-    return state
-  }
-  throw new Error(`GitHub returned an unknown pull request state: ${state}`)
 }
 
 export async function viewPullRequest(

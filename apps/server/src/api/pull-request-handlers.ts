@@ -6,7 +6,6 @@ import { projectPath } from '../services/projects.ts'
 import {
   listPullRequests,
   pullRequestDiff,
-  pullRequestState,
   repoOf,
   runPullRequestAction,
   viewPullRequest,
@@ -18,7 +17,6 @@ export const pullRequestHandlers: Pick<
   Handlers,
   | 'pulls.list'
   | 'pulls.view'
-  | 'pulls.state'
   | 'pulls.diff'
   | 'pulls.run'
   | 'pulls.guide'
@@ -36,7 +34,6 @@ export const pullRequestHandlers: Pick<
       params.url,
       params.fresh
     ),
-  'pulls.state': (params) => pullRequestState(params.url),
   'pulls.diff': (params) => pullRequestDiff(params.url, params.head),
   'pulls.guide': (params) => reviewGuide(params.url),
   'pulls.writeGuide': async (params) =>

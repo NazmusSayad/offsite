@@ -1,8 +1,7 @@
 import { GlobeIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { PullRequestState } from '@offsite/core/pull-requests'
-import { memo, useEffect, useState } from 'react'
-import { PiGithubLogoDuotone } from 'react-icons/pi'
+import { memo, useState } from 'react'
+import { VscGithubInverted } from 'react-icons/vsc'
 import ReactMarkdown, {
   type Components,
   defaultUrlTransform,
@@ -11,7 +10,6 @@ import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
-import { call } from '@/api/connection'
 import {
   MarkdownBlockquote,
   remarkGithubAlerts,
@@ -32,9 +30,7 @@ import {
   remarkSkills,
 } from '@/components/markdown/markdown-skills'
 import { streamingParser } from '@/components/markdown/markdown-stream'
-import { logger } from '@/lib/log'
 import { mediaKind } from '@/lib/media'
-import { getState } from '@/lib/store'
 import { openBrowser, isPullRequestUrl, openPullRequest } from '@/lib/url'
 import { cn } from '@/lib/utils'
 
@@ -51,7 +47,6 @@ const schema = {
 }
 
 const failedHosts = new Set<string>()
-const log = logger.withTag('markdown')
 
 const components: Components = {
   blockquote({ node, children }) {
@@ -123,11 +118,7 @@ const components: Components = {
         {plain === '' ? (
           children
         ) : (
-          <ExternalLinkText
-            host={host}
-            text={plain}
-            pull={href !== undefined && isPullRequestUrl(href) ? href : null}
-          />
+          <ExternalLinkText host={host} text={plain} />
         )}
       </a>
     )
@@ -316,18 +307,14 @@ function externalHost(href: string | undefined) {
 
 const ExternalLinkText = memo(ExternalLinkTextView)
 
-function ExternalLinkTextView(props: {
-  host: string
-  text: string
-  pull: string | null
-}) {
+function ExternalLinkTextView(props: { host: string; text: string }) {
   const leading =
     /^https?:\/\//i.exec(props.text)?.[0].length ??
     Math.min(props.text.length, 1)
   return (
     <>
       <span className="whitespace-nowrap">
-        <LinkFavicon host={props.host} pull={props.pull} />
+        <LinkFavicon host={props.host} />
         {props.text.slice(0, leading)}
       </span>
       {Array.from(props.text.slice(leading), (character, index) => (
@@ -340,31 +327,10 @@ function ExternalLinkTextView(props: {
   )
 }
 
-function LinkFavicon(props: { host: string; pull: string | null }) {
+function LinkFavicon(props: { host: string }) {
   const [failed, setFailed] = useState(failedHosts.has(props.host))
-  const [state, setState] = useState<PullRequestState | null>(null)
   const hostname = props.host.toLowerCase()
   const github = hostname === 'github.com' || hostname.endsWith('.github.com')
-
-  useEffect(() => {
-    const selection = getState().selection
-    if (props.pull === null || selection === null) {
-      return
-    }
-    let current = true
-    call(selection.machine, 'pulls.state', { url: props.pull }).then(
-      (state) => {
-        if (current) {
-          setState(state)
-        }
-      },
-      (caught: unknown) =>
-        log.warn('could not load the pull request state', caught)
-    )
-    return () => {
-      current = false
-    }
-  }, [props.pull])
 
   return (
     <span
@@ -372,15 +338,7 @@ function LinkFavicon(props: { host: string; pull: string | null }) {
       aria-hidden
     >
       {github ? (
-        <PiGithubLogoDuotone
-          className={cn(
-            'block size-full shrink-0 select-none [&>path:last-child]:[stroke-width:5]',
-            state !== null && '[&>path:first-child]:opacity-60',
-            state === 'OPEN' && '[&>path:first-child]:fill-green-500',
-            state === 'MERGED' && '[&>path:first-child]:fill-violet-500',
-            state === 'CLOSED' && '[&>path:first-child]:fill-red-500'
-          )}
-        />
+        <VscGithubInverted className="block size-full shrink-0 select-none" />
       ) : failed ? (
         <HugeiconsIcon
           icon={GlobeIcon}

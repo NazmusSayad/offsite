@@ -115,10 +115,6 @@ export type PullRequestMethods = {
     params: { projectId: string; url: string; fresh: boolean }
     result: PullRequestDetails
   }
-  'pulls.state': {
-    params: { url: string }
-    result: PullRequestState
-  }
   'pulls.diff': {
     params: { url: string; head: string }
     result: string
