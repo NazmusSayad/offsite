@@ -105,7 +105,10 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   const scopeProject = scope?.projectId ?? null
   const sent = machines
     .find((machine) => machine.id === selection?.machine)
-    ?.outbox.find((item) => item.id === startedPrompt)
+    ?.outbox.find(
+      (item) =>
+        item.id === startedPrompt && item.sessionId === selection?.sessionId
+    )
   const started =
     selection !== null &&
     selection.sessionId !== null &&
