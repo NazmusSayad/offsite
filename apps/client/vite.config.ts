@@ -26,7 +26,7 @@ export default defineConfig({
     tailwindcss(),
     {
       name: 'offsite-dev',
-      apply: 'serve',
+      apply: (_, env) => env.command === 'serve' && env.mode !== 'test',
       config: () => {
         const env = devEnv.safeParse(process.env)
         if (!env.success) {
