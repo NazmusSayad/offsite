@@ -46,7 +46,10 @@ export function MobileGroupedSessionItem(props: {
   const [warning, setWarning] = useState(false)
   const [offset, setOffset] = useState(0)
   const [width, setWidth] = useState(0)
-  const [released, setReleased] = useState<number | null>(null)
+  const [released, setReleased] = useState<{
+    offset: number
+    status: MachineSession['status']
+  } | null>(null)
   const field = useRef<HTMLInputElement>(null)
   const swipe = useRef<{ x: number; y: number; swiping: boolean } | null>(null)
   const swiped = useRef(false)
@@ -79,12 +82,14 @@ export function MobileGroupedSessionItem(props: {
       setOffset(0)
       return
     }
-    setReleased(dx)
-    if (Math.abs(dx) > width * swipeThreshold) {
-      setOffset(Math.sign(dx) * width)
+    const target =
+      Math.abs(dx) > width * swipeThreshold ? Math.sign(dx) * width : 0
+    if (target === offset) {
+      complete(dx, session.status)
       return
     }
-    setOffset(0)
+    setReleased({ offset: dx, status: session.status })
+    setOffset(target)
   }
 
   function settle(event: React.TransitionEvent<HTMLDivElement>) {
@@ -95,18 +100,25 @@ export function MobileGroupedSessionItem(props: {
     ) {
       return
     }
+    complete(released.offset, released.status)
+  }
+
+  function complete(dx: number, status: MachineSession['status']) {
     setReleased(null)
     setOffset(0)
-    if (offset > 0) {
-      if (session.status === 'inactive') {
+    if (Math.abs(dx) <= width * swipeThreshold) {
+      return
+    }
+    if (dx > 0) {
+      if (status === 'inactive') {
         void editSession(session.machine, session.id, { status: 'active' })
       } else {
         deactivate()
       }
     }
-    if (offset < 0) {
+    if (dx < 0) {
       void editSession(session.machine, session.id, {
-        status: secondarySwipe[session.status].status,
+        status: secondarySwipe[status].status,
       })
     }
   }
@@ -158,8 +170,8 @@ export function MobileGroupedSessionItem(props: {
 
   const swipeBackground = moving && (
     <SwipeBackground
-      status={session.status}
-      offset={released ?? offset}
+      status={released === null ? session.status : released.status}
+      offset={released === null ? offset : released.offset}
       width={width}
       className="inset-0"
     />
