@@ -28,8 +28,6 @@ const categories: { value: ReviewGuideCategory; label: string }[] = [
 
 export function PullRequestFiles(props: {
   machine: string
-  projectId: string
-  repo: string
   url: string
   head: string
   title: string
@@ -46,8 +44,6 @@ export function PullRequestFiles(props: {
   useEffect(() => {
     let current = true
     call(props.machine, 'pulls.diff', {
-      projectId: props.projectId,
-      repo: props.repo,
       url: props.url,
       head: props.head,
     }).then(
@@ -59,7 +55,7 @@ export function PullRequestFiles(props: {
               ? []
               : parsePatchFiles(
                   patch,
-                  `pull ${props.repo} ${props.url} ${props.head}`
+                  `pull ${props.url} ${props.head}`
                 ).flatMap((item) => item.files)
           )
         }
@@ -73,7 +69,7 @@ export function PullRequestFiles(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.projectId, props.repo, props.url, props.head])
+  }, [props.machine, props.url, props.head])
 
   if (error !== null) {
     return (

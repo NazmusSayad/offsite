@@ -1,3 +1,4 @@
+import { useSearch } from '@tanstack/react-router'
 import { lazy, Suspense } from 'react'
 import { BrowserPanel } from '@/features/browser/browser-panel'
 import { TasksPanel } from '@/features/transcript/tasks-panel'
@@ -7,6 +8,11 @@ import { projectOf, type Selection, useStore } from '@/lib/store'
 const PullRequestsPanel = lazy(async () => ({
   default: (await import('@/features/pull-requests/pull-requests-panel'))
     .PullRequestsPanel,
+}))
+
+const PullRequestView = lazy(async () => ({
+  default: (await import('@/features/pull-requests/pull-request-view'))
+    .PullRequestView,
 }))
 
 const DiffPanel = lazy(async () => ({
@@ -27,6 +33,10 @@ export function PanelView(props: {
       projectOf(state, props.selection.machine, props.selection.projectId)
         ?.path ?? ''
   )
+  const pull = useSearch({
+    from: '__root__',
+    select: (search) => search.pull ?? null,
+  })
   return (
     <>
       {props.panel === 'browser' && (
@@ -54,6 +64,19 @@ export function PanelView(props: {
             key={`${props.selection.machine} ${props.selection.projectId}`}
             machine={props.selection.machine}
             projectId={props.selection.projectId}
+            running={props.running}
+            onClose={() => props.onPanel(null)}
+            mobile={props.mobile}
+          />
+        </Suspense>
+      )}
+      {props.panel === 'pull' && pull !== null && (
+        <Suspense>
+          <PullRequestView
+            key={pull}
+            machine={props.selection.machine}
+            projectId={props.selection.projectId}
+            url={pull}
             running={props.running}
             onClose={() => props.onPanel(null)}
             mobile={props.mobile}

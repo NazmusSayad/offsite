@@ -8,7 +8,6 @@ import type {
   PullRequestFilter,
   PullRequestList,
 } from '@offsite/core/pull-requests'
-import { useSearch } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { useDebounceValue, useLocalStorage } from 'usehooks-ts'
 import { call } from '@/api/connection'
@@ -24,11 +23,9 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { timeAgo } from '@/lib/format'
-import { router } from '@/lib/router'
-import { pushSearch, replaceSearch } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
 import { ChecksBadge, ReviewBadge, StateIcon } from './pull-request-badges'
-import { PullRequestView } from './pull-request-view'
+import { openFromList } from './pull-request-view'
 
 const LIST_REFRESH = 60_000
 
@@ -73,11 +70,6 @@ export function PullRequestsPanel(props: {
   } | null>(null)
   const [version, setVersion] = useState(0)
   const forced = useRef(false)
-  const openedFromList = useRef<string | null>(null)
-  const selected = useSearch({
-    from: '__root__',
-    select: (search) => search.pull ?? null,
-  })
   const repo = chosenRepo ?? repos?.paths[0] ?? null
   const key = JSON.stringify([repo, filter.state, filter.scope, search])
 
@@ -161,28 +153,6 @@ export function PullRequestsPanel(props: {
     props.running,
     version,
   ])
-
-  if (selected !== null && (repos === null || repo !== null)) {
-    return (
-      <PullRequestView
-        machine={props.machine}
-        projectId={props.projectId}
-        repo={repo}
-        url={selected}
-        running={props.running}
-        mobile={props.mobile}
-        onBack={() => {
-          if (openedFromList.current === selected) {
-            router.history.back()
-          } else {
-            replaceSearch({ pull: undefined })
-          }
-          setVersion(version + 1)
-        }}
-        onClose={props.onClose}
-      />
-    )
-  }
 
   const stale = list !== null && list.key !== key
   const result = list?.result ?? null
@@ -330,13 +300,7 @@ export function PullRequestsPanel(props: {
               'hover:bg-accent flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 text-left',
               stale && 'opacity-60'
             )}
-            onClick={() => {
-              openedFromList.current = item.url
-              pushSearch(
-                { pull: item.url },
-                router.history.location.state.layer
-              )
-            }}
+            onClick={() => openFromList(item.url)}
           >
             <StateIcon
               state={item.state}

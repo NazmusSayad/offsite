@@ -23,9 +23,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { DiffMenuItems } from '@/features/git/diff-options'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { timeAgo } from '@/lib/format'
+import { router } from '@/lib/router'
 import { showError } from '@/lib/store'
+import { pushSearch } from '@/lib/url'
 import { errorMessage } from '@/lib/utils'
-import { PullRequestActions } from './pull-request-actions'
+import { MergeStatus, PullRequestActions } from './pull-request-actions'
 import { StateBadge } from './pull-request-badges'
 import { PullRequestFiles } from './pull-request-files'
 import { PullRequestGuide } from './pull-request-guide'
@@ -33,19 +35,25 @@ import { PullRequestOverview } from './pull-request-overview'
 
 const VIEW_REFRESH = 30_000
 
+let openedFromList: string | null = null
+
+export function openFromList(url: string) {
+  openedFromList = url
+  pushSearch({ panel: 'pull', pull: url }, router.history.location.state.layer)
+}
+
 const segment =
   'text-muted-foreground hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground dark:aria-pressed:bg-input/72 inline-flex h-6 cursor-pointer items-center justify-center rounded-md px-2.5 text-xs aria-pressed:shadow-xs'
 
 export function PullRequestView(props: {
   machine: string
   projectId: string
-  repo: string | null
   url: string
   running: boolean
   mobile: boolean
-  onBack: () => void
   onClose: () => void
 }) {
+  const fromList = openedFromList === props.url
   const [details, setDetails] = useState<PullRequestDetails | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
@@ -57,10 +65,6 @@ export function PullRequestView(props: {
   const forced = useRef(false)
 
   useEffect(() => {
-    if (props.repo === null) {
-      return
-    }
-    const repo = props.repo
     let current = true
     let loading = false
     async function load() {
@@ -73,7 +77,6 @@ export function PullRequestView(props: {
       try {
         const result = await call(props.machine, 'pulls.view', {
           projectId: props.projectId,
-          repo,
           url: props.url,
           fresh,
         })
@@ -102,24 +105,13 @@ export function PullRequestView(props: {
       window.clearInterval(timer)
       window.removeEventListener('focus', refresh)
     }
-  }, [
-    props.machine,
-    props.projectId,
-    props.repo,
-    props.url,
-    props.running,
-    version,
-  ])
+  }, [props.machine, props.projectId, props.url, props.running, version])
 
   async function perform(action: PullRequestAction, label: string) {
-    if (props.repo === null) {
-      throw new Error('The pull request repository is still loading')
-    }
     setBusy(label)
     try {
       await call(props.machine, 'pulls.run', {
         projectId: props.projectId,
-        repo: props.repo,
         url: props.url,
         action,
       })
@@ -140,25 +132,44 @@ export function PullRequestView(props: {
         <div className="flex min-w-0 items-center gap-1">
           <PanelCloseButton
             mobile={props.mobile}
-            onClick={props.mobile ? props.onBack : props.onClose}
+            onClick={props.mobile ? () => router.history.back() : props.onClose}
           />
-          {!props.mobile && (
+          {!props.mobile && fromList && (
             <Button
               size="icon-sm"
               variant="ghost"
               title="Back to pull requests"
               aria-label="Back to pull requests"
-              onClick={props.onBack}
+              onClick={() => router.history.back()}
             >
               <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
             </Button>
           )}
-          <span className="text-foreground min-w-0 truncate text-xs font-medium">
+          <span className="text-foreground shrink-0 text-xs font-semibold">
             #{props.url.split('/').at(-1)}
-            {details !== null && ` ${details.title}`}
           </span>
           {details === null && error === null && (
-            <Skeleton className="ml-1 h-3.5 w-48 min-w-0 shrink" />
+            <>
+              <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
+              <Skeleton className="ml-1.5 h-4 w-48 min-w-0 shrink" />
+            </>
+          )}
+          {details !== null && (
+            <>
+              <StateBadge state={details.state} draft={details.draft} />
+              <span
+                className="text-muted-foreground ml-1.5 flex min-w-0 items-center gap-1 text-xs"
+                title={`${details.head} into ${details.base}`}
+              >
+                <code className="bg-muted shrink-0 rounded px-1">
+                  {details.base}
+                </code>
+                <span className="shrink-0">←</span>
+                <code className="bg-muted truncate rounded px-1">
+                  {details.head}
+                </code>
+              </span>
+            </>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -212,21 +223,22 @@ export function PullRequestView(props: {
           </div>
         </div>
       )}
-      {details !== null && props.repo !== null && (
+      {details !== null && (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="border-border/60 grid gap-2.5 border-b p-4">
             <h2 className="text-foreground text-base leading-snug font-semibold">
-              <span className="mr-2 inline-flex items-center gap-2 align-text-bottom">
-                <StateBadge state={details.state} draft={details.draft} />
-                <span className="text-muted-foreground font-normal">
-                  #{details.number}
-                </span>
-              </span>
               {details.title}
             </h2>
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
               <span>
-                <span className="text-foreground">{details.author}</span>{' '}
+                <a
+                  href={`https://github.com/${details.author}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-foreground hover:underline"
+                >
+                  {details.author}
+                </a>{' '}
                 {details.state === 'OPEN' && 'wants to merge'}
                 {details.state === 'MERGED' && 'merged'}
                 {details.state === 'CLOSED' && 'wanted to merge'}{' '}
@@ -238,6 +250,7 @@ export function PullRequestView(props: {
               </span>
             </div>
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+              <MergeStatus details={details} busy={busy} />
               <span className="font-mono tabular-nums">
                 <span className="text-diff-addition">+{details.additions}</span>{' '}
                 <span className="text-diff-deletion">-{details.deletions}</span>
@@ -273,17 +286,17 @@ export function PullRequestView(props: {
                 </button>
                 <button
                   className={segment}
+                  aria-pressed={tab === 'changes'}
+                  onClick={() => setTab('changes')}
+                >
+                  Changes
+                </button>
+                <button
+                  className={segment}
                   aria-pressed={tab === 'files'}
                   onClick={() => setTab('files')}
                 >
                   Files
-                </button>
-                <button
-                  className={segment}
-                  aria-pressed={tab === 'changes'}
-                  onClick={() => setTab('changes')}
-                >
-                  Guided change
                 </button>
                 <button
                   className={segment}
@@ -332,7 +345,6 @@ export function PullRequestView(props: {
               key={tab}
               machine={props.machine}
               projectId={props.projectId}
-              repo={props.repo}
               url={details.url}
               head={details.headOid}
               view={tab === 'guide' ? 'guidebook' : 'changes'}
@@ -344,8 +356,6 @@ export function PullRequestView(props: {
           {tab === 'files' && (
             <PullRequestFiles
               machine={props.machine}
-              projectId={props.projectId}
-              repo={props.repo}
               url={props.url}
               head={details.headOid}
               title={`#${details.number} ${details.title}`}
