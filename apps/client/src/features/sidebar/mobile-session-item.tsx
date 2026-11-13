@@ -1,4 +1,9 @@
-import { PinIcon, SquarePenIcon, ZzzIcon } from '@hugeicons/core-free-icons'
+import {
+  GitForkIcon,
+  PinIcon,
+  SquarePenIcon,
+  ZzzIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { memo, useRef, useState } from 'react'
@@ -25,6 +30,7 @@ import { deactivateSession, editSession } from '@/lib/sessions'
 import {
   machineOf,
   type MachineSession,
+  projectOf,
   threadState,
   useStore,
 } from '@/lib/store'
@@ -54,6 +60,11 @@ function MobileSessionItemView(props: {
 }) {
   const session = props.session
   const projectTitle = useProjectName(session.machine, session.projectId)
+  const worktree = useStore(
+    (state) =>
+      (projectOf(state, session.machine, session.projectId)?.parentId ??
+        null) !== null
+  )
   const machineIcon = useStore(
     (state) => machineOf(state, session.machine).icon
   )
@@ -343,7 +354,15 @@ function MobileSessionItemView(props: {
                   {projectTitle}
                   {session.branch !== null && (
                     <span className="text-muted-foreground/40 font-normal">
-                      {` | ${session.branch}`}
+                      {worktree ? (
+                        <HugeiconsIcon
+                          icon={GitForkIcon}
+                          className="mx-1 inline size-3 align-[-2px]"
+                        />
+                      ) : (
+                        ' | '
+                      )}
+                      {session.branch}
                     </span>
                   )}
                 </span>
