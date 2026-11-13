@@ -1,14 +1,9 @@
 import {
   ChevronDownIcon,
   ChevronRightIcon,
-  ChevronsDownUpIcon,
   Coffee02Icon,
   RepositoryIcon,
-  LayoutTwoColumnIcon,
   RefreshCwIcon,
-  Rows3Icon,
-  TextWrapIcon,
-  UnfoldMoreIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs'
@@ -18,18 +13,14 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useLocalStorage } from 'usehooks-ts'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
+import { DiffOptions, FullscreenButton } from '@/features/git/diff-options'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
-import { getState, updatePrefs, useStore } from '@/lib/store'
+import { useStore } from '@/lib/store'
 import { useCodeTheme } from '@/lib/theme'
-import { errorMessage } from '@/lib/utils'
+import { cn, errorMessage } from '@/lib/utils'
 import diffCss from '@/features/git/diff.css?raw'
 
 const DIFF_REFRESH = 3000
-
-const toggle =
-  'text-foreground hover:bg-accent aria-pressed:bg-accent inline-flex h-7 min-w-7 cursor-pointer items-center justify-center rounded-lg px-1.5 [&_svg]:opacity-80'
-const segment =
-  'text-muted-foreground hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground dark:aria-pressed:bg-input/72 inline-flex h-6 cursor-pointer items-center justify-center rounded-md px-2.5 aria-pressed:shadow-xs'
 
 export function DiffPanel(props: {
   machine: string
@@ -50,10 +41,7 @@ export function DiffPanel(props: {
   const diff = useStore((state) => state.prefs.diff)
   const codeTheme = useCodeTheme()
   const [flipped, flip] = useLocalStorage<string[]>('diffFlipped', [])
-
-  function changeDiff(change: Partial<typeof diff>) {
-    updatePrefs({ ...getState().prefs, diff: { ...diff, ...change } })
-  }
+  const [fullscreen, setFullscreen] = useState(false)
 
   useEffect(() => {
     let current = true
@@ -121,7 +109,12 @@ export function DiffPanel(props: {
     sumBy(file.hunks, (hunk) => hunk.deletionLines)
   )
   return (
-    <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
+    <div
+      className={cn(
+        'bg-background flex h-full min-h-0 min-w-0 flex-col',
+        fullscreen && 'fixed inset-0 z-50'
+      )}
+    >
       <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center justify-between gap-2 border-b pr-3 pl-3">
         <div className="flex min-w-0 items-center gap-1">
           <PanelCloseButton mobile={props.mobile} onClick={props.onClose} />
@@ -145,48 +138,13 @@ export function DiffPanel(props: {
           >
             <HugeiconsIcon icon={RefreshCwIcon} className="size-4" />
           </Button>
-          {list.length > 0 && (
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              title={diff.collapsed ? 'Expand all files' : 'Collapse all files'}
-              onClick={() => {
-                flip([])
-                changeDiff({ collapsed: !diff.collapsed })
-              }}
-            >
-              <HugeiconsIcon
-                icon={diff.collapsed ? UnfoldMoreIcon : ChevronsDownUpIcon}
-                className="size-4"
-              />
-            </Button>
+          <DiffOptions collapsible={list.length > 0} />
+          {!props.mobile && (
+            <FullscreenButton
+              fullscreen={fullscreen}
+              onFullscreen={setFullscreen}
+            />
           )}
-          <div className="bg-input/40 flex shrink-0 items-center rounded-lg p-0.5">
-            <button
-              className={segment}
-              aria-pressed={!diff.split}
-              aria-label="Stacked diff view"
-              onClick={() => changeDiff({ split: false })}
-            >
-              <HugeiconsIcon icon={Rows3Icon} className="size-3.5" />
-            </button>
-            <button
-              className={segment}
-              aria-pressed={diff.split}
-              aria-label="Split diff view"
-              onClick={() => changeDiff({ split: true })}
-            >
-              <HugeiconsIcon icon={LayoutTwoColumnIcon} className="size-3.5" />
-            </button>
-          </div>
-          <button
-            className={toggle}
-            aria-pressed={diff.wrap}
-            title={diff.wrap ? 'Disable line wrapping' : 'Enable line wrapping'}
-            onClick={() => changeDiff({ wrap: !diff.wrap })}
-          >
-            <HugeiconsIcon icon={TextWrapIcon} className="size-3.5" />
-          </button>
         </div>
       </div>
       <div className="diff-render-surface min-h-0 flex-1 overflow-y-auto [--code-background:var(--background)]">

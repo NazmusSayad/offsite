@@ -1,6 +1,7 @@
 import {
   ArrowLeft01Icon,
   LinkSquare02Icon,
+  MoreHorizontalIcon,
   RefreshCwIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -10,8 +11,16 @@ import type {
 } from '@offsite/core/pull-requests'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { useLocalStorage } from 'usehooks-ts'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Skeleton } from '@/components/ui/skeleton'
+import { DiffMenuItems } from '@/features/git/diff-options'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { timeAgo } from '@/lib/format'
 import { showError } from '@/lib/store'
@@ -40,9 +49,10 @@ export function PullRequestView(props: {
   const [details, setDetails] = useState<PullRequestDetails | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
-  const [tab, setTab] = useState<'overview' | 'guide' | 'files' | 'commits'>(
-    'overview'
-  )
+  const [tab, setTab] = useLocalStorage<
+    'overview' | 'guide' | 'files' | 'changes' | 'commits'
+  >('pullRequestTab', 'overview')
+  const [fullscreen, setFullscreen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const forced = useRef(false)
 
@@ -140,6 +150,9 @@ export function PullRequestView(props: {
             #{props.url.split('/').at(-1)}
             {details !== null && ` ${details.title}`}
           </span>
+          {details === null && error === null && (
+            <Skeleton className="ml-1 h-3.5 w-48 min-w-0 shrink" />
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <Button
@@ -169,10 +182,29 @@ export function PullRequestView(props: {
           )}
         </div>
       </div>
-      {details === null && (
+      {details === null && error !== null && (
         <p className="text-muted-foreground p-4 text-center text-xs whitespace-pre-wrap">
-          {error ?? 'Loading…'}
+          {error}
         </p>
+      )}
+      {details === null && error === null && (
+        <div aria-label="Loading pull request">
+          <div className="border-border/60 grid gap-2.5 border-b p-4">
+            <Skeleton className="h-5 w-4/5" />
+            <Skeleton className="h-5 w-1/2" />
+            <Skeleton className="h-3.5 w-3/4" />
+            <Skeleton className="h-3.5 w-1/3" />
+            <Skeleton className="h-7 w-80 max-w-full rounded-lg" />
+          </div>
+          <div className="grid gap-2.5 p-4">
+            <Skeleton className="h-3.5 w-full" />
+            <Skeleton className="h-3.5 w-11/12" />
+            <Skeleton className="h-3.5 w-4/5" />
+            <Skeleton className="mt-3 h-5 w-1/3" />
+            <Skeleton className="h-3.5 w-full" />
+            <Skeleton className="h-3.5 w-2/3" />
+          </div>
+        </div>
       )}
       {details !== null && (
         <>
@@ -222,35 +254,69 @@ export function PullRequestView(props: {
                   </span>
                 )}
               </div>
-              <div className="bg-input/40 flex w-fit items-center rounded-lg p-0.5">
-                <button
-                  className={segment}
-                  aria-pressed={tab === 'overview'}
-                  onClick={() => setTab('overview')}
-                >
-                  Overview
-                </button>
-                <button
-                  className={segment}
-                  aria-pressed={tab === 'guide'}
-                  onClick={() => setTab('guide')}
-                >
-                  Guide
-                </button>
-                <button
-                  className={segment}
-                  aria-pressed={tab === 'files'}
-                  onClick={() => setTab('files')}
-                >
-                  Files
-                </button>
-                <button
-                  className={segment}
-                  aria-pressed={tab === 'commits'}
-                  onClick={() => setTab('commits')}
-                >
-                  Commits
-                </button>
+              <div className="flex items-center justify-between gap-2">
+                <div className="bg-input/40 flex w-fit items-center rounded-lg p-0.5">
+                  <button
+                    className={segment}
+                    aria-pressed={tab === 'overview'}
+                    onClick={() => setTab('overview')}
+                  >
+                    Overview
+                  </button>
+                  <button
+                    className={segment}
+                    aria-pressed={tab === 'guide'}
+                    onClick={() => setTab('guide')}
+                  >
+                    Guidebook
+                  </button>
+                  <button
+                    className={segment}
+                    aria-pressed={tab === 'files'}
+                    onClick={() => setTab('files')}
+                  >
+                    Files
+                  </button>
+                  <button
+                    className={segment}
+                    aria-pressed={tab === 'changes'}
+                    onClick={() => setTab('changes')}
+                  >
+                    Guided change
+                  </button>
+                  <button
+                    className={segment}
+                    aria-pressed={tab === 'commits'}
+                    onClick={() => setTab('commits')}
+                  >
+                    Commits
+                  </button>
+                </div>
+                {(tab === 'files' || tab === 'changes') && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        className="-my-0.5 shrink-0"
+                        title="Diff options"
+                        aria-label="Diff options"
+                      >
+                        <HugeiconsIcon
+                          icon={MoreHorizontalIcon}
+                          className="size-4"
+                        />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DiffMenuItems
+                        onFullscreen={
+                          props.mobile ? null : () => setFullscreen(true)
+                        }
+                      />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             </div>
             {tab === 'overview' && (
@@ -260,13 +326,18 @@ export function PullRequestView(props: {
                 onPerform={perform}
               />
             )}
-            {tab === 'guide' && (
+            {(tab === 'guide' || tab === 'changes') && (
               <PullRequestGuide
+                key={tab}
                 machine={props.machine}
                 projectId={props.projectId}
                 repo={props.repo}
                 url={details.url}
                 head={details.headOid}
+                view={tab === 'guide' ? 'guidebook' : 'changes'}
+                title={`#${details.number} ${details.title}`}
+                fullscreen={fullscreen}
+                onFullscreen={setFullscreen}
               />
             )}
             {tab === 'files' && (
@@ -276,6 +347,10 @@ export function PullRequestView(props: {
                 repo={props.repo}
                 url={props.url}
                 head={details.headOid}
+                title={`#${details.number} ${details.title}`}
+                fullscreen={fullscreen}
+                onFullscreen={setFullscreen}
+                groups={null}
               />
             )}
             {tab === 'commits' && (
