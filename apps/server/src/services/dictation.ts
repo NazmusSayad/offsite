@@ -15,8 +15,8 @@ export async function transcribe(audio: Buffer) {
     return (
       await text(
         workflowId === null
-          ? { audioPath, contentType: 'audio/wav' }
-          : { audioPath, contentType: 'audio/wav', workflowId }
+          ? { audioPath, contentType: 'audio/webm' }
+          : { audioPath, contentType: 'audio/webm', workflowId }
       )
     ).text
   } finally {

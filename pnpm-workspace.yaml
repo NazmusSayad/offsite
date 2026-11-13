@@ -9,6 +9,6 @@ minimumReleaseAgeExclude:
   - '@opencode/client@2.0.30'
   - '@opencode/protocol@2.0.30'
   - '@opencode/schema@2.0.30'
-  - '@oiper/desktop@0.1.40'
+  - '@oiper/desktop@0.1.40 || 0.1.42'
 
 enableGlobalVirtualStore: false

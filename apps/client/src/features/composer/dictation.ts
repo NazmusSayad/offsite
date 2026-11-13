@@ -6,7 +6,6 @@ import { logger } from '@/lib/log'
 import { draftKey, getState, useStore } from '@/lib/store'
 import { errorMessage, touch } from '@/lib/utils'
 import { composerCaret, moveComposerCaret } from './composer-input'
-import { toWav } from './dictation-audio'
 import { editDraft, getDraft } from './drafts'
 
 const log = logger.withTag('dictation')
@@ -131,6 +130,15 @@ export function useDictation() {
       )
       return
     }
+    if (!MediaRecorder.isTypeSupported('audio/webm')) {
+      fail(
+        'No WebM',
+        "This browser can't record WebM audio",
+        'Dictation needs a browser that records WebM, such as Chrome, Edge or Firefox',
+        'restart'
+      )
+      return
+    }
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -174,7 +182,10 @@ export function useDictation() {
     const analyser = context.createAnalyser()
     analyser.fftSize = 1024
     context.createMediaStreamSource(stream).connect(analyser)
-    const media = new MediaRecorder(stream)
+    const media = new MediaRecorder(stream, {
+      mimeType: 'audio/webm',
+      audioBitsPerSecond: 32_000,
+    })
     const chunks: Blob[] = []
     const started = Date.now()
     media.addEventListener('dataavailable', (event) => chunks.push(event.data))
@@ -189,11 +200,13 @@ export function useDictation() {
       recorder.current = null
       const current = attempt.current
       setState({ kind: 'transcribing' })
+      const blob = new Blob(chunks, { type: media.mimeType })
       let audio: string
       try {
-        audio = await readBase64(
-          await toWav(new Blob(chunks, { type: media.mimeType }))
-        )
+        if (blob.size === 0) {
+          throw new Error('The recording has no audio')
+        }
+        audio = await readBase64(blob)
       } catch (error) {
         if (attempt.current === current) {
           fail(
