@@ -504,6 +504,7 @@ function AgentView(props: {
               onToggle={toggle}
               onOpenTask={props.onSelect}
               rewind={false}
+              resume={false}
               cwd={props.cwd}
             />
           </div>

@@ -130,6 +130,9 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     ...olderRows,
     ...liveRows(items, loaded ? prompts : [], running, sending, partial),
   ]
+  const lastInterrupted = rows
+    .filter((row) => row.kind === 'notice' && row.text === 'Interrupted')
+    .at(-1)?.key
   const topIndex = rows.findIndex((row) => row.key === top?.key)
   const start = finding
     ? 0
@@ -311,6 +314,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
                     onToggle={toggle}
                     onOpenTask={props.onOpenTask}
                     rewind={!older}
+                    resume={row.key === lastInterrupted}
                     cwd={cwd}
                   />
                 </div>
@@ -339,6 +343,7 @@ function RowContent(props: {
   onToggle: (key: string) => void
   onOpenTask: (id: string) => void
   rewind: boolean
+  resume: boolean
 }) {
   const row = props.row
   switch (row.kind) {
@@ -437,7 +442,7 @@ function RowContent(props: {
           <span className="bg-border/70 h-px flex-1" />
           <span className="flex min-w-0 items-center gap-1 [overflow-wrap:anywhere]">
             {row.text}
-            {row.text === 'Interrupted' && <ResumeButton />}
+            {props.resume && <ResumeButton />}
           </span>
           <span className="bg-border/70 h-px flex-1" />
         </div>
