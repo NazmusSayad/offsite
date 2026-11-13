@@ -27,6 +27,7 @@ import {
   SettingsContent,
   useSettingsView,
 } from './dialog'
+import { ServiceButton } from './service'
 
 export function MobileSettings() {
   const open = useStore((state) => state.settingsOpen)
@@ -133,6 +134,11 @@ function MobileSettingsPanel() {
               )}
               {machinePages.map(pageRow)}
             </Section>
+            {machine !== null && (
+              <div className="grid">
+                <ServiceButton machine={machine.id} />
+              </div>
+            )}
           </div>
         )}
         {!listing && <SettingsContent view={view} />}
