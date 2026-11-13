@@ -3,6 +3,7 @@ import { projectPath } from '../services/projects.ts'
 import {
   listPullRequests,
   pullRequestDiff,
+  pullRequestState,
   runPullRequestAction,
   viewPullRequest,
 } from '../services/pull-requests.ts'
@@ -13,6 +14,7 @@ export const pullRequestHandlers: Pick<
   Handlers,
   | 'pulls.list'
   | 'pulls.view'
+  | 'pulls.state'
   | 'pulls.diff'
   | 'pulls.run'
   | 'pulls.guide'
@@ -30,6 +32,7 @@ export const pullRequestHandlers: Pick<
       params.url,
       params.fresh
     ),
+  'pulls.state': (params) => pullRequestState(params.url),
   'pulls.diff': (params) =>
     pullRequestDiff(
       path.join(projectPath(params.projectId), params.repo),

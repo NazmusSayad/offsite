@@ -80,10 +80,19 @@ export type ReviewGuideStop = {
   questions: string[]
 }
 
+export type ReviewGuideCategory =
+  | 'core'
+  | 'tests'
+  | 'dependencies'
+  | 'config'
+  | 'docs'
+  | 'other'
+
 export type ReviewGuide = {
   head: string
   createdAt: number
   stops: ReviewGuideStop[]
+  groups?: { path: string; category: ReviewGuideCategory }[]
 }
 
 export type ReviewGuideState = {
@@ -104,6 +113,10 @@ export type PullRequestMethods = {
   'pulls.view': {
     params: { projectId: string; repo: string; url: string; fresh: boolean }
     result: PullRequestDetails
+  }
+  'pulls.state': {
+    params: { url: string }
+    result: PullRequestState
   }
   'pulls.diff': {
     params: { projectId: string; repo: string; url: string; head: string }

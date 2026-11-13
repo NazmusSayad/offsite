@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { timeAgo } from '@/lib/format'
 import { replaceSearch } from '@/lib/url'
@@ -289,9 +290,21 @@ export function PullRequestsPanel(props: {
           </p>
         )}
         {(repos === null || (repos.paths.length > 0 && list === null)) && (
-          <p className="text-muted-foreground p-4 text-center text-xs">
-            Loading…
-          </p>
+          <div aria-label="Loading pull requests">
+            {Array.from({ length: 6 }, (_, index) => (
+              <div key={index} className="flex items-start gap-2.5 px-2.5 py-2">
+                <Skeleton className="mt-0.5 size-4 shrink-0 rounded-full" />
+                <div className="grid min-w-0 flex-1 gap-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="ml-auto h-3 w-12" />
+                  </div>
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
         )}
         {error === null && result !== null && result.items.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
