@@ -91,6 +91,7 @@ export function MobileLayout() {
 
 function MobileChat(props: { selection: Selection }) {
   const machine = useStore((state) => machineOf(state, props.selection.machine))
+  const view = useStore((state) => state.view)
   const session = useStore((state) =>
     state.sessions.find(
       (item) =>
@@ -254,9 +255,7 @@ function MobileChat(props: { selection: Selection }) {
         <GitCommandDialog git={commands} />
       </header>
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        <Fragment
-          key={`${props.selection.machine} ${props.selection.sessionId ?? props.selection.projectId}`}
-        >
+        <Fragment key={view}>
           <Transcript onOpenTask={openTask} />
           <Composer repos={git.repos} onRefreshGit={git.refresh} />
         </Fragment>

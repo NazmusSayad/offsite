@@ -342,6 +342,7 @@ async function submitFirst(
   client.sessionId = sessionId
   client.send({
     type: 'started',
+    id: request.id,
     sessionId,
     projectId,
     from: request.projectId,

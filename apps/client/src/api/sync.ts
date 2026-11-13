@@ -24,7 +24,7 @@ import {
 import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
 import { claimNotifications, notify, push } from '@/lib/notifications'
-import { receiveOutbox } from '@/lib/outbox'
+import { moveStartedPrompt, receiveOutbox } from '@/lib/outbox'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
 import { closeSession, loadSession, openSession } from '@/lib/sessions'
@@ -94,6 +94,8 @@ export function start() {
     unseen: [],
     generatingTitles: [],
     selection,
+    view: 0,
+    startedPrompt: null,
     loaded: selection?.sessionId === null,
     items: [],
     earlier: [],
@@ -363,6 +365,7 @@ function receive(machine: string, event: ServerEvent) {
       receiveOutbox(machine, event.outbox)
       return
     case 'started': {
+      moveStartedPrompt(machine, event.id, event.sessionId, event.projectId)
       if (
         state.selection === null ||
         !selected ||
@@ -382,6 +385,7 @@ function receive(machine: string, event: ServerEvent) {
       }
       update({
         selection: started,
+        startedPrompt: event.id,
         loaded: true,
         items: [],
         earlier: [],

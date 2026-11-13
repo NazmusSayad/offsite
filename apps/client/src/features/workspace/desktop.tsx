@@ -58,6 +58,7 @@ function setPanel(next: Panel | null) {
 
 export function DesktopLayout() {
   const selection = useStore((state) => state.selection)
+  const view = useStore((state) => state.view)
   const sessions = useStore((state) => state.sessions)
   const page = useTerminalPage()
   const cwd = useStore((state) =>
@@ -307,9 +308,7 @@ export function DesktopLayout() {
                 </div>
               )}
               {selection !== null && (
-                <Fragment
-                  key={`${selection.machine} ${selection.sessionId ?? selection.projectId}`}
-                >
+                <Fragment key={view}>
                   <Transcript onOpenTask={openTask} />
                   <Composer repos={git.repos} onRefreshGit={git.refresh} />
                 </Fragment>
