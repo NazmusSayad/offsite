@@ -30,6 +30,7 @@ import { ForkButton } from '@/features/transcript/fork-button'
 import { PlanCard } from '@/features/transcript/plan-card'
 import { QuestionCard } from '@/features/transcript/question-card'
 import { QuoteButton } from '@/features/transcript/quote-button'
+import { ResumeButton } from '@/features/transcript/resume-button'
 import { threadTasks } from '@/features/transcript/tasks'
 import { isTool, mainRows, type Row } from '@/features/transcript/timeline'
 import { ContextGroup } from '@/features/transcript/tool-group'
@@ -440,7 +441,10 @@ function RowContent(props: {
       return (
         <div className="text-muted-foreground mx-auto flex w-full max-w-(--chat-content-max-width) items-center gap-3 py-1 text-xs">
           <span className="bg-border/70 h-px flex-1" />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{row.text}</span>
+          <span className="flex min-w-0 items-center gap-1 [overflow-wrap:anywhere]">
+            {row.text}
+            {row.text === 'Interrupted' && <ResumeButton />}
+          </span>
           <span className="bg-border/70 h-px flex-1" />
         </div>
       )
