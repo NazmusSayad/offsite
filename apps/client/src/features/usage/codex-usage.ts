@@ -1,5 +1,4 @@
 import type { CodexLimit, CodexLimits } from '@offsite/core/providers'
-import { leftOf } from '@/lib/usage'
 
 export function codexRows(limits: CodexLimits) {
   const rows = []
@@ -24,10 +23,7 @@ export function codexMeter(limits: CodexLimits) {
   const sorted = [limits.primary, limits.secondary]
     .filter((limit) => limit !== null)
     .sort((a, b) => a.minutes - b.minutes)
-  return {
-    short: leftOf(sorted.at(0) ?? null),
-    long: leftOf(sorted.at(-1) ?? null),
-  }
+  return { short: sorted.at(0) ?? null, long: sorted.at(-1) ?? null }
 }
 
 function limitName(limit: CodexLimit) {

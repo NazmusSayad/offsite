@@ -3,12 +3,8 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
-import {
-  UsageDetails,
-  UsageMeter,
-  usageMeter,
-} from '@/features/usage/usage-meters'
-import { useSelectedAccount, useUsage } from '@/lib/usage'
+import { UsageDetails, UsageMeter } from '@/features/usage/usage-meters'
+import { usageMeter, useSelectedAccount, useUsage } from '@/lib/usage'
 
 export function UsageLimitBadge() {
   const selected = useSelectedAccount()

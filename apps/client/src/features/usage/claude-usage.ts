@@ -1,5 +1,4 @@
 import type { ClaudeLimits } from '@offsite/core/providers'
-import { leftOf } from '@/lib/usage'
 
 export function claudeRows(limits: ClaudeLimits) {
   return [
@@ -10,5 +9,5 @@ export function claudeRows(limits: ClaudeLimits) {
 }
 
 export function claudeMeter(limits: ClaudeLimits) {
-  return { short: leftOf(limits.session), long: leftOf(limits.weekly) }
+  return { short: limits.session, long: limits.weekly }
 }

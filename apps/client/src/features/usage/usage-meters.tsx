@@ -1,12 +1,10 @@
-import type { Account, Usage } from '@offsite/core/providers'
+import type { Account } from '@offsite/core/providers'
 import { useState } from 'react'
 import { ProviderIcon } from '@/components/icons'
 import { useStore } from '@/lib/store'
-import { hasUsage, usageKey, useUsage } from '@/lib/usage'
+import { hasUsage, usageKey, usageMeter, useUsage } from '@/lib/usage'
 import { cn } from '@/lib/utils'
 import { AccountUsage } from './account-usage'
-import { claudeMeter, claudeRows } from './claude-usage'
-import { codexMeter, codexRows } from './codex-usage'
 
 export function UsageDetails(props: { machine: string; account: Account }) {
   const machines = useStore((state) => state.machines)
@@ -117,30 +115,4 @@ export function UsageMeter(props: {
       <span className="relative">{short === null ? '–' : `${short}%`}</span>
     </span>
   )
-}
-
-export function usageMeter(usage: Usage | undefined) {
-  const limits = usage?.limits ?? null
-  if (limits === null) {
-    return { short: null, long: null }
-  }
-  switch (limits.provider) {
-    case 'claude':
-      return claudeMeter(limits)
-    case 'codex':
-      return codexMeter(limits)
-  }
-}
-
-export function usageRows(usage: Usage | undefined) {
-  const limits = usage?.limits ?? null
-  if (limits === null) {
-    return []
-  }
-  switch (limits.provider) {
-    case 'claude':
-      return claudeRows(limits)
-    case 'codex':
-      return codexRows(limits)
-  }
 }

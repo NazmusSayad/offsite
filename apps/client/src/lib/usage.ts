@@ -1,6 +1,8 @@
 import type { Account, Limits, RateLimit, Usage } from '@offsite/core/providers'
 import { useEffect } from 'react'
 import { call } from '@/api/connection'
+import { claudeMeter, claudeRows } from '@/features/usage/claude-usage'
+import { codexMeter, codexRows } from '@/features/usage/codex-usage'
 import { logger } from '@/lib/log'
 import { getState, type Machine, showError, update, useStore } from './store'
 
@@ -31,6 +33,36 @@ export function leftOf(limit: RateLimit | null) {
     return null
   }
   return Math.max(0, 100 - Math.round(limit.utilization * 100))
+}
+
+export function usageRows(usage: Usage | undefined) {
+  const limits = usage?.limits ?? null
+  if (limits === null) {
+    return []
+  }
+  switch (limits.provider) {
+    case 'claude':
+      return claudeRows(limits)
+    case 'codex':
+      return codexRows(limits)
+  }
+}
+
+export function usageMeter(usage: Usage | undefined) {
+  const limits = usage?.limits ?? null
+  if (limits === null) {
+    return { short: null, long: null }
+  }
+  switch (limits.provider) {
+    case 'claude': {
+      const meter = claudeMeter(limits)
+      return { short: leftOf(meter.short), long: leftOf(meter.long) }
+    }
+    case 'codex': {
+      const meter = codexMeter(limits)
+      return { short: leftOf(meter.short), long: leftOf(meter.long) }
+    }
+  }
 }
 
 export function useUsage(machine: string | null, account: Account | undefined) {

@@ -8,12 +8,11 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/shallow'
 import { Button } from '@/components/ui/button'
-import { usageRows } from '@/features/usage/usage-meters'
 import { timeLeft } from '@/lib/format'
 import { selectedPrompts, savedOutbox } from '@/lib/outbox'
 import { steer, unqueue } from '@/lib/sessions'
 import { selectedRunning, useStore } from '@/lib/store'
-import { useSelectedUsage } from '@/lib/usage'
+import { usageRows, useSelectedUsage } from '@/lib/usage'
 
 export function QueuedMessages() {
   const saved = useStore(savedOutbox)
