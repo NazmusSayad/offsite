@@ -40,7 +40,7 @@
   --text: #abb2bf;
   --blue: #61afef;
   --brand: #0078d4;
-  --danger: #ee5d69;
+  --destructive: oklch(from #ee5d69 min(l, 0.56) c h);
   --green: #97c775;
   --yellow: #b68353;
   --radius: 0.55rem;
@@ -72,9 +72,8 @@
   --muted-foreground: color-mix(in srgb, var(--text) 55%, var(--bg));
   --accent: color-mix(in srgb, var(--bg) 93%, var(--text));
   --accent-foreground: var(--text);
-  --error: var(--danger);
-  --error-foreground: var(--danger);
-  --destructive: var(--danger);
+  --error: var(--destructive);
+  --error-foreground: var(--destructive);
   --border: color-mix(in srgb, var(--text) 6%, transparent);
   --input: color-mix(in srgb, var(--text) 10%, transparent);
   --ring: color-mix(in srgb, var(--text) 30%, transparent);
@@ -101,13 +100,14 @@
   --icon-muted: var(--muted-foreground);
   --message: var(--accent);
   --message-foreground: var(--foreground);
-  --message-action: var(--primary);
-  --message-action-foreground: var(--primary-foreground);
-  --message-action-hover: color-mix(
+  --composer-send-color: var(--primary);
+  --composer-send-foreground: var(--primary-foreground);
+  --composer-send-hover: color-mix(
     in srgb,
     var(--primary) 90%,
     var(--background)
   );
+  --composer-stop-color: #ee5d69;
   --composer-outline: color-mix(in srgb, var(--text) 6%, transparent);
   --composer-surface: var(--surface-raised);
   --sidebar-icon-color: color-mix(
@@ -177,9 +177,10 @@
   --color-icon-muted: var(--icon-muted);
   --color-message: var(--message);
   --color-message-foreground: var(--message-foreground);
-  --color-message-action: var(--message-action);
-  --color-message-action-foreground: var(--message-action-foreground);
-  --color-message-action-hover: var(--message-action-hover);
+  --color-composer-send: var(--composer-send-color);
+  --color-composer-send-foreground: var(--composer-send-foreground);
+  --color-composer-send-hover: var(--composer-send-hover);
+  --color-composer-stop: var(--composer-stop-color);
   --color-diff-addition: var(--diff-addition);
   --color-diff-deletion: var(--diff-deletion);
   --radius-sm: calc(var(--radius) - 4px);

@@ -25,7 +25,11 @@ export function applyTheme() {
   style.setProperty('--bg', scheme.background)
   style.setProperty('--text', scheme.foreground)
   style.setProperty('--blue', scheme.palette[4])
-  style.setProperty('--danger', scheme.palette[1])
+  style.setProperty(
+    '--destructive',
+    `oklch(from ${scheme.palette[1]} min(l, 0.56) c h)`
+  )
+  style.setProperty('--composer-stop-color', scheme.palette[1])
   style.setProperty('--green', scheme.palette[2])
   style.setProperty('--yellow', scheme.palette[3])
   document

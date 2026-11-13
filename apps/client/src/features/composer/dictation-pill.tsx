@@ -90,7 +90,7 @@ export function DictationPill(props: {
       )}
       {state.kind === 'recording' && (
         <button
-          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xs transition-colors"
+          className="bg-composer-send text-composer-send-foreground shadow-composer-send/24 hover:bg-composer-send-hover flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xs transition-colors"
           title="Done, transcribe (Esc)"
           aria-label="Finish dictation"
           onClick={() => void props.dictation.toggle()}
@@ -105,7 +105,7 @@ export function DictationPill(props: {
       )}
       {state.kind === 'failed' && state.action !== null && (
         <button
-          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xs transition-colors"
+          className="bg-composer-send text-composer-send-foreground shadow-composer-send/24 hover:bg-composer-send-hover flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full shadow-xs transition-colors"
           title={
             state.action === 'retry'
               ? 'Retry with the same recording'

@@ -52,7 +52,7 @@ export function SendControls(props: {
         <div className="size-9.5 shrink-0 md:-my-px" />
       ) : props.running && props.empty ? (
         <button
-          className="bg-destructive/90 shadow-destructive/24 hover:bg-destructive relative flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors after:absolute after:-inset-y-px after:right-0 after:-left-0.5 md:-my-px md:after:hidden"
+          className="bg-composer-stop/90 shadow-composer-stop/24 hover:bg-composer-stop relative flex size-9.5 shrink-0 cursor-pointer items-center justify-center rounded-full text-white shadow-xs transition-colors after:absolute after:-inset-y-px after:right-0 after:-left-0.5 md:-my-px md:after:hidden"
           title="Stop (Esc)"
           aria-label="Stop generation"
           onClick={props.onStop}
@@ -65,7 +65,7 @@ export function SendControls(props: {
         </button>
       ) : (
         <button
-          className="bg-message-action text-message-action-foreground shadow-message-action/24 hover:bg-message-action-hover disabled:bg-foreground/12 disabled:text-muted-foreground group relative flex size-9.5 items-center justify-center rounded-full shadow-xs transition-all duration-150 after:absolute after:-inset-y-px after:right-0 after:-left-0.5 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:shadow-none md:-my-px md:overflow-hidden md:after:hidden"
+          className="bg-composer-send text-composer-send-foreground shadow-composer-send/24 hover:bg-composer-send-hover disabled:bg-foreground/12 disabled:text-muted-foreground group relative flex size-9.5 items-center justify-center rounded-full shadow-xs transition-all duration-150 after:absolute after:-inset-y-px after:right-0 after:-left-0.5 hover:scale-105 enabled:cursor-pointer disabled:pointer-events-none disabled:shadow-none md:-my-px md:overflow-hidden md:after:hidden"
           title={
             props.running && props.delivery === 'steer'
               ? `Send now (Enter) · Queue (${mod}+Enter)`
