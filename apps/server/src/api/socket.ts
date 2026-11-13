@@ -110,6 +110,7 @@ import { serviceHandlers } from './service-handlers.ts'
 import { worktreeHandlers } from './worktree-handlers.ts'
 
 const log = logger.withTag('socket')
+const ALIVE_INTERVAL = 5000
 
 export type Handlers = {
   [M in RpcMethod]: (
@@ -421,6 +422,10 @@ export function connectClient(
   }
   clients.add(client)
   log.info(`a browser connected from ${address}`)
+  const alive = setInterval(
+    () => client.send({ type: 'alive' }),
+    ALIVE_INTERVAL
+  )
   socket.on('message', (data, isBinary) => {
     client.heardAt = Date.now()
     if (isBinary) {
@@ -434,6 +439,7 @@ export function connectClient(
   )
   socket.on('close', (code) => {
     log.info(`a browser from ${address} disconnected (code ${code})`)
+    clearInterval(alive)
     clients.delete(client)
     detachTerminal(client)
   })

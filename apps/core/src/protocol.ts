@@ -427,6 +427,7 @@ export type RpcReply =
 export type ServerMessage =
   | ServerEvent
   | { type: 'terminal'; event: TerminalEvent }
+  | { type: 'alive' }
   | RpcReply
 
 export type ServerEvent =

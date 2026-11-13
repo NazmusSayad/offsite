@@ -28,6 +28,7 @@ type Connection = {
   socket: WebSocket | null
   connected: boolean
   ping: Promise<boolean> | null
+  heardAt: number
   timer: number | undefined
   failures: number
   pending: Map<
@@ -60,6 +61,7 @@ const longCalls: RpcMethod[] = [
   'git.createPullRequest',
   'pulls.run',
   'pulls.writeGuide',
+  'files.upload',
   'dictation.transcribe',
   'service.install',
   'service.update',
@@ -121,6 +123,7 @@ export function connectMachine(machine: string, urls: string[]) {
     socket: null,
     connected: false,
     ping: null,
+    heardAt: 0,
     timer: undefined,
     failures: 0,
     pending: new Map(),
@@ -285,6 +288,7 @@ async function openSocket(
       return
     }
     connection.connected = true
+    connection.heardAt = Date.now()
     connection.failures = 0
     log.info(`connected to ${url}`)
     for (const listener of listeners) {
@@ -372,6 +376,9 @@ async function pingServer(machine: string, connection: Connection) {
   if (current === null || !connection.connected) {
     return false
   }
+  if (Date.now() - connection.heardAt < PING_TIMEOUT) {
+    return true
+  }
   const alive = await Promise.race([
     call(machine, 'ping', undefined).then(
       () => true,
@@ -395,6 +402,7 @@ async function pingServer(machine: string, connection: Connection) {
 }
 
 function receive(machine: string, connection: Connection, data: unknown) {
+  connection.heardAt = Date.now()
   if (data instanceof ArrayBuffer) {
     const frame = decodeFrame(new Uint8Array(data))
     for (const listener of listeners) {
@@ -403,6 +411,9 @@ function receive(machine: string, connection: Connection, data: unknown) {
     return
   }
   const message = JSON.parse(String(data)) as ServerMessage
+  if (message.type === 'alive') {
+    return
+  }
   if (message.type === 'reply') {
     settle(connection, message)
     return
