@@ -1,11 +1,15 @@
 import { installFromBrowser } from '../services/service/setup.ts'
 import { busyReasons } from '../services/service/status.ts'
-import { checkNow, updateNow } from '../services/service/update.ts'
+import { checkNow, restartNow, updateNow } from '../services/service/update.ts'
 import type { Handlers } from './socket.ts'
 
 export const serviceHandlers: Pick<
   Handlers,
-  'service.busy' | 'service.install' | 'service.update' | 'service.check'
+  | 'service.busy'
+  | 'service.install'
+  | 'service.update'
+  | 'service.restart'
+  | 'service.check'
 > = {
   'service.busy': () => busyReasons(),
   'service.check': () => checkNow(),
@@ -15,6 +19,10 @@ export const serviceHandlers: Pick<
   },
   'service.update': async () => {
     await updateNow()
+    return null
+  },
+  'service.restart': () => {
+    restartNow()
     return null
   },
 }

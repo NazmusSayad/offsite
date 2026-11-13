@@ -1,8 +1,8 @@
-import { execFile, exec } from 'node:child_process'
+import { execFile, exec, spawn } from 'node:child_process'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { promisify } from 'node:util'
+import { promisify, stripVTControlCharacters } from 'node:util'
 import { packageManagers } from '@offsite/core/service'
 import { z } from 'zod'
 import {
@@ -26,6 +26,7 @@ const logsDir = path.join(home, 'logs')
 const logFile = path.join(logsDir, 'service.log')
 const SETTINGS = path.join('service', 'settings.json')
 const TRIES = 6
+const ERROR_LINES = 10
 
 export const serviceSettingsSchema = z.object({
   manager: z.enum(packageManagers),
@@ -61,6 +62,50 @@ export async function runTool(name: string, toolArguments: string[]) {
   }
   const result = await runFile(name, toolArguments)
   return result.stdout
+}
+
+export function streamTool(
+  name: string,
+  toolArguments: string[],
+  onLine: (line: string) => void
+) {
+  const child =
+    process.platform === 'win32'
+      ? spawn([name, ...toolArguments].join(' '), {
+          shell: true,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+      : spawn(name, toolArguments, { stdio: ['ignore', 'pipe', 'pipe'] })
+  const recent: string[] = []
+  function read(chunk: Buffer) {
+    for (const part of chunk.toString().split(/[\r\n]+/)) {
+      const line = stripVTControlCharacters(part).trim()
+      if (line === '') {
+        continue
+      }
+      recent.push(line)
+      if (recent.length > ERROR_LINES) {
+        recent.shift()
+      }
+      onLine(line)
+    }
+  }
+  child.stdout.on('data', read)
+  child.stderr.on('data', read)
+  return new Promise<void>((resolve, reject) => {
+    child.on('error', reject)
+    child.on('close', (code, signal) => {
+      if (code === 0) {
+        resolve()
+        return
+      }
+      reject(
+        new Error(
+          `${name} ${toolArguments.join(' ')} failed (${signal ?? `exit code ${code}`}): ${recent.join('\n')}`
+        )
+      )
+    })
+  })
 }
 
 export async function runOffsite(extra: string[]) {
