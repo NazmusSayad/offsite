@@ -1,17 +1,22 @@
-import {
-  Add01Icon,
-  SearchIcon,
-  SquareTerminalIcon,
-} from '@hugeicons/core-free-icons'
+import { SearchIcon, SquareTerminalIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
-import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  type ReactNode,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
+import { homePath, rankProjects, withWorktrees } from '@/api/projects'
+import { ProjectIcon } from '@/components/icons'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { MachineLogo } from '@/constants/machine-icons'
 import { useStore } from '@/lib/store'
 import { useTerminalPage, useTerminalView } from '@/lib/url'
-import { cn } from '@/lib/utils'
+import { cn, isMac } from '@/lib/utils'
 import { createTab } from './page'
 import {
   getState,
@@ -27,8 +32,10 @@ type Item = {
   section: string
   label: string
   detail: string
+  machine: string
+  icon: ReactNode
+  nested: boolean
   alert: boolean
-  creates: boolean
   run: () => void
 }
 
@@ -39,6 +46,19 @@ export function TerminalPalette() {
     enableOnContentEditable: true,
     preventDefault: true,
   })
+  useHotkeys(
+    isMac ? ['meta+shift+backquote', 'meta+shift+t'] : 'ctrl+shift+backquote',
+    (event) => {
+      event.stopPropagation()
+      setOpen(!open)
+    },
+    {
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+      preventDefault: true,
+      eventListenerOptions: { capture: true },
+    }
+  )
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -85,23 +105,6 @@ function TerminalPaletteContent(props: { onClose: () => void }) {
       : ''
   }
 
-  function newTerminal(machine: string, projectId: string): Item {
-    return {
-      key: `new:${machine}:${projectId}`,
-      section: 'New terminal',
-      label: placeName(machine, projectId),
-      detail:
-        projectId === GLOBAL_TERMINALS ? 'No project' : machineName(machine),
-      alert: false,
-      creates: true,
-      run: () =>
-        void createTab(
-          machine,
-          projectId === GLOBAL_TERMINALS ? null : projectId
-        ),
-    }
-  }
-
   const here =
     page !== null
       ? { machine: page, projectId: view }
@@ -111,26 +114,75 @@ function TerminalPaletteContent(props: { onClose: () => void }) {
           online.some((machine) => machine.id === selection.machine)
         ? { machine: selection.machine, projectId: selection.projectId }
         : null
-  const creating = [
-    ...(here === null ? [] : [newTerminal(here.machine, here.projectId)]),
-    ...online
-      .filter(
-        (machine) =>
-          here?.machine !== machine.id || here.projectId !== GLOBAL_TERMINALS
+  const tree = online.length > 1
+  const creating = [...online]
+    .sort(
+      (a, b) => Number(b.id === here?.machine) - Number(a.id === here?.machine)
+    )
+    .map((machine) => {
+      const own = projects.filter(
+        (project) => project.machine === machine.id && !project.scratch
       )
-      .map((machine) => newTerminal(machine.id, GLOBAL_TERMINALS)),
-    ...(search === ''
-      ? []
-      : projects
-          .filter(
-            (project) =>
-              !project.scratch &&
-              online.some((machine) => machine.id === project.machine) &&
-              (here?.machine !== project.machine ||
-                here.projectId !== project.id)
-          )
-          .map((project) => newTerminal(project.machine, project.id))),
-  ]
+      const shown =
+        search === ''
+          ? rankProjects(
+              own.filter(
+                (project) => !project.hidden && project.parentId === null
+              )
+            ).top
+          : withWorktrees(own)
+      const home = machine.system?.homeDir
+      const workingDir =
+        machine.system === null
+          ? '~'
+          : (machine.config?.workingDir[machine.system.platform] ?? '~')
+      return [
+        ...(here?.machine === machine.id ? [here.projectId] : []),
+        GLOBAL_TERMINALS,
+        ...shown.map((project) => project.id),
+      ]
+        .filter((id, index, all) => all.indexOf(id) === index)
+        .sort(
+          (a, b) =>
+            Number(tree && b === GLOBAL_TERMINALS) -
+            Number(tree && a === GLOBAL_TERMINALS)
+        )
+        .map((projectId): Item => {
+          const project = projectOf(machine.id, projectId)
+          const dir =
+            projectId === GLOBAL_TERMINALS ? workingDir : (project?.path ?? '')
+          const shortDir = home === undefined ? dir : homePath(dir, home)
+          return {
+            key: `new:${machine.id}:${projectId}`,
+            section: 'New terminal',
+            label:
+              projectId !== GLOBAL_TERMINALS
+                ? groupName(project)
+                : tree
+                  ? machine.name
+                  : shortDir,
+            detail: projectId === GLOBAL_TERMINALS && !tree ? '' : shortDir,
+            machine: machine.name,
+            icon:
+              projectId === GLOBAL_TERMINALS ? (
+                <MachineLogo icon={machine.icon} className="size-4 shrink-0" />
+              ) : (
+                <ProjectIcon
+                  machine={machine.id}
+                  projectId={projectId}
+                  className="size-4 shrink-0"
+                />
+              ),
+            nested: tree && projectId !== GLOBAL_TERMINALS,
+            alert: false,
+            run: () =>
+              void createTab(
+                machine.id,
+                projectId === GLOBAL_TERMINALS ? null : projectId
+              ),
+          }
+        })
+    })
   const open = online.flatMap((machine) =>
     machine.terminals.map((tab) => {
       const projectId = tab.projectId ?? GLOBAL_TERMINALS
@@ -142,15 +194,29 @@ function TerminalPaletteContent(props: { onClose: () => void }) {
         section: 'Open',
         label: machineTabTitle(machine.id, tab),
         detail: other === '' ? place : `${place} · ${other}`,
+        machine: machine.name,
+        icon: (
+          <HugeiconsIcon
+            icon={SquareTerminalIcon}
+            className="text-muted-foreground size-4 shrink-0"
+          />
+        ),
+        nested: false,
         alert: machineTabAlerted(machine.id, tab.id),
-        creates: false,
         run: () => showTab(machine.id, projectId, tab.id),
       }
     })
   )
-  const items = [...open, ...creating].filter((item) =>
-    `${item.label} ${item.detail}`.toLowerCase().includes(search)
-  )
+  const items = [
+    ...open.filter(matches),
+    ...creating.flatMap(([head, ...rest]) => {
+      if (!tree) {
+        return [head, ...rest].filter(matches)
+      }
+      const shown = rest.filter(matches)
+      return matches(head) || shown.length > 0 ? [head, ...shown] : []
+    }),
+  ]
   const activeIndex = Math.min(
     Math.max(
       0,
@@ -164,6 +230,12 @@ function TerminalPaletteContent(props: { onClose: () => void }) {
       ?.querySelector('[data-active="true"]')
       ?.scrollIntoView({ block: 'nearest' })
   }, [activeIndex])
+
+  function matches(item: Item) {
+    return `${item.label} ${item.detail} ${item.machine}`
+      .toLowerCase()
+      .includes(search)
+  }
 
   function pick(item: Item) {
     props.onClose()
@@ -219,15 +291,13 @@ function TerminalPaletteContent(props: { onClose: () => void }) {
               data-active={index === activeIndex}
               className={cn(
                 'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left',
+                item.nested && 'pl-9',
                 index === activeIndex && 'bg-accent'
               )}
               onMouseMove={() => setActiveKey(item.key)}
               onClick={() => pick(item)}
             >
-              <HugeiconsIcon
-                icon={item.creates ? Add01Icon : SquareTerminalIcon}
-                className="text-muted-foreground size-4 shrink-0"
-              />
+              {item.icon}
               <span className="min-w-0 flex-1 truncate text-sm">
                 {item.label}
               </span>

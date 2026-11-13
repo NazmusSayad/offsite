@@ -23,7 +23,10 @@ const shortcuts = [
   [`${mod}+,`, 'Open settings'],
   [`${mod}+1…9`, 'Open a session from the sidebar'],
   [`${mod}+N`, 'New thread'],
-  [`${mod}+T`, 'Search terminals, or open a new one'],
+  [
+    isMac ? '⌘+T, ⌘+Shift+T or ⌘+Shift+`' : 'Ctrl+T or Ctrl+Shift+`',
+    'Search terminals, or open a new one',
+  ],
   [isMac ? '⌘+` or Ctrl+`' : 'Ctrl+`', 'Toggle the terminal'],
   [`${mod}+B or ${mod}+Shift+B`, 'Toggle the right panel'],
   [`${mod}+E or ${mod}+J`, 'Toggle the editor'],
