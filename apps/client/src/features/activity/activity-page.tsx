@@ -1,6 +1,13 @@
+import {
+  CircleDotDashedIcon,
+  CommandLineIcon,
+  ShieldAlertIcon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { ProviderIcon } from '@/components/icons'
 import { MachineLogo } from '@/constants/machine-icons'
+import { SubagentIcon } from '@/features/transcript/agent-pill'
 import { UsageMeter } from '@/features/usage/usage-meters'
 import { providerNames } from '@/lib/format'
 import { router } from '@/lib/router'
@@ -9,13 +16,7 @@ import { type Machine, useStore } from '@/lib/store'
 import { activityPage, onGuard } from '@/lib/url'
 import { hasUsage } from '@/lib/usage'
 import { cn } from '@/lib/utils'
-import {
-  type Agent,
-  AgentCard,
-  IdleAgent,
-  runningTasks,
-  stageOf,
-} from './agent-card'
+import { type Agent, AgentTile, runningTasks, stageOf } from './agent-card'
 
 export function openActivityPage() {
   if (activityPage()) {
@@ -66,83 +67,96 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
     >
       <header
         className={cn(
-          'flex h-(--workspace-topbar-height) shrink-0 items-center gap-1.5',
+          'flex h-(--workspace-topbar-height) shrink-0 items-center gap-4 text-xs tabular-nums',
           props.mobile ? 'px-2' : 'px-5'
         )}
       >
         {props.leading}
-        <h1 className="text-foreground font-medium">Activity</h1>
+        <Stat
+          title="Need you"
+          icon={
+            <HugeiconsIcon
+              icon={ShieldAlertIcon}
+              className="text-question size-3.5"
+            />
+          }
+          value={agents.filter((agent) => stageOf(agent.activity) === 0).length}
+        />
+        <Stat
+          title="Working"
+          icon={
+            <HugeiconsIcon
+              icon={CircleDotDashedIcon}
+              className="text-info size-3.5"
+            />
+          }
+          value={agents.filter((agent) => stageOf(agent.activity) === 1).length}
+        />
+        <Stat
+          title="Subagents"
+          icon={<SubagentIcon className="text-muted-foreground size-3" />}
+          value={agents.reduce(
+            (sum, agent) => sum + agent.activity.backgroundAgents,
+            0
+          )}
+        />
+        <Stat
+          title="Background tasks"
+          icon={
+            <HugeiconsIcon
+              icon={CommandLineIcon}
+              className="text-muted-foreground size-3.5"
+            />
+          }
+          value={agents.reduce(
+            (sum, agent) =>
+              sum +
+              runningTasks(agent.activity) -
+              agent.activity.backgroundAgents,
+            0
+          )}
+        />
       </header>
       <div className="min-h-0 flex-1 overflow-auto">
-        <div className="text-muted-foreground flex flex-wrap gap-x-5 gap-y-1 px-5 pt-1 pb-6 text-xs">
-          <Stat one="agent" many="agents" value={agents.length} />
-          <Stat
-            one="needs you"
-            many="need you"
-            value={
-              agents.filter((agent) => stageOf(agent.activity) === 0).length
-            }
-            className="text-question"
-          />
-          <Stat
-            one="working"
-            many="working"
-            value={
-              agents.filter((agent) => stageOf(agent.activity) === 1).length
-            }
-            className="text-info"
-          />
-          <Stat
-            one="background task"
-            many="background tasks"
-            value={agents.reduce(
-              (sum, agent) => sum + runningTasks(agent.activity),
-              0
-            )}
-          />
-          <Stat
-            one="subagent"
-            many="subagents"
-            value={agents.reduce(
-              (sum, agent) => sum + agent.activity.backgroundAgents,
-              0
-            )}
-          />
-        </div>
-        <div className="grid items-start gap-x-10 gap-y-10 px-5 pb-10 md:grid-cols-[repeat(auto-fill,minmax(24rem,1fr))]">
-          {machines.map((machine) => (
-            <MachineTree
-              key={machine.id}
-              machine={machine}
-              agents={agents.filter(
-                (agent) => agent.session.machine === machine.id
-              )}
-              now={now}
-            />
-          ))}
+        {agents.length === 0 && (
+          <p className="text-muted-foreground px-5 pt-[20vh] text-center text-sm">
+            No agents running
+          </p>
+        )}
+        <div className="grid items-start gap-x-10 gap-y-8 px-5 pt-2 pb-10 md:grid-cols-[repeat(auto-fill,minmax(24rem,1fr))]">
+          {machines
+            .filter(
+              (machine) =>
+                machine.status !== 'online' ||
+                agents.some((agent) => agent.session.machine === machine.id)
+            )
+            .map((machine) => (
+              <MachineTree
+                key={machine.id}
+                machine={machine}
+                agents={agents.filter(
+                  (agent) => agent.session.machine === machine.id
+                )}
+                now={now}
+              />
+            ))}
         </div>
       </div>
     </main>
   )
 }
 
-function Stat(props: {
-  one: string
-  many: string
-  value: number
-  className?: string
-}) {
+function Stat(props: { title: string; icon: ReactNode; value: number }) {
+  if (props.value === 0) {
+    return null
+  }
   return (
-    <span>
-      <span
-        className={cn(
-          'text-foreground font-medium tabular-nums',
-          props.value > 0 && props.className
-        )}
-      >
-        {props.value}
-      </span>{' '}
-      {props.value === 1 ? props.one : props.many}
+    <span
+      className="text-foreground flex items-center gap-1.5"
+      title={props.title}
+    >
+      {props.icon}
+      {props.value}
     </span>
   )
 }
@@ -163,42 +177,24 @@ function MachineTree(props: {
         <span className="text-foreground truncate font-medium">
           {props.machine.name}
         </span>
-        <span
-          className={cn(
-            'text-muted-foreground ml-auto shrink-0 text-xs',
-            props.machine.status !== 'online' && 'text-warning-foreground'
-          )}
-        >
-          {props.machine.status === 'connecting' && 'Connecting…'}
-          {props.machine.status === 'offline' && 'Offline'}
-          {props.machine.status === 'unpaired' && 'Needs pairing'}
-          {props.machine.status === 'online' &&
-            (props.agents.length === 0
-              ? 'No agents running'
-              : `${props.agents.length} ${props.agents.length === 1 ? 'agent' : 'agents'}`)}
-        </span>
+        {props.machine.status !== 'online' && (
+          <span className="text-warning-foreground ml-auto shrink-0 text-xs">
+            {props.machine.status === 'connecting' && 'Connecting…'}
+            {props.machine.status === 'offline' && 'Offline'}
+            {props.machine.status === 'unpaired' && 'Needs pairing'}
+          </span>
+        )}
       </h2>
       <ul className="ml-[7px]">
         {groups.map((agents) => (
           <Twig key={accountKey(agents[0])} anchor="row">
             <AccountRow machine={props.machine} agents={agents} />
             <ul className="ml-[7px]">
-              {agents.map((agent) =>
-                stageOf(agent.activity) === 3 &&
-                agent.activity.requests.length === 0 ? (
-                  <Twig key={agent.session.id} anchor="idle">
-                    <IdleAgent agent={agent} />
-                  </Twig>
-                ) : (
-                  <Twig key={agent.session.id} anchor="card">
-                    <AgentCard
-                      machine={props.machine}
-                      agent={agent}
-                      now={props.now}
-                    />
-                  </Twig>
-                )
-              )}
+              {agents.map((agent) => (
+                <Twig key={agent.session.id} anchor="tile">
+                  <AgentTile agent={agent} now={props.now} />
+                </Twig>
+              ))}
             </ul>
           </Twig>
         ))}
@@ -220,29 +216,25 @@ function AccountRow(props: { machine: Machine; agents: Agent[] }) {
       <span className="text-foreground truncate">
         {account?.name ?? providerNames[settings.provider]}
       </span>
-      {account !== undefined && account.plan !== null && (
-        <span className="text-muted-foreground truncate text-xs">
-          {account.plan}
-        </span>
-      )}
-      <span className="text-muted-foreground ml-auto shrink-0 text-xs">
-        {props.agents.length} {props.agents.length === 1 ? 'agent' : 'agents'}
-      </span>
       {account !== undefined && hasUsage(account) && (
-        <UsageMeter machine={props.machine.id} account={account} icon={false} />
+        <UsageMeter
+          machine={props.machine.id}
+          account={account}
+          icon={false}
+          className="ml-auto"
+        />
       )}
     </div>
   )
 }
 
-function Twig(props: { anchor: 'row' | 'card' | 'idle'; children: ReactNode }) {
+function Twig(props: { anchor: 'row' | 'tile'; children: ReactNode }) {
   return (
     <li
       className={cn(
         'before:border-foreground/15 after:border-foreground/15 relative pl-5 before:absolute before:top-0 before:left-0 before:w-3.5 before:rounded-bl-md before:border-b before:border-l after:absolute after:top-0 after:bottom-0 after:left-0 after:border-l last:after:hidden',
         props.anchor === 'row' && 'pt-2 before:h-6',
-        props.anchor === 'card' && 'pt-2 before:h-[29px]',
-        props.anchor === 'idle' && 'pt-0.5 before:h-4'
+        props.anchor === 'tile' && 'pt-1.5 before:h-[23px]'
       )}
     >
       {props.children}

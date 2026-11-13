@@ -29,11 +29,11 @@ export function AgentRequest(props: {
     const question = request.questions[0]
     const quick = request.questions.length === 1 && !question.multiSelect
     return (
-      <div className="border-question/20 bg-question/5 flex flex-col gap-2 border-t px-3 py-2.5">
-        <p className="text-foreground text-[13px] leading-snug">
+      <div className="flex flex-col gap-1.5 px-2.5 pb-2 pl-8">
+        <p className="text-muted-foreground truncate text-xs">
           {question.question}
         </p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1">
           {quick &&
             question.options.map((option) => (
               <Button
@@ -48,57 +48,30 @@ export function AgentRequest(props: {
                 {option.label}
               </Button>
             ))}
-          <Button
-            size="xs"
-            variant={quick ? 'ghost' : 'outline'}
-            onClick={props.onOpen}
-          >
-            {quick ? 'Other…' : `Answer ${request.questions.length} questions`}
+          <Button size="xs" variant="ghost" onClick={props.onOpen}>
+            {quick ? 'Other…' : 'Answer'}
           </Button>
         </div>
       </div>
     )
   }
 
-  const detail = request.kind === 'plan' ? '' : summary(request.item, props.cwd)
   return (
-    <div className="border-question/20 bg-question/5 flex flex-wrap items-center gap-x-3 gap-y-2 border-t px-3 py-2">
-      <div className="flex min-w-48 flex-1 flex-col">
-        <span className="text-question text-xs font-medium">
-          {request.kind === 'plan' ? 'Plan ready' : request.title}
-        </span>
-        {detail !== '' && (
-          <span className="text-muted-foreground truncate font-mono text-xs">
-            {detail}
-          </span>
-        )}
-      </div>
-      <span className="ml-auto flex shrink-0 gap-1.5">
-        {request.kind === 'plan' && (
-          <Button size="xs" variant="ghost" onClick={props.onOpen}>
-            Read
-          </Button>
-        )}
-        <Button
-          size="xs"
-          variant="outline"
-          onClick={() => respond('deny', null)}
-        >
-          {request.kind === 'plan' ? 'Keep planning' : 'Decline'}
-        </Button>
-        {request.kind === 'approval' && request.canAlwaysAllow && (
-          <Button
-            size="xs"
-            variant="outline"
-            onClick={() => respond('always', null)}
-          >
-            Always
-          </Button>
-        )}
-        <Button size="xs" onClick={() => respond('allow', null)}>
-          Approve
-        </Button>
+    <div className="flex items-center gap-1 px-2.5 pb-2 pl-8">
+      <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-xs">
+        {request.kind === 'plan' ? 'Plan' : summary(request.item, props.cwd)}
       </span>
+      {request.kind === 'plan' && (
+        <Button size="xs" variant="ghost" onClick={props.onOpen}>
+          Read
+        </Button>
+      )}
+      <Button size="xs" variant="outline" onClick={() => respond('deny', null)}>
+        Decline
+      </Button>
+      <Button size="xs" onClick={() => respond('allow', null)}>
+        Approve
+      </Button>
     </div>
   )
 }
