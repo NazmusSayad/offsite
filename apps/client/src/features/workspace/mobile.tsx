@@ -1,5 +1,6 @@
 import { ArrowLeft01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { WorktreeIcon } from '@offsite/core/icons/git'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { useSearch } from '@tanstack/react-router'
 import { Dialog as DialogPrimitive } from 'radix-ui'
@@ -260,7 +261,15 @@ function MobileChat(props: { selection: Selection }) {
               <MachineLogo icon={machine.icon} className="size-3.5 shrink-0" />
               <span className="truncate">
                 {machine.name} / {projectTitle}
-                {branch !== null && ` · ${branch}`}
+                {branch !== null && (
+                  <>
+                    <HugeiconsIcon
+                      icon={WorktreeIcon}
+                      className="mx-1 inline size-3 align-[-2px]"
+                    />
+                    {branch}
+                  </>
+                )}
               </span>
             </div>
           )}

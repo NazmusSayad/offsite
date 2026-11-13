@@ -18,8 +18,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { projectOf, useStore } from '@/lib/store'
+import { isPullRequestUrl, openPullRequest } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
-import { showGitToast, startCommit, startPullRequest } from './git-toast'
 import {
   BaseSelect,
   type Draft,
@@ -107,11 +107,6 @@ export function GitDialog(props: {
     try {
       await task()
     } catch (error) {
-      if (repos.length === 1) {
-        props.onClose()
-        showGitToast('Pull request failed', { error: errorMessage(error) })
-        return
-      }
       patch(repo, { state: 'failed', text: errorMessage(error), draft: null })
     } finally {
       props.onRefresh()
@@ -144,11 +139,6 @@ export function GitDialog(props: {
   }
 
   function commit(andPush: boolean) {
-    if (repos.length === 1) {
-      props.onClose()
-      startCommit(props, repos[0].path, message, andPush)
-      return
-    }
     const done = andPush ? 'Committed and pushed' : 'Committed'
     start(andPush ? 'Committing and pushing…' : 'Committing…', async (repo) => {
       await call(props.machine, 'git.commit', {
@@ -190,11 +180,6 @@ export function GitDialog(props: {
       commit: commitFirst,
     })
     if (result.kind === 'open') {
-      if (repos.length === 1) {
-        props.onClose()
-        showGitToast('Pull request already open', { url: result.url })
-        return
-      }
       patch(repo, {
         state: 'done',
         text: 'A pull request is already open',
@@ -229,11 +214,6 @@ export function GitDialog(props: {
   }
 
   function createPullRequest(repo: string, draft: Draft) {
-    if (repos.length === 1) {
-      props.onClose()
-      startPullRequest(props, repo, draft)
-      return
-    }
     void step(repo, async () => {
       patch(repo, {
         state: 'working',
@@ -459,6 +439,16 @@ export function GitDialog(props: {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary hover:underline hover:underline-offset-2"
+                            onClick={(event) => {
+                              if (
+                                entry.url !== null &&
+                                isPullRequestUrl(entry.url)
+                              ) {
+                                event.preventDefault()
+                                props.onClose()
+                                openPullRequest(entry.url)
+                              }
+                            }}
                           >
                             {entry.url}
                           </a>

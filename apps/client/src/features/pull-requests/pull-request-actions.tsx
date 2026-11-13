@@ -7,7 +7,6 @@ import {
   Clock01Icon,
   Copy01Icon,
   EyeIcon,
-  GitBranchIcon,
   GitCommitIcon,
   GitCompareArrowsIcon,
   GitMergeIcon,
@@ -17,6 +16,7 @@ import {
   ThumbsUpIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
+import { BranchIcon } from '@offsite/core/icons/git'
 import type {
   MergeMethod,
   PullRequestAction,
@@ -265,7 +265,7 @@ function MoreItems(props: { details: PullRequestDetails; onPerform: Perform }) {
               )
             }
           >
-            <HugeiconsIcon icon={GitBranchIcon} />
+            <HugeiconsIcon icon={BranchIcon} />
             Check out branch
           </DropdownMenuItem>
         )}
@@ -349,11 +349,18 @@ function MergeDialog(props: {
 export function MergeStatus(props: {
   details: PullRequestDetails
   busy: string | null
+  notice: string | null
 }) {
   const status =
-    props.busy === null
-      ? mergeStatus(props.details)
-      : { text: props.busy, tone: 'none' as const, icon: Loading03Icon }
+    props.busy !== null
+      ? { text: props.busy, tone: 'none' as const, icon: Loading03Icon }
+      : props.notice !== null
+        ? {
+            text: props.notice,
+            tone: 'good' as const,
+            icon: CheckmarkCircle02Icon,
+          }
+        : mergeStatus(props.details)
   if (status === null) {
     return null
   }

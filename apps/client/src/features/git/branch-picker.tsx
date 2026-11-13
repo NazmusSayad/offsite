@@ -6,22 +6,27 @@ import {
   CircleDashedIcon,
   CloudIcon,
   CloudUploadIcon,
-  GitBranchIcon,
-  GitForkIcon,
-  PlusSignIcon,
   SearchIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
+import {
+  BranchIcon,
+  NewBranchIcon,
+  WorktreeIcon,
+  NewWorktreeIcon,
+} from '@offsite/core/icons/git'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { call } from '@/api/connection'
+import { MoreLabel } from '@/components/icons'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { RemoteBranches, Submenu } from '@/features/git/branch-submenu'
 import { setOpen as setTerminalOpen } from '@/features/terminal/session'
 import { logger } from '@/lib/log'
 import { openSession } from '@/lib/sessions'
@@ -58,8 +63,8 @@ export function BranchPicker(props: BranchTarget) {
               action !== null
                 ? action.icon
                 : worktree
-                  ? GitForkIcon
-                  : GitBranchIcon
+                  ? WorktreeIcon
+                  : BranchIcon
             }
             className="size-3.5 shrink-0"
           />
@@ -102,7 +107,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   const [branches, setBranches] = useState<
     { name: string; local: boolean; worktree: string | null }[] | null
   >(null)
-  const [remotes, setRemotes] = useState<string[] | null>(null)
+  const [sub, setSub] = useState<'local' | 'remote' | null>(null)
   const [query, setQuery] = useState('')
   const [switching, setSwitching] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -110,9 +115,6 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   const name = query.trim()
   const matches = (branches ?? []).filter((branch) =>
     branch.name.toLowerCase().includes(name.toLowerCase())
-  )
-  const remoteMatches = (remotes ?? []).filter((branch) =>
-    branch.toLowerCase().includes(name.toLowerCase())
   )
   const exists = (branches ?? []).some((branch) => branch.name === name)
   const session = useStore((state) =>
@@ -219,6 +221,63 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
     }
   }
 
+  function localRow(branch: {
+    name: string
+    local: boolean
+    worktree: string | null
+  }) {
+    return (
+      <button
+        key={branch.name}
+        disabled={switching || branch.worktree !== null}
+        title={
+          branch.worktree === null
+            ? undefined
+            : `Open in the worktree ${branch.worktree}. A branch can be open in only one worktree at a time`
+        }
+        className={cn(
+          'hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50',
+          branch.name === target.repo.branch &&
+            'text-foreground bg-foreground/[0.08]'
+        )}
+        onMouseEnter={() => setSub(null)}
+        onClick={() => {
+          if (branch.name === target.repo.branch) {
+            props.onClose()
+            return
+          }
+          void switchTo(branch.name, false)
+        }}
+      >
+        {branch.name === target.repo.branch ? (
+          <HugeiconsIcon
+            icon={CheckIcon}
+            strokeWidth={2.25}
+            className="size-3.5 shrink-0"
+          />
+        ) : (
+          <span className="size-3.5 shrink-0" />
+        )}
+        <span className="min-w-0 flex-1 truncate">{branch.name}</span>
+        {branch.worktree !== null && (
+          <span className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs">
+            <HugeiconsIcon icon={WorktreeIcon} className="size-3.5" />
+            In another worktree
+          </span>
+        )}
+        {!branch.local && (
+          <span
+            className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs"
+            title="Not on this machine yet. Switching to it creates it from the remote"
+          >
+            <HugeiconsIcon icon={CloudIcon} className="size-3.5" />
+            Remote
+          </span>
+        )}
+      </button>
+    )
+  }
+
   return (
     <>
       <div className="shrink-0 px-3 pt-2.5">
@@ -275,97 +334,63 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             No branches
           </p>
         )}
-        {matches.map((branch) => (
-          <button
-            key={branch.name}
-            disabled={switching || branch.worktree !== null}
-            title={
-              branch.worktree === null
-                ? undefined
-                : `Open in the worktree ${branch.worktree}. A branch can be open in only one worktree at a time`
-            }
-            className={cn(
-              'hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50',
-              branch.name === target.repo.branch &&
-                'text-foreground bg-foreground/[0.08]'
-            )}
-            onClick={() => {
-              if (branch.name === target.repo.branch) {
-                props.onClose()
-                return
-              }
-              void switchTo(branch.name, false)
-            }}
-          >
-            {branch.name === target.repo.branch ? (
-              <HugeiconsIcon
-                icon={CheckIcon}
-                strokeWidth={2.25}
-                className="size-3.5 shrink-0"
+        {(name === '' ? matches.slice(0, 5) : matches).map(localRow)}
+        {name === '' && matches.length > 5 && (
+          <Submenu
+            open={sub === 'local'}
+            onOpenChange={(open) => setSub(open ? 'local' : null)}
+            trigger={
+              <MoreLabel
+                text={`${matches.length - 5} more branches`}
+                className="size-3.5"
               />
-            ) : (
-              <span className="size-3.5 shrink-0" />
-            )}
-            <span className="min-w-0 flex-1 truncate">{branch.name}</span>
-            {branch.worktree !== null && (
-              <span className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs">
-                <HugeiconsIcon icon={GitForkIcon} className="size-3.5" />
-                In another worktree
-              </span>
-            )}
-            {!branch.local && (
-              <span
-                className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs"
-                title="Not on this machine yet. Switching to it creates it from the remote"
-              >
-                <HugeiconsIcon icon={CloudIcon} className="size-3.5" />
-                Remote
-              </span>
-            )}
-          </button>
-        ))}
-        {remotes !== null && remoteMatches.length > 0 && (
-          <p className="text-muted-foreground px-2 pt-2 pb-1 text-xs font-medium">
-            Remote
-          </p>
-        )}
-        {remoteMatches.map((branch) => (
-          <button
-            key={branch}
-            disabled={
-              switching || busy(branch.slice(branch.indexOf('/') + 1)) !== null
-            }
-            className="hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50"
-            onClick={() =>
-              void switchTo(branch.slice(branch.indexOf('/') + 1), false)
             }
           >
-            <span className="size-3.5 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">{branch}</span>
-          </button>
-        ))}
+            {matches.slice(5).map(localRow)}
+          </Submenu>
+        )}
+        {name === '' && branches !== null && (
+          <Submenu
+            open={sub === 'remote'}
+            onOpenChange={(open) => setSub(open ? 'remote' : null)}
+            trigger={
+              <>
+                <HugeiconsIcon icon={CloudIcon} className="size-3.5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">Remote branches</span>
+              </>
+            }
+          >
+            <RemoteBranches
+              machine={machine}
+              projectId={projectId}
+              repo={repoPath}
+              disabled={(branch) => switching || busy(branch) !== null}
+              onSwitch={(branch) => void switchTo(branch, false)}
+            />
+          </Submenu>
+        )}
         {branches !== null && name !== '' && !exists && (
           <button
             disabled={switching}
             className="hover:bg-accent hover:text-accent-foreground flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50"
             onClick={() => void switchTo(name, true)}
           >
-            <HugeiconsIcon icon={PlusSignIcon} className="size-3.5 shrink-0" />
+            <HugeiconsIcon icon={NewBranchIcon} className="size-3.5 shrink-0" />
             <span className="min-w-0 flex-1 truncate">
               Create branch <span className="font-medium">{name}</span>
             </span>
           </button>
         )}
       </div>
-      <div className="border-border/70 shrink-0 border-t px-2 py-1.5">
-        {movable && !(name !== '' && exists) && (
+      {movable && !(name !== '' && exists) && (
+        <div className="border-border/70 shrink-0 border-t px-2 py-1.5">
           <button
             disabled={switching || moving}
             className="hover:bg-accent hover:text-accent-foreground flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50"
             onClick={() => void move(session.id)}
           >
             <HugeiconsIcon
-              icon={moving ? CircleDashedIcon : GitForkIcon}
+              icon={moving ? CircleDashedIcon : NewWorktreeIcon}
               className={cn('size-3.5 shrink-0', moving && 'animate-spin')}
             />
             <span className="flex min-w-0 flex-1 flex-col">
@@ -383,26 +408,8 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
               )}
             </span>
           </button>
-        )}
-        <button
-          className="text-muted-foreground hover:bg-accent hover:text-accent-foreground flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm"
-          onClick={() => {
-            if (remotes !== null) {
-              setRemotes(null)
-              return
-            }
-            call(machine, 'git.remoteBranches', {
-              projectId,
-              repo: repoPath,
-            }).then(setRemotes, showError)
-          }}
-        >
-          <HugeiconsIcon icon={CloudIcon} className="size-3.5 shrink-0" />
-          <span className="min-w-0 flex-1 truncate">
-            {remotes === null ? 'Show remote branches' : 'Hide remote branches'}
-          </span>
-        </button>
-      </div>
+        </div>
+      )}
     </>
   )
 }

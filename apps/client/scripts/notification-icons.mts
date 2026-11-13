@@ -5,8 +5,8 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import sharp from 'sharp'
+import { CLAUDE_LOGO, OPENCODE_LOGO } from '../../core/icons/providers.ts'
 import { NOTICE_STATES } from '../../core/src/push.ts'
-import { CLAUDE_LOGO, OPENCODE_LOGO } from '../src/components/provider-logos.ts'
 
 const SIZE = 192
 const STATUS_SIZE = 112

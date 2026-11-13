@@ -1,7 +1,6 @@
 import { CircleDotDashedIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,8 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { ServiceForm } from '@/features/service/service-form'
 import { UpdateForm } from '@/features/service/update-form'
-import { useStore } from '@/lib/store'
-import { errorMessage } from '@/lib/utils'
+import { showError, useStore } from '@/lib/store'
 import { Row, Section } from './controls'
 
 export function ServiceButton(props: { machine: string }) {
@@ -23,6 +21,7 @@ export function ServiceButton(props: { machine: string }) {
   const service = machine?.status === 'online' ? machine.service : null
   const [open, setOpen] = useState(false)
   const [checking, setChecking] = useState(false)
+  const [latest, setLatest] = useState(false)
   if (service === null) {
     return null
   }
@@ -32,10 +31,11 @@ export function ServiceButton(props: { machine: string }) {
     try {
       const result = await call(props.machine, 'service.check', undefined)
       if (!result.newer) {
-        toast('OffSite is up to date')
+        setLatest(true)
+        setTimeout(() => setLatest(false), 3000)
       }
     } catch (failure) {
-      toast.error(errorMessage(failure))
+      showError(failure)
     }
     setChecking(false)
   }
@@ -50,7 +50,7 @@ export function ServiceButton(props: { machine: string }) {
           disabled={checking}
           onClick={() => void check()}
         >
-          {checking ? 'Checking…' : 'Check for updates'}
+          {checking ? 'Checking…' : latest ? 'Up to date' : 'Check for updates'}
         </Button>
       ) : (
         <Button

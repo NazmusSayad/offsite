@@ -1,10 +1,8 @@
-import {
-  CloudUploadIcon,
-  GitBranchIcon,
-  RefreshIcon,
-} from '@hugeicons/core-free-icons'
+import { CloudUploadIcon, RefreshIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SourceControlRepo } from '@offsite/core/git'
+import { BranchIcon } from '@offsite/core/icons/git'
+
 import { shortHash } from '@/features/source-control/changes'
 import { cn } from '@/lib/utils'
 
@@ -24,7 +22,7 @@ export function GitStatus(props: {
         className="hover:bg-accent hover:text-foreground flex h-full cursor-pointer items-center gap-1 px-1.5 tabular-nums"
         onClick={props.onCheckout}
       >
-        <HugeiconsIcon icon={GitBranchIcon} className="size-3.5" />
+        <HugeiconsIcon icon={BranchIcon} className="size-3.5" />
         {repo.branch ?? (repo.head === null ? 'HEAD' : shortHash(repo.head))}
         {repo.changes.length > 0 && '*'}
         {repo.staged.length > 0 && '+'}

@@ -133,7 +133,12 @@ export function SessionMenuItems(props: {
         />
         {session.status === 'pinned' ? 'Unpin' : 'Pin'}
       </Item>
-      <Item onSelect={() => toggleBookmark(session.machine, target)}>
+      <Item
+        onSelect={(event) => {
+          event.preventDefault()
+          toggleBookmark(session.machine, target)
+        }}
+      >
         <HugeiconsIcon
           icon={bookmarked ? BookmarkRemove02Icon : BookmarkAdd02Icon}
         />

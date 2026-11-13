@@ -1,5 +1,6 @@
-import { GitForkIcon, PinIcon, ZzzIcon } from '@hugeicons/core-free-icons'
+import { PinIcon, ZzzIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { WorktreeIcon } from '@offsite/core/icons/git'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { memo, useRef, useState } from 'react'
 import { useProjectName } from '@/api/projects'
@@ -245,7 +246,7 @@ function MobileSessionItemView(props: {
                       <span className="text-muted-foreground/40 font-normal">
                         {worktree ? (
                           <HugeiconsIcon
-                            icon={GitForkIcon}
+                            icon={WorktreeIcon}
                             className="mx-1 inline size-3 align-[-2px]"
                           />
                         ) : (

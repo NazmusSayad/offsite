@@ -1,13 +1,20 @@
+import { UnfoldMoreIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import type { PullRequestBranches } from '@offsite/core/git'
+import { MoreLabel } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuPortal,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
 
 export type Draft = {
   base: string
@@ -35,23 +42,70 @@ export function BaseSelect(props: {
   return (
     <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
       <span className="truncate">{props.head} →</span>
-      <Select
-        value={props.target?.base ?? ''}
-        disabled={props.target === undefined}
-        onValueChange={props.onBase}
-      >
-        <SelectTrigger size="sm" className="max-w-48">
-          <SelectValue placeholder="Loading branches…" />
-        </SelectTrigger>
-        <SelectContent>
-          {(props.target?.branches ?? []).map((branch) => (
-            <SelectItem key={branch} value={branch}>
-              {branch}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="max-w-48"
+            disabled={props.target === undefined}
+          >
+            <span className="truncate">
+              {props.target?.base ?? 'Loading branches…'}
+            </span>
+            <HugeiconsIcon
+              icon={UnfoldMoreIcon}
+              className="text-muted-foreground size-3.5"
+            />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-56">
+          {props.target !== undefined && (
+            <BaseItems
+              base={props.target.base}
+              branches={props.target.branches}
+              onBase={props.onBase}
+            />
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </span>
+  )
+}
+
+function BaseItems(props: {
+  base: string
+  branches: string[]
+  onBase: (base: string) => void
+}) {
+  function item(branch: string) {
+    return (
+      <DropdownMenuRadioItem key={branch} value={branch}>
+        <span className="min-w-0 flex-1 truncate">{branch}</span>
+      </DropdownMenuRadioItem>
+    )
+  }
+
+  return (
+    <DropdownMenuRadioGroup value={props.base} onValueChange={props.onBase}>
+      {props.branches.slice(0, 5).map(item)}
+      {props.branches.length > 5 && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <MoreLabel
+              text={`${props.branches.length - 5} more branches`}
+              className="size-3.5"
+            />
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent className="max-h-80 w-56 overflow-y-auto">
+              {props.branches.slice(5).map(item)}
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+      )}
+    </DropdownMenuRadioGroup>
   )
 }
 

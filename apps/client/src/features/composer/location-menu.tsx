@@ -1,18 +1,23 @@
-import {
-  FolderGit2Icon,
-  GitBranchIcon,
-  GitBranchPlusIcon,
-} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { WorktreeChoice } from '@offsite/core/git'
+import {
+  BranchIcon,
+  WorktreeIcon,
+  NewWorktreeIcon,
+} from '@offsite/core/icons/git'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { call } from '@/api/connection'
+import { MoreLabel } from '@/components/icons'
 import {
   DropdownMenuItem,
+  DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu'
 import { timeAgo } from '@/lib/format'
 import { logger } from '@/lib/log'
@@ -91,6 +96,60 @@ export function LocationMenu(props: {
       name !== main.branch && !worktrees.some((item) => item.branch === name)
   )
 
+  const defaultBranch = found.defaultBranch
+
+  function branchItem(name: string) {
+    return (
+      <DropdownMenuRadioItem
+        key={name}
+        value={`branch:${name}`}
+        onSelect={() =>
+          void switchMain(props.machine, props.projectId, rootId, name).then(
+            props.onRefresh
+          )
+        }
+      >
+        <HugeiconsIcon
+          icon={BranchIcon}
+          className="text-muted-foreground size-3.5"
+        />
+        <span className="min-w-0 flex-1 truncate">{name}</span>
+        {name === defaultBranch && (
+          <span className="text-muted-foreground shrink-0 text-xs">
+            Default
+          </span>
+        )}
+      </DropdownMenuRadioItem>
+    )
+  }
+
+  function worktreeItem(item: WorktreeChoice) {
+    return (
+      <DropdownMenuRadioItem
+        key={item.folder}
+        value={item.projectId ?? item.folder}
+        onSelect={() => {
+          if (item.projectId === props.projectId) {
+            update({ worktree: null })
+            return
+          }
+          void openWorktree(props.machine, props.projectId, item)
+        }}
+      >
+        <HugeiconsIcon
+          icon={WorktreeIcon}
+          className="text-muted-foreground size-3.5"
+        />
+        <span className="min-w-0 flex-1 truncate">
+          {item.branch ?? 'Detached HEAD'}
+        </span>
+        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+          {timeAgo(item.activeAt)}
+        </span>
+      </DropdownMenuRadioItem>
+    )
+  }
+
   return (
     <DropdownMenuRadioGroup
       value={worktree === null ? props.projectId : NEW_WORKTREE}
@@ -106,7 +165,7 @@ export function LocationMenu(props: {
         }}
       >
         <HugeiconsIcon
-          icon={GitBranchIcon}
+          icon={BranchIcon}
           className="text-muted-foreground size-3.5"
         />
         <span className="min-w-0 flex-1 truncate">
@@ -118,28 +177,22 @@ export function LocationMenu(props: {
           </span>
         )}
       </DropdownMenuRadioItem>
-      {branches.map((name) => (
-        <DropdownMenuRadioItem
-          key={name}
-          value={`branch:${name}`}
-          onSelect={() =>
-            void switchMain(props.machine, props.projectId, rootId, name).then(
-              props.onRefresh
-            )
-          }
-        >
-          <HugeiconsIcon
-            icon={GitBranchIcon}
-            className="text-muted-foreground size-3.5"
-          />
-          <span className="min-w-0 flex-1 truncate">{name}</span>
-          {name === found.defaultBranch && (
-            <span className="text-muted-foreground shrink-0 text-xs">
-              Default
-            </span>
-          )}
-        </DropdownMenuRadioItem>
-      ))}
+      {branches.slice(0, 5).map(branchItem)}
+      {branches.length > 5 && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <MoreLabel
+              text={`${branches.length - 5} more branches`}
+              className="size-3.5"
+            />
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent className="max-h-80 w-64 overflow-y-auto">
+              {branches.slice(5).map(branchItem)}
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+      )}
       <DropdownMenuSeparator />
       <DropdownMenuRadioItem
         value={NEW_WORKTREE}
@@ -150,35 +203,27 @@ export function LocationMenu(props: {
         }}
       >
         <HugeiconsIcon
-          icon={GitBranchPlusIcon}
+          icon={NewWorktreeIcon}
           className="text-muted-foreground size-3.5"
         />
         <span className="min-w-0 flex-1 truncate">New worktree</span>
       </DropdownMenuRadioItem>
-      {worktrees.map((item) => (
-        <DropdownMenuRadioItem
-          key={item.folder}
-          value={item.projectId ?? item.folder}
-          onSelect={() => {
-            if (item.projectId === props.projectId) {
-              update({ worktree: null })
-              return
-            }
-            void openWorktree(props.machine, props.projectId, item)
-          }}
-        >
-          <HugeiconsIcon
-            icon={FolderGit2Icon}
-            className="text-muted-foreground size-3.5"
-          />
-          <span className="min-w-0 flex-1 truncate">
-            {item.branch ?? 'Detached HEAD'}
-          </span>
-          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-            {timeAgo(item.activeAt)}
-          </span>
-        </DropdownMenuRadioItem>
-      ))}
+      {worktrees.slice(0, 5).map(worktreeItem)}
+      {worktrees.length > 5 && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <MoreLabel
+              text={`${worktrees.length - 5} more worktrees`}
+              className="size-3.5"
+            />
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent className="max-h-80 w-72 overflow-y-auto">
+              {worktrees.slice(5).map(worktreeItem)}
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+      )}
     </DropdownMenuRadioGroup>
   )
 }

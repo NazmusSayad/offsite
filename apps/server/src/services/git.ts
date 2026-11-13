@@ -171,12 +171,34 @@ export async function pullRequestBranches(cwd: string) {
   if (base === head) {
     throw new Error(`${head} is the default branch. Create a branch first.`)
   }
+  const recent = (
+    await git(cwd, [
+      'for-each-ref',
+      '--sort=-committerdate',
+      '--format=%(refname:lstrip=3)',
+      'refs/remotes/origin',
+    ])
+  ).stdout
+    .split('\n')
+    .filter(Boolean)
   const branches = (await git(cwd, ['ls-remote', '--heads', 'origin'])).stdout
     .split('\n')
     .filter(Boolean)
     .map((line) => line.split('refs/heads/')[1])
     .filter((branch) => branch !== head)
+    .sort((a, b) => recency(a, base, recent) - recency(b, base, recent))
   return { head, base, branches }
+}
+
+function recency(branch: string, base: string, recent: string[]) {
+  if (branch === base) {
+    return -1
+  }
+  const index = recent.indexOf(branch)
+  if (index === -1) {
+    return recent.length
+  }
+  return index
 }
 
 export async function preparePullRequest(

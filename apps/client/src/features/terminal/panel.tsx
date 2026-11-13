@@ -1,9 +1,6 @@
 import {
   Add01Icon,
   Cancel01Icon,
-  Delete02Icon,
-  Folder01Icon,
-  PencilEdit02Icon,
   SquareTerminalIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -15,18 +12,10 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { withWorktrees, worktreeBranch } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
   ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuRadioGroup,
-  ContextMenuRadioItem,
-  ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import {
@@ -37,7 +26,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Progress } from '@/lib/ghostty/terminal'
-import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { closeTab } from './close-tab'
 import { CloseDialog, RenameDialog } from './dialogs'
@@ -50,11 +38,11 @@ import {
   showProject,
   subscribe,
   tabTitle,
-  terminalMachine,
   toggleCtrl,
   viewTabs,
 } from './session'
 import { useTerminalShortcuts } from './shortcuts'
+import { TabMenuItems } from './tab-menu-items'
 
 const keys = [
   { label: 'Esc', sequence: '\x1b' },
@@ -382,63 +370,6 @@ function TabSwitcherItems(props: {
         <HugeiconsIcon icon={Add01Icon} />
         New tab
       </DropdownMenuItem>
-    </>
-  )
-}
-
-function TabMenuItems(props: { tab: TerminalTab; onRename: () => void }) {
-  const allProjects = useStore((state) => state.projects)
-  const projects = withWorktrees(
-    allProjects.filter(
-      (project) => project.machine === terminalMachine() && !project.scratch
-    )
-  )
-  const tab = props.tab
-
-  return (
-    <>
-      <ContextMenuItem onSelect={props.onRename}>
-        <HugeiconsIcon icon={PencilEdit02Icon} />
-        Rename
-      </ContextMenuItem>
-      <ContextMenuSub>
-        <ContextMenuSubTrigger>
-          <HugeiconsIcon icon={Folder01Icon} />
-          Move to
-        </ContextMenuSubTrigger>
-        <ContextMenuSubContent className="max-h-80 overflow-y-auto">
-          <ContextMenuRadioGroup
-            value={tab.projectId ?? ''}
-            onValueChange={(value) =>
-              send({
-                type: 'assignTab',
-                id: tab.id,
-                projectId: value === '' ? null : value,
-              })
-            }
-          >
-            <ContextMenuRadioItem value="">No project</ContextMenuRadioItem>
-            {projects.length > 0 && <ContextMenuSeparator />}
-            {projects.map((project) => (
-              <ContextMenuRadioItem key={project.id} value={project.id}>
-                <span className="max-w-60 truncate">{project.name}</span>
-                {worktreeBranch(project) !== null && (
-                  <span className="text-muted-foreground max-w-40 truncate text-xs">
-                    {worktreeBranch(project)}
-                  </span>
-                )}
-              </ContextMenuRadioItem>
-            ))}
-          </ContextMenuRadioGroup>
-        </ContextMenuSubContent>
-      </ContextMenuSub>
-      <ContextMenuItem
-        variant="destructive"
-        onSelect={() => void closeTab(tab.id)}
-      >
-        <HugeiconsIcon icon={Delete02Icon} />
-        Close tab
-      </ContextMenuItem>
     </>
   )
 }

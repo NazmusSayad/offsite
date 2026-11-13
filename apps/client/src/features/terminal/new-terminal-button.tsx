@@ -1,7 +1,8 @@
-import { Add01Icon, GitBranchIcon } from '@hugeicons/core-free-icons'
+import { Add01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { WorktreeIcon } from '@offsite/core/icons/git'
 import { homePath, rankProjects, withWorktrees } from '@/api/projects'
-import { MoreProjectsLabel, ProjectIcon } from '@/components/icons'
+import { MoreLabel, MoreProjectsLabel, ProjectIcon } from '@/components/icons'
 import {
   ContextMenuItem,
   ContextMenuPortal,
@@ -122,7 +123,7 @@ function ProjectItems(props: {
             />
             <span className="max-w-60 truncate">{project.name}</span>
             <span className="text-muted-foreground flex items-center gap-0.5 text-xs tabular-nums">
-              <HugeiconsIcon icon={GitBranchIcon} className="size-3.5" />
+              <HugeiconsIcon icon={WorktreeIcon} className="size-3.5" />
               {
                 projects.filter(
                   (item) =>
@@ -178,36 +179,61 @@ function WorktreeItems(props: {
         ?.homeDir
   )
 
-  return withWorktrees(
+  const family = withWorktrees(
     projects.filter(
       (project) =>
         project.machine === props.machine &&
         (project.id === props.rootId || project.parentId === props.rootId)
     )
-  ).map((project) => (
-    <menu.Item
-      key={project.id}
-      title={project.path}
-      onSelect={() => void createTab(props.machine, project.id)}
-    >
-      {project.parentId === null ? (
-        <ProjectIcon
-          machine={props.machine}
-          projectId={project.id}
-          className="size-4"
-        />
-      ) : (
-        <HugeiconsIcon icon={GitBranchIcon} />
+  )
+
+  function item(project: MachineProject) {
+    return (
+      <menu.Item
+        key={project.id}
+        title={project.path}
+        onSelect={() => void createTab(props.machine, project.id)}
+      >
+        {project.parentId === null ? (
+          <ProjectIcon
+            machine={props.machine}
+            projectId={project.id}
+            className="size-4"
+          />
+        ) : (
+          <HugeiconsIcon icon={WorktreeIcon} />
+        )}
+        <span className="max-w-80 truncate">
+          {project.parentId === null
+            ? project.name
+            : home === undefined
+              ? project.path
+              : homePath(project.path, home)}
+        </span>
+      </menu.Item>
+    )
+  }
+
+  return (
+    <>
+      {family.slice(0, 6).map(item)}
+      {family.length > 6 && (
+        <menu.Sub>
+          <menu.SubTrigger>
+            <MoreLabel
+              text={`${family.length - 6} more worktrees`}
+              className="size-4"
+            />
+          </menu.SubTrigger>
+          <menu.Portal>
+            <menu.SubContent className="max-h-80 overflow-y-auto">
+              {family.slice(6).map(item)}
+            </menu.SubContent>
+          </menu.Portal>
+        </menu.Sub>
       )}
-      <span className="max-w-80 truncate">
-        {project.parentId === null
-          ? project.name
-          : home === undefined
-            ? project.path
-            : homePath(project.path, home)}
-      </span>
-    </menu.Item>
-  ))
+    </>
+  )
 }
 
 function rootsOf(projects: MachineProject[], machine: string) {

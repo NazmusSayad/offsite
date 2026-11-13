@@ -10,7 +10,6 @@ import type {
   PullRequestDetails,
 } from '@offsite/core/pull-requests'
 import { useEffect, useRef, useState } from 'react'
-import { toast } from 'sonner'
 import { useLocalStorage } from 'usehooks-ts'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
@@ -62,6 +61,7 @@ export function PullRequestView(props: {
   >('pullRequestTab', 'overview')
   const [fullscreen, setFullscreen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const forced = useRef(false)
 
   useEffect(() => {
@@ -115,7 +115,8 @@ export function PullRequestView(props: {
         url: props.url,
         action,
       })
-      toast(label)
+      setNotice(label)
+      setTimeout(() => setNotice(null), 3000)
       setVersion((value) => value + 1)
       return true
     } catch (caught) {
@@ -250,7 +251,7 @@ export function PullRequestView(props: {
               </span>
             </div>
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
-              <MergeStatus details={details} busy={busy} />
+              <MergeStatus details={details} busy={busy} notice={notice} />
               <span className="font-mono tabular-nums">
                 <span className="text-diff-addition">+{details.additions}</span>{' '}
                 <span className="text-diff-deletion">-{details.deletions}</span>

@@ -1,5 +1,6 @@
 import { CommandLineIcon, StopIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { WorktreeIcon } from '@offsite/core/icons/git'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { type ReactNode, useState } from 'react'
 import { useProjectName } from '@/api/projects'
@@ -137,6 +138,11 @@ function AgentDetails(props: {
   const activity = props.agent.activity
   const settings = activity.settings
   const projectName = useProjectName(session.machine, session.projectId)
+  const worktree = useStore(
+    (state) =>
+      (projectOf(state, session.machine, session.projectId)?.parentId ??
+        null) !== null
+  )
   const found = threadTasks(activity.work, activity)
   const agents = found.agents.filter((item) => item.status === 'Running')
   const tasks = found.tasks.filter((item) => item.status === 'Running')
@@ -157,7 +163,19 @@ function AgentDetails(props: {
     <div className="flex flex-col gap-2 p-3 text-xs">
       <p className="text-muted-foreground truncate">
         {projectName}
-        {session.branch !== null && ` · ${session.branch}`}
+        {session.branch !== null && (
+          <>
+            {worktree ? (
+              <HugeiconsIcon
+                icon={WorktreeIcon}
+                className="mx-1 inline size-3 align-[-2px]"
+              />
+            ) : (
+              ' | '
+            )}
+            {session.branch}
+          </>
+        )}
       </p>
       {step !== null && (
         <p className="flex min-w-0 items-baseline gap-1.5 text-[13px]">

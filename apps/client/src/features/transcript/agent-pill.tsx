@@ -3,6 +3,7 @@ import {
   BubbleChatIncomeIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { SUBAGENT_ICON } from '@offsite/core/icons/agents'
 import type { Item } from '@offsite/core/items'
 import { Markdown } from '@/components/markdown/markdown'
 import { taskTitle, type threadTasks } from '@/features/transcript/tasks'
@@ -69,14 +70,8 @@ export function SubagentIcon(props: { className: string }) {
       aria-hidden
       className={cn('size-4 shrink-0', props.className)}
     >
-      <path
-        d="M4 4.5C4 4.22386 4.22386 4 4.5 4H11.5C11.7761 4 12 4.22386 12 4.5V11.5C12 11.7761 11.7761 12 11.5 12H4.5C4.22386 12 4 11.7761 4 11.5V4.5Z"
-        fill="currentColor"
-      />
-      <path
-        d="M14.5 1C14.7761 1 15 1.22386 15 1.5V14.5C15 14.7761 14.7761 15 14.5 15H1.5C1.22386 15 1 14.7761 1 14.5V1.5C1 1.22386 1.22386 1 1.5 1H14.5ZM2 14H14V2H2V14Z"
-        fill="currentColor"
-      />
+      <path d={SUBAGENT_ICON.inner} fill="currentColor" />
+      <path d={SUBAGENT_ICON.outer} fill="currentColor" />
     </svg>
   )
 }

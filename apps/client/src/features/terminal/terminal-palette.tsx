@@ -17,6 +17,7 @@ import { MachineLogo } from '@/constants/machine-icons'
 import { useStore } from '@/lib/store'
 import { useTerminalPage, useTerminalView } from '@/lib/url'
 import { cn } from '@/lib/utils'
+import { groupName } from './groups'
 import { createTab } from './page'
 import {
   getState,
@@ -25,7 +26,6 @@ import {
   showTab,
   subscribe,
 } from './session'
-import { groupName } from './terminal-page'
 
 type Item = {
   key: string

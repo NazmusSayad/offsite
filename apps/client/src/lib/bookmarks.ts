@@ -3,7 +3,6 @@ import type {
   BookmarkRef,
   BookmarkTarget,
 } from '@offsite/core/bookmarks'
-import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { openSession } from './sessions'
 import {
@@ -38,14 +37,10 @@ export function toggleBookmark(machine: string, target: BookmarkTarget) {
     sameTarget(bookmark, target)
   )
   if (existing === undefined) {
-    call(machine, 'bookmarks.add', target)
-      .then(() => toast('Bookmarked'))
-      .catch(showError)
+    call(machine, 'bookmarks.add', target).catch(showError)
     return
   }
-  call(machine, 'bookmarks.remove', { id: existing.id })
-    .then(() => toast('Bookmark removed'))
-    .catch(showError)
+  call(machine, 'bookmarks.remove', { id: existing.id }).catch(showError)
 }
 
 export function openBookmark(machine: string, bookmark: Bookmark) {

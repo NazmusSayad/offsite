@@ -17,6 +17,7 @@ export function UpdateForm(props: {
     state.machines.find((item) => item.id === props.machine)
   )
   const [starting, setStarting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const update = machine?.service?.update ?? null
 
   if (machine === undefined || machine.service === null) {
@@ -79,11 +80,11 @@ export function UpdateForm(props: {
 
   async function download() {
     setStarting(true)
+    setError(null)
     try {
       await call(props.machine, 'service.update', undefined)
-      toast(`OffSite - ${machine?.name} is ready to restart`)
     } catch (failure) {
-      toast.error(errorMessage(failure))
+      setError(errorMessage(failure))
     }
     setStarting(false)
   }
@@ -95,6 +96,7 @@ export function UpdateForm(props: {
         It downloads in the background, so you can keep working. OffSite asks
         before it restarts.
       </p>
+      {error !== null && <p className="text-destructive">{error}</p>}
       <div className="flex justify-end gap-2 pt-2">
         {props.onCancel !== undefined && (
           <Button type="button" variant="outline" onClick={props.onCancel}>
