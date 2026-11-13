@@ -32,11 +32,8 @@ import { cn } from '@/lib/utils'
 import { SessionMenuItems } from './session-menu-items'
 import { SessionStatus } from './session-status'
 import { SessionTitle } from './session-title'
-import {
-  secondarySwipe,
-  SwipeBackground,
-  swipeThreshold,
-} from './swipe-background'
+import { secondarySwipe } from './swipe-background'
+import { SwipeRow } from './swipe-row'
 
 const surface =
   'relative w-full cursor-pointer overflow-hidden rounded-md text-left outline-none select-none touch-pan-y [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
@@ -59,18 +56,9 @@ function MobileSessionItemView(props: {
   )
   const [title, setTitle] = useState<string | null>(null)
   const [warning, setWarning] = useState(false)
-  const [offset, setOffset] = useState(0)
-  const [width, setWidth] = useState(0)
-  const [released, setReleased] = useState<{
-    offset: number
-    status: MachineSession['status']
-  } | null>(null)
   const field = useRef<HTMLInputElement>(null)
-  const swipe = useRef<{ x: number; y: number; swiping: boolean } | null>(null)
-  const swiped = useRef(false)
   const thread = threadState(props.activity, props.unseen)
   const recede = !props.selected && !thread.waiting && !thread.done
-  const moving = offset !== 0 || released !== null
 
   function makeInactive() {
     void deactivateSession(session.machine, session.id, props.scope)
@@ -84,46 +72,7 @@ function MobileSessionItemView(props: {
     makeInactive()
   }
 
-  function release(event: React.PointerEvent<HTMLDivElement>) {
-    const start = swipe.current
-    swipe.current = null
-    if (start === null || !start.swiping) {
-      setOffset(0)
-      return
-    }
-    swiped.current = true
-    const dx = event.clientX - start.x
-    if (dx === 0) {
-      setOffset(0)
-      return
-    }
-    const target =
-      Math.abs(dx) > width * swipeThreshold ? Math.sign(dx) * width : 0
-    if (target === offset) {
-      complete(dx, session.status)
-      return
-    }
-    setReleased({ offset: dx, status: session.status })
-    setOffset(target)
-  }
-
-  function settle(event: React.TransitionEvent<HTMLDivElement>) {
-    if (
-      event.target !== event.currentTarget ||
-      event.propertyName !== 'transform' ||
-      released === null
-    ) {
-      return
-    }
-    complete(released.offset, released.status)
-  }
-
   function complete(dx: number, status: MachineSession['status']) {
-    setReleased(null)
-    setOffset(0)
-    if (Math.abs(dx) <= width * swipeThreshold) {
-      return
-    }
     if (dx > 0) {
       if (status === 'inactive') {
         void editSession(session.machine, session.id, { status: 'active' })
@@ -137,60 +86,6 @@ function MobileSessionItemView(props: {
       })
     }
   }
-
-  const swipeHandlers = {
-    onClick: () => {
-      if (swiped.current) {
-        swiped.current = false
-        return
-      }
-      props.onSelect(session.machine, session.projectId, session.id)
-    },
-    onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!props.saved || event.pointerType !== 'touch' || released !== null) {
-        return
-      }
-      swiped.current = false
-      setWidth(event.currentTarget.offsetWidth)
-      swipe.current = {
-        x: event.clientX,
-        y: event.clientY,
-        swiping: false,
-      }
-    },
-    onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
-      const start = swipe.current
-      if (start === null) {
-        return
-      }
-      const dx = event.clientX - start.x
-      const dy = event.clientY - start.y
-      if (!start.swiping && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-        return
-      }
-      if (!start.swiping && Math.abs(dx) <= Math.abs(dy)) {
-        swipe.current = null
-        return
-      }
-      start.swiping = true
-      setOffset(dx)
-    },
-    onPointerUp: release,
-    onTransitionEnd: settle,
-    onPointerCancel: () => {
-      swipe.current = null
-      setOffset(0)
-    },
-  }
-
-  const swipeBackground = moving && (
-    <SwipeBackground
-      status={released === null ? session.status : released.status}
-      offset={released === null ? offset : released.offset}
-      width={width}
-      className="inset-x-0 inset-y-0.5"
-    />
-  )
 
   const stopDialog = (
     <AlertDialog open={warning} onOpenChange={setWarning}>
@@ -283,85 +178,85 @@ function MobileSessionItemView(props: {
   )
 
   return (
-    <li className="relative list-none py-0.5">
-      {swipeBackground}
-      <ContextMenu>
-        <ContextMenuTrigger asChild disabled={!props.saved}>
-          <div
-            role="button"
-            tabIndex={0}
-            className={cn(
-              surface,
-              rowState,
-              thread.working && !props.selected && !moving && 'opacity-70',
-              moving && 'bg-sidebar',
-              released !== null &&
-                offset === 0 &&
-                'transition-transform duration-[360ms] ease-[cubic-bezier(.34,1.45,.64,1)]',
-              released !== null &&
-                offset !== 0 &&
-                'transition-transform duration-200 ease-in'
-            )}
-            style={
-              moving ? { transform: `translateX(${offset}px)` } : undefined
-            }
-            {...swipeHandlers}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
+    <li className="list-none py-0.5">
+      <SwipeRow
+        status={session.status}
+        enabled={props.saved}
+        onSwipe={complete}
+      >
+        <ContextMenu>
+          <ContextMenuTrigger asChild disabled={!props.saved}>
+            <div
+              role="button"
+              tabIndex={0}
+              className={cn(
+                surface,
+                rowState,
+                thread.working &&
+                  !props.selected &&
+                  'opacity-70 in-data-swiping:opacity-100',
+                'in-data-swiping:bg-sidebar'
+              )}
+              onClick={() =>
                 props.onSelect(session.machine, session.projectId, session.id)
               }
-            }}
-          >
-            <div className="px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
-              <div className="flex h-6 min-w-0 items-center gap-2">
-                <ProjectIcon
-                  machine={session.machine}
-                  projectId={session.projectId}
-                  className={cn(
-                    'size-5',
-                    session.status === 'inactive' && 'opacity-40 grayscale'
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  props.onSelect(session.machine, session.projectId, session.id)
+                }
+              }}
+            >
+              <div className="px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
+                <div className="flex h-6 min-w-0 items-center gap-2">
+                  <ProjectIcon
+                    machine={session.machine}
+                    projectId={session.projectId}
+                    className={cn(
+                      'size-5',
+                      session.status === 'inactive' && 'opacity-40 grayscale'
+                    )}
+                  />
+                  {titleText}
+                  <SessionStatus
+                    session={session}
+                    activity={props.activity}
+                    done={thread.done}
+                  />
+                </div>
+                <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
+                  <MachineLogo
+                    icon={machineIcon}
+                    className="size-3 shrink-0 opacity-70"
+                  />
+                  <span
+                    className={cn(
+                      'text-secondary-label/70 min-w-0 flex-1 truncate',
+                      recede ? 'font-normal' : 'font-medium'
+                    )}
+                  >
+                    {projectTitle}
+                    {session.branch !== null && (
+                      <span className="text-muted-foreground/40 font-normal">
+                        {` | ${session.branch}`}
+                      </span>
+                    )}
+                  </span>
+                  {session.status === 'pinned' && (
+                    <HugeiconsIcon icon={PinIcon} className="size-3 shrink-0" />
                   )}
-                />
-                {titleText}
-                <SessionStatus
-                  session={session}
-                  activity={props.activity}
-                  done={thread.done}
-                />
-              </div>
-              <div className="text-secondary-label mt-1 flex h-5 min-w-0 items-center gap-1.5 text-xs">
-                <MachineLogo
-                  icon={machineIcon}
-                  className="size-3 shrink-0 opacity-70"
-                />
-                <span
-                  className={cn(
-                    'text-secondary-label/70 min-w-0 flex-1 truncate',
-                    recede ? 'font-normal' : 'font-medium'
+                  {session.status === 'snoozed' && (
+                    <HugeiconsIcon icon={ZzzIcon} className="size-3 shrink-0" />
                   )}
-                >
-                  {projectTitle}
-                  {session.branch !== null && (
-                    <span className="text-muted-foreground/40 font-normal">
-                      {` | ${session.branch}`}
-                    </span>
-                  )}
-                </span>
-                {session.status === 'pinned' && (
-                  <HugeiconsIcon icon={PinIcon} className="size-3 shrink-0" />
-                )}
-                {session.status === 'snoozed' && (
-                  <HugeiconsIcon icon={ZzzIcon} className="size-3 shrink-0" />
-                )}
-                <span className="shrink-0 tabular-nums">
-                  {timeAgo(session.updatedAt)}
-                </span>
+                  <span className="shrink-0 tabular-nums">
+                    {timeAgo(session.updatedAt)}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        </ContextMenuTrigger>
-        {menu}
-      </ContextMenu>
+          </ContextMenuTrigger>
+          {menu}
+        </ContextMenu>
+      </SwipeRow>
       {stopDialog}
     </li>
   )
