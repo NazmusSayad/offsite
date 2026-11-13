@@ -1,6 +1,8 @@
-import { GitMergeIcon, GithubIcon, GlobeIcon } from '@hugeicons/core-free-icons'
+import { GlobeIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import type { PullRequestState } from '@offsite/core/pull-requests'
 import { memo, useEffect, useState } from 'react'
+import { PiGithubLogoDuotone } from 'react-icons/pi'
 import ReactMarkdown, {
   type Components,
   defaultUrlTransform,
@@ -340,7 +342,7 @@ function ExternalLinkTextView(props: {
 
 function LinkFavicon(props: { host: string; pull: string | null }) {
   const [failed, setFailed] = useState(failedHosts.has(props.host))
-  const [merged, setMerged] = useState(false)
+  const [state, setState] = useState<PullRequestState | null>(null)
   const hostname = props.host.toLowerCase()
   const github = hostname === 'github.com' || hostname.endsWith('.github.com')
 
@@ -353,7 +355,7 @@ function LinkFavicon(props: { host: string; pull: string | null }) {
     call(selection.machine, 'pulls.state', { url: props.pull }).then(
       (state) => {
         if (current) {
-          setMerged(state === 'MERGED')
+          setState(state)
         }
       },
       (caught: unknown) =>
@@ -366,13 +368,18 @@ function LinkFavicon(props: { host: string; pull: string | null }) {
 
   return (
     <span
-      className="relative ms-[0.25em] me-[0.2em] inline-flex size-[14px] [vertical-align:-0.125em]"
+      className="ms-[0.25em] me-[0.2em] inline-flex size-[14px] [vertical-align:-0.125em]"
       aria-hidden
     >
       {github ? (
-        <HugeiconsIcon
-          icon={GithubIcon}
-          className="block size-full shrink-0 select-none"
+        <PiGithubLogoDuotone
+          className={cn(
+            'block size-full shrink-0 select-none [&>path:last-child]:[stroke-width:5]',
+            state !== null && '[&>path:first-child]:opacity-60',
+            state === 'OPEN' && '[&>path:first-child]:fill-green-500',
+            state === 'MERGED' && '[&>path:first-child]:fill-violet-500',
+            state === 'CLOSED' && '[&>path:first-child]:fill-red-500'
+          )}
         />
       ) : failed ? (
         <HugeiconsIcon
@@ -391,15 +398,6 @@ function LinkFavicon(props: { host: string; pull: string | null }) {
             setFailed(true)
           }}
         />
-      )}
-      {merged && (
-        <span className="ring-background absolute -top-[3px] -left-[4px] grid size-[10px] place-items-center rounded-full bg-violet-500 ring-[1.5px]">
-          <HugeiconsIcon
-            icon={GitMergeIcon}
-            strokeWidth={2.5}
-            className="size-[7px] text-white"
-          />
-        </span>
       )}
     </span>
   )
