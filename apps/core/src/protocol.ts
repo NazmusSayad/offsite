@@ -93,6 +93,7 @@ export type RpcMethods = {
   'service.busy': { params: void; result: string[] }
   'service.install': { params: ServiceSettings; result: null }
   'service.update': { params: void; result: null }
+  'service.restart': { params: void; result: null }
   'service.check': {
     params: void
     result: { latest: string; newer: boolean }

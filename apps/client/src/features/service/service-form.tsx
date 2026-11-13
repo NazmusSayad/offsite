@@ -17,7 +17,6 @@ import { errorMessage } from '@/lib/utils'
 
 export function ServiceForm(props: {
   machine: string
-  update: boolean
   onDone: () => void
   onCancel?: () => void
 }) {
@@ -25,7 +24,6 @@ export function ServiceForm(props: {
     state.machines.find((item) => item.id === props.machine)
   )
   const service = machine?.service ?? null
-  const update = props.update ? (service?.update ?? null) : null
   const [manager, setManager] = useState<PackageManager | null>(
     service?.manager ?? null
   )
@@ -61,24 +59,19 @@ export function ServiceForm(props: {
     )
   }
 
-  const action =
-    update !== null ? 'Update' : service.installed ? 'Save' : 'Install'
+  const action = service.installed ? 'Save' : 'Install'
 
   async function confirm() {
     setWorking(true)
     setError(null)
     try {
-      if (update !== null) {
-        await call(props.machine, 'service.update', undefined)
-      } else {
-        if (manager === null) {
-          throw new Error('Pick a package manager')
-        }
-        await call(props.machine, 'service.install', {
-          manager,
-          arguments: writeOptions(options),
-        })
+      if (manager === null) {
+        throw new Error('Pick a package manager')
       }
+      await call(props.machine, 'service.install', {
+        manager,
+        arguments: writeOptions(options),
+      })
       props.onDone()
       toast(`OffSite - ${machine?.name} is restarting`)
     } catch (failure) {
@@ -89,73 +82,69 @@ export function ServiceForm(props: {
 
   return (
     <div className="flex flex-col gap-4 text-sm">
-      {update === null && (
-        <>
-          <label className="flex flex-col gap-2">
-            <span className="font-medium">Package manager</span>
-            <Select
-              value={manager ?? undefined}
-              onValueChange={(value: PackageManager) => setManager(value)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Pick one" />
-              </SelectTrigger>
-              <SelectContent>
-                {packageManagers.map((item) => (
-                  <SelectItem key={item} value={item}>
-                    {item}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-          <div className="grid grid-cols-[1fr_6.5rem] gap-3">
-            <Field label="Host">
-              <Input
-                className="font-mono"
-                value={options.host}
-                onChange={(event) =>
-                  setOptions({ ...options, host: event.target.value })
-                }
-              />
-            </Field>
-            <Field label="Port">
-              <Input
-                type="number"
-                min={1}
-                max={65535}
-                className="font-mono"
-                value={options.port}
-                onChange={(event) =>
-                  setOptions({ ...options, port: event.target.value })
-                }
-              />
-            </Field>
-          </div>
-          <Toggle
-            label="Authentication"
-            checked={options.auth}
-            onChange={(auth) => setOptions({ ...options, auth })}
+      <label className="flex flex-col gap-2">
+        <span className="font-medium">Package manager</span>
+        <Select
+          value={manager ?? undefined}
+          onValueChange={(value: PackageManager) => setManager(value)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Pick one" />
+          </SelectTrigger>
+          <SelectContent>
+            {packageManagers.map((item) => (
+              <SelectItem key={item} value={item}>
+                {item}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </label>
+      <div className="grid grid-cols-[1fr_6.5rem] gap-3">
+        <Field label="Host">
+          <Input
+            className="font-mono"
+            value={options.host}
+            onChange={(event) =>
+              setOptions({ ...options, host: event.target.value })
+            }
           />
-          {!options.auth && (
-            <Field label="Auto-connect URLs">
-              <Input
-                className="font-mono"
-                placeholder="https://example.com"
-                value={options.connect}
-                onChange={(event) =>
-                  setOptions({ ...options, connect: event.target.value })
-                }
-              />
-            </Field>
-          )}
-          <Toggle
-            label="Install as app (PWA)"
-            checked={options.pwa}
-            onChange={(pwa) => setOptions({ ...options, pwa })}
+        </Field>
+        <Field label="Port">
+          <Input
+            type="number"
+            min={1}
+            max={65535}
+            className="font-mono"
+            value={options.port}
+            onChange={(event) =>
+              setOptions({ ...options, port: event.target.value })
+            }
           />
-        </>
+        </Field>
+      </div>
+      <Toggle
+        label="Authentication"
+        checked={options.auth}
+        onChange={(auth) => setOptions({ ...options, auth })}
+      />
+      {!options.auth && (
+        <Field label="Auto-connect URLs">
+          <Input
+            className="font-mono"
+            placeholder="https://example.com"
+            value={options.connect}
+            onChange={(event) =>
+              setOptions({ ...options, connect: event.target.value })
+            }
+          />
+        </Field>
       )}
+      <Toggle
+        label="Install as app (PWA)"
+        checked={options.pwa}
+        onChange={(pwa) => setOptions({ ...options, pwa })}
+      />
       {busy !== null && busy.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <p className="text-destructive font-medium">Restarting stops:</p>
@@ -176,9 +165,7 @@ export function ServiceForm(props: {
         <Button
           type="button"
           variant={busy !== null && busy.length > 0 ? 'destructive' : 'default'}
-          disabled={
-            working || busy === null || (update === null && manager === null)
-          }
+          disabled={working || busy === null || manager === null}
           onClick={() => void confirm()}
         >
           {working ? `${action === 'Save' ? 'Sav' : action}ing…` : action}

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogClose, DialogTitle } from '@/components/ui/dialog'
 import { ServiceForm } from '@/features/service/service-form'
+import { UpdateForm } from '@/features/service/update-form'
 import { type Machine, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
@@ -16,9 +17,16 @@ export function needsSetup(machine: Machine) {
 }
 
 function taskLabel(machine: Machine) {
-  return machine.service?.installed
-    ? `Update OffSite - ${machine.name}`
-    : `Install OffSite - ${machine.name}`
+  if (!machine.service?.installed) {
+    return `Install OffSite - ${machine.name}`
+  }
+  if (machine.service.update?.status === 'downloading') {
+    return `Downloading OffSite - ${machine.name}`
+  }
+  if (machine.service.update?.status === 'ready') {
+    return `Restart OffSite - ${machine.name}`
+  }
+  return `Update OffSite - ${machine.name}`
 }
 
 export function SetupPanel(props: { onClose: () => void }) {
@@ -63,14 +71,20 @@ export function SetupPanel(props: { onClose: () => void }) {
             </Button>
           </DialogClose>
         </div>
-        {task !== null && (
-          <ServiceForm
-            key={task.id}
-            machine={task.id}
-            update={task.service?.installed === true}
-            onDone={props.onClose}
-          />
-        )}
+        {task !== null &&
+          (task.service?.installed ? (
+            <UpdateForm
+              key={task.id}
+              machine={task.id}
+              onDone={props.onClose}
+            />
+          ) : (
+            <ServiceForm
+              key={task.id}
+              machine={task.id}
+              onDone={props.onClose}
+            />
+          ))}
       </div>
     </>
   )
