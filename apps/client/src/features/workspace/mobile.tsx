@@ -29,6 +29,7 @@ import { TerminalPage } from '@/features/terminal/terminal-page'
 import { Transcript } from '@/features/transcript/transcript'
 import { PanelView } from '@/features/workspace/panel-view'
 import { type Panel, PanelMenu } from '@/features/workspace/panels'
+import { pendingTitle } from '@/lib/outbox'
 import { router, type Search } from '@/lib/router'
 import { closeSession } from '@/lib/sessions'
 import {
@@ -99,6 +100,7 @@ function MobileChat(props: { selection: Selection }) {
         item.id === props.selection.sessionId
     )
   )
+  const pending = useStore(pendingTitle)
   const generatingTitle = useStore(
     (state) =>
       session !== undefined &&
@@ -208,7 +210,7 @@ function MobileChat(props: { selection: Selection }) {
                   'text-shimmer'
               )}
             >
-              {session?.title ?? 'New thread'}
+              {session?.title ?? pending ?? 'New thread'}
             </span>
           </div>
           {machine.status === 'online' && (

@@ -12,7 +12,7 @@ import {
   MobileGroupedDraftRow,
   MobileGroupedSessionItem,
 } from '@/features/sidebar/mobile-grouped-session-item'
-import { chatSessionId } from '@/lib/outbox'
+import { chatSelected, chatSelection, chatSessionId } from '@/lib/outbox'
 import { openSession } from '@/lib/sessions'
 import {
   activityOf,
@@ -25,7 +25,6 @@ export function ProjectGroup(props: {
   machine: string
   projectId: string
   sessions: MachineSession[]
-  started: MachineSession | null
   ordered: MachineSession[]
   mobile: boolean
 }) {
@@ -37,9 +36,9 @@ export function ProjectGroup(props: {
   const drafting =
     selection !== null &&
     selection.sessionId === null &&
+    selection.pending === null &&
     selection.machine === props.machine &&
-    selection.projectId === props.projectId &&
-    !props.sessions.some((session) => chatSessionId(session.id) === null)
+    selection.projectId === props.projectId
   const Draft = props.mobile ? MobileGroupedDraftRow : DesktopGroupedDraftRow
 
   function newThread() {
@@ -47,6 +46,7 @@ export function ProjectGroup(props: {
       machine: props.machine,
       projectId: props.projectId,
       sessionId: null,
+      pending: null,
     })
   }
 
@@ -78,21 +78,14 @@ export function ProjectGroup(props: {
       {props.sessions.map((session) => {
         const item = {
           session,
-          selected:
-            selection?.machine === session.machine &&
-            selection.sessionId === chatSessionId(session.id) &&
-            (selection.sessionId !== null ||
-              selection.projectId === session.projectId),
+          selected: chatSelected(selection, session),
           activity: activityOf(machines, session.machine, session.id),
           unseen: unseen.includes(machineKey(session.machine, session.id)),
-          saved:
-            session !== props.started && chatSessionId(session.id) !== null,
+          saved: chatSessionId(session.id) !== null,
           onSelect: () =>
-            openSession({
-              machine: session.machine,
-              projectId: session.projectId,
-              sessionId: chatSessionId(session.id),
-            }),
+            openSession(
+              chatSelection(session.machine, session.projectId, session.id)
+            ),
         }
         const index = props.ordered.indexOf(session)
         return props.mobile ? (

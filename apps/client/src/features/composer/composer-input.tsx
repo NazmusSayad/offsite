@@ -45,6 +45,7 @@ const Skills = Extension.create({
 
 export function ComposerInput(props: {
   text: string
+  editable: boolean
   markers: string[]
   placeholder: string
   newThread: boolean
@@ -55,6 +56,7 @@ export function ComposerInput(props: {
 }) {
   const editor = useEditor({
     immediatelyRender: true,
+    editable: props.editable,
     extensions: [Document, Paragraph, Text, UndoRedo, Skills, Attachment],
     content: documentOf(props.text, props.markers),
     coreExtensionOptions: { clipboardTextSerializer: { blockSeparator: '\n' } },
@@ -126,6 +128,10 @@ export function ComposerInput(props: {
       mounted = null
     }
   }, [editor])
+
+  useLayoutEffect(() => {
+    editor.setEditable(props.editable, false)
+  }, [editor, props.editable])
 
   useLayoutEffect(() => {
     if (textOf(editor.state.doc) === props.text) {

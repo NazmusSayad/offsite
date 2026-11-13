@@ -95,7 +95,6 @@ export function start() {
     generatingTitles: [],
     selection,
     view: 0,
-    startedPrompt: null,
     loaded: selection?.sessionId === null,
     items: [],
     earlier: [],
@@ -365,27 +364,39 @@ function receive(machine: string, event: ServerEvent) {
       receiveOutbox(machine, event.outbox)
       return
     case 'started': {
-      moveStartedPrompt(machine, event.id, event.sessionId, event.projectId)
+      moveStartedPrompt(
+        machine,
+        event.id,
+        event.session.id,
+        event.session.projectId
+      )
+      update({
+        sessions: [
+          ...state.sessions.filter(
+            (item) => item.machine !== machine || item.id !== event.session.id
+          ),
+          { ...event.session, machine },
+        ],
+      })
       if (
         state.selection === null ||
         !selected ||
-        state.selection.projectId !== event.from ||
-        state.selection.sessionId !== null
+        state.selection.pending !== event.id
       ) {
         return
       }
       const typed = draftKey(state.selection)
       const started = {
         machine,
-        projectId: event.projectId,
-        sessionId: event.sessionId,
+        projectId: event.session.projectId,
+        sessionId: event.session.id,
+        pending: null,
       }
       if (hasPrompt(getDraft(typed))) {
         moveDraft(typed, draftKey(started))
       }
       update({
         selection: started,
-        startedPrompt: event.id,
         loaded: true,
         items: [],
         earlier: [],

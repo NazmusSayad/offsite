@@ -1,12 +1,13 @@
 import type { PromptDelivery } from '@offsite/core/config'
 import type { Prompt, OutboxPrompt } from '@offsite/core/items'
+import { editDraft } from '@/features/composer/drafts'
 import type { UserItem } from '@/features/transcript/timeline'
+import { openSession } from './sessions'
 import {
   activityOf,
   getState,
   type Machine,
   type MachineSession,
-  type MachineOutboxPrompt,
   type Selection,
   setMachine,
   type State,
@@ -24,6 +25,50 @@ export function receiveOutbox(machine: string, outbox: OutboxPrompt[]) {
   )
   if (left.length !== local.length) {
     update({ outbox: left })
+  }
+  const received = local.find(
+    (item) =>
+      item.machine === machine &&
+      item.sessionId === null &&
+      !left.includes(item)
+  )
+  if (received !== undefined) {
+    editDraft('new', (current) => ({
+      ...current,
+      text: '',
+      images: [],
+      files: [],
+    }))
+  }
+  const selection = getState().selection
+  if (selection === null || selection.machine !== machine) {
+    return
+  }
+  if (selection.sessionId === null && selection.pending === null) {
+    if (received !== undefined && received.projectId === selection.projectId) {
+      update({ selection: { ...selection, pending: received.id } })
+    }
+    return
+  }
+  if (selection.pending === null) {
+    return
+  }
+  const saved = outbox.find((item) => item.id === selection.pending)
+  if (saved === undefined) {
+    openSession({ ...selection, pending: null }, null, true)
+    return
+  }
+  if (saved.sessionId !== null) {
+    openSession(
+      {
+        machine,
+        projectId: saved.projectId,
+        sessionId: saved.sessionId,
+        pending: null,
+      },
+      null,
+      true
+    )
   }
 }
 
@@ -92,14 +137,21 @@ export function selectedPrompts(state: State): OutboxPrompt[] {
   if (selection === null) {
     return []
   }
-  return [
+  const prompts = [
     ...(state.loaded ? savedOutbox(state) : []),
     ...state.outbox.filter((item) => item.machine === selection.machine),
-  ].filter(
-    (item) =>
-      item.sessionId === selection.sessionId &&
-      (item.sessionId !== null || item.projectId === selection.projectId)
-  )
+  ]
+  if (selection.sessionId !== null) {
+    return prompts.filter((item) => item.sessionId === selection.sessionId)
+  }
+  if (selection.pending !== null) {
+    return prompts.filter((item) => item.id === selection.pending)
+  }
+  return []
+}
+
+export function startingThread(state: State) {
+  return state.outbox.some((item) => item.sessionId === null)
 }
 
 export function outboxItems(prompts: OutboxPrompt[]) {
@@ -120,13 +172,11 @@ export function outboxId(item: UserItem) {
   return item.id.startsWith(PREFIX) ? item.id.slice(PREFIX.length) : null
 }
 
-export function outboxChats(machines: Machine[], local: MachineOutboxPrompt[]) {
-  return [
-    ...machines.flatMap((machine) =>
+export function outboxChats(machines: Machine[]) {
+  return machines
+    .flatMap((machine) =>
       machine.outbox.map((item) => ({ ...item, machine: machine.id }))
-    ),
-    ...local,
-  ]
+    )
     .filter((item) => item.sessionId === null)
     .map((item): MachineSession => ({
       machine: item.machine,
@@ -143,6 +193,47 @@ export function outboxChats(machines: Machine[], local: MachineOutboxPrompt[]) {
 
 export function chatSessionId(id: string) {
   return id.startsWith(PREFIX) ? null : id
+}
+
+export function chatSelection(
+  machine: string,
+  projectId: string,
+  id: string
+): Selection {
+  if (id.startsWith(PREFIX)) {
+    return {
+      machine,
+      projectId,
+      sessionId: null,
+      pending: id.slice(PREFIX.length),
+    }
+  }
+  return { machine, projectId, sessionId: id, pending: null }
+}
+
+export function chatSelected(
+  selection: Selection | null,
+  session: MachineSession
+) {
+  const target = chatSelection(session.machine, session.projectId, session.id)
+  return (
+    selection !== null &&
+    selection.machine === target.machine &&
+    selection.sessionId === target.sessionId &&
+    selection.pending === target.pending
+  )
+}
+
+export function pendingTitle(state: State) {
+  const pending = state.selection?.pending ?? null
+  if (pending === null) {
+    return null
+  }
+  return (
+    outboxChats(state.machines).find(
+      (chat) => chat.id === `${PREFIX}${pending}`
+    )?.title ?? null
+  )
 }
 
 export function notSent(state: State, session: MachineSession) {

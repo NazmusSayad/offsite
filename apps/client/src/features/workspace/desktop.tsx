@@ -40,6 +40,7 @@ import {
   PanelMenu,
   PanelToggles,
 } from '@/features/workspace/panels'
+import { pendingTitle } from '@/lib/outbox'
 import {
   defaultMachine,
   machineOf,
@@ -114,6 +115,7 @@ export function DesktopLayout() {
     (item) =>
       item.machine === selection?.machine && item.id === selection.sessionId
   )
+  const pending = useStore(pendingTitle)
   const generatingTitle = useStore(
     (state) =>
       session !== undefined &&
@@ -224,7 +226,7 @@ export function DesktopLayout() {
                         'text-shimmer'
                     )}
                   >
-                    {session?.title ?? 'New thread'}
+                    {session?.title ?? pending ?? 'New thread'}
                   </span>
                   <UsageLimitBadge />
                 </li>

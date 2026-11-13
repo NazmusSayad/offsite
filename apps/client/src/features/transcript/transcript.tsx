@@ -127,10 +127,16 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   )
   const sending =
     !running && prompts.some((prompt) => prompt.status === 'sending')
+  const outboxRows = loaded ? outboxItems(unsent) : []
+  const waitingOnOutbox = items.length === 0 && outboxRows.length > 0
   const rows = [
     ...olderRows,
-    ...mainRows(items, running, partial),
-    ...mainRows(loaded ? outboxItems(unsent) : [], sending, ''),
+    ...mainRows(items, running && !waitingOnOutbox, partial),
+    ...mainRows(
+      outboxRows,
+      sending || (running && waitingOnOutbox),
+      waitingOnOutbox ? partial : ''
+    ),
   ]
   const topIndex = rows.findIndex((row) => row.key === top?.key)
   const start = finding

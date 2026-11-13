@@ -418,7 +418,7 @@ async function openWorktree(
         projectId,
         folder: choice.folder,
       }))
-    openSession({ machine, projectId: id, sessionId: null })
+    openSession({ machine, projectId: id, sessionId: null, pending: null })
   } catch (error) {
     log.error('could not open the worktree', error)
     toast(errorMessage(error))

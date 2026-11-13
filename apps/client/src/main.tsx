@@ -39,6 +39,7 @@ if ('serviceWorker' in navigator) {
       machine: event.data.machine,
       projectId: event.data.project,
       sessionId: event.data.sessionId,
+      pending: null,
     })
   })
   navigator.serviceWorker
