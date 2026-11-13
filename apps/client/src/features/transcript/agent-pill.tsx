@@ -162,7 +162,7 @@ export function ReceivedMessage(props: {
 }) {
   const target = props.item.target
   return (
-    <fieldset className="border-border min-w-0 rounded-md border border-dashed px-3 pt-0.5 pb-2">
+    <fieldset className="border-border max-w-[85%] min-w-0 rounded-md border border-dashed px-3 pt-0.5 pb-2">
       <legend className="text-muted-foreground -ms-1 flex max-w-full min-w-0 items-center gap-1.5 px-1 text-xs select-none">
         {props.item.source === 'agent' ? (
           <SubagentIcon className="size-3.5" />
