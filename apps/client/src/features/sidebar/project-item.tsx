@@ -1,16 +1,8 @@
-import { PinIcon, Settings01Icon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import { machineKey } from '@/api/machines'
-import { rankProjects, updateProject } from '@/api/projects'
+import { rankProjects } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { DropdownMenuRadioItem } from '@/components/ui/dropdown-menu'
-import {
-  type MachineProject,
-  type MachineSession,
-  showError,
-  useStore,
-} from '@/lib/store'
-import { cn } from '@/lib/utils'
+import { type MachineProject, type MachineSession, useStore } from '@/lib/store'
 
 export function ProjectItem(props: {
   project: MachineProject
@@ -30,7 +22,6 @@ export function ProjectItem(props: {
       value={machineKey(project.machine, project.id)}
       title={project.path}
       data-project=""
-      className="group/project"
       onSelect={() =>
         props.onScope({ machine: project.machine, projectId: project.id })
       }
@@ -53,39 +44,6 @@ export function ProjectItem(props: {
         )}
       </span>
       <span className="min-w-0 flex-1 truncate">{project.name}</span>
-      <div className="-my-0.5 flex shrink-0 items-center gap-0.5">
-        <button
-          className={cn(
-            'text-muted-foreground hover:text-foreground hover:bg-foreground/10 grid size-5 cursor-pointer place-items-center rounded-sm [&_svg]:size-3.5',
-            !project.pinned &&
-              'opacity-0 transition-opacity group-data-highlighted/project:opacity-100 pointer-coarse:hidden'
-          )}
-          title={project.pinned ? 'Unpin project' : 'Pin project'}
-          aria-label={
-            project.pinned ? `Unpin ${project.name}` : `Pin ${project.name}`
-          }
-          onClick={(event) => {
-            event.stopPropagation()
-            updateProject(project.machine, project.id, {
-              pinned: !project.pinned,
-            }).catch(showError)
-          }}
-        >
-          <HugeiconsIcon icon={PinIcon} />
-        </button>
-        <button
-          className="text-muted-foreground hover:text-foreground hover:bg-foreground/10 grid size-5 cursor-pointer place-items-center rounded-sm opacity-0 transition-opacity group-data-highlighted/project:opacity-100 pointer-coarse:hidden [&_svg]:size-3.5"
-          title="Configure project"
-          aria-label={`Configure ${project.name}`}
-          onClick={(event) => {
-            event.stopPropagation()
-            props.onClose()
-            props.onEdit(project)
-          }}
-        >
-          <HugeiconsIcon icon={Settings01Icon} />
-        </button>
-      </div>
     </DropdownMenuRadioItem>
   )
 }
@@ -102,6 +60,7 @@ export function MoreProjects(props: {
     registered.filter(
       (project) =>
         project.machine === props.machine &&
+        !project.hidden &&
         !project.scratch &&
         project.parentId === null
     )

@@ -9,6 +9,7 @@ export const projects = snakeCase.table('projects', {
   logo: text(),
   position: integer().notNull().default(0),
   pinned: integer({ mode: 'boolean' }).notNull().default(false),
+  hidden: integer({ mode: 'boolean' }).notNull().default(false),
   scratch: integer({ mode: 'boolean' }).notNull().default(false),
   parentId: text(),
   worktreeSetup: text(),

@@ -42,6 +42,7 @@ export function projects(): Project[] {
       name: projectsTable.name,
       logo: projectsTable.logo,
       pinned: projectsTable.pinned,
+      hidden: projectsTable.hidden,
       scratch: projectsTable.scratch,
       parentId: projectsTable.parentId,
       worktreeSetup: projectsTable.worktreeSetup,
@@ -389,6 +390,12 @@ export async function updateProject(id: string, patch: ProjectPatch) {
   if (patch.pinned !== undefined) {
     db.update(projectsTable)
       .set({ pinned: patch.pinned })
+      .where(eq(projectsTable.id, id))
+      .run()
+  }
+  if (patch.hidden !== undefined) {
+    db.update(projectsTable)
+      .set({ hidden: patch.hidden })
       .where(eq(projectsTable.id, id))
       .run()
   }

@@ -390,6 +390,7 @@ function useGroups(): Group[] {
         (project) =>
           machine.status === 'online' &&
           project.machine === machine.id &&
+          !project.hidden &&
           !project.scratch &&
           project.parentId === null
       )

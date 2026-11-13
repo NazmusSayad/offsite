@@ -130,6 +130,7 @@ export function ProjectMenuItems(props: {
         registered.filter(
           (project) =>
             project.machine === machine.id &&
+            !project.hidden &&
             !project.scratch &&
             project.parentId === null &&
             project.name.toLowerCase().includes(search)

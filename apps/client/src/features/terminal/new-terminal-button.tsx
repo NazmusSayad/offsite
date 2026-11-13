@@ -214,6 +214,7 @@ function rootsOf(projects: MachineProject[], machine: string) {
   return projects.filter(
     (project) =>
       project.machine === machine &&
+      !project.hidden &&
       !project.scratch &&
       project.parentId === null
   )

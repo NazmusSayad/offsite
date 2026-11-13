@@ -129,6 +129,7 @@ export function restoreProjects(machine: StoredMachine): MachineProject[] {
   return machine.projects.map((project) => ({
     ...project,
     pinned: project.pinned ?? false,
+    hidden: project.hidden ?? false,
     score: project.score ?? 0,
     parentId: project.parentId ?? null,
     worktreeSetup: project.worktreeSetup ?? null,
@@ -326,6 +327,7 @@ export function persistMachines() {
         name: project.name,
         logo: project.logo,
         pinned: project.pinned,
+        hidden: project.hidden,
         score: project.score,
         scratch: project.scratch,
         parentId: project.parentId,

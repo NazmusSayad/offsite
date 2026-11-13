@@ -3,8 +3,17 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { z } from 'zod'
 
 let coreFiles = new Set<string>()
+
+const devEnv = z.object({
+  OFFSITE_DEV_SERVER: z.url({ protocol: /^http$/ }),
+  OFFSITE_CONNECT: z
+    .string()
+    .transform((value) => value.split(','))
+    .pipe(z.array(z.url({ protocol: /^https?$/ }))),
+})
 
 export default defineConfig({
   define: {
@@ -16,21 +25,34 @@ export default defineConfig({
     react(),
     tailwindcss(),
     {
-      name: 'offsite-connect',
+      name: 'offsite-dev',
       apply: 'serve',
-      transformIndexHtml: () =>
-        process.env.OFFSITE_CONNECT === undefined
-          ? []
-          : [
-              {
-                tag: 'meta',
-                attrs: {
-                  name: 'offsite-connect',
-                  content: process.env.OFFSITE_CONNECT.split(',').join(' '),
-                },
-                injectTo: 'head',
-              },
-            ],
+      config: () => {
+        const env = devEnv.safeParse(process.env)
+        if (!env.success) {
+          throw new Error(
+            `Start the dev server with pnpm dev from the repository root\n${z.prettifyError(env.error)}`
+          )
+        }
+        return {
+          server: {
+            proxy: {
+              '/ws': { target: env.data.OFFSITE_DEV_SERVER, ws: true },
+              '/api': { target: env.data.OFFSITE_DEV_SERVER, ws: true },
+            },
+          },
+        }
+      },
+      transformIndexHtml: () => [
+        {
+          tag: 'meta',
+          attrs: {
+            name: 'offsite-connect',
+            content: devEnv.parse(process.env).OFFSITE_CONNECT.join(' '),
+          },
+          injectTo: 'head',
+        },
+      ],
     },
     {
       name: 'offsite-core-files',
@@ -111,9 +133,5 @@ export default defineConfig({
   },
   server: {
     cors: false,
-    proxy: {
-      '/ws': { target: 'ws://127.0.0.1:37842', ws: true },
-      '/api': { target: 'http://127.0.0.1:37842', ws: true },
-    },
   },
 })

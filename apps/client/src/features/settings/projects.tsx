@@ -5,6 +5,7 @@ import { useLocalStorage } from 'usehooks-ts'
 import { homePath, rankProjects, updateProject } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import {
   EditProjectDialog,
   FolderDialog,
@@ -49,7 +50,14 @@ export function ProjectsPage(props: { machine: string; homeDir: string }) {
               className="size-5 shrink-0 [&>img]:rounded-[4px] [&>svg]:rounded-[4px]"
             />
             <span className="min-w-0 flex-1" title={project.path}>
-              <span className="block truncate text-sm">{project.name}</span>
+              <span
+                className={cn(
+                  'block truncate text-sm',
+                  project.hidden && 'text-muted-foreground'
+                )}
+              >
+                {project.name}
+              </span>
               <span className="text-muted-foreground block truncate font-mono text-xs">
                 {homePath(project.path, props.homeDir)}
               </span>
@@ -80,6 +88,16 @@ export function ProjectsPage(props: { machine: string; homeDir: string }) {
             >
               <HugeiconsIcon icon={PinIcon} />
             </Button>
+            <Switch
+              size="sm"
+              checked={!project.hidden}
+              onCheckedChange={(shown) =>
+                updateProject(project.machine, project.id, {
+                  hidden: !shown,
+                }).catch(showError)
+              }
+              aria-label={`Show ${project.name}`}
+            />
           </div>
         ))}
       </div>

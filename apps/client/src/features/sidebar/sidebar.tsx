@@ -439,7 +439,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
               )}
           </ul>
         </nav>
-        <ServiceBanners />
+        {!import.meta.env.DEV && <ServiceBanners />}
         {!props.mobile && (
           <div
             role="separator"

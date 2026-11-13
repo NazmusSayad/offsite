@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `hidden` integer DEFAULT false NOT NULL;
