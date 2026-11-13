@@ -199,6 +199,30 @@ function QuestionPrompt(props: {
   )
   const next = unanswered.find((index) => index > active) ?? unanswered[0]
 
+  function submit() {
+    respond(
+      props.request.id,
+      'allow',
+      Object.fromEntries(
+        questions.flatMap((item) =>
+          explicit[item.question].length === 0
+            ? []
+            : [[item.question, explicit[item.question].join(', ')]]
+        )
+      )
+    )
+  }
+
+  function advance(index: number) {
+    if (explicit[question.question].length === 0) {
+      setPicked({
+        ...picked,
+        [question.question]: recommendations(question),
+      })
+    }
+    setActive(index)
+  }
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (
@@ -229,30 +253,6 @@ function QuestionPrompt(props: {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   })
-
-  function submit() {
-    respond(
-      props.request.id,
-      'allow',
-      Object.fromEntries(
-        questions.flatMap((item) =>
-          explicit[item.question].length === 0
-            ? []
-            : [[item.question, explicit[item.question].join(', ')]]
-        )
-      )
-    )
-  }
-
-  function advance(index: number) {
-    if (explicit[question.question].length === 0) {
-      setPicked({
-        ...picked,
-        [question.question]: recommendations(question),
-      })
-    }
-    setActive(index)
-  }
 
   function pick(question: Question, label: string) {
     const current = picked[question.question] ?? []

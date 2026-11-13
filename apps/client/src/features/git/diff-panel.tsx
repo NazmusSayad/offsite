@@ -71,10 +71,9 @@ export function DiffPanel(props: {
               files:
                 item.patch.trim() === ''
                   ? []
-                  : parsePatchFiles(
-                      item.patch,
-                      `${props.projectId}:${latest.current.count}:${item.repo}`
-                    ).flatMap((patch) => patch.files),
+                  : parsePatchFiles(item.patch, {
+                      cacheKeyPrefix: `${props.projectId}:${latest.current.count}:${item.repo}`,
+                    }).flatMap((patch) => patch.files),
             }))
             .filter((group) => group.files.length > 0)
         )

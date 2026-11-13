@@ -23,11 +23,11 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "oxfmt": "^0.75.0",
-    "oxlint": "^1.90.0",
-    "oxlint-tsgolint": "^7.0.2005",
+    "oxlint": "^1.93.0",
+    "oxlint-tsgolint": "^7.0.2006",
     "sharp": "^0.35.5",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.4.0",

@@ -53,10 +53,9 @@ export function PullRequestFiles(props: {
           setFiles(
             patch.trim() === ''
               ? []
-              : parsePatchFiles(
-                  patch,
-                  `pull ${props.url} ${props.head}`
-                ).flatMap((item) => item.files)
+              : parsePatchFiles(patch, {
+                  cacheKeyPrefix: `pull ${props.url} ${props.head}`,
+                }).flatMap((item) => item.files)
           )
         }
       },

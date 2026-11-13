@@ -73,12 +73,6 @@ export function useDictation() {
     return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [escapable])
 
-  useHotkeys('mod+shift+d', () => void toggle(), {
-    enableOnFormTags: true,
-    enableOnContentEditable: true,
-    preventDefault: true,
-  })
-
   function fail(
     label: string,
     title: string,
@@ -302,6 +296,12 @@ export function useDictation() {
     recording.current = null
     setState({ kind: 'idle' })
   }
+
+  useHotkeys('mod+shift+d', () => void toggle(), {
+    enableOnFormTags: true,
+    enableOnContentEditable: true,
+    preventDefault: true,
+  })
 
   return {
     state,

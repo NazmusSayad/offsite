@@ -291,7 +291,9 @@ function GuideStop(props: { stop: ReviewGuideStop; index: number }) {
             </span>
           )}
           <div className="diff-render-surface border-border/60 overflow-hidden rounded-md border [--code-background:var(--background)]">
-            {parsePatchFiles(excerpt.patch, `guide ${excerpt.patch}`)
+            {parsePatchFiles(excerpt.patch, {
+              cacheKeyPrefix: `guide ${excerpt.patch}`,
+            })
               .flatMap((patch) => patch.files)
               .map((file) => (
                 <FileDiff
