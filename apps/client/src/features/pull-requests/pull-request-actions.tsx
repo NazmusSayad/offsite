@@ -1,11 +1,18 @@
 import {
+  AlertCircleIcon,
   Cancel01Icon,
+  CancelCircleIcon,
+  CheckmarkCircle02Icon,
+  Clock01Icon,
   Copy01Icon,
+  EyeIcon,
   GitBranchIcon,
   GitCommitIcon,
   GitCompareArrowsIcon,
   GitMergeIcon,
+  GitPullRequestClosedIcon,
   GitPullRequestDraftIcon,
+  Loading03Icon,
   MoreHorizontalIcon,
   ThumbsUpIcon,
 } from '@hugeicons/core-free-icons'
@@ -34,6 +41,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { useCopy } from '@/lib/clipboard'
 import { cn } from '@/lib/utils'
@@ -62,27 +70,45 @@ const methodLabels: Record<
 }
 
 export function PullRequestActions(props: {
-  details: PullRequestDetails
+  details: PullRequestDetails | null
   busy: string | null
   onPerform: Perform
 }) {
   const details = props.details
   const [merging, setMerging] = useState(false)
-  const status = mergeStatus(details)
+  const disabled = details === null || props.busy !== null
+  const status =
+    details === null
+      ? null
+      : props.busy === null
+        ? mergeStatus(details)
+        : { text: props.busy, tone: 'none' as const, icon: Loading03Icon }
 
   return (
     <div className="border-border/60 bg-background flex shrink-0 items-center gap-2 border-t px-3 py-2">
-      <span
-        className={cn(
-          'min-w-0 flex-1 truncate text-xs',
-          status.tone === 'good' && 'text-success',
-          status.tone === 'bad' && 'text-destructive',
-          status.tone === 'wait' && 'text-warning',
-          status.tone === 'none' && 'text-muted-foreground'
+      <div className="flex min-w-0 flex-1">
+        {status === null && <Skeleton className="h-5 w-28 rounded-full" />}
+        {status !== null && (
+          <span
+            className={cn(
+              'inline-flex min-w-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs',
+              status.tone === 'good' && 'bg-success/8 text-success',
+              status.tone === 'bad' && 'bg-destructive/8 text-destructive',
+              status.tone === 'wait' && 'bg-warning/8 text-warning-foreground',
+              status.tone === 'none' && 'bg-muted/60 text-muted-foreground'
+            )}
+          >
+            <HugeiconsIcon
+              icon={status.icon}
+              className={cn(
+                'size-3.5 shrink-0',
+                props.busy !== null && 'animate-spin'
+              )}
+            />
+            <span className="truncate">{status.text}</span>
+          </span>
         )}
-      >
-        {props.busy ?? status.text}
-      </span>
+      </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -90,19 +116,27 @@ export function PullRequestActions(props: {
             variant="ghost"
             title="More actions"
             aria-label="More actions"
-            disabled={props.busy !== null}
+            disabled={disabled}
           >
             <HugeiconsIcon icon={MoreHorizontalIcon} className="size-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">
-          <MoreItems details={details} onPerform={props.onPerform} />
+          {details !== null && (
+            <MoreItems details={details} onPerform={props.onPerform} />
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
-      {details.state === 'OPEN' && details.draft && (
+      {details === null && (
+        <Button size="sm" disabled>
+          <HugeiconsIcon icon={GitMergeIcon} />
+          Merge
+        </Button>
+      )}
+      {details !== null && details.state === 'OPEN' && details.draft && (
         <Button
           size="sm"
-          disabled={props.busy !== null}
+          disabled={disabled}
           onClick={() =>
             void props.onPerform({ kind: 'ready' }, 'Marked ready for review')
           }
@@ -110,20 +144,17 @@ export function PullRequestActions(props: {
           Ready for review
         </Button>
       )}
-      {details.state === 'OPEN' && !details.draft && (
-        <Button
-          size="sm"
-          disabled={props.busy !== null}
-          onClick={() => setMerging(true)}
-        >
+      {details !== null && details.state === 'OPEN' && !details.draft && (
+        <Button size="sm" disabled={disabled} onClick={() => setMerging(true)}>
+          <HugeiconsIcon icon={GitMergeIcon} />
           Merge
         </Button>
       )}
-      {details.state === 'CLOSED' && (
+      {details !== null && details.state === 'CLOSED' && (
         <Button
           size="sm"
           variant="outline"
-          disabled={props.busy !== null}
+          disabled={disabled}
           onClick={() =>
             void props.onPerform({ kind: 'reopen' }, 'Pull request reopened')
           }
@@ -133,13 +164,15 @@ export function PullRequestActions(props: {
       )}
       <AlertDialog open={merging} onOpenChange={setMerging}>
         <AlertDialogContent>
-          <MergeDialog
-            details={details}
-            onConfirm={(action, label) => {
-              setMerging(false)
-              void props.onPerform(action, label)
-            }}
-          />
+          {details !== null && (
+            <MergeDialog
+              details={details}
+              onConfirm={(action, label) => {
+                setMerging(false)
+                void props.onPerform(action, label)
+              }}
+            />
+          )}
         </AlertDialogContent>
       </AlertDialog>
     </div>
@@ -312,30 +345,39 @@ function MergeDialog(props: {
 function mergeStatus(details: PullRequestDetails): {
   text: string
   tone: 'good' | 'bad' | 'wait' | 'none'
+  icon: IconSvgElement
 } {
   if (details.state === 'MERGED') {
-    return { text: 'Merged', tone: 'none' }
+    return { text: 'Merged', tone: 'none', icon: GitMergeIcon }
   }
   if (details.state === 'CLOSED') {
-    return { text: 'Closed without merging', tone: 'none' }
+    return {
+      text: 'Closed without merging',
+      tone: 'none',
+      icon: GitPullRequestClosedIcon,
+    }
   }
   if (details.draft) {
-    return { text: 'Draft', tone: 'none' }
+    return { text: 'Draft', tone: 'none', icon: GitPullRequestDraftIcon }
   }
   if (details.mergeable === 'CONFLICTING') {
-    return { text: 'Conflicts with the base branch', tone: 'bad' }
+    return {
+      text: 'Conflicts with the base branch',
+      tone: 'bad',
+      icon: AlertCircleIcon,
+    }
   }
   if (details.checks === 'failing') {
-    return { text: 'Some checks failed', tone: 'bad' }
+    return { text: 'Some checks failed', tone: 'bad', icon: CancelCircleIcon }
   }
   if (details.review === 'CHANGES_REQUESTED') {
-    return { text: 'Changes requested', tone: 'bad' }
+    return { text: 'Changes requested', tone: 'bad', icon: AlertCircleIcon }
   }
   if (details.checks === 'pending') {
-    return { text: 'Checks are running', tone: 'wait' }
+    return { text: 'Checks are running', tone: 'wait', icon: Clock01Icon }
   }
   if (details.review === 'REVIEW_REQUIRED') {
-    return { text: 'Review required', tone: 'wait' }
+    return { text: 'Review required', tone: 'wait', icon: EyeIcon }
   }
-  return { text: 'Ready to merge', tone: 'good' }
+  return { text: 'Ready to merge', tone: 'good', icon: CheckmarkCircle02Icon }
 }

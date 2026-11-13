@@ -162,7 +162,7 @@ export function PullRequestsPanel(props: {
     version,
   ])
 
-  if (selected !== null && repo !== null) {
+  if (selected !== null && (repos === null || repo !== null)) {
     return (
       <PullRequestView
         machine={props.machine}
