@@ -46,6 +46,7 @@ import type {
   RateLimit,
   Usage,
 } from './providers.ts'
+import type { PullRequestMethods } from './pull-requests.ts'
 import type { PushRegistration } from './push.ts'
 import type { MessageMatch, SearchSession } from './search.ts'
 import type { ServiceSettings, ServiceState } from './service.ts'
@@ -84,7 +85,7 @@ export type SyncSnapshot = ConfigWithDefaults & {
   service: ServiceState
 }
 
-export type RpcMethods = {
+export type RpcMethods = PullRequestMethods & {
   ping: { params: void; result: null }
   sync: { params: void; result: SyncSnapshot }
   'config.get': { params: void; result: ConfigWithDefaults }

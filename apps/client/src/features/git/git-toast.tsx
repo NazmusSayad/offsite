@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { isPullRequestUrl, openPullRequest } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
 import type { Draft } from './pull-request-form'
 
@@ -182,7 +183,20 @@ function GitToastCard(props: { toast: Toast }) {
       </div>
       {props.toast.url !== null && (
         <Button asChild size="xs" variant="outline">
-          <a href={props.toast.url} target="_blank" rel="noopener noreferrer">
+          <a
+            href={props.toast.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(event) => {
+              if (
+                props.toast.url !== null &&
+                isPullRequestUrl(props.toast.url)
+              ) {
+                event.preventDefault()
+                openPullRequest(props.toast.url)
+              }
+            }}
+          >
             Open
           </a>
         </Button>

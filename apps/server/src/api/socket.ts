@@ -104,6 +104,7 @@ import {
 import { readUsage } from '../services/usage.ts'
 import { configInfo } from '../storage/config.ts'
 import { saveAppIcon } from '../storage/state.ts'
+import { pullRequestHandlers } from './pull-request-handlers.ts'
 import { serviceHandlers } from './service-handlers.ts'
 import { worktreeHandlers } from './worktree-handlers.ts'
 
@@ -119,6 +120,7 @@ export type Handlers = {
 const handlers: Handlers = {
   ...worktreeHandlers,
   ...serviceHandlers,
+  ...pullRequestHandlers,
   ping: () => null,
   sync: () => syncSnapshot(),
   'config.get': () => configInfo(),

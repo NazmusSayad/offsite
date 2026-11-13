@@ -1,4 +1,5 @@
 import type { RpcMethods } from '@offsite/core/protocol'
+import type { ReviewGuide } from '@offsite/core/pull-requests'
 import type { SessionPick } from '@offsite/core/search'
 import { integer, real, snakeCase, text } from 'drizzle-orm/sqlite-core'
 
@@ -81,6 +82,12 @@ export const bookmarks = snakeCase.table('bookmarks', {
   start: integer(),
   end: integer(),
   createdAt: integer().notNull(),
+})
+
+export const reviewGuides = snakeCase.table('review_guides', {
+  id: text().primaryKey(),
+  url: text().notNull(),
+  guide: text({ mode: 'json' }).$type<ReviewGuide>().notNull(),
 })
 
 export const outbox = snakeCase.table('outbox', {
