@@ -5,6 +5,8 @@ import { useStore } from '@/lib/store'
 import { hasUsage, usageKey, useUsage } from '@/lib/usage'
 import { cn } from '@/lib/utils'
 import { AccountUsage } from './account-usage'
+import { claudeMeter } from './claude-usage'
+import { codexMeter } from './codex-usage'
 
 export function UsageDetails(props: { machine: string; account: Account }) {
   const machines = useStore((state) => state.machines)
@@ -74,32 +76,33 @@ export function UsageMeter(props: {
   className?: string
 }) {
   const usage = useUsage(props.machine, props.account)
-  const session = leftOf(usage, 'five_hour') ?? leftOf(usage, 'seven_day')
-  const weekly = leftOf(usage, 'seven_day') ?? leftOf(usage, 'five_hour')
+  const meter = usageMeter(usage, props.account.provider)
+  const short = meter.short ?? meter.long
+  const long = meter.long ?? meter.short
 
   return (
     <span
       className={cn(
         'relative flex h-5 shrink-0 items-center gap-0.75 overflow-hidden rounded-[6px] px-1.25 text-[11px] font-medium tabular-nums',
-        (weekly === null || weekly >= 20) && 'bg-foreground/5',
-        weekly !== null && weekly >= 10 && weekly < 20 && 'bg-error/5',
-        weekly !== null && weekly < 10 && 'bg-error/15',
-        (session === null || session >= 20) && 'text-muted-foreground',
-        session !== null && session >= 10 && session < 20 && 'text-error/60',
-        session !== null && session < 10 && 'text-error',
+        (long === null || long >= 20) && 'bg-foreground/5',
+        long !== null && long >= 10 && long < 20 && 'bg-error/5',
+        long !== null && long < 10 && 'bg-error/15',
+        (short === null || short >= 20) && 'text-muted-foreground',
+        short !== null && short >= 10 && short < 20 && 'text-error/60',
+        short !== null && short < 10 && 'text-error',
         props.className
       )}
       aria-label={`${props.account.name} usage`}
     >
-      {weekly !== null && (
+      {long !== null && (
         <span
           className={cn(
             'absolute inset-y-0 left-0',
-            weekly >= 20 && 'bg-foreground/8',
-            weekly >= 10 && weekly < 20 && 'bg-error/8',
-            weekly < 10 && 'bg-error/25'
+            long >= 20 && 'bg-foreground/8',
+            long >= 10 && long < 20 && 'bg-error/8',
+            long < 10 && 'bg-error/25'
           )}
-          style={{ width: `${weekly}%` }}
+          style={{ width: `${long}%` }}
         />
       )}
       {props.icon && (
@@ -111,21 +114,20 @@ export function UsageMeter(props: {
           )}
         />
       )}
-      <span className="relative">{session === null ? '–' : `${session}%`}</span>
+      <span className="relative">{short === null ? '–' : `${short}%`}</span>
     </span>
   )
 }
 
-export function leftOf(usage: Usage | undefined, window: string) {
-  const limit = usage?.limits.find((item) => item.window === window)
-  if (limit === undefined) {
-    return null
+export function usageMeter(
+  usage: Usage | undefined,
+  provider: Account['provider']
+) {
+  if (provider === 'claude') {
+    return claudeMeter(usage)
   }
-  if (limit.rejected) {
-    return 0
+  if (provider === 'codex') {
+    return codexMeter(usage)
   }
-  if (limit.utilization === null) {
-    return null
-  }
-  return Math.max(0, 100 - Math.round(limit.utilization * 100))
+  throw new Error(`Unknown provider ${String(provider)}`)
 }

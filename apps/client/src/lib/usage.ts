@@ -20,6 +20,20 @@ export function hasUsage(account: Account) {
   return account.enabled && account.error === null && account.email !== null
 }
 
+export function leftOf(usage: Usage | undefined, window: string) {
+  const limit = usage?.limits.find((item) => item.window === window)
+  if (limit === undefined) {
+    return null
+  }
+  if (limit.rejected) {
+    return 0
+  }
+  if (limit.utilization === null) {
+    return null
+  }
+  return Math.max(0, 100 - Math.round(limit.utilization * 100))
+}
+
 export function useUsage(machine: string | null, account: Account | undefined) {
   const usage = useStore((state) =>
     machine === null || account === undefined

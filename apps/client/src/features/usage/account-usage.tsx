@@ -1,16 +1,17 @@
 import { RefreshIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type { Account } from '@offsite/core/providers'
+import type { Account, RateLimit } from '@offsite/core/providers'
 import { type CSSProperties, Fragment, useState } from 'react'
 import { ProviderIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { MachineLogo } from '@/constants/machine-icons'
-import { windowName } from '@/features/composer/limits'
 import { fullTime, timeAgo, timeLeft } from '@/lib/format'
 import type { Machine } from '@/lib/store'
 import { loadUsage, useUsage } from '@/lib/usage'
 import { cn } from '@/lib/utils'
+import { claudeLimitName } from './claude-usage'
+import { codexLimitName } from './codex-usage'
 
 export function AccountUsage(props: {
   machine: string
@@ -24,9 +25,12 @@ export function AccountUsage(props: {
   const account = props.account
   const usage = useUsage(props.machine, account)
   const limits =
-    usage?.limits.filter(
-      (limit) => limit.rejected || limit.utilization !== null
-    ) ?? []
+    usage?.limits.flatMap((limit) => {
+      const name = limitName(account.provider, limit)
+      return name === null || (!limit.rejected && limit.utilization === null)
+        ? []
+        : [{ ...limit, name }]
+    }) ?? []
   const updatedAt = usage?.updatedAt ?? usage?.fetchedAt ?? null
   const ago = updatedAt === null ? null : timeAgo(updatedAt)
   const [refreshing, setRefreshing] = useState(false)
@@ -117,9 +121,7 @@ export function AccountUsage(props: {
               : Math.max(0, 100 - Math.round((limit.utilization ?? 0) * 100))
             return (
               <Fragment key={limit.window}>
-                <span className="text-muted-foreground capitalize">
-                  {windowName(limit)}
-                </span>
+                <span className="text-muted-foreground">{limit.name}</span>
                 <div className="bg-foreground/10 h-1.5 overflow-hidden rounded-full">
                   <div
                     className="h-full rounded-full"
@@ -169,6 +171,16 @@ export function AccountUsage(props: {
 const providerColors: Record<Account['provider'], string> = {
   claude: '#d97757',
   codex: '#6e5ae6',
+}
+
+function limitName(provider: Account['provider'], limit: RateLimit) {
+  if (provider === 'claude') {
+    return claudeLimitName(limit)
+  }
+  if (provider === 'codex') {
+    return codexLimitName(limit)
+  }
+  throw new Error(`Unknown provider ${String(provider)}`)
 }
 
 function accountLabel(account: Account) {

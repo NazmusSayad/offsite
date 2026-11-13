@@ -3,20 +3,22 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
-import { leftOf, UsageDetails, UsageMeter } from '@/features/usage/usage-meters'
+import {
+  UsageDetails,
+  UsageMeter,
+  usageMeter,
+} from '@/features/usage/usage-meters'
 import { useSelectedAccount, useUsage } from '@/lib/usage'
 
 export function UsageLimitBadge() {
   const selected = useSelectedAccount()
   const usage = useUsage(selected.machine, selected.account)
-  const session = leftOf(usage, 'five_hour')
-  const weekly = leftOf(usage, 'seven_day')
 
-  if (
-    selected.machine === null ||
-    selected.account === undefined ||
-    ((session === null || session >= 10) && (weekly === null || weekly >= 10))
-  ) {
+  if (selected.machine === null || selected.account === undefined) {
+    return null
+  }
+  const { short, long } = usageMeter(usage, selected.account.provider)
+  if ((short === null || short >= 10) && (long === null || long >= 10)) {
     return null
   }
 

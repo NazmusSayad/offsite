@@ -32,11 +32,6 @@ type CodexLogin =
     }
   | { type: 'amazonBedrock' }
 
-const windowNames = new Map([
-  [300, 'five_hour'],
-  [10080, 'seven_day'],
-])
-
 export async function codexAccount(account: StoredAccount): Promise<Account> {
   const configDir = account.configDir ?? codexBaseDir
   const linked = isMirror(configDir)
@@ -159,15 +154,11 @@ export async function codexLimits(account: StoredAccount) {
 
 function toLimits(snapshot: RateLimitSnapshot): RateLimit[] {
   return [snapshot.primary, snapshot.secondary].flatMap((window) =>
-    window === null
+    window === null || window.windowDurationMins === null
       ? []
       : [
           {
-            window:
-              (window.windowDurationMins === null
-                ? undefined
-                : windowNames.get(window.windowDurationMins)) ??
-              `${window.windowDurationMins ?? 0}m`,
+            window: String(window.windowDurationMins),
             utilization: window.usedPercent / 100,
             resetsAt: window.resetsAt,
             rejected: window.usedPercent >= 100,

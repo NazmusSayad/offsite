@@ -309,8 +309,6 @@ export async function claudeLimits(account: StoredAccount) {
     const windows = [
       { name: 'five_hour', window: usage.rate_limits.five_hour },
       { name: 'seven_day', window: usage.rate_limits.seven_day },
-      { name: 'seven_day_opus', window: usage.rate_limits.seven_day_opus },
-      { name: 'seven_day_sonnet', window: usage.rate_limits.seven_day_sonnet },
       ...(usage.rate_limits.model_scoped ?? []).map((row) => ({
         name: row.display_name,
         window: row,
