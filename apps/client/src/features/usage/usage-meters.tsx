@@ -57,56 +57,75 @@ export function LastUsageMeter() {
   if (last === undefined) {
     return null
   }
-  return <UsageMeter machine={last.machine} account={last.account} />
+  return (
+    <UsageMeter
+      machine={last.machine}
+      account={last.account}
+      icon
+      className="ms-auto"
+    />
+  )
 }
 
-function UsageMeter(props: { machine: string; account: Account }) {
+export function UsageMeter(props: {
+  machine: string
+  account: Account
+  icon: boolean
+  className?: string
+}) {
   const usage = useUsage(props.machine, props.account)
-  const left = usage === undefined ? null : leftOf(usage)
-  const critical = left !== null && left < 10
-  const low = left !== null && left >= 10 && left < 20
-  const normal = left === null || left >= 20
+  const session = leftOf(usage, 'five_hour') ?? leftOf(usage, 'seven_day')
+  const weekly = leftOf(usage, 'seven_day') ?? leftOf(usage, 'five_hour')
 
   return (
     <span
       className={cn(
-        'relative ms-auto flex h-5 shrink-0 items-center gap-0.75 overflow-hidden rounded-[6px] px-1.25 text-[11px] font-medium tabular-nums',
-        normal && 'bg-foreground/5 text-muted-foreground',
-        low && 'bg-error/5 text-error/60',
-        critical && 'bg-error/15 text-error'
+        'relative flex h-5 shrink-0 items-center gap-0.75 overflow-hidden rounded-[6px] px-1.25 text-[11px] font-medium tabular-nums',
+        (weekly === null || weekly >= 20) && 'bg-foreground/5',
+        weekly !== null && weekly >= 10 && weekly < 20 && 'bg-error/5',
+        weekly !== null && weekly < 10 && 'bg-error/15',
+        (session === null || session >= 20) && 'text-muted-foreground',
+        session !== null && session >= 10 && session < 20 && 'text-error/60',
+        session !== null && session < 10 && 'text-error',
+        props.className
       )}
       aria-label={`${props.account.name} usage`}
     >
-      {left !== null && (
+      {weekly !== null && (
         <span
           className={cn(
             'absolute inset-y-0 left-0',
-            normal && 'bg-foreground/8',
-            low && 'bg-error/8',
-            critical && 'bg-error/25'
+            weekly >= 20 && 'bg-foreground/8',
+            weekly >= 10 && weekly < 20 && 'bg-error/8',
+            weekly < 10 && 'bg-error/25'
           )}
-          style={{ width: `${left}%` }}
+          style={{ width: `${weekly}%` }}
         />
       )}
-      <ProviderIcon
-        provider={props.account.provider}
-        className={cn(
-          'relative size-3 shrink-0',
-          props.account.provider === 'claude' && 'fill-current'
-        )}
-      />
-      <span className="relative">{left === null ? '–' : `${left}%`}</span>
+      {props.icon && (
+        <ProviderIcon
+          provider={props.account.provider}
+          className={cn(
+            'relative size-3 shrink-0',
+            props.account.provider === 'claude' && 'fill-current'
+          )}
+        />
+      )}
+      <span className="relative">{session === null ? '–' : `${session}%`}</span>
     </span>
   )
 }
 
-function leftOf(usage: Usage) {
-  const lefts = usage.limits
-    .filter((limit) => limit.rejected || limit.utilization !== null)
-    .map((limit) =>
-      limit.rejected
-        ? 0
-        : Math.max(0, 100 - Math.round((limit.utilization ?? 0) * 100))
-    )
-  return lefts.length === 0 ? null : Math.min(...lefts)
+export function leftOf(usage: Usage | undefined, window: string) {
+  const limit = usage?.limits.find((item) => item.window === window)
+  if (limit === undefined) {
+    return null
+  }
+  if (limit.rejected) {
+    return 0
+  }
+  if (limit.utilization === null) {
+    return null
+  }
+  return Math.max(0, 100 - Math.round(limit.utilization * 100))
 }
