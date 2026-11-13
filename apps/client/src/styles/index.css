@@ -302,7 +302,7 @@
     background: linear-gradient(
       90deg,
       transparent calc(50% - 8rem),
-      white 50%,
+      rgb(255 255 255 / 0.4) 50%,
       transparent calc(50% + 8rem)
     );
     animation: message-sweep 1.6s linear infinite;
