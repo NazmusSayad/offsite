@@ -4,7 +4,6 @@ import os from 'node:os'
 import path from 'node:path'
 import readline from 'node:readline'
 import type { Readable, Writable } from 'node:stream'
-import { openEnv } from '../../services/open/open.ts'
 import { logger } from '../log.ts'
 import { offsitePlugin } from '../plugin.ts'
 import { publishCodexLimits } from './accounts.ts'
@@ -104,7 +103,7 @@ export class AppServer {
     this.home = home
     log.info(`starting the Codex app server for ${home}`)
     this.child = spawn(executable, ['app-server'], {
-      env: { ...process.env, ...openEnv(), CODEX_HOME: home },
+      env: { ...process.env, CODEX_HOME: home },
       stdio: ['pipe', 'pipe', 'ignore'],
     })
     readline

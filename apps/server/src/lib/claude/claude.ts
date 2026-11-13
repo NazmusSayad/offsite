@@ -17,7 +17,6 @@ import type {
   RateLimit,
 } from '@offsite/core/providers'
 import { type StoredAccount, storedAccount } from '../../services/accounts.ts'
-import { openEnv } from '../../services/open/open.ts'
 import { notifierConnected, sendPush } from '../../services/push.ts'
 import { sessions } from '../../services/sessions.ts'
 import { cachedUsage, recordLimits } from '../../services/usage.ts'
@@ -78,7 +77,6 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
   const configDir = account.configDir ?? claudeBaseDir()
   const env: Record<string, string | undefined> = {
     ...process.env,
-    ...openEnv(),
     CLAUDE_CODE_ENTRYPOINT: 'offsite',
     CLAUDE_CONFIG_DIR: configDir,
   }

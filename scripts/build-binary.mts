@@ -31,12 +31,9 @@ function load(file) {
   )
 }
 
-const [mode, value, ...rest] = process.argv.slice(2)
+const [mode, value] = process.argv.slice(2)
 if (mode === '--node-eval') {
   eval(value)
-} else if (mode === '--node-script') {
-  process.argv = [process.execPath, value, ...rest]
-  load(value)
 } else {
   load(path.join(path.dirname(process.execPath), 'app', 'apps', 'server', 'dist', 'main.mjs'))
 }

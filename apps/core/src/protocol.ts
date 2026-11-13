@@ -462,4 +462,3 @@ export type ServerEvent =
   | { type: 'notification'; sessionId: string; message: string }
   | { type: 'notifier'; active: boolean }
   | { type: 'terminals'; tabs: TerminalTab[] }
-  | { type: 'open'; path: string }

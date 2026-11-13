@@ -26,7 +26,6 @@ for (const folder of [
   ['apps', 'server', 'drizzle'],
   ['apps', 'server', 'plugin'],
   ['apps', 'server', 'src', 'services', 'terminal', 'shell-integration'],
-  ['apps', 'server', 'src', 'services', 'open'],
   ['apps', 'server', 'src', 'services', 'service', 'macos', 'offsite.app'],
   ['apps', 'client', 'dist'],
 ]) {

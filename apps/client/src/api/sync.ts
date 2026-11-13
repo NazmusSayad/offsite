@@ -40,7 +40,6 @@ import {
 import { applyTheme } from '@/lib/theme'
 import {
   leftGuard,
-  openBrowser,
   rememberTerminal,
   selectionFromUrl,
   startGuard,
@@ -401,13 +400,6 @@ function receive(machine: string, event: ServerEvent) {
       return
     case 'terminals':
       setMachine(machine, { terminals: event.tabs })
-      return
-    case 'open':
-      if (selected) {
-        openBrowser(event.path)
-        return
-      }
-      toast(`${known.name} opened ${event.path}`)
       return
   }
   if (current === null || event.sessionId !== current) {

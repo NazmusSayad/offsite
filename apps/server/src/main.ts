@@ -9,11 +9,9 @@ import path from 'node:path'
 import { mediaTypes } from '@offsite/core/media'
 import { consola } from 'consola'
 import { type WebSocket, WebSocketServer } from 'ws'
-import { z } from 'zod'
 import { connectClient } from './api/socket.ts'
 import { args } from './args.ts'
 import { findClaude } from './lib/claude/index.ts'
-import { broadcast, clients } from './lib/hub.ts'
 import { logger } from './lib/log.ts'
 import { proxySocket, serveProxy } from './lib/proxy/proxy.ts'
 import { serveAppIcon } from './services/app-icon.ts'
@@ -26,7 +24,6 @@ import {
   sniffType,
   streamFile,
 } from './services/files.ts'
-import { installOpen, loopback, openSecret } from './services/open/open.ts'
 import { failInterrupted } from './services/outbox.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
@@ -55,7 +52,6 @@ import { listenPort, lockHome, writeJson } from './storage/storage.ts'
 
 const UNPAIR_CHECK = 5000
 const TICKET_LIFETIME = 60_000
-const openBody = z.object({ path: z.string() })
 const log = logger.withTag('server')
 
 const browseTypes = new Map([
@@ -119,7 +115,6 @@ log.info(
 )
 
 process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
-installOpen(args.host, port)
 await backfillSessionProviders()
 failInterrupted()
 watchSessions()
@@ -169,10 +164,6 @@ function answerRequest(request: IncomingMessage, response: ServerResponse) {
   }
   if (url.pathname === `/api/status/${statusSecret}`) {
     void answerStatus(response)
-    return
-  }
-  if (url.pathname === `/api/open/${openSecret}`) {
-    void answerOpen(request, response)
     return
   }
   if (url.pathname.startsWith('/api/app-icon/')) {
@@ -392,32 +383,17 @@ function serveBrowse(
   streamFile(file, stats.size, request, response)
 }
 
-async function answerOpen(request: IncomingMessage, response: ServerResponse) {
-  if (request.method !== 'POST') {
-    response.statusCode = 405
-    response.end('use POST')
-    return
+function loopback(host: string) {
+  if (host === '0.0.0.0') {
+    return '127.0.0.1'
   }
-  let body = ''
-  for await (const chunk of request) {
-    body += chunk
+  if (host === '::') {
+    return '[::1]'
   }
-  let parsed
-  try {
-    parsed = openBody.parse(JSON.parse(body))
-  } catch {
-    response.statusCode = 400
-    response.end('expected { path }')
-    return
+  if (host.includes(':')) {
+    return `[${host}]`
   }
-  if (clients.size === 0) {
-    response.statusCode = 409
-    response.end('no browser is connected to OffSite')
-    return
-  }
-  broadcast({ type: 'open', path: parsed.path })
-  response.statusCode = 204
-  response.end()
+  return host
 }
 
 function answerJson(response: ServerResponse, body: unknown) {
