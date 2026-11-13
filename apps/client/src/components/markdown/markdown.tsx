@@ -393,7 +393,7 @@ function LinkFavicon(props: { host: string; pull: string | null }) {
         />
       )}
       {merged && (
-        <span className="ring-background absolute -right-[4px] -bottom-[3px] grid size-[10px] place-items-center rounded-full bg-violet-500 ring-[1.5px]">
+        <span className="ring-background absolute -top-[3px] -left-[4px] grid size-[10px] place-items-center rounded-full bg-violet-500 ring-[1.5px]">
           <HugeiconsIcon
             icon={GitMergeIcon}
             strokeWidth={2.5}
