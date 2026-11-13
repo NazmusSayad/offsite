@@ -142,6 +142,7 @@ export type State = {
   settings: SessionSettings
   draft: Prompt | null
   replacing: Selection | null
+  rewinding: { messageId: string; mode: 'all' | 'chat'; first: boolean } | null
   worktree: { name: string; base: string | null } | null
   worktreeStage: WorktreeStage | null
   context: ContextUsage | null

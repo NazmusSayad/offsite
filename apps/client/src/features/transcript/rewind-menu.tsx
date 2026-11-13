@@ -31,7 +31,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip } from '@/components/ui/tooltip'
 import type { RewindMode } from '@/lib/prefs'
-import { startChat } from '@/lib/sessions'
 import {
   getState,
   projectOf,
@@ -54,19 +53,13 @@ export type RewindTarget = {
 const modes = {
   all: {
     label: 'Restore code and chat',
-    description:
-      'This will undo file changes made since this message and remove this message and everything after it from the chat.',
     icon: ArrowTurnBackwardIcon,
     code: true,
-    conversation: true,
   },
   chat: {
     label: 'Restore chat',
-    description:
-      'This will remove this message and everything after it from the chat. Files will not change.',
     icon: PencilEdit02Icon,
     code: false,
-    conversation: true,
   },
   code: {
     label: 'Restore code',
@@ -74,7 +67,6 @@ const modes = {
       'This will undo file changes made since this message. The chat will not change.',
     icon: SourceCodeIcon,
     code: true,
-    conversation: false,
   },
 }
 
@@ -94,14 +86,30 @@ function modesFor(provider: Provider): RewindMode[] {
 export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [confirming, setConfirming] = useState<{
-    mode: RewindMode
-    check: { preview: RewindResult; codeError: string | null } | null
-  } | null>(null)
+  const [confirming, setConfirming] = useState<{ checked: boolean } | null>(
+    null
+  )
   const provider = useStore((state) => state.settings.provider)
   const available = modesFor(provider)
   const stored = useStore((state) => state.prefs.rewind)
   const mode = available.includes(stored) ? stored : 'chat'
+
+  async function pick(next: RewindMode, checked: boolean) {
+    if (next === 'code') {
+      setConfirming({ checked })
+      return
+    }
+    setBusy(true)
+    try {
+      await editMessage(props.target, next)
+    } catch (caught) {
+      toast(errorMessage(caught))
+      showError(caught)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <>
       {available.length > 1 && (
@@ -130,7 +138,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
             <RewindOptions
               messageId={props.target.messageId}
               available={available}
-              onPick={(next, check) => setConfirming({ mode: next, check })}
+              onPick={(next) => void pick(next, true)}
             />
           </DropdownMenuContent>
         </DropdownMenu>
@@ -142,7 +150,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
           variant="ghost-muted"
           aria-label={modes[mode].label}
           disabled={props.disabled || busy}
-          onClick={() => setConfirming({ mode, check: null })}
+          onClick={() => void pick(mode, false)}
         >
           <HugeiconsIcon icon={modes[mode].icon} className="size-4" />
         </Button>
@@ -159,8 +167,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
           <AlertDialogContent>
             <RewindConfirm
               target={props.target}
-              mode={confirming.mode}
-              check={confirming.check}
+              checked={confirming.checked}
               onBusy={setBusy}
             />
           </AlertDialogContent>
@@ -170,56 +177,42 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
   )
 }
 
+async function editMessage(target: RewindTarget, mode: 'all' | 'chat') {
+  const selection = getState().selection
+  if (selection === null || selection.sessionId === null) {
+    return
+  }
+  const sessionId = selection.sessionId
+  const images = await Promise.all(
+    target.images.map((image, index) =>
+      image.data === null
+        ? call(selection.machine, 'sessions.image', {
+            sessionId,
+            itemId: target.messageId,
+            index,
+          })
+        : { mediaType: image.mediaType, data: image.data }
+    )
+  )
+  setDraft({ text: target.text, images })
+  update({
+    rewinding: { messageId: target.messageId, mode, first: target.first },
+  })
+  updatePrefs({ ...getState().prefs, rewind: mode })
+}
+
 function RewindOptions(props: {
   messageId: string
   available: RewindMode[]
-  onPick: (
-    mode: RewindMode,
-    check: { preview: RewindResult; codeError: string | null }
-  ) => void
+  onPick: (mode: RewindMode) => void
 }) {
-  const [preview, setPreview] = useState<RewindResult>(null)
-  const [codeError, setCodeError] = useState<string | null>(null)
-  const messageId = props.messageId
-  const selection = useStore((state) => state.selection)
-  const machine = selection?.machine ?? null
-  const sessionId = selection?.sessionId ?? null
-  const projectId = selection?.projectId ?? ''
+  const { preview, codeError } = useCodePreview(props.messageId, false)
   const cwd = useStore((state) =>
-    machine === null ? '' : (projectOf(state, machine, projectId)?.path ?? '')
+    state.selection === null
+      ? ''
+      : (projectOf(state, state.selection.machine, state.selection.projectId)
+          ?.path ?? '')
   )
-
-  useEffect(() => {
-    setPreview(null)
-    setCodeError(null)
-    if (machine === null || sessionId === null) {
-      return
-    }
-    let current = true
-    call(machine, 'sessions.rewind', {
-      sessionId,
-      projectId,
-      messageId,
-      settings: getState().settings,
-      code: true,
-      conversation: false,
-      dryRun: true,
-    }).then(
-      (result) => {
-        if (current) {
-          setPreview(result)
-        }
-      },
-      (caught: unknown) => {
-        if (current) {
-          setCodeError(errorMessage(caught))
-        }
-      }
-    )
-    return () => {
-      current = false
-    }
-  }, [messageId, machine, sessionId, projectId])
 
   const codeReady = preview !== null && codeError === null
   return (
@@ -253,7 +246,7 @@ function RewindOptions(props: {
         <DropdownMenuItem
           key={option}
           disabled={modes[option].code && !codeReady}
-          onSelect={() => props.onPick(option, { preview, codeError })}
+          onSelect={() => props.onPick(option)}
         >
           <HugeiconsIcon icon={modes[option].icon} />
           {modes[option].label}
@@ -265,31 +258,84 @@ function RewindOptions(props: {
 
 function RewindConfirm(props: {
   target: RewindTarget
-  mode: RewindMode
-  check: { preview: RewindResult; codeError: string | null } | null
+  checked: boolean
   onBusy: (busy: boolean) => void
 }) {
-  const [preview, setPreview] = useState(
-    props.check === null ? null : props.check.preview
+  const { preview, codeError } = useCodePreview(
+    props.target.messageId,
+    props.checked
   )
-  const [codeError, setCodeError] = useState(
-    props.check === null ? null : props.check.codeError
-  )
-  const target = props.target
-  const messageId = target.messageId
-  const checked = props.check !== null
+  const messageId = props.target.messageId
   const selection = useStore((state) => state.selection)
-  const provider = useStore((state) => state.settings.provider)
+  const machine = selection?.machine ?? null
+  const sessionId = selection?.sessionId ?? null
+  const projectId = selection?.projectId ?? ''
+
+  async function apply() {
+    if (machine === null || sessionId === null) {
+      return
+    }
+    props.onBusy(true)
+    try {
+      await call(machine, 'sessions.rewind', {
+        sessionId,
+        projectId,
+        messageId,
+        settings: getState().settings,
+        code: true,
+        conversation: false,
+        dryRun: false,
+      })
+      updatePrefs({ ...getState().prefs, rewind: 'code' })
+    } catch (caught) {
+      toast(errorMessage(caught))
+      showError(caught)
+    } finally {
+      props.onBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <AlertDialogHeader>
+        <AlertDialogTitle>{modes.code.label}?</AlertDialogTitle>
+        <AlertDialogDescription>
+          {modes.code.description} Do you really want to continue?
+          {codeError !== null && (
+            <span className="text-destructive mt-2 block">
+              {`Code can't be restored: ${codeError}`}
+            </span>
+          )}
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogAction
+          variant="destructive"
+          disabled={!props.checked && (preview === null || codeError !== null)}
+          onClick={() => void apply()}
+        >
+          {modes.code.label}
+        </AlertDialogAction>
+      </AlertDialogFooter>
+    </>
+  )
+}
+
+function useCodePreview(messageId: string, skip: boolean) {
+  const [preview, setPreview] = useState<RewindResult>(null)
+  const [codeError, setCodeError] = useState<string | null>(null)
+  const selection = useStore((state) => state.selection)
   const machine = selection?.machine ?? null
   const sessionId = selection?.sessionId ?? null
   const projectId = selection?.projectId ?? ''
 
   useEffect(() => {
-    if (checked || machine === null || sessionId === null) {
-      return
-    }
     setPreview(null)
     setCodeError(null)
+    if (skip || machine === null || sessionId === null) {
+      return
+    }
     let current = true
     call(machine, 'sessions.rewind', {
       sessionId,
@@ -314,82 +360,7 @@ function RewindConfirm(props: {
     return () => {
       current = false
     }
-  }, [checked, messageId, machine, sessionId, projectId])
+  }, [skip, messageId, machine, sessionId, projectId])
 
-  async function apply(next: RewindMode) {
-    if (machine === null || sessionId === null) {
-      return
-    }
-    const code = modes[next].code
-    const conversation = modes[next].conversation
-    props.onBusy(true)
-    try {
-      const images = conversation
-        ? await Promise.all(
-            target.images.map((image, index) =>
-              image.data === null
-                ? call(machine, 'sessions.image', {
-                    sessionId,
-                    itemId: target.messageId,
-                    index,
-                  })
-                : { mediaType: image.mediaType, data: image.data }
-            )
-          )
-        : []
-      const replace = conversation && target.first && provider === 'claude'
-      const truncate = conversation && !replace
-      if (code || truncate) {
-        await call(machine, 'sessions.rewind', {
-          sessionId,
-          projectId,
-          messageId: target.messageId,
-          settings: getState().settings,
-          code,
-          conversation: truncate,
-          dryRun: false,
-        })
-      }
-      if (replace) {
-        startChat(machine, projectId, true)
-        update({ replacing: { machine, projectId, sessionId } })
-      }
-      if (conversation) {
-        setDraft({ text: target.text, images })
-      }
-      updatePrefs({ ...getState().prefs, rewind: next })
-    } catch (caught) {
-      toast(errorMessage(caught))
-      showError(caught)
-    } finally {
-      props.onBusy(false)
-    }
-  }
-
-  const codeReady = preview !== null && codeError === null
-  return (
-    <>
-      <AlertDialogHeader>
-        <AlertDialogTitle>{modes[props.mode].label}?</AlertDialogTitle>
-        <AlertDialogDescription>
-          {modes[props.mode].description} Do you really want to continue?
-          {modes[props.mode].code && codeError !== null && (
-            <span className="text-destructive mt-2 block">
-              {`Code can't be restored: ${codeError}`}
-            </span>
-          )}
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-      <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
-        <AlertDialogAction
-          variant="destructive"
-          disabled={modes[props.mode].code && !codeReady}
-          onClick={() => void apply(props.mode)}
-        >
-          {modes[props.mode].label}
-        </AlertDialogAction>
-      </AlertDialogFooter>
-    </>
-  )
+  return { preview, codeError }
 }

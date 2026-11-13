@@ -114,6 +114,7 @@ export function start() {
     },
     draft: null,
     replacing: null,
+    rewinding: null,
     worktree: null,
     worktreeStage: null,
     context: null,

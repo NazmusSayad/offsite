@@ -62,6 +62,7 @@ export function openSession(
           )),
     context: null,
     replacing: null,
+    rewinding: null,
     worktree: null,
     paletteOpen: false,
     unseen: getState().unseen.filter(

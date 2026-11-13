@@ -48,6 +48,7 @@ import { PermissionPrompt } from './permission-prompt'
 import { Pickers } from './pickers'
 import { ProjectHeading } from './project-heading'
 import { UsageResetBanner, QueuedMessages } from './queue'
+import { applyRewind, RewindNotice } from './rewind'
 import { sendDraft } from './send'
 import { DictateButton, SendControls } from './send-controls'
 import { isStashShortcut, toggleStash } from './stash'
@@ -178,6 +179,10 @@ export function Composer(props: {
       if (delivery === null) {
         throw new Error('This machine is not connected')
       }
+      const rewinding = getState().rewinding
+      if (rewinding !== null) {
+        await applyRewind(rewinding)
+      }
       await sendDraft(
         key,
         swap ? (delivery === 'queue' ? 'steer' : 'queue') : delivery,
@@ -257,6 +262,7 @@ export function Composer(props: {
         )}
         {suggestions.length === 0 && <UsageResetBanner />}
         {suggestions.length === 0 && <ClaudeWorktreeNotice />}
+        {suggestions.length === 0 && <RewindNotice draftKey={key} />}
         {suggestions.length === 0 && <QueuedMessages />}
         {request !== undefined && suggestions.length === 0 && (
           <PermissionPrompt
