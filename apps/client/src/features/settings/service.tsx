@@ -67,7 +67,7 @@ export function ServiceButton(props: { machine: string }) {
                 icon={CircleDotDashedIcon}
                 className="animate-spin"
               />
-              Downloading {service.update.version}…
+              Downloading…
               {service.update.percent !== null &&
                 ` ${Math.round(service.update.percent)}%`}
             </>
@@ -148,7 +148,7 @@ function ServiceEditor(props: {
               : `Install OffSite - ${machine?.name}`}
         </DialogTitle>
       </DialogHeader>
-      <div className="px-6 pt-4 pb-6">
+      <div className="min-w-0 px-6 pt-4 pb-6">
         {props.update ? (
           <UpdateForm
             machine={props.machine}

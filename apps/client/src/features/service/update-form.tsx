@@ -132,7 +132,6 @@ function RestartForm(props: {
     setError(null)
     try {
       await call(props.machine, 'service.restart', undefined)
-      props.onDone()
       toast(`OffSite - ${name} is restarting`)
     } catch (failure) {
       setError(errorMessage(failure))
