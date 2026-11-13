@@ -308,7 +308,12 @@ export function showTab(target: string, projectId: string, tabId: number) {
   } else {
     const selection = appState().selection
     if (selection?.machine !== target || selection.projectId !== projectId) {
-      openSession({ machine: target, projectId, sessionId: null })
+      openSession({
+        machine: target,
+        projectId,
+        sessionId: null,
+        pending: null,
+      })
     }
     setOpen(true)
   }

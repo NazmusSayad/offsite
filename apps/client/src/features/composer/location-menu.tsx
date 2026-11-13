@@ -192,7 +192,7 @@ async function switchMain(
       update({ worktree: null })
       return
     }
-    openSession({ machine, projectId: rootId, sessionId: null })
+    openSession({ machine, projectId: rootId, sessionId: null, pending: null })
   } catch (error) {
     log.error('could not switch the branch', error)
     toast(errorMessage(error))
@@ -211,7 +211,7 @@ async function openWorktree(
         projectId,
         folder: choice.folder,
       }))
-    openSession({ machine, projectId: id, sessionId: null })
+    openSession({ machine, projectId: id, sessionId: null, pending: null })
   } catch (error) {
     log.error('could not open the worktree', error)
     toast(errorMessage(error))

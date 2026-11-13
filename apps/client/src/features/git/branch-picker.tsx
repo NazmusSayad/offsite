@@ -205,7 +205,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
       const selection = getState().selection
       if (selection?.machine === machine && selection.sessionId === sessionId) {
         openSession(
-          { machine, projectId: result.projectId, sessionId },
+          { machine, projectId: result.projectId, sessionId, pending: null },
           null,
           true
         )

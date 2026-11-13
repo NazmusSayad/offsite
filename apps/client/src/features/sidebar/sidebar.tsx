@@ -31,7 +31,12 @@ import { FittedStatusChips, StatusChips } from '@/features/sidebar/status-chips'
 import { useInactiveSessions } from '@/features/sidebar/use-inactive-sessions'
 import { CloseAllDialog } from '@/features/terminal/dialogs'
 import { UsageDialog } from '@/features/usage/usage-dialog'
-import { chatSessionId, outboxChats } from '@/lib/outbox'
+import {
+  chatSelected,
+  chatSelection,
+  chatSessionId,
+  outboxChats,
+} from '@/lib/outbox'
 import { lastProject, openSession, startChat } from '@/lib/sessions'
 import {
   activityOf,
@@ -53,12 +58,8 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   const selection = useStore((state) => state.selection)
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
-  const outbox = useStore((state) => state.outbox)
-  const startedPrompt = useStore((state) => state.startedPrompt)
   const projects = useStore((state) => state.projects)
-  const provider = useStore((state) => state.settings.provider)
   const unseen = useStore((state) => state.unseen)
-  const loaded = useStore((state) => state.loaded)
   const inactive = useStore((state) => state.inactive)
   const inactiveTotal = useStore((state) => state.inactiveTotal)
   const groupActiveByProject = useStore(
@@ -76,7 +77,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   const [inactiveLimit, setInactiveLimit] = useState(DONE_PAGE)
   const [storedWidth, setWidth] = useLocalStorage('sidebarWidth', 256)
   const width = Math.max(256, storedWidth)
-  const chats = outboxChats(machines, outbox)
+  const chats = outboxChats(machines)
   const shown = [...chats, ...sessions]
     .filter(
       (session) =>
@@ -103,51 +104,16 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   const minimized = shown.filter((session) => session.status === 'minimized')
   const scopeMachine = scope?.machine ?? null
   const scopeProject = scope?.projectId ?? null
-  const sent = machines
-    .find((machine) => machine.id === selection?.machine)
-    ?.outbox.find(
-      (item) =>
-        item.id === startedPrompt && item.sessionId === selection?.sessionId
-    )
-  const started =
-    selection !== null &&
-    selection.sessionId !== null &&
-    loaded &&
-    !sessions.some(
-      (session) =>
-        session.machine === selection.machine &&
-        session.id === selection.sessionId
-    )
-      ? {
-          machine: selection.machine,
-          id: selection.sessionId,
-          provider,
-          title:
-            sent === undefined || sent.prompt.text === ''
-              ? 'New thread'
-              : sent.prompt.text,
-          projectId: selection.projectId,
-          branch: null,
-          updatedAt: Date.now(),
-          status: 'active' as const,
-          claudeWorktree: false,
-        }
-      : null
   const draft =
     selection !== null &&
     selection.sessionId === null &&
-    !chats.some(
-      (chat) =>
-        chat.machine === selection.machine &&
-        chat.projectId === selection.projectId
-    )
+    selection.pending === null
       ? selection
       : null
-  const listed = started === null ? active : [started, ...active]
   const grouped = groupActiveByProject && scope === null
   const groups = [
     ...new Map(
-      [...(draft === null ? [] : [draft]), ...listed].map((item) => {
+      [...(draft === null ? [] : [draft]), ...active].map((item) => {
         const projectId = groupProject(item.machine, item.projectId)
         return [
           machineKey(item.machine, projectId),
@@ -159,7 +125,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
 
   const ordered = grouped
     ? groups.flatMap((group) =>
-        listed.filter(
+        active.filter(
           (session) =>
             machineKey(
               session.machine,
@@ -167,7 +133,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
             ) === group[0]
         )
       )
-    : listed
+    : active
 
   const Draft = props.mobile ? MobileDraftRow : DesktopDraftRow
 
@@ -240,14 +206,10 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   function row(session: MachineSession) {
     const item = {
       session,
-      selected:
-        selection?.machine === session.machine &&
-        selection.sessionId === chatSessionId(session.id) &&
-        (selection.sessionId !== null ||
-          selection.projectId === session.projectId),
+      selected: chatSelected(selection, session),
       activity: activityOf(machines, session.machine, session.id),
       unseen: unseen.includes(machineKey(session.machine, session.id)),
-      saved: session !== started && chatSessionId(session.id) !== null,
+      saved: chatSessionId(session.id) !== null,
       scope,
       onSelect: select,
     }
@@ -329,7 +291,11 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
             scope={scope}
             onScope={(next) => {
               setScope(next)
-              if (next !== null && selection?.sessionId === null) {
+              if (
+                next !== null &&
+                selection?.sessionId === null &&
+                selection.pending === null
+              ) {
                 select(next.machine, next.projectId, null)
               }
             }}
@@ -366,14 +332,13 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
                   key={key}
                   machine={group.machine}
                   projectId={group.projectId}
-                  sessions={listed.filter(
+                  sessions={active.filter(
                     (session) =>
                       machineKey(
                         session.machine,
                         groupProject(session.machine, session.projectId)
                       ) === key
                   )}
-                  started={started}
                   ordered={ordered}
                   mobile={props.mobile}
                 />
@@ -389,16 +354,14 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
                     }
                   />
                 )}
-                {listed.map((session) => row(session))}
+                {active.map((session) => row(session))}
               </>
             )}
-            {active.length === 0 &&
-              started === null &&
-              selection?.sessionId !== null && (
-                <li className="text-sidebar-muted-foreground/60 px-2.5 py-6 text-center text-xs">
-                  No threads yet
-                </li>
-              )}
+            {active.length === 0 && draft === null && (
+              <li className="text-sidebar-muted-foreground/60 px-2.5 py-6 text-center text-xs">
+                No threads yet
+              </li>
+            )}
             {snoozed.length > 0 &&
               section({
                 label: snoozedOpen ? 'Snoozed' : `Snoozed (${snoozed.length})`,
@@ -494,9 +457,9 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
 }
 
 function select(machine: string, projectId: string, sessionId: string | null) {
-  openSession({
-    machine,
-    projectId,
-    sessionId: sessionId === null ? null : chatSessionId(sessionId),
-  })
+  if (sessionId === null) {
+    openSession({ machine, projectId, sessionId: null, pending: null })
+    return
+  }
+  openSession(chatSelection(machine, projectId, sessionId))
 }

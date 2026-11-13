@@ -38,6 +38,7 @@ if ('serviceWorker' in navigator) {
         machine: event.data.machine,
         projectId: event.data.project,
         sessionId: event.data.sessionId,
+        pending: null,
       })
       if (event.data.panel === 'diff') {
         replaceSearch({ panel: 'diff' })

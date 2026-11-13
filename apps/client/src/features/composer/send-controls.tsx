@@ -1,5 +1,6 @@
 import {
   AiMicIcon,
+  CircleDashedIcon,
   SendHorizontalIcon,
   StopIcon,
 } from '@hugeicons/core-free-icons'
@@ -16,6 +17,7 @@ export function SendControls(props: {
   dictation: Dictation
   running: boolean
   empty: boolean
+  loading: boolean
   delivery: PromptDelivery | null
   onSubmit: (swap: boolean) => void
   onStop: () => void
@@ -77,11 +79,19 @@ export function SendControls(props: {
           disabled={props.empty}
           onClick={(event) => props.onSubmit(event.metaKey || event.ctrlKey)}
         >
-          <HugeiconsIcon
-            icon={SendHorizontalIcon}
-            className="size-4.5 translate-x-[0.75px]"
-            strokeWidth={1.25}
-          />
+          {props.loading ? (
+            <HugeiconsIcon
+              icon={CircleDashedIcon}
+              className="size-4.5 animate-spin"
+              strokeWidth={1.5}
+            />
+          ) : (
+            <HugeiconsIcon
+              icon={SendHorizontalIcon}
+              className="size-4.5 translate-x-[0.75px]"
+              strokeWidth={1.25}
+            />
+          )}
         </button>
       )}
     </>

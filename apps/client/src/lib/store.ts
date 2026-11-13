@@ -48,6 +48,7 @@ export type Selection = {
   machine: string
   projectId: string
   sessionId: string | null
+  pending: string | null
 }
 
 export type MachineOutboxPrompt = OutboxPrompt & { machine: string }
@@ -133,7 +134,6 @@ export type State = {
   generatingTitles: string[]
   selection: Selection | null
   view: number
-  startedPrompt: string | null
   loaded: boolean
   items: Item[]
   earlier: Item[]
@@ -243,10 +243,13 @@ export function selectedRunning(state: State) {
 }
 
 export function draftKey(selection: Selection) {
-  if (selection.sessionId === null) {
-    return 'new'
+  if (selection.sessionId !== null) {
+    return machineKey(selection.machine, selection.sessionId)
   }
-  return machineKey(selection.machine, selection.sessionId)
+  if (selection.pending !== null) {
+    return machineKey(selection.machine, `outbox:${selection.pending}`)
+  }
+  return 'new'
 }
 
 export function setDraft(draft: Prompt | null) {

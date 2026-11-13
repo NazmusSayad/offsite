@@ -443,9 +443,7 @@ export type ServerEvent =
   | {
       type: 'started'
       id: string
-      sessionId: string
-      projectId: string
-      from: string
+      session: Session
     }
   | { type: 'worktreeStage'; stage: WorktreeStage }
   | { type: 'warning'; message: string }

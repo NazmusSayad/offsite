@@ -8,7 +8,7 @@ import { readBase64, UPLOAD_LIMIT } from '@/api/upload'
 import { Button } from '@/components/ui/button'
 import { Wrapper } from '@/components/wrapper'
 import { logger } from '@/lib/log'
-import { selectedPrompts } from '@/lib/outbox'
+import { selectedPrompts, startingThread } from '@/lib/outbox'
 import { interrupt } from '@/lib/sessions'
 import {
   draftKey,
@@ -73,11 +73,7 @@ export function Composer(props: {
   const shown = useStore((state) =>
     selectedPrompts(state).some((item) => item.status !== 'queued')
   )
-  const waiting = useStore((state) =>
-    selectedPrompts(state).some(
-      (item) => item.status === 'sending' || item.status === 'accepted'
-    )
-  )
+  const starting = useStore(startingThread)
   const draft = useStore((state) => state.draft)
   const capabilities = useStore((state) => state.capabilities)
   const noAccount = useStore((state) =>
@@ -160,11 +156,17 @@ export function Composer(props: {
           files
         )
   const activeIndex = Math.min(active, suggestions.length - 1)
+  const newThread =
+    selection !== null &&
+    selection.sessionId === null &&
+    selection.pending === null
+  const loading = newThread && (sending || starting)
   const empty =
     text.trim() === '' ||
     sending ||
     noAccount ||
-    (waiting && selection?.sessionId === null)
+    (starting && selection?.sessionId === null) ||
+    (selection !== null && selection.pending !== null)
 
   function edit(value: string, position: number) {
     editDraft(key, (current) => ({ ...current, text: value }))
@@ -326,6 +328,7 @@ export function Composer(props: {
           <div className="pb-1 md:pb-2">
             <ComposerInput
               text={text}
+              editable={!loading}
               newThread={hero}
               markers={[
                 ...images.map((image) => `[Image #${image.number}]`),
@@ -467,6 +470,7 @@ export function Composer(props: {
                 dictation={dictation}
                 running={running}
                 empty={empty}
+                loading={loading}
                 delivery={delivery}
                 onSubmit={(swap) => void submit(swap, false)}
                 onStop={interrupt}

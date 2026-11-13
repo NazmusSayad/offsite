@@ -53,6 +53,7 @@ export function selectionFromUrl(machines: string[]): Selection | null {
     machine: search.machine,
     projectId: search.project,
     sessionId: search.session ?? null,
+    pending: null,
   }
 }
 

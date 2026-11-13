@@ -1,5 +1,6 @@
-import type { Item } from '@offsite/core/items'
+import type { Item, OutboxPrompt } from '@offsite/core/items'
 import type { WorkItem } from '@/features/transcript/tool-details'
+import { outboxItems } from '@/lib/outbox'
 
 export type UserItem = Extract<Item, { kind: 'user' }>
 
@@ -177,4 +178,34 @@ export function mainRows(items: Item[], running: boolean, partial: string) {
     rows.push({ kind: 'working', key: 'working' })
   }
   return rows
+}
+
+export function liveRows(
+  items: Item[],
+  prompts: OutboxPrompt[],
+  running: boolean,
+  sending: boolean,
+  partial: string
+) {
+  const outbox = outboxItems(
+    prompts.filter(
+      (prompt) =>
+        !items.some(
+          (item) =>
+            item.kind === 'user' &&
+            item.time !== null &&
+            item.time >= prompt.createdAt &&
+            item.text === prompt.prompt.text
+        )
+    )
+  )
+  const waiting = items.length === 0 && outbox.length > 0
+  return [
+    ...mainRows(items, running && !waiting, partial),
+    ...mainRows(
+      outbox,
+      sending || (running && waiting),
+      waiting ? partial : ''
+    ),
+  ]
 }
