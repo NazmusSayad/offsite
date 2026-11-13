@@ -4,14 +4,8 @@ import { machineKey } from '@/api/machines'
 import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { MachineLogo } from '@/constants/machine-icons'
-import {
-  DesktopGroupedDraftRow,
-  DesktopGroupedSessionItem,
-} from '@/features/sidebar/desktop-grouped-session-item'
-import {
-  MobileGroupedDraftRow,
-  MobileGroupedSessionItem,
-} from '@/features/sidebar/mobile-grouped-session-item'
+import { DesktopGroupedSessionItem } from '@/features/sidebar/desktop-grouped-session-item'
+import { MobileGroupedSessionItem } from '@/features/sidebar/mobile-grouped-session-item'
 import { chatSelected, chatSelection, chatSessionId } from '@/lib/outbox'
 import { openSession } from '@/lib/sessions'
 import {
@@ -33,22 +27,6 @@ export function ProjectGroup(props: {
   const selection = useStore((state) => state.selection)
   const machines = useStore((state) => state.machines)
   const unseen = useStore((state) => state.unseen)
-  const drafting =
-    selection !== null &&
-    selection.sessionId === null &&
-    selection.pending === null &&
-    selection.machine === props.machine &&
-    selection.projectId === props.projectId
-  const Draft = props.mobile ? MobileGroupedDraftRow : DesktopGroupedDraftRow
-
-  function newThread() {
-    openSession({
-      machine: props.machine,
-      projectId: props.projectId,
-      sessionId: null,
-      pending: null,
-    })
-  }
 
   return (
     <>
@@ -66,7 +44,14 @@ export function ProjectGroup(props: {
           className="text-sidebar-muted-foreground/80 hover:bg-sidebar-row-hover hover:text-sidebar-foreground flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-[var(--control-radius)]"
           title="New thread"
           aria-label="New thread"
-          onClick={newThread}
+          onClick={() =>
+            openSession({
+              machine: props.machine,
+              projectId: props.projectId,
+              sessionId: null,
+              pending: null,
+            })
+          }
         >
           <HugeiconsIcon
             icon={Add01Icon}
@@ -74,7 +59,6 @@ export function ProjectGroup(props: {
           />
         </button>
       </li>
-      {drafting && <Draft onSelect={newThread} />}
       {props.sessions.map((session) => {
         const item = {
           session,

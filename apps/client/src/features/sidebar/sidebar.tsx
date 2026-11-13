@@ -11,15 +11,9 @@ import { useLocalStorage } from 'usehooks-ts'
 import { machineKey } from '@/api/machines'
 import { HotkeyHint } from '@/components/hotkey-hint'
 import { BookmarksDialog } from '@/features/bookmarks/bookmarks-dialog'
-import {
-  DesktopDraftRow,
-  DesktopSessionItem,
-} from '@/features/sidebar/desktop-session-item'
+import { DesktopSessionItem } from '@/features/sidebar/desktop-session-item'
 import { MobileMenu } from '@/features/sidebar/mobile-menu'
-import {
-  MobileDraftRow,
-  MobileSessionItem,
-} from '@/features/sidebar/mobile-session-item'
+import { MobileSessionItem } from '@/features/sidebar/mobile-session-item'
 import {
   EditProjectDialog,
   FolderDialog,
@@ -104,16 +98,10 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   const minimized = shown.filter((session) => session.status === 'minimized')
   const scopeMachine = scope?.machine ?? null
   const scopeProject = scope?.projectId ?? null
-  const draft =
-    selection !== null &&
-    selection.sessionId === null &&
-    selection.pending === null
-      ? selection
-      : null
   const grouped = groupActiveByProject && scope === null
   const groups = [
     ...new Map(
-      [...(draft === null ? [] : [draft]), ...active].map((item) => {
+      active.map((item) => {
         const projectId = groupProject(item.machine, item.projectId)
         return [
           machineKey(item.machine, projectId),
@@ -134,8 +122,6 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
         )
       )
     : active
-
-  const Draft = props.mobile ? MobileDraftRow : DesktopDraftRow
 
   function groupProject(machine: string, projectId: string) {
     const project = projects.find(
@@ -326,38 +312,25 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
         </div>
         <nav className="flex min-h-0 flex-1 [scrollbar-width:none] flex-col overflow-y-auto px-(--sidebar-content-inset) pb-(--sidebar-content-inset)">
           <ul className="flex flex-1 flex-col gap-px">
-            {grouped ? (
-              groups.map(([key, group]) => (
-                <ProjectGroup
-                  key={key}
-                  machine={group.machine}
-                  projectId={group.projectId}
-                  sessions={active.filter(
-                    (session) =>
-                      machineKey(
-                        session.machine,
-                        groupProject(session.machine, session.projectId)
-                      ) === key
-                  )}
-                  ordered={ordered}
-                  mobile={props.mobile}
-                />
-              ))
-            ) : (
-              <>
-                {draft !== null && (
-                  <Draft
-                    machine={draft.machine}
-                    projectId={draft.projectId}
-                    onSelect={() =>
-                      select(draft.machine, draft.projectId, null)
-                    }
+            {grouped
+              ? groups.map(([key, group]) => (
+                  <ProjectGroup
+                    key={key}
+                    machine={group.machine}
+                    projectId={group.projectId}
+                    sessions={active.filter(
+                      (session) =>
+                        machineKey(
+                          session.machine,
+                          groupProject(session.machine, session.projectId)
+                        ) === key
+                    )}
+                    ordered={ordered}
+                    mobile={props.mobile}
                   />
-                )}
-                {active.map((session) => row(session))}
-              </>
-            )}
-            {active.length === 0 && draft === null && (
+                ))
+              : active.map((session) => row(session))}
+            {active.length === 0 && (
               <li className="text-sidebar-muted-foreground/60 px-2.5 py-6 text-center text-xs">
                 No threads yet
               </li>
