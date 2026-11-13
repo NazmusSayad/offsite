@@ -297,6 +297,15 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
               void switchTo(branch.name, false)
             }}
           >
+            {branch.name === target.repo.branch ? (
+              <HugeiconsIcon
+                icon={CheckIcon}
+                strokeWidth={2.25}
+                className="size-3.5 shrink-0"
+              />
+            ) : (
+              <span className="size-3.5 shrink-0" />
+            )}
             <span className="min-w-0 flex-1 truncate">{branch.name}</span>
             {branch.worktree !== null && (
               <span className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs">
@@ -312,13 +321,6 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
                 <HugeiconsIcon icon={CloudIcon} className="size-3.5" />
                 Remote
               </span>
-            )}
-            {branch.name === target.repo.branch && (
-              <HugeiconsIcon
-                icon={CheckIcon}
-                strokeWidth={2.25}
-                className="size-3.5 shrink-0"
-              />
             )}
           </button>
         ))}
@@ -338,6 +340,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
               void switchTo(branch.slice(branch.indexOf('/') + 1), false)
             }
           >
+            <span className="size-3.5 shrink-0" />
             <span className="min-w-0 flex-1 truncate">{branch}</span>
           </button>
         ))}

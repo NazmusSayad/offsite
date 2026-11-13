@@ -10,7 +10,7 @@ export type OutboxPrompt = {
   projectId: string
   provider: Provider
   prompt: Prompt
-  status: 'sending' | 'queued' | 'failed'
+  status: 'sending' | 'accepted' | 'queued' | 'failed'
   snoozed: boolean
   createdAt: number
 }

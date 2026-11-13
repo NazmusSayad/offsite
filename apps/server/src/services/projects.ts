@@ -24,6 +24,7 @@ import { findLogo, prepareLogo } from './logos.ts'
 import {
   createWorktree,
   deleteWorktree,
+  lastActivity,
   listWorktrees,
   moveIntoWorktree,
   restoreWorktree,
@@ -173,17 +174,22 @@ export async function projectWorktrees(
     root,
     ...projects().filter((item) => item.parentId === root.id),
   ]
-  return worktrees.map((worktree) => {
-    const project = members.find(
-      (item) => worktreeOf(item.path, worktrees) === worktree.folder
-    )
-    return {
-      projectId: project === undefined ? null : project.id,
-      folder: worktree.folder,
-      branch: worktree.branch,
-      worktree: project === undefined || project.id !== root.id,
-    }
-  })
+  return Promise.all(
+    worktrees.map(async (worktree) => {
+      const project = members.find(
+        (item) =>
+          existsSync(item.path) &&
+          worktreeOf(realpathSync(item.path), worktrees) === worktree.folder
+      )
+      return {
+        projectId: project === undefined ? null : project.id,
+        folder: worktree.folder,
+        branch: worktree.branch,
+        worktree: project === undefined || project.id !== root.id,
+        activeAt: await lastActivity(worktree.folder),
+      }
+    })
+  )
 }
 
 export async function projectBases(projectId: string, query: string) {

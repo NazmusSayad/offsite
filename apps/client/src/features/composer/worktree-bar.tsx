@@ -2,18 +2,12 @@ import {
   ArrowDown01Icon,
   CircleDashedIcon,
   CloudIcon,
-  FolderGit2Icon,
   GitBranchPlusIcon,
   GitBranchIcon,
   SearchIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type {
-  GitRepo,
-  WorktreeBases,
-  WorktreeChoice,
-  WorktreeStage,
-} from '@offsite/core/git'
+import type { GitRepo, WorktreeBases, WorktreeStage } from '@offsite/core/git'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { call } from '@/api/connection'
@@ -22,20 +16,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { logger } from '@/lib/log'
-import { openSession } from '@/lib/sessions'
 import { getState, update, useStore } from '@/lib/store'
 import { cn, errorMessage, touch } from '@/lib/utils'
+import { LocationMenu } from './location-menu'
+import { keepFocusOnTouch, refocusComposer } from './picker'
 import { RepoStatus } from './repo-status'
 
 const log = logger.withTag('worktree')
-
-const NEW_WORKTREE = 'new-worktree'
 
 export function WorktreeBar(props: {
   machine: string
@@ -52,7 +42,17 @@ export function WorktreeBar(props: {
   }
 
   return (
-    <div className="absolute inset-x-0 top-full">
+    <div
+      className="absolute inset-x-0 top-full"
+      onMouseDown={(event) => {
+        if (!(event.target instanceof Element)) {
+          return
+        }
+        if (touch.matches && event.target.closest('input') === null) {
+          event.preventDefault()
+        }
+      }}
+    >
       <div className="composer-glass @container relative mx-auto -mt-[calc(1rem+1px)] w-[calc(100%-2.75rem)] rounded-b-2xl border border-t-0 border-(--composer-outline) px-1 pt-[calc(1rem+1px+0.25rem)] pb-1 text-xs/4">
         {stage !== null && (
           <span className="text-muted-foreground flex h-7 min-w-0 items-center gap-1.5 px-2">
@@ -65,7 +65,7 @@ export function WorktreeBar(props: {
         )}
         {stage === null && (
           <div className="flex flex-wrap items-center gap-1">
-            <DropdownMenu>
+            <DropdownMenu modal={!touch.matches}>
               <DropdownMenuTrigger asChild>
                 <button
                   className="text-foreground/90 hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-ring/40 flex h-6 max-w-56 min-w-0 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2 outline-none focus-visible:ring-2"
@@ -91,10 +91,16 @@ export function WorktreeBar(props: {
                   />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-80">
+              <DropdownMenuContent
+                align="start"
+                className="w-80"
+                onOpenAutoFocus={keepFocusOnTouch}
+                onCloseAutoFocus={refocusComposer}
+              >
                 <LocationMenu
                   machine={props.machine}
                   projectId={props.projectId}
+                  onRefresh={props.onRefresh}
                 />
               </DropdownMenuContent>
             </DropdownMenu>
@@ -117,7 +123,7 @@ export function WorktreeBar(props: {
               )}
               {worktree !== null && (
                 <>
-                  <DropdownMenu>
+                  <DropdownMenu modal={!touch.matches}>
                     <DropdownMenuTrigger asChild>
                       <button
                         className="hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-ring/30 flex h-6 max-w-48 min-w-0 shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 outline-none focus-visible:ring-2"
@@ -140,6 +146,8 @@ export function WorktreeBar(props: {
                     <DropdownMenuContent
                       align="start"
                       className="flex w-72 flex-col overflow-hidden p-0"
+                      onOpenAutoFocus={keepFocusOnTouch}
+                      onCloseAutoFocus={refocusComposer}
                     >
                       <BaseMenu
                         machine={props.machine}
@@ -172,85 +180,6 @@ export function WorktreeBar(props: {
         )}
       </div>
     </div>
-  )
-}
-
-function LocationMenu(props: { machine: string; projectId: string }) {
-  const worktree = useStore((state) => state.worktree)
-  const [worktrees, setWorktrees] = useState<WorktreeChoice[] | null>(null)
-
-  useEffect(() => {
-    let current = true
-    async function load() {
-      try {
-        const found = await call(props.machine, 'projects.worktrees', {
-          projectId: props.projectId,
-        })
-        if (current) {
-          setWorktrees(found)
-        }
-      } catch (error) {
-        log.error('could not load the worktrees', error)
-        toast(errorMessage(error))
-      }
-    }
-    void load()
-    return () => {
-      current = false
-    }
-  }, [props.machine, props.projectId])
-
-  if (worktrees === null) {
-    return <DropdownMenuItem disabled>Loading…</DropdownMenuItem>
-  }
-
-  return (
-    <DropdownMenuRadioGroup
-      value={worktree === null ? props.projectId : NEW_WORKTREE}
-    >
-      {worktrees.map((item) => (
-        <DropdownMenuRadioItem
-          key={item.folder}
-          value={item.projectId ?? item.folder}
-          title={item.folder}
-          onSelect={() => {
-            if (item.projectId === props.projectId) {
-              update({ worktree: null })
-              return
-            }
-            void openWorktree(props.machine, props.projectId, item)
-          }}
-        >
-          <HugeiconsIcon
-            icon={item.worktree ? FolderGit2Icon : GitBranchIcon}
-            className="text-muted-foreground size-3.5"
-          />
-          <span className="min-w-0 flex-1 truncate">
-            {item.branch ?? 'Detached HEAD'}
-          </span>
-          {item.worktree && (
-            <span className="text-muted-foreground max-w-28 shrink-0 truncate text-xs">
-              {folderName(item.folder)}
-            </span>
-          )}
-        </DropdownMenuRadioItem>
-      ))}
-      <DropdownMenuSeparator />
-      <DropdownMenuRadioItem
-        value={NEW_WORKTREE}
-        onSelect={() => {
-          if (worktree === null) {
-            update({ worktree: { name: '', base: null } })
-          }
-        }}
-      >
-        <HugeiconsIcon
-          icon={GitBranchPlusIcon}
-          className="text-muted-foreground size-3.5"
-        />
-        <span className="min-w-0 flex-1 truncate">New worktree</span>
-      </DropdownMenuRadioItem>
-    </DropdownMenuRadioGroup>
   )
 }
 
@@ -406,25 +335,6 @@ function BaseMenu(props: { machine: string; projectId: string }) {
   )
 }
 
-async function openWorktree(
-  machine: string,
-  projectId: string,
-  choice: WorktreeChoice
-) {
-  try {
-    const id =
-      choice.projectId ??
-      (await call(machine, 'projects.addWorktree', {
-        projectId,
-        folder: choice.folder,
-      }))
-    openSession({ machine, projectId: id, sessionId: null, pending: null })
-  } catch (error) {
-    log.error('could not open the worktree', error)
-    toast(errorMessage(error))
-  }
-}
-
 function shortRef(ref: string) {
   if (ref.startsWith('refs/heads/')) {
     return ref.slice('refs/heads/'.length)
@@ -433,10 +343,6 @@ function shortRef(ref: string) {
     return ref.slice('refs/remotes/'.length)
   }
   throw new Error(`${ref} is not a branch`)
-}
-
-function folderName(folder: string) {
-  return folder.split(/[\\/]/).at(-1) ?? folder
 }
 
 export function stageText(stage: WorktreeStage) {

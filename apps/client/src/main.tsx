@@ -13,6 +13,7 @@ import { logger, startLogging } from '@/lib/log'
 import { refreshPushSubscription } from '@/lib/notifications'
 import { router } from '@/lib/router'
 import { openSession } from '@/lib/sessions'
+import { replaceSearch } from '@/lib/url'
 
 const log = logger.withTag('app')
 
@@ -32,15 +33,17 @@ if ('serviceWorker' in navigator) {
     }
   })
   navigator.serviceWorker.addEventListener('message', (event) => {
-    if (event.data.type !== 'openSession') {
-      return
+    if (event.data.type === 'openSession') {
+      openSession({
+        machine: event.data.machine,
+        projectId: event.data.project,
+        sessionId: event.data.sessionId,
+        pending: null,
+      })
+      if (event.data.panel === 'diff') {
+        replaceSearch({ panel: 'diff' })
+      }
     }
-    openSession({
-      machine: event.data.machine,
-      projectId: event.data.project,
-      sessionId: event.data.sessionId,
-      pending: null,
-    })
   })
   navigator.serviceWorker
     .register(

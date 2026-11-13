@@ -19,8 +19,7 @@ import { broadcast, type Client } from '../../lib/hub.ts'
 import { logger } from '../../lib/log.ts'
 import { workingDirectory } from '../../storage/config.ts'
 import { projectPath } from '../projects.ts'
-import { notifierClient, pushActive, sendPush } from '../push.ts'
-import { ALERT_DELAY, type Alert, Alerts, Scanner } from './alerts.ts'
+import { Scanner } from './alerts.ts'
 import { busyProgram, currentDirectory, startShell } from './process.ts'
 
 const log = logger.withTag('terminal')
@@ -38,14 +37,12 @@ type Terminal = {
   history: Buffer[]
   historySize: number
   owner: Connection | null
-  alerts: Alerts
   scanner: Scanner
 }
 
 const HISTORY_LIMIT = 2 * 1024 * 1024
 const OUTPUT_LIMIT = 1024 * 1024
 const STALL_LIMIT = 10_000
-const SILENCE_LIMIT = 90_000
 const KILL_DELAY = 3000
 
 const instance = `${Date.now()}-${randomUUID()}`
@@ -315,7 +312,6 @@ function openTab(
     history: [],
     historySize: 0,
     owner: null,
-    alerts: new Alerts(),
     scanner: new Scanner(),
   }
   log.info(`started terminal ${id} with pid ${pty.pid} in ${directory}`)
@@ -372,7 +368,7 @@ function output(id: number, terminal: Terminal, data: Buffer) {
   for (const connection of connections.values()) {
     forward(connection, id, false, data)
   }
-  scan(id, terminal, data)
+  terminal.scanner.scan(data)
   if (
     [...connections.values()].some(
       (connection) => connection.client.socket.bufferedAmount > OUTPUT_LIMIT
@@ -419,65 +415,6 @@ function drain() {
     }
     paused.clear()
   }, 10)
-}
-
-function scan(id: number, terminal: Terminal, data: Buffer) {
-  const alert = terminal.scanner.scan(data)
-  if (!pushActive() || alert === null || notifierWatching()) {
-    return
-  }
-  const started =
-    alert.type === 'bell'
-      ? terminal.alerts.startBell()
-      : terminal.alerts.startNotification()
-  if (!started) {
-    return
-  }
-  const windowTitle = terminal.scanner.title
-  setTimeout(() => push(id, alert, windowTitle), ALERT_DELAY)
-}
-
-function push(id: number, alert: Alert, windowTitle: string) {
-  const terminal = terminals.get(id)
-  if (terminal === undefined) {
-    return
-  }
-  let title = ''
-  let body: string
-  if (alert.type === 'bell') {
-    if (!terminal.alerts.finishBell()) {
-      return
-    }
-    body = 'Bell'
-  } else {
-    title = alert.title
-    body = alert.body
-  }
-  if (notifierWatching()) {
-    return
-  }
-  const tab = findTab(id)
-  if (tab === undefined) {
-    return
-  }
-  if (title === '') {
-    title = tab.customName ?? (windowTitle || 'Terminal')
-  }
-  void sendPush({
-    kind: 'terminal',
-    title,
-    body,
-    projectId: tab.projectId ?? GLOBAL_TERMINALS,
-    tabId: id,
-  })
-}
-
-function notifierWatching() {
-  const client = notifierClient()
-  if (client === null || !connections.has(client)) {
-    return false
-  }
-  return Date.now() - client.heardAt < SILENCE_LIMIT
 }
 
 function findTab(id: number) {

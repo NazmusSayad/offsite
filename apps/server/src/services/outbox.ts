@@ -4,6 +4,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm'
 import { broadcast } from '../lib/hub.ts'
 import { db } from '../storage/db.ts'
 import { outbox as outboxTable } from '../storage/schema.ts'
+import { notSentNotice } from './session-notices.ts'
 
 export function addToOutbox(request: RpcMethods['sessions.send']['params']) {
   db.insert(outboxTable)
@@ -68,6 +69,14 @@ export function setOutboxStatus(id: string, status: OutboxPrompt['status']) {
   broadcastOutbox()
 }
 
+export function markAccepted(id: string) {
+  db.update(outboxTable)
+    .set({ status: 'accepted' })
+    .where(and(eq(outboxTable.id, id), eq(outboxTable.status, 'sending')))
+    .run()
+  broadcastOutbox()
+}
+
 export function removeFromOutbox(id: string) {
   db.delete(outboxTable).where(eq(outboxTable.id, id)).run()
   broadcastOutbox()
@@ -79,6 +88,7 @@ export function clearSessionOutbox(sessionId: string) {
 }
 
 export function failQueued(sessionId: string) {
+  const failing = queuedFor(sessionId)
   db.update(outboxTable)
     .set({ status: 'failed' })
     .where(
@@ -89,12 +99,19 @@ export function failQueued(sessionId: string) {
     )
     .run()
   broadcastOutbox()
+  notSentNotice(
+    failing.map((item) => ({
+      id: item.id,
+      sessionId: item.sessionId,
+      text: item.prompt.text,
+    }))
+  )
 }
 
 export function failInterrupted() {
   db.update(outboxTable)
     .set({ status: 'failed' })
-    .where(inArray(outboxTable.status, ['sending', 'queued']))
+    .where(inArray(outboxTable.status, ['sending', 'accepted', 'queued']))
     .run()
 }
 
@@ -105,6 +122,7 @@ export class Handover {
     this.ids.push(id)
     try {
       await deliver()
+      markAccepted(id)
     } catch (error) {
       this.ids = this.ids.filter((other) => other !== id)
       throw error

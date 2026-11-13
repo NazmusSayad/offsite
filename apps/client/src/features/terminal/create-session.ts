@@ -2,7 +2,7 @@ import { Terminal } from '@/lib/ghostty/terminal'
 import { getState as appState, machineOf } from '@/lib/store'
 import { openBrowser } from '@/lib/url'
 import { isWindows } from '@/lib/utils'
-import { beep, isSeen, notifyFromProgram, ringBell } from './attention'
+import { beep, isSeen, raiseAlert } from './attention'
 import {
   imagePasteKeys,
   isImagePasteKey,
@@ -70,9 +70,9 @@ export function createSession(id: number) {
           easing: 'ease-out',
         })
       }
-      ringBell(id)
+      raiseAlert(id)
     },
-    onNotify: (title, body) => notifyFromProgram(id, title, body),
+    onNotify: () => raiseAlert(id),
     onClipboard: writeClipboard,
     onClipboardRead: (query) => {
       if (!isSeen(id)) {

@@ -45,6 +45,7 @@ import {
   restoreWorktreeFolder,
   rootProject,
 } from './projects.ts'
+import { notSentNotice } from './session-notices.ts'
 import {
   listedUpdatedAt,
   providerOf,
@@ -243,6 +244,13 @@ export async function send(
     await deliver(client, request)
   } catch (error) {
     setOutboxStatus(request.id, 'failed')
+    notSentNotice([
+      {
+        id: request.id,
+        sessionId: request.sessionId,
+        text: request.prompt.text,
+      },
+    ])
     throw error
   }
 }
