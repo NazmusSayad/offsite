@@ -15,7 +15,10 @@ import { loadEarlier } from '@/lib/sessions'
 import { showError, update, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-export function MessageBookmarkButton(props: { itemId: string }) {
+export function MessageBookmarkButton(props: {
+  itemId: string
+  disabled: boolean
+}) {
   const selection = useStore((state) => state.selection)
   if (selection === null || selection.sessionId === null) {
     return null
@@ -23,6 +26,7 @@ export function MessageBookmarkButton(props: { itemId: string }) {
   return (
     <BookmarkToggle
       machine={selection.machine}
+      disabled={props.disabled}
       target={{
         sessionId: selection.sessionId,
         itemId: props.itemId,
@@ -33,7 +37,11 @@ export function MessageBookmarkButton(props: { itemId: string }) {
   )
 }
 
-function BookmarkToggle(props: { machine: string; target: BookmarkTarget }) {
+function BookmarkToggle(props: {
+  machine: string
+  target: BookmarkTarget
+  disabled: boolean
+}) {
   const bookmarked = useBookmarked(props.machine, props.target)
   return (
     <Tooltip label={bookmarked ? 'Remove bookmark' : 'Bookmark message'}>
@@ -43,6 +51,7 @@ function BookmarkToggle(props: { machine: string; target: BookmarkTarget }) {
         variant="ghost-muted"
         aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark message'}
         aria-pressed={bookmarked}
+        disabled={props.disabled}
         onClick={() => toggleBookmark(props.machine, props.target)}
       >
         <HugeiconsIcon

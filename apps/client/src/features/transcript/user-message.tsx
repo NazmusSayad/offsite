@@ -203,7 +203,7 @@ export function UserMessage(props: {
       </div>
       <div
         className={cn(
-          'flex h-6 w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 select-none transition-opacity duration-200 animate-in fade-in group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100',
+          'flex h-6 w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 select-none transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100',
           outboxPromptId !== null && 'opacity-100'
         )}
       >
@@ -237,8 +237,13 @@ export function UserMessage(props: {
               </p>
             </Tooltip>
           )}
-          {prompt !== '' && outboxPromptId === null && (
-            <div className="flex items-center gap-0.5">
+          {prompt !== '' && (outboxPromptId === null || !failed) && (
+            <div
+              className={cn(
+                'flex items-center gap-0.5',
+                outboxPromptId !== null && 'hidden pointer-coarse:flex'
+              )}
+            >
               {props.rewind && (
                 <RewindMenu
                   target={{
@@ -247,10 +252,13 @@ export function UserMessage(props: {
                     images: item.images,
                     first: props.first,
                   }}
-                  disabled={props.running}
+                  disabled={props.running || outboxPromptId !== null}
                 />
               )}
-              <MessageBookmarkButton itemId={item.id} />
+              <MessageBookmarkButton
+                itemId={item.id}
+                disabled={outboxPromptId !== null}
+              />
               <MessageCopyButton text={prompt} />
             </div>
           )}
