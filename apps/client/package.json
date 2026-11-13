@@ -2,7 +2,8 @@
   "name": "client",
   "type": "module",
   "scripts": {
-    "build": "vite build && node ../../scripts/compress-client.mts"
+    "build": "vite build && node ../../scripts/compress-client.mts",
+    "notification-icons": "node scripts/notification-icons.mts"
   },
   "dependencies": {
     "@iconify-json/material-icon-theme": "^1.2.75",

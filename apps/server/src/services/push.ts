@@ -1,4 +1,4 @@
-import type { PushMessage, PushRegistration } from '@offsite/core/push'
+import type { Notice, PushRegistration } from '@offsite/core/push'
 import { and, eq, inArray } from 'drizzle-orm'
 import webPush from 'web-push'
 import { type Client, clients } from '../lib/hub.ts'
@@ -8,8 +8,6 @@ import { pushSubscriptions } from '../storage/schema.ts'
 
 const log = logger.withTag('push')
 
-const TITLE_LIMIT = 100
-const BODY_LIMIT = 500
 const TIME_TO_LIVE = 15 * 60
 const SEND_TIMEOUT = 10_000
 const SILENCE_LIMIT = 90_000
@@ -20,14 +18,6 @@ let notifier: { client: Client; endpoint: string | null } | null = null
 
 export function startPush(address: string) {
   server = address
-}
-
-export function pushActive() {
-  return targets().length > 0
-}
-
-export function notifierClient() {
-  return notifier === null ? null : notifier.client
 }
 
 export function notifierConnected() {
@@ -78,15 +68,10 @@ export function unsubscribe(endpoint: string) {
   log.info('a browser unsubscribed from push notifications')
 }
 
-export async function sendPush(message: PushMessage) {
+export async function sendPush(notice: Notice) {
   const subscriptions = targets()
   if (subscriptions.length === 0) {
     return false
-  }
-  const trimmed = {
-    ...message,
-    title: [...message.title].slice(0, TITLE_LIMIT).join(''),
-    body: [...message.body].slice(0, BODY_LIMIT).join(''),
   }
   const gone: string[] = []
   let delivered = 0
@@ -98,7 +83,7 @@ export async function sendPush(message: PushMessage) {
             endpoint: subscription.endpoint,
             keys: { p256dh: subscription.p256dh, auth: subscription.auth },
           },
-          JSON.stringify({ ...trimmed, machineId: subscription.machine }),
+          JSON.stringify({ ...notice, machineId: subscription.machine }),
           {
             vapidDetails: {
               subject: SUBJECT,

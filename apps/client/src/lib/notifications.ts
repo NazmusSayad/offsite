@@ -1,9 +1,9 @@
-import type { PushSubscriptionInfo } from '@offsite/core/push'
+import type { Notice, PushSubscriptionInfo } from '@offsite/core/push'
 import { useEffect } from 'react'
-import { call, isConnected } from '@/api/connection'
+import { call, isConnected, machineUrl } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { logger } from '@/lib/log'
-import { providerNames } from './format'
+import { showNotice } from './notices'
 import { activityOf, getState, machineOf, threadState, useStore } from './store'
 
 const log = logger.withTag('notifications')
@@ -51,88 +51,20 @@ export async function watchPermission(
   status.addEventListener('change', listener, { signal })
 }
 
-export function notify(machine: string, ids: string[], what: string) {
-  if (!document.hidden) {
+export async function showNoticeHere(machine: string, notice: Notice) {
+  if (!canShow(machine) || (!document.hidden && !notice.whileVisible)) {
     return
   }
-  for (const id of ids) {
-    const session = findSession(machine, id)
-    show(
-      machine,
-      id,
-      `${session === undefined ? 'Agent' : providerNames[session.provider]} ${what}`,
-      session?.title ?? 'Session',
-      machineKey(machine, id)
-    ).catch((error: unknown) =>
-      log.error('could not show a notification', error)
-    )
-  }
+  const registration = await navigator.serviceWorker.ready
+  await showNotice(registration, machine, notice, machineUrl(machine))
 }
 
-export function push(machine: string, sessionId: string, message: string) {
-  show(
-    machine,
-    sessionId,
-    findSession(machine, sessionId)?.title ?? 'Session',
-    message,
-    `push:${machineKey(machine, sessionId)}`
-  ).catch((error: unknown) => log.error('could not show a notification', error))
-}
-
-function findSession(machine: string, id: string) {
-  return getState().sessions.find(
-    (item) => item.machine === machine && item.id === id
+function canShow(machine: string) {
+  return (
+    notificationPermission() === 'granted' &&
+    notificationsWanted() &&
+    machineOf(getState(), machine).notifier
   )
-}
-
-async function show(
-  machine: string,
-  sessionId: string,
-  title: string,
-  body: string,
-  tag: string
-) {
-  if (
-    notificationPermission() !== 'granted' ||
-    !notificationsWanted() ||
-    !machineOf(getState(), machine).notifier
-  ) {
-    return
-  }
-  const session = findSession(machine, sessionId)
-  const registration = await navigator.serviceWorker.ready
-  await registration.showNotification(title, {
-    body,
-    tag,
-    data:
-      session === undefined
-        ? null
-        : {
-            kind: 'session',
-            machine,
-            project: session.projectId,
-            sessionId,
-          },
-  })
-}
-
-export async function showNotification(
-  title: string,
-  body: string,
-  tab: { machine: string; project: string; tabId: number }
-) {
-  if (
-    notificationPermission() !== 'granted' ||
-    !notificationsWanted() ||
-    !machineOf(getState(), tab.machine).notifier
-  ) {
-    return
-  }
-  const registration = await navigator.serviceWorker.ready
-  await registration.showNotification(title, {
-    body,
-    data: { kind: 'terminal', ...tab },
-  })
 }
 
 export function claimNotifications() {

@@ -53,6 +53,7 @@ import {
 } from '../services/git.ts'
 import { logoFiles, readLogo } from '../services/logos.ts'
 import { searchMessages } from '../services/message-search.ts'
+import { act } from '../services/notices.ts'
 import { removeFromOutbox } from '../services/outbox.ts'
 import {
   addProject,
@@ -386,6 +387,10 @@ const handlers: Handlers = {
   },
   'notifications.claim': (params, client) => {
     claimNotifier(client, params.endpoint)
+    return null
+  },
+  'notices.act': async (params, client) => {
+    await act(client, params.id, params.action)
     return null
   },
   terminal: async (params, client) => {

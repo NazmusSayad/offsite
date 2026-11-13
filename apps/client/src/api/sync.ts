@@ -23,7 +23,7 @@ import {
 } from '@/lib/accounts'
 import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
-import { claimNotifications, notify, push } from '@/lib/notifications'
+import { claimNotifications, showNoticeHere } from '@/lib/notifications'
 import { moveStartedPrompt, receiveOutbox } from '@/lib/outbox'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
@@ -277,15 +277,6 @@ function receive(machine: string, event: ServerEvent) {
       const finished = Object.keys(previous).filter(
         (id) => previous[id].running && event.activity[id]?.running !== true
       )
-      const waiting = Object.keys(event.activity).filter(
-        (id) => event.activity[id].waiting && previous[id]?.waiting !== true
-      )
-      notify(
-        machine,
-        finished.filter((id) => previous[id].prompted),
-        'finished'
-      )
-      notify(machine, waiting, 'needs your input')
       setMachine(machine, {
         activity: Object.fromEntries(
           Object.entries(event.activity).map((entry) => [
@@ -396,8 +387,10 @@ function receive(machine: string, event: ServerEvent) {
       syncUrl(true)
       return
     }
-    case 'notification':
-      push(machine, event.sessionId, event.message)
+    case 'notice':
+      showNoticeHere(machine, event.notice).catch((error: unknown) =>
+        log.error('could not show a notification', error)
+      )
       return
     case 'notifier':
       setMachine(machine, { notifier: event.active })

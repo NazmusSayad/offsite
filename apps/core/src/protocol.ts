@@ -46,7 +46,7 @@ import type {
   RateLimit,
   Usage,
 } from './providers.ts'
-import type { PushRegistration } from './push.ts'
+import type { Notice, PushRegistration } from './push.ts'
 import type { MessageMatch, SearchSession } from './search.ts'
 import type { ServiceSettings, ServiceState } from './service.ts'
 import type {
@@ -395,6 +395,7 @@ export type RpcMethods = {
   'push.subscribe': { params: PushRegistration; result: null }
   'push.unsubscribe': { params: { endpoint: string }; result: null }
   'notifications.claim': { params: { endpoint: string | null }; result: null }
+  'notices.act': { params: { id: string; action: string }; result: null }
   terminal: { params: TerminalRequest; result: null }
   'terminal.shells': { params: void; result: Shell[] }
   'terminal.busy': { params: { id: number }; result: BusyResult }
@@ -466,6 +467,6 @@ export type ServerEvent =
   | { type: 'outbox'; outbox: OutboxPrompt[] }
   | { type: 'settings'; sessionId: string; settings: SessionSettings }
   | { type: 'context'; sessionId: string; context: ContextUsage | null }
-  | { type: 'notification'; sessionId: string; message: string }
+  | { type: 'notice'; notice: Notice }
   | { type: 'notifier'; active: boolean }
   | { type: 'terminals'; tabs: TerminalTab[] }
