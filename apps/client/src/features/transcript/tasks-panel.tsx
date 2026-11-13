@@ -498,6 +498,7 @@ function AgentView(props: {
               tasks={props.found.tasks}
               running={props.running}
               compacting={false}
+              sending={false}
               fork={false}
               expanded={expanded.includes(row.key)}
               onToggle={toggle}

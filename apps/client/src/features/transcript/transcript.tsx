@@ -115,13 +115,22 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     [earlier, items, activity]
   )
   const olderRows = mainRows(earlier, false, '')
+  const unsent = prompts.filter(
+    (prompt) =>
+      !items.some(
+        (item) =>
+          item.kind === 'user' &&
+          item.time !== null &&
+          item.time >= prompt.createdAt &&
+          item.text === prompt.prompt.text
+      )
+  )
+  const sending =
+    !running && unsent.some((prompt) => prompt.status === 'sending')
   const rows = [
     ...olderRows,
-    ...mainRows(
-      loaded ? [...items, ...outboxItems(prompts)] : items,
-      running,
-      partial
-    ),
+    ...mainRows(items, running, partial),
+    ...mainRows(loaded ? outboxItems(unsent) : [], sending, ''),
   ]
   const topIndex = rows.findIndex((row) => row.key === top?.key)
   const start = finding
@@ -298,6 +307,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
                     tasks={found.tasks}
                     running={running}
                     compacting={activity?.compacting === true}
+                    sending={sending}
                     fork={!older}
                     expanded={expanded.includes(row.key)}
                     onToggle={toggle}
@@ -325,6 +335,7 @@ function RowContent(props: {
   cwd: string
   running: boolean
   compacting: boolean
+  sending: boolean
   fork: boolean
   expanded: boolean
   onToggle: (key: string) => void
@@ -346,7 +357,13 @@ function RowContent(props: {
       return (
         <div className="text-muted-foreground h-9 pt-3 text-[13px] leading-5 font-medium tracking-[-0.04px]">
           <Shimmer
-            text={props.compacting ? 'Compacting conversation' : 'Working'}
+            text={
+              props.compacting
+                ? 'Compacting conversation'
+                : props.sending
+                  ? 'Sending'
+                  : 'Working'
+            }
             active
           />
         </div>
@@ -390,7 +407,7 @@ function RowContent(props: {
             <div className="mt-1.5 flex items-center gap-2 text-xs tabular-nums opacity-0 transition-opacity duration-200 select-none group-hover/assistant:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
               <div className="flex items-center gap-0.5">
                 <MessageCopyButton text={row.text} />
-                <MessageBookmarkButton itemId={row.key} />
+                <MessageBookmarkButton itemId={row.key} disabled={false} />
                 {props.fork && <ForkButton uuid={row.message} />}
               </div>
               {row.time !== null && (

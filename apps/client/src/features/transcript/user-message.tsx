@@ -237,8 +237,13 @@ export function UserMessage(props: {
               </p>
             </Tooltip>
           )}
-          {prompt !== '' && outboxPromptId === null && (
-            <div className="flex items-center gap-0.5">
+          {prompt !== '' && (outboxPromptId === null || !failed) && (
+            <div
+              className={cn(
+                'flex items-center gap-0.5',
+                outboxPromptId !== null && 'hidden pointer-coarse:flex'
+              )}
+            >
               {props.rewind && (
                 <RewindMenu
                   target={{
@@ -247,10 +252,13 @@ export function UserMessage(props: {
                     images: item.images,
                     first: props.first,
                   }}
-                  disabled={props.running}
+                  disabled={props.running || outboxPromptId !== null}
                 />
               )}
-              <MessageBookmarkButton itemId={item.id} />
+              <MessageBookmarkButton
+                itemId={item.id}
+                disabled={outboxPromptId !== null}
+              />
               <MessageCopyButton text={prompt} />
             </div>
           )}
