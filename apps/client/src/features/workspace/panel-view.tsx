@@ -4,6 +4,11 @@ import { TasksPanel } from '@/features/transcript/tasks-panel'
 import type { Panel } from '@/features/workspace/panels'
 import { projectOf, type Selection, useStore } from '@/lib/store'
 
+const PullRequestsPanel = lazy(async () => ({
+  default: (await import('@/features/pull-requests/pull-requests-panel'))
+    .PullRequestsPanel,
+}))
+
 const DiffPanel = lazy(async () => ({
   default: (await import('@/features/git/diff-panel')).DiffPanel,
 }))
@@ -34,6 +39,18 @@ export function PanelView(props: {
       {props.panel === 'diff' && (
         <Suspense>
           <DiffPanel
+            key={`${props.selection.machine} ${props.selection.projectId}`}
+            machine={props.selection.machine}
+            projectId={props.selection.projectId}
+            running={props.running}
+            onClose={() => props.onPanel(null)}
+            mobile={props.mobile}
+          />
+        </Suspense>
+      )}
+      {props.panel === 'pulls' && (
+        <Suspense>
+          <PullRequestsPanel
             key={`${props.selection.machine} ${props.selection.projectId}`}
             machine={props.selection.machine}
             projectId={props.selection.projectId}

@@ -18,7 +18,10 @@ import {
   MarkdownTable,
 } from '@/components/markdown/markdown-blocks'
 import { CodeBlock } from '@/components/markdown/markdown-code'
-import { remarkUnclosedHtml } from '@/components/markdown/markdown-html'
+import {
+  rehypeStandaloneImages,
+  remarkUnclosedHtml,
+} from '@/components/markdown/markdown-html'
 import { LocalMedia, Media } from '@/components/markdown/markdown-media'
 import { remarkWindowsPaths } from '@/components/markdown/markdown-paths'
 import {
@@ -27,7 +30,7 @@ import {
 } from '@/components/markdown/markdown-skills'
 import { streamingParser } from '@/components/markdown/markdown-stream'
 import { mediaKind } from '@/lib/media'
-import { openBrowser } from '@/lib/url'
+import { openBrowser, isPullRequestUrl, openPullRequest } from '@/lib/url'
 import { cn } from '@/lib/utils'
 
 const schema = {
@@ -100,7 +103,17 @@ const components: Components = {
           .join('')
       : ''
     return (
-      <a href={href} target="_blank" rel="noopener noreferrer">
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(event) => {
+          if (href !== undefined && isPullRequestUrl(href)) {
+            event.preventDefault()
+            openPullRequest(href)
+          }
+        }}
+      >
         {plain === '' ? (
           children
         ) : (
@@ -134,7 +147,7 @@ const components: Components = {
       </p>
     )
   },
-  img({ src, alt }) {
+  img({ node, src, alt, width, height }) {
     if (typeof src !== 'string') {
       return null
     }
@@ -147,6 +160,23 @@ const components: Components = {
           path={decodeURI(src).replace(/^\/(?=[a-z]:\/)/i, '')}
           alt={alt ?? ''}
           raw={`![${alt ?? ''}](${src})`}
+        />
+      )
+    }
+    const size = imageSize(Number(width), Number(height))
+    if (
+      mediaKind(src) !== 'video' &&
+      mediaKind(src) !== 'audio' &&
+      (size !== undefined || node?.properties.dataStandalone !== true)
+    ) {
+      return (
+        <img
+          src={src}
+          alt={alt ?? ''}
+          loading="lazy"
+          decoding="async"
+          className="max-h-[30rem] max-w-full object-contain"
+          style={size}
         />
       )
     }
@@ -226,7 +256,9 @@ function MarkdownView(props: {
           ...(props.rawHtml === false ? [] : [remarkUnclosedHtml]),
         ]}
         rehypePlugins={
-          props.rawHtml === false ? [] : [rehypeRaw, [rehypeSanitize, schema]]
+          props.rawHtml === false
+            ? [rehypeStandaloneImages]
+            : [rehypeRaw, [rehypeSanitize, schema], rehypeStandaloneImages]
         }
         components={{ ...components, ...props.components }}
         urlTransform={(url) =>
@@ -328,4 +360,19 @@ function LinkFavicon(props: { host: string }) {
       )}
     </span>
   )
+}
+
+function imageSize(width: number, height: number) {
+  const hasWidth = Number.isFinite(width) && width > 0
+  const hasHeight = Number.isFinite(height) && height > 0
+  if (hasWidth && hasHeight) {
+    return { width, height: 'auto', aspectRatio: `${width} / ${height}` }
+  }
+  if (hasWidth) {
+    return { width, height: 'auto' }
+  }
+  if (hasHeight) {
+    return { height }
+  }
+  return undefined
 }
