@@ -2,11 +2,14 @@ import {
   Cancel01Icon,
   Copy01Icon,
   GitBranchIcon,
+  GitCommitIcon,
+  GitCompareArrowsIcon,
+  GitMergeIcon,
   GitPullRequestDraftIcon,
   MoreHorizontalIcon,
   ThumbsUpIcon,
 } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import type {
   MergeMethod,
   PullRequestAction,
@@ -37,18 +40,24 @@ import { cn } from '@/lib/utils'
 
 type Perform = (action: PullRequestAction, label: string) => Promise<boolean>
 
-const methodLabels: Record<MergeMethod, { button: string; hint: string }> = {
+const methodLabels: Record<
+  MergeMethod,
+  { button: string; hint: string; icon: IconSvgElement }
+> = {
   squash: {
     button: 'Squash and merge',
-    hint: 'Combine all commits into one commit on the base branch.',
+    hint: 'Combine into one commit',
+    icon: GitCommitIcon,
   },
   merge: {
     button: 'Create a merge commit',
-    hint: 'Keep every commit and add a merge commit.',
+    hint: 'Keep commits, add a merge commit',
+    icon: GitMergeIcon,
   },
   rebase: {
     button: 'Rebase and merge',
-    hint: 'Replay every commit onto the base branch without a merge commit.',
+    hint: 'Keep commits, no merge commit',
+    icon: GitCompareArrowsIcon,
   },
 }
 
@@ -242,21 +251,32 @@ function MergeDialog(props: {
                 key={item}
                 type="button"
                 aria-pressed={item === method}
-                className="border-border hover:bg-accent/50 aria-pressed:border-primary aria-pressed:bg-primary/6 grid cursor-pointer gap-0.5 rounded-lg border px-3 py-2 text-left"
+                className="group border-border hover:bg-accent/50 aria-pressed:border-primary aria-pressed:bg-primary/6 flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-left"
                 onClick={() => setSavedMethod(item)}
               >
-                <span className="text-foreground text-sm font-medium">
-                  {methodLabels[item].button}
-                </span>
-                <span className="text-muted-foreground text-xs">
-                  {methodLabels[item].hint}
+                <HugeiconsIcon
+                  icon={methodLabels[item].icon}
+                  className="text-muted-foreground group-aria-pressed:text-primary size-5 shrink-0"
+                />
+                <span className="grid gap-0.5">
+                  <span className="text-foreground text-sm font-medium">
+                    {methodLabels[item].button}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {methodLabels[item].hint}
+                  </span>
                 </span>
               </button>
             ))}
           </div>
           {!details.crossRepository && (
             <label className="flex cursor-pointer items-center justify-between gap-3 text-sm">
-              Delete the {details.head} branch on GitHub
+              <span className="min-w-0 truncate">
+                Delete{' '}
+                <span className="text-muted-foreground font-mono text-xs">
+                  {details.head}
+                </span>
+              </span>
               <Switch
                 checked={deleteBranch}
                 onCheckedChange={setDeleteBranch}
@@ -280,6 +300,7 @@ function MergeDialog(props: {
               )
             }
           >
+            <HugeiconsIcon icon={methodLabels[method].icon} />
             {methodLabels[method].button}
           </Button>
         )}
