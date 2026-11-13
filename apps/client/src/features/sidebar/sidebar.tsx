@@ -54,6 +54,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
   const outbox = useStore((state) => state.outbox)
+  const startedPrompt = useStore((state) => state.startedPrompt)
   const projects = useStore((state) => state.projects)
   const provider = useStore((state) => state.settings.provider)
   const unseen = useStore((state) => state.unseen)
@@ -102,6 +103,12 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   const minimized = shown.filter((session) => session.status === 'minimized')
   const scopeMachine = scope?.machine ?? null
   const scopeProject = scope?.projectId ?? null
+  const sent = machines
+    .find((machine) => machine.id === selection?.machine)
+    ?.outbox.find(
+      (item) =>
+        item.id === startedPrompt && item.sessionId === selection?.sessionId
+    )
   const started =
     selection !== null &&
     selection.sessionId !== null &&
@@ -115,7 +122,10 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
           machine: selection.machine,
           id: selection.sessionId,
           provider,
-          title: 'New thread',
+          title:
+            sent === undefined || sent.prompt.text === ''
+              ? 'New thread'
+              : sent.prompt.text,
           projectId: selection.projectId,
           branch: null,
           updatedAt: Date.now(),

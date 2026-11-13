@@ -131,10 +131,18 @@ export function Composer(props: {
     if (status !== 'online') {
       return
     }
+    let current = true
     call(machine, 'files.list', { projectId }).then(
-      setFiles,
+      (list) => {
+        if (current) {
+          setFiles(list)
+        }
+      },
       (error: unknown) => log.error('could not list files', error)
     )
+    return () => {
+      current = false
+    }
   }, [machine, projectId, status])
 
   const before = text.slice(0, caret)

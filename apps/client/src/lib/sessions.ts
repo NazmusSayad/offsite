@@ -40,6 +40,13 @@ export function openSession(
   )
   update({
     selection,
+    view:
+      previous !== null &&
+      previous.machine === selection.machine &&
+      (previous.sessionId ?? previous.projectId) ===
+        (selection.sessionId ?? selection.projectId)
+        ? getState().view
+        : getState().view + 1,
     loaded: selection.sessionId === null,
     items: [],
     earlier: [],
