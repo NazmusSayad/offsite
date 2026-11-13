@@ -203,7 +203,7 @@ export function UserMessage(props: {
       </div>
       <div
         className={cn(
-          'flex h-6 w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 select-none transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100',
+          'flex h-6 w-full max-w-[80%] items-center justify-end pe-1 text-xs tabular-nums opacity-0 select-none transition-opacity duration-200 animate-in fade-in group-hover:opacity-100 focus-within:opacity-100 has-aria-expanded:opacity-100 pointer-coarse:opacity-100',
           outboxPromptId !== null && 'opacity-100'
         )}
       >
