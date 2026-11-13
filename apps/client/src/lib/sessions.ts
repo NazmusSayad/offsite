@@ -43,8 +43,8 @@ export function openSession(
     view:
       previous !== null &&
       previous.machine === selection.machine &&
-      (previous.sessionId ?? previous.projectId) ===
-        (selection.sessionId ?? selection.projectId)
+      (previous.sessionId ?? previous.pending ?? previous.projectId) ===
+        (selection.sessionId ?? selection.pending ?? selection.projectId)
         ? getState().view
         : getState().view + 1,
     loaded: selection.sessionId === null,
@@ -146,6 +146,7 @@ export function startChat(machine: string, projectId: string, replace = false) {
           ? NO_PROJECT
           : (project?.parentId ?? projectId),
       sessionId: null,
+      pending: null,
     },
     null,
     replace
@@ -474,6 +475,7 @@ export async function deactivateSession(
           machine: latest.machine,
           projectId: latest.projectId,
           sessionId: latest.id,
+          pending: null,
         },
         null,
         true

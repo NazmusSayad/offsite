@@ -12,6 +12,7 @@ import type { PermissionRequest, Prompt } from '@offsite/core/items'
 import type { ContextUsage, TaskStatus } from '@offsite/core/sessions'
 import {
   failQueued,
+  markAccepted,
   queuedFor,
   removeFromOutbox,
   setOutboxStatus,
@@ -24,6 +25,7 @@ import {
   scheduleAutoResolve,
 } from '../live.ts'
 import { logger } from '../log.ts'
+import { backgroundTasks } from './background-tasks.ts'
 import {
   claudeEffort,
   claudeMode,
@@ -214,6 +216,10 @@ export class Run {
       const next = this.inbox.shift()
       if (next !== undefined) {
         yield* skillInputs(this.query, next, this.silent)
+        const steered = this.steering.get(next.uuid)
+        if (steered !== undefined) {
+          markAccepted(steered.id)
+        }
         continue
       }
       await new Promise<void>((resolve) => {
@@ -347,24 +353,11 @@ export class Run {
             void followStart(this.sessionId, this.cwd, message.cwd)
             return
           case 'background_tasks_changed': {
-            this.agentTasks = message.tasks.filter(
-              (task) => task.task_type !== 'local_bash'
-            ).length
-            const live = message.tasks.filter((task) => task.ambient !== true)
-            this.backgroundTasks = live.length
-            this.backgroundAgents = live.filter(
-              (task) => task.task_type === 'local_agent'
-            ).length
-            this.tasks = {
-              ...Object.fromEntries(
-                Object.entries(this.tasks).filter(
-                  ([, status]) => status !== 'running'
-                )
-              ),
-              ...Object.fromEntries(
-                live.map((task) => [task.task_id, 'running' as const])
-              ),
-            }
+            const changed = backgroundTasks(message, this.tasks)
+            this.agentTasks = changed.agentTasks
+            this.backgroundTasks = changed.backgroundTasks
+            this.backgroundAgents = changed.backgroundAgents
+            this.tasks = changed.tasks
             broadcastActivity()
             this.armIdleTimer()
             return

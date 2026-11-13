@@ -45,11 +45,13 @@ import {
   restoreWorktreeFolder,
   rootProject,
 } from './projects.ts'
+import { notSentNotice } from './session-notices.ts'
 import {
   listedUpdatedAt,
   providerOf,
   publishSessions,
   recordInteraction,
+  sessions,
   updateSession,
 } from './sessions.ts'
 import { addStarting } from './starting-sessions.ts'
@@ -242,6 +244,13 @@ export async function send(
     await deliver(client, request)
   } catch (error) {
     setOutboxStatus(request.id, 'failed')
+    notSentNotice([
+      {
+        id: request.id,
+        sessionId: request.sessionId,
+        text: request.prompt.text,
+      },
+    ])
     throw error
   }
 }
@@ -338,15 +347,6 @@ async function submitFirst(
   projectId: string
 ) {
   const sessionId = run.sessionId
-  client.opening = sessionId
-  client.sessionId = sessionId
-  client.send({
-    type: 'started',
-    id: request.id,
-    sessionId,
-    projectId,
-    from: request.projectId,
-  })
   recordInteraction(sessionId, run.provider, request.status)
   addStarting({
     id: sessionId,
@@ -357,6 +357,13 @@ async function submitFirst(
     updatedAt: Date.now(),
     claudeWorktree: false,
   })
+  const session = sessions().find((item) => item.id === sessionId)
+  if (session === undefined) {
+    throw new Error(`${sessionId} is not listed after it started`)
+  }
+  client.opening = sessionId
+  client.sessionId = sessionId
+  client.send({ type: 'started', id: request.id, session })
   publishSessions()
   moveOutboxPrompt(request.id, sessionId, projectId)
   await run.submit(request.id, request.prompt, request.delivery)

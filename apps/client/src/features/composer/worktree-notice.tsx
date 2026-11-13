@@ -36,6 +36,7 @@ export function ClaudeWorktreeNotice() {
             machine: session.machine,
             projectId: session.projectId,
             sessionId: null,
+            pending: null,
           })
         }
       >

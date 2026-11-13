@@ -1,4 +1,3 @@
-import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import { clientsClaim } from 'workbox-core'
 import {
   cleanupOutdatedCaches,
@@ -6,6 +5,7 @@ import {
   precacheAndRoute,
 } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
+import { isNoticeData, showNotice } from './lib/notices'
 import { readToken } from './lib/tokens'
 
 self.skipWaiting()
@@ -25,35 +25,23 @@ if (
 }
 
 self.addEventListener('push', (event) => {
-  const message = readMessage(event.data)
-  event.waitUntil(
-    message
-      ? self.registration.showNotification(message.title, {
-          body: message.body,
-          data: notificationData(message),
-        })
-      : self.registration.showNotification('OffSite', { data: null })
-  )
+  event.waitUntil(showPushed(event.data))
 })
 
-function notificationData(message) {
-  if (message.kind === 'terminal') {
-    return {
-      kind: 'terminal',
-      machine: message.machineId,
-      project: message.projectId,
-      tabId: message.tabId,
-    }
+async function showPushed(data) {
+  const message = readMessage(data)
+  if (message === null) {
+    await self.registration.showNotification('OffSite', { data: null })
+    return
   }
-  if (message.kind === 'session') {
-    return {
-      kind: 'session',
-      machine: message.machineId,
-      project: message.projectId,
-      sessionId: message.sessionId,
-    }
-  }
-  throw new Error(`unknown push kind ${message.kind}`)
+  const machines = (await stored('/machines')) ?? []
+  const machine = machines.find((item) => item.id === message.machineId)
+  await showNotice(
+    self.registration,
+    message.machineId,
+    message,
+    machine?.addresses[0] ?? null
+  )
 }
 
 function readMessage(data) {
@@ -152,57 +140,67 @@ async function callAddress(address, id, method, params) {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  event.waitUntil(openTarget(event.notification.data))
+  event.waitUntil(clickNotice(event.notification.data, event.action))
 })
 
-async function openTarget(target) {
+async function clickNotice(data, actionId) {
+  if (!isNoticeData(data)) {
+    await openTarget(null, null, 'open')
+    return
+  }
+  const action = data.notice.actions.find((item) => item.id === actionId)
+  if (action?.kind === 'run') {
+    const machines = (await stored('/machines')) ?? []
+    const machine = machines.find((item) => item.id === data.machine)
+    try {
+      await call(machine, 'notices.act', {
+        id: data.notice.id,
+        action: action.id,
+      })
+      return
+    } catch (error) {
+      console.error('could not run the notification action', error)
+    }
+  }
+  await openTarget(data.machine, data.notice, action?.kind ?? 'open')
+}
+
+async function openTarget(machine, notice, kind) {
   const windows = await self.clients.matchAll({
     type: 'window',
     includeUncontrolled: true,
   })
+  const message = notice === null ? null : pageMessage(machine, notice, kind)
   const page = windows[0]
-  if (!page) {
-    await self.clients.openWindow(targetUrl(target))
+  if (page) {
+    if (message !== null) {
+      page.postMessage(message)
+    }
+    await page.focus()
     return
   }
-  if (target?.kind === 'terminal') {
-    page.postMessage({
-      type: 'select',
-      machine: target.machine,
-      project: target.project,
-      tabId: target.tabId,
-    })
-  }
-  if (target?.kind === 'session') {
-    page.postMessage({
-      type: 'openSession',
-      machine: target.machine,
-      project: target.project,
-      sessionId: target.sessionId,
-    })
-  }
-  await page.focus()
+  await self.clients.openWindow(
+    notice === null ? '/' : targetUrl(machine, notice.target, kind)
+  )
 }
 
-function targetUrl(target) {
-  if (!target) {
-    return '/'
+function pageMessage(machine, notice, kind) {
+  return {
+    type: 'openSession',
+    machine,
+    project: notice.target.projectId,
+    sessionId: notice.target.sessionId,
+    panel: kind === 'diff' ? 'diff' : null,
   }
-  if (target.kind === 'terminal' && target.project === GLOBAL_TERMINALS) {
-    return `/terminal/${encodeURIComponent(target.machine)}?terminal=${target.tabId}`
-  }
-  return `/?${targetParams(target)}`
 }
 
-function targetParams(target) {
+function targetUrl(machine, target, kind) {
   const params = new URLSearchParams()
-  params.set('machine', target.machine)
-  params.set('project', target.project)
-  if (target.kind === 'terminal') {
-    params.set('terminal', String(target.tabId))
+  params.set('machine', machine)
+  params.set('project', target.projectId)
+  params.set('session', target.sessionId)
+  if (kind === 'diff') {
+    params.set('panel', 'diff')
   }
-  if (target.kind === 'session') {
-    params.set('session', target.sessionId)
-  }
-  return params
+  return `/?${params}`
 }

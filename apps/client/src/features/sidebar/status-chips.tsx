@@ -365,6 +365,7 @@ function Thread(props: {
             machine: props.session.machine,
             projectId: props.session.projectId,
             sessionId: props.session.id,
+            pending: null,
           })
         }
       >

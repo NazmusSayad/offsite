@@ -74,13 +74,13 @@ export function UserMessage(props: {
     item.images.length > 0 &&
     numbers.length === item.images.length
   const outboxPromptId = outboxId(item)
-  const failed = useStore(
-    (state) =>
-      outboxPromptId !== null &&
-      selectedPrompts(state).some(
-        (other) => other.id === outboxPromptId && other.status === 'failed'
-      )
+  const status = useStore((state) =>
+    outboxPromptId === null
+      ? null
+      : (selectedPrompts(state).find((other) => other.id === outboxPromptId)
+          ?.status ?? null)
   )
+  const failed = status === 'failed'
   return (
     <div className="group flex flex-col items-end gap-1">
       <div
@@ -94,7 +94,13 @@ export function UserMessage(props: {
             aria-hidden
             className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-2xl bg-[color-mix(in_srgb,var(--text)_12%,var(--message))]"
           >
-            <div className="message-sweep" />
+            <div
+              className={cn(
+                'message-sweep',
+                status === 'sending' &&
+                  '[--sweep-color:color-mix(in_srgb,var(--composer-send-color)_80%,white)]'
+              )}
+            />
             <div className="bg-message absolute inset-px rounded-[calc(1rem-1px)]" />
           </div>
         )}

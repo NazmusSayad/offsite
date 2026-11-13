@@ -30,6 +30,7 @@ import { TerminalPage } from '@/features/terminal/terminal-page'
 import { Transcript } from '@/features/transcript/transcript'
 import { PanelView } from '@/features/workspace/panel-view'
 import { type Panel, PanelMenu } from '@/features/workspace/panels'
+import { pendingTitle } from '@/lib/outbox'
 import { router, type Search } from '@/lib/router'
 import { closeSession } from '@/lib/sessions'
 import {
@@ -53,60 +54,7 @@ export function MobileLayout() {
   const page = useTerminalPage()
   const activity = useActivityPage()
 
-  if (activity) {
-    return (
-      <ActivityPage
-        mobile
-        leading={
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Back"
-            title="Back"
-            onClick={() =>
-              void router.navigate({ to: '/', search: {}, replace: true })
-            }
-          >
-            <HugeiconsIcon
-              icon={ArrowLeft01Icon}
-              className="text-foreground size-5"
-              strokeWidth={2}
-            />
-          </Button>
-        }
-      />
-    )
-  }
-  if (page !== null) {
-    return (
-      <TerminalPage
-        machine={page}
-        mobile
-        leading={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-2"
-            aria-label="Back"
-            title="Back"
-            onClick={() =>
-              void router.navigate({ to: '/', search: {}, replace: true })
-            }
-          >
-            <HugeiconsIcon
-              icon={ArrowLeft01Icon}
-              className="text-foreground size-5"
-              strokeWidth={2}
-            />
-          </Button>
-        }
-      />
-    )
-  }
-  if (selection !== null) {
-    return <MobileChat selection={selection} />
-  }
-  if (!hasMachine) {
+  if (!hasMachine && page === null && selection === null && !activity) {
     return (
       <main className="bg-background flex flex-1 overflow-y-auto pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <ConnectMachine />
@@ -114,8 +62,68 @@ export function MobileLayout() {
     )
   }
   return (
-    <div className="bg-sidebar relative flex min-w-0 flex-1 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-      <Sidebar className="min-w-0 flex-1 border-r-0" mobile />
+    <div className="relative flex min-w-0 flex-1">
+      <div
+        inert={page !== null || selection !== null || activity}
+        className="bg-sidebar flex min-w-0 flex-1 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+      >
+        <Sidebar className="min-w-0 flex-1 border-r-0" mobile />
+      </div>
+      {page !== null && (
+        <div className="absolute inset-0 flex">
+          <TerminalPage
+            machine={page}
+            mobile
+            leading={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-2"
+                aria-label="Back"
+                title="Back"
+                onClick={() =>
+                  void router.navigate({ to: '/', search: {}, replace: true })
+                }
+              >
+                <HugeiconsIcon
+                  icon={ArrowLeft01Icon}
+                  className="text-foreground size-5"
+                  strokeWidth={2}
+                />
+              </Button>
+            }
+          />
+        </div>
+      )}
+      {activity && (
+        <div className="absolute inset-0 flex">
+          <ActivityPage
+            mobile
+            leading={
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Back"
+                title="Back"
+                onClick={() =>
+                  void router.navigate({ to: '/', search: {}, replace: true })
+                }
+              >
+                <HugeiconsIcon
+                  icon={ArrowLeft01Icon}
+                  className="text-foreground size-5"
+                  strokeWidth={2}
+                />
+              </Button>
+            }
+          />
+        </div>
+      )}
+      {page === null && selection !== null && (
+        <div className="absolute inset-0 flex">
+          <MobileChat selection={selection} />
+        </div>
+      )}
     </div>
   )
 }
@@ -130,6 +138,7 @@ function MobileChat(props: { selection: Selection }) {
         item.id === props.selection.sessionId
     )
   )
+  const pending = useStore(pendingTitle)
   const generatingTitle = useStore(
     (state) =>
       session !== undefined &&
@@ -239,7 +248,7 @@ function MobileChat(props: { selection: Selection }) {
                   'text-shimmer'
               )}
             >
-              {session?.title ?? 'New thread'}
+              {session?.title ?? pending ?? 'New thread'}
             </span>
           </div>
           {machine.status === 'online' && (

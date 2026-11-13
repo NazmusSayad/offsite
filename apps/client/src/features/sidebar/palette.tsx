@@ -195,6 +195,7 @@ function PaletteContent() {
                 machine: session.machine,
                 projectId: session.projectId,
                 sessionId: session.id,
+                pending: null,
               },
               text.trim() === '' ? null : text
             ),
@@ -240,6 +241,7 @@ function PaletteContent() {
                     machine: session.machine,
                     projectId: session.projectId,
                     sessionId: session.id,
+                    pending: null,
                   },
                   text
                 ),

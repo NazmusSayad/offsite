@@ -179,13 +179,15 @@ export function PullRequestView(props: {
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="border-border/60 grid gap-2.5 border-b p-4">
               <h2 className="text-foreground text-base leading-snug font-semibold">
-                {details.title}{' '}
-                <span className="text-muted-foreground font-normal">
-                  #{details.number}
+                <span className="mr-2 inline-flex items-center gap-2 align-text-bottom">
+                  <StateBadge state={details.state} draft={details.draft} />
+                  <span className="text-muted-foreground font-normal">
+                    #{details.number}
+                  </span>
                 </span>
+                {details.title}
               </h2>
               <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
-                <StateBadge state={details.state} draft={details.draft} />
                 <span>
                   <span className="text-foreground">{details.author}</span>{' '}
                   {details.state === 'OPEN' && 'wants to merge'}

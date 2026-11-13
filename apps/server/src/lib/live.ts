@@ -1,5 +1,6 @@
 import type { Item, PermissionRequest } from '@offsite/core/items'
 import type { SessionActivity } from '@offsite/core/sessions'
+import { watchActivity } from '../services/session-notices.ts'
 import { readConfig } from '../storage/config.ts'
 import type { Run } from './claude/index.ts'
 import type { CodexRun } from './codex/index.ts'
@@ -10,7 +11,9 @@ import { forgetProgress, noteItems, progressOf } from './progress.ts'
 
 const log = logger.withTag('runs')
 
-export const runs = new Map<string, Run | CodexRun | OpenCodeRun>()
+export type LiveRun = Run | CodexRun | OpenCodeRun
+
+export const runs = new Map<string, LiveRun>()
 export const titleJobs = new Set<string>()
 let states = new Map<string, string>()
 const workingSince = new Map<string, number>()
@@ -77,6 +80,7 @@ export function broadcastActivity() {
   }
   states = next
   broadcast({ type: 'activity', activity: activity() })
+  watchActivity()
 }
 
 export function publishItems(sessionId: string, items: Item[]) {

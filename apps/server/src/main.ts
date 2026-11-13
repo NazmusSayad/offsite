@@ -24,6 +24,7 @@ import {
   sniffType,
   streamFile,
 } from './services/files.ts'
+import { serveNoticeImage } from './services/notice-images.ts'
 import { failInterrupted } from './services/outbox.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
@@ -164,6 +165,10 @@ function answerRequest(request: IncomingMessage, response: ServerResponse) {
   }
   if (url.pathname === `/api/status/${statusSecret}`) {
     void answerStatus(response)
+    return
+  }
+  if (url.pathname.startsWith('/api/notice-image/')) {
+    serveNoticeImage(url.pathname, response)
     return
   }
   if (url.pathname.startsWith('/api/app-icon/')) {

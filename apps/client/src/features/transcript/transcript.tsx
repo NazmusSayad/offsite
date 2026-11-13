@@ -30,8 +30,14 @@ import { ForkButton } from '@/features/transcript/fork-button'
 import { PlanCard } from '@/features/transcript/plan-card'
 import { QuestionCard } from '@/features/transcript/question-card'
 import { QuoteButton } from '@/features/transcript/quote-button'
+import { ResumeButton } from '@/features/transcript/resume-button'
 import { threadTasks } from '@/features/transcript/tasks'
-import { isTool, mainRows, type Row } from '@/features/transcript/timeline'
+import {
+  isTool,
+  liveRows,
+  mainRows,
+  type Row,
+} from '@/features/transcript/timeline'
 import { ContextGroup } from '@/features/transcript/tool-group'
 import { Shimmer } from '@/features/transcript/tool-row'
 import { scrollToRow, TurnJumper } from '@/features/transcript/turn-jumper'
@@ -40,7 +46,7 @@ import {
   UserMessage,
 } from '@/features/transcript/user-message'
 import { clock, fullTime } from '@/lib/format'
-import { selectedPrompts, outboxItems } from '@/lib/outbox'
+import { selectedPrompts } from '@/lib/outbox'
 import { loadEarlier } from '@/lib/sessions'
 import {
   projectOf,
@@ -115,22 +121,14 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     [earlier, items, activity]
   )
   const olderRows = mainRows(earlier, false, '')
-  const unsent = prompts.filter(
-    (prompt) =>
-      !items.some(
-        (item) =>
-          item.kind === 'user' &&
-          item.time !== null &&
-          item.time >= prompt.createdAt &&
-          item.text === prompt.prompt.text
-      )
-  )
   const sending =
-    !running && prompts.some((prompt) => prompt.status === 'sending')
+    !running &&
+    prompts.some(
+      (prompt) => prompt.status === 'sending' || prompt.status === 'accepted'
+    )
   const rows = [
     ...olderRows,
-    ...mainRows(items, running, partial),
-    ...mainRows(loaded ? outboxItems(unsent) : [], sending, ''),
+    ...liveRows(items, loaded ? prompts : [], running, sending, partial),
   ]
   const topIndex = rows.findIndex((row) => row.key === top?.key)
   const start = finding
@@ -437,7 +435,10 @@ function RowContent(props: {
       return (
         <div className="text-muted-foreground mx-auto flex w-full max-w-(--chat-content-max-width) items-center gap-3 py-1 text-xs">
           <span className="bg-border/70 h-px flex-1" />
-          <span className="min-w-0 [overflow-wrap:anywhere]">{row.text}</span>
+          <span className="flex min-w-0 items-center gap-1 [overflow-wrap:anywhere]">
+            {row.text}
+            {row.text === 'Interrupted' && <ResumeButton />}
+          </span>
           <span className="bg-border/70 h-px flex-1" />
         </div>
       )

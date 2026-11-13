@@ -47,7 +47,14 @@ export async function sendDraft(
       data: image.data,
     })),
   }
-  editDraft(key, (current) => ({ ...current, text: '', images: [], files: [] }))
+  if (selection.sessionId !== null || selection.pending !== null) {
+    editDraft(key, (current) => ({
+      ...current,
+      text: '',
+      images: [],
+      files: [],
+    }))
+  }
   const id = addToOutbox(selection, prompt, delivery, status)
   void deliver(id, sendPrompt(id, prompt, delivery, selection, status))
 }
@@ -84,10 +91,15 @@ export function settleDisconnected(machine: string) {
 }
 
 function restoreDraft(failed: MachineOutboxPrompt | undefined) {
-  if (failed === undefined) {
+  if (failed === undefined || failed.sessionId === null) {
     return
   }
-  const key = draftKey(failed)
+  const key = draftKey({
+    machine: failed.machine,
+    projectId: failed.projectId,
+    sessionId: failed.sessionId,
+    pending: null,
+  })
   if (hasPrompt(getDraft(key))) {
     stashPrompt(key)
   }

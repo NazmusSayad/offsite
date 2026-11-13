@@ -23,7 +23,7 @@ import {
 } from '@/lib/accounts'
 import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
-import { claimNotifications, notify, push } from '@/lib/notifications'
+import { claimNotifications, showNoticeHere } from '@/lib/notifications'
 import { moveStartedPrompt, receiveOutbox } from '@/lib/outbox'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
@@ -95,7 +95,6 @@ export function start() {
     generatingTitles: [],
     selection,
     view: 0,
-    startedPrompt: null,
     loaded: selection?.sessionId === null,
     items: [],
     earlier: [],
@@ -277,15 +276,6 @@ function receive(machine: string, event: ServerEvent) {
       const finished = Object.keys(previous).filter(
         (id) => previous[id].running && event.activity[id]?.running !== true
       )
-      const waiting = Object.keys(event.activity).filter(
-        (id) => event.activity[id].waiting && previous[id]?.waiting !== true
-      )
-      notify(
-        machine,
-        finished.filter((id) => previous[id].prompted),
-        'finished'
-      )
-      notify(machine, waiting, 'needs your input')
       setMachine(machine, {
         activity: Object.fromEntries(
           Object.entries(event.activity).map((entry) => [
@@ -365,27 +355,39 @@ function receive(machine: string, event: ServerEvent) {
       receiveOutbox(machine, event.outbox)
       return
     case 'started': {
-      moveStartedPrompt(machine, event.id, event.sessionId, event.projectId)
+      moveStartedPrompt(
+        machine,
+        event.id,
+        event.session.id,
+        event.session.projectId
+      )
+      update({
+        sessions: [
+          ...state.sessions.filter(
+            (item) => item.machine !== machine || item.id !== event.session.id
+          ),
+          { ...event.session, machine },
+        ],
+      })
       if (
         state.selection === null ||
         !selected ||
-        state.selection.projectId !== event.from ||
-        state.selection.sessionId !== null
+        state.selection.pending !== event.id
       ) {
         return
       }
       const typed = draftKey(state.selection)
       const started = {
         machine,
-        projectId: event.projectId,
-        sessionId: event.sessionId,
+        projectId: event.session.projectId,
+        sessionId: event.session.id,
+        pending: null,
       }
       if (hasPrompt(getDraft(typed))) {
         moveDraft(typed, draftKey(started))
       }
       update({
         selection: started,
-        startedPrompt: event.id,
         loaded: true,
         items: [],
         earlier: [],
@@ -396,8 +398,10 @@ function receive(machine: string, event: ServerEvent) {
       syncUrl(true)
       return
     }
-    case 'notification':
-      push(machine, event.sessionId, event.message)
+    case 'notice':
+      showNoticeHere(machine, event.notice).catch((error: unknown) =>
+        log.error('could not show a notification', error)
+      )
       return
     case 'notifier':
       setMachine(machine, { notifier: event.active })

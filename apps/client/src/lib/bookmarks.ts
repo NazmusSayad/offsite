@@ -56,6 +56,7 @@ export function openBookmark(machine: string, bookmark: Bookmark) {
     machine,
     projectId: bookmark.session.projectId,
     sessionId: bookmark.sessionId,
+    pending: null,
   })
   update({
     bookmarksOpen: false,

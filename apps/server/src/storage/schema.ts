@@ -97,6 +97,6 @@ export const outbox = snakeCase.table('outbox', {
   request: text({ mode: 'json' })
     .$type<RpcMethods['sessions.send']['params']>()
     .notNull(),
-  status: text({ enum: ['sending', 'queued', 'failed'] }).notNull(),
+  status: text({ enum: ['sending', 'accepted', 'queued', 'failed'] }).notNull(),
   createdAt: integer().notNull(),
 })

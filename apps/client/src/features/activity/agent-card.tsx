@@ -43,6 +43,7 @@ export function AgentTile(props: { agent: Agent; now: number }) {
       machine: session.machine,
       projectId: session.projectId,
       sessionId: session.id,
+      pending: null,
     })
   }
 
