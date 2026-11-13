@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, lstatSync } from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import type { WorktreeDetails, WorktreeStage } from '@offsite/core/git'
@@ -101,6 +101,34 @@ export async function uncommittedFiles(repo: string) {
     .split('\n')
     .filter((line) => line !== '')
     .map((line) => line.slice(3))
+}
+
+export async function lastActivity(folder: string) {
+  const [commit, status] = await Promise.all([
+    git(folder, ['log', '-1', '--format=%ct']),
+    git(folder, [
+      '--no-optional-locks',
+      'status',
+      '--porcelain',
+      '-z',
+      '--untracked-files=all',
+    ]),
+  ])
+  let latest = Number(commit.stdout.trim()) * 1000
+  const entries = status.stdout.split('\0').filter((entry) => entry !== '')
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index]
+    if (/[RC]/.test(entry.slice(0, 2))) {
+      index++
+    }
+    const file = lstatSync(path.join(folder, entry.slice(3)), {
+      throwIfNoEntry: false,
+    })
+    if (file !== undefined) {
+      latest = Math.max(latest, file.mtimeMs)
+    }
+  }
+  return latest
 }
 
 export async function restoreWorktree(

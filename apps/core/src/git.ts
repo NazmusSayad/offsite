@@ -33,6 +33,7 @@ export type WorktreeChoice = {
   folder: string
   branch: string | null
   worktree: boolean
+  activeAt: number
 }
 
 export type WorktreeBases = {
