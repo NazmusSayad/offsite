@@ -1,17 +1,20 @@
-import type { PermissionRequest } from '@offsite/core/items'
+import type { Item, PermissionRequest } from '@offsite/core/items'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { readConfig } from '../storage/config.ts'
 import type { Run } from './claude/index.ts'
 import type { CodexRun } from './codex/index.ts'
-import { broadcast } from './hub.ts'
+import { broadcast, publish } from './hub.ts'
 import { logger } from './log.ts'
 import type { OpenCodeRun } from './opencode/index.ts'
+import { forgetProgress, noteItems, progressOf } from './progress.ts'
 
 const log = logger.withTag('runs')
 
 export const runs = new Map<string, Run | CodexRun | OpenCodeRun>()
 export const titleJobs = new Set<string>()
 let states = new Map<string, string>()
+const workingSince = new Map<string, number>()
+let progressTimer: ReturnType<typeof setTimeout> | null = null
 
 export function activity() {
   const result: Record<string, SessionActivity> = {}
@@ -28,9 +31,14 @@ export function activity() {
       ),
       prompted: run.prompted,
       compacting: run.compacting,
-      backgroundAgent: run.backgroundAgents > 0,
+      backgroundAgents: run.backgroundAgents,
       holdsCompletion: !run.failed && run.agentTasks > 0,
       tasks: run.tasks,
+      settings: run.settings,
+      workingSince: workingSince.get(run.sessionId) ?? null,
+      requests: [...run.pending.values()].map((pending) => pending.request),
+      context: run.context,
+      ...progressOf(run.sessionId),
     }
   }
   return result
@@ -45,6 +53,12 @@ export function broadcastActivity() {
       ...(run.compacting ? ['compacting'] : []),
     ].join(', ')
     next.set(run.sessionId, state)
+    if (run.running && !workingSince.has(run.sessionId)) {
+      workingSince.set(run.sessionId, Date.now())
+    }
+    if (!run.running) {
+      workingSince.delete(run.sessionId)
+    }
     if (!states.has(run.sessionId)) {
       log.info(
         `${run.provider} session ${run.sessionId} opened in ${run.cwd} with account ${run.settings.accountId}`
@@ -57,10 +71,26 @@ export function broadcastActivity() {
   for (const sessionId of states.keys()) {
     if (!next.has(sessionId)) {
       log.info(`session ${sessionId} closed`)
+      workingSince.delete(sessionId)
+      forgetProgress(sessionId)
     }
   }
   states = next
   broadcast({ type: 'activity', activity: activity() })
+}
+
+export function publishItems(sessionId: string, items: Item[]) {
+  if (items.length === 0) {
+    return
+  }
+  noteItems(sessionId, items)
+  publish(sessionId, { type: 'items', sessionId, items })
+  if (progressTimer === null) {
+    progressTimer = setTimeout(() => {
+      progressTimer = null
+      broadcastActivity()
+    }, 500)
+  }
 }
 
 export function scheduleAutoResolve(

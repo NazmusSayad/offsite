@@ -22,7 +22,12 @@ import {
 } from '../../services/outbox.ts'
 import { errorItem } from '../codex/index.ts'
 import { publish } from '../hub.ts'
-import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
+import {
+  broadcastActivity,
+  publishItems,
+  runs,
+  scheduleAutoResolve,
+} from '../live.ts'
 import { logger } from '../log.ts'
 import { openCode } from './client.ts'
 import {
@@ -154,6 +159,7 @@ export class OpenCodeRun {
 
   configure(settings: SessionSettings) {
     this.settings = { ...settings, accountId: this.settings.accountId }
+    broadcastActivity()
     publish(this.sessionId, {
       type: 'settings',
       sessionId: this.sessionId,
@@ -477,11 +483,7 @@ export class OpenCodeRun {
     if (items.some((item) => item.kind === 'assistant')) {
       this.partial = ''
     }
-    publish(this.sessionId, {
-      type: 'items',
-      sessionId: this.sessionId,
-      items,
-    })
+    publishItems(this.sessionId, items)
     this.handover.confirm(arrived)
   }
 

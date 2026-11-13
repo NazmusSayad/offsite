@@ -17,7 +17,12 @@ import {
   setOutboxStatus,
 } from '../../services/outbox.ts'
 import { publish } from '../hub.ts'
-import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
+import {
+  broadcastActivity,
+  publishItems,
+  runs,
+  scheduleAutoResolve,
+} from '../live.ts'
 import { logger } from '../log.ts'
 import {
   claudeEffort,
@@ -335,7 +340,6 @@ export class Run {
               this.prompted = false
             }
             this.running = true
-            broadcastActivity()
             this.updateSettings({
               ...this.settings,
               mode: message.permissionMode,
@@ -501,18 +505,12 @@ export class Run {
       this.published.set(item.id, json)
       return true
     })
-    if (items.length === 0) {
-      return
-    }
-    publish(this.sessionId, {
-      type: 'items',
-      sessionId: this.sessionId,
-      items,
-    })
+    publishItems(this.sessionId, items)
   }
 
   private updateSettings(settings: SessionSettings) {
     this.settings = settings
+    broadcastActivity()
     publish(this.sessionId, {
       type: 'settings',
       sessionId: this.sessionId,

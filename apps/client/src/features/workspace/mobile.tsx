@@ -9,6 +9,7 @@ import { useProjectName, useWorktreeBranch } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
+import { ActivityPage } from '@/features/activity/activity-page'
 import { Composer } from '@/features/composer/composer'
 import { UsageLimitBadge } from '@/features/composer/usage-limit-badge'
 import {
@@ -38,14 +39,44 @@ import {
   selectedRunning,
   useStore,
 } from '@/lib/store'
-import { pushSearch, replaceSearch, useTerminalPage } from '@/lib/url'
+import {
+  pushSearch,
+  replaceSearch,
+  useActivityPage,
+  useTerminalPage,
+} from '@/lib/url'
 import { cn } from '@/lib/utils'
 
 export function MobileLayout() {
   const selection = useStore((state) => state.selection)
   const hasMachine = useStore((state) => state.machines.length > 0)
   const page = useTerminalPage()
+  const activity = useActivityPage()
 
+  if (activity) {
+    return (
+      <ActivityPage
+        mobile
+        leading={
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Back"
+            title="Back"
+            onClick={() =>
+              void router.navigate({ to: '/', search: {}, replace: true })
+            }
+          >
+            <HugeiconsIcon
+              icon={ArrowLeft01Icon}
+              className="text-foreground size-5"
+              strokeWidth={2}
+            />
+          </Button>
+        }
+      />
+    )
+  }
   if (page !== null) {
     return (
       <TerminalPage

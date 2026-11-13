@@ -443,7 +443,7 @@ function ErrorCard(props: { title: string; subtitle: string; error: string }) {
   )
 }
 
-function subtitleOf(item: ToolItem, cwd: string) {
+export function subtitleOf(item: ToolItem, cwd: string) {
   switch (item.kind) {
     case 'command':
       return commandSummary(item.command)

@@ -54,10 +54,16 @@ const terminalRoute = createRoute({
   path: '/terminal/$machine',
 })
 
+const activityRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/activity',
+})
+
 const opened = window.history.state as { __TSR_index?: number } | null
 if (
   opened?.__TSR_index === undefined &&
   (location.pathname.startsWith('/terminal') ||
+    location.pathname === '/activity' ||
     new URLSearchParams(location.search).has('machine'))
 ) {
   const href = `${location.pathname}${location.search}${location.hash}`
@@ -80,6 +86,7 @@ export const router = createRouter({
     indexRoute,
     lastTerminalRoute,
     terminalRoute,
+    activityRoute,
   ]),
   disableGlobalCatchBoundary: true,
   parseSearch: (value) =>

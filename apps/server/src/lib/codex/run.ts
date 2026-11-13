@@ -10,7 +10,12 @@ import {
   setOutboxStatus,
 } from '../../services/outbox.ts'
 import { publish } from '../hub.ts'
-import { broadcastActivity, runs, scheduleAutoResolve } from '../live.ts'
+import {
+  broadcastActivity,
+  publishItems,
+  runs,
+  scheduleAutoResolve,
+} from '../live.ts'
 import { logger } from '../log.ts'
 import { skills } from './accounts.ts'
 import { trackAgents } from './agents.ts'
@@ -155,6 +160,7 @@ export class CodexRun implements ThreadListener {
 
   configure(settings: SessionSettings) {
     this.settings = { ...settings, accountId: this.settings.accountId }
+    broadcastActivity()
     publish(this.sessionId, {
       type: 'settings',
       sessionId: this.sessionId,
@@ -468,11 +474,7 @@ export class CodexRun implements ThreadListener {
     const arrived =
       item.kind === 'user' && item.parent === null && !this.items.has(item.id)
     this.items.set(item.id, item)
-    publish(this.sessionId, {
-      type: 'items',
-      sessionId: this.sessionId,
-      items: [item],
-    })
+    publishItems(this.sessionId, [item])
     if (arrived) {
       this.handover.confirm(1)
     }

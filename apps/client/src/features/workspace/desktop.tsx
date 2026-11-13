@@ -15,6 +15,7 @@ import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
+import { ActivityPage } from '@/features/activity/activity-page'
 import { Composer } from '@/features/composer/composer'
 import { UsageLimitBadge } from '@/features/composer/usage-limit-badge'
 import {
@@ -47,7 +48,12 @@ import {
   selectedRunning,
   useStore,
 } from '@/lib/store'
-import { currentSearch, replaceSearch, useTerminalPage } from '@/lib/url'
+import {
+  currentSearch,
+  replaceSearch,
+  useActivityPage,
+  useTerminalPage,
+} from '@/lib/url'
 import { cn, drag } from '@/lib/utils'
 
 const compactWidth = 800
@@ -61,6 +67,7 @@ export function DesktopLayout() {
   const view = useStore((state) => state.view)
   const sessions = useStore((state) => state.sessions)
   const page = useTerminalPage()
+  const activity = useActivityPage()
   const cwd = useStore((state) =>
     state.selection === null
       ? ''
@@ -156,7 +163,7 @@ export function DesktopLayout() {
     }
   }, [panel])
   useEffect(() => {
-    if (page !== null) {
+    if (page !== null || activity) {
       return
     }
     const element = header.current
@@ -168,13 +175,22 @@ export function DesktopLayout() {
     )
     observer.observe(element)
     return () => observer.disconnect()
-  }, [page])
+  }, [page, activity])
 
   if (page !== null) {
     return (
       <>
         <Sidebar className="relative" mobile={false} />
         <TerminalPage machine={page} mobile={false} />
+      </>
+    )
+  }
+
+  if (activity) {
+    return (
+      <>
+        <Sidebar className="relative" mobile={false} />
+        <ActivityPage leading={null} mobile={false} />
       </>
     )
   }

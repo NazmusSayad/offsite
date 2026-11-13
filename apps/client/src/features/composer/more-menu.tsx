@@ -51,7 +51,7 @@ import { deleteStash, hasPrompt, useDraft, useStash } from './drafts'
 import { keepFocusOnTouch, refocusComposer } from './picker'
 import { restorePrompt, stashPrompt } from './stash'
 
-const fixedModes: Record<
+export const fixedModes: Record<
   Exclude<Provider, 'opencode'>,
   { value: string; label: string; icon: IconSvgElement }[]
 > = {

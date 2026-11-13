@@ -1,5 +1,5 @@
 import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
-import { useParams, useSearch } from '@tanstack/react-router'
+import { useMatchRoute, useParams, useSearch } from '@tanstack/react-router'
 import { useEffect, useEffectEvent } from 'react'
 import { router, type Search } from './router'
 import { getState, projectOf, type Selection, useStore } from './store'
@@ -27,6 +27,14 @@ export function useTerminalPage() {
   return useStore((state) =>
     state.machines.some((item) => item.id === machine) ? machine : null
   )
+}
+
+export function activityPage() {
+  return router.history.location.pathname === '/activity'
+}
+
+export function useActivityPage() {
+  return useMatchRoute()({ to: '/activity' }) !== false
 }
 
 export function terminalView() {
@@ -240,7 +248,7 @@ export function syncUrl(replace = false) {
         ? ('terminal' as const)
         : undefined,
   }
-  if (terminalPage() !== null) {
+  if (terminalPage() !== null || activityPage()) {
     void router.navigate({
       to: '/',
       search: next,
@@ -276,6 +284,16 @@ function navigate(
     void router.navigate({
       to: '/terminal/$machine',
       params: { machine },
+      search,
+      replace: replace || guard,
+      state,
+      resetScroll: false,
+    })
+    return
+  }
+  if (activityPage()) {
+    void router.navigate({
+      to: '/activity',
       search,
       replace: replace || guard,
       state,
