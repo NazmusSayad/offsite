@@ -20,5 +20,4 @@ For lint fix and format, use `pnpm lint:fix`. Do not use `prettier`.
 
 When a file goes over a lint limit, do not compress code to fit. Prefer moving a self-contained concern to the file where it belongs, or to a new file.
 
-Never run the main offsite instance. Never run `offsite`, `npx offsite` or `pnpm start`, and never run the server with the default `--dir ~/.offsite`. Never stop or restart it either.
-Always start the dev server with `pnpm dev` from the repository root, unless the user explicitly asks otherwise.
+Start offsite only with `pnpm dev` from the repository root, and do not start the server or Vite directly. Do not use, stop or restart the main offsite instance or its `~/.offsite` folder. Each `pnpm dev` starts a new instance and shows its ports on the first line of output. Use `--host <address>` to make it listen on that address, and `--connect <urls>` to add comma-separated `http://` or `https://` servers for the web app to connect to before the host. Stop only the instances that you started.
