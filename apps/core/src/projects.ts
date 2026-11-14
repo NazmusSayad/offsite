@@ -12,6 +12,7 @@ export type Project = {
   parentId: string | null
   worktreeSetup: string | null
   worktreeBranch: string | null
+  startInWorktree: boolean
 }
 
 export type ProjectPatch = {
@@ -21,6 +22,7 @@ export type ProjectPatch = {
   hidden?: boolean
   scratch?: false
   worktreeSetup?: string
+  startInWorktree?: boolean
 }
 
 export type DirectoryListing = {

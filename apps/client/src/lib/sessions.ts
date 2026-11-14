@@ -70,7 +70,12 @@ export function openSession(
     context: null,
     replacing: null,
     rewinding: null,
-    worktree: null,
+    worktree:
+      selection.sessionId === null &&
+      projectOf(getState(), selection.machine, selection.projectId)
+        ?.startInWorktree === true
+        ? { name: '', base: null }
+        : null,
     paletteOpen: false,
     unseen: getState().unseen.filter(
       (key) =>

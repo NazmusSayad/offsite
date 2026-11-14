@@ -2,6 +2,7 @@ import {
   ArrowDown01Icon,
   CircleDashedIcon,
   CloudIcon,
+  Folder01Icon,
   SearchIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -11,8 +12,11 @@ import {
   NewBranchIcon,
   NewWorktreeIcon,
 } from '@offsite/core/icons/git'
-import { useEffect, useRef, useState } from 'react'
+import { LayoutGroup, MotionConfig, motion } from 'motion/react'
+import { RadioGroup } from 'radix-ui'
+import { useEffect, useId, useRef, useState } from 'react'
 import { call } from '@/api/connection'
+import { updateProject } from '@/api/projects'
 
 import {
   DropdownMenu,
@@ -22,13 +26,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { logger } from '@/lib/log'
-import { getState, update, useStore } from '@/lib/store'
+import { getState, showError, type State, update, useStore } from '@/lib/store'
 import { cn, errorMessage, touch } from '@/lib/utils'
 import { LocationMenu } from './location-menu'
 import { keepFocusOnTouch, refocusComposer } from './picker'
 import { RepoStatus } from './repo-status'
 
 const log = logger.withTag('worktree')
+
+const spring = { type: 'spring', bounce: 0.15, duration: 0.35 } as const
 
 export function WorktreeBar(props: {
   machine: string
@@ -38,6 +44,11 @@ export function WorktreeBar(props: {
 }) {
   const worktree = useStore((state) => state.worktree)
   const stage = useStore((state) => state.worktreeStage)
+  const remembered = useRef<NonNullable<State['worktree']>>({
+    name: '',
+    base: null,
+  })
+  const placeGroup = useId()
   const repo = props.repos.find((item) => item.path === '')
 
   if (repo === undefined) {
@@ -67,64 +78,169 @@ export function WorktreeBar(props: {
           </span>
         )}
         {stage === null && (
-          <div className="flex items-center gap-1 @max-sm:justify-between">
-            <DropdownMenu modal={!touch.matches}>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="text-foreground/90 hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-ring/40 flex h-6 max-w-56 min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-2 outline-none focus-visible:ring-2"
-                  title="Choose where the agent works"
+          <div className="flex items-center gap-1.5">
+            <MotionConfig reducedMotion="user">
+              <LayoutGroup id={placeGroup}>
+                <RadioGroup.Root
+                  asChild
+                  aria-label="Where the agent works"
+                  orientation="horizontal"
+                  value={worktree === null ? 'checkout' : 'worktree'}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onValueChange={(value) => {
+                    if (value === 'checkout') {
+                      if (worktree !== null) {
+                        remembered.current = worktree
+                      }
+                      update({ worktree: null })
+                      updateProject(props.machine, props.projectId, {
+                        startInWorktree: false,
+                      }).catch(showError)
+                      return
+                    }
+                    if (value === 'worktree') {
+                      update({ worktree: remembered.current })
+                      updateProject(props.machine, props.projectId, {
+                        startInWorktree: true,
+                      }).catch(showError)
+                      return
+                    }
+                    throw new Error(`${value} is not a place to work`)
+                  }}
                 >
-                  <HugeiconsIcon
-                    icon={worktree === null ? BranchIcon : NewWorktreeIcon}
-                    className="text-muted-foreground size-3.5 shrink-0"
-                  />
-                  <span className="truncate">
-                    {worktree === null
-                      ? (repo.branch ?? 'Detached HEAD')
-                      : 'New worktree'}
-                  </span>
-                  <HugeiconsIcon
-                    icon={ArrowDown01Icon}
-                    className="text-muted-foreground size-3.5 shrink-0"
-                  />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="w-80"
-                onOpenAutoFocus={keepFocusOnTouch}
-                onCloseAutoFocus={refocusComposer}
-              >
-                <LocationMenu
-                  machine={props.machine}
-                  projectId={props.projectId}
-                  onRefresh={props.onRefresh}
-                />
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <motion.div
+                    layout
+                    transition={spring}
+                    style={{ borderRadius: 7 }}
+                    className="bg-foreground/5 flex h-6 shrink-0 items-center gap-0.5 p-0.5 shadow-[inset_0_1px_1px_rgb(0_0_0/0.04)]"
+                  >
+                    <RadioGroup.Item
+                      value="checkout"
+                      title="Work in this checkout"
+                      aria-label="Checkout"
+                      asChild
+                    >
+                      <motion.button
+                        layout
+                        transition={spring}
+                        className="text-muted-foreground hover:text-foreground data-[state=checked]:text-foreground focus-visible:ring-ring/40 group relative flex h-5 shrink-0 cursor-pointer items-center gap-1 rounded-[5px] px-1.5 whitespace-nowrap transition-colors duration-150 outline-none focus-visible:ring-2 @max-sm:data-[state=checked]:px-1"
+                      >
+                        {worktree === null && (
+                          <motion.span
+                            layoutId="place"
+                            transition={spring}
+                            style={{ borderRadius: 5 }}
+                            className="bg-background absolute inset-0 shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_0.5px_rgb(0_0_0/0.06)] dark:bg-white/12"
+                          />
+                        )}
+                        <motion.span layout="position" className="relative">
+                          <HugeiconsIcon
+                            icon={Folder01Icon}
+                            className="size-3 shrink-0"
+                          />
+                        </motion.span>
+                        <motion.span
+                          layout="position"
+                          className="animate-in fade-in-0 slide-in-from-left-1 relative duration-200 motion-reduce:animate-none @max-sm:group-data-[state=checked]:hidden"
+                        >
+                          Checkout
+                        </motion.span>
+                      </motion.button>
+                    </RadioGroup.Item>
+                    <RadioGroup.Item
+                      value="worktree"
+                      title="Work in a new worktree"
+                      aria-label="Worktree"
+                      asChild
+                    >
+                      <motion.button
+                        layout
+                        transition={spring}
+                        className="text-muted-foreground hover:text-foreground data-[state=checked]:text-foreground focus-visible:ring-ring/40 group relative flex h-5 shrink-0 cursor-pointer items-center gap-1 rounded-[5px] px-1.5 whitespace-nowrap transition-colors duration-150 outline-none focus-visible:ring-2 @max-sm:data-[state=checked]:px-1"
+                      >
+                        {worktree !== null && (
+                          <motion.span
+                            layoutId="place"
+                            transition={spring}
+                            style={{ borderRadius: 5 }}
+                            className="bg-background absolute inset-0 shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_0.5px_rgb(0_0_0/0.06)] dark:bg-white/12"
+                          />
+                        )}
+                        <motion.span layout="position" className="relative">
+                          <HugeiconsIcon
+                            icon={NewWorktreeIcon}
+                            className="size-3 shrink-0"
+                          />
+                        </motion.span>
+                        <motion.span
+                          layout="position"
+                          className="animate-in fade-in-0 slide-in-from-left-1 relative duration-200 motion-reduce:animate-none @max-sm:group-data-[state=checked]:hidden"
+                        >
+                          Worktree
+                        </motion.span>
+                      </motion.button>
+                    </RadioGroup.Item>
+                  </motion.div>
+                </RadioGroup.Root>
+              </LayoutGroup>
+            </MotionConfig>
             <div
               key={worktree === null ? 'local' : 'worktree'}
               className={cn(
-                'animate-in fade-in-0 flex h-7 flex-1 items-center gap-1 duration-150 motion-reduce:animate-none',
+                'animate-in fade-in-0 slide-in-from-left-2 flex h-7 flex-1 items-center gap-1 duration-250 ease-out motion-reduce:animate-none',
                 worktree !== null && 'min-w-0 @max-sm:contents'
               )}
             >
               {worktree === null && (
-                <RepoStatus
-                  repo={repo}
-                  target={{
-                    machine: props.machine,
-                    projectId: props.projectId,
-                    onRefresh: props.onRefresh,
-                  }}
-                />
+                <>
+                  <DropdownMenu modal={!touch.matches}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="text-foreground/90 hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-ring/40 flex h-6 max-w-48 min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-2 outline-none focus-visible:ring-2"
+                        title="Switch this checkout's branch or open a worktree"
+                      >
+                        <HugeiconsIcon
+                          icon={BranchIcon}
+                          className="text-muted-foreground size-3.5 shrink-0"
+                        />
+                        <span className="truncate">
+                          {repo.branch ?? 'Detached HEAD'}
+                        </span>
+                        <HugeiconsIcon
+                          icon={ArrowDown01Icon}
+                          className="text-muted-foreground size-3.5 shrink-0"
+                        />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="start"
+                      className="w-80"
+                      onOpenAutoFocus={keepFocusOnTouch}
+                      onCloseAutoFocus={refocusComposer}
+                    >
+                      <LocationMenu
+                        machine={props.machine}
+                        projectId={props.projectId}
+                        onRefresh={props.onRefresh}
+                      />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <RepoStatus
+                    repo={repo}
+                    target={{
+                      machine: props.machine,
+                      projectId: props.projectId,
+                      onRefresh: props.onRefresh,
+                    }}
+                  />
+                </>
               )}
               {worktree !== null && (
                 <>
                   <DropdownMenu modal={!touch.matches}>
                     <DropdownMenuTrigger asChild>
                       <button
-                        className="hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-ring/30 flex h-6 max-w-48 min-w-0 shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 outline-none focus-visible:ring-2"
+                        className="hover:bg-accent data-[state=open]:bg-accent focus-visible:ring-ring/30 flex h-6 max-w-48 min-w-0 shrink cursor-pointer items-center gap-1 rounded-md px-2 outline-none focus-visible:ring-2"
                         title="Choose the branch the worktree starts from"
                       >
                         <span className="text-muted-foreground shrink-0">

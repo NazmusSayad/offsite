@@ -134,6 +134,7 @@ export function restoreProjects(machine: StoredMachine): MachineProject[] {
     parentId: project.parentId ?? null,
     worktreeSetup: project.worktreeSetup ?? null,
     worktreeBranch: project.worktreeBranch ?? null,
+    startInWorktree: project.startInWorktree ?? false,
     machine: machine.id,
   }))
 }
@@ -333,6 +334,7 @@ export function persistMachines() {
         parentId: project.parentId,
         worktreeSetup: project.worktreeSetup,
         worktreeBranch: project.worktreeBranch,
+        startInWorktree: project.startInWorktree,
       })),
   }))
   saveMachines(machines)

@@ -15,6 +15,7 @@ export const projects = snakeCase.table('projects', {
   parentId: text(),
   worktreeSetup: text(),
   worktreeBranch: text(),
+  startInWorktree: integer({ mode: 'boolean' }).notNull().default(false),
 })
 
 export const sessions = snakeCase.table('sessions', {
