@@ -1,4 +1,4 @@
-import type { RateLimit, Usage } from '@offsite/core/providers'
+import type { Limits, Usage } from '@offsite/core/providers'
 import { claudeLimits } from '../lib/claude/index.ts'
 import { codexLimits } from '../lib/codex/index.ts'
 import { broadcast } from '../lib/hub.ts'
@@ -14,7 +14,7 @@ const fetching = new Map<string, Promise<Usage>>()
 export function cachedUsage(accountId: string): Usage {
   return (
     entries.get(accountId) ?? {
-      limits: [],
+      limits: null,
       fetchedAt: null,
       updatedAt: null,
       error: null,
@@ -22,23 +22,13 @@ export function cachedUsage(accountId: string): Usage {
   )
 }
 
-export function recordLimits(accountId: string, limits: RateLimit[]) {
-  const current = cachedUsage(accountId)
+export function recordLimits(accountId: string, limits: Limits) {
   entries.set(accountId, {
-    ...current,
-    limits: [
-      ...current.limits.map(
-        (limit) => limits.find((item) => item.window === limit.window) ?? limit
-      ),
-      ...limits.filter(
-        (item) => !current.limits.some((limit) => limit.window === item.window)
-      ),
-    ],
+    ...cachedUsage(accountId),
+    limits,
     updatedAt: Date.now(),
   })
-  log.debug(
-    `account ${accountId} reported ${limits.map((limit) => limit.window).join(', ')} limits from a running session`
-  )
+  log.debug(`account ${accountId} reported limits from a running session`)
   broadcast({ type: 'limits', accountId, limits })
 }
 
@@ -82,7 +72,7 @@ async function fetchUsage(accountId: string) {
   try {
     const limits = await providerLimits(account)
     log.debug(
-      `fetched ${limits.length} limits for ${account.name} in ${Math.round(performance.now() - started)}ms`
+      `fetched limits for ${account.name} in ${Math.round(performance.now() - started)}ms`
     )
     usage = {
       limits,

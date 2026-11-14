@@ -43,7 +43,7 @@ import type {
   LinkPlan,
   Provider,
   ProviderStatus,
-  RateLimit,
+  Limits,
   Usage,
 } from './providers.ts'
 import type { PullRequestMethods } from './pull-requests.ts'
@@ -432,7 +432,7 @@ export type ServerMessage =
 
 export type ServerEvent =
   | { type: 'activity'; activity: Record<string, SessionActivity> }
-  | { type: 'limits'; accountId: string; limits: RateLimit[] }
+  | { type: 'limits'; accountId: string; limits: Limits }
   | { type: 'usage'; accountId: string; usage: Usage }
   | { type: 'config'; config: Config }
   | { type: 'lastUsed'; lastUsed: LastPickedModelForProvider[] }

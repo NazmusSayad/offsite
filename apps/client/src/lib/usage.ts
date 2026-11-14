@@ -1,6 +1,8 @@
-import type { Account, RateLimit, Usage } from '@offsite/core/providers'
+import type { Account, Limits, RateLimit, Usage } from '@offsite/core/providers'
 import { useEffect } from 'react'
 import { call } from '@/api/connection'
+import { claudeMeter, claudeRows } from '@/features/usage/claude-usage'
+import { codexMeter, codexRows } from '@/features/usage/codex-usage'
 import { logger } from '@/lib/log'
 import { getState, type Machine, showError, update, useStore } from './store'
 
@@ -18,6 +20,49 @@ export function usageKey(machine: string, account: Account) {
 
 export function hasUsage(account: Account) {
   return account.enabled && account.error === null && account.email !== null
+}
+
+export function leftOf(limit: RateLimit | null) {
+  if (limit === null) {
+    return null
+  }
+  if (limit.rejected) {
+    return 0
+  }
+  if (limit.utilization === null) {
+    return null
+  }
+  return Math.max(0, 100 - Math.round(limit.utilization * 100))
+}
+
+export function usageRows(usage: Usage | undefined) {
+  const limits = usage?.limits ?? null
+  if (limits === null) {
+    return []
+  }
+  switch (limits.provider) {
+    case 'claude':
+      return claudeRows(limits)
+    case 'codex':
+      return codexRows(limits)
+  }
+}
+
+export function usageMeter(usage: Usage | undefined) {
+  const limits = usage?.limits ?? null
+  if (limits === null) {
+    return { short: null, long: null }
+  }
+  switch (limits.provider) {
+    case 'claude': {
+      const meter = claudeMeter(limits)
+      return { short: leftOf(meter.short), long: leftOf(meter.long) }
+    }
+    case 'codex': {
+      const meter = codexMeter(limits)
+      return { short: leftOf(meter.short), long: leftOf(meter.long) }
+    }
+  }
 }
 
 export function useUsage(machine: string | null, account: Account | undefined) {
@@ -86,7 +131,7 @@ export function receiveUsage(
 export function receiveLimits(
   machine: Machine,
   accountId: string,
-  limits: RateLimit[]
+  limits: Limits
 ) {
   const account = findAccount(machine, accountId)
   if (account === undefined) {
@@ -94,7 +139,7 @@ export function receiveLimits(
   }
   const key = usageKey(machine.id, account)
   const current = getState().usage[key] ?? {
-    limits: [],
+    limits: null,
     fetchedAt: null,
     updatedAt: null,
     error: null,
@@ -102,20 +147,7 @@ export function receiveLimits(
   update({
     usage: {
       ...getState().usage,
-      [key]: {
-        ...current,
-        limits: [
-          ...current.limits.map(
-            (limit) =>
-              limits.find((item) => item.window === limit.window) ?? limit
-          ),
-          ...limits.filter(
-            (item) =>
-              !current.limits.some((limit) => limit.window === item.window)
-          ),
-        ],
-        updatedAt: Date.now(),
-      },
+      [key]: { ...current, limits, updatedAt: Date.now() },
     },
   })
 }

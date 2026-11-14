@@ -1,16 +1,11 @@
 import { readdirSync, readFileSync, realpathSync } from 'node:fs'
 import path from 'node:path'
-import type {
-  Account,
-  ProviderCapabilities,
-  RateLimit,
-} from '@offsite/core/providers'
-import { type StoredAccount, storedAccounts } from '../../services/accounts.ts'
-import { recordLimits } from '../../services/usage.ts'
+import type { Account, ProviderCapabilities } from '@offsite/core/providers'
+import type { StoredAccount } from '../../services/accounts.ts'
 import { isRecord } from '../claude/content.ts'
 import { logger } from '../log.ts'
 import { type AppServer, appServer, codexBaseDir } from './app-server.ts'
-import type { CodexModel, RateLimitSnapshot, Skill } from './types.ts'
+import type { CodexModel, Skill } from './types.ts'
 
 const log = logger.withTag('codex')
 
@@ -31,11 +26,6 @@ type CodexLogin =
       workspaceName: string | null
     }
   | { type: 'amazonBedrock' }
-
-const windowNames = new Map([
-  [300, 'five_hour'],
-  [10080, 'seven_day'],
-])
 
 export async function codexAccount(account: StoredAccount): Promise<Account> {
   const configDir = account.configDir ?? codexBaseDir
@@ -136,43 +126,6 @@ export async function skills(server: AppServer, cwd: string) {
   }>('skills/list', { cwds: [cwd] })
   return result.data.flatMap((entry) =>
     entry.skills.filter((skill) => skill.enabled)
-  )
-}
-
-export function publishCodexLimits(home: string, snapshot: RateLimitSnapshot) {
-  for (const account of storedAccounts()) {
-    if (
-      account.provider === 'codex' &&
-      (account.configDir ?? codexBaseDir) === home
-    ) {
-      recordLimits(account.id, toLimits(snapshot))
-    }
-  }
-}
-
-export async function codexLimits(account: StoredAccount) {
-  const result = await appServer(account.configDir ?? codexBaseDir).request<{
-    rateLimits: RateLimitSnapshot
-  }>('account/rateLimits/read', {})
-  return toLimits(result.rateLimits)
-}
-
-function toLimits(snapshot: RateLimitSnapshot): RateLimit[] {
-  return [snapshot.primary, snapshot.secondary].flatMap((window) =>
-    window === null
-      ? []
-      : [
-          {
-            window:
-              (window.windowDurationMins === null
-                ? undefined
-                : windowNames.get(window.windowDurationMins)) ??
-              `${window.windowDurationMins ?? 0}m`,
-            utilization: window.usedPercent / 100,
-            resetsAt: window.resetsAt,
-            rejected: window.usedPercent >= 100,
-          },
-        ]
   )
 }
 

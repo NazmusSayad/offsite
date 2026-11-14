@@ -6,10 +6,9 @@ import { ProviderIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { MachineLogo } from '@/constants/machine-icons'
-import { windowName } from '@/features/composer/limits'
 import { fullTime, timeAgo, timeLeft } from '@/lib/format'
 import type { Machine } from '@/lib/store'
-import { loadUsage, useUsage } from '@/lib/usage'
+import { leftOf, loadUsage, usageRows, useUsage } from '@/lib/usage'
 import { cn } from '@/lib/utils'
 
 export function AccountUsage(props: {
@@ -23,10 +22,12 @@ export function AccountUsage(props: {
 }) {
   const account = props.account
   const usage = useUsage(props.machine, account)
-  const limits =
-    usage?.limits.filter(
-      (limit) => limit.rejected || limit.utilization !== null
-    ) ?? []
+  const limits = usageRows(usage).flatMap((row) => {
+    const left = leftOf(row.limit)
+    return row.limit === null || left === null
+      ? []
+      : [{ key: row.key, name: row.name, left, resetsAt: row.limit.resetsAt }]
+  })
   const updatedAt = usage?.updatedAt ?? usage?.fetchedAt ?? null
   const ago = updatedAt === null ? null : timeAgo(updatedAt)
   const [refreshing, setRefreshing] = useState(false)
@@ -111,45 +112,38 @@ export function AccountUsage(props: {
       )}
       {limits.length > 0 && (
         <div className="grid grid-cols-[minmax(2.5rem,max-content)_minmax(0,1fr)_2.25rem_3.25rem] items-center gap-x-3 gap-y-2 text-xs">
-          {limits.map((limit) => {
-            const left = limit.rejected
-              ? 0
-              : Math.max(0, 100 - Math.round((limit.utilization ?? 0) * 100))
-            return (
-              <Fragment key={limit.window}>
-                <span className="text-muted-foreground capitalize">
-                  {windowName(limit)}
-                </span>
-                <div className="bg-foreground/10 h-1.5 overflow-hidden rounded-full">
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${left}%`,
-                      backgroundColor: usageColor(left),
-                    }}
-                  />
-                </div>
-                <span
-                  className="text-right tabular-nums"
-                  style={{ color: usageColor(left) }}
-                >
-                  {left}%
-                </span>
-                <span
-                  className="text-muted-foreground whitespace-nowrap tabular-nums"
-                  title={
-                    limit.resetsAt === null
-                      ? undefined
-                      : fullTime(limit.resetsAt * 1000)
-                  }
-                >
-                  {limit.resetsAt === null
-                    ? ''
-                    : timeLeft(limit.resetsAt * 1000 - props.now)}
-                </span>
-              </Fragment>
-            )
-          })}
+          {limits.map((limit) => (
+            <Fragment key={limit.key}>
+              <span className="text-muted-foreground">{limit.name}</span>
+              <div className="bg-foreground/10 h-1.5 overflow-hidden rounded-full">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${limit.left}%`,
+                    backgroundColor: usageColor(limit.left),
+                  }}
+                />
+              </div>
+              <span
+                className="text-right tabular-nums"
+                style={{ color: usageColor(limit.left) }}
+              >
+                {limit.left}%
+              </span>
+              <span
+                className="text-muted-foreground whitespace-nowrap tabular-nums"
+                title={
+                  limit.resetsAt === null
+                    ? undefined
+                    : fullTime(limit.resetsAt * 1000)
+                }
+              >
+                {limit.resetsAt === null
+                  ? ''
+                  : timeLeft(limit.resetsAt * 1000 - props.now)}
+              </span>
+            </Fragment>
+          ))}
         </div>
       )}
       {usage !== undefined && usage.error !== null && (
