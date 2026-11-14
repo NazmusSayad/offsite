@@ -47,6 +47,7 @@ export function ComposerInput(props: {
   text: string
   editable: boolean
   markers: string[]
+  files: Set<string>
   placeholder: string
   newThread: boolean
   onEdit: (text: string, caret: number) => void
@@ -58,7 +59,7 @@ export function ComposerInput(props: {
     immediatelyRender: true,
     editable: props.editable,
     extensions: [Document, Paragraph, Text, UndoRedo, Skills, Attachment],
-    content: documentOf(props.text, props.markers),
+    content: documentOf(props.text, props.markers, props.files),
     coreExtensionOptions: { clipboardTextSerializer: { blockSeparator: '\n' } },
     editorProps: {
       attributes: {
@@ -82,7 +83,7 @@ export function ComposerInput(props: {
         ),
       },
       clipboardTextParser: (text, context) =>
-        sliceOf(text, context.doc.type.schema, props.markers),
+        sliceOf(text, context.doc.type.schema, props.markers, props.files),
       handleKeyDown: (view, event) => {
         if (event.isComposing || view.composing) {
           return false
@@ -105,7 +106,9 @@ export function ComposerInput(props: {
         }
         view.dispatch(
           view.state.tr
-            .replaceSelection(sliceOf(text, view.state.schema, props.markers))
+            .replaceSelection(
+              sliceOf(text, view.state.schema, props.markers, props.files)
+            )
             .scrollIntoView()
         )
         return true
@@ -137,11 +140,25 @@ export function ComposerInput(props: {
     if (textOf(editor.state.doc) === props.text) {
       return
     }
-    editor.commands.setContent(documentOf(props.text, props.markers), {
-      emitUpdate: false,
-    })
+    editor.commands.setContent(
+      documentOf(props.text, props.markers, props.files),
+      { emitUpdate: false }
+    )
     editor.commands.setTextSelection(editor.state.doc.content.size)
-  }, [editor, props.text, props.markers])
+  }, [editor, props.text, props.markers, props.files])
+
+  useLayoutEffect(() => {
+    const doc = editor.state.doc
+    const next = editor.schema.nodeFromJSON(
+      documentOf(textOf(doc), props.markers, props.files)
+    )
+    if (next.eq(doc)) {
+      return
+    }
+    const caret = caretOf(doc, editor.state.selection.head)
+    editor.commands.setContent(next.toJSON(), { emitUpdate: false })
+    editor.commands.setTextSelection(positionOf(editor.state.doc, caret))
+  }, [editor, props.markers, props.files])
 
   return (
     <EditorContent
@@ -178,6 +195,28 @@ export function replaceComposerText(start: number, end: number, value: string) {
   )
 }
 
+export function insertComposerMarker(
+  start: number,
+  end: number,
+  marker: string
+) {
+  const editor = mountedEditor()
+  const schema = editor.state.schema
+  editor.view.dispatch(
+    editor.state.tr.replaceWith(
+      positionOf(editor.state.doc, start),
+      positionOf(editor.state.doc, end),
+      [schema.nodes.attachment.create({ marker }), schema.text(' ')]
+    )
+  )
+}
+
+export function composerRect(caret: number) {
+  const editor = mountedEditor()
+  const coords = editor.view.coordsAtPos(positionOf(editor.state.doc, caret))
+  return new DOMRect(coords.left, coords.top, 0, coords.bottom - coords.top)
+}
+
 export function focusComposer() {
   mountedEditor().view.focus()
 }
@@ -189,18 +228,20 @@ function mountedEditor() {
   return mounted
 }
 
-function documentOf(text: string, markers: string[]) {
+function documentOf(text: string, markers: string[], files: Set<string>) {
   const pattern = new RegExp(
-    `(${markers.map((marker) => marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`
+    `(${[...markers.map((marker) => marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), '(?<!\\S)@\\S+'].join('|')})`
   )
   return {
     type: 'doc',
     content: text.split('\n').map((line) => ({
       type: 'paragraph',
-      content: (markers.length === 0 ? [line] : line.split(pattern))
+      content: line
+        .split(pattern)
         .filter((part) => part !== '')
         .map((part) =>
-          markers.includes(part)
+          markers.includes(part) ||
+          (part.startsWith('@') && files.has(part.slice(1)))
             ? { type: 'attachment', attrs: { marker: part } }
             : { type: 'text', text: part }
         ),
@@ -208,11 +249,16 @@ function documentOf(text: string, markers: string[]) {
   }
 }
 
-function sliceOf(text: string, schema: Schema, markers: string[]) {
+function sliceOf(
+  text: string,
+  schema: Schema,
+  markers: string[],
+  files: Set<string>
+) {
   return new Slice(
     Fragment.fromJSON(
       schema,
-      documentOf(text.replace(/\r\n?/g, '\n'), markers).content
+      documentOf(text.replace(/\r\n?/g, '\n'), markers, files).content
     ),
     1,
     1

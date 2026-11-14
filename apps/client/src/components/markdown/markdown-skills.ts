@@ -30,6 +30,13 @@ export function remarkUploads() {
   )
 }
 
+export function remarkMentions() {
+  return remarkWrap(
+    /(?<!\S)@([^\s@]*[/.][^\s@]*[^\s@.,;:!?'")\]])/g,
+    (match) => ({ dataMention: match[1] })
+  )
+}
+
 function remarkWrap(
   pattern: RegExp,
   properties: (match: RegExpExecArray) => Record<string, string>
@@ -40,6 +47,9 @@ function remarkWrap(
         return
       }
       node.children = node.children.flatMap((child) => {
+        if (child.type === 'skill') {
+          return [child]
+        }
         if (child.type !== 'text' || child.value === undefined) {
           visit(child)
           return [child]

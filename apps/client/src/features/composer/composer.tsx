@@ -2,7 +2,7 @@ import { PaperclipIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
 import { NO_PROJECT } from '@offsite/core/projects'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { readBase64, UPLOAD_LIMIT } from '@/api/upload'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,7 @@ import {
 import {
   ComposerInput,
   focusComposer,
+  insertComposerMarker,
   moveComposerCaret,
   replaceComposerText,
 } from './composer-input'
@@ -101,6 +102,14 @@ export function Composer(props: {
   const text = stored.text
   const images = stored.images
   const attachedFiles = stored.files
+  const markers = useMemo(
+    () => [
+      ...images.map((image) => `[Image #${image.number}]`),
+      ...attachedFiles.map(fileMarker),
+    ],
+    [images, attachedFiles]
+  )
+  const knownFiles = useMemo(() => new Set(files), [files])
   const [caret, setCaret] = useState(text.length)
   const running = useStore(selectedRunning)
   const hero = loaded && blank && !running && !shown
@@ -177,6 +186,10 @@ export function Composer(props: {
 
   function pick(item: Suggestion) {
     if (trigger === null) {
+      return
+    }
+    if (item.insert.startsWith('@')) {
+      insertComposerMarker(caret - trigger.length, caret, item.insert)
       return
     }
     replaceComposerText(caret - trigger.length, caret, `${item.insert} `)
@@ -272,11 +285,11 @@ export function Composer(props: {
             onCloseMenu={focusComposer}
           />
         )}
-        {suggestions.length === 0 && <UsageResetBanner />}
-        {suggestions.length === 0 && <ClaudeWorktreeNotice />}
-        {suggestions.length === 0 && <RewindNotice draftKey={key} />}
-        {suggestions.length === 0 && <QueuedMessages />}
-        {request !== undefined && suggestions.length === 0 && (
+        <UsageResetBanner />
+        <ClaudeWorktreeNotice />
+        <RewindNotice draftKey={key} />
+        <QueuedMessages />
+        {request !== undefined && (
           <PermissionPrompt
             key={request.id}
             request={request}
@@ -286,14 +299,14 @@ export function Composer(props: {
             draft={text}
           />
         )}
-        {suggestions.length > 0 && (
-          <ComposerMenu
-            items={suggestions}
-            active={activeIndex}
-            onHover={setActive}
-            onPick={pick}
-          />
-        )}
+        <ComposerMenu
+          items={suggestions}
+          active={activeIndex}
+          anchor={trigger === null ? caret : caret - trigger.length}
+          onHover={setActive}
+          onPick={pick}
+          onClose={() => setMenuClosed(true)}
+        />
         <div
           className={cn(
             'composer-glass shadow-composer relative z-10 border border-(--composer-outline) transition-[border-color,box-shadow] duration-150 ease-out focus-within:border-[color-mix(in_srgb,var(--text)_16%,transparent)] focus-within:ring-4 focus-within:ring-[color-mix(in_srgb,var(--text)_4%,transparent)] dark:shadow-none',
@@ -330,10 +343,8 @@ export function Composer(props: {
               text={text}
               editable={!loading}
               newThread={hero}
-              markers={[
-                ...images.map((image) => `[Image #${image.number}]`),
-                ...attachedFiles.map(fileMarker),
-              ]}
+              markers={markers}
+              files={knownFiles}
               onEdit={edit}
               onCaret={setCaret}
               onPaste={(event) => {

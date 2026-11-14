@@ -17,7 +17,7 @@ import { MessageBookmarkButton } from '@/features/transcript/bookmarks'
 import { RewindMenu } from '@/features/transcript/rewind-menu'
 import type { UserItem } from '@/features/transcript/timeline'
 import { Shimmer } from '@/features/transcript/tool-row'
-import { UploadChip } from '@/features/transcript/upload-chip'
+import { MentionChip, UploadChip } from '@/features/transcript/upload-chip'
 import { useCopy } from '@/lib/clipboard'
 import { clock, fullTime } from '@/lib/format'
 import { logger } from '@/lib/log'
@@ -158,11 +158,16 @@ export function UserMessage(props: {
                   )}
                   images={inline}
                   uploads
+                  mentions
                   components={{
                     span: (span) => {
                       const upload = span.node?.properties.dataUpload
                       if (typeof upload === 'string') {
                         return <UploadChip path={upload} />
+                      }
+                      const mention = span.node?.properties.dataMention
+                      if (typeof mention === 'string') {
+                        return <MentionChip path={mention} />
                       }
                       const index = numbers.indexOf(
                         Number(span.node?.properties.dataImage)

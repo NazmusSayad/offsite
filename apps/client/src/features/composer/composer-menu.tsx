@@ -1,8 +1,11 @@
-import { FileIcon, SquareSlashIcon } from '@hugeicons/core-free-icons'
+import { SquareSlashIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SlashCommand } from '@offsite/core/providers'
 import { useLayoutEffect, useRef } from 'react'
+import { FileTypeIcon } from '@/components/file-icon'
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { composerRect } from './composer-input'
 
 export type Suggestion = {
   key: string
@@ -37,8 +40,10 @@ export function suggestionsFor(
     .slice(0, 50)
     .map((file) => ({
       key: file,
-      label: file,
-      description: '',
+      label: file.split('/').at(-1) ?? file,
+      description: file.includes('/')
+        ? file.slice(0, file.lastIndexOf('/'))
+        : '',
       insert: `@${file}`,
     }))
 }
@@ -46,12 +51,56 @@ export function suggestionsFor(
 export function ComposerMenu(props: {
   items: Suggestion[]
   active: number
+  anchor: number
+  onHover: (index: number) => void
+  onPick: (item: Suggestion) => void
+  onClose: () => void
+}) {
+  return (
+    <Popover
+      open={props.items.length > 0}
+      onOpenChange={(open) => {
+        if (!open) {
+          props.onClose()
+        }
+      }}
+    >
+      <PopoverAnchor
+        virtualRef={{
+          current: { getBoundingClientRect: () => composerRect(props.anchor) },
+        }}
+      />
+      <PopoverContent
+        side="top"
+        className="data-open:zoom-in-100! data-[side=bottom]:slide-in-from-top-0! data-[side=top]:slide-in-from-bottom-0! w-80 max-w-[calc(100vw-1rem)] duration-50 data-closed:animate-none"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
+        <SuggestionList
+          items={props.items}
+          active={props.active}
+          onHover={props.onHover}
+          onPick={props.onPick}
+        />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function SuggestionList(props: {
+  items: Suggestion[]
+  active: number
   onHover: (index: number) => void
   onPick: (item: Suggestion) => void
 }) {
   const list = useRef<HTMLDivElement>(null)
+  const hovered = useRef<number | null>(null)
 
   useLayoutEffect(() => {
+    if (hovered.current === props.active) {
+      hovered.current = null
+      return
+    }
     list.current
       ?.querySelector('[data-active="true"]')
       ?.scrollIntoView({ block: 'nearest' })
@@ -60,7 +109,7 @@ export function ComposerMenu(props: {
   return (
     <div
       ref={list}
-      className="composer-glass mx-auto -mb-[calc(1rem+1px)] max-h-72 w-[calc(100%-2.75rem)] scroll-pt-1 scroll-pb-[calc(1rem+1px+0.25rem)] overflow-y-auto rounded-t-2xl border border-b-0 border-(--composer-outline) p-1 pb-[calc(1rem+1px+0.25rem)]"
+      className="max-h-72 scroll-py-1 overflow-x-hidden overflow-y-auto p-1"
     >
       {props.items.map((item, index) => (
         <button
@@ -70,18 +119,31 @@ export function ComposerMenu(props: {
             'flex min-h-7 w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-left',
             index === props.active && 'bg-accent'
           )}
-          onMouseEnter={() => props.onHover(index)}
+          onMouseEnter={() => {
+            hovered.current = index
+            props.onHover(index)
+          }}
           onMouseDown={(event) => {
             event.preventDefault()
             props.onPick(item)
           }}
         >
-          <HugeiconsIcon
-            icon={item.insert.startsWith('/') ? SquareSlashIcon : FileIcon}
-            className="text-muted-foreground size-4 shrink-0"
-          />
-          <span className="shrink-0 text-xs font-medium">{item.label}</span>
-          <span className="text-secondary-label min-w-0 truncate text-xs">
+          {item.insert.startsWith('/') && (
+            <HugeiconsIcon
+              icon={SquareSlashIcon}
+              className="text-muted-foreground size-4 shrink-0"
+            />
+          )}
+          {item.insert.startsWith('@') && (
+            <FileTypeIcon
+              path={item.insert.slice(1)}
+              className="size-4 shrink-0"
+            />
+          )}
+          <span className="min-w-0 truncate text-xs font-medium">
+            {item.label}
+          </span>
+          <span className="text-secondary-label min-w-0 flex-1 truncate text-xs">
             {item.description}
           </span>
         </button>
