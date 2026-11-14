@@ -10,13 +10,13 @@ import {
   VideoOffIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { type CSSProperties, lazy, Suspense, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { ViewableImage } from '@/components/viewable-image'
 import { ViewableVideo } from '@/components/viewable-video'
 import { useCopy } from '@/lib/clipboard'
-import { downloadFile, mediaKind, mediaUrl } from '@/lib/media'
+import { downloadFile, githubMediaUrl, mediaKind, mediaUrl } from '@/lib/media'
 import { showError, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
@@ -149,6 +149,60 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
         <span className="border-border/40 block aspect-[3/2] w-full rounded-lg border" />
       )}
     </span>
+  )
+}
+
+export function GithubMedia(props: {
+  url: string
+  alt: string
+  raw: string
+  size: CSSProperties | undefined
+}) {
+  const machine = useStore((state) => state.selection?.machine ?? null)
+  const [media, setMedia] = useState<
+    { url: string; src: string } | { url: string; error: string } | null
+  >(null)
+
+  useEffect(() => {
+    if (machine === null) {
+      return
+    }
+    let current = true
+    async function load(target: string, url: string) {
+      try {
+        const src = await githubMediaUrl(target, url)
+        if (current) {
+          setMedia({ url, src })
+        }
+      } catch (caught) {
+        if (current) {
+          setMedia({ url, error: errorMessage(caught) })
+        }
+      }
+    }
+    void load(machine, props.url)
+    return () => {
+      current = false
+    }
+  }, [machine, props.url])
+
+  const loaded = media !== null && media.url === props.url ? media : null
+  if (loaded !== null && 'error' in loaded) {
+    return (
+      <MediaUnavailable kind="image" reason={loaded.error} raw={props.raw} />
+    )
+  }
+  return (
+    loaded !== null && (
+      <img
+        src={loaded.src}
+        alt={props.alt}
+        loading="lazy"
+        decoding="async"
+        className="h-auto max-w-full"
+        style={props.size}
+      />
+    )
   )
 }
 

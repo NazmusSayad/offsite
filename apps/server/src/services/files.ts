@@ -306,7 +306,11 @@ function byteRange(header: string, size: number) {
   return { start, end }
 }
 
-function addLink(file: string, mediaType: string, device: string | null) {
+export function addLink(
+  file: string,
+  mediaType: string,
+  device: string | null
+) {
   for (const [token, link] of mediaLinks) {
     if (link.expiresAt <= Date.now()) {
       mediaLinks.delete(token)

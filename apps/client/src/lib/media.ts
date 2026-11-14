@@ -1,6 +1,11 @@
 import { mediaTypes } from '@offsite/core/media'
 import { call, machineUrl } from '@/api/connection'
 
+const GITHUB_ATTACHMENT =
+  /^https:\/\/github\.com\/user-attachments\/assets\/[0-9a-f-]{36}$/i
+const GITHUB_LINK_LIFETIME = 25 * 60_000
+const githubLinks = new Map<string, { src: Promise<string>; until: number }>()
+
 export function mediaKind(src: string) {
   const extension = /\.[a-z0-9]+$/i.exec(src.split(/[?#]/)[0])?.[0]
   const type =
@@ -25,6 +30,27 @@ export async function mediaUrl(
   path: string
 ) {
   const token = await call(machine, 'files.media', { projectId, path })
+  return `${machineUrl(machine)}/api/media?${new URLSearchParams({ token })}`
+}
+
+export function isGithubAttachment(src: string) {
+  return GITHUB_ATTACHMENT.test(src)
+}
+
+export function githubMediaUrl(machine: string, url: string) {
+  const key = `${machine} ${url}`
+  const link = githubLinks.get(key)
+  if (link !== undefined && link.until > Date.now()) {
+    return link.src
+  }
+  const src = loadGithubMediaUrl(machine, url)
+  githubLinks.set(key, { src, until: Date.now() + GITHUB_LINK_LIFETIME })
+  src.catch(() => githubLinks.delete(key))
+  return src
+}
+
+async function loadGithubMediaUrl(machine: string, url: string) {
+  const token = await call(machine, 'pulls.image', { url })
   return `${machineUrl(machine)}/api/media?${new URLSearchParams({ token })}`
 }
 
