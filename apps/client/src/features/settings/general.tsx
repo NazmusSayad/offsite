@@ -127,7 +127,7 @@ function UpdateRow() {
     <Row label="Version">
       <div className="flex items-center gap-3">
         {failure !== null && (
-          <span className="text-destructive text-xs">
+          <span className="text-destructive text-xs wrap-anywhere">
             Could not update: {failure}
           </span>
         )}

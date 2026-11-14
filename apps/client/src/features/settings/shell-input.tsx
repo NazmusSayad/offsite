@@ -140,7 +140,11 @@ function ShellMenu(props: {
 
   return (
     <>
-      {error && <p className="text-destructive px-2 py-1.5 text-xs">{error}</p>}
+      {error && (
+        <p className="text-destructive px-2 py-1.5 text-xs wrap-anywhere">
+          {error}
+        </p>
+      )}
       {shells?.length === 0 && (
         <p className="text-muted-foreground px-2 py-1.5 text-xs">
           No known shells found

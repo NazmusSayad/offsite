@@ -1,4 +1,5 @@
 import {
+  ArrowExpand01Icon,
   ArrowLeft01Icon,
   LinkSquare02Icon,
   MoreHorizontalIcon,
@@ -19,13 +20,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
-import { DiffMenuItems } from '@/features/git/diff-options'
+import { DiffMenuItems, DiffOptions } from '@/features/git/diff-options'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { timeAgo } from '@/lib/format'
 import { router } from '@/lib/router'
 import { showError } from '@/lib/store'
 import { pushSearch } from '@/lib/url'
-import { errorMessage } from '@/lib/utils'
+import { cn, errorMessage } from '@/lib/utils'
 import { MergeStatus, PullRequestActions } from './pull-request-actions'
 import { StateBadge } from './pull-request-badges'
 import { PullRequestFiles } from './pull-request-files'
@@ -42,7 +43,7 @@ export function openFromList(url: string) {
 }
 
 const segment =
-  'text-muted-foreground hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground dark:aria-pressed:bg-input/72 inline-flex h-6 cursor-pointer items-center justify-center rounded-md px-2.5 text-xs aria-pressed:shadow-xs'
+  'text-muted-foreground hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground dark:aria-pressed:bg-input/72 inline-flex h-6 cursor-pointer items-center justify-center rounded-md px-2.5 aria-pressed:shadow-xs'
 
 export function PullRequestView(props: {
   machine: string
@@ -201,7 +202,7 @@ export function PullRequestView(props: {
         </div>
       </div>
       {details === null && error !== null && (
-        <p className="text-muted-foreground min-h-0 flex-1 p-4 text-center text-xs whitespace-pre-wrap">
+        <p className="text-muted-foreground min-h-0 flex-1 p-4 text-center text-xs wrap-anywhere whitespace-pre-wrap">
           {error}
         </p>
       )}
@@ -227,11 +228,11 @@ export function PullRequestView(props: {
       {details !== null && (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="border-border/60 grid gap-2.5 border-b p-4">
-            <h2 className="text-foreground text-base leading-snug font-semibold">
+            <h2 className="text-foreground text-base leading-snug font-semibold wrap-anywhere">
               {details.title}
             </h2>
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
-              <span>
+              <span className="wrap-anywhere">
                 <a
                   href={`https://github.com/${details.author}`}
                   target="_blank"
@@ -269,8 +270,20 @@ export function PullRequestView(props: {
                 </span>
               )}
             </div>
-            <div className="flex items-center justify-between gap-2">
-              <div className="bg-input/40 flex w-fit items-center rounded-lg p-0.5">
+            <div
+              className={cn(
+                props.mobile && 'grid justify-items-center gap-2',
+                !props.mobile &&
+                  'flex items-center justify-between gap-2 @container'
+              )}
+            >
+              <div
+                className={cn(
+                  'bg-input/40 flex w-fit items-center rounded-lg p-0.5',
+                  props.mobile && 'text-2xs',
+                  !props.mobile && 'text-xs'
+                )}
+              >
                 <button
                   className={segment}
                   aria-pressed={tab === 'overview'}
@@ -307,30 +320,48 @@ export function PullRequestView(props: {
                   Commits
                 </button>
               </div>
-              {(tab === 'files' || tab === 'changes') && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+              {(tab === 'files' || tab === 'changes') && props.mobile && (
+                <div className="flex items-center gap-1">
+                  <DiffOptions collapsible />
+                </div>
+              )}
+              {(tab === 'files' || tab === 'changes') && !props.mobile && (
+                <>
+                  <div className="hidden items-center gap-1 @min-[33rem]:flex">
+                    <DiffOptions collapsible />
                     <Button
                       size="icon-sm"
                       variant="ghost"
-                      className="-my-0.5 shrink-0"
-                      title="Diff options"
-                      aria-label="Diff options"
+                      title="Full screen"
+                      aria-label="Full screen"
+                      onClick={() => setFullscreen(true)}
                     >
                       <HugeiconsIcon
-                        icon={MoreHorizontalIcon}
+                        icon={ArrowExpand01Icon}
                         className="size-4"
                       />
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DiffMenuItems
-                      onFullscreen={
-                        props.mobile ? null : () => setFullscreen(true)
-                      }
-                    />
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        className="-my-0.5 shrink-0 @min-[33rem]:hidden"
+                        title="Diff options"
+                        aria-label="Diff options"
+                      >
+                        <HugeiconsIcon
+                          icon={MoreHorizontalIcon}
+                          className="size-4"
+                        />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DiffMenuItems onFullscreen={() => setFullscreen(true)} />
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
               )}
             </div>
           </div>
@@ -389,7 +420,9 @@ export function PullRequestView(props: {
       )}
       <PullRequestActions details={details} busy={busy} onPerform={perform} />
       {details !== null && error !== null && (
-        <p className="text-destructive border-t px-4 py-2 text-xs">{error}</p>
+        <p className="text-destructive border-t px-4 py-2 text-xs wrap-anywhere">
+          {error}
+        </p>
       )}
     </div>
   )

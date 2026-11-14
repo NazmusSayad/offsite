@@ -73,7 +73,7 @@ export function ComposerInput(props: {
         'data-enable-grammarly': 'false',
         'data-lt-active': 'false',
         class: cn(
-          'box-content px-2.5 pt-2 outline-none sm:px-4 sm:pt-4 md:pt-3.5',
+          'box-content min-w-0 px-2.5 pt-2 outline-none sm:px-4 sm:pt-4 md:pt-3.5',
           props.newThread &&
             'min-h-[3lh] sm:[@media(min-height:840px)]:min-h-[4lh]',
           !props.newThread &&

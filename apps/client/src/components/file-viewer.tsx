@@ -34,7 +34,7 @@ function ViewerBody(props: {
   }
   if (preview.kind === 'error') {
     return (
-      <p className="text-muted-foreground grid size-full place-items-center p-4 text-sm">
+      <p className="text-muted-foreground grid size-full place-items-center p-4 text-sm wrap-anywhere">
         {preview.message}
       </p>
     )

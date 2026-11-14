@@ -155,7 +155,7 @@ function PushSwitch() {
   return (
     <div className="flex items-center gap-3">
       {failure !== null && (
-        <span className="text-muted-foreground text-xs">
+        <span className="text-muted-foreground text-xs wrap-anywhere">
           Could not update: {failure}
         </span>
       )}

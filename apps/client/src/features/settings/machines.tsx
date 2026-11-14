@@ -123,7 +123,7 @@ export function MachinesPage() {
                     </p>
                   ))}
               </div>
-              <span className="text-muted-foreground shrink-0 text-xs">
+              <span className="text-muted-foreground max-w-1/2 shrink-0 truncate text-xs">
                 {statuses[machine.status]}
                 {machine.status === 'online' &&
                   machine.via !== null &&

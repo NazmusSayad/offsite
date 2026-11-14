@@ -3,7 +3,7 @@ import type { QuestionItem } from '@/features/transcript/timeline'
 export function QuestionCard(props: { item: QuestionItem }) {
   const answers = props.item.answers
   return (
-    <div className="flex min-w-0 flex-col gap-3 text-sm leading-6 select-text">
+    <div className="flex min-w-0 flex-col gap-3 text-sm leading-6 wrap-anywhere select-text">
       {props.item.questions.map((question) => (
         <div key={question.question}>
           <p className="text-foreground font-medium">{question.question}</p>

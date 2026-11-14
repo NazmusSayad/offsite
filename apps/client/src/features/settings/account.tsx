@@ -97,7 +97,7 @@ export function AccountPage(props: { machine: string; account: Account }) {
         </Row>
       </Section>
       {error !== null && (
-        <p className="text-destructive px-1 text-xs">{error}</p>
+        <p className="text-destructive px-1 text-xs wrap-anywhere">{error}</p>
       )}
       <AlertDialog>
         <AlertDialogTrigger asChild>
@@ -185,7 +185,7 @@ export function NewAccountPage(props: {
         </Row>
       </Section>
       {error !== null && (
-        <p className="text-destructive px-1 text-xs">{error}</p>
+        <p className="text-destructive px-1 text-xs wrap-anywhere">{error}</p>
       )}
       <div className="flex justify-end gap-2">
         <Button

@@ -34,8 +34,8 @@ export function PaletteMessageItem(props: {
         <span className="min-w-0 truncate">
           <Highlighted text={props.snippet} ranges={props.snippetRanges} />
         </span>
-        <span className="ml-auto flex shrink-0 items-center gap-1.5 pl-2">
-          {props.project}
+        <span className="ml-auto flex max-w-1/2 shrink-0 items-center gap-1.5 pl-2">
+          <span className="truncate">{props.project}</span>
           {props.machines.length > 1 && (
             <MachineLogo
               icon={machine?.icon ?? null}

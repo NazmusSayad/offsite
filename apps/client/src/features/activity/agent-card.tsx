@@ -220,7 +220,7 @@ function AgentDetails(props: {
       {step !== null && (
         <p
           className={cn(
-            'text-muted-foreground min-w-0',
+            'text-muted-foreground min-w-0 wrap-anywhere',
             props.expanded ? 'line-clamp-3' : 'truncate'
           )}
         >

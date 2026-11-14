@@ -148,7 +148,7 @@ export function DiffPanel(props: {
       </div>
       <div className="diff-render-surface min-h-0 flex-1 overflow-y-auto [--code-background:var(--background)]">
         {error !== null && (
-          <p className="text-muted-foreground p-4 text-center text-xs">
+          <p className="text-muted-foreground p-4 text-center text-xs wrap-anywhere">
             {error}
           </p>
         )}

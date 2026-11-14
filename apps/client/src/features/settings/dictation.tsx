@@ -46,7 +46,9 @@ export function DictationPage(props: { machine: string; config: Config }) {
     >
       <Row label="OiPer workflow">
         {error !== null ? (
-          <span className="text-muted-foreground text-xs">{error}</span>
+          <span className="text-muted-foreground text-xs wrap-anywhere">
+            {error}
+          </span>
         ) : workflows === null ? (
           <span className="text-muted-foreground text-xs">Checking…</span>
         ) : (

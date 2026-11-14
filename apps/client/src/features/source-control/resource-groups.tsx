@@ -142,7 +142,7 @@ export function ResourceGroups(props: {
         <FileTypeIcon path={resource.path} />
         <span
           className={cn(
-            'min-w-0 shrink-0 truncate',
+            'min-w-0 truncate',
             statusColors[resource.status],
             resource.status === 'D' && 'line-through'
           )}
@@ -150,7 +150,7 @@ export function ResourceGroups(props: {
           {baseName(resource.path)}
         </span>
         {!props.tree && (
-          <span className="text-muted-foreground min-w-0 truncate text-xs">
+          <span className="text-muted-foreground min-w-0 shrink-[100] truncate text-xs">
             {parentOf(resource.path)}
           </span>
         )}
