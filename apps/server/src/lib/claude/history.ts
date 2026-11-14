@@ -7,7 +7,7 @@ import {
   type SessionStoreEntry,
 } from '@anthropic-ai/claude-agent-sdk'
 import type { Item } from '@offsite/core/items'
-import type { ServerEvent } from '@offsite/core/protocol'
+import type { RpcMethods, ServerEvent } from '@offsite/core/protocol'
 import { claudeBaseDir } from '../../storage/config.ts'
 import { runs } from '../live.ts'
 import { contextTokens, type Message, toMessage } from './content.ts'
@@ -195,9 +195,9 @@ export async function image(sessionId: string, uuid: string, index: number) {
   return { mediaType: block.mediaType, data: block.data }
 }
 
-export async function shownMessages(sessionId: string, cwd: string) {
+export async function shownMessages(sessionId: string) {
   const [disk, session] = await Promise.all([
-    getSessionMessages(sessionId, { dir: cwd }),
+    getSessionMessages(sessionId),
     loadSession(sessionId),
   ])
   const found = runs.get(sessionId)
@@ -209,14 +209,11 @@ export async function shownMessages(sessionId: string, cwd: string) {
   return index < 0 ? disk : disk.slice(0, index)
 }
 
-export async function history(
-  sessionId: string,
-  cwd: string
-): Promise<ServerEvent> {
+export async function history(sessionId: string): Promise<ServerEvent> {
   const found = runs.get(sessionId)
   const run = found?.provider === 'claude' ? found : undefined
   const [disk, session] = await Promise.all([
-    shownMessages(sessionId, cwd),
+    shownMessages(sessionId),
     loadSession(sessionId),
   ])
   const entries = session === null ? [] : session.entries
@@ -266,20 +263,23 @@ export async function earlier(sessionId: string, before: number) {
 }
 
 export async function agentMessages(
-  sessionId: string,
-  cwd: string,
-  agentId: string,
-  parent: string
+  request: RpcMethods['sessions.agent']['params']
 ): Promise<Item[]> {
-  if (!/^\w+$/.test(agentId)) {
-    throw new Error(`invalid agent id ${agentId}`)
+  if (!/^\w+$/.test(request.agentId)) {
+    throw new Error(`invalid agent id ${request.agentId}`)
   }
-  const disk = await getSubagentMessages(sessionId, agentId, { dir: cwd })
+  const disk = await getSubagentMessages(request.sessionId, request.agentId)
   return toItems(
     disk.flatMap((item): Message[] =>
       item.type === 'system'
         ? []
-        : [toMessage(item.type, { ...item, parent_tool_use_id: parent }, null)]
+        : [
+            toMessage(
+              item.type,
+              { ...item, parent_tool_use_id: request.parent },
+              null
+            ),
+          ]
     )
   )
 }

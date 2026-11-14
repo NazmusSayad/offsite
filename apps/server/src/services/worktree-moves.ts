@@ -58,7 +58,7 @@ export function moveToWorktree(
         settings: run.settings,
       })
     }
-    publish(sessionId, await history(sessionId, project.cwd))
+    publish(sessionId, await history(sessionId))
     return {
       projectId: project.id,
       branch: project.branch,

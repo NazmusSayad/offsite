@@ -70,7 +70,7 @@ export function stopAll() {
 export function sessionHistory(sessionId: string, cwd: string) {
   switch (providerOf(sessionId)) {
     case 'claude':
-      return history(sessionId, cwd)
+      return history(sessionId)
     case 'codex':
       return codexHistory(sessionId)
     case 'opencode':
@@ -78,19 +78,14 @@ export function sessionHistory(sessionId: string, cwd: string) {
   }
 }
 
-export function agentHistory(
-  sessionId: string,
-  cwd: string,
-  agentId: string,
-  parent: string
-) {
-  switch (providerOf(sessionId)) {
+export function agentHistory(request: RpcMethods['sessions.agent']['params']) {
+  switch (providerOf(request.sessionId)) {
     case 'claude':
-      return agentMessages(sessionId, cwd, agentId, parent)
+      return agentMessages(request)
     case 'codex':
-      return codexAgent(agentId, parent)
+      return codexAgent(request.agentId, request.parent)
     case 'opencode':
-      return openCodeAgent(agentId, parent)
+      return openCodeAgent(request.agentId, request.parent)
   }
 }
 
@@ -149,7 +144,7 @@ async function rewindNow(request: RewindRequest): Promise<RewindResult> {
   if (request.dryRun || !request.conversation) {
     return result
   }
-  const disk = await shownMessages(sessionId, cwd)
+  const disk = await shownMessages(sessionId)
   const index = disk.findIndex((item) => item.uuid === request.messageId)
   if (index < 1) {
     throw new Error('Cannot rewind the conversation to that point')
@@ -162,7 +157,7 @@ async function rewindNow(request: RewindRequest): Promise<RewindResult> {
       throw new Error('Cannot rewind the conversation to that point')
     }
     await rewindLive(run, request.messageId, lastSeen.uuid)
-    publish(sessionId, await history(sessionId, cwd))
+    publish(sessionId, await history(sessionId))
     return result
   }
   run.stop()
@@ -174,7 +169,7 @@ async function rewindNow(request: RewindRequest): Promise<RewindResult> {
     resumeAt: disk[index - 1].uuid,
     settings: request.settings,
   })
-  publish(sessionId, await history(sessionId, cwd))
+  publish(sessionId, await history(sessionId))
   return result
 }
 
@@ -199,7 +194,7 @@ export function restart(sessionId: string) {
       resumeAt: null,
       settings: run.settings,
     })
-    publish(sessionId, await history(sessionId, run.cwd))
+    publish(sessionId, await history(sessionId))
   })
 }
 
@@ -217,7 +212,7 @@ export function stop(sessionId: string) {
     }
     run.stop()
     await run.closed
-    publish(sessionId, await history(sessionId, run.cwd))
+    publish(sessionId, await history(sessionId))
   })
 }
 
@@ -385,7 +380,7 @@ async function sendExisting(
     (existing?.provider === 'claude' &&
       !existing.running &&
       existing.backgroundTasks === 0 &&
-      (await changedElsewhere(existing, cwd))) ||
+      (await changedElsewhere(existing))) ||
     (existing?.provider === 'codex' &&
       !existing.running &&
       existing.pending.size === 0 &&
@@ -481,11 +476,11 @@ async function startRun(cwd: string, settings: SessionSettings) {
   }
 }
 
-async function changedElsewhere(run: Run, cwd: string) {
+async function changedElsewhere(run: Run) {
   if (run.messages.length === 0) {
     return false
   }
-  const history = await shownMessages(run.sessionId, cwd)
+  const history = await shownMessages(run.sessionId)
   const last = history.at(-1)?.uuid
   return last !== undefined && !run.messages.some((item) => item.uuid === last)
 }

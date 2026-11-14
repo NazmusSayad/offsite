@@ -8,6 +8,7 @@ import {
   renameSession,
 } from '@anthropic-ai/claude-agent-sdk'
 import { NO_PROJECT } from '@offsite/core/projects'
+import type { RpcMethods } from '@offsite/core/protocol'
 import type { Provider, ProviderStatus } from '@offsite/core/providers'
 import { nextOpens } from '@offsite/core/search'
 import type { Session, SessionPatch } from '@offsite/core/sessions'
@@ -37,7 +38,7 @@ import {
 } from '../storage/schema.ts'
 import { providerName } from './accounts.ts'
 import { clearSessionOutbox } from './outbox.ts'
-import { projectPath, projects } from './projects.ts'
+import { projects } from './projects.ts'
 import { type Found, info, timeLimit } from './provider-sessions.ts'
 import { forgetStarting, startingSessions } from './starting-sessions.ts'
 import {
@@ -483,18 +484,9 @@ export async function removeSession(id: string) {
   forgetThread(provider, id)
 }
 
-export async function fork(
-  sessionId: string,
-  projectId: string,
-  messageId: string
-) {
-  const provider = providerOf(sessionId)
-  const result = await forkWith(
-    provider,
-    sessionId,
-    projectPath(projectId),
-    messageId
-  )
+export async function fork(request: RpcMethods['sessions.fork']['params']) {
+  const provider = providerOf(request.sessionId)
+  const result = await forkWith(provider, request)
   providers.set(result.sessionId, provider)
   recordInteraction(result.sessionId, provider, null)
   markChanged(provider, result.sessionId)
@@ -504,24 +496,21 @@ export async function fork(
 
 async function forkWith(
   provider: Provider,
-  sessionId: string,
-  cwd: string,
-  messageId: string
+  request: RpcMethods['sessions.fork']['params']
 ) {
   if (provider === 'codex') {
-    return forkThread(sessionId, messageId)
+    return forkThread(request.sessionId, request.messageId)
   }
   if (provider === 'opencode') {
-    return forkOpenCode(sessionId, messageId)
+    return forkOpenCode(request.sessionId, request.messageId)
   }
-  const disk = await getSessionMessages(sessionId, { dir: cwd })
-  const index = disk.findIndex((item) => item.uuid === messageId)
+  const disk = await getSessionMessages(request.sessionId)
+  const index = disk.findIndex((item) => item.uuid === request.messageId)
   if (index < 0) {
     throw new Error('Cannot fork the session at that point')
   }
-  const result = await forkSession(sessionId, {
-    dir: cwd,
-    upToMessageId: messageId,
+  const result = await forkSession(request.sessionId, {
+    upToMessageId: request.messageId,
   })
   return { sessionId: result.sessionId }
 }
