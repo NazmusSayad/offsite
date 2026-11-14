@@ -221,11 +221,14 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
     }
   }
 
-  function localRow(branch: {
-    name: string
-    local: boolean
-    worktree: string | null
-  }) {
+  function localRow(
+    branch: {
+      name: string
+      local: boolean
+      worktree: string | null
+    },
+    inSubmenu: boolean
+  ) {
     return (
       <button
         key={branch.name}
@@ -240,7 +243,11 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
           branch.name === target.repo.branch &&
             'text-foreground bg-foreground/[0.08]'
         )}
-        onMouseEnter={() => setSub(null)}
+        onMouseEnter={() => {
+          if (!inSubmenu) {
+            setSub(null)
+          }
+        }}
         onClick={() => {
           if (branch.name === target.repo.branch) {
             props.onClose()
@@ -334,7 +341,9 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             No branches
           </p>
         )}
-        {(name === '' ? matches.slice(0, 5) : matches).map(localRow)}
+        {(name === '' ? matches.slice(0, 5) : matches).map((branch) =>
+          localRow(branch, false)
+        )}
         {name === '' && matches.length > 5 && (
           <Submenu
             open={sub === 'local'}
@@ -346,7 +355,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
               />
             }
           >
-            {matches.slice(5).map(localRow)}
+            {matches.slice(5).map((branch) => localRow(branch, true))}
           </Submenu>
         )}
         {name === '' && branches !== null && (

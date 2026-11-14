@@ -58,5 +58,8 @@ export const NewWorktreeIcon = [
 
 export const DeleteWorktreeIcon = [
   ...WorktreeIcon,
-  ['path', { d: 'M2.75 2.75L7.75 7.75M7.75 2.75L2.75 7.75', key: 'remove', ...stroke }],
+  [
+    'path',
+    { d: 'M2.75 2.75L7.75 7.75M7.75 2.75L2.75 7.75', key: 'remove', ...stroke },
+  ],
 ] as const
