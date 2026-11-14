@@ -1,6 +1,4 @@
 import {
-  Alert02Icon,
-  AlertCircleIcon,
   CircleCheckIcon,
   ShieldQuestionMarkIcon,
 } from '@hugeicons/core-free-icons'
@@ -17,7 +15,6 @@ import {
 import { openSession } from '@/lib/sessions'
 import {
   activityOf,
-  dismissErrors,
   type MachineSession,
   threadState,
   useStore,
@@ -29,13 +26,9 @@ export function StatusChips(props: {
   hideDone: boolean
   combine?: 'threads' | 'all'
 }) {
-  const errors = useStore((state) => state.errors)
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
   const unseen = useStore((state) => state.unseen)
-  const offline = machines.filter(
-    (machine) => machine.status === 'offline' || machine.status === 'unpaired'
-  )
   const waiting = sessions.filter(
     (session) =>
       activityOf(machines, session.machine, session.id)?.waiting === true
@@ -47,9 +40,8 @@ export function StatusChips(props: {
         unseen.includes(machineKey(session.machine, session.id))
       ).done
   )
-  const problems = errors.length + offline.length
   const showDone = !props.hideDone && done.length > 0
-  if (problems === 0 && waiting.length === 0 && !showDone) {
+  if (waiting.length === 0 && !showDone) {
     return null
   }
   if (props.combine === 'all') {
@@ -57,33 +49,17 @@ export function StatusChips(props: {
       <div className={cn('flex shrink-0 items-center', props.className)}>
         <Chip
           className={cn(
-            errors.length > 0 && 'bg-error/15 text-error',
-            errors.length === 0 &&
-              offline.length > 0 &&
-              'bg-warning/15 text-warning-foreground',
-            problems === 0 &&
-              waiting.length > 0 &&
-              'bg-question/15 text-question',
-            problems === 0 &&
-              waiting.length === 0 &&
-              'bg-success/15 text-success'
+            waiting.length > 0 && 'bg-question/15 text-question',
+            waiting.length === 0 && 'bg-success/15 text-success'
           )}
-          icon={
-            (errors.length > 0 && AlertCircleIcon) ||
-            (offline.length > 0 && Alert02Icon) ||
-            (waiting.length > 0 && ShieldQuestionMarkIcon) ||
-            CircleCheckIcon
-          }
-          count={problems + waiting.length + (showDone ? done.length : 0)}
+          icon={waiting.length > 0 ? ShieldQuestionMarkIcon : CircleCheckIcon}
+          count={waiting.length + (showDone ? done.length : 0)}
           label={[
-            problems === 1 && '1 problem',
-            problems > 1 && `${problems} problems`,
             waiting.length > 0 && `${waiting.length} waiting for approval`,
             showDone && `${done.length} done`,
           ]
             .filter(Boolean)
             .join(', ')}
-          onClose={dismissErrors}
         >
           <ChipList kind="all" />
         </Chip>
@@ -122,20 +98,6 @@ export function StatusChips(props: {
           label={`${waiting.length} waiting for approval`}
         >
           <ChipList kind="waiting" />
-        </Chip>
-      )}
-      {problems > 0 && (
-        <Chip
-          className={cn(
-            errors.length > 0 && 'bg-error/15 text-error',
-            errors.length === 0 && 'bg-warning/15 text-warning-foreground'
-          )}
-          icon={errors.length > 0 ? AlertCircleIcon : Alert02Icon}
-          count={problems}
-          label={problems === 1 ? '1 problem' : `${problems} problems`}
-          onClose={dismissErrors}
-        >
-          <ChipList kind="problems" />
         </Chip>
       )}
     </div>
@@ -212,16 +174,10 @@ export function FittedStatusChips() {
   )
 }
 
-function ChipList(props: {
-  kind: 'done' | 'waiting' | 'merged' | 'problems' | 'all'
-}) {
-  const errors = useStore((state) => state.errors)
+function ChipList(props: { kind: 'done' | 'waiting' | 'merged' | 'all' }) {
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
   const unseen = useStore((state) => state.unseen)
-  const offline = machines.filter(
-    (machine) => machine.status === 'offline' || machine.status === 'unpaired'
-  )
   const waiting = sessions.filter(
     (session) =>
       activityOf(machines, session.machine, session.id)?.waiting === true
@@ -264,27 +220,6 @@ function ChipList(props: {
       detail="Waiting for approval"
     />
   ))
-  const problemRows = (
-    <>
-      {errors.map((error, index) => (
-        <Row key={index} icon={AlertCircleIcon} className="text-error">
-          <span className="text-error-foreground whitespace-pre-wrap">
-            {error}
-          </span>
-        </Row>
-      ))}
-      {offline.map((machine) => (
-        <Row
-          key={machine.id}
-          icon={Alert02Icon}
-          className="text-warning-foreground"
-        >
-          {machine.status === 'offline' && `${machine.name} is offline`}
-          {machine.status === 'unpaired' && `${machine.name} needs pairing`}
-        </Row>
-      ))}
-    </>
-  )
   if (props.kind === 'done') {
     return doneRows
   }
@@ -299,13 +234,9 @@ function ChipList(props: {
       </>
     )
   }
-  if (props.kind === 'problems') {
-    return problemRows
-  }
   if (props.kind === 'all') {
     return (
       <>
-        {problemRows}
         {waitingRows}
         {doneRows}
       </>
@@ -316,14 +247,13 @@ function ChipList(props: {
 
 function Chip(props: {
   className: string
-  icon: typeof AlertCircleIcon
+  icon: typeof CircleCheckIcon
   count: number
   label: string
-  onClose?: () => void
   children: ReactNode
 }) {
   return (
-    <Popover onOpenChange={(open) => !open && props.onClose?.()}>
+    <Popover>
       <PopoverTrigger asChild>
         <button
           className={cn(
@@ -349,7 +279,7 @@ function Chip(props: {
 }
 
 function Row(props: {
-  icon: typeof AlertCircleIcon
+  icon: typeof CircleCheckIcon
   className: string
   children: ReactNode
 }) {
@@ -366,7 +296,7 @@ function Row(props: {
 
 function Thread(props: {
   session: MachineSession
-  icon: typeof AlertCircleIcon
+  icon: typeof CircleCheckIcon
   className: string
   detail: string
 }) {

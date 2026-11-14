@@ -11,6 +11,7 @@ import { useLocalStorage } from 'usehooks-ts'
 import { machineKey } from '@/api/machines'
 import { HotkeyHint } from '@/components/hotkey-hint'
 import { BookmarksDialog } from '@/features/bookmarks/bookmarks-dialog'
+import { ConnectionStatus } from '@/features/sidebar/connection-status'
 import { DesktopSessionItem } from '@/features/sidebar/desktop-session-item'
 import { MobileMenu } from '@/features/sidebar/mobile-menu'
 import { MobileSessionItem } from '@/features/sidebar/mobile-session-item'
@@ -291,6 +292,9 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
           {props.mobile && <StatusChips hideDone />}
           {!props.mobile && <FittedStatusChips />}
           <div className="ml-auto flex items-center gap-0.75">
+            <ConnectionStatus
+              className={cn(iconButton, 'size-7 [&>svg]:size-4.5')}
+            />
             <button
               className={cn(iconButton, 'size-7 [&>svg]:size-4.5')}
               title={`Search (${mod}+K)`}

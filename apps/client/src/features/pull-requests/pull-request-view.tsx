@@ -111,6 +111,12 @@ export function PullRequestView(props: {
     }
   }, [props.machine, props.projectId, props.url, props.running, version])
 
+  useEffect(() => {
+    if (details !== null && error !== null) {
+      showError(error)
+    }
+  }, [details, error])
+
   async function perform(action: PullRequestAction, label: string) {
     setBusy(action.kind)
     try {
@@ -169,6 +175,7 @@ export function PullRequestView(props: {
             disabled={details === null && error === null}
             onClick={() => {
               forced.current = true
+              setError(null)
               setVersion(version + 1)
             }}
           >
@@ -428,11 +435,6 @@ export function PullRequestView(props: {
         notice={notice}
         onPerform={perform}
       />
-      {details !== null && error !== null && (
-        <p className="text-destructive border-t px-4 py-2 text-xs wrap-anywhere">
-          {error}
-        </p>
-      )}
     </div>
   )
 }

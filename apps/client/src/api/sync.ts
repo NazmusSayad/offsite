@@ -34,7 +34,6 @@ import {
   getState,
   machineOf,
   setMachine,
-  showError,
   update,
 } from '@/lib/store'
 import { applyTheme } from '@/lib/theme'
@@ -46,6 +45,7 @@ import {
   syncUrl,
 } from '@/lib/url'
 import { receiveLimits, receiveUsage } from '@/lib/usage'
+import { errorMessage } from '@/lib/utils'
 import { call, connectMachine, listen } from './connection'
 import { flushDelta, queueDelta } from './delta'
 import { receiveConfig, receiveLastPickedModels } from './machine-config'
@@ -83,6 +83,7 @@ export function start() {
     editor: null,
     exporting: null,
     removingWorktree: null,
+    pairingFailure: null,
     settingsAccount: null,
     settingsEditedMachine: null,
     settingsListing: true,
@@ -120,7 +121,6 @@ export function start() {
     worktreeState: null,
     context: null,
     capabilities: null,
-    errors: [],
     sentAt: 0,
   })
   applyTheme()
@@ -181,16 +181,17 @@ export function start() {
 }
 
 async function attach() {
+  if (connectAddresses !== null) {
+    await addMachine(connectAddresses, null)
+  }
   try {
-    if (connectAddresses !== null) {
-      await addMachine(connectAddresses, null)
-    }
     const pairing = pairingFromUrl()
     if (pairing !== null) {
       await addMachine([pairing.address], pairing.code)
     }
   } catch (error) {
-    showError(error)
+    log.warn('the pairing link failed:', error)
+    update({ pairingFailure: errorMessage(error) })
   }
 }
 
@@ -345,7 +346,7 @@ function receive(machine: string, event: ServerEvent) {
       update({ worktreeStage: event.stage })
       return
     case 'warning':
-      toast(event.message)
+      toast.warning(event.message)
       return
     case 'setup':
       if (selected && state.selection?.projectId === event.projectId) {

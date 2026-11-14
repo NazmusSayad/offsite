@@ -4,6 +4,7 @@ import { useHotkeyHints } from '@/components/hotkey-hint'
 import { Toaster } from '@/components/ui/sonner'
 import { SettingsDialog } from '@/features/settings/dialog'
 import { MobileSettings } from '@/features/settings/mobile'
+import { PairingFailedDialog } from '@/features/settings/pairing-failed-dialog'
 import { ExportDialog } from '@/features/sidebar/export-dialog'
 import { Palette } from '@/features/sidebar/palette'
 import { MoveDialogs } from '@/features/sidebar/worktree-dialogs'
@@ -54,6 +55,7 @@ export function App() {
       )}
       {exporting !== null && <ExportDialog session={exporting} />}
       <MoveDialogs />
+      <PairingFailedDialog />
       <Toaster
         position={desktop ? 'bottom-right' : 'top-center'}
         swipeDirections={

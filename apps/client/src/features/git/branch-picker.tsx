@@ -200,7 +200,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
         name: name === '' ? null : name,
       })
       props.onClose()
-      toast(`Moved this chat to the new worktree ${result.branch}`)
+      toast.success(`Moved this chat to the new worktree ${result.branch}`)
       const selection = getState().selection
       if (selection?.machine === machine && selection.sessionId === sessionId) {
         openSession(

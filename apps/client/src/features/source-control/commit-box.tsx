@@ -47,6 +47,7 @@ export function CommitBox(props: {
   const repo = props.repo
   const changed =
     repo.merge.length + repo.staged.length + repo.changes.length > 0
+  const empty = props.message.trim() === ''
   const publish =
     !changed && repo.branch !== null && repo.upstream === null && repo.remote
   const sync =
@@ -126,7 +127,7 @@ export function CommitBox(props: {
           <Button
             size="xs"
             className="flex-1 rounded-sm rounded-r-none [&:active:not([aria-haspopup])]:scale-100"
-            disabled={!changed || props.busy}
+            disabled={!changed || empty || props.busy}
             onClick={() => props.onCommit({ ...commitDefaults, then: 'push' })}
           >
             <HugeiconsIcon icon={CheckIcon} />
@@ -137,7 +138,7 @@ export function CommitBox(props: {
               <Button
                 size="xs"
                 className="rounded-sm rounded-l-none px-1 before:absolute before:inset-y-1 before:-left-px before:w-px before:bg-white/10"
-                disabled={!changed || props.busy}
+                disabled={!changed || empty || props.busy}
                 title="More Actions..."
                 aria-label="More Commit Actions"
               >

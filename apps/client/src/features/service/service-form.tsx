@@ -55,7 +55,7 @@ export function ServiceForm(props: {
         arguments: writeOptions(options),
       })
       props.onDone()
-      toast(`OffSite - ${machine?.name} is restarting`)
+      toast.info(`OffSite - ${machine?.name} is restarting`)
     } catch (failure) {
       setError(errorMessage(failure))
       setWorking(false)
