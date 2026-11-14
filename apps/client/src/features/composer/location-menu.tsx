@@ -1,16 +1,13 @@
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { WorktreeChoice } from '@offsite/core/git'
-import {
-  BranchIcon,
-  WorktreeIcon,
-  NewWorktreeIcon,
-} from '@offsite/core/icons/git'
+import { BranchIcon, WorktreeIcon } from '@offsite/core/icons/git'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { MoreLabel } from '@/components/icons'
 import {
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -22,19 +19,15 @@ import {
 import { timeAgo } from '@/lib/format'
 import { logger } from '@/lib/log'
 import { openSession } from '@/lib/sessions'
-import { update, useStore } from '@/lib/store'
 import { errorMessage, splitAtLimit } from '@/lib/utils'
 
 const log = logger.withTag('worktree')
-
-const NEW_WORKTREE = 'new-worktree'
 
 export function LocationMenu(props: {
   machine: string
   projectId: string
   onRefresh: () => void
 }) {
-  const worktree = useStore((state) => state.worktree)
   const [found, setFound] = useState<{
     worktrees: WorktreeChoice[]
     branches: string[]
@@ -135,7 +128,6 @@ export function LocationMenu(props: {
         value={item.projectId ?? item.folder}
         onSelect={() => {
           if (item.projectId === props.projectId) {
-            update({ worktree: null })
             return
           }
           void openWorktree(props.machine, props.projectId, item)
@@ -156,14 +148,11 @@ export function LocationMenu(props: {
   }
 
   return (
-    <DropdownMenuRadioGroup
-      value={worktree === null ? props.projectId : NEW_WORKTREE}
-    >
+    <DropdownMenuRadioGroup value={props.projectId}>
       <DropdownMenuRadioItem
         value={rootId}
         onSelect={() => {
           if (rootId === props.projectId) {
-            update({ worktree: null })
             return
           }
           void openWorktree(props.machine, props.projectId, main)
@@ -198,21 +187,12 @@ export function LocationMenu(props: {
           </DropdownMenuPortal>
         </DropdownMenuSub>
       )}
-      <DropdownMenuSeparator />
-      <DropdownMenuRadioItem
-        value={NEW_WORKTREE}
-        onSelect={() => {
-          if (worktree === null) {
-            update({ worktree: { name: '', base: null } })
-          }
-        }}
-      >
-        <HugeiconsIcon
-          icon={NewWorktreeIcon}
-          className="text-muted-foreground size-3.5"
-        />
-        <span className="min-w-0 flex-1 truncate">New worktree</span>
-      </DropdownMenuRadioItem>
+      {worktrees.length > 0 && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>Worktrees</DropdownMenuLabel>
+        </>
+      )}
       {worktreeList.shown.map(worktreeItem)}
       {worktreeList.more.length > 0 && (
         <DropdownMenuSub>
@@ -247,7 +227,6 @@ async function switchMain(
       create: false,
     })
     if (rootId === projectId) {
-      update({ worktree: null })
       return
     }
     openSession({ machine, projectId: rootId, sessionId: null, pending: null })

@@ -50,6 +50,7 @@ export function projects(): Project[] {
       parentId: projectsTable.parentId,
       worktreeSetup: projectsTable.worktreeSetup,
       worktreeBranch: projectsTable.worktreeBranch,
+      startInWorktree: projectsTable.startInWorktree,
     })
     .from(projectsTable)
     .orderBy(projectsTable.position)
@@ -418,6 +419,12 @@ export async function updateProject(id: string, patch: ProjectPatch) {
   if (patch.hidden !== undefined) {
     db.update(projectsTable)
       .set({ hidden: patch.hidden })
+      .where(eq(projectsTable.id, id))
+      .run()
+  }
+  if (patch.startInWorktree !== undefined) {
+    db.update(projectsTable)
+      .set({ startInWorktree: patch.startInWorktree })
       .where(eq(projectsTable.id, id))
       .run()
   }

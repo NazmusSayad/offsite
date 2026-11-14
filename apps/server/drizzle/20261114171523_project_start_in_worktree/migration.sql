@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `start_in_worktree` integer DEFAULT false NOT NULL;
