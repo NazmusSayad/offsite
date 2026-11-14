@@ -4,7 +4,7 @@ import { FileTypeIcon } from '@/components/file-icon'
 import { FilePreview } from '@/components/file-preview'
 import { mediaKind, mediaUrl } from '@/lib/media'
 import type { Preview } from '@/lib/preview'
-import { useStore } from '@/lib/store'
+import { type Place, useStore } from '@/lib/store'
 
 export function UploadChip(props: { path: string }) {
   const selection = useStore((state) => state.selection)
@@ -15,7 +15,7 @@ export function UploadChip(props: { path: string }) {
         if (selection === null) {
           throw new Error('No thread is open')
         }
-        return loadUpload(selection.machine, selection.projectId, props.path)
+        return loadUpload(selection, props.path)
       }}
     >
       <button
@@ -39,7 +39,7 @@ export function MentionChip(props: { path: string }) {
         if (selection === null) {
           throw new Error('No thread is open')
         }
-        return loadMention(selection.machine, selection.projectId, props.path)
+        return loadMention(selection, props.path)
       }}
     >
       <button
@@ -58,27 +58,28 @@ export function MentionChip(props: { path: string }) {
 }
 
 export async function loadMention(
-  machine: string,
-  projectId: string,
+  place: Place,
   path: string
 ): Promise<Preview> {
   const kind = mediaKind(path)
   if (kind !== null) {
-    return { kind, src: await mediaUrl(machine, projectId, path) }
+    return { kind, src: await mediaUrl(place, path) }
   }
-  return previewOf(await call(machine, 'files.read', { projectId, path }))
+  return previewOf(
+    await call(place.machine, 'files.read', {
+      projectId: place.projectId,
+      worktreeId: place.worktreeId,
+      path,
+    })
+  )
 }
 
-async function loadUpload(
-  machine: string,
-  projectId: string,
-  path: string
-): Promise<Preview> {
+async function loadUpload(place: Place, path: string): Promise<Preview> {
   const kind = mediaKind(path)
   if (kind !== null) {
-    return { kind, src: await mediaUrl(machine, projectId, path) }
+    return { kind, src: await mediaUrl(place, path) }
   }
-  return previewOf(await call(machine, 'files.readUpload', { path }))
+  return previewOf(await call(place.machine, 'files.readUpload', { path }))
 }
 
 function previewOf(result: FileContent): Preview {

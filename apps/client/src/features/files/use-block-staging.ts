@@ -11,6 +11,7 @@ import type { TabSpec } from '@/features/source-control/changes'
 export function useBlockStaging(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   spec: TabSpec | undefined
   original: monaco.editor.ITextModel | null
   modified: monaco.editor.ITextModel | null
@@ -34,6 +35,7 @@ export function useBlockStaging(props: {
     void props.onPerform(() =>
       call(props.machine, 'git.run', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         repo: spec.repo,
         action: {
           kind: 'stageContent',

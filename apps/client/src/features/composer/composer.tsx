@@ -14,7 +14,7 @@ import {
   draftKey,
   getState,
   machineOf,
-  projectOf,
+  placePathOf,
   setDraft,
   showError,
   selectedRunning,
@@ -93,7 +93,10 @@ export function Composer(props: {
   const pasteInline = useRef(false)
   const machine = selection?.machine ?? ''
   const projectId = selection?.projectId ?? ''
-  const project = useStore((state) => projectOf(state, machine, projectId))
+  const worktreeId = selection?.worktreeId ?? null
+  const folder = useStore((state) =>
+    placePathOf(state, machine, projectId, worktreeId)
+  )
   const status = useStore((state) => machineOf(state, machine).status)
   const delivery = useStore(
     (state) => machineOf(state, machine).config?.delivery ?? null
@@ -140,7 +143,7 @@ export function Composer(props: {
       return
     }
     let current = true
-    call(machine, 'files.list', { projectId }).then(
+    call(machine, 'files.list', { projectId, worktreeId }).then(
       (list) => {
         if (current) {
           setFiles(list)
@@ -151,7 +154,7 @@ export function Composer(props: {
     return () => {
       current = false
     }
-  }, [machine, projectId, status])
+  }, [machine, projectId, worktreeId, status])
 
   const before = text.slice(0, caret)
   const trigger = /(?:^|\s)([/@]\S*)$/.exec(before)?.[1] ?? null
@@ -296,7 +299,7 @@ export function Composer(props: {
             key={request.id}
             request={request}
             machine={machine}
-            cwd={project?.path ?? ''}
+            cwd={folder ?? ''}
             count={requests.length}
             draft={text}
           />
@@ -496,6 +499,7 @@ export function Composer(props: {
             key={key}
             machine={machine}
             projectId={projectId}
+            worktreeId={worktreeId}
             repos={props.repos}
             onRefresh={props.onRefreshGit}
           />

@@ -1,7 +1,7 @@
 import { Add01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { WorktreeIcon } from '@offsite/core/icons/git'
-import { homePath, rankProjects, withWorktrees } from '@/api/projects'
+import { homePath, rankProjects } from '@/api/projects'
 import { MoreLabel, MoreProjectsLabel, ProjectIcon } from '@/components/icons'
 import {
   ContextMenuItem,
@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
-import { type MachineProject, useStore } from '@/lib/store'
+import { type MachineProject, projectOf, useStore } from '@/lib/store'
 import { cn, touch } from '@/lib/utils'
 import { useHoverMenu } from './hover-menu'
 import { createTab } from './page'
@@ -38,7 +38,9 @@ export function NewTerminalItems(props: { contextMenu?: boolean }) {
       return [
         <menu.Item
           key={machine.id}
-          onSelect={() => void createTab(machine.id, null)}
+          onSelect={() =>
+            void createTab(machine.id, { projectId: null, worktreeId: null })
+          }
         >
           <MachineLogo icon={machine.icon} />
           <span className="max-w-60 truncate">{machine.name}</span>
@@ -107,12 +109,14 @@ function ProjectItems(props: {
   part: 'top' | 'more'
 }) {
   const projects = useStore((store) => store.projects)
+  const worktrees = useStore((store) => store.worktrees)
   const menu = menuParts(props.contextMenu)
 
   return rankProjects(rootsOf(projects, props.machine))[props.part].map(
     (project) =>
-      projects.some(
-        (item) => item.machine === props.machine && item.parentId === project.id
+      worktrees.some(
+        (item) =>
+          item.machine === props.machine && item.projectId === project.id
       ) ? (
         <menu.Sub key={project.id}>
           <menu.SubTrigger className={cn(props.part === 'top' && 'pl-7')}>
@@ -125,10 +129,10 @@ function ProjectItems(props: {
             <span className="text-muted-foreground flex items-center gap-0.5 text-xs tabular-nums">
               <HugeiconsIcon icon={WorktreeIcon} className="size-3.5" />
               {
-                projects.filter(
+                worktrees.filter(
                   (item) =>
                     item.machine === props.machine &&
-                    item.parentId === project.id
+                    item.projectId === project.id
                 ).length
               }
             </span>
@@ -147,7 +151,12 @@ function ProjectItems(props: {
         <menu.Item
           key={project.id}
           className={cn(props.part === 'top' && 'pl-7')}
-          onSelect={() => void createTab(props.machine, project.id)}
+          onSelect={() =>
+            void createTab(props.machine, {
+              projectId: project.id,
+              worktreeId: null,
+            })
+          }
         >
           <ProjectIcon
             machine={props.machine}
@@ -171,7 +180,10 @@ function WorktreeItems(props: {
   machine: string
   rootId: string
 }) {
-  const projects = useStore((store) => store.projects)
+  const project = useStore((store) =>
+    projectOf(store, props.machine, props.rootId)
+  )
+  const worktrees = useStore((store) => store.worktrees)
   const menu = menuParts(props.contextMenu)
   const home = useStore(
     (store) =>
@@ -179,37 +191,54 @@ function WorktreeItems(props: {
         ?.homeDir
   )
 
-  const family = withWorktrees(
-    projects.filter(
-      (project) =>
-        project.machine === props.machine &&
-        (project.id === props.rootId || project.parentId === props.rootId)
-    )
-  )
+  const family = [
+    ...(project === undefined
+      ? []
+      : [
+          {
+            id: project.id,
+            worktreeId: null,
+            path: project.path,
+            name: project.name,
+          },
+        ]),
+    ...worktrees
+      .filter(
+        (worktree) =>
+          worktree.machine === props.machine &&
+          worktree.projectId === props.rootId
+      )
+      .map((worktree) => ({
+        id: worktree.id,
+        worktreeId: worktree.id,
+        path: worktree.path,
+        name:
+          home === undefined ? worktree.path : homePath(worktree.path, home),
+      })),
+  ]
 
-  function item(project: MachineProject) {
+  function item(entry: (typeof family)[number]) {
     return (
       <menu.Item
-        key={project.id}
-        title={project.path}
-        onSelect={() => void createTab(props.machine, project.id)}
+        key={entry.id}
+        title={entry.path}
+        onSelect={() =>
+          void createTab(props.machine, {
+            projectId: props.rootId,
+            worktreeId: entry.worktreeId,
+          })
+        }
       >
-        {project.parentId === null ? (
+        {entry.worktreeId === null ? (
           <ProjectIcon
             machine={props.machine}
-            projectId={project.id}
+            projectId={props.rootId}
             className="size-4"
           />
         ) : (
           <HugeiconsIcon icon={WorktreeIcon} />
         )}
-        <span className="max-w-80 truncate">
-          {project.parentId === null
-            ? project.name
-            : home === undefined
-              ? project.path
-              : homePath(project.path, home)}
-        </span>
+        <span className="max-w-80 truncate">{entry.name}</span>
       </menu.Item>
     )
   }
@@ -239,10 +268,7 @@ function WorktreeItems(props: {
 function rootsOf(projects: MachineProject[], machine: string) {
   return projects.filter(
     (project) =>
-      project.machine === machine &&
-      !project.hidden &&
-      !project.scratch &&
-      project.parentId === null
+      project.machine === machine && !project.hidden && !project.scratch
   )
 }
 

@@ -1,8 +1,8 @@
 import type { Item } from '@offsite/core/items'
 import { titleJobs } from '../lib/live.ts'
 import { generateText } from './generate-text.ts'
-import { projectPath } from './projects.ts'
-import { sessionHistory } from './runs.ts'
+import { placePath } from './project-worktrees.ts'
+import { sessionHistory } from './session-history.ts'
 import { findSession, providerOf, refresh, updateSession } from './sessions.ts'
 
 const CONTEXT_LIMIT = 10_000
@@ -75,7 +75,11 @@ function transcript(items: Item[]) {
     .join('\n\n')
 }
 
-export async function generateSessionTitle(id: string, projectId: string) {
+export async function generateSessionTitle(
+  id: string,
+  projectId: string,
+  worktreeId: string | null
+) {
   if (titleJobs.has(id)) {
     return
   }
@@ -85,7 +89,7 @@ export async function generateSessionTitle(id: string, projectId: string) {
     if (session === null) {
       throw new Error(`Session ${id} was not found`)
     }
-    const cwd = projectPath(projectId)
+    const cwd = placePath(projectId, worktreeId)
     const history = await sessionHistory(id, cwd)
     if (history.type !== 'history') {
       throw new Error(`Could not read session ${id}`)

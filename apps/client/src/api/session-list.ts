@@ -48,10 +48,17 @@ function followMovedSession(machine: string, sessions: Session[]) {
     (session) =>
       selection?.machine === machine &&
       session.id === selection.sessionId &&
-      session.projectId !== selection.projectId
+      (session.projectId !== selection.projectId ||
+        session.worktreeId !== selection.worktreeId)
   )
   if (moved !== undefined && selection !== null) {
-    update({ selection: { ...selection, projectId: moved.projectId } })
+    update({
+      selection: {
+        ...selection,
+        projectId: moved.projectId,
+        worktreeId: moved.worktreeId,
+      },
+    })
     syncUrl(true)
   }
 }

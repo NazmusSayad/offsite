@@ -27,7 +27,7 @@ export type Notice = {
   image: string | null
   actions: NoticeAction[]
   whileVisible: boolean
-  target: { projectId: string; sessionId: string }
+  target: { projectId: string; worktreeId: string | null; sessionId: string }
 }
 
 export type PushSubscriptionInfo = {

@@ -2,14 +2,18 @@ import type { Item, ItemStatus } from '@offsite/core/items'
 import type { Session } from '@offsite/core/sessions'
 import { earlier } from '../lib/claude/index.ts'
 import { providerName } from './accounts.ts'
-import { projectPath } from './projects.ts'
-import { sessionHistory } from './runs.ts'
+import { placePath } from './project-worktrees.ts'
+import { sessionHistory } from './session-history.ts'
 import { findSession } from './sessions.ts'
 
-export async function exportSession(sessionId: string, projectId: string) {
+export async function exportSession(
+  sessionId: string,
+  projectId: string,
+  worktreeId: string | null
+) {
   const [session, event] = await Promise.all([
     findSession(sessionId),
-    sessionHistory(sessionId, projectPath(projectId)),
+    sessionHistory(sessionId, placePath(projectId, worktreeId)),
   ])
   if (session === null) {
     throw new Error(`session ${sessionId} not found`)

@@ -113,11 +113,13 @@ export function DesktopLayout() {
     machine?.status === 'online' && !projectless
       ? (selection?.projectId ?? null)
       : null,
+    selection?.worktreeId ?? null,
     running
   )
   const commands = useGitCommands({
     machine: selection?.machine ?? '',
     projectId: selection?.projectId ?? '',
+    worktreeId: selection?.worktreeId ?? null,
     repos: git.repos,
     onRefresh: git.refresh,
   })
@@ -268,6 +270,7 @@ export function DesktopLayout() {
                 <GitActions
                   machine={selection.machine}
                   projectId={selection.projectId}
+                  worktreeId={selection.worktreeId}
                   repos={git.repos}
                   onRefresh={git.refresh}
                 />
@@ -361,7 +364,7 @@ export function DesktopLayout() {
                 >
                   <span className="group-hover:bg-border group-active:bg-primary/60 pointer-events-none absolute inset-x-0 top-0 h-px transition-colors" />
                 </div>
-                <TerminalPanel view={selection.projectId} />
+                <TerminalPanel place={selection} />
               </aside>
             )}
           </div>

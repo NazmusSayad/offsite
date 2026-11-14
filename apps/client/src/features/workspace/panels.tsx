@@ -83,6 +83,7 @@ export function PanelToggles(props: ToggleProps & { children: ReactNode }) {
       showEditor({
         machine: props.selection.machine,
         projectId: props.selection.projectId,
+        worktreeId: props.selection.worktreeId,
       }),
     editorClosed
   )

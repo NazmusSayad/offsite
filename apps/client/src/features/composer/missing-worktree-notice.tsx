@@ -4,15 +4,15 @@ import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { openSession } from '@/lib/sessions'
-import { projectOf, showError, update, useStore } from '@/lib/store'
+import { showError, update, useStore, worktreeOf } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 export function MissingWorktreeNotice(props: { running: boolean }) {
   const selection = useStore((state) => state.selection)
-  const project = useStore((state) =>
-    state.selection === null
+  const worktree = useStore((state) =>
+    state.selection === null || state.selection.worktreeId === null
       ? undefined
-      : projectOf(state, state.selection.machine, state.selection.projectId)
+      : worktreeOf(state, state.selection.machine, state.selection.worktreeId)
   )
   const session = useStore((state) =>
     state.sessions.find(
@@ -29,20 +29,19 @@ export function MissingWorktreeNotice(props: { running: boolean }) {
   )
   const [switching, setSwitching] = useState(false)
   const machine = selection?.machine ?? null
-  const worktreeId =
-    project !== undefined && project.parentId !== null ? project.id : null
+  const worktreeId = worktree === undefined ? null : worktree.id
 
   useEffect(() => {
     if (machine === null || worktreeId === null || !online) {
       update({ worktreeState: null })
       return
     }
-    const target = { machine, projectId: worktreeId }
+    const target = { machine, worktreeId }
     let current = true
     async function refresh() {
       try {
         const state = await call(target.machine, 'projects.worktreeState', {
-          projectId: target.projectId,
+          worktreeId: target.worktreeId,
         })
         if (current) {
           update({ worktreeState: { ...target, state } })
@@ -64,9 +63,9 @@ export function MissingWorktreeNotice(props: { running: boolean }) {
   if (
     known === null ||
     machine === null ||
-    project === undefined ||
+    worktree === undefined ||
     known.machine !== machine ||
-    known.projectId !== project.id ||
+    known.worktreeId !== worktree.id ||
     known.state === 'ready'
   ) {
     return null
@@ -75,7 +74,7 @@ export function MissingWorktreeNotice(props: { running: boolean }) {
   const detail =
     known.state === 'folderMissing'
       ? 'folder will be created'
-      : project.worktreeBranch !== null
+      : worktree.branch !== null
         ? 'branch and folder will be created'
         : null
   const canSwitch =
@@ -89,12 +88,13 @@ export function MissingWorktreeNotice(props: { running: boolean }) {
     }
     setSwitching(true)
     try {
-      const result = await call(machine, 'sessions.moveToMain', {
+      await call(machine, 'sessions.moveToMain', {
         sessionId: session.id,
       })
       openSession({
         machine,
-        projectId: result.projectId,
+        projectId: session.projectId,
+        worktreeId: null,
         sessionId: session.id,
         pending: null,
       })

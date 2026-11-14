@@ -280,7 +280,6 @@ async function otherIcons(machine: string, projectId: string) {
       (project.machine === machine && project.id === projectId) ||
       project.logo === null ||
       project.scratch ||
-      project.parentId !== null ||
       owner === undefined
     ) {
       continue

@@ -9,8 +9,8 @@ import { broadcast } from '../lib/hub.ts'
 import { logger } from '../lib/log.ts'
 import { db } from '../storage/db.ts'
 import { bookmarks as bookmarksTable } from '../storage/schema.ts'
-import { projectPath } from './projects.ts'
-import { sessionHistory } from './runs.ts'
+import { placePath } from './project-worktrees.ts'
+import { sessionHistory } from './session-history.ts'
 import { findSession } from './sessions.ts'
 
 const log = logger.withTag('bookmarks')
@@ -106,7 +106,10 @@ async function readItems(session: Session, wanted: string[]) {
 }
 
 async function sessionItems(session: Session, wanted: string[]) {
-  const event = await sessionHistory(session.id, projectPath(session.projectId))
+  const event = await sessionHistory(
+    session.id,
+    placePath(session.projectId, session.worktreeId)
+  )
   if (event.type !== 'history') {
     throw new Error(`could not read session ${session.id}`)
   }

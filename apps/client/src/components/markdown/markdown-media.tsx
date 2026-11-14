@@ -17,7 +17,7 @@ import { ViewableImage } from '@/components/viewable-image'
 import { ViewableVideo } from '@/components/viewable-video'
 import { useCopy } from '@/lib/clipboard'
 import { downloadFile, githubMediaUrl, mediaKind, mediaUrl } from '@/lib/media'
-import { showError, useStore } from '@/lib/store'
+import { type Place, showError, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
 const AudioPlayer = lazy(async () => ({
@@ -54,9 +54,9 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
       return
     }
     let current = true
-    async function load(machine: string, projectId: string, path: string) {
+    async function load(place: Place, path: string) {
       try {
-        const src = await mediaUrl(machine, projectId, path)
+        const src = await mediaUrl(place, path)
         if (current) {
           setMedia({ path, src })
         }
@@ -66,7 +66,7 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
         }
       }
     }
-    void load(selection.machine, selection.projectId, props.path)
+    void load(selection, props.path)
     return () => {
       current = false
     }

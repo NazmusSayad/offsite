@@ -4,17 +4,10 @@ import type { SessionSettings } from '@offsite/core/config'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { RpcMethods } from '@offsite/core/protocol'
 import type { RewindRequest, RewindResult } from '@offsite/core/sessions'
-import {
-  agentMessages,
-  history,
-  rewindLive,
-  Run,
-  shownMessages,
-} from '../lib/claude/index.ts'
+import { history, rewindLive, Run, shownMessages } from '../lib/claude/index.ts'
 import {
   stopAppServers,
   CodexRun,
-  codexAgent,
   codexHistory,
   revertThread,
 } from '../lib/codex/index.ts'
@@ -23,7 +16,6 @@ import { runs } from '../lib/live.ts'
 import { keyedLock } from '../lib/locks.ts'
 import {
   OpenCodeRun,
-  openCodeAgent,
   openCodeHistory,
   rewindOpenCode,
 } from '../lib/opencode/index.ts'
@@ -36,15 +28,18 @@ import {
   setOutboxStatus,
 } from './outbox.ts'
 import {
+  addProjectWorktree,
+  deleteSavedWorktree,
+  type Place,
+  placePath,
+  restoreWorktreeFolder,
+} from './project-worktrees.ts'
+import {
   addScratchProject,
-  addWorktreeProject,
-  deleteWorktreeProject,
-  projectPath,
   publishProjects,
   removeScratchProject,
-  restoreWorktreeFolder,
-  rootProject,
 } from './projects.ts'
+import { sessionHistory } from './session-history.ts'
 import { notSentNotice } from './session-notices.ts'
 import {
   listedUpdatedAt,
@@ -67,28 +62,6 @@ export function stopAll() {
   stopAppServers()
 }
 
-export function sessionHistory(sessionId: string, cwd: string) {
-  switch (providerOf(sessionId)) {
-    case 'claude':
-      return history(sessionId)
-    case 'codex':
-      return codexHistory(sessionId)
-    case 'opencode':
-      return openCodeHistory(sessionId, cwd)
-  }
-}
-
-export function agentHistory(request: RpcMethods['sessions.agent']['params']) {
-  switch (providerOf(request.sessionId)) {
-    case 'claude':
-      return agentMessages(request)
-    case 'codex':
-      return codexAgent(request.agentId, request.parent)
-    case 'opencode':
-      return openCodeAgent(request.agentId, request.parent)
-  }
-}
-
 export function rewind(
   request: RewindRequest,
   client: Client
@@ -101,7 +74,7 @@ async function rewindNow(
   client: Client
 ): Promise<RewindResult> {
   const sessionId = request.sessionId
-  const cwd = projectPath(request.projectId)
+  const cwd = placePath(request.projectId, request.worktreeId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
     throw new Error(
       `Rewind isn't available because the folder ${cwd} no longer exists`
@@ -237,13 +210,12 @@ export function stop(sessionId: string) {
   })
 }
 
-export async function open(
-  client: Client,
-  sessionId: string,
-  projectId: string
-) {
+export async function open(client: Client, sessionId: string, place: Place) {
   client.opening = sessionId
-  const event = await sessionHistory(sessionId, projectPath(projectId))
+  const event = await sessionHistory(
+    sessionId,
+    placePath(place.projectId, place.worktreeId)
+  )
   if (client.opening !== sessionId) {
     return
   }
@@ -283,6 +255,7 @@ export async function resend(client: Client, id: string) {
     ...row.request,
     sessionId: row.sessionId,
     projectId: row.projectId,
+    worktreeId: row.worktreeId,
     worktree: row.sessionId === null ? row.request.worktree : null,
   })
 }
@@ -306,14 +279,17 @@ async function deliver(
         throw error
       }
     )
-    await submitFirst(client, run, request, project.id)
+    await submitFirst(client, run, request, {
+      projectId: project.id,
+      worktreeId: null,
+    })
     return
   }
   if (request.worktree !== null) {
     if (request.sessionId !== null) {
       throw new Error('Only a new chat can start in a new worktree')
     }
-    const project = await addWorktreeProject(
+    const worktree = await addProjectWorktree(
       request.projectId,
       {
         name: request.worktree.name,
@@ -322,37 +298,47 @@ async function deliver(
       },
       (stage) => client.send({ type: 'worktreeStage', stage })
     )
-    if (project.warning !== null) {
-      client.send({ type: 'warning', message: project.warning })
+    if (worktree.warning !== null) {
+      client.send({ type: 'warning', message: worktree.warning })
     }
-    const run = await startRun(project.cwd, request.settings).catch(
+    const run = await startRun(worktree.cwd, request.settings).catch(
       async (error: unknown) => {
-        await deleteWorktreeProject(project.id)
+        await deleteSavedWorktree(worktree.id)
         throw error
       }
     )
-    await submitFirst(client, run, request, project.id)
-    if (setUpWorktree(project.id)) {
-      client.send({ type: 'setup', projectId: project.id })
+    await submitFirst(client, run, request, {
+      projectId: request.projectId,
+      worktreeId: worktree.id,
+    })
+    if (setUpWorktree(worktree.id)) {
+      client.send({
+        type: 'setup',
+        projectId: request.projectId,
+        worktreeId: worktree.id,
+      })
     }
     return
   }
-  const restored = await restoreWorktreeFolder(request.projectId)
-  if (restored !== null) {
-    if (restored.warning !== null) {
-      client.send({ type: 'warning', message: restored.warning })
-    }
-    if (setUpWorktree(request.projectId)) {
-      client.send({ type: 'setup', projectId: request.projectId })
+  if (request.worktreeId !== null) {
+    const worktreeId = request.worktreeId
+    const restored = await restoreWorktreeFolder(worktreeId)
+    if (restored !== null) {
+      if (restored.warning !== null) {
+        client.send({ type: 'warning', message: restored.warning })
+      }
+      if (setUpWorktree(worktreeId)) {
+        client.send({ type: 'setup', projectId: request.projectId, worktreeId })
+      }
     }
   }
-  const cwd = projectPath(request.projectId)
+  const cwd = placePath(request.projectId, request.worktreeId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
     throw new Error(`${cwd} is not a folder`)
   }
   if (request.sessionId === null) {
     const run = await startRun(cwd, request.settings)
-    await submitFirst(client, run, request, request.projectId)
+    await submitFirst(client, run, request, request)
     return
   }
   const sessionId = request.sessionId
@@ -363,7 +349,7 @@ async function submitFirst(
   client: Client,
   run: Awaited<ReturnType<typeof startRun>>,
   request: RpcMethods['sessions.send']['params'],
-  projectId: string
+  place: Place
 ) {
   const sessionId = run.sessionId
   recordInteraction(sessionId, run.provider, request.status)
@@ -371,7 +357,8 @@ async function submitFirst(
     id: sessionId,
     provider: run.provider,
     title: request.prompt.text === '' ? 'New thread' : request.prompt.text,
-    projectId,
+    projectId: place.projectId,
+    worktreeId: place.worktreeId,
     branch: null,
     updatedAt: Date.now(),
     claudeWorktree: false,
@@ -384,9 +371,9 @@ async function submitFirst(
   client.sessionId = sessionId
   client.send({ type: 'started', id: request.id, session })
   publishSessions()
-  moveOutboxPrompt(request.id, sessionId, projectId)
+  moveOutboxPrompt(request.id, sessionId, place.projectId, place.worktreeId)
   await run.submit(request.id, request.prompt, request.delivery)
-  recordPrompt(request.settings, projectId, sessionId)
+  recordPrompt(request.settings, place, sessionId)
 }
 
 async function sendExisting(
@@ -417,11 +404,11 @@ async function sendExisting(
   if (run === existing) {
     await run.configure(request.settings)
   } else {
-    await open(client, sessionId, request.projectId)
+    await open(client, sessionId, request)
   }
   await run.submit(request.id, request.prompt, request.delivery)
   recordInteraction(sessionId, provider, request.status)
-  recordPrompt(request.settings, request.projectId, sessionId)
+  recordPrompt(request.settings, request, sessionId)
   if (emptied.has(sessionId) && request.prompt.text.trim() !== '') {
     emptied.delete(sessionId)
     await updateSession(sessionId, { title: request.prompt.text.trim() })
@@ -430,14 +417,13 @@ async function sendExisting(
 
 function recordPrompt(
   settings: SessionSettings,
-  projectId: string,
+  place: Place,
   sessionId: string
 ) {
-  const root = rootProject(projectId)
   savePrompt({
     settings,
-    project: root.id,
-    worktree: root.id === projectId ? null : projectId,
+    project: place.projectId,
+    worktree: place.worktreeId,
     session: sessionId,
   })
   publishProjects()

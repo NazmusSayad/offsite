@@ -20,6 +20,7 @@ import {
 } from '../lib/opencode/index.ts'
 import { db } from '../storage/db.ts'
 import { sessionPlaces } from '../storage/schema.ts'
+import type { Place } from './project-worktrees.ts'
 import { projects } from './projects.ts'
 
 export type Found = Omit<Session, 'status'>
@@ -41,7 +42,7 @@ export function timeLimit<T>(work: Promise<T>, message: string) {
 export async function info(
   provider: Provider,
   id: string,
-  paths: Map<string, string>
+  paths: Map<string, Place>
 ): Promise<Found | null> {
   const found = await locate(provider, id, paths)
   return found === null ? null : placed([found])[0]
@@ -50,25 +51,24 @@ export async function info(
 async function locate(
   provider: Provider,
   id: string,
-  paths: Map<string, string>
+  paths: Map<string, Place>
 ): Promise<ProviderSession | null> {
   switch (provider) {
     case 'claude': {
       if (paths.size > 1) {
         const item = await getSessionInfo(id)
-        const projectId =
-          item?.cwd === undefined ? undefined : paths.get(item.cwd)
-        if (item !== undefined && projectId !== undefined) {
-          return fromClaude(item, projectId)
+        const place = item?.cwd === undefined ? undefined : paths.get(item.cwd)
+        if (item !== undefined && place !== undefined) {
+          return fromClaude(item, place)
         }
       }
       const found = (
         await Promise.all(
-          [...paths].map(async ([cwd, projectId]) => {
+          [...paths].map(async ([cwd, place]) => {
             const item = await getSessionInfo(id, { dir: cwd })
             return item === undefined
               ? null
-              : { exact: item.cwd === cwd, item: fromClaude(item, projectId) }
+              : { exact: item.cwd === cwd, item: fromClaude(item, place) }
           })
         )
       ).filter((entry) => entry !== null)
@@ -90,8 +90,8 @@ async function locate(
       if (thread === null) {
         return null
       }
-      const projectId = paths.get(thread.cwd)
-      return projectId === undefined ? null : fromCodex(thread, projectId)
+      const place = paths.get(thread.cwd)
+      return place === undefined ? null : fromCodex(thread, place)
     }
     case 'opencode': {
       if (!openCodeInstalled()) {
@@ -106,18 +106,19 @@ async function locate(
       if (session === null) {
         return null
       }
-      const projectId = paths.get(session.location.directory)
-      return projectId === undefined ? null : fromOpenCode(session, projectId)
+      const place = paths.get(session.location.directory)
+      return place === undefined ? null : fromOpenCode(session, place)
     }
   }
 }
 
-function fromClaude(item: SDKSessionInfo, projectId: string): ProviderSession {
+function fromClaude(item: SDKSessionInfo, place: Place): ProviderSession {
   return {
     id: item.sessionId,
     provider: 'claude',
     title: item.summary,
-    projectId,
+    projectId: place.projectId,
+    worktreeId: place.worktreeId,
     branch:
       item.gitBranch === undefined || item.gitBranch === 'HEAD'
         ? null
@@ -128,7 +129,7 @@ function fromClaude(item: SDKSessionInfo, projectId: string): ProviderSession {
 
 async function fromCodex(
   thread: Thread,
-  projectId: string
+  place: Place
 ): Promise<ProviderSession> {
   let title =
     thread.name?.trim() ||
@@ -146,21 +147,20 @@ async function fromCodex(
     id: thread.id,
     provider: 'codex',
     title,
-    projectId,
+    projectId: place.projectId,
+    worktreeId: place.worktreeId,
     branch: thread.gitInfo?.branch ?? null,
     updatedAt: thread.updatedAt * 1000,
   }
 }
 
-function fromOpenCode(
-  session: SessionInfo,
-  projectId: string
-): ProviderSession {
+function fromOpenCode(session: SessionInfo, place: Place): ProviderSession {
   return {
     id: session.id,
     provider: 'opencode',
     title: session.title ?? 'New session',
-    projectId,
+    projectId: place.projectId,
+    worktreeId: place.worktreeId,
     branch: null,
     updatedAt: session.time.updated,
   }
@@ -168,14 +168,14 @@ function fromOpenCode(
 
 export async function find(
   provider: Provider,
-  paths: Map<string, string>
+  paths: Map<string, Place>
 ): Promise<Found[] | null> {
   const found = await list(provider, paths)
   return found === null ? null : placed(found)
 }
 
 function placed(items: ProviderSession[]) {
-  const places = new Map(
+  const records = new Map(
     db
       .select()
       .from(sessionPlaces)
@@ -184,34 +184,38 @@ function placed(items: ProviderSession[]) {
   )
   const known = new Set(projects().map((project) => project.id))
   return items.map((item) => {
-    const place = places.get(item.id)
-    if (place === undefined) {
+    const record = records.get(item.id)
+    if (record === undefined) {
       return { ...item, claudeWorktree: false }
+    }
+    if (!known.has(record.projectId)) {
+      return { ...item, claudeWorktree: record.claudeWorktree }
     }
     return {
       ...item,
-      projectId: known.has(place.projectId) ? place.projectId : item.projectId,
-      claudeWorktree: place.claudeWorktree,
+      projectId: record.projectId,
+      worktreeId: record.worktreeId,
+      claudeWorktree: record.claudeWorktree,
     }
   })
 }
 
 async function list(
   provider: Provider,
-  paths: Map<string, string>
+  paths: Map<string, Place>
 ): Promise<ProviderSession[] | null> {
   switch (provider) {
     case 'claude':
       return (
         await Promise.all(
-          [...paths].map(async ([cwd, projectId]) =>
+          [...paths].map(async ([cwd, place]) =>
             (
               await listSessions({
                 dir: cwd,
                 includeWorktrees: false,
                 includeProgrammatic: false,
               })
-            ).map((item) => fromClaude(item, projectId))
+            ).map((item) => fromClaude(item, place))
           )
         )
       ).flat()
@@ -222,11 +226,11 @@ async function list(
       return (
         await Promise.all(
           (await codexThreads([...paths.keys()])).map(async (thread) => {
-            const projectId = paths.get(thread.cwd)
-            if (projectId === undefined) {
+            const place = paths.get(thread.cwd)
+            if (place === undefined) {
               return null
             }
-            return fromCodex(thread, projectId)
+            return fromCodex(thread, place)
           })
         )
       ).filter((item) => item !== null)
@@ -235,11 +239,11 @@ async function list(
         return null
       }
       return (await openCodeSessions([...paths.keys()])).flatMap((session) => {
-        const projectId = paths.get(session.location.directory)
-        if (projectId === undefined) {
+        const place = paths.get(session.location.directory)
+        if (place === undefined) {
           return []
         }
-        return [fromOpenCode(session, projectId)]
+        return [fromOpenCode(session, place)]
       })
   }
 }

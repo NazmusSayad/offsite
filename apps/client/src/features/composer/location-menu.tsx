@@ -23,9 +23,12 @@ import { errorMessage, splitAtLimit } from '@/lib/utils'
 
 const log = logger.withTag('worktree')
 
+const MAIN = 'main'
+
 export function LocationMenu(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   onRefresh: () => void
 }) {
   const [found, setFound] = useState<{
@@ -44,6 +47,7 @@ export function LocationMenu(props: {
           }),
           call(props.machine, 'git.localBranches', {
             projectId: props.projectId,
+            worktreeId: props.worktreeId,
             repo: '',
           }),
         ])
@@ -66,21 +70,20 @@ export function LocationMenu(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.projectId])
+  }, [props.machine, props.projectId, props.worktreeId])
 
   if (found === null) {
     return <DropdownMenuItem disabled>Loading…</DropdownMenuItem>
   }
 
   const main = found.worktrees.find((item) => !item.worktree)
-  if (main === undefined || main.projectId === null) {
+  if (main === undefined) {
     return (
       <DropdownMenuItem disabled>
         Could not find the main checkout
       </DropdownMenuItem>
     )
   }
-  const rootId = main.projectId
   const worktrees = found.worktrees
     .filter((item) => item.worktree)
     .sort((a, b) => b.activeAt - a.activeAt)
@@ -93,7 +96,7 @@ export function LocationMenu(props: {
   const worktreeList = splitAtLimit(
     worktrees,
     5,
-    (item) => item.projectId === props.projectId
+    (item) => item.worktreeId !== null && item.worktreeId === props.worktreeId
   )
 
   function branchItem(name: string) {
@@ -102,9 +105,12 @@ export function LocationMenu(props: {
         key={name}
         value={`branch:${name}`}
         onSelect={() =>
-          void switchMain(props.machine, props.projectId, rootId, name).then(
-            props.onRefresh
-          )
+          void switchMain(
+            props.machine,
+            props.projectId,
+            props.worktreeId,
+            name
+          ).then(props.onRefresh)
         }
       >
         <HugeiconsIcon
@@ -125,9 +131,12 @@ export function LocationMenu(props: {
     return (
       <DropdownMenuRadioItem
         key={item.folder}
-        value={item.projectId ?? item.folder}
+        value={item.worktreeId ?? item.folder}
         onSelect={() => {
-          if (item.projectId === props.projectId) {
+          if (
+            item.worktreeId !== null &&
+            item.worktreeId === props.worktreeId
+          ) {
             return
           }
           void openWorktree(props.machine, props.projectId, item)
@@ -148,14 +157,14 @@ export function LocationMenu(props: {
   }
 
   return (
-    <DropdownMenuRadioGroup value={props.projectId}>
+    <DropdownMenuRadioGroup value={props.worktreeId ?? MAIN}>
       <DropdownMenuRadioItem
-        value={rootId}
+        value={MAIN}
         onSelect={() => {
-          if (rootId === props.projectId) {
+          if (props.worktreeId === null) {
             return
           }
-          void openWorktree(props.machine, props.projectId, main)
+          openMain(props.machine, props.projectId)
         }}
       >
         <HugeiconsIcon
@@ -213,23 +222,34 @@ export function LocationMenu(props: {
   )
 }
 
+function openMain(machine: string, projectId: string) {
+  openSession({
+    machine,
+    projectId,
+    worktreeId: null,
+    sessionId: null,
+    pending: null,
+  })
+}
+
 async function switchMain(
   machine: string,
   projectId: string,
-  rootId: string,
+  worktreeId: string | null,
   branch: string
 ) {
   try {
     await call(machine, 'git.switch', {
-      projectId: rootId,
+      projectId,
+      worktreeId: null,
       repo: '',
       branch,
       create: false,
     })
-    if (rootId === projectId) {
+    if (worktreeId === null) {
       return
     }
-    openSession({ machine, projectId: rootId, sessionId: null, pending: null })
+    openMain(machine, projectId)
   } catch (error) {
     log.error('could not switch the branch', error)
     toast.error(errorMessage(error))
@@ -242,13 +262,19 @@ async function openWorktree(
   choice: WorktreeChoice
 ) {
   try {
-    const id =
-      choice.projectId ??
+    const worktreeId =
+      choice.worktreeId ??
       (await call(machine, 'projects.addWorktree', {
         projectId,
         folder: choice.folder,
       }))
-    openSession({ machine, projectId: id, sessionId: null, pending: null })
+    openSession({
+      machine,
+      projectId,
+      worktreeId,
+      sessionId: null,
+      pending: null,
+    })
   } catch (error) {
     log.error('could not open the worktree', error)
     toast.error(errorMessage(error))

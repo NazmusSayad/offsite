@@ -25,6 +25,7 @@ const DIFF_REFRESH = 3000
 export function DiffPanel(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   running: boolean
   onClose: () => void
   mobile: boolean
@@ -54,6 +55,7 @@ export function DiffPanel(props: {
       try {
         const diffs = await call(props.machine, 'git.diff', {
           projectId: props.projectId,
+          worktreeId: props.worktreeId,
         })
         if (!current) {
           return
@@ -98,7 +100,7 @@ export function DiffPanel(props: {
       window.clearInterval(timer)
       window.removeEventListener('focus', refresh)
     }
-  }, [props.machine, props.projectId, props.running, version])
+  }, [props.machine, props.projectId, props.worktreeId, props.running, version])
 
   const list = (groups ?? []).flatMap((group) => group.files)
   const added = sumBy(list, (file) =>

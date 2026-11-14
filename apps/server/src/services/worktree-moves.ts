@@ -1,11 +1,7 @@
 import { history, Run } from '../lib/claude/index.ts'
 import { type Client, publish } from '../lib/hub.ts'
 import { runs } from '../lib/live.ts'
-import {
-  moveProjectToWorktree,
-  rootProject,
-  worktreeState,
-} from './projects.ts'
+import { moveToNewWorktree, worktreeState } from './project-worktrees.ts'
 import { locked } from './runs.ts'
 import { findSession, providerOf } from './sessions.ts'
 import { placeSession, setUpWorktree } from './worktree-sessions.ts'
@@ -44,19 +40,19 @@ export function moveToWorktree(
       run.stop()
       await run.closed
     }
-    const project = await moveProjectToWorktree(
-      session.projectId,
-      name,
-      session.title
+    const worktree = await moveToNewWorktree(session, name, session.title)
+    placeSession(
+      sessionId,
+      { projectId: session.projectId, worktreeId: worktree.id },
+      false
     )
-    placeSession(sessionId, project.id, false)
-    if (project.warning !== null) {
-      client.send({ type: 'warning', message: project.warning })
+    if (worktree.warning !== null) {
+      client.send({ type: 'warning', message: worktree.warning })
     }
     if (run !== undefined) {
       new Run({
         sessionId,
-        cwd: project.cwd,
+        cwd: worktree.cwd,
         resume: true,
         resumeAt: null,
         settings: run.settings,
@@ -64,9 +60,9 @@ export function moveToWorktree(
     }
     publish(sessionId, await history(sessionId))
     return {
-      projectId: project.id,
-      branch: project.branch,
-      setup: setUpWorktree(project.id),
+      worktreeId: worktree.id,
+      branch: worktree.branch,
+      setup: setUpWorktree(worktree.id),
     }
   })
 }
@@ -80,7 +76,10 @@ export function moveToMain(sessionId: string) {
     if (session === null) {
       throw new Error('offsite cannot find this chat, reload the page')
     }
-    if ((await worktreeState(session.projectId)) !== 'branchMissing') {
+    if (session.worktreeId === null) {
+      throw new Error('This chat is not in a worktree')
+    }
+    if ((await worktreeState(session.worktreeId)) !== 'branchMissing') {
       throw new Error(
         'Only a chat whose worktree folder and branch are gone can switch to the main project'
       )
@@ -93,8 +92,11 @@ export function moveToMain(sessionId: string) {
       run.stop()
       await run.closed
     }
-    const root = rootProject(session.projectId)
-    placeSession(sessionId, root.id, false)
-    return { projectId: root.id }
+    placeSession(
+      sessionId,
+      { projectId: session.projectId, worktreeId: null },
+      false
+    )
+    return null
   })
 }

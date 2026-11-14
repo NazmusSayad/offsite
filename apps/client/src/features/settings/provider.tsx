@@ -139,6 +139,7 @@ function ProviderModels(props: {
       provider: props.provider,
       accountId: props.accountId,
       projectId: null,
+      worktreeId: null,
     }).then(
       (result) => {
         if (current) {

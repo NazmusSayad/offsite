@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto'
 import os from 'node:os'
-import path from 'node:path'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { RpcCall, RpcMethod, RpcMethods } from '@offsite/core/protocol'
 import type { WebSocket } from 'ws'
@@ -19,7 +18,6 @@ import {
   updateAccount,
 } from '../services/accounts.ts'
 import * as bookmarks from '../services/bookmarks.ts'
-import { localBranches } from '../services/branches.ts'
 import { runtime, sessionContext } from '../services/debug.ts'
 import { ping, transcribe, workflows } from '../services/dictation.ts'
 import { exportSession } from '../services/export.ts'
@@ -38,24 +36,11 @@ import {
   taskOutput,
   writeProjectFile,
 } from '../services/files.ts'
-import {
-  commit,
-  commitMessage,
-  createPullRequest,
-  fetchProject,
-  gitRepos,
-  listBranches,
-  preparePullRequest,
-  projectDiff,
-  pullRequestBranches,
-  push,
-  switchBranch,
-  sync,
-} from '../services/git.ts'
 import { logoFiles, readLogo } from '../services/logos.ts'
 import { searchMessages } from '../services/message-search.ts'
 import { act } from '../services/notices.ts'
 import { removeFromOutbox } from '../services/outbox.ts'
+import { placePath, publishWorktrees } from '../services/project-worktrees.ts'
 import {
   addProject,
   directories,
@@ -64,15 +49,8 @@ import {
   updateProject,
 } from '../services/projects.ts'
 import { claimNotifier, subscribe, unsubscribe } from '../services/push.ts'
-import {
-  agentHistory,
-  open,
-  resend,
-  restart,
-  rewind,
-  send,
-  stop,
-} from '../services/runs.ts'
+import { open, resend, restart, rewind, send, stop } from '../services/runs.ts'
+import { agentHistory } from '../services/session-history.ts'
 import { generateSessionTitle } from '../services/session-title.ts'
 import {
   findSession,
@@ -87,14 +65,6 @@ import {
 } from '../services/sessions.ts'
 import { saveSettings } from '../services/settings.ts'
 import { syncSnapshot } from '../services/snapshot.ts'
-import {
-  commitFiles,
-  history,
-  runAction,
-  showFile,
-  sourceControl,
-  undoCommit,
-} from '../services/source-control.ts'
 import { savePastedImage } from '../services/terminal/paste.ts'
 import { listShells } from '../services/terminal/process.ts'
 import {
@@ -106,6 +76,7 @@ import {
 import { readUsage } from '../services/usage.ts'
 import { configInfo } from '../storage/config.ts'
 import { saveAppIcon } from '../storage/state.ts'
+import { gitHandlers } from './git-handlers.ts'
 import { pullRequestHandlers } from './pull-request-handlers.ts'
 import { serviceHandlers } from './service-handlers.ts'
 import { worktreeHandlers } from './worktree-handlers.ts'
@@ -124,6 +95,7 @@ const handlers: Handlers = {
   ...worktreeHandlers,
   ...serviceHandlers,
   ...pullRequestHandlers,
+  ...gitHandlers,
   ping: () => null,
   sync: () => syncSnapshot(),
   'config.get': () => configInfo(),
@@ -137,6 +109,7 @@ const handlers: Handlers = {
   'projects.update': (params) => updateProject(params.id, params.patch),
   'projects.remove': (params) => {
     removeProject(params.id)
+    publishWorktrees()
     refreshAll()
     return null
   },
@@ -153,12 +126,12 @@ const handlers: Handlers = {
     return null
   },
   'sessions.generateTitle': async (params) => {
-    await generateSessionTitle(params.id, params.projectId)
+    await generateSessionTitle(params.id, params.projectId, params.worktreeId)
     return null
   },
   'sessions.open': async (params, client) => {
     const session = await findSession(params.sessionId)
-    await open(client, params.sessionId, params.projectId)
+    await open(client, params.sessionId, params)
     if (params.opened && session !== null) {
       recordOpen(params.sessionId, params.query)
     }
@@ -169,7 +142,7 @@ const handlers: Handlers = {
   'sessions.searchMessages': (params) => searchMessages(params.query),
   'sessions.earlier': (params) => earlier(params.sessionId, params.before),
   'sessions.export': (params) =>
-    exportSession(params.sessionId, params.projectId),
+    exportSession(params.sessionId, params.projectId, params.worktreeId),
   'sessions.image': (params) =>
     image(params.sessionId, params.itemId, params.index),
   'sessions.agent': (params) => agentHistory(params),
@@ -203,7 +176,7 @@ const handlers: Handlers = {
   },
   'sessions.runtime': (params) => runtime(params.sessionId),
   'sessions.context': (params) =>
-    sessionContext(params.sessionId, params.projectId),
+    sessionContext(params.sessionId, params.projectId, params.worktreeId),
   'sessions.stopTask': async (params) => {
     await runs.get(params.sessionId)?.stopTask(params.taskId)
     return null
@@ -244,43 +217,58 @@ const handlers: Handlers = {
       params.accountId,
       params.projectId === null || params.projectId === NO_PROJECT
         ? os.homedir()
-        : projectPath(params.projectId)
+        : placePath(params.projectId, params.worktreeId)
     ),
   'files.list': (params) =>
     params.projectId === NO_PROJECT
       ? []
-      : listFiles(projectPath(params.projectId)),
-  'files.entries': (params) => listEntries(projectPath(params.projectId)),
+      : listFiles(placePath(params.projectId, params.worktreeId)),
+  'files.entries': (params) =>
+    listEntries(placePath(params.projectId, params.worktreeId)),
   'files.read': (params) =>
-    readProjectFile(projectPath(params.projectId), params.path),
+    readProjectFile(
+      placePath(params.projectId, params.worktreeId),
+      params.path
+    ),
   'files.write': (params) =>
     writeProjectFile(
-      projectPath(params.projectId),
+      placePath(params.projectId, params.worktreeId),
       params.path,
       params.content,
       params.base
     ),
   'files.create': (params) => {
     createProjectEntry(
-      projectPath(params.projectId),
+      placePath(params.projectId, params.worktreeId),
       params.path,
       params.folder
     )
     return null
   },
   'files.rename': (params) => {
-    renameProjectEntry(projectPath(params.projectId), params.path, params.to)
+    renameProjectEntry(
+      placePath(params.projectId, params.worktreeId),
+      params.path,
+      params.to
+    )
     return null
   },
   'files.delete': (params) => {
-    deleteProjectEntry(projectPath(params.projectId), params.path)
+    deleteProjectEntry(
+      placePath(params.projectId, params.worktreeId),
+      params.path
+    )
     return null
   },
   'files.media': (params, client) =>
-    linkProjectMedia(projectPath(params.projectId), params.path, client.device),
+    linkProjectMedia(
+      placePath(params.projectId, params.worktreeId),
+      params.path,
+      client.device
+    ),
   'files.download': (params, client) =>
     linkProjectDownload(
-      projectPath(params.projectId),
+      placePath(params.projectId, params.worktreeId),
       params.path,
       client.device
     ),
@@ -295,83 +283,6 @@ const handlers: Handlers = {
     linkBrowse(client.device, client.address),
   'browser.open': (params) => openSite(params.url, params.fromPage),
   'tasks.output': (params) => taskOutput(params.sessionId, params.path),
-  'git.status': (params) => gitRepos(projectPath(params.projectId)),
-  'git.diff': (params) => projectDiff(projectPath(params.projectId)),
-  'git.commit': (params) =>
-    commit(
-      path.join(projectPath(params.projectId), params.repo),
-      params.message,
-      params.push
-    ),
-  'git.changes': (params) => sourceControl(projectPath(params.projectId)),
-  'git.show': (params) =>
-    showFile(
-      path.join(projectPath(params.projectId), params.repo),
-      params.ref,
-      params.path
-    ),
-  'git.history': (params) =>
-    history(
-      path.join(projectPath(params.projectId), params.repo),
-      params.limit
-    ),
-  'git.commitFiles': (params) =>
-    commitFiles(
-      path.join(projectPath(params.projectId), params.repo),
-      params.hash,
-      params.parent
-    ),
-  'git.message': (params) =>
-    commitMessage(
-      path.join(projectPath(params.projectId), params.repo),
-      params.staged
-    ),
-  'git.undoCommit': (params) =>
-    undoCommit(path.join(projectPath(params.projectId), params.repo)),
-  'git.run': async (params) => {
-    await runAction(
-      path.join(projectPath(params.projectId), params.repo),
-      params.action
-    )
-    return null
-  },
-  'git.push': async (params) => {
-    await push(path.join(projectPath(params.projectId), params.repo))
-    return null
-  },
-  'git.sync': async (params) => {
-    await sync(path.join(projectPath(params.projectId), params.repo))
-    return null
-  },
-  'git.fetch': async (params) => {
-    await fetchProject(projectPath(params.projectId))
-    return null
-  },
-  'git.branches': (params) =>
-    pullRequestBranches(path.join(projectPath(params.projectId), params.repo)),
-  'git.localBranches': (params) =>
-    localBranches(path.join(projectPath(params.projectId), params.repo)),
-  'git.remoteBranches': (params) =>
-    listBranches(path.join(projectPath(params.projectId), params.repo), true),
-  'git.switch': async (params) => {
-    await switchBranch(
-      path.join(projectPath(params.projectId), params.repo),
-      params.branch,
-      params.create
-    )
-    return null
-  },
-  'git.pullRequest': (params) =>
-    preparePullRequest(
-      path.join(projectPath(params.projectId), params.repo),
-      params.base,
-      params.commit
-    ),
-  'git.createPullRequest': (params) =>
-    createPullRequest(
-      path.join(projectPath(params.projectId), params.repo),
-      params
-    ),
   'push.subscribe': (params, client) => {
     subscribe(params, client)
     return null

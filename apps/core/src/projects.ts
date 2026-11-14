@@ -9,10 +9,15 @@ export type Project = {
   hidden: boolean
   score: number
   scratch: boolean
-  parentId: string | null
   worktreeSetup: string | null
-  worktreeBranch: string | null
   startInWorktree: boolean
+}
+
+export type Worktree = {
+  id: string
+  projectId: string
+  path: string
+  branch: string | null
 }
 
 export type ProjectPatch = {

@@ -38,6 +38,7 @@ import {
 } from '../storage/schema.ts'
 import { providerName } from './accounts.ts'
 import { clearSessionOutbox } from './outbox.ts'
+import { type Place, places } from './project-worktrees.ts'
 import { projects } from './projects.ts'
 import { type Found, info, timeLimit } from './provider-sessions.ts'
 import { forgetStarting, startingSessions } from './starting-sessions.ts'
@@ -98,7 +99,6 @@ export async function inactiveSessions(params: {
         (project) =>
           params.projectId === null ||
           project.id === params.projectId ||
-          project.parentId === params.projectId ||
           (params.projectId === NO_PROJECT && project.scratch)
       )
       .map((project) => project.id)
@@ -138,7 +138,7 @@ export async function findSession(id: string) {
   if (owner === undefined) {
     return null
   }
-  const item = await info(owner, id, new Map(projectPaths()))
+  const item = await info(owner, id, new Map(places()))
   return item === null ? null : withStatus([item])[0]
 }
 
@@ -168,13 +168,6 @@ function withStatus(items: Found[]): Session[] {
 
 export function enabledProviders() {
   return allProviders.filter((provider) => readConfig()[provider].enabled)
-}
-
-function projectPaths() {
-  return projects().map((project): [string, string] => [
-    project.path,
-    project.id,
-  ])
 }
 
 function ownerOf(sessionId: string) {
@@ -294,7 +287,7 @@ export async function refresh(provider: Provider) {
 }
 
 async function list(provider: Provider) {
-  const paths = new Map(projectPaths())
+  const paths = new Map(places())
   const before = statuses[provider]
   try {
     if (!readConfig()[provider].enabled) {
@@ -331,7 +324,7 @@ async function list(provider: Provider) {
 
 async function tracked(
   provider: Provider,
-  paths: Map<string, string>
+  paths: Map<string, Place>
 ): Promise<Found[] | null> {
   if (
     (provider === 'codex' && !codexInstalled()) ||
@@ -353,7 +346,7 @@ async function tracked(
 async function lookup(
   provider: Provider,
   sessionId: string,
-  paths: Map<string, string>
+  paths: Map<string, Place>
 ) {
   const known =
     threadOf(provider, sessionId) ??
@@ -361,7 +354,11 @@ async function lookup(
   const knownPath =
     known === undefined
       ? undefined
-      : [...paths].find((entry) => entry[1] === known.projectId)
+      : [...paths].find(
+          (entry) =>
+            entry[1].projectId === known.projectId &&
+            entry[1].worktreeId === known.worktreeId
+        )
   if (knownPath === undefined) {
     return info(provider, sessionId, paths)
   }

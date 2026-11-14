@@ -117,13 +117,14 @@ export function ExportDialog(props: { session: MachineSession }) {
     call(session.machine, 'sessions.export', {
       sessionId: session.id,
       projectId: session.projectId,
+      worktreeId: session.worktreeId,
     })
       .then(setExports)
       .catch((error: unknown) => {
         showError(error)
         showExport(null)
       })
-  }, [session.machine, session.id, session.projectId])
+  }, [session.machine, session.id, session.projectId, session.worktreeId])
 
   function save(markdown: string) {
     const name = session.title

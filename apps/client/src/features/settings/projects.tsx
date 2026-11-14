@@ -23,10 +23,7 @@ export function ProjectsPage(props: { machine: string; homeDir: string }) {
   } | null>('sidebarScope', null)
   const ranked = rankProjects(
     registered.filter(
-      (project) =>
-        project.machine === props.machine &&
-        !project.scratch &&
-        project.parentId === null
+      (project) => project.machine === props.machine && !project.scratch
     )
   )
   const projects = [...ranked.top, ...ranked.more]

@@ -10,6 +10,7 @@ import {
 import { readAppIcon } from '../storage/state.ts'
 import { readBookmarks } from './bookmarks.ts'
 import { outboxPrompts } from './outbox.ts'
+import { worktrees } from './project-worktrees.ts'
 import { projects } from './projects.ts'
 import { serviceState } from './service/update.ts'
 import { providerStatuses, refreshAll, sessions } from './sessions.ts'
@@ -24,6 +25,7 @@ export function syncSnapshot(): SyncSnapshot {
     lastEfforts: readLastEfforts(),
     hostname: os.hostname(),
     projects: projects(),
+    worktrees: worktrees(),
     sessions: sessions(),
     outbox: outboxPrompts(),
     providers: providerStatuses(),

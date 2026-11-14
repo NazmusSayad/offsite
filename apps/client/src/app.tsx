@@ -49,6 +49,7 @@ export function App() {
           <EditorDialog
             machine={editor.machine}
             projectId={editor.projectId}
+            worktreeId={editor.worktreeId}
             onClose={() => showEditor(null)}
           />
         </Suspense>

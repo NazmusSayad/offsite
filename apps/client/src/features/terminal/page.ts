@@ -1,4 +1,4 @@
-import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
+import type { TerminalPlace } from '@offsite/core/terminal'
 import { call } from '@/api/connection'
 import { logger } from '@/lib/log'
 import { router } from '@/lib/router'
@@ -9,27 +9,31 @@ import { getState, tabView, terminalMachine, viewTabs } from './session'
 
 const log = logger.withTag('terminal')
 
-export function showGroup(target: string, view: string) {
-  openTerminalPage(target, view)
+export function showGroup(target: string, place: TerminalPlace) {
+  openTerminalPage(target, place)
 }
 
 export function showMachine(target: Machine) {
-  const views = target.terminals.map(tabView)
   const last = localStorage.getItem('lastTerminalView')
   showGroup(
     target.id,
-    views.find((view) => view === last) ?? views.at(0) ?? GLOBAL_TERMINALS
+    target.terminals.find((tab) => tabView(tab) === last) ??
+      target.terminals.at(0) ?? { projectId: null, worktreeId: null }
   )
 }
 
-export async function createTab(target: string, projectId: string | null) {
+export async function createTab(target: string, place: TerminalPlace) {
   try {
-    await call(target, 'terminal', { type: 'createTab', projectId })
+    await call(target, 'terminal', {
+      type: 'createTab',
+      projectId: place.projectId,
+      worktreeId: place.worktreeId,
+    })
   } catch (error) {
     log.error('terminal request failed', error)
     return
   }
-  showGroup(target, projectId ?? GLOBAL_TERMINALS)
+  showGroup(target, place)
 }
 
 export function keepPageOpen() {
@@ -43,7 +47,7 @@ export function keepPageOpen() {
   }
   const tab = state.layout.tabs.at(0)
   if (tab !== undefined) {
-    showGroup(page, tabView(tab))
+    showGroup(page, tab)
     return
   }
   const other = appState().machines.find(

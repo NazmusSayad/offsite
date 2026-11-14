@@ -1,8 +1,8 @@
-import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
+import { type TerminalPlace, terminalViewOf } from '@offsite/core/terminal'
 import { useMatchRoute, useParams, useSearch } from '@tanstack/react-router'
-import { useEffect, useEffectEvent } from 'react'
+import { useEffect, useEffectEvent, useMemo } from 'react'
 import { router, type Search } from './router'
-import { getState, projectOf, type Selection, useStore } from './store'
+import { getState, placePathOf, type Selection, useStore } from './store'
 import { wide } from './utils'
 
 export function currentSearch() {
@@ -38,15 +38,32 @@ export function useActivityPage() {
   return useMatchRoute()({ to: '/activity' }) !== false
 }
 
+export function terminalPlace(): TerminalPlace {
+  const search = currentSearch()
+  return {
+    projectId: search.project ?? null,
+    worktreeId: search.worktree ?? null,
+  }
+}
+
 export function terminalView() {
-  return currentSearch().project ?? GLOBAL_TERMINALS
+  return terminalViewOf(terminalPlace())
+}
+
+export function useTerminalPlace(): TerminalPlace {
+  const projectId = useSearch({
+    strict: false,
+    select: (search) => search.project ?? null,
+  })
+  const worktreeId = useSearch({
+    strict: false,
+    select: (search) => search.worktree ?? null,
+  })
+  return useMemo(() => ({ projectId, worktreeId }), [projectId, worktreeId])
 }
 
 export function useTerminalView() {
-  return useSearch({
-    strict: false,
-    select: (search) => search.project ?? GLOBAL_TERMINALS,
-  })
+  return terminalViewOf(useTerminalPlace())
 }
 
 export function selectionFromUrl(machines: string[]): Selection | null {
@@ -61,6 +78,7 @@ export function selectionFromUrl(machines: string[]): Selection | null {
   return {
     machine: search.machine,
     projectId: search.project,
+    worktreeId: search.worktree ?? null,
     sessionId: search.session ?? null,
     pending: null,
   }
@@ -98,15 +116,16 @@ export function openBrowser(target: string) {
     replaceSearch({ panel: 'browser', browse: target })
     return
   }
-  const project = projectOf(
+  const folder = placePathOf(
     state,
     state.selection.machine,
-    state.selection.projectId
+    state.selection.projectId,
+    state.selection.worktreeId
   )
-  if (project === undefined) {
+  if (folder === undefined) {
     throw new Error(`project ${state.selection.projectId} is not listed`)
   }
-  replaceSearch({ panel: 'browser', browse: `${project.path}/${target}` })
+  replaceSearch({ panel: 'browser', browse: `${folder}/${target}` })
 }
 
 const pullRequestPattern =
@@ -211,7 +230,7 @@ export function rememberTerminal() {
   ) {
     return
   }
-  const key = `${search.machine} ${search.project}`
+  const key = `${search.machine} ${terminalViewOf({ projectId: search.project, worktreeId: search.worktree ?? null })}`
   const others = terminalProjects().filter((item) => item !== key)
   localStorage.setItem(
     terminalProjectsKey,
@@ -225,6 +244,8 @@ export function syncUrl(replace = false) {
     navigate(
       {
         project: terminalPage() === null ? undefined : currentSearch().project,
+        worktree:
+          terminalPage() === null ? undefined : currentSearch().worktree,
       },
       true,
       router.history.location.state.layer
@@ -235,14 +256,16 @@ export function syncUrl(replace = false) {
   const fromDraft =
     search.machine === selection.machine &&
     search.project === selection.projectId &&
+    search.worktree === (selection.worktreeId ?? undefined) &&
     search.session === undefined &&
     (selection.sessionId === null || getState().loaded)
   const remembered = terminalProjects().includes(
-    `${selection.machine} ${selection.projectId}`
+    `${selection.machine} ${terminalViewOf(selection)}`
   )
   const next = {
     machine: selection.machine,
     project: selection.projectId,
+    worktree: selection.worktreeId ?? undefined,
     session: selection.sessionId ?? undefined,
     bottom: fromDraft
       ? search.bottom
@@ -262,6 +285,7 @@ export function syncUrl(replace = false) {
   const sameSession =
     search.machine === next.machine &&
     search.project === next.project &&
+    search.worktree === next.worktree &&
     search.session === next.session
   const draftToDraft =
     search.machine !== undefined &&

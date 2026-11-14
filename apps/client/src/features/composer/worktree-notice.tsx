@@ -35,6 +35,7 @@ export function ClaudeWorktreeNotice() {
           openSession({
             machine: session.machine,
             projectId: session.projectId,
+            worktreeId: session.worktreeId,
             sessionId: null,
             pending: null,
           })

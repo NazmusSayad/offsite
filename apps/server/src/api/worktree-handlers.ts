@@ -1,16 +1,16 @@
 import {
   addExistingWorktree,
+  placePath,
   projectBases,
-  projectPath,
   projectWorktrees,
-  worktreeProjectDetails,
+  savedWorktreeDetails,
   worktreeState,
-} from '../services/projects.ts'
+} from '../services/project-worktrees.ts'
 import { publishSessions, removeSession } from '../services/sessions.ts'
 import { moveToMain, moveToWorktree } from '../services/worktree-moves.ts'
 import {
   deleteUnusedWorktree,
-  unusedProject,
+  unusedWorktree,
 } from '../services/worktree-sessions.ts'
 import { uncommittedFiles } from '../services/worktrees.ts'
 import type { Handlers } from './socket.ts'
@@ -33,9 +33,9 @@ export const worktreeHandlers: Pick<
     addExistingWorktree(params.projectId, params.folder),
   'projects.bases': (params) => projectBases(params.projectId, params.query),
   'projects.worktreeDetails': (params) =>
-    worktreeProjectDetails(params.projectId),
+    savedWorktreeDetails(params.worktreeId),
   'projects.removeWorktree': async (params) => {
-    await deleteUnusedWorktree(params.projectId)
+    await deleteUnusedWorktree(params.worktreeId)
     return null
   },
   'sessions.remove': async (params) => {
@@ -44,12 +44,12 @@ export const worktreeHandlers: Pick<
     } finally {
       publishSessions()
     }
-    return { unusedWorktree: await unusedProject(params.projectId) }
+    return { unusedWorktree: await unusedWorktree(params) }
   },
   'sessions.moveChanges': (params) =>
-    uncommittedFiles(projectPath(params.projectId)),
+    uncommittedFiles(placePath(params.projectId, params.worktreeId)),
   'sessions.move': (params, client) =>
     moveToWorktree(client, params.sessionId, params.name),
   'sessions.moveToMain': (params) => moveToMain(params.sessionId),
-  'projects.worktreeState': (params) => worktreeState(params.projectId),
+  'projects.worktreeState': (params) => worktreeState(params.worktreeId),
 }

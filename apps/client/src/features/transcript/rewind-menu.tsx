@@ -98,7 +98,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
     (state) =>
       state.worktreeState !== null &&
       state.worktreeState.machine === state.selection?.machine &&
-      state.worktreeState.projectId === state.selection.projectId &&
+      state.worktreeState.worktreeId === state.selection.worktreeId &&
       state.worktreeState.state !== 'ready'
   )
 
@@ -283,6 +283,7 @@ function RewindConfirm(props: {
   const machine = selection?.machine ?? null
   const sessionId = selection?.sessionId ?? null
   const projectId = selection?.projectId ?? ''
+  const worktreeId = selection?.worktreeId ?? null
 
   async function apply() {
     if (machine === null || sessionId === null) {
@@ -293,6 +294,7 @@ function RewindConfirm(props: {
       await call(machine, 'sessions.rewind', {
         sessionId,
         projectId,
+        worktreeId,
         messageId,
         settings: getState().settings,
         code: true,
@@ -342,6 +344,7 @@ function useCodePreview(messageId: string, skip: boolean) {
   const machine = selection?.machine ?? null
   const sessionId = selection?.sessionId ?? null
   const projectId = selection?.projectId ?? ''
+  const worktreeId = selection?.worktreeId ?? null
 
   useEffect(() => {
     setPreview(null)
@@ -353,6 +356,7 @@ function useCodePreview(messageId: string, skip: boolean) {
     call(machine, 'sessions.rewind', {
       sessionId,
       projectId,
+      worktreeId,
       messageId,
       settings: getState().settings,
       code: true,
@@ -373,7 +377,7 @@ function useCodePreview(messageId: string, skip: boolean) {
     return () => {
       current = false
     }
-  }, [skip, messageId, machine, sessionId, projectId])
+  }, [skip, messageId, machine, sessionId, projectId, worktreeId])
 
   return { preview, codeError }
 }

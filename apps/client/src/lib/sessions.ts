@@ -2,7 +2,7 @@ import type { PromptDelivery } from '@offsite/core/config'
 import type { PermissionDecision, Prompt } from '@offsite/core/items'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { SessionPatch } from '@offsite/core/sessions'
-import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
+import { type TerminalPlace, terminalViewOf } from '@offsite/core/terminal'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { deleteDraft, getDraftSettings } from '@/features/composer/drafts'
@@ -72,6 +72,7 @@ export function openSession(
     rewinding: null,
     worktree:
       selection.sessionId === null &&
+      selection.worktreeId === null &&
       projectOf(getState(), selection.machine, selection.projectId)
         ?.startInWorktree === true
         ? { name: '', base: null }
@@ -86,24 +87,24 @@ export function openSession(
   syncUrl(replace)
   refreshSettings(selection.machine)
   if (selection.sessionId !== null && machine.status === 'online') {
-    loadSession(
-      selection.machine,
-      selection.projectId,
-      selection.sessionId,
-      true,
-      query
-    )
+    loadSession(selection, selection.sessionId, true, query)
   }
 }
 
 export function loadSession(
-  machine: string,
-  projectId: string,
+  selection: Selection,
   sessionId: string,
   opened: boolean,
   query: string | null
 ) {
-  call(machine, 'sessions.open', { projectId, sessionId, opened, query })
+  const machine = selection.machine
+  call(machine, 'sessions.open', {
+    projectId: selection.projectId,
+    worktreeId: selection.worktreeId,
+    sessionId,
+    opened,
+    query,
+  })
     .then((session) => {
       if (
         session === null ||
@@ -146,10 +147,8 @@ export function startChat(machine: string, projectId: string, replace = false) {
   openSession(
     {
       machine,
-      projectId:
-        project?.scratch === true
-          ? NO_PROJECT
-          : (project?.parentId ?? projectId),
+      projectId: project?.scratch === true ? NO_PROJECT : projectId,
+      worktreeId: null,
       sessionId: null,
       pending: null,
     },
@@ -158,47 +157,18 @@ export function startChat(machine: string, projectId: string, replace = false) {
   )
 }
 
-export function lastProject() {
-  const state = getState()
-  const raw = localStorage.getItem('lastProject')
-  const last: { machine: string; projectId: string } | null =
-    raw === null ? null : JSON.parse(raw)
-  const projectless = state.machines.filter(
-    (machine) => machine.system?.scratchAvailable === true
-  )
-  if (
-    last !== null &&
-    last.projectId === NO_PROJECT &&
-    projectless.some((machine) => machine.id === last.machine)
-  ) {
-    return last
-  }
-  const registered =
-    last === null
-      ? undefined
-      : state.projects.find(
-          (project) =>
-            project.machine === last.machine && project.id === last.projectId
-        )
-  const project = registered ?? state.projects.find((item) => !item.scratch)
-  if (project !== undefined) {
-    return { machine: project.machine, projectId: project.id }
-  }
-  if (projectless.length > 0) {
-    return { machine: projectless[0].id, projectId: NO_PROJECT }
-  }
-  return null
-}
-
-export function openTerminalPage(machine: string, view: string) {
+export function openTerminalPage(machine: string, place: TerminalPlace) {
   const current = terminalPage()
-  if (current === machine && terminalView() === view) {
+  if (current === machine && terminalView() === terminalViewOf(place)) {
     return
   }
   void router.navigate({
     to: '/terminal/$machine',
     params: { machine },
-    search: { project: view === GLOBAL_TERMINALS ? undefined : view },
+    search: {
+      project: place.projectId ?? undefined,
+      worktree: place.worktreeId ?? undefined,
+    },
     replace: current !== null || onGuard(),
     resetScroll: false,
   })
@@ -226,6 +196,7 @@ export async function sendPrompt(
       id,
       sessionId: selection.sessionId,
       projectId: selection.projectId,
+      worktreeId: selection.worktreeId,
       prompt,
       settings: getState().settings,
       delivery,
@@ -252,11 +223,7 @@ export async function sendPrompt(
     replacing.sessionId !== null
   ) {
     update({ replacing: null })
-    await removeSession(
-      replacing.machine,
-      replacing.sessionId,
-      replacing.projectId
-    )
+    await removeSession(replacing.machine, replacing.sessionId, replacing)
   }
 }
 
@@ -337,6 +304,7 @@ export async function forkFrom(messageId: string) {
     const result = await call(selection.machine, 'sessions.fork', {
       sessionId: selection.sessionId,
       projectId: selection.projectId,
+      worktreeId: selection.worktreeId,
       messageId,
     })
     openSession({ ...selection, sessionId: result.sessionId })
@@ -377,6 +345,7 @@ export async function loadAgent(parent: string, agentId: string) {
     const loaded = await call(selection.machine, 'sessions.agent', {
       sessionId: selection.sessionId,
       projectId: selection.projectId,
+      worktreeId: selection.worktreeId,
       agentId,
       parent,
     })
@@ -437,6 +406,7 @@ export async function regenerateTitle(session: MachineSession) {
     await call(session.machine, 'sessions.generateTitle', {
       id: session.id,
       projectId: session.projectId,
+      worktreeId: session.worktreeId,
     })
   } catch (error) {
     showError(error)
@@ -479,6 +449,7 @@ export async function deactivateSession(
         {
           machine: latest.machine,
           projectId: latest.projectId,
+          worktreeId: latest.worktreeId,
           sessionId: latest.id,
           pending: null,
         },
@@ -493,7 +464,7 @@ export async function deactivateSession(
 export async function removeSession(
   machine: string,
   id: string,
-  projectId: string
+  place: { projectId: string; worktreeId: string | null }
 ) {
   update({
     sessions: getState().sessions.filter(
@@ -509,10 +480,14 @@ export async function removeSession(
     startChat(machine, selection.projectId, true)
   }
   try {
-    const result = await call(machine, 'sessions.remove', { id, projectId })
+    const result = await call(machine, 'sessions.remove', {
+      id,
+      projectId: place.projectId,
+      worktreeId: place.worktreeId,
+    })
     if (result.unusedWorktree !== null) {
       update({
-        removingWorktree: { machine, projectId: result.unusedWorktree },
+        removingWorktree: { machine, worktreeId: result.unusedWorktree },
       })
     }
   } catch (error) {

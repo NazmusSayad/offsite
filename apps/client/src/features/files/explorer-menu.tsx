@@ -11,6 +11,7 @@ import { showError } from '@/lib/store'
 export function ExplorerMenu(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   root: string
   entry: Entry
   onPending: (action: () => void) => void
@@ -82,11 +83,9 @@ export function ExplorerMenu(props: {
           {!props.entry.folder && (
             <ContextMenuItem
               onSelect={() =>
-                void downloadProjectFile(
-                  props.machine,
-                  props.projectId,
-                  props.entry.path
-                ).catch(showError)
+                void downloadProjectFile(props, props.entry.path).catch(
+                  showError
+                )
               }
             >
               Download

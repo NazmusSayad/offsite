@@ -3,7 +3,7 @@ import path from 'node:path'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { git, projectRepos } from '../services/git.ts'
 import { linkGithubImage } from '../services/github-images.ts'
-import { projectPath } from '../services/projects.ts'
+import { type Place, placePath } from '../services/project-worktrees.ts'
 import {
   listPullRequests,
   pullRequestDiff,
@@ -26,13 +26,13 @@ export const pullRequestHandlers: Pick<
 > = {
   'pulls.list': (params) =>
     listPullRequests(
-      path.join(projectPath(params.projectId), params.repo),
+      path.join(placePath(params.projectId, params.worktreeId), params.repo),
       params.filter,
       params.fresh
     ),
   'pulls.view': async (params) =>
     viewPullRequest(
-      await localRepo(params.projectId, params.url),
+      await localRepo(params, params.url),
       params.url,
       params.fresh
     ),
@@ -41,11 +41,11 @@ export const pullRequestHandlers: Pick<
   'pulls.guide': (params) => reviewGuide(params.url),
   'pulls.writeGuide': async (params) =>
     writeReviewGuide(
-      (await localRepo(params.projectId, params.url)) ?? os.homedir(),
+      (await localRepo(params, params.url)) ?? os.homedir(),
       params.url
     ),
   'pulls.run': async (params) => {
-    const local = await localRepo(params.projectId, params.url)
+    const local = await localRepo(params, params.url)
     if (params.action.kind === 'checkout' && local === null) {
       throw new Error(
         'This project has no clone of the repository of this pull request'
@@ -56,8 +56,8 @@ export const pullRequestHandlers: Pick<
   },
 }
 
-async function localRepo(projectId: string, url: string) {
-  if (projectId === NO_PROJECT) {
+async function localRepo(place: Place, url: string) {
+  if (place.projectId === NO_PROJECT) {
     return null
   }
   const target = repoOf(url)
@@ -65,7 +65,7 @@ async function localRepo(projectId: string, url: string) {
     `${target.host}/${target.owner}/${target.name}`,
     `${target.host}:${target.owner}/${target.name}`,
   ].map((suffix) => suffix.toLowerCase())
-  const root = projectPath(projectId)
+  const root = placePath(place.projectId, place.worktreeId)
   for (const repo of await projectRepos(root)) {
     const cwd = path.join(root, repo)
     const remotes = (await git(cwd, ['remote', '-v'])).stdout

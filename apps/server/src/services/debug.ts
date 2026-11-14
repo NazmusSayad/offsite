@@ -3,8 +3,8 @@ import { skills } from '../lib/codex/index.ts'
 import { runs } from '../lib/live.ts'
 import { openCode } from '../lib/opencode/client.ts'
 import { queuedFor } from './outbox.ts'
-import { projectPath } from './projects.ts'
-import { sessionHistory } from './runs.ts'
+import { placePath } from './project-worktrees.ts'
+import { sessionHistory } from './session-history.ts'
 
 export function runtime(sessionId: string): SessionRuntime | null {
   const run = runs.get(sessionId)
@@ -26,11 +26,15 @@ export function runtime(sessionId: string): SessionRuntime | null {
 
 export async function sessionContext(
   sessionId: string,
-  projectId: string
+  projectId: string,
+  worktreeId: string | null
 ): Promise<SessionContext> {
   const run = runs.get(sessionId)
   if (run === undefined) {
-    const event = await sessionHistory(sessionId, projectPath(projectId))
+    const event = await sessionHistory(
+      sessionId,
+      placePath(projectId, worktreeId)
+    )
     if (event.type !== 'history') {
       throw new Error('Could not read this thread')
     }

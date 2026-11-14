@@ -1,5 +1,5 @@
+import type { Document } from '@/features/files/document'
 import type { EditorSettings } from '@/features/files/editor-state'
-import type { Document } from '@/features/files/use-tabs'
 
 export function DocumentNotice(props: {
   document: Document | undefined

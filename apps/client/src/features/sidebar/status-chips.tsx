@@ -308,6 +308,7 @@ function Thread(props: {
           openSession({
             machine: props.session.machine,
             projectId: props.session.projectId,
+            worktreeId: props.session.worktreeId,
             sessionId: props.session.id,
             pending: null,
           })

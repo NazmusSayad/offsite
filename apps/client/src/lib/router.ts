@@ -10,6 +10,7 @@ import { lastTerminalMachine } from '@/lib/sessions'
 const searchSchema = z.object({
   machine: z.string().optional().catch(undefined),
   project: z.string().optional().catch(undefined),
+  worktree: z.string().optional().catch(undefined),
   session: z.string().optional().catch(undefined),
   panel: z
     .enum(['diff', 'pulls', 'pull', 'tasks', 'browser'])

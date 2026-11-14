@@ -9,6 +9,7 @@ const STATUS_REFRESH = 3000
 export function useRepos(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   version: number
   onLoaded: () => void
 }) {
@@ -27,6 +28,7 @@ export function useRepos(props: {
       try {
         const result = await call(props.machine, 'git.changes', {
           projectId: props.projectId,
+          worktreeId: props.worktreeId,
         })
         if (!live) {
           return
@@ -55,7 +57,7 @@ export function useRepos(props: {
       window.clearInterval(timer)
       window.removeEventListener('focus', poll)
     }
-  }, [props.machine, props.projectId, props.version])
+  }, [props.machine, props.projectId, props.worktreeId, props.version])
 
   return { repos, error }
 }

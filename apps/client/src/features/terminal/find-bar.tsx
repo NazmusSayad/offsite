@@ -7,7 +7,8 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { closeFind, find, onFindResults } from './session'
+import type { FindResults } from '@/lib/ghostty/find'
+import { getSession, setState } from './session'
 import { isFindShortcut } from './shortcuts'
 
 export function FindBar(props: { id: number }) {
@@ -83,4 +84,24 @@ export function FindBar(props: { id: number }) {
       </Button>
     </div>
   )
+}
+
+function find(
+  id: number,
+  text: string,
+  backwards: boolean,
+  incremental: boolean
+) {
+  getSession(id).find(text, backwards, incremental)
+}
+
+function onFindResults(id: number, listener: (results: FindResults) => void) {
+  return getSession(id).onFindResults(listener)
+}
+
+function closeFind(id: number) {
+  const terminal = getSession(id)
+  terminal.clearFind()
+  setState({ finding: null })
+  terminal.focus()
 }

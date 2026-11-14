@@ -40,6 +40,7 @@ const log = logger.withTag('git')
 type BranchTarget = {
   machine: string
   projectId: string
+  worktreeId: string | null
   repo: Omit<GitRepo, 'added' | 'removed'>
   onRefresh: () => void
 }
@@ -47,11 +48,7 @@ type BranchTarget = {
 export function BranchPicker(props: BranchTarget) {
   const [open, setOpen] = useState(false)
   const action = syncAction(props.repo)
-  const worktree = useStore(
-    (state) =>
-      (projectOf(state, props.machine, props.projectId)?.parentId ?? null) !==
-      null
-  )
+  const worktree = props.worktreeId !== null
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -104,6 +101,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   const target = props.target
   const machine = target.machine
   const projectId = target.projectId
+  const worktreeId = target.worktreeId
   const repoPath = target.repo.path
   const onRefresh = target.onRefresh
   const [branches, setBranches] = useState<
@@ -129,6 +127,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
       (item) =>
         item.machine === machine &&
         item.projectId === projectId &&
+        item.worktreeId === worktreeId &&
         item.machine === state.selection?.machine &&
         item.id === state.selection.sessionId
     )
@@ -145,15 +144,18 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   const [confirmingMove, setConfirmingMove] = useState(false)
 
   useEffect(() => {
-    call(machine, 'git.localBranches', { projectId, repo: repoPath }).then(
-      setBranches,
-      (error: unknown) => log.error('could not list branches', error)
+    call(machine, 'git.localBranches', {
+      projectId,
+      worktreeId,
+      repo: repoPath,
+    }).then(setBranches, (error: unknown) =>
+      log.error('could not list branches', error)
     )
-    call(machine, 'git.fetch', { projectId }).then(
+    call(machine, 'git.fetch', { projectId, worktreeId }).then(
       onRefresh,
       (error: unknown) => log.error('could not fetch', error)
     )
-  }, [machine, projectId, repoPath, onRefresh])
+  }, [machine, projectId, worktreeId, repoPath, onRefresh])
 
   function busy(branch: string) {
     return (
@@ -164,7 +166,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   async function sync() {
     setSyncing(true)
     try {
-      await call(machine, 'git.sync', { projectId, repo: repoPath })
+      await call(machine, 'git.sync', { projectId, worktreeId, repo: repoPath })
       props.onClose()
     } catch (error) {
       showError(error)
@@ -179,6 +181,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
     try {
       await call(machine, 'git.switch', {
         projectId,
+        worktreeId,
         repo: repoPath,
         branch,
         create,
@@ -204,7 +207,13 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
       const selection = getState().selection
       if (selection?.machine === machine && selection.sessionId === sessionId) {
         openSession(
-          { machine, projectId: result.projectId, sessionId, pending: null },
+          {
+            machine,
+            projectId,
+            worktreeId: result.worktreeId,
+            sessionId,
+            pending: null,
+          },
           null,
           true
         )
@@ -369,6 +378,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             <RemoteBranches
               machine={machine}
               projectId={projectId}
+              worktreeId={worktreeId}
               repo={repoPath}
               disabled={(branch) => switching || busy(branch) !== null}
               onSwitch={(branch) => void switchTo(branch, false)}
@@ -409,6 +419,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
               <MoveWorktreeDialog
                 machine={machine}
                 projectId={projectId}
+                worktreeId={worktreeId}
                 name={name}
                 onConfirm={() => void move(session.id)}
               />

@@ -7,6 +7,7 @@ export type Session = {
   provider: Provider
   title: string
   projectId: string
+  worktreeId: string | null
   branch: string | null
   updatedAt: number
   status: 'active' | 'pinned' | 'snoozed' | 'minimized' | 'inactive'
@@ -43,6 +44,7 @@ export type SessionRuntime = {
 export type RewindRequest = {
   sessionId: string
   projectId: string
+  worktreeId: string | null
   messageId: string
   settings: SessionSettings
   code: boolean

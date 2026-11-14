@@ -189,6 +189,7 @@ function pageMessage(machine, notice, kind) {
     type: 'openSession',
     machine,
     project: notice.target.projectId,
+    worktree: notice.target.worktreeId,
     sessionId: notice.target.sessionId,
     panel: kind === 'diff' ? 'diff' : null,
   }
@@ -198,6 +199,9 @@ function targetUrl(machine, target, kind) {
   const params = new URLSearchParams()
   params.set('machine', machine)
   params.set('project', target.projectId)
+  if (target.worktreeId !== null) {
+    params.set('worktree', target.worktreeId)
+  }
   params.set('session', target.sessionId)
   if (kind === 'diff') {
     params.set('panel', 'diff')

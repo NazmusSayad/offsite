@@ -9,16 +9,17 @@ import {
   FRAME_OUTPUT,
   FRAME_REPLAY,
   FRAME_REPLY,
-  GLOBAL_TERMINALS,
   type TerminalEvent,
   type TerminalLayout,
   type TerminalRequest,
+  type TerminalPlace,
   type TerminalTab,
+  terminalViewOf,
 } from '@offsite/core/terminal'
 import { broadcast, type Client } from '../../lib/hub.ts'
 import { logger } from '../../lib/log.ts'
 import { workingDirectory } from '../../storage/config.ts'
-import { projectPath } from '../projects.ts'
+import { type Place, placePath } from '../project-worktrees.ts'
 import { Scanner } from './alerts.ts'
 import { busyProgram, currentDirectory, startShell } from './process.ts'
 
@@ -166,7 +167,7 @@ async function request(
 ) {
   switch (message.type) {
     case 'createTab':
-      await createTab(message.projectId)
+      await createTab(message)
       break
     case 'closeTab':
       closeTab(message.id)
@@ -181,16 +182,21 @@ async function request(
     }
     case 'assignTab': {
       const tab = findTab(message.id)
-      if (tab === undefined || tab.projectId === message.projectId) {
+      if (
+        tab === undefined ||
+        (tab.projectId === message.projectId &&
+          tab.worktreeId === message.worktreeId)
+      ) {
         return
       }
       if (message.projectId !== null) {
-        projectPath(message.projectId)
+        placePath(message.projectId, message.worktreeId)
       }
       release(tab)
       tab.projectId = message.projectId
-      if (!active.has(message.projectId ?? GLOBAL_TERMINALS)) {
-        active.set(message.projectId ?? GLOBAL_TERMINALS, tab.id)
+      tab.worktreeId = message.worktreeId
+      if (!active.has(terminalViewOf(tab))) {
+        active.set(terminalViewOf(tab), tab.id)
       }
       break
     }
@@ -240,13 +246,16 @@ function input(connection: Connection, bytes: Buffer) {
   terminal.pty.write(Buffer.from(frame.data))
 }
 
-async function createTab(projectId: string | null) {
-  const cwd = projectId === null ? workingDirectory() : projectPath(projectId)
+async function createTab(place: TerminalPlace) {
+  const cwd =
+    place.projectId === null
+      ? workingDirectory()
+      : placePath(place.projectId, place.worktreeId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
     log.error(`${cwd} is not a folder, terminal not created`)
     return
   }
-  const activeId = active.get(projectId ?? GLOBAL_TERMINALS)
+  const activeId = active.get(terminalViewOf(place))
   const current = activeId === undefined ? undefined : terminals.get(activeId)
   let directory = cwd
   if (current !== undefined) {
@@ -263,19 +272,24 @@ async function createTab(projectId: string | null) {
     }
   }
   try {
-    openTab(projectId, directory, null, {})
+    openTab(place, directory, null, {})
   } catch (error) {
     log.error(`could not start a terminal:`, error)
   }
 }
 
 export function startSetup(
-  projectId: string,
+  place: Place,
   command: string,
   environment: Record<string, string>
 ) {
   try {
-    const pty = openTab(projectId, projectPath(projectId), 'Setup', environment)
+    const pty = openTab(
+      place,
+      placePath(place.projectId, place.worktreeId),
+      'Setup',
+      environment
+    )
     const started = pty.onData(() => {
       started.dispose()
       pty.write(`${command}\r`)
@@ -286,9 +300,9 @@ export function startSetup(
   }
 }
 
-export function closeProjectTerminals(projectId: string) {
+export function closeWorktreeTerminals(worktreeId: string) {
   const ids = tabs
-    .filter((tab) => tab.projectId === projectId)
+    .filter((tab) => tab.worktreeId === worktreeId)
     .map((tab) => tab.id)
   for (const id of ids) {
     closeTab(id)
@@ -299,7 +313,7 @@ export function closeProjectTerminals(projectId: string) {
 }
 
 function openTab(
-  projectId: string | null,
+  place: TerminalPlace,
   directory: string,
   customName: string | null,
   environment: Record<string, string>
@@ -316,8 +330,13 @@ function openTab(
   }
   log.info(`started terminal ${id} with pid ${pty.pid} in ${directory}`)
   terminals.set(id, terminal)
-  tabs.push({ id, projectId, customName })
-  active.set(projectId ?? GLOBAL_TERMINALS, id)
+  tabs.push({
+    id,
+    projectId: place.projectId,
+    worktreeId: place.worktreeId,
+    customName,
+  })
+  active.set(terminalViewOf(place), id)
   pty.onData((data) => output(id, terminal, Buffer.from(data)))
   if (connections.size === 0) {
     pty.pause()
@@ -422,11 +441,11 @@ function findTab(id: number) {
 }
 
 function viewTabs(view: string) {
-  return tabs.filter((tab) => (tab.projectId ?? GLOBAL_TERMINALS) === view)
+  return tabs.filter((tab) => terminalViewOf(tab) === view)
 }
 
 function release(tab: TerminalTab) {
-  const view = tab.projectId ?? GLOBAL_TERMINALS
+  const view = terminalViewOf(tab)
   if (active.get(view) !== tab.id) {
     return
   }

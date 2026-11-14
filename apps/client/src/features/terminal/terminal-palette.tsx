@@ -1,7 +1,7 @@
 import { SearchIcon, SquareTerminalIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { NO_PROJECT } from '@offsite/core/projects'
-import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
+import { type TerminalPlace, terminalViewOf } from '@offsite/core/terminal'
 import {
   type ReactNode,
   useLayoutEffect,
@@ -10,12 +10,12 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { homePath, rankProjects, withWorktrees } from '@/api/projects'
+import { homePath, rankProjects } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { MachineLogo } from '@/constants/machine-icons'
 import { useStore } from '@/lib/store'
-import { useTerminalPage, useTerminalView } from '@/lib/url'
+import { useTerminalPage, useTerminalPlace } from '@/lib/url'
 import { cn } from '@/lib/utils'
 import { groupName } from './groups'
 import { createTab } from './page'
@@ -77,9 +77,10 @@ function TerminalPaletteContent(props: { onClose: () => void }) {
   useSyncExternalStore(subscribe, getState)
   const machines = useStore((state) => state.machines)
   const projects = useStore((state) => state.projects)
+  const worktrees = useStore((state) => state.worktrees)
   const selection = useStore((state) => state.selection)
   const page = useTerminalPage()
-  const view = useTerminalView()
+  const pagePlace = useTerminalPlace()
   const [query, setQuery] = useState('')
   const [activeKey, setActiveKey] = useState<string | null>(null)
   const list = useRef<HTMLDivElement>(null)
@@ -92,11 +93,23 @@ function TerminalPaletteContent(props: { onClose: () => void }) {
     )
   }
 
-  function placeName(machine: string, projectId: string) {
-    if (projectId === GLOBAL_TERMINALS) {
+  function worktreeOf(machine: string, worktreeId: string | null) {
+    if (worktreeId === null) {
+      return null
+    }
+    return worktrees.find(
+      (worktree) => worktree.machine === machine && worktree.id === worktreeId
+    )
+  }
+
+  function placeName(machine: string, place: TerminalPlace) {
+    if (place.projectId === null) {
       return machines.find((item) => item.id === machine)?.name ?? ''
     }
-    return groupName(projectOf(machine, projectId))
+    return groupName(
+      projectOf(machine, place.projectId),
+      worktreeOf(machine, place.worktreeId)
+    )
   }
 
   function machineName(machine: string) {
@@ -107,12 +120,18 @@ function TerminalPaletteContent(props: { onClose: () => void }) {
 
   const here =
     page !== null
-      ? { machine: page, projectId: view }
+      ? { machine: page, place: pagePlace }
       : selection !== null &&
           selection.projectId !== NO_PROJECT &&
           projectOf(selection.machine, selection.projectId)?.scratch !== true &&
           online.some((machine) => machine.id === selection.machine)
-        ? { machine: selection.machine, projectId: selection.projectId }
+        ? {
+            machine: selection.machine,
+            place: {
+              projectId: selection.projectId,
+              worktreeId: selection.worktreeId,
+            },
+          }
         : null
   const tree = online.length > 1
   const creating = [...online]
@@ -125,70 +144,88 @@ function TerminalPaletteContent(props: { onClose: () => void }) {
       )
       const shown =
         search === ''
-          ? rankProjects(
-              own.filter(
-                (project) => !project.hidden && project.parentId === null
-              )
-            ).top
-          : withWorktrees(own)
+          ? rankProjects(own.filter((project) => !project.hidden)).top.map(
+              (project): TerminalPlace => ({
+                projectId: project.id,
+                worktreeId: null,
+              })
+            )
+          : own.flatMap((project): TerminalPlace[] => [
+              { projectId: project.id, worktreeId: null },
+              ...worktrees
+                .filter(
+                  (worktree) =>
+                    worktree.machine === machine.id &&
+                    worktree.projectId === project.id
+                )
+                .map((worktree) => ({
+                  projectId: project.id,
+                  worktreeId: worktree.id,
+                })),
+            ])
       const home = machine.system?.homeDir
       const workingDir =
         machine.system === null
           ? '~'
           : (machine.config?.workingDir[machine.system.platform] ?? '~')
       return [
-        ...(here?.machine === machine.id ? [here.projectId] : []),
-        GLOBAL_TERMINALS,
-        ...shown.map((project) => project.id),
+        ...(here?.machine === machine.id ? [here.place] : []),
+        { projectId: null, worktreeId: null },
+        ...shown,
       ]
-        .filter((id, index, all) => all.indexOf(id) === index)
+        .filter(
+          (place, index, all) =>
+            all.findIndex(
+              (other) => terminalViewOf(other) === terminalViewOf(place)
+            ) === index
+        )
         .sort(
           (a, b) =>
-            Number(tree && b === GLOBAL_TERMINALS) -
-            Number(tree && a === GLOBAL_TERMINALS)
+            Number(tree && b.projectId === null) -
+            Number(tree && a.projectId === null)
         )
-        .map((projectId): Item => {
-          const project = projectOf(machine.id, projectId)
+        .map((place): Item => {
+          const project =
+            place.projectId === null
+              ? undefined
+              : projectOf(machine.id, place.projectId)
+          const worktree = worktreeOf(machine.id, place.worktreeId)
           const dir =
-            projectId === GLOBAL_TERMINALS ? workingDir : (project?.path ?? '')
+            place.projectId === null
+              ? workingDir
+              : ((worktree ?? project)?.path ?? '')
           const shortDir = home === undefined ? dir : homePath(dir, home)
           return {
-            key: `new:${machine.id}:${projectId}`,
+            key: `new:${machine.id}:${terminalViewOf(place)}`,
             section: 'New terminal',
             label:
-              projectId !== GLOBAL_TERMINALS
-                ? groupName(project)
+              place.projectId !== null
+                ? groupName(project, worktree)
                 : tree
                   ? machine.name
                   : shortDir,
-            detail: projectId === GLOBAL_TERMINALS && !tree ? '' : shortDir,
+            detail: place.projectId === null && !tree ? '' : shortDir,
             machine: machine.name,
             icon:
-              projectId === GLOBAL_TERMINALS ? (
+              place.projectId === null ? (
                 <MachineLogo icon={machine.icon} className="size-4 shrink-0" />
               ) : (
                 <ProjectIcon
                   machine={machine.id}
-                  projectId={projectId}
+                  projectId={place.projectId}
                   className="size-4 shrink-0"
                 />
               ),
-            nested: tree && projectId !== GLOBAL_TERMINALS,
+            nested: tree && place.projectId !== null,
             alert: false,
-            run: () =>
-              void createTab(
-                machine.id,
-                projectId === GLOBAL_TERMINALS ? null : projectId
-              ),
+            run: () => void createTab(machine.id, place),
           }
         })
     })
   const open = online.flatMap((machine) =>
     machine.terminals.map((tab) => {
-      const projectId = tab.projectId ?? GLOBAL_TERMINALS
-      const place = placeName(machine.id, projectId)
-      const other =
-        projectId === GLOBAL_TERMINALS ? '' : machineName(machine.id)
+      const place = placeName(machine.id, tab)
+      const other = tab.projectId === null ? '' : machineName(machine.id)
       return {
         key: `tab:${machine.id}:${tab.id}`,
         section: 'Open',
@@ -203,7 +240,7 @@ function TerminalPaletteContent(props: { onClose: () => void }) {
         ),
         nested: false,
         alert: machineTabAlerted(machine.id, tab.id),
-        run: () => showTab(machine.id, projectId, tab.id),
+        run: () => showTab(machine.id, tab, tab.id),
       }
     })
   )

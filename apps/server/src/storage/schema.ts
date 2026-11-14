@@ -12,10 +12,17 @@ export const projects = snakeCase.table('projects', {
   pinned: integer({ mode: 'boolean' }).notNull().default(false),
   hidden: integer({ mode: 'boolean' }).notNull().default(false),
   scratch: integer({ mode: 'boolean' }).notNull().default(false),
-  parentId: text(),
   worktreeSetup: text(),
-  worktreeBranch: text(),
   startInWorktree: integer({ mode: 'boolean' }).notNull().default(false),
+})
+
+export const worktrees = snakeCase.table('worktrees', {
+  id: text().primaryKey(),
+  projectId: text()
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
+  path: text().notNull().unique(),
+  branch: text(),
 })
 
 export const sessions = snakeCase.table('sessions', {
@@ -30,6 +37,7 @@ export const sessions = snakeCase.table('sessions', {
 export const sessionPlaces = snakeCase.table('session_places', {
   sessionId: text().primaryKey(),
   projectId: text().notNull(),
+  worktreeId: text().references(() => worktrees.id, { onDelete: 'cascade' }),
   claudeWorktree: integer({ mode: 'boolean' }).notNull().default(false),
 })
 
@@ -95,6 +103,7 @@ export const outbox = snakeCase.table('outbox', {
   id: text().primaryKey(),
   sessionId: text(),
   projectId: text().notNull(),
+  worktreeId: text(),
   request: text({ mode: 'json' })
     .$type<RpcMethods['sessions.send']['params']>()
     .notNull(),

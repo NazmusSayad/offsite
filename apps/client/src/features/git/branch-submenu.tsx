@@ -55,21 +55,23 @@ export function Submenu(props: {
 export function RemoteBranches(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   repo: string
   disabled: (branch: string) => boolean
   onSwitch: (branch: string) => void
 }) {
   const machine = props.machine
   const projectId = props.projectId
+  const worktreeId = props.worktreeId
   const repo = props.repo
   const [remotes, setRemotes] = useState<string[] | null>(null)
 
   useEffect(() => {
-    call(machine, 'git.remoteBranches', { projectId, repo }).then(
+    call(machine, 'git.remoteBranches', { projectId, worktreeId, repo }).then(
       setRemotes,
       showError
     )
-  }, [machine, projectId, repo])
+  }, [machine, projectId, worktreeId, repo])
 
   if (remotes === null) {
     return (

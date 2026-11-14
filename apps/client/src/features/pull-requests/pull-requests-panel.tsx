@@ -49,6 +49,7 @@ const scopes: { value: PullRequestFilter['scope']; label: string }[] = [
 export function PullRequestsPanel(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   running: boolean
   onClose: () => void
   mobile: boolean
@@ -75,7 +76,10 @@ export function PullRequestsPanel(props: {
 
   useEffect(() => {
     let current = true
-    call(props.machine, 'git.status', { projectId: props.projectId }).then(
+    call(props.machine, 'git.status', {
+      projectId: props.projectId,
+      worktreeId: props.worktreeId,
+    }).then(
       (result) => {
         if (current) {
           setRepos({
@@ -95,7 +99,7 @@ export function PullRequestsPanel(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.projectId])
+  }, [props.machine, props.projectId, props.worktreeId])
 
   useEffect(() => {
     if (repo === null) {
@@ -115,6 +119,7 @@ export function PullRequestsPanel(props: {
       try {
         const result = await call(props.machine, 'pulls.list', {
           projectId: props.projectId,
+          worktreeId: props.worktreeId,
           repo: target,
           filter: { state: filter.state, scope: filter.scope, search },
           fresh,
@@ -146,6 +151,7 @@ export function PullRequestsPanel(props: {
   }, [
     props.machine,
     props.projectId,
+    props.worktreeId,
     repo,
     filter.state,
     filter.scope,

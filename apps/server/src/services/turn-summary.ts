@@ -1,7 +1,7 @@
 import path from 'node:path'
 import type { Item } from '@offsite/core/items'
 import { diffLines } from 'diff'
-import { sessionHistory } from './runs.ts'
+import { sessionHistory } from './session-history.ts'
 
 const IMAGE = /!\[[^\]]*\]\((<[^>]+>|[^)\s]+)\)/g
 

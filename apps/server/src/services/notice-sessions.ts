@@ -8,6 +8,7 @@ import { sessions } from './sessions.ts'
 export type NoticeSession = {
   sessionId: string
   projectId: string
+  worktreeId: string | null
   title: string
   settings: SessionSettings
 }
@@ -20,6 +21,7 @@ export function noticeSession(sessionId: string, settings: SessionSettings) {
   return {
     sessionId,
     projectId: session.projectId,
+    worktreeId: session.worktreeId,
     title: session.title,
     settings,
   }
@@ -30,6 +32,7 @@ export function sendText(client: Client, session: NoticeSession, text: string) {
     id: randomUUID(),
     sessionId: session.sessionId,
     projectId: session.projectId,
+    worktreeId: session.worktreeId,
     prompt: { text, images: [] },
     settings: session.settings,
     delivery: readConfig().delivery,
