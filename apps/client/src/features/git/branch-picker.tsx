@@ -31,7 +31,7 @@ import { setOpen as setTerminalOpen } from '@/features/terminal/session'
 import { logger } from '@/lib/log'
 import { openSession } from '@/lib/sessions'
 import { getState, projectOf, showError, useStore } from '@/lib/store'
-import { cn, touch } from '@/lib/utils'
+import { cn, splitAtLimit, touch } from '@/lib/utils'
 
 const log = logger.withTag('git')
 
@@ -117,6 +117,11 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
     branch.name.toLowerCase().includes(name.toLowerCase())
   )
   const exists = (branches ?? []).some((branch) => branch.name === name)
+  const local = splitAtLimit(
+    matches,
+    5,
+    (branch) => branch.name === target.repo.branch
+  )
   const session = useStore((state) =>
     state.sessions.find(
       (item) =>
@@ -341,21 +346,21 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             No branches
           </p>
         )}
-        {(name === '' ? matches.slice(0, 5) : matches).map((branch) =>
+        {(name === '' ? local.shown : matches).map((branch) =>
           localRow(branch, false)
         )}
-        {name === '' && matches.length > 5 && (
+        {name === '' && local.more.length > 0 && (
           <Submenu
             open={sub === 'local'}
             onOpenChange={(open) => setSub(open ? 'local' : null)}
             trigger={
               <MoreLabel
-                text={`${matches.length - 5} more branches`}
+                text={`${local.more.length} more branches`}
                 className="size-3.5"
               />
             }
           >
-            {matches.slice(5).map((branch) => localRow(branch, true))}
+            {local.more.map((branch) => localRow(branch, true))}
           </Submenu>
         )}
         {name === '' && branches !== null && (

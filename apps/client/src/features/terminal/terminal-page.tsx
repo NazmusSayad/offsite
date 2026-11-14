@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/popover'
 import { useStore } from '@/lib/store'
 import { useTerminalPage, useTerminalView } from '@/lib/url'
-import { cn, touch } from '@/lib/utils'
+import { cn, splitAtLimit, touch } from '@/lib/utils'
 import { closeTabs } from './close-tab'
 import { type Group, useGroups, alerted, GroupIcon, GroupCount } from './groups'
 import { useHoverMenu } from './hover-menu'
@@ -366,20 +366,26 @@ function WorktreeGroups(props: { machine: string; rootId: string }) {
     )
   }
 
+  const list = splitAtLimit(
+    groups,
+    6,
+    (group) => group.machine.id === page && group.view === view
+  )
+
   return (
     <>
-      {groups.slice(0, 6).map(item)}
-      {groups.length > 6 && (
+      {list.shown.map(item)}
+      {list.more.length > 0 && (
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <MoreLabel
-              text={`${groups.length - 6} more worktrees`}
+              text={`${list.more.length} more worktrees`}
               className="size-4"
             />
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent className="max-h-80 max-w-96 min-w-56 overflow-y-auto">
-              {groups.slice(6).map(item)}
+              {list.more.map(item)}
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>

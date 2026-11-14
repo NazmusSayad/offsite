@@ -23,7 +23,7 @@ import {
   showSettingsPage,
   useStore,
 } from '@/lib/store'
-import { cn, touch } from '@/lib/utils'
+import { cn, splitAtLimit, touch } from '@/lib/utils'
 import { useModelLoading } from './model-loading'
 import { moveFocus } from './move-focus'
 
@@ -68,6 +68,9 @@ export function ModelMenu(props: {
     `${option.name} ${option.description}`.toLowerCase().includes(search)
   )
   const grouped = viewedProvider === 'opencode' && search === ''
+  function selected(option: Model) {
+    return viewed === current && option.value === settings.model
+  }
   const [expanded, setExpanded] = useState<string[]>([])
   const [focused, setFocused] = useState<string | null>(null)
   const shown = grouped
@@ -76,7 +79,9 @@ export function ModelMenu(props: {
           const list = matches.filter(
             (option) => option.description === provider
           )
-          return expanded.includes(provider) ? list : list.slice(0, 5)
+          return expanded.includes(provider)
+            ? list
+            : splitAtLimit(list, 5, selected).shown
         }
       )
     : matches
@@ -347,19 +352,20 @@ export function ModelMenu(props: {
                       (option) => option.description === provider
                     )
                     const open = expanded.includes(provider)
+                    const split = splitAtLimit(list, 5, selected)
                     return (
                       <Fragment key={provider}>
                         <p className="text-muted-foreground px-2 pt-2 pb-1 text-xs font-medium">
                           {provider}
                         </p>
-                        {(open ? list : list.slice(0, 5)).map(modelRow)}
-                        {!open && list.length > 5 && (
+                        {(open ? list : split.shown).map(modelRow)}
+                        {!open && split.more.length > 0 && (
                           <button
                             className="hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm"
                             onClick={() => setExpanded([...expanded, provider])}
                           >
                             <MoreLabel
-                              text={`${list.length - 5} more`}
+                              text={`${split.more.length} more`}
                               className="size-3.5"
                             />
                           </button>

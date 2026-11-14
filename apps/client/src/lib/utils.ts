@@ -11,6 +11,21 @@ export const mod = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'
 export const touch = window.matchMedia('(pointer: coarse)')
 export const wide = window.matchMedia('(min-width: 768px)')
 
+export function splitAtLimit<T>(
+  items: T[],
+  limit: number,
+  selected: (item: T) => boolean
+) {
+  const index = items.findIndex(selected)
+  if (index === -1 || index < limit) {
+    return { shown: items.slice(0, limit), more: items.slice(limit) }
+  }
+  return {
+    shown: [...items.slice(0, limit - 1), items[index]],
+    more: [...items.slice(limit - 1, index), ...items.slice(index + 1)],
+  }
+}
+
 export function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }

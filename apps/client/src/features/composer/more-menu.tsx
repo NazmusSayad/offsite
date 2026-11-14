@@ -46,7 +46,7 @@ import {
   type State,
   useStore,
 } from '@/lib/store'
-import { mod, touch } from '@/lib/utils'
+import { mod, splitAtLimit, touch } from '@/lib/utils'
 import type { Dictation } from './dictation'
 import { deleteStash, hasPrompt, useDraft, useStash } from './drafts'
 import { keepFocusOnTouch, refocusComposer } from './picker'
@@ -173,6 +173,7 @@ function MoreMenuContent(props: {
   const capabilities = useStore((state) => state.capabilities)
   const modes = providerModes(settings.provider, capabilities)
   const mode = modes.find((item) => item.value === settings.mode)
+  const modeList = splitAtLimit(modes, 5, (item) => item === mode)
   const title = settings.provider === 'opencode' ? 'Agent' : 'Permission mode'
   const stash = useStash()
   const key = useStore((state) =>
@@ -259,18 +260,18 @@ function MoreMenuContent(props: {
           <DropdownMenuSubContent className="w-56">
             <DropdownMenuLabel>{title}</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={settings.mode ?? ''}>
-              {modes.slice(0, 5).map(modeItem)}
-              {modes.length > 5 && (
+              {modeList.shown.map(modeItem)}
+              {modeList.more.length > 0 && (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <MoreLabel
-                      text={`${modes.length - 5} more agents`}
+                      text={`${modeList.more.length} more agents`}
                       className="size-4"
                     />
                   </DropdownMenuSubTrigger>
                   <DropdownMenuPortal>
                     <DropdownMenuSubContent className="max-h-80 w-56 overflow-y-auto">
-                      {modes.slice(5).map(modeItem)}
+                      {modeList.more.map(modeItem)}
                     </DropdownMenuSubContent>
                   </DropdownMenuPortal>
                 </DropdownMenuSub>

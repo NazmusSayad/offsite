@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { splitAtLimit } from '@/lib/utils'
 
 export type Draft = {
   base: string
@@ -87,20 +88,26 @@ function BaseItems(props: {
     )
   }
 
+  const list = splitAtLimit(
+    props.branches,
+    5,
+    (branch) => branch === props.base
+  )
+
   return (
     <DropdownMenuRadioGroup value={props.base} onValueChange={props.onBase}>
-      {props.branches.slice(0, 5).map(item)}
-      {props.branches.length > 5 && (
+      {list.shown.map(item)}
+      {list.more.length > 0 && (
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <MoreLabel
-              text={`${props.branches.length - 5} more branches`}
+              text={`${list.more.length} more branches`}
               className="size-3.5"
             />
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent className="max-h-80 w-56 overflow-y-auto">
-              {props.branches.slice(5).map(item)}
+              {list.more.map(item)}
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>

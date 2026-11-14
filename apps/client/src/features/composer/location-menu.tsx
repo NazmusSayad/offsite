@@ -23,7 +23,7 @@ import { timeAgo } from '@/lib/format'
 import { logger } from '@/lib/log'
 import { openSession } from '@/lib/sessions'
 import { update, useStore } from '@/lib/store'
-import { errorMessage } from '@/lib/utils'
+import { errorMessage, splitAtLimit } from '@/lib/utils'
 
 const log = logger.withTag('worktree')
 
@@ -97,6 +97,11 @@ export function LocationMenu(props: {
   )
 
   const defaultBranch = found.defaultBranch
+  const worktreeList = splitAtLimit(
+    worktrees,
+    5,
+    (item) => item.projectId === props.projectId
+  )
 
   function branchItem(name: string) {
     return (
@@ -208,18 +213,18 @@ export function LocationMenu(props: {
         />
         <span className="min-w-0 flex-1 truncate">New worktree</span>
       </DropdownMenuRadioItem>
-      {worktrees.slice(0, 5).map(worktreeItem)}
-      {worktrees.length > 5 && (
+      {worktreeList.shown.map(worktreeItem)}
+      {worktreeList.more.length > 0 && (
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <MoreLabel
-              text={`${worktrees.length - 5} more worktrees`}
+              text={`${worktreeList.more.length} more worktrees`}
               className="size-3.5"
             />
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent className="max-h-80 w-72 overflow-y-auto">
-              {worktrees.slice(5).map(worktreeItem)}
+              {worktreeList.more.map(worktreeItem)}
             </DropdownMenuSubContent>
           </DropdownMenuPortal>
         </DropdownMenuSub>
