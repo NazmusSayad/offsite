@@ -59,7 +59,7 @@ export function PullRequestView(props: {
   const [version, setVersion] = useState(0)
   const [tab, setTab] = useLocalStorage<
     'overview' | 'guide' | 'files' | 'changes' | 'commits'
-  >('pullRequestTab', 'overview')
+  >(`pullRequestTab:${props.url}`, 'overview')
   const [fullscreen, setFullscreen] = useState(false)
   const [busy, setBusy] = useState<PullRequestAction['kind'] | null>(null)
   const [notice, setNotice] = useState<{
@@ -430,6 +430,7 @@ export function PullRequestView(props: {
         </div>
       )}
       <PullRequestActions
+        url={props.url}
         details={details}
         busy={busy}
         notice={notice}
