@@ -94,6 +94,8 @@ export type Item = {
       agent: string
       description: string
       agentId: string | null
+      model: string | null
+      effort: string | null
       status: ItemStatus
     }
   | {

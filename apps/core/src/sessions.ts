@@ -75,6 +75,8 @@ export type SessionActivity = {
   step: Item | null
   todos: TodoStep[] | null
   work: Item[]
+  agentModels: Record<string, string>
+  modelNames: Record<string, string>
 }
 
 export const exportDetails = ['messages', 'steps', 'details', 'full'] as const
