@@ -5,7 +5,9 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { SUBAGENT_ICON } from '@offsite/core/icons/agents'
 import type { Item } from '@offsite/core/items'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Markdown } from '@/components/markdown/markdown'
+import { ShowMorePill } from '@/features/transcript/show-more-pill'
 import { taskTitle, type threadTasks } from '@/features/transcript/tasks'
 import type { AgentItem, ReceivedItem } from '@/features/transcript/timeline'
 import { Shimmer } from '@/features/transcript/tool-row'
@@ -153,11 +155,41 @@ export function AgentLine(props: {
 
 export function ReceivedMessage(props: {
   item: ReceivedItem
+  open: boolean
+  onToggle: () => void
   onOpen: (id: string) => void
 }) {
   const target = props.item.target
+  const frame = useRef<HTMLFieldSetElement>(null)
+  const body = useRef<HTMLDivElement>(null)
+  const [long, setLong] = useState(false)
+  const folded = props.item.source === 'agent' && !props.open
+
+  useLayoutEffect(() => {
+    const element = body.current
+    if (element === null) {
+      throw new Error('received message is not mounted')
+    }
+    if (!folded) {
+      return
+    }
+    setLong(element.scrollHeight > element.clientHeight)
+    const observer = new ResizeObserver(() =>
+      setLong(element.scrollHeight > element.clientHeight)
+    )
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [folded])
+
   return (
-    <fieldset className="border-border max-w-[85%] min-w-0 rounded-md border border-dashed px-3 pt-0.5 pb-2">
+    <fieldset
+      ref={frame}
+      className={cn(
+        'border-border max-w-[85%] min-w-0 rounded-md border border-dashed px-3 pt-0.5',
+        long && 'mb-3 pb-0',
+        !long && 'pb-2'
+      )}
+    >
       <legend className="text-muted-foreground -ms-1 flex max-w-full min-w-0 items-center gap-1.5 px-1 text-xs select-none">
         {props.item.source === 'agent' ? (
           <SubagentIcon className="size-3.5" />
@@ -182,12 +214,34 @@ export function ReceivedMessage(props: {
           </button>
         )}
       </legend>
-      <Markdown
-        text={props.item.text}
-        className="text-muted-foreground text-[13px]"
-        lineBreaks
-        rawHtml={false}
-      />
+      <div
+        ref={body}
+        className={cn(
+          folded && 'max-h-24 overflow-hidden',
+          folded && long && 'mask-b-from-20%'
+        )}
+      >
+        <Markdown
+          text={props.item.text}
+          className="text-muted-foreground text-[13px]"
+          lineBreaks
+          rawHtml={false}
+        />
+      </div>
+      {long && (
+        <ShowMorePill
+          open={props.open}
+          className="bg-background"
+          onClick={() => {
+            props.onToggle()
+            if (props.open) {
+              requestAnimationFrame(() =>
+                frame.current?.scrollIntoView({ block: 'nearest' })
+              )
+            }
+          }}
+        />
+      )}
     </fieldset>
   )
 }
