@@ -60,7 +60,7 @@ export function PullRequestView(props: {
     'overview' | 'guide' | 'files' | 'changes' | 'commits'
   >('pullRequestTab', 'overview')
   const [fullscreen, setFullscreen] = useState(false)
-  const [busy, setBusy] = useState<string | null>(null)
+  const [busy, setBusy] = useState<PullRequestAction['kind'] | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const forced = useRef(false)
 
@@ -108,7 +108,7 @@ export function PullRequestView(props: {
   }, [props.machine, props.projectId, props.url, props.running, version])
 
   async function perform(action: PullRequestAction, label: string) {
-    setBusy(label)
+    setBusy(action.kind)
     try {
       await call(props.machine, 'pulls.run', {
         projectId: props.projectId,

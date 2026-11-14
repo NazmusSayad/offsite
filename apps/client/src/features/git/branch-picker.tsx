@@ -391,7 +391,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
           >
             <HugeiconsIcon
               icon={moving ? CircleDashedIcon : NewWorktreeIcon}
-              className={cn('size-3.5 shrink-0', moving && 'animate-spin')}
+              className={cn('size-5 shrink-0', moving && 'animate-spin')}
             />
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate">

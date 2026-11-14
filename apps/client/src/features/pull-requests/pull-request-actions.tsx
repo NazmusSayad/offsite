@@ -50,6 +50,18 @@ import { cn } from '@/lib/utils'
 
 type Perform = (action: PullRequestAction, label: string) => Promise<boolean>
 
+const pendingLabels: Record<PullRequestAction['kind'], string> = {
+  merge: 'Merging',
+  close: 'Closing',
+  reopen: 'Reopening',
+  ready: 'Marking ready',
+  draft: 'Converting to draft',
+  checkout: 'Checking out',
+  approve: 'Approving',
+  requestChanges: 'Requesting changes',
+  comment: 'Posting comment',
+}
+
 const methodLabels: Record<
   MergeMethod,
   { button: string; hint: string; icon: IconSvgElement }
@@ -73,7 +85,7 @@ const methodLabels: Record<
 
 export function PullRequestActions(props: {
   details: PullRequestDetails | null
-  busy: string | null
+  busy: PullRequestAction['kind'] | null
   onPerform: Perform
 }) {
   const details = props.details
@@ -132,6 +144,9 @@ export function PullRequestActions(props: {
               void props.onPerform({ kind: 'ready' }, 'Marked ready for review')
             }
           >
+            {props.busy === 'ready' && (
+              <HugeiconsIcon icon={Loading03Icon} className="animate-spin" />
+            )}
             Ready for review
           </Button>
         )}
@@ -153,7 +168,14 @@ export function PullRequestActions(props: {
               disabled={disabled}
               onClick={() => setMerging(true)}
             >
-              <HugeiconsIcon icon={methodLabels[method].icon} />
+              <HugeiconsIcon
+                icon={
+                  props.busy === 'merge'
+                    ? Loading03Icon
+                    : methodLabels[method].icon
+                }
+                className={cn(props.busy === 'merge' && 'animate-spin')}
+              />
               {methodLabels[method].button}
             </Button>
             <DropdownMenu>
@@ -189,6 +211,9 @@ export function PullRequestActions(props: {
               void props.onPerform({ kind: 'reopen' }, 'Pull request reopened')
             }
           >
+            {props.busy === 'reopen' && (
+              <HugeiconsIcon icon={Loading03Icon} className="animate-spin" />
+            )}
             Reopen
           </Button>
         )}
@@ -348,12 +373,16 @@ function MergeDialog(props: {
 
 export function MergeStatus(props: {
   details: PullRequestDetails
-  busy: string | null
+  busy: PullRequestAction['kind'] | null
   notice: string | null
 }) {
   const status =
     props.busy !== null
-      ? { text: props.busy, tone: 'none' as const, icon: Loading03Icon }
+      ? {
+          text: pendingLabels[props.busy],
+          tone: 'none' as const,
+          icon: Loading03Icon,
+        }
       : props.notice !== null
         ? {
             text: props.notice,
