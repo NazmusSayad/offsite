@@ -96,13 +96,13 @@ export function LinkDialog(props: {
         </AlertDialogTitle>
         <AlertDialogDescription>
           {result === null &&
-            `${name} will use the threads, plans, tasks and settings in your main Claude folder. Anything with content is renamed to a backup, never deleted. Threads running on ${name} stop first.`}
+            `${name} will share threads, plans, tasks and settings with your main Claude folder. Its running threads stop first. Its own files are kept as backups.`}
           {result !== null &&
             !failed &&
-            `${name} now shares threads with your main Claude folder and shows in the composer.`}
+            `${name} now shares threads with your main Claude folder. You can pick it in the composer.`}
           {result !== null &&
             failed &&
-            'Some entries could not be linked. Fix the problem below and link again.'}
+            'Some items did not link. Fix the problem below, then link again.'}
         </AlertDialogDescription>
       </AlertDialogHeader>
       {plan === null && error === null && (

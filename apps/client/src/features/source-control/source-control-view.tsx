@@ -354,7 +354,7 @@ export function SourceControlView(props: {
               There are no staged changes to commit.
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Would you like to stage all your changes and commit them directly?
+              Stage all changes and commit them?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -426,13 +426,7 @@ function DiscardDialog(props: {
               ? `Are you sure you want to DELETE the following untracked file: '${baseName(discardFiles[0].path)}'?`
               : `Are you sure you want to discard changes in '${baseName(discardFiles.at(0)?.path ?? '')}'?`}
         </AlertDialogTitle>
-        <AlertDialogDescription>
-          {discardFiles.length > 1 &&
-            'This is IRREVERSIBLE! Your current working set will be FOREVER LOST if you proceed.'}
-          {discardFiles.length === 1 &&
-            untracked.length === 1 &&
-            'This is IRREVERSIBLE! This file will be FOREVER LOST if you proceed.'}
-        </AlertDialogDescription>
+        <AlertDialogDescription>You cannot undo this.</AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>Cancel</AlertDialogCancel>

@@ -194,8 +194,8 @@ function DiscardDialog(props: { repo: GitRepo; target: Target; onRun: Run }) {
           Discard changes in {count} {count === 1 ? 'file' : 'files'}?
         </AlertDialogTitle>
         <AlertDialogDescription>
-          All uncommitted changes, including new files, will be permanently
-          deleted. This can&apos;t be undone.
+          This deletes all uncommitted changes, including new files. You cannot
+          undo this.
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>

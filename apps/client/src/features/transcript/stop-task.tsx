@@ -36,7 +36,7 @@ export function StopTaskDialog(props: {
           <AlertDialogHeader>
             <AlertDialogTitle>Stop {stopping.title}?</AlertDialogTitle>
             <AlertDialogDescription>
-              It is still running. Do you really want to stop it?
+              It is still running.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

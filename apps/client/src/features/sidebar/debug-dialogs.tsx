@@ -107,8 +107,8 @@ function RestartDialog(props: { session: MachineSession }) {
       <AlertDialogHeader>
         <AlertDialogTitle>Restart Claude?</AlertDialogTitle>
         <AlertDialogDescription>
-          This stops the agent and kills this thread&apos;s Claude Code process,
-          including any background tasks, then starts it again.
+          Claude Code stops for this thread, with all background tasks. Then it
+          starts again.
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
@@ -133,8 +133,8 @@ function StopDialog(props: { session: MachineSession }) {
       <AlertDialogHeader>
         <AlertDialogTitle>Stop Claude?</AlertDialogTitle>
         <AlertDialogDescription>
-          This stops the agent and kills this thread&apos;s Claude Code process,
-          including any background tasks. The next message starts it again.
+          Claude Code stops for this thread, with all background tasks. Your
+          next message starts it again.
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>

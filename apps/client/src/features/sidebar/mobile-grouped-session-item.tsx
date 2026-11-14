@@ -78,8 +78,8 @@ export function MobileGroupedSessionItem(props: {
         <AlertDialogHeader>
           <AlertDialogTitle>Stop running work?</AlertDialogTitle>
           <AlertDialogDescription>
-            The agent or background tasks are running. Do you really want to
-            stop them?
+            This stops the agent and all background tasks, then marks the thread
+            as done.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

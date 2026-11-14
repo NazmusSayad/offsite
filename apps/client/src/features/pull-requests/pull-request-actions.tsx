@@ -358,7 +358,7 @@ function MergeDialog(props: {
           Merge <code>{details.head}</code> into <code>{details.base}</code>
           {props.cleanup ? ', then delete the branch.' : '.'}
           {waiting &&
-            ' If required checks or reviews are still missing, GitHub turns on auto-merge instead.'}
+            ' If checks or reviews are still needed, GitHub merges it later, when they pass.'}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>

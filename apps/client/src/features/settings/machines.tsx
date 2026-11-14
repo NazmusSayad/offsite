@@ -374,8 +374,8 @@ function EditMachinePage(props: { machine: Machine }) {
             <AlertDialogHeader>
               <AlertDialogTitle>Remove {machine.name}?</AlertDialogTitle>
               <AlertDialogDescription>
-                This browser forgets the machine. The machine and its threads
-                stay untouched.
+                This browser forgets the machine. Nothing on the machine is
+                deleted.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

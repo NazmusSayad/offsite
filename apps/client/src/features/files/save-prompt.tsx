@@ -31,8 +31,8 @@ export function ConflictPrompt(props: {
             {`${baseName(props.path ?? '')} changed on disk`}
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Something else changed this file after you opened it. Overwriting
-            replaces that version with yours.
+            It changed after you opened it. Overwrite replaces that version with
+            yours.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -84,7 +84,7 @@ function SavePromptBody(props: {
         </AlertDialogTitle>
         <AlertDialogDescription>
           {paths.length > 1 && `${paths.map(baseName).join(', ')}. `}
-          {"Your changes will be lost if you don't save them."}
+          {"If you don't save, you lose your changes."}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>

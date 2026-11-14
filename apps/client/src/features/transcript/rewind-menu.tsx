@@ -64,7 +64,7 @@ const modes = {
   code: {
     label: 'Restore code',
     description:
-      'This will undo file changes made since this message. The chat will not change.',
+      'This undoes all file changes made after this message. The chat stays the same.',
     icon: SourceCodeIcon,
     code: true,
   },
@@ -300,7 +300,7 @@ function RewindConfirm(props: {
       <AlertDialogHeader>
         <AlertDialogTitle>{modes.code.label}?</AlertDialogTitle>
         <AlertDialogDescription>
-          {modes.code.description} Do you really want to continue?
+          {modes.code.description}
           {codeError !== null && (
             <span className="text-destructive mt-2 block">
               {`Code can't be restored: ${codeError}`}
