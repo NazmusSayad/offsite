@@ -7,13 +7,9 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { call } from '@/api/connection'
+import { ImageHoverPreview } from '@/components/image-hover-preview'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card'
 import { Tooltip } from '@/components/ui/tooltip'
 import { ViewableImage } from '@/components/viewable-image'
 import { stageText } from '@/features/composer/worktree-bar'
@@ -321,41 +317,28 @@ function ImageChip(props: {
   const name = `Image #${props.number}`
   return (
     <>
-      <HoverCard openDelay={150} closeDelay={50}>
-        <HoverCardTrigger asChild>
-          <button
-            type="button"
-            className="bg-background/60 border-border/70 mx-0.5 inline-flex h-6 cursor-zoom-in items-center gap-1 rounded-md border p-0.5 pe-1.5 align-middle text-xs"
-            onClick={() => setOpen(true)}
-          >
-            {data === null ? (
-              <span className="bg-muted size-4.5 shrink-0 rounded-sm" />
-            ) : (
-              <img
-                src={`data:${props.mediaType};base64,${data}`}
-                alt=""
-                className="size-4.5 shrink-0 rounded-sm object-cover"
-              />
-            )}
-            {name}
-          </button>
-        </HoverCardTrigger>
-        {data !== null && (
-          <HoverCardContent className="p-1">
-            <button
-              type="button"
-              className="block cursor-zoom-in"
-              onClick={() => setOpen(true)}
-            >
-              <img
-                src={`data:${props.mediaType};base64,${data}`}
-                alt={name}
-                className="block max-h-80 max-w-80 rounded-md object-contain"
-              />
-            </button>
-          </HoverCardContent>
-        )}
-      </HoverCard>
+      <ImageHoverPreview
+        src={data === null ? null : `data:${props.mediaType};base64,${data}`}
+        alt={name}
+        onOpen={() => setOpen(true)}
+      >
+        <button
+          type="button"
+          className="bg-background/60 border-border/70 mx-0.5 inline-flex h-6 cursor-zoom-in items-center gap-1 rounded-md border p-0.5 pe-1.5 align-middle text-xs"
+          onClick={() => setOpen(true)}
+        >
+          {data === null ? (
+            <span className="bg-muted size-4.5 shrink-0 rounded-sm" />
+          ) : (
+            <img
+              src={`data:${props.mediaType};base64,${data}`}
+              alt=""
+              className="size-4.5 shrink-0 rounded-sm object-cover"
+            />
+          )}
+          {name}
+        </button>
+      </ImageHoverPreview>
       {open && data !== null && (
         <Suspense>
           <ImageViewer

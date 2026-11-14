@@ -7,6 +7,7 @@ import {
   type ReactNodeViewProps,
 } from '@tiptap/react'
 import { lazy, Suspense, useState } from 'react'
+import { ImageHoverPreview } from '@/components/image-hover-preview'
 import { draftKey, useStore } from '@/lib/store'
 import { fileMarker, useDraft } from './drafts'
 
@@ -61,18 +62,24 @@ function AttachmentChip(props: ReactNodeViewProps) {
           <span className="truncate">{file?.name ?? marker}</span>
         </span>
       ) : (
-        <button
-          type="button"
-          className="flex min-w-0 cursor-zoom-in items-center gap-1"
-          onClick={() => setOpen(true)}
+        <ImageHoverPreview
+          src={`data:${image.mediaType};base64,${image.data}`}
+          alt={`Image #${image.number}`}
+          onOpen={() => setOpen(true)}
         >
-          <img
-            src={`data:${image.mediaType};base64,${image.data}`}
-            alt=""
-            className="size-4 shrink-0 rounded-sm object-cover"
-          />
-          <span className="truncate">Image #{image.number}</span>
-        </button>
+          <button
+            type="button"
+            className="flex min-w-0 cursor-zoom-in items-center gap-1"
+            onClick={() => setOpen(true)}
+          >
+            <img
+              src={`data:${image.mediaType};base64,${image.data}`}
+              alt=""
+              className="size-4 shrink-0 rounded-sm object-cover"
+            />
+            <span className="truncate">Image #{image.number}</span>
+          </button>
+        </ImageHoverPreview>
       )}
       <button
         type="button"
