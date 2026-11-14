@@ -7,36 +7,33 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogClose, DialogTitle } from '@/components/ui/dialog'
+import {
+  CATEGORIES,
+  render,
+  renderShape,
+  SHAPES,
+  VARIANTS,
+} from '@/features/sidebar/icon-variants'
 import { getState, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
-const VARIANT_SIZE = 256
 const COMPARE_SIZE = 64
 const PIXEL_DIFFERENCE = 32
 const MATCH_SHARE = 0.01
-const VARIANTS = [
-  { label: 'Grayscale', filter: 'grayscale(1)', tint: null },
-  { label: 'Dimmed', filter: 'opacity(0.55)', tint: null },
-  { label: 'Dark', filter: 'brightness(0.55)', tint: null },
-  { label: 'Inverted', filter: 'invert(1) hue-rotate(180deg)', tint: null },
-  { label: 'Hue +120°', filter: 'hue-rotate(120deg)', tint: null },
-  { label: 'Hue −120°', filter: 'hue-rotate(240deg)', tint: null },
-  { label: 'Blue', filter: 'none', tint: '#3b82f6' },
-  { label: 'Green', filter: 'none', tint: '#22c55e' },
-  { label: 'Orange', filter: 'none', tint: '#f97316' },
-  { label: 'Pink', filter: 'none', tint: '#ec4899' },
-]
-
 export type IconMatch = {
   name: string
   logo: string
   machine: string
 }
 
-export async function findIconMatches(logo: string, machine: string) {
+export async function findIconMatches(
+  logo: string,
+  machine: string,
+  projectId: string
+) {
   const target = await pixels(logo)
   const matches: IconMatch[] = []
-  for (const other of await otherIcons(machine)) {
+  for (const other of await otherIcons(machine, projectId)) {
     if (same(target, other.pixels)) {
       matches.push(other.match)
     }
@@ -65,8 +62,9 @@ export function IconMatches(props: {
     )
   )
   const [variants, setVariants] = useState<
-    { label: string; logo: string }[] | null
+    { category: string; label: string; logo: string }[] | null
   >(null)
+  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('Color')
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const logo = props.matching.logo
@@ -78,19 +76,42 @@ export function IconMatches(props: {
       try {
         const taken = [
           await pixels(logo),
-          ...(await otherIcons(props.machine)).map((item) => item.pixels),
+          ...(await otherIcons(props.machine, props.projectId)).map(
+            (item) => item.pixels
+          ),
         ]
+        const owner = getState().machines.find(
+          (item) => item.id === props.machine
+        )
+        if (owner === undefined) {
+          throw new Error('This machine is no longer available')
+        }
+        const letter = Array.from(owner.name.trim())
+          .slice(0, 1)
+          .join('')
+          .toUpperCase()
         const image = await load(logo)
+        const rendered = [
+          ...VARIANTS.map((variant) => ({
+            category: variant.category,
+            label: variant.label,
+            logo: render(image, variant.filter, variant.tint),
+          })),
+          ...SHAPES.map((shape) => ({
+            category: shape.category,
+            label: shape.label,
+            logo: renderShape(image, shape, letter),
+          })),
+        ]
         const next = []
-        for (const variant of VARIANTS) {
-          const rendered = render(image, variant.filter, variant.tint)
-          const own = await pixels(rendered)
+        for (const variant of rendered) {
+          const own = await pixels(variant.logo)
           if (taken.every((item) => !same(own, item))) {
-            next.push({ label: variant.label, logo: rendered })
+            next.push(variant)
           }
         }
         if (!cancelled) {
-          setVariants([{ label: 'Original', logo }, ...next])
+          setVariants(next)
           setSelected(next.length === 0 ? logo : next[0].logo)
         }
       } catch (failure) {
@@ -102,7 +123,7 @@ export function IconMatches(props: {
     return () => {
       cancelled = true
     }
-  }, [logo, props.machine])
+  }, [logo, props.machine, props.projectId])
 
   return (
     <>
@@ -155,35 +176,66 @@ export function IconMatches(props: {
           </div>
         </div>
       </div>
+      <div
+        role="tablist"
+        className="mx-5 mt-3 flex [scrollbar-width:none] gap-1 overflow-x-auto"
+      >
+        {CATEGORIES.map((item) => (
+          <button
+            key={item}
+            type="button"
+            role="tab"
+            aria-selected={item === category}
+            className={cn(
+              'flex h-6 shrink-0 cursor-pointer items-center rounded-md px-2.5 text-xs font-medium transition-colors',
+              item === category
+                ? 'bg-muted text-foreground'
+                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+            )}
+            onClick={() => setCategory(item)}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         <div className="grid grid-cols-6 gap-1">
           {variants === null &&
             error === null &&
-            [{ label: 'Original' }, ...VARIANTS].map((variant) => (
+            [
+              { label: 'Original' },
+              ...[...VARIANTS, ...SHAPES].filter(
+                (variant) => variant.category === category
+              ),
+            ].map((variant) => (
               <span key={variant.label} className="grid place-items-center p-2">
                 <span className="bg-muted size-11 rounded-lg" />
               </span>
             ))}
-          {variants?.map((variant) => (
-            <button
-              key={variant.label}
-              type="button"
-              title={variant.label}
-              aria-label={variant.label}
-              aria-pressed={selected === variant.logo}
-              className={cn(
-                'hover:bg-muted grid cursor-pointer place-items-center rounded-lg p-2 transition-colors',
-                selected === variant.logo && 'bg-muted ring-ring ring-1'
-              )}
-              onClick={() => setSelected(variant.logo)}
-            >
-              <img
-                src={variant.logo}
-                alt=""
-                className="ring-foreground/10 size-11 rounded-lg object-cover ring-1"
-              />
-            </button>
-          ))}
+          {variants !== null &&
+            [
+              { label: 'Original', logo },
+              ...variants.filter((variant) => variant.category === category),
+            ].map((variant) => (
+              <button
+                key={variant.label}
+                type="button"
+                title={variant.label}
+                aria-label={variant.label}
+                aria-pressed={selected === variant.logo}
+                className={cn(
+                  'hover:bg-muted grid cursor-pointer place-items-center rounded-lg p-2 transition-colors',
+                  selected === variant.logo && 'bg-muted ring-ring ring-1'
+                )}
+                onClick={() => setSelected(variant.logo)}
+              >
+                <img
+                  src={variant.logo}
+                  alt=""
+                  className="ring-foreground/10 size-11 rounded-lg object-cover ring-1"
+                />
+              </button>
+            ))}
         </div>
         {error !== null && (
           <p className="text-destructive text-sm break-all">{error}</p>
@@ -219,13 +271,13 @@ export function IconMatches(props: {
   )
 }
 
-async function otherIcons(machine: string) {
+async function otherIcons(machine: string, projectId: string) {
   const state = getState()
   const icons: { match: IconMatch; pixels: Uint8ClampedArray }[] = []
   for (const project of state.projects) {
     const owner = state.machines.find((item) => item.id === project.machine)
     if (
-      project.machine === machine ||
+      (project.machine === machine && project.id === projectId) ||
       project.logo === null ||
       project.scratch ||
       project.parentId !== null ||
@@ -250,29 +302,6 @@ async function load(source: string) {
   image.src = source
   await image.decode()
   return image
-}
-
-function render(image: HTMLImageElement, filter: string, tint: string | null) {
-  const width = image.naturalWidth === 0 ? VARIANT_SIZE : image.naturalWidth
-  const height = image.naturalHeight === 0 ? VARIANT_SIZE : image.naturalHeight
-  const scale = VARIANT_SIZE / Math.max(width, height)
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.round(width * scale)
-  canvas.height = Math.round(height * scale)
-  const context = canvas.getContext('2d')
-  if (context === null) {
-    throw new Error('This browser cannot draw icon variants')
-  }
-  context.filter = filter
-  context.drawImage(image, 0, 0, canvas.width, canvas.height)
-  if (tint !== null) {
-    context.filter = 'none'
-    context.globalCompositeOperation = 'source-atop'
-    context.globalAlpha = 0.5
-    context.fillStyle = tint
-    context.fillRect(0, 0, canvas.width, canvas.height)
-  }
-  return canvas.toDataURL('image/png')
 }
 
 async function pixels(source: string) {

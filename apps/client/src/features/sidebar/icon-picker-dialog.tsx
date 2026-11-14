@@ -169,7 +169,11 @@ export function IconPickerDialog(props: {
                           path: file,
                         }
                       )
-                      const matches = await findIconMatches(logo, props.machine)
+                      const matches = await findIconMatches(
+                        logo,
+                        props.machine,
+                        props.projectId
+                      )
                       if (matches.length === 0) {
                         props.onPick(logo)
                         return

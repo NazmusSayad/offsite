@@ -322,7 +322,8 @@ export function EditProjectDialog(props: {
                   try {
                     const matches = await findIconMatches(
                       next,
-                      props.project.machine
+                      props.project.machine,
+                      props.project.id
                     )
                     if (matches.length === 0) {
                       setLogo(next)
