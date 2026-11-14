@@ -335,7 +335,9 @@ export function Explorer(props: {
             }}
           >
             {error !== null && (
-              <p className="text-muted-foreground p-4 text-xs">{error}</p>
+              <p className="text-muted-foreground p-4 text-xs wrap-anywhere">
+                {error}
+              </p>
             )}
             {error === null && entries === null && (
               <p className="text-muted-foreground p-4 text-xs">Loading…</p>

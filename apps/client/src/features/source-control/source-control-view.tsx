@@ -255,7 +255,9 @@ export function SourceControlView(props: {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto pb-2">
         {props.error !== null && (
-          <p className="text-muted-foreground p-4 text-xs">{props.error}</p>
+          <p className="text-muted-foreground p-4 text-xs wrap-anywhere">
+            {props.error}
+          </p>
         )}
         {props.error === null && props.repos === null && (
           <p className="text-muted-foreground p-4 text-xs">Loading…</p>

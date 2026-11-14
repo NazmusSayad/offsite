@@ -359,7 +359,7 @@ function Row(props: {
         icon={props.icon}
         className={cn('mt-0.5 size-4 shrink-0', props.className)}
       />
-      <div className="min-w-0 flex-1">{props.children}</div>
+      <div className="min-w-0 flex-1 wrap-anywhere">{props.children}</div>
     </div>
   )
 }

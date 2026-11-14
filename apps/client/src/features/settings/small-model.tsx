@@ -176,7 +176,9 @@ export function SmallModelSection(props: {
         </Row>
       )}
       {error !== null && (
-        <p className="text-destructive px-4 py-3 text-xs">{error}</p>
+        <p className="text-destructive px-4 py-3 text-xs wrap-anywhere">
+          {error}
+        </p>
       )}
     </Section>
   )

@@ -413,12 +413,16 @@ function toolItem(
     case 'Agent':
     case 'Task': {
       const agent = text(input.subagent_type)
+      const model = text(input.model)
+      const effort = text(input.effort)
       return {
         ...base,
         kind: 'subagent',
         agent: agent === '' ? 'general-purpose' : agent,
         description: text(input.description),
         agentId: null,
+        model: model === '' ? null : model,
+        effort: effort === '' ? null : effort,
         status: 'running',
       }
     }

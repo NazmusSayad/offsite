@@ -228,7 +228,7 @@ export function EditProjectDialog(props: {
     <Dialog open onOpenChange={() => props.onClose()}>
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
         <form
-          className="grid"
+          className="grid grid-cols-1"
           onSubmit={async (event) => {
             event.preventDefault()
             setSaving(true)

@@ -317,7 +317,7 @@ export function SettingsContent(props: { view: SettingsView }) {
   return (
     <>
       {machinePage && machine !== null && machine.configError !== null && (
-        <p className="text-destructive mb-5 text-sm whitespace-pre-wrap">
+        <p className="text-destructive mb-5 text-sm wrap-anywhere whitespace-pre-wrap">
           Not saved: {machine.configError}
         </p>
       )}

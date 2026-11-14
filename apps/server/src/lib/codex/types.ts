@@ -63,6 +63,7 @@ export type ThreadItem = { id: string } & (
       >
       prompt: string | null
       model: string | null
+      reasoningEffort: string | null
     }
   | {
       type: 'webSearch'

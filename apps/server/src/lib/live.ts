@@ -41,6 +41,8 @@ export function activity() {
       workingSince: workingSince.get(run.sessionId) ?? null,
       requests: [...run.pending.values()].map((pending) => pending.request),
       context: run.context,
+      agentModels: run.provider === 'claude' ? run.agentModels : {},
+      modelNames: run.provider === 'claude' ? run.modelNames : {},
       ...progressOf(run.sessionId),
     }
   }

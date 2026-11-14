@@ -361,7 +361,7 @@ function TaskView(props: {
   return (
     <div
       ref={scroller}
-      className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3"
+      className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3 wrap-anywhere"
       onScroll={(event) => {
         const element = event.currentTarget
         pinned.current =

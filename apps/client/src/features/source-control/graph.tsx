@@ -226,7 +226,9 @@ export function Graph(props: {
       {props.open && (
         <div className="min-h-0 flex-1 overflow-y-auto pb-2">
           {error !== null && (
-            <p className="text-muted-foreground px-4 py-1 text-xs">{error}</p>
+            <p className="text-muted-foreground px-4 py-1 text-xs wrap-anywhere">
+              {error}
+            </p>
           )}
           {error === null && rows.length === 0 && commits !== null && (
             <p className="text-muted-foreground px-4 py-1 text-xs">
@@ -285,14 +287,14 @@ export function Graph(props: {
                           <FileTypeIcon path={resource.path} />
                           <span
                             className={cn(
-                              'min-w-0 shrink-0 truncate',
+                              'min-w-0 truncate',
                               statusColors[resource.status],
                               resource.status === 'D' && 'line-through'
                             )}
                           >
                             {baseName(resource.path)}
                           </span>
-                          <span className="text-muted-foreground min-w-0 truncate text-xs">
+                          <span className="text-muted-foreground min-w-0 shrink-[100] truncate text-xs">
                             {parentOf(resource.path)}
                           </span>
                           <span

@@ -1,4 +1,5 @@
 import {
+  AlertCircleIcon,
   ArrowDown01Icon,
   ArrowDown02Icon,
   ArrowUp02Icon,
@@ -78,8 +79,12 @@ export function RepoStatus(props: { repo: GitRepo; target: Target }) {
                   {repo.changed === 1 ? ' file' : ' files'}
                 </span>
               </span>
-              <span className="text-diff-addition">+{repo.added}</span>
-              <span className="text-diff-deletion">−{repo.removed}</span>
+              <span className="text-diff-addition @max-sm:hidden">
+                +{repo.added}
+              </span>
+              <span className="text-diff-deletion @max-sm:hidden">
+                −{repo.removed}
+              </span>
               <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" />
             </button>
           </DropdownMenuTrigger>
@@ -108,7 +113,7 @@ export function RepoStatus(props: { repo: GitRepo; target: Target }) {
         </AlertDialogContent>
       </AlertDialog>
       {task !== null && (
-        <span className="flex items-center gap-1.5 pr-1.5">
+        <span className="flex items-center gap-1.5 pr-1.5" title={task.label}>
           <HugeiconsIcon
             icon={
               task.state === 'working'
@@ -121,7 +126,7 @@ export function RepoStatus(props: { repo: GitRepo; target: Target }) {
               task.state === 'done' && 'text-success'
             )}
           />
-          {task.label}
+          <span className="@max-sm:hidden">{task.label}</span>
         </span>
       )}
       {task === null && (
@@ -268,7 +273,8 @@ function SyncStatus(props: { repo: GitRepo; target: Target; onRun: Run }) {
         className="bg-warning/10 text-warning flex h-5 items-center gap-1 rounded-full px-2"
         title="HEAD is detached, so new commits won't be on any branch"
       >
-        Not on a branch
+        <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" />
+        <span className="@max-sm:hidden">Not on a branch</span>
       </span>
     )
   }
@@ -279,7 +285,7 @@ function SyncStatus(props: { repo: GitRepo; target: Target; onRun: Run }) {
         title="This repository has no remote, so there is nothing to pull or push"
       >
         <HugeiconsIcon icon={CloudOffIcon} className="size-3.5" />
-        No remote
+        <span className="@max-sm:hidden">No remote</span>
       </span>
     )
   }
@@ -296,7 +302,7 @@ function SyncStatus(props: { repo: GitRepo; target: Target; onRun: Run }) {
         }
       >
         <HugeiconsIcon icon={CloudUploadIcon} className="size-3.5" />
-        Not published
+        <span className="@max-sm:hidden">Not published</span>
       </button>
     )
   }
@@ -307,7 +313,7 @@ function SyncStatus(props: { repo: GitRepo; target: Target; onRun: Run }) {
         title={`Up to date with ${repo.upstream}`}
       >
         <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5" />
-        Up to date
+        <span className="@max-sm:hidden">Up to date</span>
       </span>
     )
   }

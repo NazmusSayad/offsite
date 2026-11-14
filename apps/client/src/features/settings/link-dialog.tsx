@@ -131,7 +131,7 @@ export function LinkDialog(props: {
         </p>
       )}
       {error !== null && (
-        <p className="text-destructive text-xs break-words">{error}</p>
+        <p className="text-destructive text-xs wrap-anywhere">{error}</p>
       )}
       <AlertDialogFooter>
         {result === null && (

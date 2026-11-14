@@ -96,7 +96,9 @@ export function UpdateForm(props: {
         It downloads in the background, so you can keep working. OffSite asks
         before it restarts.
       </p>
-      {error !== null && <p className="text-destructive">{error}</p>}
+      {error !== null && (
+        <p className="text-destructive wrap-anywhere">{error}</p>
+      )}
       <div className="flex justify-end gap-2 pt-2">
         {props.onCancel !== undefined && (
           <Button type="button" variant="outline" onClick={props.onCancel}>
@@ -146,7 +148,9 @@ function RestartForm(props: {
         when you are done.
       </p>
       <BusyReasons busy={busy} />
-      {error !== null && <p className="text-destructive">{error}</p>}
+      {error !== null && (
+        <p className="text-destructive wrap-anywhere">{error}</p>
+      )}
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={props.onDone}>
           Later
