@@ -35,7 +35,6 @@ import {
   getState,
   projectOf,
   setDraft,
-  showError,
   update,
   updatePrefs,
   useStore,
@@ -112,8 +111,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
     try {
       await editMessage(props.target, next)
     } catch (caught) {
-      toast(errorMessage(caught))
-      showError(caught)
+      toast.error(errorMessage(caught))
     } finally {
       setBusy(false)
     }
@@ -161,7 +159,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
           disabled={props.disabled || busy}
           onClick={() => {
             if (missing) {
-              toast(unavailable)
+              toast.warning(unavailable)
               return
             }
             void pick(mode, false)
@@ -303,8 +301,7 @@ function RewindConfirm(props: {
       })
       updatePrefs({ ...getState().prefs, rewind: 'code' })
     } catch (caught) {
-      toast(errorMessage(caught))
-      showError(caught)
+      toast.error(errorMessage(caught))
     } finally {
       props.onBusy(false)
     }

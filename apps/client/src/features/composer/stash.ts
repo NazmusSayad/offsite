@@ -13,7 +13,7 @@ import {
 
 export function stashPrompt(key: string) {
   stashDraft(key)
-  toast('Prompt stashed', {
+  toast.success('Prompt stashed', {
     description: `${mod}+S in an empty composer brings it back`,
   })
 }

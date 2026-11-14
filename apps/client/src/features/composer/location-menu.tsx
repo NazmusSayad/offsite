@@ -66,7 +66,7 @@ export function LocationMenu(props: {
         }
       } catch (error) {
         log.error('could not load the worktrees', error)
-        toast(errorMessage(error))
+        toast.error(errorMessage(error))
       }
     }
     void load()
@@ -253,7 +253,7 @@ async function switchMain(
     openSession({ machine, projectId: rootId, sessionId: null, pending: null })
   } catch (error) {
     log.error('could not switch the branch', error)
-    toast(errorMessage(error))
+    toast.error(errorMessage(error))
   }
 }
 
@@ -272,6 +272,6 @@ async function openWorktree(
     openSession({ machine, projectId: id, sessionId: null, pending: null })
   } catch (error) {
     log.error('could not open the worktree', error)
-    toast(errorMessage(error))
+    toast.error(errorMessage(error))
   }
 }

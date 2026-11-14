@@ -34,6 +34,7 @@ import type {
   Session,
 } from '@offsite/core/sessions'
 import type { TerminalTab } from '@offsite/core/terminal'
+import { toast } from 'sonner'
 import { createStore, type StoreApi, useStore as useZustand } from 'zustand'
 import { ConnectionError } from '@/api/connection'
 import { machineKey } from '@/api/machines'
@@ -120,6 +121,7 @@ export type State = {
   editor: { machine: string; projectId: string } | null
   exporting: MachineSession | null
   removingWorktree: { machine: string; projectId: string } | null
+  pairingFailure: string | null
   settingsOpen: boolean
   settingsPage: SettingsPage
   settingsAccount: string | null
@@ -154,7 +156,6 @@ export type State = {
   } | null
   context: ContextUsage | null
   capabilities: Capabilities | null
-  errors: string[]
   sentAt: number
 }
 
@@ -320,12 +321,5 @@ export function showError(error: unknown) {
     return
   }
   log.warn('showing an error:', error)
-  const message = errorMessage(error)
-  update({
-    errors: [...getState().errors.filter((item) => item !== message), message],
-  })
-}
-
-export function dismissErrors() {
-  update({ errors: [] })
+  toast.error(errorMessage(error), { duration: 6000 })
 }

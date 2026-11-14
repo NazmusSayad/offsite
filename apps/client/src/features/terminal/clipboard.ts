@@ -16,14 +16,16 @@ export function writeClipboard(text: string) {
   }
   navigator.clipboard.writeText(text).catch((error: unknown) => {
     log.warn('could not copy to the clipboard', error)
-    toast('Could not copy to the clipboard')
+    toast.error('Could not copy to the clipboard')
   })
 }
 
 export async function readClipboard(reply: (text: string) => void) {
   if (!window.isSecureContext) {
     log.warn('programs can read the clipboard only over https or localhost')
-    toast('Programs can read the clipboard only over https or localhost')
+    toast.warning(
+      'Programs can read the clipboard only over https or localhost'
+    )
     return
   }
   let text: string
@@ -31,12 +33,12 @@ export async function readClipboard(reply: (text: string) => void) {
     text = await navigator.clipboard.readText()
   } catch (error) {
     log.warn('could not read the clipboard', error)
-    toast('Could not read the clipboard')
+    toast.error('Could not read the clipboard')
     return
   }
   if (new TextEncoder().encode(text).length > READ_LIMIT) {
     log.warn('the clipboard is over 1 MiB, not replying')
-    toast('The clipboard is too large to share (over 1 MiB)')
+    toast.warning('The clipboard is too large to share (over 1 MiB)')
     return
   }
   reply(text)
@@ -74,7 +76,7 @@ export async function pasteClipboardImages(
     }
   }
   if (images.length === 0) {
-    toast('No image in the clipboard')
+    toast.warning('No image in the clipboard')
     return false
   }
   await pasteImages(machine, terminal, images)
@@ -99,5 +101,5 @@ export async function pasteImages(
 
 export function reportPasteError(error: unknown) {
   log.error('could not paste image', error)
-  toast('Could not paste the image')
+  toast.error('Could not paste the image')
 }
