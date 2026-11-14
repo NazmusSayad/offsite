@@ -71,7 +71,7 @@ export function BranchPicker(props: BranchTarget) {
           <span className="truncate">{props.repo.branch ?? 'detached'}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="flex max-h-86.5 w-72 flex-col">
+      <PopoverContent align="end" className="flex w-72 flex-col">
         <BranchList target={props} onClose={() => setOpen(false)} />
       </PopoverContent>
     </Popover>

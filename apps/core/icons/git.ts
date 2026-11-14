@@ -5,98 +5,58 @@ const stroke = {
   strokeWidth: '1.5',
 } as const
 
-const branchBase = [
+export const BranchIcon = [
+  ['circle', { cx: '6', cy: '6', r: '2', key: 'top', ...stroke }],
+  ['circle', { cx: '6', cy: '18', r: '2', key: 'bottom', ...stroke }],
+  ['circle', { cx: '18', cy: '6', r: '2', key: 'end', ...stroke }],
   [
     'path',
     {
-      d: 'M6 9C7.65685 9 9 7.65685 9 6C9 4.34315 7.65685 3 6 3C4.34315 3 3 4.34315 3 6C3 7.65685 4.34315 9 6 9Z',
-      key: 'top',
-      ...stroke,
-    },
-  ],
-  [
-    'path',
-    {
-      d: 'M6 21C7.65685 21 9 19.6569 9 18C9 16.3431 7.65685 15 6 15C4.34315 15 3 16.3431 3 18C3 19.6569 4.34315 21 6 21Z',
-      key: 'bottom',
-      ...stroke,
-    },
-  ],
-  [
-    'path',
-    {
-      d: 'M6 15V9M18 9C18 10.6569 16.6569 12 15 12H9C7.34315 12 6 13.3431 6 15',
+      d: 'M6 8V16M18 8V9C18 10.6569 16.6569 12 15 12H9C7.34315 12 6 13.3431 6 15',
       key: 'line',
       ...stroke,
     },
   ],
 ] as const
 
-export const BranchIcon = [
-  ...branchBase,
-  [
-    'path',
-    {
-      d: 'M18 9C19.6569 9 21 7.65685 21 6C21 4.34315 19.6569 3 18 3C16.3431 3 15 4.34315 15 6C15 7.65685 16.3431 9 18 9Z',
-      key: 'end',
-      ...stroke,
-    },
-  ],
-] as const
-
 export const NewBranchIcon = [
-  ...branchBase,
-  ['path', { d: 'M18 2V7M15.5 4.5H20.5', key: 'end', ...stroke }],
+  ...BranchIcon,
+  ['path', { d: 'M18 15V21M15 18H21', key: 'add', ...stroke }],
 ] as const
 
 export const DeleteBranchIcon = [
-  ...branchBase,
-  ['path', { d: 'M15.5 4.5H20.5', key: 'end', ...stroke }],
-] as const
-
-const worktreeBase = [
+  ...BranchIcon,
   [
     'path',
-    {
-      d: 'M2.25 12.75H11.25M11.25 8.25V17.25A1.5 1.5 0 0 0 12.75 18.75H21.75M18.75 15.75L21.75 18.75L18.75 21.75',
-      key: 'base',
-      ...stroke,
-    },
+    { d: 'M15.5 15.5L20.5 20.5M20.5 15.5L15.5 20.5', key: 'remove', ...stroke },
   ],
 ] as const
 
 export const WorktreeIcon = [
-  ...worktreeBase,
   [
     'path',
     {
-      d: 'M11.25 8.25A1.5 1.5 0 0 1 12.75 6.75H21.75M18.75 3.75L21.75 6.75L18.75 9.75',
-      key: 'end',
+      d: 'M2.25 12.75H11.25M15.25 6.75C13.0409 6.75 11.25 8.54086 11.25 10.75V14.75C11.25 16.9591 13.0409 18.75 15.25 18.75M15.25 6.75H21.25M15.25 18.75H21.25',
+      key: 'base',
+      ...stroke,
+    },
+  ],
+  [
+    'path',
+    {
+      d: 'M18.25 3.75C18.25 3.75 21.25 5.95949 21.25 6.75C21.25 7.54051 18.25 9.75 18.25 9.75M18.25 15.75C18.25 15.75 21.25 17.9595 21.25 18.75C21.25 19.5405 18.25 21.75 18.25 21.75',
+      key: 'heads',
       ...stroke,
     },
   ],
 ] as const
 
 export const NewWorktreeIcon = [
-  ...worktreeBase,
-  [
-    'path',
-    {
-      d: 'M11.25 8.25A1.5 1.5 0 0 1 12.75 6.75H14.25M19.5 3.75V9.75M16.5 6.75H22.5',
-      key: 'end',
-      ...stroke,
-    },
-  ],
+  ...WorktreeIcon,
+  ['path', { d: 'M5.25 2.25V8.25M2.25 5.25H8.25', key: 'add', ...stroke }],
 ] as const
 
 export const DeleteWorktreeIcon = [
-  ...worktreeBase,
-  [
-    'path',
-    {
-      d: 'M11.25 8.25A1.5 1.5 0 0 1 12.75 6.75H14.25M16.5 6.75H22.5',
-      key: 'end',
-      ...stroke,
-    },
-  ],
+  ...WorktreeIcon,
+  ['path', { d: 'M2.75 2.75L7.75 7.75M7.75 2.75L2.75 7.75', key: 'remove', ...stroke }],
 ] as const
