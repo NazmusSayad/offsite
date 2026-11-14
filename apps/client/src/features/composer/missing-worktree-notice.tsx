@@ -1,10 +1,11 @@
-import { Alert02Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { WorktreeIcon } from '@offsite/core/icons/git'
 import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { openSession } from '@/lib/sessions'
 import { projectOf, showError, update, useStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 
 export function MissingWorktreeNotice(props: { running: boolean }) {
   const selection = useStore((state) => state.selection)
@@ -21,13 +22,18 @@ export function MissingWorktreeNotice(props: { running: boolean }) {
     )
   )
   const known = useStore((state) => state.worktreeState)
+  const online = useStore(
+    (state) =>
+      state.machines.find((item) => item.id === state.selection?.machine)
+        ?.status === 'online'
+  )
   const [switching, setSwitching] = useState(false)
   const machine = selection?.machine ?? null
   const worktreeId =
     project !== undefined && project.parentId !== null ? project.id : null
 
   useEffect(() => {
-    if (machine === null || worktreeId === null) {
+    if (machine === null || worktreeId === null || !online) {
       update({ worktreeState: null })
       return
     }
@@ -53,7 +59,7 @@ export function MissingWorktreeNotice(props: { running: boolean }) {
       current = false
       window.removeEventListener('focus', refresh)
     }
-  }, [machine, worktreeId, props.running])
+  }, [machine, worktreeId, online, props.running])
 
   if (
     known === null ||
@@ -66,51 +72,72 @@ export function MissingWorktreeNotice(props: { running: boolean }) {
     return null
   }
 
+  const detail =
+    known.state === 'folderMissing'
+      ? 'folder will be created'
+      : project.worktreeBranch !== null
+        ? 'branch and folder will be created'
+        : null
+  const canSwitch =
+    known.state === 'branchMissing' &&
+    session !== undefined &&
+    session.provider === 'claude'
+
+  async function switchToMain() {
+    if (machine === null || session === undefined) {
+      return
+    }
+    setSwitching(true)
+    try {
+      const result = await call(machine, 'sessions.moveToMain', {
+        sessionId: session.id,
+      })
+      openSession({
+        machine,
+        projectId: result.projectId,
+        sessionId: session.id,
+        pending: null,
+      })
+    } catch (error) {
+      showError(error)
+    } finally {
+      setSwitching(false)
+    }
+  }
+
   return (
-    <div className="composer-glass relative mx-auto -mb-[calc(1rem+1px)] flex w-[calc(100%-2.75rem)] flex-wrap items-center gap-x-2 gap-y-1 rounded-t-2xl border border-b-0 border-(--composer-outline) px-3 pt-2 pb-[calc(1rem+1px+0.5rem)] text-xs/4">
-      <HugeiconsIcon
-        icon={Alert02Icon}
-        className="text-warning-foreground size-3.5 shrink-0"
-      />
-      <span className="text-secondary-label min-w-0 flex-1">
-        {known.state === 'folderMissing' && 'Worktree will be recreated'}
-        {known.state === 'branchMissing' &&
-          project.worktreeBranch !== null &&
-          'Worktree will be created'}
-        {known.state === 'branchMissing' &&
-          project.worktreeBranch === null &&
-          'Worktree is missing'}
-      </span>
-      {known.state === 'branchMissing' &&
-        session !== undefined &&
-        session.provider === 'claude' && (
+    <div className="composer-glass @container relative mx-auto -mb-[calc(1rem+1px)] w-[calc(100%-2.75rem)] rounded-t-2xl border border-b-0 border-(--composer-outline) px-3 pt-2 pb-[calc(1rem+1px+0.5rem)] text-xs/4">
+      <div className="flex min-h-6 flex-wrap items-center gap-x-2 gap-y-0.5">
+        <HugeiconsIcon
+          icon={WorktreeIcon}
+          className="text-warning-foreground size-3.5 shrink-0"
+        />
+        <span className="text-foreground/90 font-medium">Worktree missing</span>
+        {detail !== null && (
+          <span
+            className={cn(
+              'text-secondary-label',
+              canSwitch &&
+                '@max-md:order-last @max-md:basis-full @max-md:pl-5.5'
+            )}
+          >
+            <span className={cn(canSwitch && '@max-md:hidden')}>· </span>
+            {detail}
+          </span>
+        )}
+        {canSwitch && (
           <Button
             size="xs"
-            variant="ghost"
+            variant="outline"
+            className="ml-auto"
             disabled={switching || props.running}
             title="Continue this chat in the main project folder"
-            onClick={async () => {
-              setSwitching(true)
-              try {
-                const result = await call(machine, 'sessions.moveToMain', {
-                  sessionId: session.id,
-                })
-                openSession({
-                  machine,
-                  projectId: result.projectId,
-                  sessionId: session.id,
-                  pending: null,
-                })
-              } catch (error) {
-                showError(error)
-              } finally {
-                setSwitching(false)
-              }
-            }}
+            onClick={() => void switchToMain()}
           >
             Switch to main
           </Button>
         )}
+      </div>
     </div>
   )
 }
