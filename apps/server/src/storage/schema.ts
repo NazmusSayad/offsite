@@ -110,3 +110,27 @@ export const outbox = snakeCase.table('outbox', {
   status: text({ enum: ['sending', 'accepted', 'queued', 'failed'] }).notNull(),
   createdAt: integer().notNull(),
 })
+
+export const generations = snakeCase.table('generations', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  task: text({
+    enum: [
+      'session-title',
+      'branch-name',
+      'notice-summary',
+      'review-guide',
+      'pull-request',
+      'commit-message',
+    ],
+  }).notNull(),
+  provider: text({ enum: ['claude', 'codex', 'opencode'] }).notNull(),
+  account: text(),
+  model: text().notNull(),
+  instructions: text().notNull(),
+  input: text().notNull(),
+  output: text(),
+  status: text({ enum: ['succeeded', 'failed'] }).notNull(),
+  error: text(),
+  durationMs: integer().notNull(),
+  createdAt: integer().notNull(),
+})

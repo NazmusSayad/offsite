@@ -45,7 +45,7 @@ export async function noticeSummary(
   try {
     const answer = await Promise.race([
       generateText(
-        true,
+        'notice-summary',
         cwd,
         INSTRUCTIONS,
         `USER REQUEST:\n${request.slice(0, REQUEST_LIMIT)}\n\nAGENT REPLY:\n${reply.slice(-REPLY_LIMIT)}`,
