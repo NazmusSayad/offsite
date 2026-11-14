@@ -37,6 +37,7 @@ import {
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuRadioGroup,
@@ -44,11 +45,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Switch } from '@/components/ui/switch'
 import { useCopy } from '@/lib/clipboard'
 import { cn } from '@/lib/utils'
 
 type Perform = (action: PullRequestAction, label: string) => Promise<boolean>
+
+type Notice = { kind: PullRequestAction['kind']; text: string }
+
+type Status = {
+  text: string
+  tone: 'good' | 'bad' | 'wait' | 'merged' | 'none'
+  icon: IconSvgElement
+}
 
 const pendingLabels: Record<PullRequestAction['kind'], string> = {
   merge: 'Merging',
@@ -64,20 +72,23 @@ const pendingLabels: Record<PullRequestAction['kind'], string> = {
 
 const methodLabels: Record<
   MergeMethod,
-  { button: string; hint: string; icon: IconSvgElement }
+  { button: string; short: string; hint: string; icon: IconSvgElement }
 > = {
   squash: {
     button: 'Squash and merge',
+    short: 'Squash',
     hint: 'Combine into one commit',
     icon: GitCommitIcon,
   },
   merge: {
     button: 'Create a merge commit',
+    short: 'Merge',
     hint: 'Keep commits, add a merge commit',
     icon: GitMergeIcon,
   },
   rebase: {
     button: 'Rebase and merge',
+    short: 'Rebase',
     hint: 'Keep commits, no merge commit',
     icon: GitCompareArrowsIcon,
   },
@@ -86,6 +97,7 @@ const methodLabels: Record<
 export function PullRequestActions(props: {
   details: PullRequestDetails | null
   busy: PullRequestAction['kind'] | null
+  notice: Notice | null
   onPerform: Perform
 }) {
   const details = props.details
@@ -105,19 +117,17 @@ export function PullRequestActions(props: {
   const showCleanup = mergeable && details?.crossRepository !== true
 
   return (
-    <div className="border-border/60 bg-background flex shrink-0 items-center gap-2 border-t px-3 py-2">
-      {showCleanup && (
-        <label className="text-muted-foreground flex min-w-0 cursor-pointer items-center gap-1.5 text-xs has-disabled:cursor-default">
-          <Switch
-            size="sm"
-            checked={cleanup}
-            onCheckedChange={setCleanup}
-            disabled={disabled}
+    <div className="border-border/60 bg-background @container flex shrink-0 items-center gap-2 border-t px-3 py-2">
+      <div className="min-w-0 flex-1">
+        {details !== null && (
+          <MergeStatus
+            details={details}
+            busy={props.busy}
+            notice={props.notice}
           />
-          <span className="truncate">Clean up branch</span>
-        </label>
-      )}
-      <div className="ml-auto flex shrink-0 items-center gap-2">
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -130,9 +140,14 @@ export function PullRequestActions(props: {
               <HugeiconsIcon icon={MoreHorizontalIcon} className="size-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuContent align="end" className="w-56">
             {details !== null && (
-              <MoreItems details={details} onPerform={props.onPerform} />
+              <MoreItems
+                details={details}
+                cleanup={showCleanup ? cleanup : null}
+                onCleanup={setCleanup}
+                onPerform={props.onPerform}
+              />
             )}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -176,7 +191,10 @@ export function PullRequestActions(props: {
                 }
                 className={cn(props.busy === 'merge' && 'animate-spin')}
               />
-              {methodLabels[method].button}
+              <span className="@max-md:hidden">
+                {methodLabels[method].button}
+              </span>
+              <span className="@md:hidden">{methodLabels[method].short}</span>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -273,12 +291,29 @@ function MethodItems(props: {
   )
 }
 
-function MoreItems(props: { details: PullRequestDetails; onPerform: Perform }) {
+function MoreItems(props: {
+  details: PullRequestDetails
+  cleanup: boolean | null
+  onCleanup: (cleanup: boolean) => void
+  onPerform: Perform
+}) {
   const details = props.details
   const clipboard = useCopy()
 
   return (
     <>
+      {props.cleanup !== null && (
+        <>
+          <DropdownMenuCheckboxItem
+            checked={props.cleanup}
+            onCheckedChange={props.onCleanup}
+            onSelect={(event) => event.preventDefault()}
+          >
+            Delete branch after merge
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
+        </>
+      )}
       {details.state !== 'MERGED' &&
         details.local &&
         details.head !== details.current && (
@@ -374,10 +409,10 @@ function MergeDialog(props: {
   )
 }
 
-export function MergeStatus(props: {
+function MergeStatus(props: {
   details: PullRequestDetails
   busy: PullRequestAction['kind'] | null
-  notice: string | null
+  notice: Notice | null
 }) {
   const status =
     props.busy !== null
@@ -387,23 +422,22 @@ export function MergeStatus(props: {
           icon: Loading03Icon,
         }
       : props.notice !== null
-        ? {
-            text: props.notice,
-            tone: 'good' as const,
-            icon: CheckmarkCircle02Icon,
-          }
+        ? noticeStatus(props.notice)
         : mergeStatus(props.details)
   if (status === null) {
     return null
   }
   return (
-    <span
+    <p
+      role="status"
+      title={status.text}
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-px',
-        status.tone === 'good' && 'bg-success/8 text-success',
-        status.tone === 'bad' && 'bg-destructive/8 text-destructive',
-        status.tone === 'wait' && 'bg-warning/8 text-warning-foreground',
-        status.tone === 'none' && 'bg-muted/60 text-muted-foreground'
+        'flex items-center gap-1.5 text-xs font-medium',
+        status.tone === 'good' && 'text-success',
+        status.tone === 'bad' && 'text-destructive',
+        status.tone === 'wait' && 'text-warning',
+        status.tone === 'merged' && 'text-violet-500',
+        status.tone === 'none' && 'text-muted-foreground'
       )}
     >
       <HugeiconsIcon
@@ -413,16 +447,22 @@ export function MergeStatus(props: {
           props.busy !== null && 'animate-spin'
         )}
       />
-      {status.text}
-    </span>
+      <span className="truncate">{status.text}</span>
+    </p>
   )
 }
 
-function mergeStatus(details: PullRequestDetails): {
-  text: string
-  tone: 'good' | 'bad' | 'wait' | 'none'
-  icon: IconSvgElement
-} | null {
+function noticeStatus(notice: Notice): Status {
+  if (notice.kind === 'merge') {
+    return { text: notice.text, tone: 'merged', icon: GitMergeIcon }
+  }
+  if (notice.kind === 'close') {
+    return { text: notice.text, tone: 'bad', icon: CancelCircleIcon }
+  }
+  return { text: notice.text, tone: 'good', icon: CheckmarkCircle02Icon }
+}
+
+function mergeStatus(details: PullRequestDetails): Status | null {
   if (details.state !== 'OPEN' || details.draft) {
     return null
   }

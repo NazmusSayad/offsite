@@ -27,7 +27,7 @@ import { router } from '@/lib/router'
 import { showError } from '@/lib/store'
 import { pushSearch } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
-import { MergeStatus, PullRequestActions } from './pull-request-actions'
+import { PullRequestActions } from './pull-request-actions'
 import { StateBadge } from './pull-request-badges'
 import { PullRequestFiles } from './pull-request-files'
 import { PullRequestGuide } from './pull-request-guide'
@@ -43,7 +43,7 @@ export function openFromList(url: string) {
 }
 
 const segment =
-  'text-muted-foreground hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground dark:aria-pressed:bg-input/72 inline-flex h-6 cursor-pointer items-center justify-center rounded-md px-2.5 aria-pressed:shadow-xs'
+  'text-muted-foreground hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground dark:aria-pressed:bg-input/72 inline-flex h-6 min-w-0 cursor-pointer items-center justify-center overflow-hidden rounded-md px-2.5 whitespace-nowrap aria-pressed:shadow-xs @max-[20rem]:px-1.5'
 
 export function PullRequestView(props: {
   machine: string
@@ -62,7 +62,10 @@ export function PullRequestView(props: {
   >('pullRequestTab', 'overview')
   const [fullscreen, setFullscreen] = useState(false)
   const [busy, setBusy] = useState<PullRequestAction['kind'] | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<{
+    kind: PullRequestAction['kind']
+    text: string
+  } | null>(null)
   const forced = useRef(false)
 
   useEffect(() => {
@@ -116,7 +119,7 @@ export function PullRequestView(props: {
         url: props.url,
         action,
       })
-      setNotice(label)
+      setNotice({ kind: action.kind, text: label })
       setTimeout(() => setNotice(null), 3000)
       setVersion((value) => value + 1)
       return true
@@ -151,27 +154,10 @@ export function PullRequestView(props: {
             #{props.url.split('/').at(-1)}
           </span>
           {details === null && error === null && (
-            <>
-              <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
-              <Skeleton className="ml-1.5 h-4 w-48 min-w-0 shrink" />
-            </>
+            <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
           )}
           {details !== null && (
-            <>
-              <StateBadge state={details.state} draft={details.draft} />
-              <span
-                className="text-muted-foreground ml-1.5 flex min-w-0 items-center gap-1 text-xs"
-                title={`${details.head} into ${details.base}`}
-              >
-                <code className="bg-muted shrink-0 rounded px-1">
-                  {details.base}
-                </code>
-                <span className="shrink-0">←</span>
-                <code className="bg-muted truncate rounded px-1">
-                  {details.head}
-                </code>
-              </span>
-            </>
+            <StateBadge state={details.state} draft={details.draft} />
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -227,48 +213,66 @@ export function PullRequestView(props: {
       )}
       {details !== null && (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="border-border/60 grid gap-2.5 border-b p-4">
+          <div className="border-border/60 @container grid gap-2.5 border-b p-4">
             <h2 className="text-foreground text-base leading-snug font-semibold wrap-anywhere">
               {details.title}
             </h2>
-            <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
-              <span className="wrap-anywhere">
+            <div className="text-muted-foreground grid gap-1 text-xs leading-relaxed wrap-anywhere">
+              <p className="text-pretty">
                 <a
                   href={`https://github.com/${details.author}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-foreground hover:underline"
+                  className="text-foreground font-medium hover:underline"
                 >
                   {details.author}
                 </a>{' '}
                 {details.state === 'OPEN' && 'wants to merge'}
                 {details.state === 'MERGED' && 'merged'}
                 {details.state === 'CLOSED' && 'wanted to merge'}{' '}
-                {details.commits.length}{' '}
-                {details.commits.length === 1 ? 'commit' : 'commits'} into{' '}
-                <code className="bg-muted rounded px-1">{details.base}</code>{' '}
+                <span className="text-foreground whitespace-nowrap">
+                  {details.commits.length}{' '}
+                  {details.commits.length === 1 ? 'commit' : 'commits'}
+                </span>{' '}
+                into{' '}
+                <code className="bg-muted text-foreground rounded box-decoration-clone px-1 py-px">
+                  {details.base}
+                </code>{' '}
                 from{' '}
-                <code className="bg-muted rounded px-1">{details.head}</code>
-              </span>
-            </div>
-            <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
-              <MergeStatus details={details} busy={busy} notice={notice} />
-              <span className="font-mono tabular-nums">
-                <span className="text-diff-addition">+{details.additions}</span>{' '}
-                <span className="text-diff-deletion">-{details.deletions}</span>
-              </span>
-              <span>·</span>
-              <span>
-                {details.changedFiles}{' '}
-                {details.changedFiles === 1 ? 'file' : 'files'}
-              </span>
-              <span>·</span>
-              <span>Updated {timeAgo(details.updatedAt)}</span>
-              {details.head === details.current && (
-                <span className="bg-info/12 text-info rounded px-1.5 py-px text-[10px] font-medium">
-                  Current branch
+                <code className="bg-muted text-foreground rounded box-decoration-clone px-1 py-px">
+                  {details.head}
+                </code>
+                {details.head === details.current && (
+                  <>
+                    {' '}
+                    <span className="text-info whitespace-nowrap">
+                      (current branch)
+                    </span>
+                  </>
+                )}
+              </p>
+              <p className="text-balance">
+                <span className="font-mono whitespace-nowrap tabular-nums">
+                  <span className="text-diff-addition">
+                    +{details.additions}
+                  </span>{' '}
+                  <span className="text-diff-deletion">
+                    −{details.deletions}
+                  </span>
+                </span>{' '}
+                across{' '}
+                <span className="text-foreground whitespace-nowrap">
+                  {details.changedFiles}{' '}
+                  {details.changedFiles === 1 ? 'file' : 'files'}
                 </span>
-              )}
+                ,{' '}
+                <span className="whitespace-nowrap">
+                  updated{' '}
+                  {timeAgo(details.updatedAt) === 'now'
+                    ? 'just now'
+                    : `${timeAgo(details.updatedAt)} ago`}
+                </span>
+              </p>
             </div>
             <div
               className={cn(
@@ -279,7 +283,7 @@ export function PullRequestView(props: {
             >
               <div
                 className={cn(
-                  'bg-input/40 flex w-fit items-center rounded-lg p-0.5',
+                  'bg-input/40 flex w-fit max-w-full items-center rounded-lg p-0.5',
                   props.mobile && 'text-2xs',
                   !props.mobile && 'text-xs'
                 )}
@@ -418,7 +422,12 @@ export function PullRequestView(props: {
           )}
         </div>
       )}
-      <PullRequestActions details={details} busy={busy} onPerform={perform} />
+      <PullRequestActions
+        details={details}
+        busy={busy}
+        notice={notice}
+        onPerform={perform}
+      />
       {details !== null && error !== null && (
         <p className="text-destructive border-t px-4 py-2 text-xs wrap-anywhere">
           {error}
