@@ -117,6 +117,7 @@ export function start() {
     rewinding: null,
     worktree: null,
     worktreeStage: null,
+    worktreeState: null,
     context: null,
     capabilities: null,
     errors: [],

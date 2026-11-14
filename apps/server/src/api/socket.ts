@@ -221,7 +221,7 @@ const handlers: Handlers = {
     recordInteraction(params.sessionId, run.provider, null)
     return null
   },
-  'sessions.rewind': (params) => rewind(params),
+  'sessions.rewind': (params, client) => rewind(params, client),
   'sessions.fork': async (params) => {
     const result = await fork(params)
     publishSessions()

@@ -44,6 +44,7 @@ import {
   saveDraftFile,
   useDraft,
 } from './drafts'
+import { MissingWorktreeNotice } from './missing-worktree-notice'
 import { isSnoozeShortcut, MoreMenu, sendStatus } from './more-menu'
 import { PermissionPrompt } from './permission-prompt'
 import { Pickers } from './pickers'
@@ -287,6 +288,7 @@ export function Composer(props: {
         )}
         <UsageResetBanner />
         <ClaudeWorktreeNotice />
+        <MissingWorktreeNotice running={running} />
         <RewindNotice draftKey={key} />
         <QueuedMessages />
         {request !== undefined && (

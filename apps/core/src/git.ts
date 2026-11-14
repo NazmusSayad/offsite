@@ -43,6 +43,8 @@ export type WorktreeBases = {
   worktrees: WorktreeChoice[]
 }
 
+export type WorktreeState = 'ready' | 'folderMissing' | 'branchMissing'
+
 export type WorktreeDetails = {
   folder: string
   branch: string | null

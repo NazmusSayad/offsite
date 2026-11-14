@@ -1,7 +1,11 @@
 import { history, Run } from '../lib/claude/index.ts'
 import { type Client, publish } from '../lib/hub.ts'
 import { runs } from '../lib/live.ts'
-import { moveProjectToWorktree } from './projects.ts'
+import {
+  moveProjectToWorktree,
+  rootProject,
+  worktreeState,
+} from './projects.ts'
 import { locked } from './runs.ts'
 import { findSession, providerOf } from './sessions.ts'
 import { placeSession, setUpWorktree } from './worktree-sessions.ts'
@@ -64,5 +68,33 @@ export function moveToWorktree(
       branch: project.branch,
       setup: setUpWorktree(project.id),
     }
+  })
+}
+
+export function moveToMain(sessionId: string) {
+  return locked(sessionId, async () => {
+    if (providerOf(sessionId) !== 'claude') {
+      throw new Error('Only Claude Code chats can switch to the main project')
+    }
+    const session = await findSession(sessionId)
+    if (session === null) {
+      throw new Error('offsite cannot find this chat, reload the page')
+    }
+    if ((await worktreeState(session.projectId)) !== 'branchMissing') {
+      throw new Error(
+        'Only a chat whose worktree folder and branch are gone can switch to the main project'
+      )
+    }
+    const run = runs.get(sessionId)
+    if (run?.running === true) {
+      throw new Error('Wait for this turn to finish before switching')
+    }
+    if (run !== undefined) {
+      run.stop()
+      await run.closed
+    }
+    const root = rootProject(session.projectId)
+    placeSession(sessionId, root.id, false)
+    return { projectId: root.id }
   })
 }

@@ -22,7 +22,6 @@ import { logger } from '../lib/log.ts'
 import { openCodeMessages } from '../lib/opencode/index.ts'
 import { claudeBaseDir, readConfig } from '../storage/config.ts'
 import { providerName } from './accounts.ts'
-import { projects } from './projects.ts'
 import { type Found, timeLimit } from './provider-sessions.ts'
 import { providerThreads } from './threads.ts'
 
@@ -41,9 +40,6 @@ export async function searchMessages(query: string) {
   if (!hasSearchableWord(query)) {
     return { matches: [], failed: [] }
   }
-  const folders = new Map(
-    projects().map((project) => [project.id, project.path])
-  )
   const allProviders: Provider[] = ['claude', 'codex', 'opencode']
   const results = await Promise.all(
     allProviders
@@ -51,7 +47,7 @@ export async function searchMessages(query: string) {
       .map(async (provider) => {
         try {
           const matches = await timeLimit(
-            search(provider, query, folders),
+            search(provider, query),
             `${providerName(provider)} did not search in time`
           )
           return { provider, matches, failed: false }
@@ -72,15 +68,11 @@ export async function searchMessages(query: string) {
   }
 }
 
-async function search(
-  provider: Provider,
-  query: string,
-  folders: Map<string, string>
-) {
+async function search(provider: Provider, query: string) {
   const sessions = newestFirst(await providerThreads(provider))
   switch (provider) {
     case 'claude':
-      return searchClaude(query, sessions, folders)
+      return searchClaude(query, sessions)
     case 'codex':
       return searchCodex(query, sessions)
     case 'opencode':
@@ -96,29 +88,17 @@ function newestFirst(sessions: Found[]) {
   return [...sessions].sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
-async function searchClaude(
-  query: string,
-  sessions: Found[],
-  folders: Map<string, string>
-) {
+async function searchClaude(query: string, sessions: Found[]) {
   const candidates = await claudeCandidates(query)
   const matching =
     candidates === null
       ? sessions
       : sessions.filter((session) => candidates.has(session.id))
-  const projectOf = new Map(
-    sessions.map((session) => [session.id, session.projectId])
-  )
-  return readAndMatch(query, matching.slice(0, READ_LIMIT), (sessionId) =>
-    claudeMessages(sessionId, folders.get(projectOf.get(sessionId) ?? ''))
-  )
+  return readAndMatch(query, matching.slice(0, READ_LIMIT), claudeMessages)
 }
 
-async function claudeMessages(
-  sessionId: string,
-  dir: string | undefined
-): Promise<SearchMessage[]> {
-  const messages = await getSessionMessages(sessionId, { dir })
+async function claudeMessages(sessionId: string): Promise<SearchMessage[]> {
+  const messages = await getSessionMessages(sessionId)
   return messages.flatMap((item) => {
     if (item.type === 'system' || item.parent_tool_use_id !== null) {
       return []

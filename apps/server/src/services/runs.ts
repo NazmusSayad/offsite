@@ -89,13 +89,24 @@ export function agentHistory(request: RpcMethods['sessions.agent']['params']) {
   }
 }
 
-export function rewind(request: RewindRequest): Promise<RewindResult> {
-  return locked(request.sessionId, () => rewindNow(request))
+export function rewind(
+  request: RewindRequest,
+  client: Client
+): Promise<RewindResult> {
+  return locked(request.sessionId, () => rewindNow(request, client))
 }
 
-async function rewindNow(request: RewindRequest): Promise<RewindResult> {
+async function rewindNow(
+  request: RewindRequest,
+  client: Client
+): Promise<RewindResult> {
   const sessionId = request.sessionId
   const cwd = projectPath(request.projectId)
+  if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {
+    throw new Error(
+      `Rewind isn't available because the folder ${cwd} no longer exists`
+    )
+  }
   if (runs.get(sessionId)?.running === true) {
     throw new Error(
       `Stop ${providerName(providerOf(sessionId))} before rewinding`
@@ -134,6 +145,16 @@ async function rewindNow(request: RewindRequest): Promise<RewindResult> {
     })
     if (!files.canRewind) {
       throw new Error(files.error ?? 'The files cannot be restored')
+    }
+    const skipped = files.skippedLinks ?? 0
+    if (skipped > 0) {
+      client.send({
+        type: 'warning',
+        message:
+          skipped === 1
+            ? '1 file could not be restored'
+            : `${skipped} files could not be restored`,
+      })
     }
     result = {
       files: files.filesChanged ?? [],
@@ -316,11 +337,14 @@ async function deliver(
     }
     return
   }
-  if (
-    (await restoreWorktreeFolder(request.projectId)) &&
-    setUpWorktree(request.projectId)
-  ) {
-    client.send({ type: 'setup', projectId: request.projectId })
+  const restored = await restoreWorktreeFolder(request.projectId)
+  if (restored !== null) {
+    if (restored.warning !== null) {
+      client.send({ type: 'warning', message: restored.warning })
+    }
+    if (setUpWorktree(request.projectId)) {
+      client.send({ type: 'setup', projectId: request.projectId })
+    }
   }
   const cwd = projectPath(request.projectId)
   if (!statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) {

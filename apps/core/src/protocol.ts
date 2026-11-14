@@ -21,6 +21,7 @@ import type {
   WorktreeChoice,
   WorktreeDetails,
   WorktreeStage,
+  WorktreeState,
 } from './git.ts'
 import type {
   PermissionDecision,
@@ -123,6 +124,10 @@ export type RpcMethods = PullRequestMethods & {
     params: { projectId: string }
     result: WorktreeDetails
   }
+  'projects.worktreeState': {
+    params: { projectId: string }
+    result: WorktreeState
+  }
   'projects.removeWorktree': { params: { projectId: string }; result: null }
   'directories.list': { params: { path: string }; result: DirectoryListing }
   'sessions.update': {
@@ -144,6 +149,10 @@ export type RpcMethods = PullRequestMethods & {
   'sessions.move': {
     params: { sessionId: string; name: string | null }
     result: { projectId: string; branch: string; setup: boolean }
+  }
+  'sessions.moveToMain': {
+    params: { sessionId: string }
+    result: { projectId: string }
   }
   'sessions.open': {
     params: {
