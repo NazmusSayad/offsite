@@ -129,7 +129,9 @@ export function UserMessage(props: {
               }
             >
               {item.format === 'command' && !item.text.startsWith('/') && (
-                <span className="font-mono text-sm">{item.text}</span>
+                <span className="font-mono text-sm wrap-anywhere">
+                  {item.text}
+                </span>
               )}
               {item.format === 'command' && item.text.startsWith('/') && (
                 <p className="text-foreground text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap">
@@ -143,7 +145,7 @@ export function UserMessage(props: {
                 </p>
               )}
               {item.format === 'output' && (
-                <pre className="text-muted-foreground font-mono text-xs whitespace-pre-wrap">
+                <pre className="text-muted-foreground font-mono text-xs wrap-anywhere whitespace-pre-wrap">
                   {item.text}
                 </pre>
               )}

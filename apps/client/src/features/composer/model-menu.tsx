@@ -335,7 +335,7 @@ export function ModelMenu(props: {
         )}
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1.5">
           {matches.length === 0 ? (
-            <p className="text-muted-foreground p-2 text-center text-sm">
+            <p className="text-muted-foreground p-2 text-center text-sm wrap-anywhere">
               {viewed !== null && errors[viewed] !== undefined
                 ? errors[viewed]
                 : viewedModels === null

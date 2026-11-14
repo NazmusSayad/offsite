@@ -244,7 +244,9 @@ export function BrowserPanel(props: {
         )}
       </div>
       {error !== null && (
-        <p className="text-muted-foreground p-4 text-center text-xs">{error}</p>
+        <p className="text-muted-foreground p-4 text-center text-xs wrap-anywhere">
+          {error}
+        </p>
       )}
       {target === null && (
         <p className="text-muted-foreground p-4 text-center text-xs">

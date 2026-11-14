@@ -97,7 +97,7 @@ function RemoveContent(props: { machine: string; projectId: string }) {
             <p className="mb-1">Deleting it loses:</p>
             <ul className="list-disc ps-5">
               {risks.map((risk) => (
-                <li key={risk} className="break-words">
+                <li key={risk} className="wrap-anywhere">
                   {risk}
                 </li>
               ))}
@@ -105,7 +105,7 @@ function RemoveContent(props: { machine: string; projectId: string }) {
           </>
         )}
         {details !== null && details.branch !== null && (
-          <p className="text-muted-foreground mt-2 text-xs">
+          <p className="text-muted-foreground mt-2 text-xs wrap-anywhere">
             {details.commits === 0 &&
               `The branch ${details.branch} is deleted too, it has no commits of its own.`}
             {details.commits === 1 &&

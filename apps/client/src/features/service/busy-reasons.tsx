@@ -38,7 +38,7 @@ export function BusyReasons(props: { busy: string[] | null }) {
   return (
     <div className="flex flex-col gap-1.5">
       <p className="text-destructive font-medium">Restarting stops:</p>
-      <ul className="text-muted-foreground list-disc pl-5">
+      <ul className="text-muted-foreground list-disc pl-5 wrap-anywhere">
         {props.busy.map((reason, index) => (
           <li key={`${index} ${reason}`}>{reason}</li>
         ))}

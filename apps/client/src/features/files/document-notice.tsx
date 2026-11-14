@@ -10,7 +10,7 @@ export function DocumentNotice(props: {
     return null
   }
   return (
-    <p className="text-muted-foreground grid size-full place-items-center p-6 text-center text-sm">
+    <p className="text-muted-foreground grid size-full place-items-center p-6 text-center text-sm wrap-anywhere">
       {notice}
     </p>
   )

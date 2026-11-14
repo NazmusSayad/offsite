@@ -182,7 +182,7 @@ function AgentDetails(props: {
           {step.label !== '' && (
             <span className="text-foreground shrink-0">{step.label}</span>
           )}
-          <span className="text-muted-foreground line-clamp-3 min-w-0">
+          <span className="text-muted-foreground line-clamp-3 min-w-0 wrap-anywhere">
             {step.detail}
           </span>
         </p>

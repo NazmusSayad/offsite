@@ -310,7 +310,7 @@ function BaseMenu(props: { machine: string; projectId: string }) {
       </div>
       <div ref={listRef} className="max-h-80 min-h-0 overflow-y-auto p-1">
         {failure !== null && (
-          <div className="text-destructive px-2 py-6 text-center text-sm">
+          <div className="text-destructive px-2 py-6 text-center text-sm wrap-anywhere">
             {failure}
           </div>
         )}

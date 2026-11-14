@@ -147,7 +147,7 @@ export function AccountUsage(props: {
         </div>
       )}
       {usage !== undefined && usage.error !== null && (
-        <p className="text-destructive text-xs">
+        <p className="text-destructive text-xs wrap-anywhere">
           Couldn&apos;t refresh: {usage.error}
         </p>
       )}

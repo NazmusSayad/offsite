@@ -201,7 +201,7 @@ export function PullRequestView(props: {
         </div>
       </div>
       {details === null && error !== null && (
-        <p className="text-muted-foreground min-h-0 flex-1 p-4 text-center text-xs whitespace-pre-wrap">
+        <p className="text-muted-foreground min-h-0 flex-1 p-4 text-center text-xs wrap-anywhere whitespace-pre-wrap">
           {error}
         </p>
       )}
@@ -227,11 +227,11 @@ export function PullRequestView(props: {
       {details !== null && (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="border-border/60 grid gap-2.5 border-b p-4">
-            <h2 className="text-foreground text-base leading-snug font-semibold">
+            <h2 className="text-foreground text-base leading-snug font-semibold wrap-anywhere">
               {details.title}
             </h2>
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
-              <span>
+              <span className="wrap-anywhere">
                 <a
                   href={`https://github.com/${details.author}`}
                   target="_blank"
@@ -389,7 +389,9 @@ export function PullRequestView(props: {
       )}
       <PullRequestActions details={details} busy={busy} onPerform={perform} />
       {details !== null && error !== null && (
-        <p className="text-destructive border-t px-4 py-2 text-xs">{error}</p>
+        <p className="text-destructive border-t px-4 py-2 text-xs wrap-anywhere">
+          {error}
+        </p>
       )}
     </div>
   )

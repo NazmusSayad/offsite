@@ -261,7 +261,7 @@ export function PullRequestsPanel(props: {
           </p>
         )}
         {error !== null && (
-          <p className="text-muted-foreground p-4 text-center text-xs whitespace-pre-wrap">
+          <p className="text-muted-foreground p-4 text-center text-xs wrap-anywhere whitespace-pre-wrap">
             {error}
           </p>
         )}
@@ -309,7 +309,7 @@ export function PullRequestsPanel(props: {
             />
             <div className="grid min-w-0 flex-1 gap-1">
               <div className="flex min-w-0 items-start gap-2">
-                <span className="text-foreground min-w-0 flex-1 text-sm leading-snug font-medium">
+                <span className="text-foreground min-w-0 flex-1 text-sm leading-snug font-medium wrap-anywhere">
                   {item.title}
                 </span>
                 <span className="text-2xs mt-0.5 inline-flex shrink-0 items-center gap-1 font-mono tabular-nums">

@@ -82,7 +82,7 @@ export function TerminalPanel(props: {
 
   if (!state.loaded) {
     return (
-      <div className="text-muted-foreground grid h-full place-items-center p-4 text-xs whitespace-pre-wrap">
+      <div className="text-muted-foreground grid h-full place-items-center p-4 text-xs wrap-anywhere whitespace-pre-wrap">
         {state.failure === null
           ? 'Starting the terminal…'
           : `The terminal could not start: ${state.failure}`}

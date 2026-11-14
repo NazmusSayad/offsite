@@ -128,7 +128,9 @@ export function ServiceForm(props: {
         onChange={(pwa) => setOptions({ ...options, pwa })}
       />
       <BusyReasons busy={busy} />
-      {error !== null && <p className="text-destructive">{error}</p>}
+      {error !== null && (
+        <p className="text-destructive wrap-anywhere">{error}</p>
+      )}
       <div className="flex justify-end gap-2 pt-2">
         {props.onCancel !== undefined && (
           <Button type="button" variant="outline" onClick={props.onCancel}>

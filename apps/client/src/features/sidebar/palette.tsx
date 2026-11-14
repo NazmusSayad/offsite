@@ -407,7 +407,7 @@ function PaletteContent() {
         )}
       </div>
       {results.failures.length > 0 && (
-        <p className="text-muted-foreground border-t px-4 py-2 text-xs">
+        <p className="text-muted-foreground border-t px-4 py-2 text-xs wrap-anywhere">
           Couldn&apos;t search {results.failures.join(', ')}
         </p>
       )}

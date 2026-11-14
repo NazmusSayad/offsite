@@ -99,7 +99,7 @@ function PreviewCard(props: {
   }
   if (preview.kind === 'error') {
     return (
-      <p className="bg-popover text-muted-foreground max-w-72 px-3 py-2 text-xs">
+      <p className="bg-popover text-muted-foreground max-w-72 px-3 py-2 text-xs wrap-anywhere">
         {preview.message}
       </p>
     )

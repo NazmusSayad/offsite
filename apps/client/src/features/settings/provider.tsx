@@ -169,7 +169,9 @@ function ProviderModels(props: {
   return (
     <Section title="Models">
       {error !== null && (
-        <p className="text-destructive px-4 py-3 text-xs">{error}</p>
+        <p className="text-destructive px-4 py-3 text-xs wrap-anywhere">
+          {error}
+        </p>
       )}
       {error === null && models === null && (
         <p className="text-muted-foreground px-4 py-3 text-xs">Loading…</p>
@@ -326,7 +328,9 @@ function ProviderAccounts(props: {
         Add account
       </button>
       {error !== null && (
-        <p className="text-destructive px-4 py-3 text-xs">{error}</p>
+        <p className="text-destructive px-4 py-3 text-xs wrap-anywhere">
+          {error}
+        </p>
       )}
       <AlertDialog
         open={linkTarget !== null}

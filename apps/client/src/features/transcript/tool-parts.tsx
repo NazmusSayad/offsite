@@ -359,11 +359,11 @@ function FileChange(props: {
         <FileTypeIcon path={props.file} className="size-4 shrink-0" />
         <span className="flex min-w-0 flex-1 items-baseline">
           {slash >= 0 && (
-            <span className="text-muted-foreground truncate">
+            <span className="text-muted-foreground shrink-[100] truncate">
               {props.file.slice(0, slash + 1)}
             </span>
           )}
-          <span className="text-foreground shrink-0">
+          <span className="text-foreground truncate">
             <Shimmer
               text={props.file.slice(slash + 1)}
               active={props.pending}
@@ -407,7 +407,7 @@ function ErrorCard(props: { title: string; subtitle: string; error: string }) {
         onClick={() => setOpen(!open)}
         className="flex h-6 w-full cursor-pointer items-center text-left text-[13px] leading-4 tracking-[-0.04px] select-none"
       >
-        <span className="flex max-w-[calc(100%-20px)] min-w-0 items-center gap-1.5">
+        <span className="flex max-w-[calc(100%-20px)] min-w-0 items-center gap-1.5 overflow-hidden">
           <HugeiconsIcon
             icon={AlertDiamondIcon}
             className="text-destructive size-4 shrink-0"

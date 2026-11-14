@@ -116,7 +116,7 @@ export function PullRequestGuide(props: {
     <>
       <div className="grid gap-4 p-4">
         {error !== null && (
-          <p className="text-destructive bg-destructive/8 rounded-lg px-3 py-2 text-xs whitespace-pre-wrap">
+          <p className="text-destructive bg-destructive/8 rounded-lg px-3 py-2 text-xs wrap-anywhere whitespace-pre-wrap">
             {error}
           </p>
         )}
@@ -333,7 +333,7 @@ function GuideStop(props: { stop: ReviewGuideStop; index: number }) {
         <ul className="grid gap-1">
           {stop.files.map((file) => (
             <li key={file.path} className="flex min-w-0 gap-2 text-xs">
-              <span className="text-foreground shrink-0 font-mono">
+              <span className="text-foreground min-w-0 font-mono wrap-anywhere">
                 {file.path}
               </span>
               {file.note !== '' && (

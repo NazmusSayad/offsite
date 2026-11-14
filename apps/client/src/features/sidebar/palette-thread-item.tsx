@@ -24,12 +24,12 @@ export function PaletteThreadItem(props: {
       <span className="min-w-0 flex-1 truncate text-base">
         <Highlighted text={props.title} ranges={props.titleRanges} />
       </span>
-      <span className="text-secondary-label text-3xs flex shrink-0 flex-col items-end pl-2 leading-[calc(1/0.75)]">
+      <span className="text-secondary-label text-3xs flex max-w-1/2 shrink-0 flex-col items-end pl-2 leading-[calc(1/0.75)]">
         {props.updatedAt !== null && (
           <span className="tabular-nums">{timeAgo(props.updatedAt)}</span>
         )}
-        <span className="flex items-center gap-[0.5em]">
-          {props.project}
+        <span className="flex max-w-full items-center gap-[0.5em]">
+          <span className="truncate">{props.project}</span>
           {props.machines.length > 1 && (
             <MachineLogo
               icon={machine?.icon ?? null}

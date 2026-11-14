@@ -260,7 +260,7 @@ export function GitDialog(props: {
         {entries === null && (
           <>
             {repos.length === 1 && (
-              <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              <div className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
                 {props.action === 'pullRequest' ? (
                   <BaseSelect
                     head={repos[0].branch ?? 'detached'}
@@ -268,7 +268,9 @@ export function GitDialog(props: {
                     onBase={(base) => chooseBase(repos[0].path, base)}
                   />
                 ) : (
-                  (repos[0].branch ?? 'detached')
+                  <span className="truncate">
+                    {repos[0].branch ?? 'detached'}
+                  </span>
                 )}
                 <span className="shrink-0">
                   · {repos[0].changed}{' '}

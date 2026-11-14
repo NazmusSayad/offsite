@@ -106,7 +106,7 @@ export function PermissionPrompt(props: {
         </span>
         <span className="flex min-w-0 flex-col items-start gap-1">
           <span className="text-muted-foreground text-2xs flex w-full min-w-0 items-center gap-2">
-            <span className="text-warning shrink-0 font-medium">
+            <span className="text-warning min-w-0 font-medium wrap-anywhere">
               {plan ? 'Ready to code?' : request.title}
             </span>
             {props.count > 1 && (
@@ -323,7 +323,7 @@ function QuestionPrompt(props: {
                 className="size-4"
               />
             </span>
-            <p className="text-foreground min-w-0 flex-1 pt-0.5 text-[15px] leading-5 font-medium">
+            <p className="text-foreground min-w-0 flex-1 pt-0.5 text-[15px] leading-5 font-medium wrap-anywhere">
               {question.question}
             </p>
             <Button
@@ -365,7 +365,7 @@ function QuestionPrompt(props: {
                     selected={selected}
                     suggested={suggested}
                   />
-                  <span className="min-w-0 flex-1">
+                  <span className="min-w-0 flex-1 wrap-anywhere">
                     <span className="flex items-baseline gap-2">
                       <span className="text-foreground text-sm">
                         {recommended
