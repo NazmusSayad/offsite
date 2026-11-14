@@ -43,6 +43,7 @@ export function SmallModelSection(props: {
       provider: settings.provider,
       accountId: settings.accountId,
       projectId: null,
+      worktreeId: null,
     }).then(
       (capabilities) => {
         if (current) {

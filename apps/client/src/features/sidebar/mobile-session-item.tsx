@@ -26,7 +26,6 @@ import { deactivateSession, editSession } from '@/lib/sessions'
 import {
   machineOf,
   type MachineSession,
-  projectOf,
   threadState,
   useStore,
 } from '@/lib/store'
@@ -49,15 +48,11 @@ function MobileSessionItemView(props: {
   unseen: boolean
   saved: boolean
   scope: { machine: string; projectId: string } | null
-  onSelect: (machine: string, projectId: string, sessionId: string) => void
+  onSelect: (session: MachineSession) => void
 }) {
   const session = props.session
   const projectTitle = useProjectName(session.machine, session.projectId)
-  const worktree = useStore(
-    (state) =>
-      (projectOf(state, session.machine, session.projectId)?.parentId ??
-        null) !== null
-  )
+  const worktree = session.worktreeId !== null
   const machineIcon = useStore(
     (state) => machineOf(state, session.machine).icon
   )
@@ -208,12 +203,10 @@ function MobileSessionItemView(props: {
                   'opacity-70 in-data-swiping:opacity-100',
                 'in-data-swiping:bg-sidebar'
               )}
-              onClick={() =>
-                props.onSelect(session.machine, session.projectId, session.id)
-              }
+              onClick={() => props.onSelect(session)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
-                  props.onSelect(session.machine, session.projectId, session.id)
+                  props.onSelect(session)
                 }
               }}
             >

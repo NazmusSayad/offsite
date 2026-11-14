@@ -8,6 +8,7 @@ export type OutboxPrompt = {
   id: string
   sessionId: string | null
   projectId: string
+  worktreeId: string | null
   provider: Provider
   prompt: Prompt
   status: 'sending' | 'accepted' | 'queued' | 'failed'

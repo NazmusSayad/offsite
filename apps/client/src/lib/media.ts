@@ -1,5 +1,6 @@
 import { mediaTypes } from '@offsite/core/media'
 import { call, machineUrl } from '@/api/connection'
+import type { Place } from '@/lib/store'
 
 const GITHUB_ATTACHMENT =
   /^https:\/\/github\.com\/user-attachments\/assets\/[0-9a-f-]{36}$/i
@@ -24,13 +25,13 @@ export function mediaKind(src: string) {
   return null
 }
 
-export async function mediaUrl(
-  machine: string,
-  projectId: string,
-  path: string
-) {
-  const token = await call(machine, 'files.media', { projectId, path })
-  return `${machineUrl(machine)}/api/media?${new URLSearchParams({ token })}`
+export async function mediaUrl(place: Place, path: string) {
+  const token = await call(place.machine, 'files.media', {
+    projectId: place.projectId,
+    worktreeId: place.worktreeId,
+    path,
+  })
+  return `${machineUrl(place.machine)}/api/media?${new URLSearchParams({ token })}`
 }
 
 export function isGithubAttachment(src: string) {
@@ -54,14 +55,14 @@ async function loadGithubMediaUrl(machine: string, url: string) {
   return `${machineUrl(machine)}/api/media?${new URLSearchParams({ token })}`
 }
 
-export async function downloadProjectFile(
-  machine: string,
-  projectId: string,
-  path: string
-) {
-  const token = await call(machine, 'files.download', { projectId, path })
+export async function downloadProjectFile(place: Place, path: string) {
+  const token = await call(place.machine, 'files.download', {
+    projectId: place.projectId,
+    worktreeId: place.worktreeId,
+    path,
+  })
   await downloadFile(
-    `${machineUrl(machine)}/api/media?${new URLSearchParams({ token })}`,
+    `${machineUrl(place.machine)}/api/media?${new URLSearchParams({ token })}`,
     path
   )
 }

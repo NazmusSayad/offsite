@@ -1,4 +1,3 @@
-import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { isMac } from '@/lib/utils'
 import { closeTab } from './close-tab'
@@ -46,7 +45,8 @@ export function useTerminalShortcuts() {
       if (hotkey.hotkey === newTabKey) {
         send({
           type: 'createTab',
-          projectId: current.view === GLOBAL_TERMINALS ? null : current.view,
+          projectId: current.place.projectId,
+          worktreeId: current.place.worktreeId,
         })
         return
       }

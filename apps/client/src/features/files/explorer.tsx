@@ -52,6 +52,7 @@ export type Editing =
 export function Explorer(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   root: string
   header: ReactNode
   expanded: string[]
@@ -76,7 +77,10 @@ export function Explorer(props: {
 
   useEffect(() => {
     let current = true
-    call(props.machine, 'files.entries', { projectId: props.projectId }).then(
+    call(props.machine, 'files.entries', {
+      projectId: props.projectId,
+      worktreeId: props.worktreeId,
+    }).then(
       (result) => {
         if (!current) {
           return
@@ -93,7 +97,7 @@ export function Explorer(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.projectId, version])
+  }, [props.machine, props.projectId, props.worktreeId, version])
 
   const tree = useMemo(
     () => buildTree(entries?.files ?? [], entries?.folders ?? []),
@@ -128,6 +132,7 @@ export function Explorer(props: {
         const path = editing.parent === '' ? name : `${editing.parent}/${name}`
         await call(props.machine, 'files.create', {
           projectId: props.projectId,
+          worktreeId: props.worktreeId,
           path,
           folder: editing.folder,
         })
@@ -143,6 +148,7 @@ export function Explorer(props: {
         const to = parent === '' ? name : `${parent}/${name}`
         await call(props.machine, 'files.rename', {
           projectId: props.projectId,
+          worktreeId: props.worktreeId,
           path: editing.path,
           to,
         })
@@ -158,6 +164,7 @@ export function Explorer(props: {
     try {
       await call(props.machine, 'files.delete', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         path: entry.path,
       })
       props.onDeleted(entry.path)
@@ -359,6 +366,7 @@ export function Explorer(props: {
           <ExplorerMenu
             machine={props.machine}
             projectId={props.projectId}
+            worktreeId={props.worktreeId}
             root={props.root}
             entry={menu}
             onPending={(action) => {

@@ -2,19 +2,16 @@ import {
   FRAME_INPUT,
   FRAME_REPLAY,
   FRAME_REPLY,
-  GLOBAL_TERMINALS,
   type TerminalEvent,
   type TerminalLayout,
   type TerminalRequest,
+  type TerminalPlace,
   type TerminalTab,
+  terminalViewOf,
 } from '@offsite/core/terminal'
 import { call, isConnected, listen, sendFrame } from '@/api/connection'
 import { loadGhostty } from '@/lib/ghostty/runtime'
-import {
-  type FindResults,
-  type Progress,
-  Terminal,
-} from '@/lib/ghostty/terminal'
+import { type Progress, Terminal } from '@/lib/ghostty/terminal'
 import { logger } from '@/lib/log'
 import { router } from '@/lib/router'
 import { openSession } from '@/lib/sessions'
@@ -28,7 +25,7 @@ import {
   rememberTerminal,
   replaceSearch,
   terminalPage,
-  terminalView,
+  terminalPlace,
 } from '@/lib/url'
 import { errorMessage } from '@/lib/utils'
 import { unseenAttention } from './attention'
@@ -227,12 +224,14 @@ export function terminalConfig() {
 }
 
 export function currentView() {
-  const view =
-    terminalPage() === null ? appState().selection?.projectId : terminalView()
-  if (view === undefined) {
+  const selection = appState().selection
+  const place = terminalPage() === null ? selection : terminalPlace()
+  if (place === null) {
     return null
   }
+  const view = terminalViewOf(place)
   return {
+    place: { projectId: place.projectId, worktreeId: place.worktreeId },
     view,
     tabs: viewTabs(state.layout, view),
     tabId: state.layout.active[view] ?? null,
@@ -244,7 +243,7 @@ export function viewTabs(layout: TerminalLayout, view: string) {
 }
 
 export function tabView(tab: TerminalTab) {
-  return tab.projectId ?? GLOBAL_TERMINALS
+  return terminalViewOf(tab)
 }
 
 export function findTab(id: number) {
@@ -282,14 +281,18 @@ export function requestTab() {
   }
 }
 
-export function showProject(projectId: string) {
+export function showProject(place: TerminalPlace) {
   const requested = tabRequested
   tabRequested = false
-  if (viewTabs(state.layout, projectId).length > 0) {
+  if (viewTabs(state.layout, terminalViewOf(place)).length > 0) {
     return
   }
   if (requested) {
-    send({ type: 'createTab', projectId })
+    send({
+      type: 'createTab',
+      projectId: place.projectId,
+      worktreeId: place.worktreeId,
+    })
     return
   }
   setOpen(false)
@@ -302,22 +305,27 @@ function followUrl() {
   }
 }
 
-export function showTab(target: string, projectId: string, tabId: number) {
-  if (projectId === GLOBAL_TERMINALS) {
-    showGroup(target, GLOBAL_TERMINALS)
+export function showTab(target: string, place: TerminalPlace, tabId: number) {
+  if (place.projectId === null) {
+    showGroup(target, place)
   } else {
     const selection = appState().selection
-    if (selection?.machine !== target || selection.projectId !== projectId) {
+    if (
+      selection?.machine !== target ||
+      selection.projectId !== place.projectId ||
+      selection.worktreeId !== place.worktreeId
+    ) {
       openSession({
         machine: target,
-        projectId,
+        projectId: place.projectId,
+        worktreeId: place.worktreeId,
         sessionId: null,
         pending: null,
       })
     }
     setOpen(true)
   }
-  sendTo(target, { type: 'select', view: projectId, tabId })
+  sendTo(target, { type: 'select', view: terminalViewOf(place), tabId })
 }
 
 export function send(request: TerminalRequest) {
@@ -353,29 +361,6 @@ export function sendReply(id: number, data: string) {
     return
   }
   sendFrame(machine, FRAME_REPLY, id, encoder.encode(data))
-}
-
-export function find(
-  id: number,
-  text: string,
-  backwards: boolean,
-  incremental: boolean
-) {
-  getSession(id).find(text, backwards, incremental)
-}
-
-export function onFindResults(
-  id: number,
-  listener: (results: FindResults) => void
-) {
-  return getSession(id).onFindResults(listener)
-}
-
-export function closeFind(id: number) {
-  const terminal = getSession(id)
-  terminal.clearFind()
-  setState({ finding: null })
-  terminal.focus()
 }
 
 export function toggleCtrl() {
@@ -429,11 +414,12 @@ function handle(message: TerminalEvent) {
       awaitingReplay.delete(id)
     }
   }
-  const projectId = appState().selection?.projectId
+  const selection = appState().selection
+  const view = selection === null ? null : terminalViewOf(selection)
   const closedLastTab =
-    projectId !== undefined &&
-    viewTabs(state.layout, projectId).length > 0 &&
-    viewTabs(message.layout, projectId).length === 0
+    view !== null &&
+    viewTabs(state.layout, view).length > 0 &&
+    viewTabs(message.layout, view).length === 0
   setState({
     status: awaitingReplay.size === 0 ? 'active' : 'connecting',
     layout: message.layout,
@@ -516,9 +502,14 @@ function selectLinkedTab() {
   const search = currentSearch()
   const page = terminalPage()
   const target = page ?? search.machine
-  const projectId = page === null ? search.project : GLOBAL_TERMINALS
+  const place =
+    page === null
+      ? search.project === undefined
+        ? undefined
+        : { projectId: search.project, worktreeId: search.worktree ?? null }
+      : { projectId: null, worktreeId: null }
   const tabId = search.terminal
-  if (target === undefined || projectId === undefined || tabId === undefined) {
+  if (target === undefined || place === undefined || tabId === undefined) {
     return
   }
   replaceSearch({ terminal: undefined })
@@ -527,6 +518,6 @@ function selectLinkedTab() {
       return
     }
     unsubscribe()
-    showTab(target, projectId, Number(tabId))
+    showTab(target, place, Number(tabId))
   })
 }

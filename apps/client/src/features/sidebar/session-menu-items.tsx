@@ -185,7 +185,7 @@ export function SessionMenuItems(props: {
         title={`Also removes it from ${providerNames[session.provider]}`}
         onSelect={(event) => {
           if (confirming) {
-            void removeSession(session.machine, session.id, session.projectId)
+            void removeSession(session.machine, session.id, session)
             return
           }
           event.preventDefault()

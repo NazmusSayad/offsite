@@ -1,6 +1,8 @@
 import type { monaco } from '@/features/files/monaco'
 import type { Sort, TabSpec } from '@/features/source-control/changes'
 
+type Place = { projectId: string; worktreeId: string | null }
+
 export type EditorSettings = {
   view: 'explorer' | 'scm'
   sidebar: boolean
@@ -26,11 +28,10 @@ export type EditorState = {
   settings: EditorSettings
 }
 
-export function loadEditorState(
-  machine: string,
-  projectId: string
-): EditorState {
-  const raw = localStorage.getItem(`editorWindow ${machine} ${projectId}`)
+export function loadEditorState(machine: string, place: Place): EditorState {
+  const raw = localStorage.getItem(
+    `editorWindow ${machine} ${place.worktreeId ?? place.projectId}`
+  )
   if (raw !== null) {
     return JSON.parse(raw)
   }
@@ -57,11 +58,11 @@ export function loadEditorState(
 
 export function saveEditorState(
   machine: string,
-  projectId: string,
+  place: Place,
   state: EditorState
 ) {
   localStorage.setItem(
-    `editorWindow ${machine} ${projectId}`,
+    `editorWindow ${machine} ${place.worktreeId ?? place.projectId}`,
     JSON.stringify(state)
   )
 }

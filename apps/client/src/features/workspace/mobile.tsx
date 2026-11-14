@@ -151,7 +151,7 @@ function MobileChat(props: { selection: Selection }) {
   )
   const branch = useWorktreeBranch(
     props.selection.machine,
-    props.selection.projectId
+    props.selection.worktreeId
   )
   const running = useStore(selectedRunning)
   const projectless = useStore(
@@ -165,11 +165,13 @@ function MobileChat(props: { selection: Selection }) {
     machine.status === 'online' && !projectless
       ? props.selection.projectId
       : null,
+    props.selection.worktreeId,
     running
   )
   const commands = useGitCommands({
     machine: props.selection.machine,
     projectId: props.selection.projectId,
+    worktreeId: props.selection.worktreeId,
     repos: git.repos,
     onRefresh: git.refresh,
   })
@@ -342,7 +344,7 @@ function MobileChat(props: { selection: Selection }) {
               {panel === null && terminal && (
                 <div className="min-h-0 flex-1">
                   <TerminalPanel
-                    view={props.selection.projectId}
+                    place={props.selection}
                     mobile
                     leading={
                       <Button

@@ -1,90 +1,118 @@
-import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
-import { rankProjects, withWorktrees, worktreeBranch } from '@/api/projects'
+import {
+  GLOBAL_TERMINALS,
+  type TerminalPlace,
+  terminalViewOf,
+} from '@offsite/core/terminal'
+import { rankProjects, worktreeBranch } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { MachineLogo } from '@/constants/machine-icons'
-import { type Machine, type MachineProject, useStore } from '@/lib/store'
+import {
+  type Machine,
+  type MachineProject,
+  type MachineWorktree,
+  useStore,
+} from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { getState } from './session'
 
 export type Group = {
   machine: Machine
   view: string
+  place: TerminalPlace
   name: string
   count: number
-  parentId: string | null
+  path: string | null
 }
 
 export function useGroups(): Group[] {
   const machines = useStore((store) => store.machines)
   const projects = useStore((store) => store.projects)
+  const worktrees = useStore((store) => store.worktrees)
 
   return machines.flatMap((machine) => {
     const tabs = machine.status === 'online' ? machine.terminals : []
-    const tabProjects = tabs.flatMap((tab) =>
-      tab.projectId === null ? [] : [tab.projectId]
-    )
     const ranked = rankProjects(
       projects.filter(
         (project) =>
           machine.status === 'online' &&
           project.machine === machine.id &&
           !project.hidden &&
-          !project.scratch &&
-          project.parentId === null
+          !project.scratch
       )
     )
-    const projectIds = [
-      ...new Set([
-        ...withWorktrees([
-          ...ranked.top,
-          ...ranked.more.filter((root) =>
-            projects.some(
-              (project) =>
-                project.machine === machine.id &&
-                (project.id === root.id || project.parentId === root.id) &&
-                tabProjects.includes(project.id)
-            )
-          ),
-          ...projects.filter(
-            (project) =>
-              project.machine === machine.id &&
-              !project.scratch &&
-              project.parentId !== null
-          ),
-        ]).map((project) => project.id),
-        ...tabProjects,
+    const places = [
+      ...[
+        ...ranked.top,
+        ...ranked.more.filter((root) =>
+          tabs.some((tab) => tab.projectId === root.id)
+        ),
+      ].flatMap((root): TerminalPlace[] => [
+        { projectId: root.id, worktreeId: null },
+        ...worktrees
+          .filter(
+            (worktree) =>
+              worktree.machine === machine.id && worktree.projectId === root.id
+          )
+          .map((worktree) => ({ projectId: root.id, worktreeId: worktree.id })),
       ]),
+      ...tabs
+        .filter((tab) => tab.projectId !== null)
+        .map((tab) => ({
+          projectId: tab.projectId,
+          worktreeId: tab.worktreeId,
+        })),
     ]
+    const unique = new Map(
+      places.map((place) => [terminalViewOf(place), place])
+    )
     return [
       {
         machine,
         view: GLOBAL_TERMINALS,
+        place: { projectId: null, worktreeId: null },
         name: machine.name,
         count: tabs.filter((tab) => tab.projectId === null).length,
-        parentId: null,
+        path: null,
       },
-      ...projectIds.map((projectId) => {
+      ...[...unique].map((entry) => {
         const project = projects.find(
-          (item) => item.machine === machine.id && item.id === projectId
+          (item) =>
+            item.machine === machine.id && item.id === entry[1].projectId
         )
+        const worktree =
+          entry[1].worktreeId === null
+            ? null
+            : worktrees.find(
+                (item) =>
+                  item.machine === machine.id && item.id === entry[1].worktreeId
+              )
         return {
           machine,
-          view: projectId,
-          name: groupName(project),
-          count: tabs.filter((tab) => tab.projectId === projectId).length,
-          parentId: project?.parentId ?? null,
+          view: entry[0],
+          place: entry[1],
+          name: groupName(project, worktree),
+          count: tabs.filter((tab) => terminalViewOf(tab) === entry[0]).length,
+          path: (worktree ?? project)?.path ?? null,
         }
       }),
     ]
   })
 }
 
-export function groupName(project: MachineProject | undefined) {
+export function groupName(
+  project: MachineProject | undefined,
+  worktree: MachineWorktree | null | undefined
+) {
   if (project === undefined) {
     return 'Removed project'
   }
-  const branch = worktreeBranch(project)
-  return branch === null ? project.name : `${project.name} · ${branch}`
+  if (worktree === null) {
+    return project.name
+  }
+  if (worktree === undefined) {
+    return `${project.name} · Removed worktree`
+  }
+  return `${project.name} · ${worktreeBranch(worktree)}`
 }
 
 export function alerted(group: Group, machine: string | null) {
@@ -93,14 +121,13 @@ export function alerted(group: Group, machine: string | null) {
     group.machine.id === machine &&
     state.layout.tabs.some(
       (tab) =>
-        (tab.projectId ?? GLOBAL_TERMINALS) === group.view &&
-        state.alerts.includes(tab.id)
+        terminalViewOf(tab) === group.view && state.alerts.includes(tab.id)
     )
   )
 }
 
 export function GroupIcon(props: { group: Group }) {
-  if (props.group.view === GLOBAL_TERMINALS) {
+  if (props.group.place.projectId === null) {
     return (
       <MachineLogo
         icon={props.group.machine.icon}
@@ -111,7 +138,7 @@ export function GroupIcon(props: { group: Group }) {
   return (
     <ProjectIcon
       machine={props.group.machine.id}
-      projectId={props.group.view}
+      projectId={props.group.place.projectId}
       className="size-4 shrink-0"
     />
   )

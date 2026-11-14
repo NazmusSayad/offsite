@@ -36,7 +36,12 @@ import { showError } from '@/lib/store'
 import { cn, touch } from '@/lib/utils'
 import { keepFocusOnTouch, refocusComposer } from './picker'
 
-type Target = { machine: string; projectId: string; onRefresh: () => void }
+type Target = {
+  machine: string
+  projectId: string
+  worktreeId: string | null
+  onRefresh: () => void
+}
 
 type Labels = { working: string; done: string }
 
@@ -158,6 +163,7 @@ function ChangesMenu(props: {
       () =>
         call(props.target.machine, 'git.commit', {
           projectId: props.target.projectId,
+          worktreeId: props.target.worktreeId,
           repo: props.repo.path,
           message: '',
           push,
@@ -230,6 +236,7 @@ async function discardAll(target: Target, path: string) {
   if (before.staged.length > 0) {
     await call(target.machine, 'git.run', {
       projectId: target.projectId,
+      worktreeId: target.worktreeId,
       repo: path,
       action: {
         kind: 'unstage',
@@ -240,6 +247,7 @@ async function discardAll(target: Target, path: string) {
   const after = await changesOf(target, path)
   await call(target.machine, 'git.run', {
     projectId: target.projectId,
+    worktreeId: target.worktreeId,
     repo: path,
     action: {
       kind: 'discard',
@@ -255,7 +263,10 @@ async function discardAll(target: Target, path: string) {
 
 async function changesOf(target: Target, path: string) {
   const repo = (
-    await call(target.machine, 'git.changes', { projectId: target.projectId })
+    await call(target.machine, 'git.changes', {
+      projectId: target.projectId,
+      worktreeId: target.worktreeId,
+    })
   ).find((item) => item.path === path)
   if (repo === undefined) {
     throw new Error(
@@ -370,6 +381,7 @@ function runSync(
   onRun(labels, () =>
     call(target.machine, method, {
       projectId: target.projectId,
+      worktreeId: target.worktreeId,
       repo,
     })
   )

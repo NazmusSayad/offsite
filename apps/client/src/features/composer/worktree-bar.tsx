@@ -39,6 +39,7 @@ const spring = { type: 'spring', bounce: 0.15, duration: 0.35 } as const
 export function WorktreeBar(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   repos: GitRepo[]
   onRefresh: () => void
 }) {
@@ -221,6 +222,7 @@ export function WorktreeBar(props: {
                       <LocationMenu
                         machine={props.machine}
                         projectId={props.projectId}
+                        worktreeId={props.worktreeId}
                         onRefresh={props.onRefresh}
                       />
                     </DropdownMenuContent>
@@ -230,6 +232,7 @@ export function WorktreeBar(props: {
                     target={{
                       machine: props.machine,
                       projectId: props.projectId,
+                      worktreeId: props.worktreeId,
                       onRefresh: props.onRefresh,
                     }}
                   />

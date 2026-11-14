@@ -15,7 +15,7 @@ export type NoticeButton =
   | { title: string; kind: 'run'; run: (client: Client) => Promise<unknown> }
 
 export type NoticeInput = Omit<Notice, 'id' | 'tag' | 'actions' | 'target'> & {
-  session: { sessionId: string; projectId: string }
+  session: { sessionId: string; projectId: string; worktreeId: string | null }
   buttons: NoticeButton[]
 }
 
@@ -46,6 +46,7 @@ export async function notify(input: NoticeInput) {
     whileVisible: input.whileVisible,
     target: {
       projectId: input.session.projectId,
+      worktreeId: input.session.worktreeId,
       sessionId: input.session.sessionId,
     },
   }

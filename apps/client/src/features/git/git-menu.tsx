@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { projectOf, showError, useStore } from '@/lib/store'
+import { showError } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import {
   BranchDialog,
@@ -37,6 +37,7 @@ const FETCH_REFRESH = 180_000
 export function useGitStatus(
   machine: string,
   projectId: string | null,
+  worktreeId: string | null,
   running: boolean
 ) {
   const [result, setResult] = useState<{
@@ -49,8 +50,8 @@ export function useGitStatus(
     if (projectId === null) {
       return
     }
-    const key = machineKey(machine, projectId)
-    const params = { projectId }
+    const key = machineKey(machine, worktreeId ?? projectId)
+    const params = { projectId, worktreeId }
     let current = true
     let loading = false
     let failed = false
@@ -94,13 +95,13 @@ export function useGitStatus(
       window.clearInterval(timer)
       window.removeEventListener('focus', refresh)
     }
-  }, [machine, projectId, running, version])
+  }, [machine, projectId, worktreeId, running, version])
 
   useEffect(() => {
     if (projectId === null) {
       return
     }
-    const params = { projectId }
+    const params = { projectId, worktreeId }
     let current = true
     let failed = false
     async function fetchRemote() {
@@ -126,7 +127,7 @@ export function useGitStatus(
       current = false
       window.clearInterval(timer)
     }
-  }, [machine, projectId])
+  }, [machine, projectId, worktreeId])
 
   const refresh = useCallback(() => setVersion((value) => value + 1), [])
 
@@ -134,7 +135,7 @@ export function useGitStatus(
     repos:
       result !== null &&
       projectId !== null &&
-      result.key === machineKey(machine, projectId)
+      result.key === machineKey(machine, worktreeId ?? projectId)
         ? result.repos
         : [],
     refresh,
@@ -144,6 +145,7 @@ export function useGitStatus(
 type GitTarget = {
   machine: string
   projectId: string
+  worktreeId: string | null
   repos: GitRepo[]
   onRefresh: () => void
 }
@@ -162,6 +164,7 @@ export function useGitCommands(props: GitTarget) {
         if (kind === 'commit') {
           await call(props.machine, 'git.commit', {
             projectId: props.projectId,
+            worktreeId: props.worktreeId,
             repo,
             message: '',
             push: false,
@@ -170,6 +173,7 @@ export function useGitCommands(props: GitTarget) {
         if (kind === 'push') {
           await call(props.machine, 'git.push', {
             projectId: props.projectId,
+            worktreeId: props.worktreeId,
             repo,
           })
         }
@@ -298,6 +302,7 @@ export function GitCommandDialog(props: { git: GitCommands }) {
         <GitDialog
           machine={git.target.machine}
           projectId={git.target.projectId}
+          worktreeId={git.target.worktreeId}
           action={git.action}
           repos={git.target.repos}
           onClose={() => git.setAction(null)}
@@ -308,6 +313,7 @@ export function GitCommandDialog(props: { git: GitCommands }) {
         <BranchDialog
           machine={git.target.machine}
           projectId={git.target.projectId}
+          worktreeId={git.target.worktreeId}
           repo={branchRepo}
           onRefresh={git.target.onRefresh}
           onClose={() => git.setBranchRepo(null)}
@@ -320,11 +326,7 @@ export function GitCommandDialog(props: { git: GitCommands }) {
 export function GitActions(props: GitTarget) {
   const git = useGitCommands(props)
   const [syncing, setSyncing] = useState(false)
-  const worktree = useStore(
-    (state) =>
-      (projectOf(state, props.machine, props.projectId)?.parentId ?? null) !==
-      null
-  )
+  const worktree = props.worktreeId !== null
   const branches = [
     ...new Set(props.repos.map((repo) => repo.branch ?? 'detached')),
   ]
@@ -347,6 +349,7 @@ export function GitActions(props: GitTarget) {
     try {
       await call(props.machine, 'git.sync', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         repo,
       })
     } catch (error) {
@@ -363,6 +366,7 @@ export function GitActions(props: GitTarget) {
         <BranchPicker
           machine={props.machine}
           projectId={props.projectId}
+          worktreeId={props.worktreeId}
           repo={props.repos[0]}
           onRefresh={props.onRefresh}
         />

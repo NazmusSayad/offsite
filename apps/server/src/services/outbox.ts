@@ -12,6 +12,7 @@ export function addToOutbox(request: RpcMethods['sessions.send']['params']) {
       id: request.id,
       sessionId: request.sessionId,
       projectId: request.projectId,
+      worktreeId: request.worktreeId,
       request,
       status: 'sending',
       createdAt: Date.now(),
@@ -38,6 +39,7 @@ export function outboxPrompts(): OutboxPrompt[] {
       id: row.id,
       sessionId: row.sessionId,
       projectId: row.projectId,
+      worktreeId: row.worktreeId,
       provider: row.request.settings.provider,
       prompt: row.request.prompt,
       status: row.status,
@@ -55,10 +57,11 @@ export function queuedFor(sessionId: string) {
 export function moveOutboxPrompt(
   id: string,
   sessionId: string,
-  projectId: string
+  projectId: string,
+  worktreeId: string | null
 ) {
   db.update(outboxTable)
-    .set({ sessionId, projectId })
+    .set({ sessionId, projectId, worktreeId })
     .where(eq(outboxTable.id, id))
     .run()
   broadcastOutbox()

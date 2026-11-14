@@ -14,20 +14,22 @@ import { errorMessage } from '@/lib/utils'
 export function MoveWorktreeDialog(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   name: string
   onConfirm: () => void
 }) {
   const machine = props.machine
   const projectId = props.projectId
+  const worktreeId = props.worktreeId
   const [changes, setChanges] = useState<string[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    call(machine, 'sessions.moveChanges', { projectId }).then(
+    call(machine, 'sessions.moveChanges', { projectId, worktreeId }).then(
       setChanges,
       (caught: unknown) => setError(errorMessage(caught))
     )
-  }, [machine, projectId])
+  }, [machine, projectId, worktreeId])
 
   return (
     <>

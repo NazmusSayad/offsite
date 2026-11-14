@@ -42,7 +42,9 @@ export function usePanelOptions(
     subscribeTerminal,
     () =>
       terminalState().layout.tabs.filter(
-        (tab) => tab.projectId === props.selection.projectId
+        (tab) =>
+          tab.projectId === props.selection.projectId &&
+          tab.worktreeId === props.selection.worktreeId
       ).length
   )
   const agents = useStore(
@@ -160,6 +162,7 @@ export function usePanelOptions(
         showEditor({
           machine: props.selection.machine,
           projectId: props.selection.projectId,
+          worktreeId: props.selection.worktreeId,
         }),
     },
   ]

@@ -48,6 +48,7 @@ const segment =
 export function PullRequestView(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   url: string
   running: boolean
   mobile: boolean
@@ -81,6 +82,7 @@ export function PullRequestView(props: {
       try {
         const result = await call(props.machine, 'pulls.view', {
           projectId: props.projectId,
+          worktreeId: props.worktreeId,
           url: props.url,
           fresh,
         })
@@ -109,7 +111,14 @@ export function PullRequestView(props: {
       window.clearInterval(timer)
       window.removeEventListener('focus', refresh)
     }
-  }, [props.machine, props.projectId, props.url, props.running, version])
+  }, [
+    props.machine,
+    props.projectId,
+    props.worktreeId,
+    props.url,
+    props.running,
+    version,
+  ])
 
   useEffect(() => {
     if (details !== null && error !== null) {
@@ -122,6 +131,7 @@ export function PullRequestView(props: {
     try {
       await call(props.machine, 'pulls.run', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         url: props.url,
         action,
       })
@@ -388,6 +398,7 @@ export function PullRequestView(props: {
               key={tab}
               machine={props.machine}
               projectId={props.projectId}
+              worktreeId={props.worktreeId}
               url={details.url}
               head={details.headOid}
               view={tab === 'guide' ? 'guidebook' : 'changes'}

@@ -91,6 +91,7 @@ export async function applyRewind(rewinding: NonNullable<State['rewinding']>) {
     await call(selection.machine, 'sessions.rewind', {
       sessionId: selection.sessionId,
       projectId: selection.projectId,
+      worktreeId: selection.worktreeId,
       messageId: rewinding.messageId,
       settings: getState().settings,
       code: rewinding.mode === 'all',

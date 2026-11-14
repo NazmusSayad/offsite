@@ -126,17 +126,17 @@ export function restoreMachine(machine: StoredMachine): Machine {
 }
 
 export function restoreProjects(machine: StoredMachine): MachineProject[] {
-  return machine.projects.map((project) => ({
-    ...project,
-    pinned: project.pinned ?? false,
-    hidden: project.hidden ?? false,
-    score: project.score ?? 0,
-    parentId: project.parentId ?? null,
-    worktreeSetup: project.worktreeSetup ?? null,
-    worktreeBranch: project.worktreeBranch ?? null,
-    startInWorktree: project.startInWorktree ?? false,
-    machine: machine.id,
-  }))
+  return machine.projects
+    .filter((project) => !('parentId' in project) || project.parentId === null)
+    .map((project) => ({
+      ...project,
+      pinned: project.pinned ?? false,
+      hidden: project.hidden ?? false,
+      score: project.score ?? 0,
+      worktreeSetup: project.worktreeSetup ?? null,
+      startInWorktree: project.startInWorktree ?? false,
+      machine: machine.id,
+    }))
 }
 
 export function receiveMachines() {
@@ -331,9 +331,7 @@ export function persistMachines() {
         hidden: project.hidden,
         score: project.score,
         scratch: project.scratch,
-        parentId: project.parentId,
         worktreeSetup: project.worktreeSetup,
-        worktreeBranch: project.worktreeBranch,
         startInWorktree: project.startInWorktree,
       })),
   }))

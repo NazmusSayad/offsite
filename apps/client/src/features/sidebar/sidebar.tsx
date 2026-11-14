@@ -26,13 +26,14 @@ import { FittedStatusChips, StatusChips } from '@/features/sidebar/status-chips'
 import { useInactiveSessions } from '@/features/sidebar/use-inactive-sessions'
 import { CloseAllDialog } from '@/features/terminal/dialogs'
 import { UsageDialog } from '@/features/usage/usage-dialog'
+import { lastProject } from '@/lib/last-project'
 import {
   chatSelected,
   chatSelection,
   chatSessionId,
   outboxChats,
 } from '@/lib/outbox'
-import { lastProject, openSession, startChat } from '@/lib/sessions'
+import { openSession, startChat } from '@/lib/sessions'
 import {
   activityOf,
   type MachineProject,
@@ -128,9 +129,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
     const project = projects.find(
       (item) => item.machine === machine && item.id === projectId
     )
-    return project?.scratch === true
-      ? NO_PROJECT
-      : (project?.parentId ?? projectId)
+    return project?.scratch === true ? NO_PROJECT : projectId
   }
 
   useInactiveSessions(inactiveOpen, scopeMachine, scopeProject, inactiveLimit)
@@ -171,7 +170,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
       }
       const session = ordered[Number(digit[1]) - 1]
       if (session !== undefined) {
-        select(session.machine, session.projectId, session.id)
+        openSession(chatSelection(session))
       }
     },
     {
@@ -198,7 +197,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
       unseen: unseen.includes(machineKey(session.machine, session.id)),
       saved: chatSessionId(session.id) !== null,
       scope,
-      onSelect: select,
+      onSelect: (chat: MachineSession) => openSession(chatSelection(chat)),
     }
     const index = ordered.indexOf(session)
     return props.mobile ? (
@@ -283,7 +282,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
                 selection?.sessionId === null &&
                 selection.pending === null
               ) {
-                select(next.machine, next.projectId, null)
+                openProject(next.machine, next.projectId)
               }
             }}
             onEdit={setEditing}
@@ -410,7 +409,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
           onClose={() => setAdding(null)}
           onAdd={(project) => {
             setAdding(null)
-            select(project.machine, project.id, null)
+            openProject(project.machine, project.id)
           }}
         />
       )}
@@ -433,10 +432,12 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   )
 }
 
-function select(machine: string, projectId: string, sessionId: string | null) {
-  if (sessionId === null) {
-    openSession({ machine, projectId, sessionId: null, pending: null })
-    return
-  }
-  openSession(chatSelection(machine, projectId, sessionId))
+function openProject(machine: string, projectId: string) {
+  openSession({
+    machine,
+    projectId,
+    worktreeId: null,
+    sessionId: null,
+    pending: null,
+  })
 }

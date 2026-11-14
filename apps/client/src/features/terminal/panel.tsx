@@ -4,7 +4,11 @@ import {
   SquareTerminalIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { GLOBAL_TERMINALS, type TerminalTab } from '@offsite/core/terminal'
+import {
+  type TerminalPlace,
+  type TerminalTab,
+  terminalViewOf,
+} from '@offsite/core/terminal'
 import {
   type ReactNode,
   useEffect,
@@ -54,7 +58,7 @@ const keys = [
 ]
 
 export function TerminalPanel(props: {
-  view: string
+  place: TerminalPlace
   page?: boolean
   tabSize?: 'default' | 'lg'
   leading?: ReactNode
@@ -62,21 +66,26 @@ export function TerminalPanel(props: {
 }) {
   const state = useSyncExternalStore(subscribe, getState)
   const active = state.status === 'active'
-  const tabs = viewTabs(state.layout, props.view)
-  const tabId = state.layout.active[props.view] ?? null
+  const view = terminalViewOf(props.place)
+  const tabs = viewTabs(state.layout, view)
+  const tabId = state.layout.active[view] ?? null
   const shortcuts = useTerminalShortcuts()
   const [tabsOpen, setTabsOpen] = useState(false)
 
   useEffect(() => {
     if (active && !props.page) {
-      showProject(props.view)
+      showProject({
+        projectId: props.place.projectId,
+        worktreeId: props.place.worktreeId,
+      })
     }
-  }, [props.view, active, props.page])
+  }, [props.place.projectId, props.place.worktreeId, active, props.page])
 
   function create() {
     send({
       type: 'createTab',
-      projectId: props.view === GLOBAL_TERMINALS ? null : props.view,
+      projectId: props.place.projectId,
+      worktreeId: props.place.worktreeId,
     })
   }
 
@@ -153,7 +162,7 @@ export function TerminalPanel(props: {
                     className="w-auto min-w-48"
                   >
                     <TabSwitcherItems
-                      view={props.view}
+                      view={view}
                       onCreate={create}
                       onClose={() => setTabsOpen(false)}
                     />
@@ -193,7 +202,7 @@ export function TerminalPanel(props: {
                   onClick={() =>
                     send({
                       type: 'select',
-                      view: props.view,
+                      view,
                       tabId: tab.id,
                     })
                   }

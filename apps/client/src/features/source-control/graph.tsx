@@ -53,6 +53,7 @@ type Row = {
 export function Graph(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   repos: SourceControlRepo[]
   open: boolean
   height: number
@@ -84,6 +85,7 @@ export function Graph(props: {
     let current = true
     call(props.machine, 'git.history', {
       projectId: props.projectId,
+      worktreeId: props.worktreeId,
       repo: repoPath,
       limit,
     }).then(
@@ -105,6 +107,7 @@ export function Graph(props: {
   }, [
     props.machine,
     props.projectId,
+    props.worktreeId,
     repoPath,
     head,
     upstream,
@@ -125,6 +128,7 @@ export function Graph(props: {
     try {
       const result = await call(props.machine, 'git.commitFiles', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         repo: repo.path,
         hash: commit.hash,
         parent: commit.parents.at(0) ?? null,

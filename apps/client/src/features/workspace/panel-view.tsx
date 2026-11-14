@@ -49,9 +49,10 @@ export function PanelView(props: {
       {props.panel === 'diff' && (
         <Suspense>
           <DiffPanel
-            key={`${props.selection.machine} ${props.selection.projectId}`}
+            key={`${props.selection.machine} ${props.selection.projectId} ${props.selection.worktreeId}`}
             machine={props.selection.machine}
             projectId={props.selection.projectId}
+            worktreeId={props.selection.worktreeId}
             running={props.running}
             onClose={() => props.onPanel(null)}
             mobile={props.mobile}
@@ -61,9 +62,10 @@ export function PanelView(props: {
       {props.panel === 'pulls' && (
         <Suspense>
           <PullRequestsPanel
-            key={`${props.selection.machine} ${props.selection.projectId}`}
+            key={`${props.selection.machine} ${props.selection.projectId} ${props.selection.worktreeId}`}
             machine={props.selection.machine}
             projectId={props.selection.projectId}
+            worktreeId={props.selection.worktreeId}
             running={props.running}
             onClose={() => props.onPanel(null)}
             mobile={props.mobile}
@@ -76,6 +78,7 @@ export function PanelView(props: {
             key={pull}
             machine={props.selection.machine}
             projectId={props.selection.projectId}
+            worktreeId={props.selection.worktreeId}
             url={pull}
             running={props.running}
             onClose={() => props.onPanel(null)}

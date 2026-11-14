@@ -48,6 +48,7 @@ type Entry = {
 export function GitDialog(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   action: Action
   repos: GitRepo[]
   onClose: () => void
@@ -78,6 +79,7 @@ export function GitDialog(props: {
     for (const repo of repos) {
       call(props.machine, 'git.branches', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         repo: repo.path,
       }).then(
         (result) =>
@@ -92,7 +94,7 @@ export function GitDialog(props: {
           }))
       )
     }
-  }, [props.machine, props.projectId, props.action, repos])
+  }, [props.machine, props.projectId, props.worktreeId, props.action, repos])
 
   function patch(repo: string, change: Partial<Entry>) {
     setEntries(
@@ -143,6 +145,7 @@ export function GitDialog(props: {
     start(andPush ? 'Committing and pushing…' : 'Committing…', async (repo) => {
       await call(props.machine, 'git.commit', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         repo,
         message,
         push: andPush,
@@ -155,6 +158,7 @@ export function GitDialog(props: {
     start('Pushing…', async (repo) => {
       await call(props.machine, 'git.push', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         repo,
       })
       patch(repo, { state: 'done', text: 'Pushed' })
@@ -175,6 +179,7 @@ export function GitDialog(props: {
     })
     const result = await call(props.machine, 'git.pullRequest', {
       projectId: props.projectId,
+      worktreeId: props.worktreeId,
       repo,
       base,
       commit: commitFirst,
@@ -222,6 +227,7 @@ export function GitDialog(props: {
       })
       const created = await call(props.machine, 'git.createPullRequest', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         repo,
         base: draft.base,
         head: draft.head,

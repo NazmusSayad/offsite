@@ -46,6 +46,7 @@ type Discarding = { repo: SourceControlRepo; resources: GitResource[] }
 export function SourceControlView(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   name: string
   root: string
   header: ReactNode
@@ -81,6 +82,7 @@ export function SourceControlView(props: {
     return props.onPerform(() =>
       call(props.machine, 'git.run', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         repo: repo.path,
         action,
       })
@@ -91,6 +93,7 @@ export function SourceControlView(props: {
     return props.onPerform(() =>
       call(props.machine, method, {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         repo: repo.path,
       })
     )
@@ -118,6 +121,7 @@ export function SourceControlView(props: {
     await props.onPerform(async () => {
       await call(props.machine, 'git.run', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         repo: repo.path,
         action: { kind: 'commit', message: text, all, amend: options.amend },
       })
@@ -126,7 +130,11 @@ export function SourceControlView(props: {
         await call(
           props.machine,
           options.then === 'push' ? 'git.push' : 'git.sync',
-          { projectId: props.projectId, repo: repo.path }
+          {
+            projectId: props.projectId,
+            worktreeId: props.worktreeId,
+            repo: repo.path,
+          }
         )
       }
     })
@@ -139,6 +147,7 @@ export function SourceControlView(props: {
     try {
       const text = await call(props.machine, 'git.message', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         repo: repo.path,
         staged: repo.staged.length > 0,
       })
@@ -167,6 +176,7 @@ export function SourceControlView(props: {
         repo.path,
         await call(props.machine, 'git.undoCommit', {
           projectId: props.projectId,
+          worktreeId: props.worktreeId,
           repo: repo.path,
         })
       )
@@ -325,6 +335,7 @@ export function SourceControlView(props: {
         <Graph
           machine={props.machine}
           projectId={props.projectId}
+          worktreeId={props.worktreeId}
           repos={repos}
           open={prefs.editor.graph}
           height={settings.graphHeight}

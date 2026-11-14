@@ -45,7 +45,11 @@ export function receiveOutbox(machine: string, outbox: OutboxPrompt[]) {
     return
   }
   if (selection.sessionId === null && selection.pending === null) {
-    if (received !== undefined && received.projectId === selection.projectId) {
+    if (
+      received !== undefined &&
+      received.projectId === selection.projectId &&
+      received.worktreeId === selection.worktreeId
+    ) {
       update({ selection: { ...selection, pending: received.id } })
     }
     return
@@ -63,6 +67,7 @@ export function receiveOutbox(machine: string, outbox: OutboxPrompt[]) {
       {
         machine,
         projectId: saved.projectId,
+        worktreeId: saved.worktreeId,
         sessionId: saved.sessionId,
         pending: null,
       },
@@ -76,13 +81,20 @@ export function moveStartedPrompt(
   machine: string,
   id: string,
   sessionId: string,
-  projectId: string
+  place: { projectId: string; worktreeId: string | null }
 ) {
   const saved =
     getState().machines.find((item) => item.id === machine)?.outbox ?? none
   setMachine(machine, {
     outbox: saved.map((item) =>
-      item.id === id ? { ...item, sessionId, projectId } : item
+      item.id === id
+        ? {
+            ...item,
+            sessionId,
+            projectId: place.projectId,
+            worktreeId: place.worktreeId,
+          }
+        : item
     ),
   })
 }
@@ -102,6 +114,7 @@ export function addToOutbox(
         id,
         machine: selection.machine,
         projectId: selection.projectId,
+        worktreeId: selection.worktreeId,
         sessionId: selection.sessionId,
         provider: state.settings.provider,
         prompt,
@@ -184,6 +197,7 @@ export function outboxChats(machines: Machine[]) {
       provider: item.provider,
       title: item.prompt.text === '' ? 'New thread' : item.prompt.text,
       projectId: item.projectId,
+      worktreeId: item.worktreeId,
       branch: null,
       updatedAt: item.createdAt,
       status: item.snoozed ? 'snoozed' : 'active',
@@ -196,26 +210,24 @@ export function chatSessionId(id: string) {
 }
 
 export function chatSelection(
-  machine: string,
-  projectId: string,
-  id: string
+  chat: Pick<MachineSession, 'machine' | 'projectId' | 'worktreeId' | 'id'>
 ): Selection {
-  if (id.startsWith(PREFIX)) {
-    return {
-      machine,
-      projectId,
-      sessionId: null,
-      pending: id.slice(PREFIX.length),
-    }
+  const place = {
+    machine: chat.machine,
+    projectId: chat.projectId,
+    worktreeId: chat.worktreeId,
   }
-  return { machine, projectId, sessionId: id, pending: null }
+  if (chat.id.startsWith(PREFIX)) {
+    return { ...place, sessionId: null, pending: chat.id.slice(PREFIX.length) }
+  }
+  return { ...place, sessionId: chat.id, pending: null }
 }
 
 export function chatSelected(
   selection: Selection | null,
   session: MachineSession
 ) {
-  const target = chatSelection(session.machine, session.projectId, session.id)
+  const target = chatSelection(session)
   return (
     selection !== null &&
     selection.machine === target.machine &&

@@ -194,6 +194,7 @@ function PaletteContent() {
               {
                 machine: session.machine,
                 projectId: session.projectId,
+                worktreeId: session.worktreeId,
                 sessionId: session.id,
                 pending: null,
               },
@@ -240,6 +241,7 @@ function PaletteContent() {
                   {
                     machine: session.machine,
                     projectId: session.projectId,
+                    worktreeId: session.worktreeId,
                     sessionId: session.id,
                     pending: null,
                   },

@@ -59,10 +59,7 @@ export function MoreProjects(props: {
   const projects = rankProjects(
     registered.filter(
       (project) =>
-        project.machine === props.machine &&
-        !project.hidden &&
-        !project.scratch &&
-        project.parentId === null
+        project.machine === props.machine && !project.hidden && !project.scratch
     )
   ).more
 

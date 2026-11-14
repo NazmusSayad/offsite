@@ -25,7 +25,7 @@ import { summary } from '@/features/transcript/tool-details'
 import { subtitleOf, toolTitle } from '@/features/transcript/tool-parts'
 import { timeLeft } from '@/lib/format'
 import { openSession } from '@/lib/sessions'
-import { type MachineSession, projectOf, useStore } from '@/lib/store'
+import { type MachineSession, placePathOf, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { AgentRequest } from './agent-request'
 
@@ -39,7 +39,13 @@ export function AgentTile(props: { agent: Agent; now: number }) {
   const session = props.agent.session
   const activity = props.agent.activity
   const cwd = useStore(
-    (state) => projectOf(state, session.machine, session.projectId)?.path ?? ''
+    (state) =>
+      placePathOf(
+        state,
+        session.machine,
+        session.projectId,
+        session.worktreeId
+      ) ?? ''
   )
   const [stopping, setStopping] = useState<Stopping | null>(null)
   const [expanded, setExpanded] = useState(false)
@@ -50,6 +56,7 @@ export function AgentTile(props: { agent: Agent; now: number }) {
     openSession({
       machine: session.machine,
       projectId: session.projectId,
+      worktreeId: session.worktreeId,
       sessionId: session.id,
       pending: null,
     })
@@ -149,11 +156,7 @@ function AgentDetails(props: {
   const activity = props.activity
   const settings = activity.settings
   const projectName = useProjectName(session.machine, session.projectId)
-  const worktree = useStore(
-    (state) =>
-      (projectOf(state, session.machine, session.projectId)?.parentId ??
-        null) !== null
-  )
+  const worktree = session.worktreeId !== null
   const found = threadTasks(activity.work, activity)
   const work = [
     ...found.agents.map((item) => ({

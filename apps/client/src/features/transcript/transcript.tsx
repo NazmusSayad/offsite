@@ -46,7 +46,7 @@ import { clock, fullTime } from '@/lib/format'
 import { selectedPrompts } from '@/lib/outbox'
 import { loadEarlier } from '@/lib/sessions'
 import {
-  projectOf,
+  placePathOf,
   selectedActivity,
   selectedRunning,
   useStore,
@@ -77,7 +77,12 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   const cwd = useStore((state) =>
     selection === null
       ? ''
-      : (projectOf(state, selection.machine, selection.projectId)?.path ?? '')
+      : (placePathOf(
+          state,
+          selection.machine,
+          selection.projectId,
+          selection.worktreeId
+        ) ?? '')
   )
   const running = useStore(selectedRunning)
   const sentAt = useStore((state) => state.sentAt)

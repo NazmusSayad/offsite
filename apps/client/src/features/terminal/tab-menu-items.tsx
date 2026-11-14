@@ -5,7 +5,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { WorktreeIcon } from '@offsite/core/icons/git'
-import { type TerminalTab } from '@offsite/core/terminal'
+import { type TerminalTab, terminalViewOf } from '@offsite/core/terminal'
 import { rankProjects, worktreeBranch } from '@/api/projects'
 import { MoreProjectsLabel, ProjectIcon } from '@/components/icons'
 import {
@@ -27,16 +27,34 @@ export function TabMenuItems(props: {
   onRename: () => void
 }) {
   const allProjects = useStore((state) => state.projects)
+  const allWorktrees = useStore((state) => state.worktrees)
   const own = allProjects.filter(
     (project) => project.machine === terminalMachine() && !project.scratch
   )
-  const ranked = rankProjects(
-    own.filter((project) => project.parentId === null)
+  const ownWorktrees = allWorktrees.filter(
+    (worktree) => worktree.machine === terminalMachine()
   )
+  const ranked = rankProjects(own)
   const tab = props.tab
 
+  function assign(value: string) {
+    if (value === '') {
+      send({ type: 'assignTab', id: tab.id, projectId: null, worktreeId: null })
+      return
+    }
+    const worktree = ownWorktrees.find((item) => item.id === value)
+    send({
+      type: 'assignTab',
+      id: tab.id,
+      projectId: worktree === undefined ? value : worktree.projectId,
+      worktreeId: worktree === undefined ? null : worktree.id,
+    })
+  }
+
   function projectItem(root: MachineProject) {
-    const worktrees = own.filter((project) => project.parentId === root.id)
+    const worktrees = ownWorktrees.filter(
+      (worktree) => worktree.projectId === root.id
+    )
     if (worktrees.length === 0) {
       return (
         <ContextMenuRadioItem key={root.id} value={root.id}>
@@ -74,14 +92,14 @@ export function TabMenuItems(props: {
               <span className="max-w-60 truncate">{root.name}</span>
             </ContextMenuRadioItem>
             <ContextMenuSeparator />
-            {worktrees.map((project) => (
-              <ContextMenuRadioItem key={project.id} value={project.id}>
+            {worktrees.map((worktree) => (
+              <ContextMenuRadioItem key={worktree.id} value={worktree.id}>
                 <HugeiconsIcon
                   icon={WorktreeIcon}
                   className="text-muted-foreground size-3.5"
                 />
                 <span className="max-w-60 truncate">
-                  {worktreeBranch(project)}
+                  {worktreeBranch(worktree)}
                 </span>
               </ContextMenuRadioItem>
             ))}
@@ -104,14 +122,8 @@ export function TabMenuItems(props: {
         </ContextMenuSubTrigger>
         <ContextMenuSubContent className="max-h-80 overflow-y-auto">
           <ContextMenuRadioGroup
-            value={tab.projectId ?? ''}
-            onValueChange={(value) =>
-              send({
-                type: 'assignTab',
-                id: tab.id,
-                projectId: value === '' ? null : value,
-              })
-            }
+            value={tab.projectId === null ? '' : terminalViewOf(tab)}
+            onValueChange={assign}
           >
             <ContextMenuRadioItem value="">No project</ContextMenuRadioItem>
             {ranked.top.length > 0 && <ContextMenuSeparator />}

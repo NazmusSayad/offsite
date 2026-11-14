@@ -40,7 +40,7 @@ import { DiffToolbar } from '@/features/source-control/diff-toolbar'
 import { GitStatus } from '@/features/source-control/git-status'
 import { SourceControlView } from '@/features/source-control/source-control-view'
 import { useRepos } from '@/features/source-control/use-repos'
-import { projectOf, showError, useStore } from '@/lib/store'
+import { placePathOf, projectOf, showError, useStore } from '@/lib/store'
 import { cn, drag } from '@/lib/utils'
 
 const ZoomableImage = lazy(async () => ({
@@ -50,14 +50,17 @@ const ZoomableImage = lazy(async () => ({
 export function EditorDialog(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   onClose: () => void
 }) {
   const project = useStore((state) =>
     projectOf(state, props.machine, props.projectId)
   )
-  const [saved] = useState(() =>
-    loadEditorState(props.machine, props.projectId)
+  const root = useStore(
+    (state) =>
+      placePathOf(state, props.machine, props.projectId, props.worktreeId) ?? ''
   )
+  const [saved] = useState(() => loadEditorState(props.machine, props))
   const [views] = useState(
     () => new Map(saved.tabs.map((tab) => [tab.spec.id, tab.view]))
   )
@@ -80,6 +83,7 @@ export function EditorDialog(props: {
   const documents = useTabs({
     machine: props.machine,
     projectId: props.projectId,
+    worktreeId: props.worktreeId,
     saved,
     onSaved: refresh,
     onClose: () => {
@@ -99,6 +103,7 @@ export function EditorDialog(props: {
   const status = useRepos({
     machine: props.machine,
     projectId: props.projectId,
+    worktreeId: props.worktreeId,
     version,
     onLoaded: reloadActive,
   })
@@ -166,6 +171,7 @@ export function EditorDialog(props: {
   useBlockStaging({
     machine: props.machine,
     projectId: props.projectId,
+    worktreeId: props.worktreeId,
     spec: current?.spec,
     original,
     modified,
@@ -199,7 +205,7 @@ export function EditorDialog(props: {
     if (shown.current !== null) {
       views.set(shown.current.id, shown.current.editor.saveViewState())
     }
-    saveEditorState(props.machine, props.projectId, {
+    saveEditorState(props.machine, props, {
       tabs: documents.tabs.map((tab) => ({
         spec: tab.spec,
         view: views.get(tab.spec.id) ?? null,
@@ -275,7 +281,8 @@ export function EditorDialog(props: {
               <Explorer
                 machine={props.machine}
                 projectId={props.projectId}
-                root={project?.path ?? ''}
+                worktreeId={props.worktreeId}
+                root={root}
                 header={header}
                 expanded={expanded}
                 onExpanded={setExpanded}
@@ -290,8 +297,9 @@ export function EditorDialog(props: {
               <SourceControlView
                 machine={props.machine}
                 projectId={props.projectId}
+                worktreeId={props.worktreeId}
                 name={project?.name ?? ''}
-                root={project?.path ?? ''}
+                root={root}
                 header={header}
                 repos={repos}
                 error={status.error}
@@ -421,6 +429,7 @@ export function EditorDialog(props: {
                   <MarkdownPreview
                     machine={props.machine}
                     projectId={props.projectId}
+                    worktreeId={props.worktreeId}
                     path={current.spec.path}
                     model={markdown}
                     editor={editor}
@@ -432,6 +441,7 @@ export function EditorDialog(props: {
                   key={current.spec.id}
                   machine={props.machine}
                   projectId={props.projectId}
+                  worktreeId={props.worktreeId}
                   path={current.spec.path}
                   model={previewed}
                   editor={null}
@@ -460,6 +470,7 @@ export function EditorDialog(props: {
                 void perform(() =>
                   call(props.machine, 'git.sync', {
                     projectId: props.projectId,
+                    worktreeId: props.worktreeId,
                     repo: repo.path,
                   })
                 )
@@ -468,6 +479,7 @@ export function EditorDialog(props: {
                 void perform(() =>
                   call(props.machine, 'git.push', {
                     projectId: props.projectId,
+                    worktreeId: props.worktreeId,
                     repo: repo.path,
                   })
                 )
@@ -486,6 +498,7 @@ export function EditorDialog(props: {
           <BranchDialog
             machine={props.machine}
             projectId={props.projectId}
+            worktreeId={props.worktreeId}
             repo={{
               ...checkout,
               changed:

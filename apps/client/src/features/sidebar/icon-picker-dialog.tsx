@@ -230,7 +230,10 @@ function Thumbnail(props: {
 
   useEffect(() => {
     let cancelled = false
-    mediaUrl(props.machine, props.projectId, props.path).then(
+    mediaUrl(
+      { machine: props.machine, projectId: props.projectId, worktreeId: null },
+      props.path
+    ).then(
       (url) => {
         if (!cancelled) {
           setSrc(url)

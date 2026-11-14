@@ -105,6 +105,7 @@ export type PullRequestMethods = {
   'pulls.list': {
     params: {
       projectId: string
+      worktreeId: string | null
       repo: string
       filter: PullRequestFilter
       fresh: boolean
@@ -112,7 +113,12 @@ export type PullRequestMethods = {
     result: PullRequestList
   }
   'pulls.view': {
-    params: { projectId: string; url: string; fresh: boolean }
+    params: {
+      projectId: string
+      worktreeId: string | null
+      url: string
+      fresh: boolean
+    }
     result: PullRequestDetails
   }
   'pulls.diff': {
@@ -126,6 +132,7 @@ export type PullRequestMethods = {
   'pulls.run': {
     params: {
       projectId: string
+      worktreeId: string | null
       url: string
       action: PullRequestAction
     }
@@ -136,7 +143,7 @@ export type PullRequestMethods = {
     result: ReviewGuideState
   }
   'pulls.writeGuide': {
-    params: { projectId: string; url: string }
+    params: { projectId: string; worktreeId: string | null; url: string }
     result: ReviewGuideState
   }
 }

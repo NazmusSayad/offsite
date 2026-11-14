@@ -47,7 +47,7 @@ export async function createWorktree(
     )
     return {
       ...target,
-      cwd: path.join(target.folder, prefix),
+      cwd: path.resolve(target.folder, prefix),
       warning: warnings.length === 0 ? null : warnings.join('\n'),
     }
   })
@@ -90,7 +90,7 @@ export async function moveIntoWorktree(
     }
     return {
       ...target,
-      cwd: path.join(target.folder, prefix),
+      cwd: path.resolve(target.folder, prefix),
       warning: named.warning,
     }
   })

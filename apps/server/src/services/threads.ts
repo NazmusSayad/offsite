@@ -4,6 +4,7 @@ import { broadcast } from '../lib/hub.ts'
 import { logger } from '../lib/log.ts'
 import { readConfig } from '../storage/config.ts'
 import { providerName } from './accounts.ts'
+import { type Place, places } from './project-worktrees.ts'
 import { projects } from './projects.ts'
 import { find, type Found, info, timeLimit } from './provider-sessions.ts'
 
@@ -28,7 +29,7 @@ let builtFor = ''
 export function rebuildThreads() {
   const config = readConfig()
   const key = JSON.stringify([
-    projectPaths(),
+    places(),
     config.claude.enabled,
     config.codex.enabled,
     config.opencode.enabled,
@@ -116,7 +117,7 @@ export async function updateThreads(provider: Provider) {
     return
   }
   await built
-  const paths = new Map(projectPaths())
+  const paths = new Map(places())
   const results = await Promise.all(
     ids.map(async (id) => {
       try {
@@ -155,13 +156,17 @@ export async function updateThreads(provider: Provider) {
 async function lookup(
   provider: Provider,
   id: string,
-  paths: Map<string, string>
+  paths: Map<string, Place>
 ) {
   const known = threads[provider].get(id)
   const knownPath =
     known === undefined
       ? undefined
-      : [...paths].find((entry) => entry[1] === known.projectId)
+      : [...paths].find(
+          (entry) =>
+            entry[1].projectId === known.projectId &&
+            entry[1].worktreeId === known.worktreeId
+        )
   if (knownPath === undefined) {
     return info(provider, id, paths)
   }
@@ -185,7 +190,7 @@ async function relist(provider: Provider) {
   try {
     const found =
       (await timeLimit(
-        find(provider, new Map(projectPaths())),
+        find(provider, new Map(places())),
         `${providerName(provider)} did not list its sessions in time`
       )) ?? []
     threads[provider] = new Map(found.map((item) => [item.id, item]))
@@ -196,11 +201,4 @@ async function relist(provider: Provider) {
     builtFor = ''
   }
   broadcast({ type: 'threads' })
-}
-
-function projectPaths() {
-  return projects().map((project): [string, string] => [
-    project.path,
-    project.id,
-  ])
 }

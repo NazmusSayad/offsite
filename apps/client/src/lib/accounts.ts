@@ -258,12 +258,14 @@ export async function refreshCapabilities() {
       provider,
       accountId,
       selection.projectId,
+      selection.worktreeId,
     ])
     if (loading?.key !== key) {
       const result = call(selection.machine, 'capabilities', {
         provider,
         accountId,
         projectId: selection.projectId,
+        worktreeId: selection.worktreeId,
       })
       function done() {
         if (loading?.result === result) {
@@ -277,6 +279,7 @@ export async function refreshCapabilities() {
     if (
       getState().selection?.machine !== selection.machine ||
       getState().selection?.projectId !== selection.projectId ||
+      getState().selection?.worktreeId !== selection.worktreeId ||
       getState().settings.provider !== provider ||
       getState().settings.accountId !== accountId
     ) {

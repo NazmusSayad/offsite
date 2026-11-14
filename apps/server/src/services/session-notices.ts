@@ -83,7 +83,11 @@ export function notSentNotice(
           { title: 'Edit', kind: 'open' },
         ],
         whileVisible: false,
-        session: { sessionId: session.id, projectId: session.projectId },
+        session: {
+          sessionId: session.id,
+          projectId: session.projectId,
+          worktreeId: session.worktreeId,
+        },
       })
     )
   }

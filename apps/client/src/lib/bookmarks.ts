@@ -50,6 +50,7 @@ export function openBookmark(machine: string, bookmark: Bookmark) {
   openSession({
     machine,
     projectId: bookmark.session.projectId,
+    worktreeId: bookmark.session.worktreeId,
     sessionId: bookmark.sessionId,
     pending: null,
   })

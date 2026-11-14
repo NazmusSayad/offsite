@@ -48,6 +48,7 @@ export function ProjectGroup(props: {
             openSession({
               machine: props.machine,
               projectId: props.projectId,
+              worktreeId: null,
               sessionId: null,
               pending: null,
             })
@@ -66,10 +67,7 @@ export function ProjectGroup(props: {
           activity: activityOf(machines, session.machine, session.id),
           unseen: unseen.includes(machineKey(session.machine, session.id)),
           saved: chatSessionId(session.id) !== null,
-          onSelect: () =>
-            openSession(
-              chatSelection(session.machine, session.projectId, session.id)
-            ),
+          onSelect: () => openSession(chatSelection(session)),
         }
         const index = props.ordered.indexOf(session)
         return props.mobile ? (

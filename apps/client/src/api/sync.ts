@@ -2,7 +2,7 @@ import {
   DEFAULT_CLAUDE_PERMISSION_MODE,
   DEFAULT_PROVIDER,
 } from '@offsite/core/config'
-import type { Project } from '@offsite/core/projects'
+import type { Project, Worktree } from '@offsite/core/projects'
 import type { ServerEvent } from '@offsite/core/protocol'
 import { isEqual } from 'es-toolkit'
 import { toast } from 'sonner'
@@ -75,6 +75,7 @@ export function start() {
     inactiveTotal: 0,
     inactiveVersion: 0,
     projects: stored.flatMap(restoreProjects),
+    worktrees: [],
     prefs: loadPrefs(),
     paletteOpen: false,
     hotkeyHints: false,
@@ -165,6 +166,7 @@ export function start() {
       current === null ||
       current.machine !== next.machine ||
       current.projectId !== next.projectId ||
+      current.worktreeId !== next.worktreeId ||
       current.sessionId !== next.sessionId
     ) {
       openSession(next)
@@ -227,6 +229,7 @@ async function resync(machine: string) {
     receiveOutbox(machine, snapshot.outbox)
     settleDisconnected(machine)
     setProjects(machine, snapshot.projects)
+    setWorktrees(machine, snapshot.worktrees)
     setSessions(machine, snapshot.sessions)
     receiveConfig(machine, snapshot.config)
     receiveLastPickedModels(machine, snapshot.lastUsed)
@@ -250,10 +253,19 @@ function setProjects(machine: string, projects: Project[]) {
   persistMachines()
 }
 
+function setWorktrees(machine: string, worktrees: Worktree[]) {
+  update({
+    worktrees: [
+      ...getState().worktrees.filter((item) => item.machine !== machine),
+      ...worktrees.map((worktree) => ({ ...worktree, machine })),
+    ],
+  })
+}
+
 function reopenThread(machine: string) {
   const selection = getState().selection
   if (selection?.machine === machine && selection.sessionId !== null) {
-    loadSession(machine, selection.projectId, selection.sessionId, false, null)
+    loadSession(selection, selection.sessionId, false, null)
   }
 }
 
@@ -330,6 +342,9 @@ function receive(machine: string, event: ServerEvent) {
     case 'projects':
       setProjects(machine, event.projects)
       return
+    case 'worktrees':
+      setWorktrees(machine, event.worktrees)
+      return
     case 'sessions':
       setSessions(machine, event.sessions)
       return
@@ -349,7 +364,11 @@ function receive(machine: string, event: ServerEvent) {
       toast.warning(event.message)
       return
     case 'setup':
-      if (selected && state.selection?.projectId === event.projectId) {
+      if (
+        selected &&
+        state.selection?.projectId === event.projectId &&
+        state.selection.worktreeId === event.worktreeId
+      ) {
         setTerminalOpen(true)
       }
       return
@@ -357,12 +376,7 @@ function receive(machine: string, event: ServerEvent) {
       receiveOutbox(machine, event.outbox)
       return
     case 'started': {
-      moveStartedPrompt(
-        machine,
-        event.id,
-        event.session.id,
-        event.session.projectId
-      )
+      moveStartedPrompt(machine, event.id, event.session.id, event.session)
       update({
         sessions: [
           ...state.sessions.filter(
@@ -382,6 +396,7 @@ function receive(machine: string, event: ServerEvent) {
       const started = {
         machine,
         projectId: event.session.projectId,
+        worktreeId: event.session.worktreeId,
         sessionId: event.session.id,
         pending: null,
       }

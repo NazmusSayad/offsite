@@ -80,7 +80,12 @@ export function ProjectHeading(props: {
                   if (scope === null) {
                     throw new Error('the new thread menu has no inbox')
                   }
-                  openSession({ ...scope, sessionId: null, pending: null })
+                  openSession({
+                    ...scope,
+                    worktreeId: null,
+                    sessionId: null,
+                    pending: null,
+                  })
                 }}
                 onEdit={setEditing}
                 onAddProject={setAdding}
@@ -110,6 +115,7 @@ export function ProjectHeading(props: {
             openSession({
               machine: project.machine,
               projectId: project.id,
+              worktreeId: null,
               sessionId: null,
               pending: null,
             })

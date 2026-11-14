@@ -36,6 +36,7 @@ export function useModelLoading(
         provider: item.provider,
         accountId: item.accountId,
         projectId: selection.projectId,
+        worktreeId: selection.worktreeId,
       }).then(
         (result) =>
           onFetched((models) => ({ ...models, [item.key]: result.models })),

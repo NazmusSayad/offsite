@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { call } from '@/api/connection'
+import { type Document, documentModels } from '@/features/files/document'
 import type { EditorState } from '@/features/files/editor-state'
 import { loadLanguage, monaco } from '@/features/files/monaco'
 import { useEditorShortcut } from '@/features/files/use-editor-shortcut'
@@ -12,22 +13,6 @@ import {
 import { showError } from '@/lib/store'
 import { errorMessage } from '@/lib/utils'
 
-export type Document =
-  | { status: 'loading' }
-  | {
-      status: 'text'
-      original: monaco.editor.ITextModel | null
-      modified: monaco.editor.ITextModel
-      language: string
-      saved: number
-      dirty: boolean
-      base: string
-    }
-  | { status: 'image'; src: string }
-  | { status: 'large'; size: number; limit: number }
-  | { status: 'binary' }
-  | { status: 'error'; message: string }
-
 type Tab = { spec: TabSpec; document: Document }
 
 type TabsState = { tabs: Tab[]; active: string | null }
@@ -39,6 +24,7 @@ const syncing = new WeakSet<monaco.editor.ITextModel>()
 export function useTabs(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   saved: EditorState
   onSaved: () => void
   onClose: () => void
@@ -124,6 +110,7 @@ export function useTabs(props: {
     if (side.kind === 'git') {
       return call(props.machine, 'git.show', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         repo: spec.repo,
         ref: side.ref,
         path: side.path,
@@ -131,6 +118,7 @@ export function useTabs(props: {
     }
     const result = await call(props.machine, 'files.read', {
       projectId: props.projectId,
+      worktreeId: props.worktreeId,
       path: spec.path,
     })
     return result.kind === 'text' ? result.content : null
@@ -156,6 +144,7 @@ export function useTabs(props: {
       if (spec.left === null && spec.right.kind === 'worktree') {
         const result = await call(props.machine, 'files.read', {
           projectId: props.projectId,
+          worktreeId: props.worktreeId,
           path: spec.path,
         })
         if (result.kind === 'image') {
@@ -325,6 +314,7 @@ export function useTabs(props: {
     try {
       const written = await call(props.machine, 'files.write', {
         projectId: props.projectId,
+        worktreeId: props.worktreeId,
         path: tab.spec.path,
         content,
         base: overwrite ? null : tab.document.base,
@@ -486,15 +476,6 @@ export function useTabs(props: {
     finish,
     releaseModels,
   }
-}
-
-function documentModels(document: Document) {
-  if (document.status !== 'text') {
-    return []
-  }
-  return document.original === null
-    ? [document.modified]
-    : [document.original, document.modified]
 }
 
 function replaceText(model: monaco.editor.ITextModel, text: string) {

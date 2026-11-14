@@ -1,5 +1,5 @@
 import { NO_PROJECT, type ProjectPatch } from '@offsite/core/projects'
-import { projectOf, useStore } from '@/lib/store'
+import { projectOf, useStore, worktreeOf } from '@/lib/store'
 import { call } from './connection'
 
 export function useProjectName(machine: string, projectId: string) {
@@ -10,21 +10,18 @@ export function useProjectName(machine: string, projectId: string) {
   )
 }
 
-export function useWorktreeBranch(machine: string, projectId: string) {
+export function useWorktreeBranch(machine: string, worktreeId: string | null) {
   return useStore((state) => {
-    const project = projectOf(state, machine, projectId)
-    return project === undefined ? null : worktreeBranch(project)
+    if (worktreeId === null) {
+      return null
+    }
+    const worktree = worktreeOf(state, machine, worktreeId)
+    return worktree === undefined ? null : worktreeBranch(worktree)
   })
 }
 
-export function worktreeBranch(project: {
-  parentId: string | null
-  worktreeBranch: string | null
-}) {
-  if (project.parentId === null) {
-    return null
-  }
-  return project.worktreeBranch ?? 'Worktree'
+export function worktreeBranch(worktree: { branch: string | null }) {
+  return worktree.branch ?? 'Worktree'
 }
 
 export function rankProjects<T extends { pinned: boolean; score: number }>(
@@ -45,17 +42,6 @@ export function homePath(path: string, home: string) {
     return `~${path.slice(home.length)}`
   }
   return path
-}
-
-export function withWorktrees<
-  T extends { id: string; parentId: string | null },
->(projects: T[]) {
-  return projects
-    .filter((project) => project.parentId === null)
-    .flatMap((root) => [
-      root,
-      ...projects.filter((project) => project.parentId === root.id),
-    ])
 }
 
 export async function addProject(machine: string, path: string) {

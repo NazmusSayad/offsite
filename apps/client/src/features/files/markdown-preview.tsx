@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 export function MarkdownPreview(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   path: string
   model: monaco.editor.ITextModel
   editor: monaco.editor.ICodeEditor | null
@@ -25,6 +26,7 @@ export function MarkdownPreview(props: {
   const editor = props.editor
   const machine = props.machine
   const projectId = props.projectId
+  const worktreeId = props.worktreeId
   const path = props.path
   const scroller = useRef<HTMLDivElement>(null)
   const subscribe = useCallback(
@@ -44,6 +46,7 @@ export function MarkdownPreview(props: {
           <PreviewImage
             machine={machine}
             projectId={projectId}
+            worktreeId={worktreeId}
             file={path}
             src={image.src}
             alt={image.alt}
@@ -53,7 +56,7 @@ export function MarkdownPreview(props: {
         )
       },
     }),
-    [machine, projectId, path]
+    [machine, projectId, worktreeId, path]
   )
 
   useEffect(() => {
@@ -122,6 +125,7 @@ export function MarkdownPreview(props: {
 function PreviewImage(props: {
   machine: string
   projectId: string
+  worktreeId: string | null
   file: string
   src: string | undefined
   alt: string | undefined
@@ -140,8 +144,11 @@ function PreviewImage(props: {
     async function load() {
       try {
         const url = await mediaUrl(
-          props.machine,
-          props.projectId,
+          {
+            machine: props.machine,
+            projectId: props.projectId,
+            worktreeId: props.worktreeId,
+          },
           projectPath(props.file, src)
         )
         if (current) {
@@ -157,7 +164,14 @@ function PreviewImage(props: {
     return () => {
       current = false
     }
-  }, [external, props.machine, props.projectId, props.file, src])
+  }, [
+    external,
+    props.machine,
+    props.projectId,
+    props.worktreeId,
+    props.file,
+    src,
+  ])
 
   return (
     <img

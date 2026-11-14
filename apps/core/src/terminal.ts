@@ -1,6 +1,7 @@
 export type TerminalTab = {
   id: number
   projectId: string | null
+  worktreeId: string | null
   customName: string | null
 }
 
@@ -9,15 +10,26 @@ export type TerminalLayout = {
   active: Record<string, number>
 }
 
+export type TerminalPlace = Pick<TerminalTab, 'projectId' | 'worktreeId'>
+
 export const GLOBAL_TERMINALS = 'global'
+
+export function terminalViewOf(place: TerminalPlace) {
+  return place.worktreeId ?? place.projectId ?? GLOBAL_TERMINALS
+}
 
 export type TerminalRequest =
   | { type: 'attach' }
   | { type: 'detach' }
-  | { type: 'createTab'; projectId: string | null }
+  | { type: 'createTab'; projectId: string | null; worktreeId: string | null }
   | { type: 'closeTab'; id: number }
   | { type: 'renameTab'; id: number; name: string }
-  | { type: 'assignTab'; id: number; projectId: string | null }
+  | {
+      type: 'assignTab'
+      id: number
+      projectId: string | null
+      worktreeId: string | null
+    }
   | { type: 'select'; view: string; tabId: number }
   | {
       type: 'resize'

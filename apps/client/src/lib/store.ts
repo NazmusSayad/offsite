@@ -19,7 +19,7 @@ import type {
   Prompt,
   OutboxPrompt,
 } from '@offsite/core/items'
-import type { Project } from '@offsite/core/projects'
+import type { Project, Worktree } from '@offsite/core/projects'
 import type {
   Account,
   Capabilities,
@@ -48,9 +48,12 @@ const log = logger.withTag('ui')
 export type Selection = {
   machine: string
   projectId: string
+  worktreeId: string | null
   sessionId: string | null
   pending: string | null
 }
+
+export type Place = Pick<Selection, 'machine' | 'projectId' | 'worktreeId'>
 
 export type MachineOutboxPrompt = OutboxPrompt & { machine: string }
 
@@ -106,6 +109,8 @@ export type Machine = {
 
 export type MachineProject = Project & { machine: string }
 
+export type MachineWorktree = Worktree & { machine: string }
+
 export type MachineSession = Session & { machine: string }
 
 export type State = {
@@ -115,12 +120,17 @@ export type State = {
   inactiveTotal: number
   inactiveVersion: number
   projects: MachineProject[]
+  worktrees: MachineWorktree[]
   prefs: Prefs
   paletteOpen: boolean
   hotkeyHints: boolean
-  editor: { machine: string; projectId: string } | null
+  editor: {
+    machine: string
+    projectId: string
+    worktreeId: string | null
+  } | null
   exporting: MachineSession | null
-  removingWorktree: { machine: string; projectId: string } | null
+  removingWorktree: { machine: string; worktreeId: string } | null
   pairingFailure: string | null
   settingsOpen: boolean
   settingsPage: SettingsPage
@@ -151,7 +161,7 @@ export type State = {
   worktreeStage: WorktreeStage | null
   worktreeState: {
     machine: string
-    projectId: string
+    worktreeId: string
     state: WorktreeState
   } | null
   context: ContextUsage | null
@@ -193,6 +203,24 @@ export function projectOf(state: State, machine: string, projectId: string) {
   return state.projects.find(
     (item) => item.machine === machine && item.id === projectId
   )
+}
+
+export function worktreeOf(state: State, machine: string, worktreeId: string) {
+  return state.worktrees.find(
+    (item) => item.machine === machine && item.id === worktreeId
+  )
+}
+
+export function placePathOf(
+  state: State,
+  machine: string,
+  projectId: string,
+  worktreeId: string | null
+) {
+  if (worktreeId === null) {
+    return projectOf(state, machine, projectId)?.path
+  }
+  return worktreeOf(state, machine, worktreeId)?.path
 }
 
 export function defaultMachine(state: State) {

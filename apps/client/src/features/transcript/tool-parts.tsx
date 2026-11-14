@@ -187,9 +187,7 @@ export function ReadFile(props: { path: string; children: ReactNode }) {
         title={`View ${props.path}`}
         className="hover:text-foreground focus-visible:ring-ring/70 cursor-zoom-in rounded-sm underline decoration-dotted underline-offset-2 focus-visible:ring-2 focus-visible:outline-none"
         onClick={() =>
-          void mediaUrl(selection.machine, selection.projectId, props.path)
-            .then(setSrc)
-            .catch(showError)
+          void mediaUrl(selection, props.path).then(setSrc).catch(showError)
         }
       >
         {props.children}

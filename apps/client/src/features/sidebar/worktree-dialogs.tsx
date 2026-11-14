@@ -23,7 +23,7 @@ export function MoveDialogs() {
         {removing !== null && (
           <RemoveContent
             machine={removing.machine}
-            projectId={removing.projectId}
+            worktreeId={removing.worktreeId}
           />
         )}
       </DialogContent>
@@ -31,26 +31,26 @@ export function MoveDialogs() {
   )
 }
 
-function RemoveContent(props: { machine: string; projectId: string }) {
+function RemoveContent(props: { machine: string; worktreeId: string }) {
   const [details, setDetails] = useState<WorktreeDetails | null>(null)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     call(props.machine, 'projects.worktreeDetails', {
-      projectId: props.projectId,
+      worktreeId: props.worktreeId,
     })
       .then(setDetails)
       .catch((error: unknown) => {
         showError(error)
         update({ removingWorktree: null })
       })
-  }, [props.machine, props.projectId])
+  }, [props.machine, props.worktreeId])
 
   async function remove() {
     setDeleting(true)
     try {
       await call(props.machine, 'projects.removeWorktree', {
-        projectId: props.projectId,
+        worktreeId: props.worktreeId,
       })
       update({ removingWorktree: null })
     } catch (error) {

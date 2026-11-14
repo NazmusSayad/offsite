@@ -37,6 +37,7 @@ if ('serviceWorker' in navigator) {
       openSession({
         machine: event.data.machine,
         projectId: event.data.project,
+        worktreeId: event.data.worktree,
         sessionId: event.data.sessionId,
         pending: null,
       })

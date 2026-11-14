@@ -38,7 +38,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { useStore } from '@/lib/store'
-import { useTerminalPage, useTerminalView } from '@/lib/url'
+import { useTerminalPage, useTerminalPlace, useTerminalView } from '@/lib/url'
 import { cn, splitAtLimit, touch } from '@/lib/utils'
 import { closeTabs } from './close-tab'
 import { type Group, useGroups, alerted, GroupIcon, GroupCount } from './groups'
@@ -55,6 +55,7 @@ export function TerminalPage(
 ) {
   useSyncExternalStore(subscribe, getState)
   const [groupsOpen, setGroupsOpen] = useState(false)
+  const place = useTerminalPlace()
   const view = useTerminalView()
   const groups = useGroups()
   const current = groups.find(
@@ -71,7 +72,7 @@ export function TerminalPage(
       <main className="bg-background flex min-w-0 flex-1 flex-col overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <div className="min-h-0 flex-1">
           <TerminalPanel
-            view={view}
+            place={place}
             page
             mobile
             leading={
@@ -110,7 +111,7 @@ export function TerminalPage(
   return (
     <main className="bg-background flex min-w-0 flex-1 flex-col overflow-hidden">
       <div className="min-h-0 flex-1">
-        <TerminalPanel view={view} page tabSize="lg" />
+        <TerminalPanel place={place} page tabSize="lg" />
       </div>
     </main>
   )
@@ -121,7 +122,7 @@ export function TerminalGroups() {
   const groups = useGroups().filter(
     (group) => group.machine.status === 'online'
   )
-  const rows = groups.filter((group) => group.parentId === null)
+  const rows = groups.filter((group) => group.place.worktreeId === null)
 
   if (groups.length === 0) {
     return null
@@ -136,7 +137,8 @@ export function TerminalGroups() {
             worktrees={groups.filter(
               (item) =>
                 item.machine.id === group.machine.id &&
-                item.parentId === group.view
+                item.place.worktreeId !== null &&
+                item.place.projectId === group.place.projectId
             )}
           />
           {rows[index + 1]?.machine.id !== group.machine.id && (
@@ -167,13 +169,10 @@ function GroupRow(props: { group: Group; worktrees: Group[] }) {
           return
         }
         if (group.count === 0) {
-          void createTab(
-            group.machine.id,
-            group.view === GLOBAL_TERMINALS ? null : group.view
-          )
+          void createTab(group.machine.id, group.place)
           return
         }
-        showGroup(group.machine.id, group.view)
+        showGroup(group.machine.id, group.place)
       }}
     >
       <GroupIcon group={group} />
@@ -221,7 +220,7 @@ function GroupRow(props: { group: Group; worktrees: Group[] }) {
               >
                 <WorktreeGroups
                   machine={group.machine.id}
-                  rootId={group.view}
+                  rootId={group.place.projectId}
                 />
               </DropdownMenuContent>
             </DropdownMenu>
@@ -232,12 +231,7 @@ function GroupRow(props: { group: Group; worktrees: Group[] }) {
             className="text-muted-foreground hover:text-foreground absolute top-0.5 right-1.5 grid size-6 cursor-pointer place-items-center rounded-md opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
             aria-label="New terminal"
             title="New terminal"
-            onClick={() =>
-              void createTab(
-                group.machine.id,
-                group.view === GLOBAL_TERMINALS ? null : group.view
-              )
-            }
+            onClick={() => void createTab(group.machine.id, group.place)}
           >
             <HugeiconsIcon icon={Add01Icon} className="size-4" />
           </button>
@@ -245,12 +239,7 @@ function GroupRow(props: { group: Group; worktrees: Group[] }) {
       </ContextMenuTrigger>
       <ContextMenuContent onCloseAutoFocus={(event) => event.preventDefault()}>
         <ContextMenuItem
-          onSelect={() =>
-            void createTab(
-              group.machine.id,
-              group.view === GLOBAL_TERMINALS ? null : group.view
-            )
-          }
+          onSelect={() => void createTab(group.machine.id, group.place)}
         >
           <HugeiconsIcon icon={Add01Icon} />
           New terminal
@@ -294,15 +283,14 @@ function GroupRow(props: { group: Group; worktrees: Group[] }) {
   )
 }
 
-function WorktreeGroups(props: { machine: string; rootId: string }) {
+function WorktreeGroups(props: { machine: string; rootId: string | null }) {
   useSyncExternalStore(subscribe, getState)
   const page = useTerminalPage()
   const view = useTerminalView()
-  const projects = useStore((store) => store.projects)
   const groups = useGroups().filter(
     (group) =>
       group.machine.id === props.machine &&
-      (group.view === props.rootId || group.parentId === props.rootId)
+      group.place.projectId === props.rootId
   )
 
   const home = useStore(
@@ -313,13 +301,10 @@ function WorktreeGroups(props: { machine: string; rootId: string }) {
   const adding = useRef(false)
 
   function item(group: Group) {
-    const project = projects.find(
-      (item) => item.machine === props.machine && item.id === group.view
-    )
     return (
       <DropdownMenuItem
         key={group.view}
-        title={project?.path}
+        title={group.path ?? undefined}
         className={cn(
           'group/item',
           group.machine.id === page && group.view === view && 'bg-accent/50'
@@ -327,23 +312,23 @@ function WorktreeGroups(props: { machine: string; rootId: string }) {
         onSelect={() => {
           if (adding.current || group.count === 0) {
             adding.current = false
-            void createTab(group.machine.id, group.view)
+            void createTab(group.machine.id, group.place)
             return
           }
-          showGroup(group.machine.id, group.view)
+          showGroup(group.machine.id, group.place)
         }}
       >
-        {group.parentId === null ? (
+        {group.place.worktreeId === null ? (
           <GroupIcon group={group} />
         ) : (
           <HugeiconsIcon icon={WorktreeIcon} />
         )}
         <span className="truncate">
-          {project === undefined || project.parentId === null
+          {group.place.worktreeId === null || group.path === null
             ? group.name
             : home === undefined
-              ? project.path
-              : homePath(project.path, home)}
+              ? group.path
+              : homePath(group.path, home)}
         </span>
         <span className="ml-auto flex shrink-0 items-center gap-1">
           <GroupCount

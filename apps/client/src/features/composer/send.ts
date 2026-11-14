@@ -97,6 +97,7 @@ function restoreDraft(failed: MachineOutboxPrompt | undefined) {
   const key = draftKey({
     machine: failed.machine,
     projectId: failed.projectId,
+    worktreeId: failed.worktreeId,
     sessionId: failed.sessionId,
     pending: null,
   })

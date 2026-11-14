@@ -18,7 +18,7 @@ import { readConfig } from '../storage/config.ts'
 import { db } from '../storage/db.ts'
 import { sessions as sessionsTable } from '../storage/schema.ts'
 import { providerName } from './accounts.ts'
-import { projects } from './projects.ts'
+import { places } from './project-worktrees.ts'
 import { info, timeLimit } from './provider-sessions.ts'
 
 const log = logger.withTag('backfill')
@@ -34,9 +34,7 @@ export async function backfillSessionProviders() {
   if (rows.length === 0) {
     return
   }
-  const paths = new Map(
-    projects().map((project): [string, string] => [project.path, project.id])
-  )
+  const paths = new Map(places())
   const enabled = allProviders.filter(
     (provider) => readConfig()[provider].enabled
   )

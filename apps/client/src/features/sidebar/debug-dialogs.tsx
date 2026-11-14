@@ -166,6 +166,7 @@ function ContextDialog(props: {
           await call(session.machine, 'sessions.context', {
             sessionId: session.id,
             projectId: session.projectId,
+            worktreeId: session.worktreeId,
           })
         )
       } catch (error) {
@@ -173,7 +174,13 @@ function ContextDialog(props: {
         onActionChange(null)
       }
     })()
-  }, [session.machine, session.id, session.projectId, onActionChange])
+  }, [
+    session.machine,
+    session.id,
+    session.projectId,
+    session.worktreeId,
+    onActionChange,
+  ])
 
   return (
     <>

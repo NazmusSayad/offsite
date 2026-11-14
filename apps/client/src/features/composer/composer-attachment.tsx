@@ -58,7 +58,7 @@ function AttachmentChip(props: ReactNodeViewProps) {
             if (selection === null) {
               throw new Error('No thread is open')
             }
-            return loadMention(selection.machine, selection.projectId, mention)
+            return loadMention(selection, mention)
           }}
         >
           <button
