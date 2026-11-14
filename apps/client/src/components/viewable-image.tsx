@@ -1,8 +1,8 @@
 import { lazy, Suspense, useState } from 'react'
 import { cn } from '@/lib/utils'
 
-const ImageViewer = lazy(async () => ({
-  default: (await import('@/components/image-viewer')).ImageViewer,
+const FileViewer = lazy(async () => ({
+  default: (await import('@/components/file-viewer')).FileViewer,
 }))
 
 export function ViewableImage(props: {
@@ -36,10 +36,9 @@ export function ViewableImage(props: {
       </button>
       {open && (
         <Suspense>
-          <ImageViewer
-            src={props.src}
-            alt={props.alt}
+          <FileViewer
             name={props.name}
+            load={async () => ({ kind: 'image', src: props.src })}
             onClose={() => setOpen(false)}
           />
         </Suspense>

@@ -1,16 +1,15 @@
 import { call } from '@/api/connection'
-import {
-  FileHoverPreview,
-  type FilePreviewContent,
-} from '@/components/file-hover-preview'
 import { FileTypeIcon } from '@/components/file-icon'
+import { FilePreview } from '@/components/file-preview'
 import { mediaKind, mediaUrl } from '@/lib/media'
+import type { Preview } from '@/lib/preview'
 import { useStore } from '@/lib/store'
 
 export function UploadChip(props: { path: string }) {
   const selection = useStore((state) => state.selection)
   return (
-    <FileHoverPreview
+    <FilePreview
+      name={props.path.split(/[\\/]/).at(-1) ?? props.path}
       load={async () => {
         if (selection === null) {
           throw new Error('No thread is open')
@@ -21,12 +20,12 @@ export function UploadChip(props: { path: string }) {
       <button
         type="button"
         title={props.path}
-        className="bg-background/60 border-border/70 mx-0.5 inline-flex h-6 max-w-60 items-center gap-1 rounded-md border px-1.5 align-middle text-xs"
+        className="bg-background/60 border-border/70 mx-0.5 inline-flex h-6 max-w-60 cursor-zoom-in items-center gap-1 rounded-md border px-1.5 align-middle text-xs"
       >
         <FileTypeIcon path={props.path} className="size-3.5 shrink-0" />
         <span className="truncate">{props.path.split(/[\\/]/).at(-1)}</span>
       </button>
-    </FileHoverPreview>
+    </FilePreview>
   )
 }
 
@@ -34,7 +33,7 @@ async function loadUpload(
   machine: string,
   projectId: string,
   path: string
-): Promise<FilePreviewContent> {
+): Promise<Preview> {
   const kind = mediaKind(path)
   if (kind !== null) {
     return { kind, src: await mediaUrl(machine, projectId, path) }

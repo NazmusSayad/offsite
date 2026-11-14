@@ -3,8 +3,8 @@ import { lazy, type Ref, Suspense, useEffect, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { currentScheme } from '@/lib/theme'
 
-const ImageViewer = lazy(async () => ({
-  default: (await import('@/components/image-viewer')).ImageViewer,
+const FileViewer = lazy(async () => ({
+  default: (await import('@/components/file-viewer')).FileViewer,
 }))
 
 const database = createStore('offsite-mermaid', 'diagrams')
@@ -113,15 +113,17 @@ export function MermaidDiagram(props: {
       />
       {props.open && (
         <Suspense>
-          <ImageViewer
-            src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-              new XMLSerializer().serializeToString(
-                new DOMParser().parseFromString(props.svg, 'text/html').body
-                  .firstElementChild!
-              )
-            )}`}
-            alt="Diagram"
+          <FileViewer
             name="Mermaid diagram"
+            load={async () => ({
+              kind: 'image',
+              src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+                new XMLSerializer().serializeToString(
+                  new DOMParser().parseFromString(props.svg, 'text/html').body
+                    .firstElementChild!
+                )
+              )}`,
+            })}
             onClose={() => props.onOpenChange(false)}
           />
         </Suspense>

@@ -5,9 +5,9 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { call } from '@/api/connection'
-import { ImageHoverPreview } from '@/components/image-hover-preview'
+import { FilePreview } from '@/components/file-preview'
 import { Markdown } from '@/components/markdown/markdown'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -28,10 +28,6 @@ import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 const log = logger.withTag('transcript')
-
-const ImageViewer = lazy(async () => ({
-  default: (await import('@/components/image-viewer')).ImageViewer,
-}))
 
 const IMAGE_LIMIT = 20
 const fade =
@@ -319,43 +315,33 @@ function ImageChip(props: {
   data: string | null
 }) {
   const data = usePromptImage(props.itemId, props.index, props.data)
-  const [open, setOpen] = useState(false)
   const name = `Image #${props.number}`
   return (
-    <>
-      <ImageHoverPreview
-        src={data === null ? null : `data:${props.mediaType};base64,${data}`}
-        alt={name}
-        onOpen={() => setOpen(true)}
+    <FilePreview
+      name={name}
+      load={async () => {
+        if (data === null) {
+          throw new Error('The image is still loading')
+        }
+        return { kind: 'image', src: `data:${props.mediaType};base64,${data}` }
+      }}
+    >
+      <button
+        type="button"
+        className="bg-background/60 border-border/70 mx-0.5 inline-flex h-6 cursor-zoom-in items-center gap-1 rounded-md border p-0.5 pe-1.5 align-middle text-xs"
       >
-        <button
-          type="button"
-          className="bg-background/60 border-border/70 mx-0.5 inline-flex h-6 cursor-zoom-in items-center gap-1 rounded-md border p-0.5 pe-1.5 align-middle text-xs"
-          onClick={() => setOpen(true)}
-        >
-          {data === null ? (
-            <span className="bg-muted size-4.5 shrink-0 rounded-sm" />
-          ) : (
-            <img
-              src={`data:${props.mediaType};base64,${data}`}
-              alt=""
-              className="size-4.5 shrink-0 rounded-sm object-cover"
-            />
-          )}
-          {name}
-        </button>
-      </ImageHoverPreview>
-      {open && data !== null && (
-        <Suspense>
-          <ImageViewer
+        {data === null ? (
+          <span className="bg-muted size-4.5 shrink-0 rounded-sm" />
+        ) : (
+          <img
             src={`data:${props.mediaType};base64,${data}`}
             alt=""
-            name={name}
-            onClose={() => setOpen(false)}
+            className="size-4.5 shrink-0 rounded-sm object-cover"
           />
-        </Suspense>
-      )}
-    </>
+        )}
+        {name}
+      </button>
+    </FilePreview>
   )
 }
 

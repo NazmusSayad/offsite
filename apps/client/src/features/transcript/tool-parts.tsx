@@ -20,8 +20,8 @@ import { compact } from '@/lib/format'
 import { mediaKind, mediaUrl } from '@/lib/media'
 import { showError, useStore } from '@/lib/store'
 
-const ImageViewer = lazy(async () => ({
-  default: (await import('@/components/image-viewer')).ImageViewer,
+const FileViewer = lazy(async () => ({
+  default: (await import('@/components/file-viewer')).FileViewer,
 }))
 
 export type ToolItem = Exclude<WorkItem, { kind: 'reasoning' }>
@@ -196,10 +196,9 @@ export function ReadFile(props: { path: string; children: ReactNode }) {
       </button>
       {src !== null && (
         <Suspense>
-          <ImageViewer
-            src={src}
-            alt={fileName(props.path)}
+          <FileViewer
             name={props.path}
+            load={async () => ({ kind: 'image', src })}
             onClose={() => setSrc(null)}
           />
         </Suspense>

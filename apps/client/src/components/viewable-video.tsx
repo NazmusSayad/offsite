@@ -4,8 +4,8 @@ import { lazy, Suspense, useState } from 'react'
 import { duration } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-const VideoViewer = lazy(async () => ({
-  default: (await import('@/components/video-viewer')).VideoViewer,
+const FileViewer = lazy(async () => ({
+  default: (await import('@/components/file-viewer')).FileViewer,
 }))
 
 export function ViewableVideo(props: {
@@ -62,10 +62,9 @@ export function ViewableVideo(props: {
       </button>
       {open && (
         <Suspense>
-          <VideoViewer
-            src={props.src}
-            label={label}
+          <FileViewer
             name={props.name}
+            load={async () => ({ kind: 'video', src: props.src })}
             onClose={() => setOpen(false)}
           />
         </Suspense>
