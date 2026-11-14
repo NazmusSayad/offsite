@@ -337,7 +337,10 @@ function ProviderAccounts(props: {
         }}
       >
         {linkTarget !== null && (
-          <AlertDialogContent className="data-[size=default]:sm:max-w-lg">
+          <AlertDialogContent
+            focus="action"
+            className="data-[size=default]:sm:max-w-lg"
+          >
             <LinkDialog
               machine={props.machine}
               platform={props.platform}

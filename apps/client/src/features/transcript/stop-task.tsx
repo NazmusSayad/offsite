@@ -32,7 +32,7 @@ export function StopTaskDialog(props: {
       }}
     >
       {stopping !== null && (
-        <AlertDialogContent>
+        <AlertDialogContent focus="action">
           <AlertDialogHeader>
             <AlertDialogTitle>Stop {stopping.title}?</AlertDialogTitle>
             <AlertDialogDescription>

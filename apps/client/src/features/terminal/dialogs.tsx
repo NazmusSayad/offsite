@@ -92,18 +92,7 @@ export function CloseDialog() {
         }
       }}
     >
-      <AlertDialogContent
-        onOpenAutoFocus={(event) => {
-          event.preventDefault()
-          if (!(event.currentTarget instanceof HTMLElement)) {
-            throw new Error('close dialog is not an element')
-          }
-          event.currentTarget
-            .querySelector<HTMLElement>('[data-slot=alert-dialog-action]')
-            ?.focus()
-        }}
-        onCloseAutoFocus={restoreFocus}
-      >
+      <AlertDialogContent focus="action" onCloseAutoFocus={restoreFocus}>
         <CloseConfirm closing={dialog.closing} />
       </AlertDialogContent>
     </AlertDialog>
@@ -153,7 +142,7 @@ export function CloseAllDialog() {
         }
       }}
     >
-      <AlertDialogContent onCloseAutoFocus={restoreFocus}>
+      <AlertDialogContent focus="action" onCloseAutoFocus={restoreFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>
             Close {closing.tabs.length}{' '}

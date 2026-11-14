@@ -96,7 +96,7 @@ function MobileSessionItemView(props: {
 
   const stopDialog = (
     <AlertDialog open={warning} onOpenChange={setWarning}>
-      <AlertDialogContent>
+      <AlertDialogContent focus="action">
         <AlertDialogHeader>
           <AlertDialogTitle>Stop running work?</AlertDialogTitle>
           <AlertDialogDescription>

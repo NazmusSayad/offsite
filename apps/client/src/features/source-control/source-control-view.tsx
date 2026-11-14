@@ -348,7 +348,7 @@ export function SourceControlView(props: {
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent focus="action">
           <AlertDialogHeader>
             <AlertDialogTitle>
               There are no staged changes to commit.

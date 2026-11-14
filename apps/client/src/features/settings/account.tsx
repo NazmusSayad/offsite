@@ -105,7 +105,7 @@ export function AccountPage(props: { machine: string; account: Account }) {
             Remove account
           </Button>
         </AlertDialogTrigger>
-        <AlertDialogContent>
+        <AlertDialogContent focus="action">
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {account.name}?</AlertDialogTitle>
             <AlertDialogDescription>

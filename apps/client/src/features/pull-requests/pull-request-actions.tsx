@@ -219,7 +219,7 @@ export function PullRequestActions(props: {
         )}
       </div>
       <AlertDialog open={merging} onOpenChange={setMerging}>
-        <AlertDialogContent>
+        <AlertDialogContent focus="action">
           {details !== null && method !== null && (
             <MergeDialog
               details={details}

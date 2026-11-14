@@ -61,7 +61,7 @@ export function SavePrompt(props: {
         }
       }}
     >
-      <AlertDialogContent>
+      <AlertDialogContent focus="action">
         <SavePromptBody tabs={props.tabs} onFinish={props.onFinish} />
       </AlertDialogContent>
     </AlertDialog>

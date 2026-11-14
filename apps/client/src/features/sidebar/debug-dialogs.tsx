@@ -51,7 +51,7 @@ export function DebugDialogs(props: {
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent focus="action">
           <RestartDialog session={props.session} />
         </AlertDialogContent>
       </AlertDialog>
@@ -63,7 +63,7 @@ export function DebugDialogs(props: {
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent focus="action">
           <StopDialog session={props.session} />
         </AlertDialogContent>
       </AlertDialog>

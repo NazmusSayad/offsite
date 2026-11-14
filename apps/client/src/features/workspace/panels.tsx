@@ -282,7 +282,7 @@ export function PanelMenu(
         </Dialog>
       )}
       <AlertDialog open={warning} onOpenChange={setWarning}>
-        <AlertDialogContent>
+        <AlertDialogContent focus="action">
           <StopWorkDialog session={session} />
         </AlertDialogContent>
       </AlertDialog>
