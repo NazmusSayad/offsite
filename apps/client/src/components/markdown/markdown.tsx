@@ -23,7 +23,11 @@ import {
   rehypeStandaloneImages,
   remarkUnclosedHtml,
 } from '@/components/markdown/markdown-html'
-import { LocalMedia, Media } from '@/components/markdown/markdown-media'
+import {
+  GithubMedia,
+  LocalMedia,
+  Media,
+} from '@/components/markdown/markdown-media'
 import { remarkWindowsPaths } from '@/components/markdown/markdown-paths'
 import {
   remarkImages,
@@ -32,7 +36,7 @@ import {
   remarkUploads,
 } from '@/components/markdown/markdown-skills'
 import { streamingParser } from '@/components/markdown/markdown-stream'
-import { mediaKind } from '@/lib/media'
+import { isGithubAttachment, mediaKind } from '@/lib/media'
 import { openBrowser, isPullRequestUrl, openPullRequest } from '@/lib/url'
 import { cn } from '@/lib/utils'
 
@@ -167,6 +171,16 @@ const components: Components = {
       )
     }
     const size = imageSize(Number(width), Number(height))
+    if (isGithubAttachment(src)) {
+      return (
+        <GithubMedia
+          url={src}
+          alt={alt ?? ''}
+          raw={`![${alt ?? ''}](${src})`}
+          size={size}
+        />
+      )
+    }
     if (
       mediaKind(src) !== 'video' &&
       mediaKind(src) !== 'audio' &&

@@ -2,6 +2,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { git, projectRepos } from '../services/git.ts'
+import { linkGithubImage } from '../services/github-images.ts'
 import { projectPath } from '../services/projects.ts'
 import {
   listPullRequests,
@@ -18,6 +19,7 @@ export const pullRequestHandlers: Pick<
   | 'pulls.list'
   | 'pulls.view'
   | 'pulls.diff'
+  | 'pulls.image'
   | 'pulls.run'
   | 'pulls.guide'
   | 'pulls.writeGuide'
@@ -35,6 +37,7 @@ export const pullRequestHandlers: Pick<
       params.fresh
     ),
   'pulls.diff': (params) => pullRequestDiff(params.url, params.head),
+  'pulls.image': (params, client) => linkGithubImage(params.url, client.device),
   'pulls.guide': (params) => reviewGuide(params.url),
   'pulls.writeGuide': async (params) =>
     writeReviewGuide(

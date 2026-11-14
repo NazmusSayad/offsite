@@ -119,6 +119,10 @@ export type PullRequestMethods = {
     params: { url: string; head: string }
     result: string
   }
+  'pulls.image': {
+    params: { url: string }
+    result: string
+  }
   'pulls.run': {
     params: {
       projectId: string
