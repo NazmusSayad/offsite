@@ -429,18 +429,21 @@ function cover(
     context.drawImage(image, offset, offset, size, size)
     return
   }
-  const side = Math.min(image.naturalWidth, image.naturalHeight)
+  const scale = size / Math.min(image.naturalWidth, image.naturalHeight)
+  const width = image.naturalWidth * scale
+  const height = image.naturalHeight * scale
+  context.save()
+  context.beginPath()
+  context.rect(offset, offset, size, size)
+  context.clip()
   context.drawImage(
     image,
-    (image.naturalWidth - side) / 2,
-    (image.naturalHeight - side) / 2,
-    side,
-    side,
-    offset,
-    offset,
-    size,
-    size
+    offset + (size - width) / 2,
+    offset + (size - height) / 2,
+    width,
+    height
   )
+  context.restore()
 }
 
 function tile(
