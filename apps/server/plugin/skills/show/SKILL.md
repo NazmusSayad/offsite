@@ -1,6 +1,6 @@
 ---
 name: show
-description: Use when need to show images, videos, audio or Mermaid diagrams in the chat.
+description: Visualize images, videos, audio and Mermaid diagrams in the chat. Use when a reply includes a screenshot, image, video, audio file or Mermaid diagram.
 ---
 
 ## Images, videos and audio
@@ -23,8 +23,8 @@ Offsite renders a Markdown image inline when its path points to an existing file
 
 - Write a short label in the message text directly above each file, saying what it shows. Each file needs its own label, even when several files sit under one heading.
 - **When you make an image:**
-  - When showing a before and after, put them side by side in one image, zoomed in on the area that is the focus.
-  - When the image combines several versions, such as before and after or variants, write a label on the image above each version that names exactly what it shows, like "Before", "After" or the variant's name.
+  - For a before and after, put both side by side in one image, zoomed in on the area that is the focus.
+  - When it combines several versions, such as before and after or variants, write a label on the image above each version that names exactly what it shows, like "Before", "After" or the variant's name.
 
 ## Mermaid diagrams
 
