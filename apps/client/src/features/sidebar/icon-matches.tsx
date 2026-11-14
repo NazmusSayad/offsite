@@ -208,8 +208,8 @@ export function IconMatches(props: {
                 (variant) => variant.category === category
               ),
             ].map((variant) => (
-              <span key={variant.label} className="grid place-items-center p-2">
-                <span className="bg-muted size-11 rounded-lg" />
+              <span key={variant.label} className="block p-2">
+                <span className="bg-muted mx-auto block aspect-square w-full max-w-11 rounded-lg" />
               </span>
             ))}
           {variants !== null &&
@@ -224,7 +224,7 @@ export function IconMatches(props: {
                 aria-label={variant.label}
                 aria-pressed={selected === variant.logo}
                 className={cn(
-                  'hover:bg-muted grid cursor-pointer place-items-center rounded-lg p-2 transition-colors',
+                  'hover:bg-muted cursor-pointer rounded-lg p-2 transition-colors',
                   selected === variant.logo && 'bg-muted ring-ring ring-1'
                 )}
                 onClick={() => setSelected(variant.logo)}
@@ -232,7 +232,7 @@ export function IconMatches(props: {
                 <img
                   src={variant.logo}
                   alt=""
-                  className="ring-foreground/10 size-11 rounded-lg object-cover ring-1"
+                  className="ring-foreground/10 mx-auto aspect-square w-full max-w-11 rounded-lg object-cover ring-1"
                 />
               </button>
             ))}
