@@ -100,17 +100,25 @@ function ModelPicker() {
     settings.provider === 'opencode' ? 'opencode' : settings.accountId
   const capabilities = useStore((state) => state.capabilities)
   const [open, setOpen] = useState(false)
+  const [keyboard, setKeyboard] = useState(false)
   const [fetched, setFetched] = useState<Record<string, Model[]>>({})
   const model = capabilities?.models.find(
     (item) => item.value === settings.model
   )
   const label = model?.name ?? settings.model ?? 'Choose a model'
   const account = choices.find((item) => item.key === current)
-  useHotkeys(['mod+shift+m', 'mod+period'], () => setOpen(!open), {
-    enableOnFormTags: true,
-    enableOnContentEditable: true,
-    preventDefault: true,
-  })
+  useHotkeys(
+    ['mod+shift+m', 'mod+period'],
+    () => {
+      setKeyboard(true)
+      setOpen(!open)
+    },
+    {
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+      preventDefault: true,
+    }
+  )
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -118,6 +126,7 @@ function ModelPicker() {
         <button
           className={cn(control, controlSm)}
           title={account === undefined ? 'Model' : `${account.name} · ${label}`}
+          onClick={(event) => setKeyboard(event.detail === 0)}
         >
           <span className="relative">
             <ProviderIcon
@@ -165,6 +174,7 @@ function ModelPicker() {
       >
         <ModelMenu
           choices={choices}
+          keyboard={keyboard}
           fetched={fetched}
           onFetched={setFetched}
           onClose={() => setOpen(false)}

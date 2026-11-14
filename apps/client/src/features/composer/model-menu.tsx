@@ -37,6 +37,7 @@ export function ModelMenu(props: {
     plan: string | null
     error: string | null
   }[]
+  keyboard: boolean
   fetched: Record<string, Model[]>
   onFetched: Dispatch<SetStateAction<Record<string, Model[]>>>
   onClose: () => void
@@ -68,15 +69,30 @@ export function ModelMenu(props: {
   )
   const grouped = viewedProvider === 'opencode' && search === ''
   const [expanded, setExpanded] = useState<string[]>([])
+  const [focused, setFocused] = useState<string | null>(null)
+  const shown = grouped
+    ? [...new Set(matches.map((option) => option.description))].flatMap(
+        (provider) => {
+          const list = matches.filter(
+            (option) => option.description === provider
+          )
+          return expanded.includes(provider) ? list : list.slice(0, 5)
+        }
+      )
+    : matches
+  const focusedIndex = shown.findIndex((option) => option.value === focused)
+  const usable = props.choices.filter((item) => item.error === null)
+  const viewedIndex = usable.findIndex((item) => item.key === viewed)
 
   function modelRow(option: Model) {
+    const index = shown.indexOf(option)
     return (
       <button
         key={option.value}
         data-model
         data-selected={viewed === current && option.value === settings.model}
         className={cn(
-          'hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground mb-0.5 outline-none flex min-h-8 w-full cursor-pointer flex-col justify-center rounded-sm px-2 py-1.5 text-left',
+          'group relative hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground mb-0.5 outline-none flex min-h-8 w-full cursor-pointer flex-col justify-center rounded-sm px-2 py-1.5 text-left',
           viewed === current &&
             option.value === settings.model &&
             'text-foreground bg-foreground/[0.08]'
@@ -88,6 +104,8 @@ export function ModelMenu(props: {
           pick(viewed, option)
           props.onClose()
         }}
+        onFocus={() => setFocused(option.value)}
+        onBlur={() => setFocused(null)}
       >
         <span className="truncate text-sm leading-snug font-medium">
           {option.name}
@@ -97,6 +115,19 @@ export function ModelMenu(props: {
             </span>
           )}
         </span>
+        {props.keyboard && (
+          <span className="absolute top-1/2 right-2 flex -translate-y-1/2 gap-1">
+            {focusedIndex !== -1 && index === focusedIndex - 1 && <Key>↑</Key>}
+            {focusedIndex !== -1 && index === focusedIndex + 1 && <Key>↓</Key>}
+            {index === focusedIndex && <Key>↵</Key>}
+            {index === 0 && (
+              <span className="hidden gap-1 group-has-[input:focus]/menu:flex">
+                <Key>↓</Key>
+                <Key>↵</Key>
+              </span>
+            )}
+          </span>
+        )}
       </button>
     )
   }
@@ -154,7 +185,7 @@ export function ModelMenu(props: {
     <div
       ref={root}
       tabIndex={-1}
-      className="flex max-h-86.5 flex-row outline-none"
+      className="group/menu flex max-h-86.5 flex-row outline-none"
       onKeyDown={(event) => {
         const typing =
           document.activeElement === searchInput.current && query !== ''
@@ -213,6 +244,18 @@ export function ModelMenu(props: {
                   }}
                 >
                   <ProviderIcon provider={item.provider} className="size-5" />
+                  {props.keyboard &&
+                    viewedIndex > 0 &&
+                    item === usable.at(viewedIndex - 1) && (
+                      <span className="absolute top-1/2 -right-1 z-10 -translate-y-1/2">
+                        <Key>←</Key>
+                      </span>
+                    )}
+                  {props.keyboard && item === usable.at(viewedIndex + 1) && (
+                    <span className="absolute top-1/2 -right-1 z-10 -translate-y-1/2">
+                      <Key>→</Key>
+                    </span>
+                  )}
                   {props.choices.filter(
                     (other) => other.provider === item.provider
                   ).length > 1 && (
@@ -330,6 +373,14 @@ export function ModelMenu(props: {
         </div>
       </div>
     </div>
+  )
+}
+
+function Key(props: { children: string }) {
+  return (
+    <kbd className="border-border bg-popover text-muted-foreground inline-flex h-4.5 min-w-4.5 items-center justify-center rounded border border-b-2 px-1 font-sans text-[10px] leading-none font-medium">
+      {props.children}
+    </kbd>
   )
 }
 
