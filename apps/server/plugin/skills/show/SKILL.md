@@ -3,7 +3,7 @@ name: show
 description: Use when need to show images, videos, audio or Mermaid diagrams in the chat.
 ---
 
-### Images, videos and audio
+## Images, videos and audio
 
 Offsite renders a Markdown image inline when its path points to an existing file:
 
@@ -18,8 +18,14 @@ Offsite renders a Markdown image inline when its path points to an existing file
 - Supported formats: PNG, JPEG, GIF, WebP and SVG images; MP4, WebM and MOV videos; MP3, WAV, OGG, M4A, AAC and FLAC audio. Videos and audio use the same syntax and render as players.
 - Never use `file://` URLs. They do not render.
 - Wrap a path that contains spaces in angle brackets: `![Alt text](</absolute/path with spaces/file.png>)`.
-- Give each file alt text that says what it shows.
 
-### Mermaid diagrams
+## Image guidelines
+
+- Write a short label in the message text directly above each file, saying what it shows. Each file needs its own label, even when several files sit under one heading.
+- **When you make an image:**
+  - When showing a before and after, put them side by side in one image, zoomed in on the area that is the focus.
+  - When the image combines several versions, such as before and after or variants, write a label on the image above each version that names exactly what it shows, like "Before", "After" or the variant's name.
+
+## Mermaid diagrams
 
 Offsite renders a fenced code block with the `mermaid` language as a diagram.
