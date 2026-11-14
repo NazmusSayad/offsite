@@ -14,6 +14,7 @@ export async function turnSummary(sessionId: string, cwd: string) {
   const start = items.findLastIndex(
     (item) => item.kind === 'user' && item.format === 'text'
   )
+  const prompt = start === -1 ? null : items[start]
   const turn = items.slice(start + 1)
   const replies = turn.flatMap((item) =>
     item.kind === 'assistant' ? [item.text] : []
@@ -22,8 +23,9 @@ export async function turnSummary(sessionId: string, cwd: string) {
     item.kind === 'file_change' ? [item] : []
   )
   return {
+    request: prompt !== null && prompt.kind === 'user' ? prompt.text : '',
     reply: replies.at(-1) ?? '',
-    startedAt: start === -1 ? null : items[start].time,
+    startedAt: prompt === null ? null : prompt.time,
     files: new Set(changes.map((item) => item.path)).size,
     lines: lineStats(changes),
     images: replies.flatMap((text) => sharedImages(text, cwd)),

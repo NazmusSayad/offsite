@@ -12,6 +12,7 @@ import {
   noticeSession,
   sendText,
 } from './notice-sessions.ts'
+import { noticeSummary } from './notice-summary.ts'
 import { type NoticeButton, notify } from './notices.ts'
 import { resend } from './runs.ts'
 import { sessions } from './sessions.ts'
@@ -104,12 +105,14 @@ async function finishedNotice(run: LiveRun) {
       ? null
       : duration(Date.now() - summary.startedAt),
   ].filter((part) => part !== null)
+  const short =
+    reply === '' ? null : await noticeSummary(run.cwd, summary.request, reply)
   await notify({
     ...base(run, session),
-    body: [reply || `${provider} finished`, stats.join(' · ')]
+    body: [short ?? (reply || `${provider} finished`), stats.join(' · ')]
       .filter((part) => part !== '')
       .join('\n'),
-    summary: reply.split('\n')[0] || 'finished',
+    summary: short ?? (reply.split('\n')[0] || 'finished'),
     state: 'done',
     image: await noticeImage(summary.images),
     buttons: finishedButtons(session, reply, summary.files),
@@ -200,10 +203,16 @@ async function requestNotice(run: LiveRun, request: PermissionRequest) {
     return
   }
   if (request.kind === 'plan') {
+    const plan = plainText(request.plan)
+    const short = await noticeSummary(
+      run.cwd,
+      (await turnSummary(run.sessionId, run.cwd)).request,
+      plan
+    )
     await notify({
       ...base(run, session),
       title: `Plan ready · ${session.title}`,
-      body: plainText(request.plan).split('\n').slice(0, 4).join('\n'),
+      body: short ?? plan.split('\n').slice(0, 4).join('\n'),
       summary: 'plan ready',
       state: 'approve',
       buttons: [
