@@ -257,7 +257,7 @@ export async function preparePullRequest(
   ).stdout.slice(0, DIFF_LIMIT)
   const lines = (
     await generateText(
-      false,
+      'pull-request',
       cwd,
       PULL_REQUEST_INSTRUCTIONS,
       `Commits between base and head:\n${commits}\n\n${diff}\n\nGenerate the pull request Markdown document from the above.`
@@ -325,7 +325,7 @@ export async function commitMessage(cwd: string, staged: boolean) {
     throw new Error('There is nothing to commit')
   }
   return generateText(
-    false,
+    'commit-message',
     cwd,
     'You write concise git commit messages.',
     `Write a git commit message for this diff. Reply with only the message: a short summary line, optionally followed by a blank line and a brief body.\n\n${diff}`

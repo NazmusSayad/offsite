@@ -41,7 +41,7 @@ export async function generatedName(cwd: string, text: string): Promise<Named> {
   try {
     reply = await Promise.race([
       generateText(
-        true,
+        'branch-name',
         cwd,
         NAME_INSTRUCTIONS,
         text.slice(0, NAME_INPUT_LIMIT),

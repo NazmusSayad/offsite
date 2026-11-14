@@ -95,7 +95,7 @@ export async function generateSessionTitle(
       throw new Error(`Could not read session ${id}`)
     }
     const reply = await generateText(
-      true,
+      'session-title',
       cwd,
       TITLE_INSTRUCTIONS,
       `Current title: ${JSON.stringify(session.title)}\n\nConversation:\n${transcript(history.items)}`

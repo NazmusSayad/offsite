@@ -182,7 +182,7 @@ async function createGuide(
     patch.slice(0, DIFF_LIMIT),
     '</diff>',
   ].join('\n')
-  const text = await generateText(true, cwd, INSTRUCTIONS, prompt)
+  const text = await generateText('review-guide', cwd, INSTRUCTIONS, prompt)
   const json = text
     .trim()
     .replace(/^```(?:json)?\s*/, '')
