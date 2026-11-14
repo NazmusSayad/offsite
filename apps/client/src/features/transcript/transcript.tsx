@@ -1,8 +1,4 @@
-import {
-  AlertDiamondIcon,
-  ArrowDown01Icon,
-  Minimize02Icon,
-} from '@hugeicons/core-free-icons'
+import { AlertDiamondIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { isEqual, omit } from 'es-toolkit'
 import {
@@ -25,6 +21,7 @@ import {
   MessageBookmarkButton,
   useBookmarks,
 } from '@/features/transcript/bookmarks'
+import { CompactionRow } from '@/features/transcript/compaction-row'
 import { ThreadFindBar } from '@/features/transcript/find-bar'
 import { ForkButton } from '@/features/transcript/fork-button'
 import { PlanCard } from '@/features/transcript/plan-card'
@@ -389,7 +386,14 @@ function RowContent(props: {
         />
       )
     case 'received':
-      return <ReceivedMessage item={row.item} onOpen={props.onOpenTask} />
+      return (
+        <ReceivedMessage
+          item={row.item}
+          open={props.expanded}
+          onToggle={() => props.onToggle(row.key)}
+          onOpen={props.onOpenTask}
+        />
+      )
     case 'assistant':
       return (
         <>
@@ -446,53 +450,12 @@ function RowContent(props: {
       )
     case 'compaction':
       return (
-        <div className="mx-auto w-full max-w-(--chat-content-max-width)">
-          <div className="text-muted-foreground flex items-center gap-3 py-1 text-xs">
-            <span className="bg-border/70 h-px flex-1" />
-            {row.summary === null ? (
-              <span className="flex items-center gap-1.5">
-                <HugeiconsIcon icon={Minimize02Icon} className="size-3" />
-                Conversation compacted
-              </span>
-            ) : (
-              <button
-                type="button"
-                aria-expanded={props.expanded}
-                className="hover:text-foreground flex items-center gap-1.5 transition-colors"
-                onClick={() => props.onToggle(row.key)}
-              >
-                <HugeiconsIcon icon={Minimize02Icon} className="size-3" />
-                Compacted summary
-                <HugeiconsIcon
-                  icon={ArrowDown01Icon}
-                  strokeWidth={2.5}
-                  className={cn(
-                    'size-3 transition-transform',
-                    !props.expanded && '-rotate-90'
-                  )}
-                />
-              </button>
-            )}
-            <span className="bg-border/70 h-px flex-1" />
-          </div>
-          {props.expanded && row.summary !== null && (
-            <>
-              <div className="bg-muted/40 text-muted-foreground mt-2 rounded-lg border px-4 py-3 text-sm">
-                <Markdown text={row.summary} streaming={false} />
-              </div>
-              <div className="mt-1.5 flex items-center justify-end gap-2 text-xs tabular-nums">
-                {row.time !== null && (
-                  <Tooltip label={fullTime(row.time)}>
-                    <p className="text-muted-foreground text-xs tabular-nums">
-                      {clock(row.time)}
-                    </p>
-                  </Tooltip>
-                )}
-                <MessageCopyButton text={row.summary} />
-              </div>
-            </>
-          )}
-        </div>
+        <CompactionRow
+          summary={row.summary}
+          time={row.time}
+          expanded={props.expanded}
+          onToggle={() => props.onToggle(row.key)}
+        />
       )
     case 'plan':
       return (

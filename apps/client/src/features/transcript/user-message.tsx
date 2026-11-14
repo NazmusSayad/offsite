@@ -5,7 +5,7 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { call } from '@/api/connection'
 import { FilePreview } from '@/components/file-preview'
 import { Markdown } from '@/components/markdown/markdown'
@@ -15,6 +15,7 @@ import { ViewableImage } from '@/components/viewable-image'
 import { stageText } from '@/features/composer/worktree-bar'
 import { MessageBookmarkButton } from '@/features/transcript/bookmarks'
 import { RewindMenu } from '@/features/transcript/rewind-menu'
+import { ShowMorePill } from '@/features/transcript/show-more-pill'
 import type { UserItem } from '@/features/transcript/timeline'
 import { Shimmer } from '@/features/transcript/tool-row'
 import { MentionChip, UploadChip } from '@/features/transcript/upload-chip'
@@ -42,6 +43,7 @@ export function UserMessage(props: {
   rewind: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
+  const bubble = useRef<HTMLDivElement>(null)
   const item = props.item
   const prompt =
     item.format === 'text' || item.format === 'command' ? item.text : ''
@@ -77,8 +79,11 @@ export function UserMessage(props: {
   return (
     <div className="group flex flex-col items-end gap-1">
       <div
+        ref={bubble}
         className={cn(
-          'bg-message text-message-foreground relative max-w-[80%] rounded-2xl px-3 py-2',
+          'bg-message text-message-foreground relative max-w-[80%] rounded-2xl px-3 pt-2',
+          canCollapse && 'mb-3 pb-0',
+          !canCollapse && 'pb-2',
           outboxPromptId !== null && !failed && 'isolate'
         )}
       >
@@ -196,18 +201,18 @@ export function UserMessage(props: {
               )}
             </div>
             {canCollapse && (
-              <div className="mt-1.5 flex items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="ghost-muted"
-                  aria-expanded={expanded}
-                  className="-ml-1"
-                  onClick={() => setExpanded(!expanded)}
-                >
-                  {expanded ? 'Show less' : 'Show full message'}
-                </Button>
-              </div>
+              <ShowMorePill
+                open={expanded}
+                className="bg-message"
+                onClick={() => {
+                  setExpanded(!expanded)
+                  if (expanded) {
+                    requestAnimationFrame(() =>
+                      bubble.current?.scrollIntoView({ block: 'nearest' })
+                    )
+                  }
+                }}
+              />
             )}
           </div>
         )}
