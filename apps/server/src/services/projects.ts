@@ -7,6 +7,7 @@ import type {
   WorktreeChoice,
   WorktreeDetails,
   WorktreeStage,
+  WorktreeState,
 } from '@offsite/core/git'
 import type {
   DirectoryListing,
@@ -22,6 +23,7 @@ import { home, scratchAvailable } from '../storage/storage.ts'
 import { git } from './git.ts'
 import { findLogo, prepareLogo } from './logos.ts'
 import {
+  branchExists,
   createWorktree,
   deleteWorktree,
   lastActivity,
@@ -261,7 +263,7 @@ export async function restoreWorktreeFolder(projectId: string) {
     throw new Error('That project was removed')
   }
   if (existsSync(project.path) || project.parentId === null) {
-    return false
+    return null
   }
   if (project.worktreeBranch === null) {
     throw new Error(
@@ -269,7 +271,7 @@ export async function restoreWorktreeFolder(projectId: string) {
     )
   }
   const root = rootProject(projectId)
-  await restoreWorktree(
+  const warning = await restoreWorktree(
     root.path,
     await worktreeFolder(project),
     project.worktreeBranch
@@ -279,7 +281,21 @@ export async function restoreWorktreeFolder(projectId: string) {
       `${project.path} does not exist on the branch ${project.worktreeBranch}`
     )
   }
-  return true
+  return { warning }
+}
+
+export async function worktreeState(projectId: string): Promise<WorktreeState> {
+  const project = worktreeProject(projectId)
+  if (existsSync(project.path)) {
+    return 'ready'
+  }
+  if (
+    project.worktreeBranch !== null &&
+    (await branchExists(rootProject(projectId).path, project.worktreeBranch))
+  ) {
+    return 'folderMissing'
+  }
+  return 'branchMissing'
 }
 
 export function rootProject(projectId: string) {

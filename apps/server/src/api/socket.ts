@@ -172,13 +172,7 @@ const handlers: Handlers = {
     exportSession(params.sessionId, params.projectId),
   'sessions.image': (params) =>
     image(params.sessionId, params.itemId, params.index),
-  'sessions.agent': (params) =>
-    agentHistory(
-      params.sessionId,
-      projectPath(params.projectId),
-      params.agentId,
-      params.parent
-    ),
+  'sessions.agent': (params) => agentHistory(params),
   'sessions.send': async (params, client) => {
     await send(client, params)
     return null
@@ -227,13 +221,9 @@ const handlers: Handlers = {
     recordInteraction(params.sessionId, run.provider, null)
     return null
   },
-  'sessions.rewind': (params) => rewind(params),
+  'sessions.rewind': (params, client) => rewind(params, client),
   'sessions.fork': async (params) => {
-    const result = await fork(
-      params.sessionId,
-      params.projectId,
-      params.messageId
-    )
+    const result = await fork(params)
     publishSessions()
     return result
   },

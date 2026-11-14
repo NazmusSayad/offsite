@@ -12,7 +12,7 @@ import type {
   LastPickedModelForProvider,
   SessionSettings,
 } from '@offsite/core/config'
-import type { WorktreeStage } from '@offsite/core/git'
+import type { WorktreeStage, WorktreeState } from '@offsite/core/git'
 import type {
   Item,
   PermissionRequest,
@@ -147,6 +147,11 @@ export type State = {
   rewinding: { messageId: string; mode: 'all' | 'chat'; first: boolean } | null
   worktree: { name: string; base: string | null } | null
   worktreeStage: WorktreeStage | null
+  worktreeState: {
+    machine: string
+    projectId: string
+    state: WorktreeState
+  } | null
   context: ContextUsage | null
   capabilities: Capabilities | null
   errors: string[]

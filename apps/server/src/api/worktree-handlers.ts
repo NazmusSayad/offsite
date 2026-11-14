@@ -4,9 +4,10 @@ import {
   projectPath,
   projectWorktrees,
   worktreeProjectDetails,
+  worktreeState,
 } from '../services/projects.ts'
 import { publishSessions, removeSession } from '../services/sessions.ts'
-import { moveToWorktree } from '../services/worktree-moves.ts'
+import { moveToMain, moveToWorktree } from '../services/worktree-moves.ts'
 import {
   deleteUnusedWorktree,
   unusedProject,
@@ -24,6 +25,8 @@ export const worktreeHandlers: Pick<
   | 'sessions.remove'
   | 'sessions.moveChanges'
   | 'sessions.move'
+  | 'sessions.moveToMain'
+  | 'projects.worktreeState'
 > = {
   'projects.worktrees': (params) => projectWorktrees(params.projectId),
   'projects.addWorktree': (params) =>
@@ -47,4 +50,6 @@ export const worktreeHandlers: Pick<
     uncommittedFiles(projectPath(params.projectId)),
   'sessions.move': (params, client) =>
     moveToWorktree(client, params.sessionId, params.name),
+  'sessions.moveToMain': (params) => moveToMain(params.sessionId),
+  'projects.worktreeState': (params) => worktreeState(params.projectId),
 }

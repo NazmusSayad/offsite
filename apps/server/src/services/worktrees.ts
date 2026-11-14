@@ -137,22 +137,27 @@ export async function restoreWorktree(
   branch: string
 ) {
   const top = await repoTop(repo)
-  await locked(top, async () => {
-    if (!(await refExists(top, `refs/heads/${branch}`))) {
-      throw new Error(
-        `The worktree folder ${folder} is gone and its branch ${branch} no longer exists`
-      )
-    }
+  return locked(top, async () => {
     await git(top, ['worktree', 'prune'])
-    try {
-      await git(top, ['worktree', 'add', folder, branch])
-    } catch (error) {
-      throw new Error(
-        `Could not recreate the worktree folder ${folder}: ${gitError(error).message}`,
-        { cause: error }
-      )
+    if (await refExists(top, `refs/heads/${branch}`)) {
+      try {
+        await git(top, ['worktree', 'add', folder, branch])
+      } catch (error) {
+        throw new Error(
+          `Could not recreate the worktree folder ${folder}: ${gitError(error).message}`,
+          { cause: error }
+        )
+      }
+      return null
     }
+    const start = await startPoint(top, null)
+    await addWorktree(top, { branch, folder }, start.ref)
+    return start.warning
   })
+}
+
+export async function branchExists(repo: string, branch: string) {
+  return refExists(await repoTop(repo), `refs/heads/${branch}`)
 }
 
 async function removeWorktree(worktree: {

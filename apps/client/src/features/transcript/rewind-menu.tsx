@@ -70,6 +70,8 @@ const modes = {
   },
 }
 
+const unavailable = "Rewind isn't available until the worktree is recreated"
+
 function modesFor(provider: Provider): RewindMode[] {
   if (provider === 'claude') {
     return ['all', 'chat', 'code']
@@ -93,6 +95,13 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
   const available = modesFor(provider)
   const stored = useStore((state) => state.prefs.rewind)
   const mode = available.includes(stored) ? stored : 'chat'
+  const missing = useStore(
+    (state) =>
+      state.worktreeState !== null &&
+      state.worktreeState.machine === state.selection?.machine &&
+      state.worktreeState.projectId === state.selection.projectId &&
+      state.worktreeState.state !== 'ready'
+  )
 
   async function pick(next: RewindMode, checked: boolean) {
     if (next === 'code') {
@@ -128,7 +137,7 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
                 size="icon-micro"
                 variant="ghost-muted"
                 aria-label="Restore options"
-                disabled={props.disabled}
+                disabled={props.disabled || missing}
               >
                 <HugeiconsIcon icon={MoreHorizontalIcon} className="size-4" />
               </Button>
@@ -143,14 +152,20 @@ export function RewindMenu(props: { target: RewindTarget; disabled: boolean }) {
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-      <Tooltip label={modes[mode].label}>
+      <Tooltip label={missing ? unavailable : modes[mode].label}>
         <Button
           type="button"
           size="icon-micro"
           variant="ghost-muted"
-          aria-label={modes[mode].label}
+          aria-label={missing ? unavailable : modes[mode].label}
           disabled={props.disabled || busy}
-          onClick={() => void pick(mode, false)}
+          onClick={() => {
+            if (missing) {
+              toast(unavailable)
+              return
+            }
+            void pick(mode, false)
+          }}
         >
           <HugeiconsIcon icon={modes[mode].icon} className="size-4" />
         </Button>
