@@ -24,6 +24,19 @@ export function UsageDialog() {
       <DialogContent
         className="gap-0 overflow-hidden p-0 sm:max-w-md"
         aria-describedby={undefined}
+        onOpenAutoFocus={(event) => {
+          if (!(event.currentTarget instanceof HTMLElement)) {
+            throw new Error('Usage dialog content is not an element')
+          }
+          const close = event.currentTarget.querySelector<HTMLButtonElement>(
+            '[data-slot=dialog-close]'
+          )
+          if (close === null) {
+            throw new Error('Usage dialog has no close button')
+          }
+          event.preventDefault()
+          close.focus({ preventScroll: true })
+        }}
       >
         <DialogHeader className="px-5 pt-4 pr-12 pb-3">
           <DialogTitle>Usage</DialogTitle>

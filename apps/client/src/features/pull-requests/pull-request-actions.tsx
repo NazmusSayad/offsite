@@ -95,6 +95,7 @@ const methodLabels: Record<
 }
 
 export function PullRequestActions(props: {
+  url: string
   details: PullRequestDetails | null
   busy: PullRequestAction['kind'] | null
   notice: Notice | null
@@ -103,7 +104,7 @@ export function PullRequestActions(props: {
   const details = props.details
   const [merging, setMerging] = useState(false)
   const [savedMethod, setSavedMethod] = useLocalStorage<MergeMethod>(
-    'pullRequestMergeMethod',
+    `pullRequestMergeMethod:${props.url}`,
     'squash'
   )
   const [cleanup, setCleanup] = useLocalStorage('pullRequestDeleteBranch', true)
