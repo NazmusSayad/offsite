@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { MoreLabel } from '@/components/icons'
+import { AlertDialog, AlertDialogContent } from '@/components/ui/alert-dialog'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   Popover,
@@ -27,6 +28,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { RemoteBranches, Submenu } from '@/features/git/branch-submenu'
+import { MoveWorktreeDialog } from '@/features/git/move-worktree-dialog'
 import { setOpen as setTerminalOpen } from '@/features/terminal/session'
 import { logger } from '@/lib/log'
 import { openSession } from '@/lib/sessions'
@@ -139,18 +141,8 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
     session.provider === 'claude' &&
     !session.claudeWorktree &&
     !scratch
-  const [changes, setChanges] = useState<string[] | null>(null)
   const [moving, setMoving] = useState(false)
-
-  useEffect(() => {
-    if (!movable) {
-      return
-    }
-    call(machine, 'sessions.moveChanges', { projectId }).then(
-      setChanges,
-      (error: unknown) => log.error('could not list uncommitted files', error)
-    )
-  }, [machine, projectId, movable])
+  const [confirmingMove, setConfirmingMove] = useState(false)
 
   useEffect(() => {
     call(machine, 'git.localBranches', { projectId, repo: repoPath }).then(
@@ -401,27 +393,27 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
           <button
             disabled={switching || moving}
             className="hover:bg-accent hover:text-accent-foreground flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50"
-            onClick={() => void move(session.id)}
+            onClick={() => setConfirmingMove(true)}
           >
             <HugeiconsIcon
               icon={moving ? CircleDashedIcon : NewWorktreeIcon}
-              className={cn('size-5 shrink-0', moving && 'animate-spin')}
+              className={cn('size-3.5 shrink-0', moving && 'animate-spin')}
             />
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate">
-                Move chat to new worktree{' '}
-                {name !== '' && <span className="font-medium">{name}</span>}
-              </span>
-              {changes !== null && (
-                <span className="text-muted-foreground truncate text-xs">
-                  {changes.length === 0 && 'No uncommitted files'}
-                  {changes.length === 1 && '1 uncommitted file moves with it'}
-                  {changes.length > 1 &&
-                    `${changes.length} uncommitted files move with it`}
-                </span>
-              )}
+            <span className="min-w-0 flex-1 truncate">
+              Move chat to new worktree{' '}
+              {name !== '' && <span className="font-medium">{name}</span>}
             </span>
           </button>
+          <AlertDialog open={confirmingMove} onOpenChange={setConfirmingMove}>
+            <AlertDialogContent focus="action">
+              <MoveWorktreeDialog
+                machine={machine}
+                projectId={projectId}
+                name={name}
+                onConfirm={() => void move(session.id)}
+              />
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
     </>
