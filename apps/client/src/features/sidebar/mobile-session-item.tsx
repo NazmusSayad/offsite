@@ -146,7 +146,7 @@ function MobileSessionItemView(props: {
       <span
         className={cn(
           'min-w-0 flex-1 truncate text-sm',
-          recede ? 'text-foreground/70 font-normal' : 'font-medium',
+          recede ? 'text-foreground/90 font-normal' : 'font-medium',
           !recede && (props.unseen || thread.waiting) && 'text-foreground',
           !recede && !props.unseen && !thread.waiting && 'text-foreground/90'
         )}
