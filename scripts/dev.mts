@@ -17,17 +17,17 @@ const loopback =
     : options.host
 
 const dir = freeDir()
-const webPort = await getPort({ port: portNumbers(7000, 9999) })
-const port = await getPort({ port: portNumbers(webPort + 1, 9999) })
+const webPort = await getPort({ port: portNumbers(7000, 7999) })
+const serverPort = await getPort({ port: portNumbers(8000, 8999) })
 
-const server = `http://${loopback.includes(':') ? `[${loopback}]` : loopback}:${port}`
+const server = `http://${loopback.includes(':') ? `[${loopback}]` : loopback}:${serverPort}`
 const connect = [
   ...(options.connect === undefined ? [] : options.connect.split(',')),
   server,
 ].join(',')
 
 console.log(
-  `offsite dev: ${dir}, web on port ${webPort}, server on port ${port}, connect ${connect}`
+  `offsite dev: ${dir}, web on port ${webPort}, server on port ${serverPort}, connect ${connect}`
 )
 
 const apps = path.join(import.meta.dirname, '..', 'apps')
@@ -39,7 +39,7 @@ try {
     [
       {
         name: 'server',
-        command: `node --watch-path=src src/main.ts --port ${port} --dir ${JSON.stringify(dir)} --no-auth${host}`,
+        command: `node --watch-path=src src/main.ts --port ${serverPort} --dir ${JSON.stringify(dir)} --no-auth${host}`,
         cwd: path.join(apps, 'server'),
         prefixColor: 'blue',
       },
