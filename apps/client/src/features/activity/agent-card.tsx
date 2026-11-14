@@ -1,14 +1,17 @@
-import { CommandLineIcon, StopIcon } from '@hugeicons/core-free-icons'
+import {
+  ArrowDown01Icon,
+  CheckmarkCircle02Icon,
+  CircleDotDashedIcon,
+  CircleIcon,
+  CommandLineIcon,
+  StopIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { WorktreeIcon } from '@offsite/core/icons/git'
+import type { Item } from '@offsite/core/items'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { type ReactNode, useState } from 'react'
 import { useProjectName } from '@/api/projects'
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card'
 import { fixedModes } from '@/features/composer/more-menu'
 import { SessionStatus } from '@/features/sidebar/session-status'
 import {
@@ -26,7 +29,11 @@ import { type MachineSession, projectOf, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { AgentRequest } from './agent-request'
 
-export type Agent = { session: MachineSession; activity: SessionActivity }
+export type Agent = {
+  session: MachineSession
+  activity: SessionActivity | null
+  done: boolean
+}
 
 export function AgentTile(props: { agent: Agent; now: number }) {
   const session = props.agent.session
@@ -35,9 +42,9 @@ export function AgentTile(props: { agent: Agent; now: number }) {
     (state) => projectOf(state, session.machine, session.projectId)?.path ?? ''
   )
   const [stopping, setStopping] = useState<Stopping | null>(null)
-  const stage = stageOf(activity)
-  const tasks = runningTasks(activity) - activity.backgroundAgents
-  const request = activity.requests.at(0)
+  const [expanded, setExpanded] = useState(false)
+  const stage = stageOf(props.agent)
+  const request = activity?.requests.at(0)
 
   function open() {
     openSession({
@@ -54,61 +61,63 @@ export function AgentTile(props: { agent: Agent; now: number }) {
         'rounded-md border',
         stage === 0 && 'border-question/40 bg-foreground/3',
         (stage === 1 || stage === 2) && 'border-border bg-foreground/3',
-        stage === 3 && 'border-transparent'
+        (stage === 3 || stage === 4) && 'border-transparent'
       )}
     >
-      <HoverCard openDelay={300} closeDelay={100}>
-        <HoverCardTrigger asChild>
-          <button
-            className="flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 px-2.5 text-left text-[13px]"
-            onClick={open}
+      <div className="flex h-8 min-w-0 items-center">
+        <button
+          className={cn(
+            'flex h-full min-w-0 flex-1 cursor-pointer items-center gap-2 pl-2.5 text-left text-[13px]',
+            activity === null && 'pr-2.5'
+          )}
+          onClick={open}
+        >
+          <span className="grid size-4 shrink-0 place-items-center">
+            <SessionStatus
+              session={session}
+              activity={activity ?? undefined}
+              done={props.agent.done}
+            />
+          </span>
+          <span
+            className={cn(
+              'min-w-0 flex-1 truncate',
+              stage === 4 ? 'text-muted-foreground' : 'text-foreground'
+            )}
           >
-            <span className="grid size-4 shrink-0 place-items-center">
-              <SessionStatus
-                session={session}
-                activity={activity}
-                done={false}
-              />
+            {session.title}
+          </span>
+          {activity !== null && activity.workingSince !== null && (
+            <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+              {timeLeft(props.now - activity.workingSince)}
             </span>
-            <span
-              className={cn(
-                'min-w-0 flex-1 truncate',
-                stage === 3 ? 'text-muted-foreground' : 'text-foreground'
-              )}
-            >
-              {session.title}
-            </span>
-            <span className="text-muted-foreground flex shrink-0 items-center gap-2.5 text-xs tabular-nums">
-              {activity.backgroundAgents > 0 && (
-                <span className="flex items-center gap-1" title="Subagents">
-                  <SubagentIcon className="size-3" />
-                  {activity.backgroundAgents}
-                </span>
-              )}
-              {tasks > 0 && (
-                <span
-                  className="flex items-center gap-1"
-                  title="Background tasks"
-                >
-                  <HugeiconsIcon icon={CommandLineIcon} className="size-3.5" />
-                  {tasks}
-                </span>
-              )}
-              {activity.workingSince !== null && (
-                <span>{timeLeft(props.now - activity.workingSince)}</span>
-              )}
-            </span>
+          )}
+        </button>
+        {activity !== null && (
+          <button
+            className="text-muted-foreground hover:text-foreground grid h-full w-8 shrink-0 cursor-pointer place-items-center"
+            title={expanded ? 'Hide details' : 'Show details'}
+            aria-label={expanded ? 'Hide details' : 'Show details'}
+            aria-expanded={expanded}
+            onClick={() => setExpanded(!expanded)}
+          >
+            <HugeiconsIcon
+              icon={ArrowDown01Icon}
+              className={cn('size-3.5', expanded && 'rotate-180')}
+            />
           </button>
-        </HoverCardTrigger>
-        <HoverCardContent side="right" align="start" className="w-80 p-0">
-          <AgentDetails
-            agent={props.agent}
-            cwd={cwd}
-            now={props.now}
-            onStop={setStopping}
-          />
-        </HoverCardContent>
-      </HoverCard>
+        )}
+      </div>
+      {activity !== null && (stage !== 4 || expanded) && (
+        <AgentDetails
+          session={session}
+          activity={activity}
+          cwd={cwd}
+          now={props.now}
+          expanded={expanded}
+          onStop={setStopping}
+        />
+      )}
       {request !== undefined && (
         <AgentRequest
           machine={session.machine}
@@ -129,13 +138,15 @@ export function AgentTile(props: { agent: Agent; now: number }) {
 }
 
 function AgentDetails(props: {
-  agent: Agent
+  session: MachineSession
+  activity: SessionActivity
   cwd: string
   now: number
+  expanded: boolean
   onStop: (stopping: Stopping) => void
 }) {
-  const session = props.agent.session
-  const activity = props.agent.activity
+  const session = props.session
+  const activity = props.activity
   const settings = activity.settings
   const projectName = useProjectName(session.machine, session.projectId)
   const worktree = useStore(
@@ -144,15 +155,60 @@ function AgentDetails(props: {
         null) !== null
   )
   const found = threadTasks(activity.work, activity)
-  const agents = found.agents.filter((item) => item.status === 'Running')
-  const tasks = found.tasks.filter((item) => item.status === 'Running')
+  const work = [
+    ...found.agents.map((item) => ({
+      id: item.item.id,
+      status: item.status,
+      icon:
+        item.status === 'Running' ? (
+          <AgentSpinner className={agentOf(item.item).tone} />
+        ) : (
+          <SubagentIcon className={cn('size-3.5', agentOf(item.item).tone)} />
+        ),
+      title: item.item.description,
+      model: subagentModel(item.item, activity),
+      time: item.item.time,
+      stop:
+        item.agentId === null
+          ? null
+          : { taskId: item.agentId, title: `${agentOf(item.item).name} agent` },
+    })),
+    ...found.tasks.map((item) => ({
+      id: item.item.id,
+      status: item.status,
+      icon: (
+        <HugeiconsIcon
+          icon={CommandLineIcon}
+          className={cn(
+            'size-3.5',
+            item.status === 'Running' ? 'text-info' : 'text-muted-foreground'
+          )}
+        />
+      ),
+      title: taskTitle(item.item),
+      model: null,
+      time: item.item.time,
+      stop:
+        item.taskId === null
+          ? null
+          : { taskId: item.taskId, title: taskTitle(item.item) },
+    })),
+  ]
+  const shown = [
+    ...work.filter((item) => item.status === 'Running'),
+    ...(props.expanded ? work.filter((item) => item.status !== 'Running') : []),
+  ]
   const mode =
     settings.provider === 'opencode'
       ? undefined
       : fixedModes[settings.provider].find(
           (item) => item.value === settings.mode
         )
-  const step = activity.step === null ? null : stepOf(activity.step, props.cwd)
+  const step =
+    activity.step === null ||
+    shown.some((item) => item.id === activity.step?.id)
+      ? null
+      : stepOf(activity.step, props.cwd)
   const todos = activity.todos ?? []
   const todo =
     todos.find((item) => item.status === 'running') ??
@@ -160,98 +216,115 @@ function AgentDetails(props: {
   const completed = todos.filter((item) => item.status === 'completed').length
 
   return (
-    <div className="flex flex-col gap-2 p-3 text-xs">
-      <p className="text-muted-foreground truncate">
-        {projectName}
-        {session.branch !== null && (
-          <>
-            {worktree ? (
-              <HugeiconsIcon
-                icon={WorktreeIcon}
-                className="mx-1 inline size-3 align-[-2px]"
-              />
-            ) : (
-              ' | '
-            )}
-            {session.branch}
-          </>
-        )}
-      </p>
+    <div className="flex flex-col gap-1.5 pr-2.5 pb-2 pl-8 text-xs">
       {step !== null && (
-        <p className="flex min-w-0 items-baseline gap-1.5 text-[13px]">
-          {step.label !== '' && (
-            <span className="text-foreground shrink-0">{step.label}</span>
+        <p
+          className={cn(
+            'text-muted-foreground min-w-0',
+            props.expanded ? 'line-clamp-3' : 'truncate'
           )}
-          <span className="text-muted-foreground line-clamp-3 min-w-0">
-            {step.detail}
-          </span>
+        >
+          {step.label !== '' && (
+            <span className="text-foreground/80">{step.label} </span>
+          )}
+          {step.detail}
         </p>
       )}
-      {todo !== undefined && (
+      {!props.expanded && todo !== undefined && (
         <p className="text-muted-foreground flex min-w-0 items-center gap-2">
-          <span className="shrink-0 tabular-nums">
+          <span className="text-foreground/80 shrink-0 tabular-nums">
             {completed}/{todos.length}
           </span>
           <span className="truncate">{todo.text}</span>
         </p>
       )}
-      {agents.length + tasks.length > 0 && (
-        <ul className="flex flex-col">
-          {agents.map((item) => (
-            <WorkRow
-              key={item.item.id}
-              icon={<AgentSpinner className={agentOf(item.item).tone} />}
-              title={item.item.description}
-              time={item.item.time}
-              now={props.now}
-              stop={
-                item.agentId === null
-                  ? null
-                  : {
-                      taskId: item.agentId,
-                      title: `${agentOf(item.item).name} agent`,
-                    }
-              }
-              onStop={props.onStop}
-            />
+      {props.expanded && todos.length > 0 && (
+        <ul className="flex flex-col gap-1">
+          {todos.map((item, index) => (
+            <li key={index} className="flex min-w-0 items-start gap-2">
+              <span className="grid h-4 w-3.5 shrink-0 place-items-center">
+                {item.status === 'completed' && (
+                  <HugeiconsIcon
+                    icon={CheckmarkCircle02Icon}
+                    className="text-success size-3.5"
+                  />
+                )}
+                {item.status === 'running' && (
+                  <HugeiconsIcon
+                    icon={CircleDotDashedIcon}
+                    className="text-info size-3.5"
+                  />
+                )}
+                {item.status === 'pending' && (
+                  <HugeiconsIcon
+                    icon={CircleIcon}
+                    className="text-muted-foreground size-3.5"
+                  />
+                )}
+              </span>
+              <span
+                className={cn(
+                  'min-w-0 leading-4',
+                  item.status === 'completed' && 'text-muted-foreground',
+                  item.status === 'running' && 'text-foreground',
+                  item.status === 'pending' && 'text-foreground/80'
+                )}
+              >
+                {item.text}
+              </span>
+            </li>
           ))}
-          {tasks.map((item) => (
+        </ul>
+      )}
+      {shown.length > 0 && (
+        <ul className="flex flex-col">
+          {shown.map((item) => (
             <WorkRow
-              key={item.item.id}
-              icon={
-                <HugeiconsIcon
-                  icon={CommandLineIcon}
-                  className="text-muted-foreground size-3.5"
-                />
-              }
-              title={taskTitle(item.item)}
-              time={item.item.time}
+              key={item.id}
+              icon={item.icon}
+              title={item.title}
+              model={item.model}
+              status={item.status}
+              time={item.time}
               now={props.now}
-              stop={
-                item.taskId === null
-                  ? null
-                  : { taskId: item.taskId, title: taskTitle(item.item) }
-              }
+              stop={item.status === 'Running' ? item.stop : null}
               onStop={props.onStop}
             />
           ))}
         </ul>
       )}
-      <p className="text-muted-foreground flex items-center gap-1.5 tabular-nums">
+      {props.expanded && (
+        <p className="text-muted-foreground truncate">
+          {projectName}
+          {session.branch !== null && (
+            <>
+              {worktree ? (
+                <HugeiconsIcon
+                  icon={WorktreeIcon}
+                  className="mx-1 inline size-3 align-[-2px]"
+                />
+              ) : (
+                ' | '
+              )}
+              {session.branch}
+            </>
+          )}
+        </p>
+      )}
+      <p className="text-muted-foreground flex min-w-0 items-center gap-1.5">
         {mode !== undefined && (
           <HugeiconsIcon icon={mode.icon} className="size-3.5 shrink-0" />
         )}
-        <span className="truncate">
-          {[
-            settings.model ?? 'Default',
-            ...(settings.effort === null ? [] : [settings.effort]),
-            ...(activity.context === null || activity.context.window === null
-              ? []
-              : [
-                  `${Math.round((activity.context.tokens / activity.context.window) * 100)}% context`,
-                ]),
-          ].join(' · ')}
-        </span>
+        <ModelBadge
+          label={modelLabel(settings.model, settings.effort, activity)}
+          context={
+            activity.context === null || activity.context.window === null
+              ? null
+              : Math.round(
+                  (activity.context.tokens / activity.context.window) * 100
+                )
+          }
+        />
       </p>
     </div>
   )
@@ -260,6 +333,8 @@ function AgentDetails(props: {
 function WorkRow(props: {
   icon: ReactNode
   title: string
+  model: string | null
+  status: string
   time: number | null
   now: number
   stop: Stopping | null
@@ -267,29 +342,76 @@ function WorkRow(props: {
 }) {
   const stop = props.stop
   return (
-    <li className="flex h-6 min-w-0 items-center gap-2">
-      <span className="grid size-4 shrink-0 place-items-center">
-        {props.icon}
-      </span>
-      <span className="text-foreground/90 min-w-0 flex-1 truncate">
-        {props.title}
-      </span>
-      {props.time !== null && (
-        <span className="text-muted-foreground shrink-0 tabular-nums">
-          {timeLeft(props.now - props.time)}
+    <li className="flex min-w-0 flex-col gap-0.5 py-0.5">
+      <div className="flex h-5 min-w-0 items-center gap-2">
+        <span className="grid size-4 shrink-0 place-items-center">
+          {props.icon}
+        </span>
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate',
+            props.status === 'Running'
+              ? 'text-foreground/90'
+              : 'text-muted-foreground'
+          )}
+        >
+          {props.title}
+        </span>
+        {props.status !== 'Running' && (
+          <span
+            className={cn(
+              'shrink-0',
+              props.status === 'Failed'
+                ? 'text-destructive'
+                : 'text-muted-foreground'
+            )}
+          >
+            {props.status}
+          </span>
+        )}
+        {props.status === 'Running' && props.time !== null && (
+          <span className="text-muted-foreground shrink-0 tabular-nums">
+            {timeLeft(props.now - props.time)}
+          </span>
+        )}
+        {stop !== null && (
+          <button
+            className="text-muted-foreground hover:text-foreground -mr-1 grid size-5 shrink-0 cursor-pointer place-items-center rounded-sm"
+            title={`Stop ${stop.title}`}
+            aria-label={`Stop ${stop.title}`}
+            onClick={() => props.onStop(stop)}
+          >
+            <HugeiconsIcon icon={StopIcon} className="size-3.5" />
+          </button>
+        )}
+      </div>
+      {props.model !== null && (
+        <span className="flex pl-6">
+          <ModelBadge label={props.model} context={null} />
         </span>
       )}
-      {stop !== null && (
-        <button
-          className="text-muted-foreground hover:text-foreground grid size-5 shrink-0 cursor-pointer place-items-center rounded-sm"
-          title={`Stop ${stop.title}`}
-          aria-label={`Stop ${stop.title}`}
-          onClick={() => props.onStop(stop)}
-        >
-          <HugeiconsIcon icon={StopIcon} className="size-3.5" />
-        </button>
-      )}
     </li>
+  )
+}
+
+function ModelBadge(props: { label: string; context: number | null }) {
+  return (
+    <span
+      className="bg-foreground/5 text-muted-foreground relative flex h-5 max-w-full min-w-0 shrink-0 items-center overflow-hidden rounded-[6px] px-1.25 text-[11px] font-medium"
+      title={
+        props.context === null
+          ? props.label
+          : `${props.label} · ${props.context}% context`
+      }
+    >
+      {props.context !== null && (
+        <span
+          className="bg-foreground/8 absolute inset-y-0 left-0"
+          style={{ width: `${props.context}%` }}
+        />
+      )}
+      <span className="relative truncate">{props.label}</span>
+    </span>
   )
 }
 
@@ -329,20 +451,52 @@ function stepOf(item: NonNullable<SessionActivity['step']>, cwd: string) {
   }
 }
 
+function subagentModel(
+  item: Extract<Item, { kind: 'subagent' }>,
+  activity: SessionActivity
+) {
+  const defined = activity.agentModels[item.agent]
+  return modelLabel(
+    item.model ??
+      (defined === undefined || defined === 'inherit' ? null : defined) ??
+      activity.settings.model,
+    item.effort,
+    activity
+  )
+}
+
+function modelLabel(
+  model: string | null,
+  effort: string | null,
+  activity: SessionActivity
+) {
+  const name = activity.modelNames[model ?? 'default'] ?? model ?? 'Default'
+  return effort === null
+    ? name
+    : `${name} · ${effort.charAt(0).toUpperCase()}${effort.slice(1)}`
+}
+
 export function runningTasks(activity: SessionActivity) {
   return Object.values(activity.tasks).filter((status) => status === 'running')
     .length
 }
 
-export function stageOf(activity: SessionActivity) {
-  if (activity.waiting) {
+export function stageOf(agent: Agent) {
+  const activity = agent.activity
+  if (activity?.waiting === true) {
     return 0
   }
-  if (activity.running) {
+  if (activity?.running === true) {
     return 1
   }
-  if (activity.holdsCompletion || runningTasks(activity) > 0) {
+  if (
+    activity !== null &&
+    (activity.holdsCompletion || runningTasks(activity) > 0)
+  ) {
     return 2
   }
-  return 3
+  if (agent.done) {
+    return 3
+  }
+  return 4
 }

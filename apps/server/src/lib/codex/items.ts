@@ -137,6 +137,8 @@ export function toItems(
             agent: item.model ?? 'Agent',
             description: item.prompt ?? '',
             agentId: item.receiverThreadIds[0] ?? null,
+            model: item.model,
+            effort: item.reasoningEffort,
             status: statuses[item.status],
           },
         ]

@@ -25,6 +25,7 @@ import {
   scheduleAutoResolve,
 } from '../live.ts'
 import { logger } from '../log.ts'
+import { loadAgentModels } from './agent-models.ts'
 import { backgroundTasks } from './background-tasks.ts'
 import { claudeEffort, claudeMode, runOptions } from './claude.ts'
 import {
@@ -74,6 +75,8 @@ export class Run {
   agentTasks = 0
   failed = false
   tasks: Record<string, TaskStatus> = {}
+  agentModels: Record<string, string> = {}
+  modelNames: Record<string, string> = {}
   private readonly inbox: Input[] = []
   private readonly silent = new Set<string>()
   private readonly steering = new Map<string, { id: string; prompt: Prompt }>()
@@ -347,6 +350,7 @@ export class Run {
               mode: message.permissionMode,
             })
             void followStart(this.sessionId, this.cwd, message.cwd)
+            void loadAgentModels(this)
             return
           case 'background_tasks_changed': {
             const changed = backgroundTasks(message, this.tasks)

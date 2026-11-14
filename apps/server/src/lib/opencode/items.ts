@@ -273,6 +273,8 @@ function toolItems(base: Base, tool: SessionMessageAssistantTool): Item[] {
           description: text(input.description),
           agentId:
             typeof metadata.sessionID === 'string' ? metadata.sessionID : null,
+          model: null,
+          effort: null,
           status,
         },
       ]

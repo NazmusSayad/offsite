@@ -1,10 +1,12 @@
 import {
+  CheckmarkCircle03Icon,
   CircleDotDashedIcon,
   CommandLineIcon,
   ShieldAlertIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { type ReactNode, useEffect, useState } from 'react'
+import { machineKey } from '@/api/machines'
 import { ProviderIcon } from '@/components/icons'
 import { MachineLogo } from '@/constants/machine-icons'
 import { SubagentIcon } from '@/features/transcript/agent-pill'
@@ -12,7 +14,7 @@ import { UsageMeter } from '@/features/usage/usage-meters'
 import { providerNames } from '@/lib/format'
 import { router } from '@/lib/router'
 import { closeSession } from '@/lib/sessions'
-import { type Machine, useStore } from '@/lib/store'
+import { type Machine, threadState, useStore } from '@/lib/store'
 import { activityPage, onGuard } from '@/lib/url'
 import { hasUsage } from '@/lib/usage'
 import { cn } from '@/lib/utils'
@@ -35,20 +37,40 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
   const inactive = useStore((state) => state.inactive)
+  const unseen = useStore((state) => state.unseen)
   const [now, setNow] = useState(Date.now)
   const agents = machines
     .filter((machine) => machine.status === 'online')
-    .flatMap((machine) =>
-      Object.entries(machine.activity).flatMap((entry) => {
+    .flatMap((machine) => [
+      ...Object.entries(machine.activity).flatMap((entry) => {
         const session = [...sessions, ...inactive].find(
           (item) => item.machine === machine.id && item.id === entry[0]
         )
-        return session === undefined ? [] : [{ session, activity: entry[1] }]
-      })
-    )
+        return session === undefined
+          ? []
+          : [
+              {
+                session,
+                activity: entry[1],
+                done: threadState(
+                  entry[1],
+                  unseen.includes(machineKey(machine.id, entry[0]))
+                ).done,
+              },
+            ]
+      }),
+      ...sessions
+        .filter(
+          (session) =>
+            session.machine === machine.id &&
+            machine.activity[session.id] === undefined &&
+            unseen.includes(machineKey(machine.id, session.id))
+        )
+        .map((session) => ({ session, activity: null, done: true })),
+    ])
     .sort(
       (first, second) =>
-        stageOf(first.activity) - stageOf(second.activity) ||
+        stageOf(first) - stageOf(second) ||
         second.session.updatedAt - first.session.updatedAt
     )
 
@@ -80,7 +102,7 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
               className="text-question size-3.5"
             />
           }
-          value={agents.filter((agent) => stageOf(agent.activity) === 0).length}
+          value={agents.filter((agent) => stageOf(agent) === 0).length}
         />
         <Stat
           title="Working"
@@ -90,13 +112,13 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
               className="text-info size-3.5"
             />
           }
-          value={agents.filter((agent) => stageOf(agent.activity) === 1).length}
+          value={agents.filter((agent) => stageOf(agent) === 1).length}
         />
         <Stat
           title="Subagents"
           icon={<SubagentIcon className="text-muted-foreground size-3" />}
           value={agents.reduce(
-            (sum, agent) => sum + agent.activity.backgroundAgents,
+            (sum, agent) => sum + (agent.activity?.backgroundAgents ?? 0),
             0
           )}
         />
@@ -110,11 +132,23 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
           }
           value={agents.reduce(
             (sum, agent) =>
-              sum +
-              runningTasks(agent.activity) -
-              agent.activity.backgroundAgents,
+              agent.activity === null
+                ? sum
+                : sum +
+                  runningTasks(agent.activity) -
+                  agent.activity.backgroundAgents,
             0
           )}
+        />
+        <Stat
+          title="Done"
+          icon={
+            <HugeiconsIcon
+              icon={CheckmarkCircle03Icon}
+              className="text-success size-3.5"
+            />
+          }
+          value={agents.filter((agent) => stageOf(agent) === 3).length}
         />
       </header>
       <div className="min-h-0 flex-1 overflow-auto">
@@ -215,17 +249,18 @@ function MachineTree(props: {
 }
 
 function AccountRow(props: { machine: Machine; agents: Agent[] }) {
-  const settings = props.agents[0].activity.settings
+  const provider = props.agents[0].session.provider
+  const accountId = props.agents[0].activity?.settings.accountId ?? null
   const account = [
     ...props.machine.claudeAccounts,
     ...props.machine.codexAccounts,
-  ].find((item) => item.id === settings.accountId)
+  ].find((item) => item.id === accountId)
 
   return (
     <div className="flex h-8 min-w-0 items-center gap-2">
-      <ProviderIcon provider={settings.provider} className="size-4 shrink-0" />
+      <ProviderIcon provider={provider} className="size-4 shrink-0" />
       <span className="text-foreground truncate">
-        {account?.name ?? providerNames[settings.provider]}
+        {account?.name ?? providerNames[provider]}
       </span>
       {account !== undefined && hasUsage(account) && (
         <UsageMeter
@@ -254,5 +289,5 @@ function Twig(props: { anchor: 'row' | 'tile'; children: ReactNode }) {
 }
 
 function accountKey(agent: Agent) {
-  return `${agent.activity.settings.provider}\n${agent.activity.settings.accountId}`
+  return `${agent.session.provider}\n${agent.activity?.settings.accountId ?? null}`
 }
