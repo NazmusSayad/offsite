@@ -28,6 +28,7 @@ import { remarkWindowsPaths } from '@/components/markdown/markdown-paths'
 import {
   remarkImages,
   remarkSkills,
+  remarkUploads,
 } from '@/components/markdown/markdown-skills'
 import { streamingParser } from '@/components/markdown/markdown-stream'
 import { mediaKind } from '@/lib/media'
@@ -233,6 +234,7 @@ function MarkdownView(props: {
   components?: Components
   skills?: string[]
   images?: boolean
+  uploads?: boolean
 }) {
   const [parser] = useState(streamingParser)
   return (
@@ -254,6 +256,7 @@ function MarkdownView(props: {
             ? []
             : [remarkSkills(props.skills)]),
           ...(props.images === true ? [remarkImages()] : []),
+          ...(props.uploads === true ? [remarkUploads()] : []),
           ...(props.rawHtml === false ? [] : [remarkUnclosedHtml]),
         ]}
         rehypePlugins={

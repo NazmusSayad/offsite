@@ -95,8 +95,25 @@ export async function listEntries(cwd: string) {
   return { files: files.slice(0, FILE_LIMIT).sort(), folders: folders.sort() }
 }
 
-export function readProjectFile(cwd: string, file: string): FilePreview {
-  const full = resolveProjectFile(cwd, file)
+export function readProjectFile(cwd: string, file: string) {
+  return readPreview(resolveProjectFile(cwd, file), file)
+}
+
+export function readUpload(file: string) {
+  if (!path.isAbsolute(file) || !existsSync(file)) {
+    throw new Error(`${file} does not exist`)
+  }
+  const full = realpathSync(file)
+  if (
+    path.dirname(path.dirname(full)) !==
+    realpathSync(path.join(home, 'uploads'))
+  ) {
+    throw new Error(`${file} is not an uploaded file`)
+  }
+  return readPreview(full, file)
+}
+
+function readPreview(full: string, file: string): FilePreview {
   const stats = statSync(full)
   if (!stats.isFile()) {
     throw new Error(`${file} is not a file`)

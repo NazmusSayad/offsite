@@ -7,9 +7,16 @@ import {
   type ReactNodeViewProps,
 } from '@tiptap/react'
 import { lazy, Suspense, useState } from 'react'
+import { readBase64 } from '@/api/upload'
+import {
+  FileHoverPreview,
+  type FilePreviewContent,
+  PREVIEW_TEXT_LIMIT,
+} from '@/components/file-hover-preview'
 import { ImageHoverPreview } from '@/components/image-hover-preview'
+import { mediaKind } from '@/lib/media'
 import { draftKey, useStore } from '@/lib/store'
-import { fileMarker, useDraft } from './drafts'
+import { fileMarker, loadDraftFile, useDraft } from './drafts'
 
 const ImageViewer = lazy(async () => ({
   default: (await import('@/components/image-viewer')).ImageViewer,
@@ -53,15 +60,30 @@ function AttachmentChip(props: ReactNodeViewProps) {
       contentEditable={false}
       className="bg-muted border-border/70 mx-0.5 inline-flex h-5.5 max-w-60 items-center gap-1 rounded-md border p-0.5 align-top text-xs"
     >
-      {image === undefined ? (
+      {image === undefined && file === undefined && (
         <span className="flex min-w-0 items-center gap-1 ps-0.5">
           <HugeiconsIcon
             icon={FileIcon}
             className="text-muted-foreground size-3.5 shrink-0"
           />
-          <span className="truncate">{file?.name ?? marker}</span>
+          <span className="truncate">{marker}</span>
         </span>
-      ) : (
+      )}
+      {image === undefined && file !== undefined && (
+        <FileHoverPreview load={() => loadFile(file.id, file.name)}>
+          <button
+            type="button"
+            className="flex min-w-0 items-center gap-1 ps-0.5"
+          >
+            <HugeiconsIcon
+              icon={FileIcon}
+              className="text-muted-foreground size-3.5 shrink-0"
+            />
+            <span className="truncate">{file.name}</span>
+          </button>
+        </FileHoverPreview>
+      )}
+      {image !== undefined && (
         <ImageHoverPreview
           src={`data:${image.mediaType};base64,${image.data}`}
           alt={`Image #${image.number}`}
@@ -116,4 +138,20 @@ function AttachmentChip(props: ReactNodeViewProps) {
       )}
     </NodeViewWrapper>
   )
+}
+
+async function loadFile(id: string, name: string): Promise<FilePreviewContent> {
+  const file = await loadDraftFile(id)
+  if (file === undefined) {
+    throw new Error(`${name} is no longer saved, attach it again`)
+  }
+  const kind = mediaKind(name)
+  if (kind !== null) {
+    return { kind, src: `data:${file.type};base64,${await readBase64(file)}` }
+  }
+  const text = await file.slice(0, PREVIEW_TEXT_LIMIT * 4).text()
+  if (text.includes('\0')) {
+    throw new Error('No preview for this file')
+  }
+  return { kind: 'text', text }
 }

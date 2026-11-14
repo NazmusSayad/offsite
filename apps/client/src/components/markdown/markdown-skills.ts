@@ -23,6 +23,13 @@ export function remarkImages() {
   }))
 }
 
+export function remarkUploads() {
+  return remarkWrap(
+    /(?<!\S)@(\S*?[\\/]uploads[\\/][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[\\/][^\s\\/]+)/g,
+    (match) => ({ dataUpload: match[1] })
+  )
+}
+
 function remarkWrap(
   pattern: RegExp,
   properties: (match: RegExpExecArray) => Record<string, string>
