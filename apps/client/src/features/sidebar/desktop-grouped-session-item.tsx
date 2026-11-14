@@ -79,7 +79,11 @@ export function DesktopGroupedSessionItem(props: {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" onClick={makeInactive}>
+          <AlertDialogAction
+            variant="destructive"
+            icon={TickDouble01Icon}
+            onClick={makeInactive}
+          >
             Stop and Mark Done
           </AlertDialogAction>
         </AlertDialogFooter>

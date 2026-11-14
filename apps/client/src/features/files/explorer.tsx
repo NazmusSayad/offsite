@@ -6,6 +6,7 @@ import {
   FolderAddIcon,
   FolderClosedIcon,
   RefreshCwIcon,
+  Delete02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
@@ -391,6 +392,7 @@ export function Explorer(props: {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
+              icon={Delete02Icon}
               onClick={() => {
                 if (deleting !== null) {
                   void remove(deleting)

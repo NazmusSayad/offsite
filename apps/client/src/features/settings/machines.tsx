@@ -382,6 +382,7 @@ function EditMachinePage(props: { machine: Machine }) {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 variant="destructive"
+                icon={Delete02Icon}
                 onClick={() => {
                   update({ settingsEditedMachine: null })
                   removeMachine(machine.id)

@@ -1,4 +1,9 @@
-import { Copy01Icon, Tick02Icon } from '@hugeicons/core-free-icons'
+import {
+  Copy01Icon,
+  Tick02Icon,
+  RefreshIcon,
+  StopCircleIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SessionContext, SessionRuntime } from '@offsite/core/sessions'
 import { useEffect, useState } from 'react'
@@ -110,6 +115,7 @@ function RestartDialog(props: { session: MachineSession }) {
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction
           variant="destructive"
+          icon={RefreshIcon}
           onClick={() =>
             restartSession(props.session.machine, props.session.id)
           }
@@ -135,6 +141,7 @@ function StopDialog(props: { session: MachineSession }) {
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction
           variant="destructive"
+          icon={StopCircleIcon}
           onClick={() => stopClaude(props.session.machine, props.session.id)}
         >
           Stop

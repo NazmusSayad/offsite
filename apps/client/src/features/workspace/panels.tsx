@@ -1,4 +1,8 @@
-import { Asterisk02Icon, MoreVerticalIcon } from '@hugeicons/core-free-icons'
+import {
+  Asterisk02Icon,
+  MoreVerticalIcon,
+  TickDouble01Icon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
 import { type ReactNode, useState } from 'react'
@@ -353,6 +357,7 @@ function StopWorkDialog(props: { session: MachineSession | undefined }) {
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction
           variant="destructive"
+          icon={TickDouble01Icon}
           onClick={() => {
             if (props.session === undefined) {
               throw new Error('session is missing')

@@ -1,4 +1,8 @@
-import { ArrowRight01Icon, Cancel01Icon } from '@hugeicons/core-free-icons'
+import {
+  ArrowRight01Icon,
+  Cancel01Icon,
+  RotateLeft01Icon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { Provider } from '@offsite/core/providers'
 import { useState } from 'react'
@@ -405,6 +409,7 @@ export function SettingsContent(props: { view: SettingsView }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
+              icon={RotateLeft01Icon}
               onClick={() => {
                 setRevision(revision + 1)
                 if (confirming === 'browser') {

@@ -363,7 +363,10 @@ function MergeDialog(props: {
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>No</AlertDialogCancel>
-        <AlertDialogAction onClick={props.onConfirm}>
+        <AlertDialogAction
+          icon={methodLabels[props.method].icon}
+          onClick={props.onConfirm}
+        >
           Yes, merge
         </AlertDialogAction>
       </AlertDialogFooter>

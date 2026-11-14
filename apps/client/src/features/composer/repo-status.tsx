@@ -202,6 +202,7 @@ function DiscardDialog(props: { repo: GitRepo; target: Target; onRun: Run }) {
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction
           variant="destructive"
+          icon={Delete02Icon}
           onClick={() =>
             props.onRun(
               {

@@ -43,6 +43,7 @@ export function StopTaskDialog(props: {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
+              icon={StopIcon}
               onClick={() => {
                 if (props.sessionId === null) {
                   throw new Error('Cannot stop a task without a session')

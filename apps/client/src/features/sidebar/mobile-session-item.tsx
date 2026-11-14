@@ -1,4 +1,4 @@
-import { PinIcon, ZzzIcon } from '@hugeicons/core-free-icons'
+import { PinIcon, ZzzIcon, TickDouble01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { WorktreeIcon } from '@offsite/core/icons/git'
 import type { SessionActivity } from '@offsite/core/sessions'
@@ -106,7 +106,11 @@ function MobileSessionItemView(props: {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" onClick={makeInactive}>
+          <AlertDialogAction
+            variant="destructive"
+            icon={TickDouble01Icon}
+            onClick={makeInactive}
+          >
             Stop and Mark Done
           </AlertDialogAction>
         </AlertDialogFooter>

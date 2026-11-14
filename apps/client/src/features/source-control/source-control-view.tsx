@@ -3,6 +3,8 @@ import {
   ListTreeIcon,
   ListViewIcon,
   RefreshCwIcon,
+  GitCommitIcon,
+  UndoIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type {
@@ -369,6 +371,7 @@ export function SourceControlView(props: {
               Always
             </AlertDialogAction>
             <AlertDialogAction
+              icon={GitCommitIcon}
               onClick={() => {
                 if (prompt !== null) {
                   void commit(prompt.repo, { ...prompt.options, all: true })
@@ -435,6 +438,7 @@ function DiscardDialog(props: {
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction
           variant="destructive"
+          icon={UndoIcon}
           onClick={() =>
             props.onDiscard(
               discardFiles

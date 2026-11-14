@@ -1,3 +1,4 @@
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import { AlertDialog as AlertDialogPrimitive } from 'radix-ui'
 import * as React from 'react'
 import { useCloseOnBack } from '@/lib/url'
@@ -167,16 +168,23 @@ function AlertDialogAction({
   className,
   variant = 'default',
   size = 'default',
+  icon,
+  children,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Action> &
-  Pick<React.ComponentProps<typeof Button>, 'variant' | 'size'>) {
+  Pick<React.ComponentProps<typeof Button>, 'variant' | 'size'> & {
+    icon?: IconSvgElement
+  }) {
   return (
     <Button variant={variant} size={size} asChild>
       <AlertDialogPrimitive.Action
         data-slot="alert-dialog-action"
         className={cn(className)}
         {...props}
-      />
+      >
+        {icon !== undefined && <HugeiconsIcon icon={icon} />}
+        {children}
+      </AlertDialogPrimitive.Action>
     </Button>
   )
 }

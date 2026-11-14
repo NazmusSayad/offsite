@@ -1,3 +1,4 @@
+import { Cancel01Icon, Delete02Icon } from '@hugeicons/core-free-icons'
 import { useState, useSyncExternalStore } from 'react'
 import {
   AlertDialog,
@@ -126,6 +127,7 @@ function CloseConfirm(props: { closing: Closing }) {
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction
           variant="destructive"
+          icon={Cancel01Icon}
           onClick={() => send({ type: 'closeTab', id: closing.id })}
         >
           Close
@@ -167,6 +169,7 @@ export function CloseAllDialog() {
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
+            icon={Delete02Icon}
             onClick={() => sendCloseTabs(closing.tabs)}
           >
             Close all

@@ -1,3 +1,4 @@
+import { FloppyDiskIcon } from '@hugeicons/core-free-icons'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +37,7 @@ export function ConflictPrompt(props: {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={props.onOverwrite}>
+          <AlertDialogAction icon={FloppyDiskIcon} onClick={props.onOverwrite}>
             Overwrite
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -94,7 +95,10 @@ function SavePromptBody(props: {
         >
           {"Don't Save"}
         </AlertDialogAction>
-        <AlertDialogAction onClick={() => props.onFinish(true)}>
+        <AlertDialogAction
+          icon={FloppyDiskIcon}
+          onClick={() => props.onFinish(true)}
+        >
           {paths.length === 1 ? 'Save' : 'Save All'}
         </AlertDialogAction>
       </AlertDialogFooter>

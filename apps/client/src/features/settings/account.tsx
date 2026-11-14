@@ -1,3 +1,4 @@
+import { Delete02Icon } from '@hugeicons/core-free-icons'
 import type { Account } from '@offsite/core/providers'
 import { useState } from 'react'
 import { call } from '@/api/connection'
@@ -116,6 +117,7 @@ export function AccountPage(props: { machine: string; account: Account }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
+              icon={Delete02Icon}
               onClick={() => void remove()}
             >
               Remove account

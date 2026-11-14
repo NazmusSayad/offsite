@@ -312,6 +312,7 @@ function RewindConfirm(props: {
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction
           variant="destructive"
+          icon={modes.code.icon}
           disabled={!props.checked && (preview === null || codeError !== null)}
           onClick={() => void apply()}
         >
