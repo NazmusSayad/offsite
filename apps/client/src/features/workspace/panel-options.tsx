@@ -91,17 +91,6 @@ export function usePanelOptions(
       onSelect: () => props.onPanel(props.panel === 'diff' ? null : 'diff'),
     },
     {
-      id: 'pulls',
-      label: 'Pull requests',
-      title: 'Pull requests',
-      hotkey: null,
-      icon: GitPullRequestIcon,
-      pressed: props.panel === 'pulls',
-      dot: null,
-      attention: null,
-      onSelect: () => props.onPanel(props.panel === 'pulls' ? null : 'pulls'),
-    },
-    {
       id: 'tasks',
       label: 'Tasks',
       title: 'Tasks',
@@ -134,6 +123,17 @@ export function usePanelOptions(
           ? 'text-muted-foreground'
           : null,
       onSelect: () => props.onTerminal(!props.terminal),
+    },
+    {
+      id: 'pulls',
+      label: 'Pull requests',
+      title: 'Pull requests',
+      hotkey: null,
+      icon: GitPullRequestIcon,
+      pressed: props.panel === 'pulls',
+      dot: null,
+      attention: null,
+      onSelect: () => props.onPanel(props.panel === 'pulls' ? null : 'pulls'),
     },
     {
       id: 'browser',
