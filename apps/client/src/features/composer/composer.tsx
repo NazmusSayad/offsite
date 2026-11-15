@@ -55,7 +55,6 @@ import { sendDraft } from './send'
 import { DictateButton, SendControls } from './send-controls'
 import { isStashShortcut, toggleStash } from './stash'
 import { WorktreeBar } from './worktree-bar'
-import { ClaudeWorktreeNotice } from './worktree-notice'
 
 const log = logger.withTag('composer')
 
@@ -290,7 +289,6 @@ export function Composer(props: {
           />
         )}
         <UsageResetBanner />
-        <ClaudeWorktreeNotice />
         <MissingWorktreeNotice running={running} />
         <RewindNotice draftKey={key} />
         <QueuedMessages />

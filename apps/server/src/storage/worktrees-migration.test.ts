@@ -73,32 +73,28 @@ describe('worktrees migration', () => {
   it('places chats in their project and worktree', () => {
     expect(
       rows(
-        'SELECT session_id, project_id, worktree_id, claude_worktree FROM session_places ORDER BY session_id'
+        'SELECT session_id, project_id, worktree_id FROM session_places ORDER BY session_id'
       )
     ).toEqual([
       {
         session_id: 'in-other',
         project_id: 'other',
         worktree_id: null,
-        claude_worktree: 0,
       },
       {
         session_id: 'in-root',
         project_id: 'root',
         worktree_id: null,
-        claude_worktree: 0,
       },
       {
         session_id: 'in-wt1',
         project_id: 'root',
         worktree_id: 'wt1',
-        claude_worktree: 0,
       },
       {
         session_id: 'in-wt2',
         project_id: 'root',
         worktree_id: 'wt2',
-        claude_worktree: 1,
       },
     ])
   })

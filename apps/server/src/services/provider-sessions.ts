@@ -25,8 +25,6 @@ import { projects } from './projects.ts'
 
 export type Found = Omit<Session, 'status'>
 
-type ProviderSession = Omit<Found, 'claudeWorktree'>
-
 const TIME_LIMIT = 10_000
 
 export function timeLimit<T>(work: Promise<T>, message: string) {
@@ -52,7 +50,7 @@ async function locate(
   provider: Provider,
   id: string,
   paths: Map<string, Place>
-): Promise<ProviderSession | null> {
+): Promise<Found | null> {
   switch (provider) {
     case 'claude': {
       if (paths.size > 1) {
@@ -112,7 +110,7 @@ async function locate(
   }
 }
 
-function fromClaude(item: SDKSessionInfo, place: Place): ProviderSession {
+function fromClaude(item: SDKSessionInfo, place: Place): Found {
   return {
     id: item.sessionId,
     provider: 'claude',
@@ -127,10 +125,7 @@ function fromClaude(item: SDKSessionInfo, place: Place): ProviderSession {
   }
 }
 
-async function fromCodex(
-  thread: Thread,
-  place: Place
-): Promise<ProviderSession> {
+async function fromCodex(thread: Thread, place: Place): Promise<Found> {
   let title =
     thread.name?.trim() ||
     thread.preview.replaceAll(/\[Image: source: [^\]]+\]/g, '').trim()
@@ -154,7 +149,7 @@ async function fromCodex(
   }
 }
 
-function fromOpenCode(session: SessionInfo, place: Place): ProviderSession {
+function fromOpenCode(session: SessionInfo, place: Place): Found {
   return {
     id: session.id,
     provider: 'opencode',
@@ -174,7 +169,7 @@ export async function find(
   return found === null ? null : placed(found)
 }
 
-function placed(items: ProviderSession[]) {
+function placed(items: Found[]) {
   const records = new Map(
     db
       .select()
@@ -185,17 +180,13 @@ function placed(items: ProviderSession[]) {
   const known = new Set(projects().map((project) => project.id))
   return items.map((item) => {
     const record = records.get(item.id)
-    if (record === undefined) {
-      return { ...item, claudeWorktree: false }
-    }
-    if (!known.has(record.projectId)) {
-      return { ...item, claudeWorktree: record.claudeWorktree }
+    if (record === undefined || !known.has(record.projectId)) {
+      return item
     }
     return {
       ...item,
       projectId: record.projectId,
       worktreeId: record.worktreeId,
-      claudeWorktree: record.claudeWorktree,
     }
   })
 }
@@ -203,7 +194,7 @@ function placed(items: ProviderSession[]) {
 async function list(
   provider: Provider,
   paths: Map<string, Place>
-): Promise<ProviderSession[] | null> {
+): Promise<Found[] | null> {
   switch (provider) {
     case 'claude':
       return (

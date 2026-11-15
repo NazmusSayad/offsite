@@ -362,7 +362,6 @@ async function submitFirst(
     worktreeId: place.worktreeId,
     branch: null,
     updatedAt: Date.now(),
-    claudeWorktree: false,
   })
   const session = sessions().find((item) => item.id === sessionId)
   if (session === undefined) {

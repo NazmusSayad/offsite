@@ -1,0 +1,1 @@
+ALTER TABLE `session_places` DROP COLUMN `claude_worktree`;

@@ -40,10 +40,10 @@ export function followWorktree(
     }
     const name = tools.get(block.tool_use_id)
     if (name === 'EnterWorktree' && typeof result.worktreePath === 'string') {
-      follow(sessionId, cwd, result.worktreePath, 'entered')
+      follow(sessionId, cwd, result.worktreePath)
     }
     if (name === 'ExitWorktree' && typeof result.restoredCwd === 'string') {
-      follow(sessionId, cwd, result.restoredCwd, 'left')
+      follow(sessionId, cwd, result.restoredCwd)
     }
   }
 }
@@ -55,20 +55,15 @@ export async function followStart(
 ) {
   try {
     if ((await realpath(folder)) !== (await realpath(cwd))) {
-      await followClaudeFolder(sessionId, cwd, folder, 'started')
+      await followClaudeFolder(sessionId, cwd, folder)
     }
   } catch (error) {
     log.warn(`${sessionId} could not follow its worktree:`, error)
   }
 }
 
-function follow(
-  sessionId: string,
-  cwd: string,
-  folder: string,
-  change: 'entered' | 'left'
-) {
-  followClaudeFolder(sessionId, cwd, folder, change).catch((error: unknown) =>
+function follow(sessionId: string, cwd: string, folder: string) {
+  followClaudeFolder(sessionId, cwd, folder).catch((error: unknown) =>
     log.warn(`${sessionId} could not follow its worktree:`, error)
   )
 }

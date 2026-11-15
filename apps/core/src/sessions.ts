@@ -11,7 +11,6 @@ export type Session = {
   branch: string | null
   updatedAt: number
   status: 'active' | 'pinned' | 'snoozed' | 'minimized' | 'inactive'
-  claudeWorktree: boolean
 }
 
 export type SessionPatch = {
