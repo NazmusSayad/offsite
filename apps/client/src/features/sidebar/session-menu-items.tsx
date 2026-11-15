@@ -72,7 +72,7 @@ export function SessionMenuItems(props: {
       <div className="grid grid-cols-3 gap-1">
         <Item
           title={session.status === 'inactive' ? 'Resume' : 'Done'}
-          className="justify-center bg-green-500/10 py-2 focus:bg-green-500/20 *:[svg]:text-green-600! dark:*:[svg]:text-green-400!"
+          className="justify-center bg-green-500/10 py-2 **:text-green-600! focus:bg-green-500/20 dark:**:text-green-400!"
           onSelect={() => {
             if (session.status === 'inactive') {
               void editSession(session.machine, session.id, {
@@ -90,7 +90,7 @@ export function SessionMenuItems(props: {
         </Item>
         <Item
           title={session.status === 'snoozed' ? 'Unsnooze' : 'Snooze'}
-          className="justify-center bg-amber-500/10 py-2 focus:bg-amber-500/20 *:[svg]:text-amber-600! dark:*:[svg]:text-amber-400!"
+          className="justify-center bg-amber-500/10 py-2 **:text-amber-600! focus:bg-amber-500/20 dark:**:text-amber-400!"
           onSelect={() =>
             void editSession(session.machine, session.id, {
               status: session.status === 'snoozed' ? 'active' : 'snoozed',
@@ -104,7 +104,7 @@ export function SessionMenuItems(props: {
         </Item>
         <Item
           title={session.status === 'minimized' ? 'Restore' : 'Minimize'}
-          className="justify-center bg-sky-500/10 py-2 focus:bg-sky-500/20 *:[svg]:text-sky-600! dark:*:[svg]:text-sky-400!"
+          className="justify-center bg-sky-500/10 py-2 **:text-sky-600! focus:bg-sky-500/20 dark:**:text-sky-400!"
           onSelect={() =>
             void editSession(session.machine, session.id, {
               status: session.status === 'minimized' ? 'active' : 'minimized',
