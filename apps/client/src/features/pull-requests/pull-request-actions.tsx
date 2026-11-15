@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useCopy } from '@/lib/clipboard'
 import { deactivateSession } from '@/lib/sessions'
+import { untilGuardLeft } from '@/lib/url'
 import { cn } from '@/lib/utils'
 import { MergeStatus, type Notice } from './merge-status'
 
@@ -80,6 +81,7 @@ export function PullRequestActions(props: {
   busy: PullRequestAction['kind'] | null
   notice: Notice | null
   onPerform: Perform
+  onClose: () => void
 }) {
   const details = props.details
   const [merging, setMerging] = useState(false)
@@ -236,6 +238,8 @@ export function PullRequestActions(props: {
                   `Merged #${details.number}`
                 )
               }
+              onClose={() => setMerging(false)}
+              onDone={props.onClose}
             />
           )}
         </AlertDialogContent>
@@ -361,9 +365,12 @@ function MergeDialog(props: {
   machine: string
   sessionId: string | null
   onConfirm: () => Promise<boolean>
+  onClose: () => void
+  onDone: () => void
 }) {
   const details = props.details
   const sessionId = props.sessionId
+  const [finishing, setFinishing] = useState(false)
   const scope = useReadLocalStorage<{
     machine: string
     projectId: string
@@ -385,24 +392,36 @@ function MergeDialog(props: {
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
-        <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogCancel disabled={finishing}>Cancel</AlertDialogCancel>
         <AlertDialogAction
           variant={sessionId === null ? 'default' : 'outline'}
           icon={methodLabels[props.method].icon}
+          disabled={finishing}
           onClick={() => void props.onConfirm()}
         >
           Merge
         </AlertDialogAction>
         {sessionId !== null && (
           <AlertDialogAction
-            icon={CheckIcon}
+            icon={finishing ? undefined : CheckIcon}
             title="Merge and mark this thread as done"
-            onClick={async () => {
-              if (await props.onConfirm()) {
-                await deactivateSession(props.machine, sessionId, scope)
+            disabled={finishing}
+            onClick={async (event) => {
+              event.preventDefault()
+              setFinishing(true)
+              if (!(await props.onConfirm())) {
+                setFinishing(false)
+                return
               }
+              props.onClose()
+              await untilGuardLeft()
+              await deactivateSession(props.machine, sessionId, scope)
+              props.onDone()
             }}
           >
+            {finishing && (
+              <HugeiconsIcon icon={Loading03Icon} className="animate-spin" />
+            )}
             Confirm
           </AlertDialogAction>
         )}

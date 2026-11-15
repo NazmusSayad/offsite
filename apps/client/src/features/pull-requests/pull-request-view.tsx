@@ -449,6 +449,7 @@ export function PullRequestView(props: {
         busy={busy}
         notice={notice}
         onPerform={perform}
+        onClose={props.onClose}
       />
     </div>
   )
