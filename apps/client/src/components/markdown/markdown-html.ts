@@ -82,9 +82,9 @@ export function rehypeStandaloneImages() {
         node.type === 'root' ||
         (node.tagName !== undefined && imageBlocks.has(node.tagName))
       ) {
-        const image = soleImage(node)
-        if (image !== null) {
-          image.properties = { ...image.properties, dataStandalone: true }
+        const embed = soleEmbed(node)
+        if (embed !== null) {
+          embed.properties = { ...embed.properties, dataStandalone: true }
         }
       }
       node.children?.forEach(visit)
@@ -93,7 +93,7 @@ export function rehypeStandaloneImages() {
   }
 }
 
-function soleImage(node: HtmlNode): HtmlNode | null {
+function soleEmbed(node: HtmlNode): HtmlNode | null {
   const children = (node.children ?? []).filter(
     (child) => !(child.type === 'text' && child.value?.trim() === '')
   )
@@ -101,11 +101,11 @@ function soleImage(node: HtmlNode): HtmlNode | null {
     return null
   }
   const only = children[0]
-  if (only.tagName === 'img') {
+  if (only.tagName === 'img' || only.tagName === 'a') {
     return only
   }
   if (only.tagName === 'strong' || only.tagName === 'em') {
-    return soleImage(only)
+    return soleEmbed(only)
   }
   return null
 }

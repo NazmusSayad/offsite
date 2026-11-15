@@ -38,21 +38,29 @@ export function isGithubAttachment(src: string) {
   return GITHUB_ATTACHMENT.test(src)
 }
 
-export function githubMediaUrl(machine: string, url: string) {
-  const key = `${machine} ${url}`
+export function githubMediaUrl(
+  machine: string,
+  url: string,
+  repository: string | null
+) {
+  const key = `${machine} ${repository} ${url}`
   const link = githubLinks.get(key)
   if (link !== undefined && link.until > Date.now()) {
     return link.src
   }
-  const src = loadGithubMediaUrl(machine, url)
+  const src = loadGithubMediaUrl(machine, url, repository)
   githubLinks.set(key, { src, until: Date.now() + GITHUB_LINK_LIFETIME })
   src.catch(() => githubLinks.delete(key))
   return src
 }
 
-async function loadGithubMediaUrl(machine: string, url: string) {
-  const token = await call(machine, 'pulls.image', { url })
-  return `${machineUrl(machine)}/api/media?${new URLSearchParams({ token })}`
+async function loadGithubMediaUrl(
+  machine: string,
+  url: string,
+  repository: string | null
+) {
+  const token = await call(machine, 'pulls.image', { url, repository })
+  return `${machineUrl(machine)}/api/github-media?${new URLSearchParams({ token })}`
 }
 
 export async function downloadProjectFile(place: Place, path: string) {

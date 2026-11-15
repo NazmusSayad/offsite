@@ -109,6 +109,22 @@ const components: Components = {
           .map((child) => (child.type === 'text' ? child.value : ''))
           .join('')
       : ''
+    if (
+      href !== undefined &&
+      isGithubAttachment(href) &&
+      plain === href &&
+      node?.properties.dataStandalone === true
+    ) {
+      return (
+        <GithubMedia
+          url={href}
+          alt=""
+          raw={href}
+          kind="video"
+          size={undefined}
+        />
+      )
+    }
     return (
       <a
         href={href}
@@ -177,6 +193,7 @@ const components: Components = {
           url={src}
           alt={alt ?? ''}
           raw={`![${alt ?? ''}](${src})`}
+          kind="image"
           size={size}
         />
       )
