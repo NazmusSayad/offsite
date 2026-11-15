@@ -9,6 +9,7 @@ import { args, version } from '../../args.ts'
 import { broadcast } from '../../lib/hub.ts'
 import { logger } from '../../lib/log.ts'
 import { stopAll } from '../runs.ts'
+import { updateUnit } from './register.ts'
 import {
   readServiceSettings,
   runOffsite,
@@ -83,6 +84,16 @@ export function startService() {
       'updated the start script; the service uses it from its next start'
     )
   }
+  updateUnit().then(
+    (updated) => {
+      if (updated) {
+        log.info('updated the systemd service')
+      }
+    },
+    (error: unknown) => {
+      log.warn('could not update the systemd service:', error)
+    }
+  )
   if (settings.manager === 'mise-github' || settings.manager === 'mise-npm') {
     void prune(miseTools[settings.manager])
   }
