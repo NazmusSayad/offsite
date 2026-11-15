@@ -218,10 +218,8 @@ export async function history(sessionId: string): Promise<ServerEvent> {
   ])
   const entries = session === null ? [] : session.entries
   const resumeAt = run?.resumeAt ?? null
-  const kept =
-    resumeAt === null
-      ? disk
-      : disk.slice(0, disk.findIndex((item) => item.uuid === resumeAt) + 1)
+  const resumeIndex = disk.findIndex((item) => item.uuid === resumeAt)
+  const kept = resumeIndex < 0 ? disk : disk.slice(0, resumeIndex + 1)
   const messages = mainMessages(kept, entries)
   const seen = new Set(messages.map((item) => item.uuid))
   const last = kept.findLast(
