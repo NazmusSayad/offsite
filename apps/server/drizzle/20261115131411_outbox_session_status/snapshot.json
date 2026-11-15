@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "47c72894-4187-42f2-9ff7-e7aa45cbe7f0",
+  "id": "e30bbdd8-9b33-41e6-a925-37e9bc0b3680",
   "prevIds": [
     "7c5f1944-bf43-40ec-a4cf-b2933a47fb2e"
   ],
@@ -439,6 +439,16 @@
       "table": "outbox"
     },
     {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_status",
+      "entityType": "columns",
+      "table": "outbox"
+    },
+    {
       "type": "integer",
       "notNull": true,
       "autoincrement": false,
@@ -745,6 +755,16 @@
       "default": null,
       "generated": null,
       "name": "worktree_id",
+      "entityType": "columns",
+      "table": "session_places"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "claude_worktree",
       "entityType": "columns",
       "table": "session_places"
     },

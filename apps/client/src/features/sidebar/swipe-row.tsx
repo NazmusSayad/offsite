@@ -4,7 +4,6 @@ import { SwipeBackground } from './swipe-background'
 
 export function SwipeRow(props: {
   status: MachineSession['status']
-  enabled: boolean
   onSwipe: (dx: number, status: MachineSession['status']) => void
   children: React.ReactNode
 }) {
@@ -93,11 +92,7 @@ export function SwipeRow(props: {
           }
         }}
         onPointerDown={(event) => {
-          if (
-            !props.enabled ||
-            event.pointerType !== 'touch' ||
-            released !== null
-          ) {
+          if (event.pointerType !== 'touch' || released !== null) {
             return
           }
           swiped.current = false

@@ -79,6 +79,7 @@ export function start() {
     prefs: loadPrefs(),
     paletteOpen: false,
     hotkeyHints: false,
+    browserUpdate: false,
     settingsOpen: false,
     settingsPage: 'General',
     editor: null,

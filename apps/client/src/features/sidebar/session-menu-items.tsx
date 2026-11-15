@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { toggleBookmark, useBookmarked } from '@/lib/bookmarks'
 import { providerNames } from '@/lib/format'
+import { chatSessionId } from '@/lib/outbox'
 import { editSession, regenerateTitle, removeSession } from '@/lib/sessions'
 import {
   type MachineSession,
@@ -64,6 +65,7 @@ export function SessionMenuItems(props: {
     end: null,
   }
   const bookmarked = useBookmarked(session.machine, target)
+  const pending = chatSessionId(session.id) === null
   const Item = props.context ? ContextMenuItem : DropdownMenuItem
   const Separator = props.context ? ContextMenuSeparator : DropdownMenuSeparator
 
@@ -134,6 +136,7 @@ export function SessionMenuItems(props: {
         {session.status === 'pinned' ? 'Unpin' : 'Pin'}
       </Item>
       <Item
+        disabled={pending}
         onSelect={(event) => {
           event.preventDefault()
           toggleBookmark(session.machine, target)
@@ -153,22 +156,23 @@ export function SessionMenuItems(props: {
         />
       )}
       <Item
-        disabled={generatingTitle}
+        disabled={pending || generatingTitle}
         onSelect={() => void regenerateTitle(session)}
       >
         <HugeiconsIcon icon={AiContentGenerator02Icon} />
         Refresh title
       </Item>
-      <Item onSelect={props.onRename}>
+      <Item disabled={pending} onSelect={props.onRename}>
         <HugeiconsIcon icon={PencilEdit02Icon} />
         Rename
       </Item>
-      <Item onSelect={() => showExport(session)}>
+      <Item disabled={pending} onSelect={() => showExport(session)}>
         <HugeiconsIcon icon={FileExportIcon} />
         Export
       </Item>
       {scratch && (
         <Item
+          disabled={pending}
           onSelect={() =>
             updateProject(session.machine, session.projectId, {
               scratch: false,
@@ -181,6 +185,7 @@ export function SessionMenuItems(props: {
         </Item>
       )}
       <Item
+        disabled={pending}
         variant="destructive"
         title={`Also removes it from ${providerNames[session.provider]}`}
         onSelect={(event) => {

@@ -19,6 +19,15 @@ Offsite renders a Markdown image inline when its path points to an existing file
 - Never use `file://` URLs. They do not render.
 - Wrap a path that contains spaces in angle brackets: `![Alt text](</absolute/path with spaces/file.png>)`.
 
+## Common mistakes
+
+- `![Alt text](folder/file.png)` does not render. Use `./folder/file.png`.
+- `![Alt text](.folder/file.png)` does not render. Use `./.folder/file.png`.
+- `![Alt text](file:///absolute/path/file.png)` does not render. Use `/absolute/path/file.png`.
+- `![Alt text](C:\Users\name\file.png)` breaks. Use `C:/Users/name/file.png`.
+- `![Alt text](/c/Users/name/file.png)` does not render. Use `C:/Users/name/file.png`.
+- `![Alt text](/path with spaces/file.png)` does not render. Use `</path with spaces/file.png>`.
+
 ## Image guidelines
 
 - Write a short label in the message text directly above each file, saying what it shows. Each file needs its own label, even when several files sit under one heading.

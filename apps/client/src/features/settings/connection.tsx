@@ -1,7 +1,5 @@
 import {
   Add01Icon,
-  ArrowDown01Icon,
-  ArrowUp01Icon,
   Delete02Icon,
   DragDropVerticalIcon,
   Link01Icon,
@@ -10,7 +8,6 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Reorder, useDragControls } from 'motion/react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { useShallow } from 'zustand/shallow'
 import {
   connectAddresses,
   editMachine,
@@ -18,7 +15,6 @@ import {
   readMachineLink,
   reconnectMachine,
   removeMachine,
-  reorderMachines,
 } from '@/api/machines'
 import {
   AlertDialog,
@@ -34,7 +30,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { fullTime, providerNames } from '@/lib/format'
-import { type Machine, showSettingsPage, useStore } from '@/lib/store'
+import { type Machine, showSettingsPage } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 import { Row, Section, TextInput } from './controls'
 import { MachineIconPicker } from './machine-icon-picker'
@@ -42,10 +38,6 @@ import { ServiceButton } from './service'
 
 export function ConnectionPage(props: { machine: Machine }) {
   const machine = props.machine
-  const machines = useStore(
-    useShallow((state) => state.machines.map((item) => item.id))
-  )
-  const position = machines.indexOf(machine.id)
   const [adding, setAdding] = useState(false)
   const [pairing, setPairing] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -61,12 +53,6 @@ export function ConnectionPage(props: { machine: Machine }) {
       newAddress.current?.focus()
     }
   }, [adding])
-
-  function move(to: number) {
-    const ids = machines.filter((id) => id !== machine.id)
-    ids.splice(to, 0, machine.id)
-    reorderMachines(ids)
-  }
 
   function saveAddresses(addresses: string[]) {
     setError(null)
@@ -169,33 +155,6 @@ export function ConnectionPage(props: { machine: Machine }) {
           />
         </Row>
         <MachineIconPicker machine={machine} />
-        {machines.length > 1 && (
-          <Row label="Position">
-            <div className="flex items-center gap-1">
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                title="Move up"
-                disabled={position === 0}
-                onClick={() => move(position - 1)}
-              >
-                <HugeiconsIcon icon={ArrowUp01Icon} />
-              </Button>
-              <span className="text-muted-foreground min-w-12 text-center text-sm tabular-nums">
-                {position + 1} of {machines.length}
-              </span>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                title="Move down"
-                disabled={position === machines.length - 1}
-                onClick={() => move(position + 1)}
-              >
-                <HugeiconsIcon icon={ArrowDown01Icon} />
-              </Button>
-            </div>
-          </Row>
-        )}
       </Section>
       {!locked && (
         <Section title="Pairing">

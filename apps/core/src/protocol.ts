@@ -47,6 +47,7 @@ import type { Notice, PushRegistration } from './push.ts'
 import type { MessageMatch, SearchSession } from './search.ts'
 import type { ServiceSettings, ServiceState } from './service.ts'
 import type {
+  ThreadModel,
   SessionActivity,
   ContextUsage,
   ExportDetail,
@@ -130,6 +131,10 @@ export type RpcMethods = PullRequestMethods &
     }
     'projects.removeWorktree': { params: { worktreeId: string }; result: null }
     'directories.list': { params: { path: string }; result: DirectoryListing }
+    'activity.models': {
+      params: { sessionIds: string[] }
+      result: Record<string, ThreadModel>
+    }
     'sessions.update': {
       params: { id: string; patch: SessionPatch }
       result: null
@@ -214,6 +219,10 @@ export type RpcMethods = PullRequestMethods &
         status: 'active' | 'snoozed' | null
         worktree: { name: string | null; base: string | null } | null
       }
+      result: null
+    }
+    'sessions.updatePending': {
+      params: { id: string; status: Session['status'] }
       result: null
     }
     'sessions.unqueue': { params: { id: string }; result: null }

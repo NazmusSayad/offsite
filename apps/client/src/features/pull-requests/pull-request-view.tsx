@@ -127,7 +127,7 @@ export function PullRequestView(props: {
     }
   }, [details, error])
 
-  async function perform(action: PullRequestAction, label: string) {
+  async function run(action: PullRequestAction) {
     setBusy(action.kind)
     try {
       await call(props.machine, 'pulls.run', {
@@ -136,16 +136,35 @@ export function PullRequestView(props: {
         url: props.url,
         action,
       })
-      setNotice({ kind: action.kind, text: label })
-      setTimeout(() => setNotice(null), 3000)
-      setVersion((value) => value + 1)
       return true
     } catch (caught) {
       showError(caught)
-      return false
-    } finally {
       setBusy(null)
+      return false
     }
+  }
+
+  async function perform(action: PullRequestAction, label: string) {
+    if (!(await run(action))) {
+      return false
+    }
+    try {
+      setDetails(
+        await call(props.machine, 'pulls.view', {
+          projectId: props.projectId,
+          worktreeId: props.worktreeId,
+          url: props.url,
+          fresh: true,
+        })
+      )
+    } catch (caught) {
+      showError(caught)
+    }
+    setNotice({ kind: action.kind, text: label })
+    setTimeout(() => setNotice(null), 3000)
+    setVersion((value) => value + 1)
+    setBusy(null)
+    return true
   }
 
   return (
@@ -270,12 +289,26 @@ export function PullRequestView(props: {
                 )}
               </p>
               <p className="text-balance">
-                <span className="font-mono whitespace-nowrap tabular-nums">
-                  <span className="text-diff-addition">
-                    +{details.additions}
-                  </span>{' '}
-                  <span className="text-diff-deletion">
-                    −{details.deletions}
+                <span className="ring-border inline-flex overflow-hidden rounded-md font-mono text-[11px] leading-[15px] whitespace-nowrap tabular-nums ring-1 ring-inset">
+                  <span
+                    className={cn(
+                      'px-1.5 pt-px',
+                      details.additions > 0 &&
+                        'bg-diff-addition/12 text-diff-addition',
+                      details.additions === 0 && 'text-muted-foreground'
+                    )}
+                  >
+                    +{details.additions.toLocaleString()}
+                  </span>
+                  <span
+                    className={cn(
+                      'px-1.5 pt-px',
+                      details.deletions > 0 &&
+                        'bg-diff-deletion/12 text-diff-deletion',
+                      details.deletions === 0 && 'text-muted-foreground'
+                    )}
+                  >
+                    −{details.deletions.toLocaleString()}
                   </span>
                 </span>{' '}
                 across{' '}
@@ -450,6 +483,7 @@ export function PullRequestView(props: {
         busy={busy}
         notice={notice}
         onPerform={perform}
+        onRun={run}
         onClose={props.onClose}
       />
     </div>

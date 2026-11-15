@@ -81,6 +81,7 @@ export function PullRequestActions(props: {
   busy: PullRequestAction['kind'] | null
   notice: Notice | null
   onPerform: Perform
+  onRun: (action: PullRequestAction) => Promise<boolean>
   onClose: () => void
 }) {
   const details = props.details
@@ -238,6 +239,13 @@ export function PullRequestActions(props: {
                   `Merged #${details.number}`
                 )
               }
+              onMerge={() =>
+                props.onRun({
+                  kind: 'merge',
+                  method,
+                  deleteBranch: cleanup && !details.crossRepository,
+                })
+              }
               onClose={() => setMerging(false)}
               onDone={props.onClose}
             />
@@ -365,6 +373,7 @@ function MergeDialog(props: {
   machine: string
   sessionId: string | null
   onConfirm: () => Promise<boolean>
+  onMerge: () => Promise<boolean>
   onClose: () => void
   onDone: () => void
 }) {
@@ -393,39 +402,79 @@ function MergeDialog(props: {
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel disabled={finishing}>Cancel</AlertDialogCancel>
-        <AlertDialogAction
-          variant={sessionId === null ? 'default' : 'outline'}
-          icon={methodLabels[props.method].icon}
-          disabled={finishing}
-          onClick={() => void props.onConfirm()}
-        >
-          Merge
-        </AlertDialogAction>
-        {sessionId !== null && (
+        {sessionId === null && (
           <AlertDialogAction
-            icon={finishing ? undefined : CheckIcon}
-            title="Merge and mark this thread as done"
-            disabled={finishing}
-            onClick={async (event) => {
-              event.preventDefault()
-              setFinishing(true)
-              if (!(await props.onConfirm())) {
-                setFinishing(false)
-                return
-              }
-              props.onClose()
-              await untilGuardLeft()
-              await deactivateSession(props.machine, sessionId, scope)
-              props.onDone()
-            }}
+            icon={methodLabels[props.method].icon}
+            onClick={() => void props.onConfirm()}
           >
-            {finishing && (
-              <HugeiconsIcon icon={Loading03Icon} className="animate-spin" />
-            )}
-            Confirm
+            Merge
           </AlertDialogAction>
+        )}
+        {sessionId !== null && (
+          <div className="flex">
+            <AlertDialogAction
+              className="rounded-r-none [&:active:not([aria-haspopup])]:scale-100"
+              icon={finishing ? undefined : CheckIcon}
+              title="Merge and mark this thread as done"
+              disabled={finishing}
+              onClick={async (event) => {
+                event.preventDefault()
+                setFinishing(true)
+                if (!(await props.onMerge())) {
+                  setFinishing(false)
+                  return
+                }
+                props.onClose()
+                await untilGuardLeft()
+                props.onDone()
+                void deactivateSession(props.machine, sessionId, scope)
+              }}
+            >
+              {finishing && (
+                <HugeiconsIcon icon={Loading03Icon} className="animate-spin" />
+              )}
+              Merge & Done
+            </AlertDialogAction>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  className="relative rounded-l-none px-2 before:absolute before:inset-y-2 before:-left-px before:w-px before:bg-white/20"
+                  disabled={finishing}
+                  title="More ways to merge"
+                  aria-label="More ways to merge"
+                >
+                  <HugeiconsIcon icon={ArrowDown01Icon} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <JustMergeItem
+                  method={props.method}
+                  onConfirm={props.onConfirm}
+                  onClose={props.onClose}
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
       </AlertDialogFooter>
     </>
+  )
+}
+
+function JustMergeItem(props: {
+  method: MergeMethod
+  onConfirm: () => Promise<boolean>
+  onClose: () => void
+}) {
+  return (
+    <DropdownMenuItem
+      onSelect={() => {
+        props.onClose()
+        void props.onConfirm()
+      }}
+    >
+      <HugeiconsIcon icon={methodLabels[props.method].icon} />
+      Just Merge
+    </DropdownMenuItem>
   )
 }

@@ -11,6 +11,7 @@ import {
   providerSettings,
   refreshSettings,
 } from './accounts'
+import { chatPending, chatSessionId } from './outbox'
 import { router } from './router'
 import { bumpSession } from './sent-sessions'
 import {
@@ -20,6 +21,7 @@ import {
   machineOf,
   projectOf,
   type Selection,
+  setMachine,
   showError,
   update,
 } from './store'
@@ -372,6 +374,24 @@ export async function editSession(
   patch: SessionPatch
 ) {
   const state = getState()
+  const pending = chatPending(id)
+  if (pending !== null) {
+    const status = patch.status
+    if (status === undefined || patch.title !== undefined) {
+      throw new Error('A thread that is still starting can only change status')
+    }
+    setMachine(machine, {
+      outbox: machineOf(state, machine).outbox.map((item) =>
+        item.id === pending ? { ...item, sessionStatus: status } : item
+      ),
+    })
+    try {
+      await call(machine, 'sessions.updatePending', { id: pending, status })
+    } catch (error) {
+      showError(error)
+    }
+    return
+  }
   function same(item: MachineSession) {
     return item.machine === machine && item.id === id
   }
@@ -425,7 +445,11 @@ export async function deactivateSession(
   scope: { machine: string; projectId: string } | null
 ) {
   const selection = getState().selection
-  if (selection?.machine === machine && selection.sessionId === id) {
+  if (
+    selection?.machine === machine &&
+    selection.sessionId === chatSessionId(id) &&
+    selection.pending === chatPending(id)
+  ) {
     const latest = getState()
       .sessions.filter(
         (item) =>

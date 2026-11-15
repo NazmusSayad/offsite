@@ -24,6 +24,7 @@ import {
   sniffType,
   streamFile,
 } from './services/files.ts'
+import { serveGithubMedia } from './services/github-images.ts'
 import { serveNoticeImage } from './services/notice-images.ts'
 import { failInterrupted } from './services/outbox.ts'
 import { startPush } from './services/push.ts'
@@ -153,6 +154,10 @@ function answerRequest(request: IncomingMessage, response: ServerResponse) {
   }
   if (url.pathname === '/api/media') {
     serveMedia(url.searchParams.get('token'), request, response)
+    return
+  }
+  if (url.pathname === '/api/github-media') {
+    void serveGithubMedia(url.searchParams.get('token'), request, response)
     return
   }
   if (url.pathname.startsWith('/api/browse/')) {

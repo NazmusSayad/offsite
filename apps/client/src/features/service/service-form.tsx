@@ -159,7 +159,7 @@ type Options = {
   rest: string[]
 }
 
-function readOptions(list: string[]): Options {
+export function readOptions(list: string[]): Options {
   const options: Options = {
     host: '127.0.0.1',
     port: '2020',
@@ -186,7 +186,7 @@ function readOptions(list: string[]): Options {
   return options
 }
 
-function writeOptions(options: Options) {
+export function writeOptions(options: Options) {
   const port = Number(options.port)
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('The port must be a number from 1 to 65535')

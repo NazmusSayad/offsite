@@ -28,6 +28,7 @@ import { CloseAllDialog } from '@/features/terminal/dialogs'
 import { UsageDialog } from '@/features/usage/usage-dialog'
 import { lastProject } from '@/lib/last-project'
 import {
+  chatKey,
   chatSelected,
   chatSelection,
   chatSessionId,
@@ -87,7 +88,16 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
       session.status === 'snoozed' &&
       (chatSessionId(session.id) === null ||
         threadState(activityOf(machines, session.machine, session.id), false)
-          .working)
+          .working ||
+        machines.some(
+          (machine) =>
+            machine.id === session.machine &&
+            machine.outbox.some(
+              (item) =>
+                item.sessionId === session.id &&
+                (item.status === 'sending' || item.status === 'accepted')
+            )
+        ))
   )
   const active = [
     ...shown.filter((session) => session.status === 'pinned'),
@@ -194,20 +204,19 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
       session,
       selected: chatSelected(selection, session),
       activity: activityOf(machines, session.machine, session.id),
-      unseen: unseen.includes(machineKey(session.machine, session.id)),
+      unseen:
+        session.status !== 'inactive' &&
+        unseen.includes(machineKey(session.machine, session.id)),
       saved: chatSessionId(session.id) !== null,
       scope,
       onSelect: (chat: MachineSession) => openSession(chatSelection(chat)),
     }
     const index = ordered.indexOf(session)
     return props.mobile ? (
-      <MobileSessionItem
-        key={machineKey(session.machine, session.id)}
-        {...item}
-      />
+      <MobileSessionItem key={chatKey(session)} {...item} />
     ) : (
       <DesktopSessionItem
-        key={machineKey(session.machine, session.id)}
+        key={chatKey(session)}
         {...item}
         hotkey={index >= 0 && index < 9 ? String(index + 1) : null}
       />

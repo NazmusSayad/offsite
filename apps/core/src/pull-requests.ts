@@ -126,7 +126,7 @@ export type PullRequestMethods = {
     result: string
   }
   'pulls.image': {
-    params: { url: string }
+    params: { url: string; repository: string | null }
     result: string
   }
   'pulls.run': {

@@ -17,6 +17,7 @@ import {
   removeAccount,
   updateAccount,
 } from '../services/accounts.ts'
+import { activityModels } from '../services/activity-models.ts'
 import * as bookmarks from '../services/bookmarks.ts'
 import { runtime, sessionContext } from '../services/debug.ts'
 import { ping, transcribe, workflows } from '../services/dictation.ts'
@@ -41,6 +42,7 @@ import { logoFiles, readLogo } from '../services/logos.ts'
 import { searchMessages } from '../services/message-search.ts'
 import { act } from '../services/notices.ts'
 import { removeFromOutbox } from '../services/outbox.ts'
+import { updatePending } from '../services/pending-status.ts'
 import { placePath, publishWorktrees } from '../services/project-worktrees.ts'
 import {
   addProject,
@@ -151,6 +153,10 @@ const handlers: Handlers = {
     await send(client, params)
     return null
   },
+  'sessions.updatePending': async (params) => {
+    await updatePending(params.id, params.status)
+    return null
+  },
   'sessions.unqueue': (params) => {
     removeFromOutbox(params.id)
     return null
@@ -175,6 +181,7 @@ const handlers: Handlers = {
     await stop(params.sessionId)
     return null
   },
+  'activity.models': (params) => activityModels(params.sessionIds),
   'sessions.runtime': (params) => runtime(params.sessionId),
   'sessions.context': (params) =>
     sessionContext(params.sessionId, params.projectId, params.worktreeId),

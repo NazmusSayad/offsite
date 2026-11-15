@@ -135,6 +135,14 @@ export function isPullRequestUrl(href: string) {
   return pullRequestPattern.test(href)
 }
 
+export function pullRequestRepository(href: string) {
+  const match = pullRequestPattern.exec(href)
+  if (match === null) {
+    throw new Error(`${href} is not a GitHub pull request link`)
+  }
+  return `${match[1]}/${match[2]}`
+}
+
 export function openPullRequest(href: string) {
   const match = pullRequestPattern.exec(href)
   if (match === null) {

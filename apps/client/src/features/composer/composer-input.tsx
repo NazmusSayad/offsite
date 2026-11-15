@@ -5,14 +5,16 @@ import { Text } from '@tiptap/extension-text'
 import { UndoRedo } from '@tiptap/extensions'
 import { splitBlock } from '@tiptap/pm/commands'
 import { Fragment, type Node, type Schema, Slice } from '@tiptap/pm/model'
-import { Plugin } from '@tiptap/pm/state'
+import { type EditorState, Plugin } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { EditorContent, useEditor } from '@tiptap/react'
-import { useLayoutEffect } from 'react'
+import { useEffect, useLayoutEffect } from 'react'
 import { skillPill, skillRanges } from '@/lib/skills'
-import { getState } from '@/lib/store'
-import { cn } from '@/lib/utils'
+import { getState, showError } from '@/lib/store'
+import { cn, touch } from '@/lib/utils'
 import { Attachment } from './composer-attachment'
+import { copiedPrompt, copyPrompt, pastePrompt } from './copy'
+import { prepareDraftFiles, useDraft } from './drafts'
 
 let mounted: Editor | null = null
 
@@ -54,7 +56,9 @@ export function ComposerInput(props: {
   onCaret: (caret: number) => void
   onKeyDown: (event: KeyboardEvent) => boolean
   onPaste: (event: ClipboardEvent) => boolean
+  draft: string
 }) {
+  const draftFiles = useDraft(props.draft).files
   const editor = useEditor({
     immediatelyRender: true,
     editable: props.editable,
@@ -82,6 +86,17 @@ export function ComposerInput(props: {
             'before:text-placeholder/75 before:pointer-events-none before:float-left before:h-0 before:content-[attr(data-placeholder)]'
         ),
       },
+      handleDOMEvents: {
+        copy: (view, event) =>
+          copyPrompt(event, props.draft, selectedText(view.state)),
+        cut: (view, event) => {
+          if (!copyPrompt(event, props.draft, selectedText(view.state))) {
+            return false
+          }
+          view.dispatch(view.state.tr.deleteSelection().scrollIntoView())
+          return true
+        },
+      },
       clipboardTextParser: (text, context) =>
         sliceOf(text, context.doc.type.schema, props.markers, props.files),
       handleKeyDown: (view, event) => {
@@ -97,6 +112,26 @@ export function ComposerInput(props: {
         return false
       },
       handlePaste: (view, event) => {
+        const copied = copiedPrompt(
+          event.clipboardData?.getData('text/html') ?? ''
+        )
+        if (copied !== null) {
+          pastePrompt(props.draft, copied, (text, markers) =>
+            view.dispatch(
+              view.state.tr
+                .replaceSelection(
+                  sliceOf(
+                    text,
+                    view.state.schema,
+                    [...props.markers, ...markers],
+                    props.files
+                  )
+                )
+                .scrollIntoView()
+            )
+          ).catch(showError)
+          return true
+        }
         if (props.onPaste(event)) {
           return true
         }
@@ -125,11 +160,47 @@ export function ComposerInput(props: {
       ),
   })
 
+  useEffect(() => {
+    void prepareDraftFiles(draftFiles)
+  }, [draftFiles])
+
   useLayoutEffect(() => {
     mounted = editor
     return () => {
       mounted = null
     }
+  }, [editor])
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.key.length !== 1 ||
+        event.key === ' ' ||
+        touch.matches ||
+        !editor.isEditable ||
+        editor.view.hasFocus() ||
+        editor.view.dom.getClientRects().length === 0 ||
+        document.getSelection()?.isCollapsed === false ||
+        (event.target instanceof Element &&
+          event.target.closest(
+            'input, textarea, select, [contenteditable], [role="textbox"], [role="dialog"], [role="alertdialog"], [role="menu"], [role="menubar"], [role="listbox"], [role="combobox"], [role="grid"], [role="tree"], [role="tablist"], [role="radiogroup"], [role="slider"], [role="spinbutton"]'
+          ) !== null)
+      ) {
+        return
+      }
+      event.preventDefault()
+      editor.view.focus()
+      editor.view.dispatch(
+        editor.state.tr.insertText(event.key).scrollIntoView()
+      )
+    }
+    addEventListener('keydown', onKeyDown)
+    return () => removeEventListener('keydown', onKeyDown)
   }, [editor])
 
   useLayoutEffect(() => {
@@ -267,6 +338,15 @@ function sliceOf(
 
 function textOf(doc: Node, to = doc.content.size) {
   return doc.textBetween(0, to, '\n', (leaf) => String(leaf.attrs.marker))
+}
+
+function selectedText(state: EditorState) {
+  return state.doc.textBetween(
+    state.selection.from,
+    state.selection.to,
+    '\n',
+    (leaf) => String(leaf.attrs.marker)
+  )
 }
 
 function caretOf(doc: Node, position: number) {

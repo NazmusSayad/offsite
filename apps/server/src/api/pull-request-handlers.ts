@@ -37,7 +37,8 @@ export const pullRequestHandlers: Pick<
       params.fresh
     ),
   'pulls.diff': (params) => pullRequestDiff(params.url, params.head),
-  'pulls.image': (params, client) => linkGithubImage(params.url, client.device),
+  'pulls.image': (params, client) =>
+    linkGithubImage(params.url, params.repository, client.device),
   'pulls.guide': (params) => reviewGuide(params.url),
   'pulls.writeGuide': async (params) =>
     writeReviewGuide(
