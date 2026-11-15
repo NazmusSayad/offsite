@@ -1,7 +1,7 @@
 import { WifiDisconnected02Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useShallow } from 'zustand/shallow'
-import { showSettingsPage, useStore } from '@/lib/store'
+import { getState, showMachineSettings, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 export function ConnectionStatus(props: { className: string }) {
@@ -28,7 +28,14 @@ export function ConnectionStatus(props: { className: string }) {
       className={cn(props.className, '[&>svg]:text-warning')}
       title={label}
       aria-label={label}
-      onClick={() => showSettingsPage('Machines')}
+      onClick={() => {
+        const machine = getState().machines.find(
+          (item) => item.status === 'offline' || item.status === 'unpaired'
+        )
+        if (machine !== undefined) {
+          showMachineSettings(machine.id)
+        }
+      }}
     >
       <HugeiconsIcon icon={WifiDisconnected02Icon} />
     </button>

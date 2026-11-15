@@ -1,4 +1,6 @@
 import {
+  Add01Icon,
+  ArrowLeft01Icon,
   ArrowRight01Icon,
   Cancel01Icon,
   RotateLeft01Icon,
@@ -26,35 +28,29 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { MachineLogo } from '@/constants/machine-icons'
+import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
 import { defaultPrefs } from '@/lib/prefs'
 import {
   machineOf,
   type SettingsPage,
   showSettings,
+  showMachineSettings,
   showSettingsPage,
   update,
   updatePrefs,
   useStore,
 } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { ConnectionPage, MachineStatusDot, machineStatuses } from './connection'
 import { DictationPage } from './dictation'
 import { EditorPage } from './editor'
 import { GeneralPage } from './general'
 import { MachinePage } from './machine'
-import { MachinesPage } from './machines'
 import { NotificationsPage } from './notifications'
 import { ProjectsPage } from './projects'
 import { ProviderPage } from './provider'
-import { ServiceButton } from './service'
 import { ShortcutsPage } from './shortcuts'
 import { TerminalPage } from './terminal'
 
@@ -64,9 +60,9 @@ export const browserPages: SettingsPage[] = [
   'Terminal',
   'Notifications',
   'Shortcuts',
-  'Machines',
 ]
 export const machinePages: SettingsPage[] = [
+  'Connection',
   'Machine',
   'Projects',
   'Dictation',
@@ -87,14 +83,6 @@ export function useSettingsView() {
   const account = useStore((state) =>
     provider === null ? null : state.settingsAccount
   )
-  const editedMachine = useStore((state) =>
-    page === 'Machines'
-      ? (state.machines.find(
-          (item) => item.id === state.settingsEditedMachine
-        ) ?? null)
-      : null
-  )
-
   return {
     machines,
     machine,
@@ -103,17 +91,16 @@ export function useSettingsView() {
     page,
     provider,
     account,
-    editedMachine,
-    subpage: account !== null || editedMachine !== null,
+    inside: machinePages.includes(page),
+    flat: machines.length === 1,
+    subpage: account !== null,
     subpageTitle:
       account === 'new'
         ? 'New account'
-        : account !== null
-          ? [
-              ...(machine?.claudeAccounts ?? []),
-              ...(machine?.codexAccounts ?? []),
-            ].find((item) => item.id === account)?.name
-          : editedMachine?.name,
+        : [
+            ...(machine?.claudeAccounts ?? []),
+            ...(machine?.codexAccounts ?? []),
+          ].find((item) => item.id === account)?.name,
   }
 }
 
@@ -144,6 +131,7 @@ function SettingsPanel() {
   const view = useSettingsView()
   const page = view.page
   const machine = view.machine
+  const [adding, setAdding] = useState(false)
 
   function navButton(item: SettingsPage) {
     return (
@@ -163,43 +151,76 @@ function SettingsPanel() {
   return (
     <>
       <nav className="flex flex-none gap-1 overflow-x-auto border-b p-3 sm:w-48 sm:flex-col sm:border-r sm:border-b-0">
-        <DialogTitle className="hidden px-2 pt-1 pb-3 text-base font-semibold sm:block">
-          Settings
-        </DialogTitle>
-        {browserPages.map(navButton)}
-        <div className="flex flex-none items-center gap-1 sm:mt-6 sm:flex-col sm:items-stretch">
-          {machine !== null && view.machines.length > 1 && (
-            <Select
-              value={machine.id}
-              onValueChange={(settingsMachine) =>
-                update({ settingsMachine, settingsAccount: null })
-              }
-            >
-              <SelectTrigger className="mb-1 w-40 sm:w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {view.machines.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    <MachineLogo icon={item.icon} />
-                    {item.name}
-                  </SelectItem>
+        {(!view.inside || view.flat) && (
+          <>
+            <DialogTitle className="hidden px-2 pt-1 pb-3 text-base font-semibold sm:block">
+              Settings
+            </DialogTitle>
+            {browserPages.map(navButton)}
+            <div className="flex flex-none items-center gap-1 sm:mt-6 sm:flex-col sm:items-stretch">
+              <div className="flex h-9 items-center justify-between gap-2 pl-2">
+                <span className="text-muted-foreground text-xs font-medium">
+                  {view.flat ? 'Server' : 'Servers'}
+                </span>
+                <Button
+                  variant="ghost-muted"
+                  size="icon-xs"
+                  title="Add machine"
+                  aria-label="Add machine"
+                  onClick={() => setAdding(true)}
+                >
+                  <HugeiconsIcon icon={Add01Icon} />
+                </Button>
+              </div>
+              {view.flat && machinePages.map(navButton)}
+              {!view.flat &&
+                view.machines.map((item) => (
+                  <button
+                    key={item.id}
+                    className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-9 flex-none items-center gap-2 rounded-md px-2 text-sm transition-colors"
+                    onClick={() => showMachineSettings(item.id)}
+                  >
+                    <MachineLogo icon={item.icon} className="size-4 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate text-left">
+                      {item.name}
+                    </span>
+                    <MachineStatusDot status={item.status} />
+                  </button>
                 ))}
-              </SelectContent>
-            </Select>
-          )}
-          {machine !== null && view.machines.length === 1 && (
-            <p className="text-muted-foreground flex h-9 items-center gap-1.5 px-2 text-xs font-medium [&_svg]:size-4">
-              <MachineLogo icon={machine.icon} />
-              <span className="truncate">{machine.name}</span>
-            </p>
-          )}
-          {machinePages.map(navButton)}
-        </div>
-        {machine !== null && (
-          <div className="flex flex-none sm:mt-auto sm:pt-3">
-            <ServiceButton machine={machine.id} />
-          </div>
+            </div>
+          </>
+        )}
+        {adding && <AddMachineDialog onClose={() => setAdding(false)} />}
+        {view.inside && !view.flat && (
+          <>
+            <button
+              className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-1 self-start rounded-md pr-2 pl-1 text-sm transition-colors"
+              onClick={() => showSettingsPage('General')}
+            >
+              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+              Settings
+            </button>
+            <div className="hidden min-w-0 items-center gap-2.5 px-2 pt-3 pb-4 sm:flex">
+              {machine !== null && (
+                <MachineLogo
+                  icon={machine.icon}
+                  className="text-muted-foreground size-6 shrink-0"
+                />
+              )}
+              <div className="min-w-0">
+                <DialogTitle className="truncate text-base font-semibold">
+                  {machine === null ? 'Settings' : machine.name}
+                </DialogTitle>
+                {machine !== null && (
+                  <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                    <MachineStatusDot status={machine.status} />
+                    {machineStatuses[machine.status]}
+                  </p>
+                )}
+              </div>
+            </div>
+            {machinePages.map(navButton)}
+          </>
         )}
       </nav>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-7">
@@ -208,12 +229,7 @@ function SettingsPanel() {
             <>
               <button
                 className="text-muted-foreground hover:text-foreground text-xl font-semibold tracking-tight transition-colors"
-                onClick={() =>
-                  update({
-                    settingsAccount: null,
-                    settingsEditedMachine: null,
-                  })
-                }
+                onClick={() => update({ settingsAccount: null })}
               >
                 {page}
               </button>
@@ -322,6 +338,9 @@ export function SettingsContent(props: { view: SettingsView }) {
         </p>
       )}
       <div key={revision} className="w-full space-y-5">
+        {page === 'Connection' && machine !== null && (
+          <ConnectionPage machine={machine} />
+        )}
         {page === 'General' && (
           <GeneralPage
             prefs={prefs}
@@ -355,6 +374,7 @@ export function SettingsContent(props: { view: SettingsView }) {
           </p>
         )}
         {machinePage &&
+          page !== 'Connection' &&
           machine !== null &&
           (config === null || system === null) && (
             <p className="text-muted-foreground text-sm">
@@ -381,7 +401,6 @@ export function SettingsContent(props: { view: SettingsView }) {
               selected={props.view.account}
             />
           )}
-        {page === 'Machines' && <MachinesPage />}
         {page === 'Shortcuts' && <ShortcutsPage />}
       </div>
       <AlertDialog

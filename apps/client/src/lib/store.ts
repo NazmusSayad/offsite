@@ -63,12 +63,12 @@ export type SettingsPage =
   | 'Terminal'
   | 'Notifications'
   | 'Dictation'
+  | 'Connection'
   | 'Machine'
   | 'Projects'
   | 'Claude'
   | 'Codex'
   | 'OpenCode'
-  | 'Machines'
   | 'Shortcuts'
 
 export const providerPages: Record<Provider, SettingsPage> = {
@@ -135,8 +135,7 @@ export type State = {
   settingsOpen: boolean
   settingsPage: SettingsPage
   settingsAccount: string | null
-  settingsEditedMachine: string | null
-  settingsListing: boolean
+  settingsListing: 'settings' | 'machine' | null
   settingsMachine: string | null
   usageOpen: boolean
   bookmarksOpen: boolean
@@ -309,8 +308,7 @@ export function showSettings(settingsOpen: boolean) {
     ...(settingsOpen && {
       settingsMachine: defaultMachine(getState()),
       settingsAccount: null,
-      settingsEditedMachine: null,
-      settingsListing: true,
+      settingsListing: 'settings',
     }),
   })
 }
@@ -328,12 +326,22 @@ export function showSettingsPage(settingsPage: SettingsPage) {
     settingsOpen: true,
     settingsPage,
     settingsAccount: null,
-    settingsEditedMachine: null,
-    settingsListing: false,
+    settingsListing: null,
     paletteOpen: false,
     ...(!getState().settingsOpen && {
       settingsMachine: defaultMachine(getState()),
     }),
+  })
+}
+
+export function showMachineSettings(settingsMachine: string) {
+  update({
+    settingsOpen: true,
+    settingsPage: 'Connection',
+    settingsMachine,
+    settingsAccount: null,
+    settingsListing: 'machine',
+    paletteOpen: false,
   })
 }
 
