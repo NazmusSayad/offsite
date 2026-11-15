@@ -6,7 +6,11 @@ import { concurrently } from 'concurrently'
 import getPort, { portNumbers } from 'get-port'
 
 const options = parseArgs({
-  options: { host: { type: 'string' }, connect: { type: 'string' } },
+  options: {
+    host: { type: 'string' },
+    connect: { type: 'string' },
+    pwa: { type: 'boolean' },
+  },
 }).values
 
 const loopback =
@@ -33,13 +37,14 @@ console.log(
 const apps = path.join(import.meta.dirname, '..', 'apps')
 const host =
   options.host === undefined ? '' : ` --host ${JSON.stringify(options.host)}`
+const pwa = options.pwa === true ? ' --pwa' : ''
 
 try {
   await concurrently(
     [
       {
         name: 'server',
-        command: `node --watch-path=src src/main.ts --port ${serverPort} --dir ${JSON.stringify(dir)} --no-auth${host}`,
+        command: `node --watch-path=src src/main.ts --port ${serverPort} --dir ${JSON.stringify(dir)} --no-auth${host}${pwa}`,
         cwd: path.join(apps, 'server'),
         prefixColor: 'blue',
       },

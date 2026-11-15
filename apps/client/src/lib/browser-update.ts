@@ -1,23 +1,42 @@
+import { Workbox } from 'workbox-window'
 import { logger } from '@/lib/log'
 import { update } from '@/lib/store'
 
 const CHECK_INTERVAL = 60 * 60_000
+const RELOAD_GAP = 30_000
+const RELOADED_AT = 'offsite-reloaded-at'
 
 const log = logger.withTag('app')
 
-export function watchBrowserUpdate(registration: ServiceWorkerRegistration) {
-  function track() {
-    update({ browserUpdate: registration.waiting !== null })
-  }
-  registration.addEventListener('updatefound', () => {
-    if (registration.installing === null) {
-      throw new Error('a found update has no installing worker')
+let workbox: Workbox | undefined
+
+export async function startBrowserUpdates() {
+  addEventListener('vite:preloadError', () => {
+    const reloadedAt = sessionStorage.getItem(RELOADED_AT)
+    if (reloadedAt !== null && Date.now() - Number(reloadedAt) < RELOAD_GAP) {
+      return
     }
-    registration.installing.addEventListener('statechange', track)
+    sessionStorage.setItem(RELOADED_AT, String(Date.now()))
+    location.reload()
   })
-  track()
+  if (!('serviceWorker' in navigator)) {
+    return
+  }
+  const pwa = document.querySelector('link[rel="manifest"]') !== null
+  const registered = new Workbox(
+    import.meta.env.DEV ? '/dev-sw.js?dev-sw' : pwa ? '/sw.js?pwa' : '/sw.js',
+    { type: import.meta.env.DEV ? 'module' : 'classic' }
+  )
+  workbox = registered
+  registered.addEventListener('waiting', () => update({ browserUpdate: true }))
+  registered.addEventListener('controlling', (event) => {
+    if (event.isUpdate === true || event.isExternal === true) {
+      location.reload()
+    }
+  })
+  await registered.register()
   setInterval(() => {
-    registration
+    registered
       .update()
       .catch((error: unknown) =>
         log.warn('could not check for a browser update', error)
@@ -37,13 +56,10 @@ export async function checkBrowserUpdate(
 
 export async function applyBrowserUpdate() {
   const registration = await navigator.serviceWorker.getRegistration()
-  if (registration === undefined || registration.waiting === null) {
+  if (workbox === undefined || registration?.waiting == null) {
     throw new Error('the new version is no longer waiting')
   }
-  const worker = registration.waiting
-  worker.postMessage({ type: 'skipWaiting' })
-  await reached(worker, ['activated'])
-  location.reload()
+  workbox.messageSkipWaiting()
 }
 
 async function reached(worker: ServiceWorker, states: ServiceWorkerState[]) {
