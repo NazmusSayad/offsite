@@ -3,6 +3,8 @@ import {
   ArrowRight01Icon,
   LinkSquare02Icon,
   RefreshCwIcon,
+  SourceCodeIcon,
+  ViewIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useSearch } from '@tanstack/react-router'
@@ -11,10 +13,18 @@ import { z } from 'zod'
 import { call, machineUrl } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  browsePath,
+  canView,
+  FileView,
+  fileContent,
+} from '@/features/browser/file-view'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { machineOf, showError, useStore } from '@/lib/store'
 import { openBrowser, replaceSearch } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
+
+const RAW_LIMIT = 50 * 1024
 
 const pageMessage = z.discriminatedUnion('event', [
   z.object({
@@ -43,8 +53,15 @@ export function BrowserPanel(props: {
   const [loaded, setLoaded] = useState<{
     target: string
     src: string | null
+    file: {
+      target: string
+      base: string
+      text: string
+      image: string | null
+    } | null
     error: string | null
   } | null>(null)
+  const [raw, setRaw] = useState(false)
   const [version, setVersion] = useState(0)
   const [frameKey, setFrameKey] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -72,19 +89,25 @@ export function BrowserPanel(props: {
     }
     let current = true
     browserSource(props.machine, target).then(
-      (src) => {
+      (source) => {
         if (current) {
           opened.current = request
           trail.current = { entries: [], index: -1 }
-          setLoaded({ target, src, error: null })
+          setLoaded({ target, ...source, error: null })
+          setRaw(source.file !== null && source.file.text.length > RAW_LIMIT)
           setFrameKey((key) => key + 1)
           setPage(null)
-          setLoading(true)
+          setLoading(source.file === null)
         }
       },
       (caught: unknown) => {
         if (current) {
-          setLoaded({ target, src: null, error: errorMessage(caught) })
+          setLoaded({
+            target,
+            src: null,
+            file: null,
+            error: errorMessage(caught),
+          })
           setPage(null)
           setLoading(false)
         }
@@ -123,6 +146,7 @@ export function BrowserPanel(props: {
             setLoaded({
               target: next,
               src: `${machineUrl(props.machine)}${path}`,
+              file: null,
               error: null,
             })
             setLoading(true)
@@ -146,6 +170,7 @@ export function BrowserPanel(props: {
 
   const web = target !== null && /^https?:\/\//i.test(target)
   const src = target === null ? null : (loaded?.src ?? null)
+  const file = target === null ? null : (loaded?.file ?? null)
   const href = !web && loaded?.target === target ? loaded.src : null
   const error = loaded?.target === target ? loaded.error : null
   const busy =
@@ -229,6 +254,20 @@ export function BrowserPanel(props: {
             defaultValue={target ?? ''}
           />
         </form>
+        {file !== null && (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title={raw ? 'Show rendered' : 'Show raw'}
+            aria-label={raw ? 'Show rendered' : 'Show raw'}
+            onClick={() => setRaw(!raw)}
+          >
+            <HugeiconsIcon
+              icon={raw ? ViewIcon : SourceCodeIcon}
+              className="size-4"
+            />
+          </Button>
+        )}
         {href !== null && (
           <Button size="icon-sm" variant="ghost" asChild>
             <a
@@ -253,7 +292,18 @@ export function BrowserPanel(props: {
           Type a URL or a file path above. URLs load from this machine.
         </p>
       )}
-      {src !== null && (
+      {file !== null && (
+        <div className="min-h-0 flex-1 overflow-auto">
+          <FileView
+            target={file.target}
+            base={file.base}
+            text={file.text}
+            image={file.image}
+            raw={raw}
+          />
+        </div>
+      )}
+      {src !== null && file === null && (
         <iframe
           key={frameKey}
           ref={frame}
@@ -278,10 +328,17 @@ async function browserSource(machine: string, target: string) {
       url: target,
       fromPage: false,
     })
-    return `${machineUrl(machine)}${path}`
+    return { src: `${machineUrl(machine)}${path}`, file: null }
   }
   const token = await call(machine, 'files.browse', undefined)
-  return `${machineUrl(machine)}/api/browse/${token}${browsePath(target)}`
+  const base = `${machineUrl(machine)}/api/browse/${token}`
+  const content = canView(target)
+    ? fileContent(await call(machine, 'files.readPath', { path: target }))
+    : null
+  return {
+    src: `${base}${browsePath(target)}`,
+    file: content === null ? null : { ...content, target, base },
+  }
 }
 
 function followTrail(
@@ -320,13 +377,4 @@ function browserAddress(value: string) {
     return `https://${value}`
   }
   return `https://www.google.com/search?q=${encodeURIComponent(value)}`
-}
-
-function browsePath(file: string) {
-  const encoded = file
-    .replaceAll('\\', '/')
-    .split('/')
-    .map(encodeURIComponent)
-    .join('/')
-  return encoded.startsWith('/') ? encoded : `/${encoded}`
 }

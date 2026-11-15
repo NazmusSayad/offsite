@@ -113,6 +113,13 @@ export function readUpload(file: string) {
   return readPreview(full, file)
 }
 
+export function readPath(file: string) {
+  if (!path.isAbsolute(file)) {
+    throw new Error(`${file} is not an absolute path`)
+  }
+  return readPreview(file, file)
+}
+
 function readPreview(full: string, file: string): FilePreview {
   const stats = statSync(full)
   if (!stats.isFile()) {

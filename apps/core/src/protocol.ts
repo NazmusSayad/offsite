@@ -348,6 +348,7 @@ export type RpcMethods = PullRequestMethods &
       result: string
     }
     'files.readUpload': { params: { path: string }; result: FilePreview }
+    'files.readPath': { params: { path: string }; result: FilePreview }
     'files.upload': { params: { name: string; data: string }; result: string }
     'files.browse': { params: void; result: string }
     'dictation.transcribe': { params: { audio: string }; result: string }
