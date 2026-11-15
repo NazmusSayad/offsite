@@ -149,6 +149,7 @@ export function WorktreeBar(props: {
                     {worktree === null && (
                       <motion.span
                         layoutId="place"
+                        layoutDependency={worktree === null}
                         transition={spring}
                         style={{ borderRadius: 5 }}
                         className="bg-background absolute inset-0 shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_0.5px_rgb(0_0_0/0.06)] dark:bg-white/12"
@@ -169,6 +170,7 @@ export function WorktreeBar(props: {
                     {worktree !== null && (
                       <motion.span
                         layoutId="place"
+                        layoutDependency={worktree === null}
                         transition={spring}
                         style={{ borderRadius: 5 }}
                         className="bg-background absolute inset-0 shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_0.5px_rgb(0_0_0/0.06)] dark:bg-white/12"
