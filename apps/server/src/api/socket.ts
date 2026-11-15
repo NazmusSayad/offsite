@@ -41,6 +41,7 @@ import { logoFiles, readLogo } from '../services/logos.ts'
 import { searchMessages } from '../services/message-search.ts'
 import { act } from '../services/notices.ts'
 import { removeFromOutbox } from '../services/outbox.ts'
+import { updatePending } from '../services/pending-status.ts'
 import { placePath, publishWorktrees } from '../services/project-worktrees.ts'
 import {
   addProject,
@@ -149,6 +150,10 @@ const handlers: Handlers = {
   'sessions.agent': (params) => agentHistory(params),
   'sessions.send': async (params, client) => {
     await send(client, params)
+    return null
+  },
+  'sessions.updatePending': async (params) => {
+    await updatePending(params.id, params.status)
     return null
   },
   'sessions.unqueue': (params) => {

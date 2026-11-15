@@ -1,4 +1,5 @@
 import type { Provider } from './providers.ts'
+import type { Session } from './sessions.ts'
 
 export type ImageAttachment = { mediaType: string; data: string }
 
@@ -12,7 +13,7 @@ export type OutboxPrompt = {
   provider: Provider
   prompt: Prompt
   status: 'sending' | 'accepted' | 'queued' | 'failed'
-  snoozed: boolean
+  sessionStatus: Session['status']
   createdAt: number
 }
 

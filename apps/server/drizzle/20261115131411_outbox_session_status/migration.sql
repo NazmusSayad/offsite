@@ -1,0 +1,1 @@
+ALTER TABLE `outbox` ADD `session_status` text;

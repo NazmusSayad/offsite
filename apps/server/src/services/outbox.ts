@@ -43,7 +43,9 @@ export function outboxPrompts(): OutboxPrompt[] {
       provider: row.request.settings.provider,
       prompt: row.request.prompt,
       status: row.status,
-      snoozed: row.request.status === 'snoozed',
+      sessionStatus:
+        row.sessionStatus ??
+        (row.request.status === 'snoozed' ? 'snoozed' : 'active'),
       createdAt: row.createdAt,
     }))
 }
@@ -62,6 +64,17 @@ export function moveOutboxPrompt(
 ) {
   db.update(outboxTable)
     .set({ sessionId, projectId, worktreeId })
+    .where(eq(outboxTable.id, id))
+    .run()
+  broadcastOutbox()
+}
+
+export function setPendingStatus(
+  id: string,
+  sessionStatus: OutboxPrompt['sessionStatus']
+) {
+  db.update(outboxTable)
+    .set({ sessionStatus })
     .where(eq(outboxTable.id, id))
     .run()
   broadcastOutbox()

@@ -216,6 +216,10 @@ export type RpcMethods = PullRequestMethods &
       }
       result: null
     }
+    'sessions.updatePending': {
+      params: { id: string; status: Session['status'] }
+      result: null
+    }
     'sessions.unqueue': { params: { id: string }; result: null }
     'sessions.resend': { params: { id: string }; result: null }
     'sessions.steer': {

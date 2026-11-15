@@ -39,6 +39,7 @@ import {
   publishProjects,
   removeScratchProject,
 } from './projects.ts'
+import type { Found } from './provider-sessions.ts'
 import { sessionHistory } from './session-history.ts'
 import { notSentNotice } from './session-notices.ts'
 import {
@@ -353,8 +354,8 @@ async function submitFirst(
   place: Place
 ) {
   const sessionId = run.sessionId
-  recordInteraction(sessionId, run.provider, request.status)
-  addStarting({
+  const chosen = findInOutbox(request.id)?.sessionStatus ?? null
+  const starting: Found = {
     id: sessionId,
     provider: run.provider,
     title: request.prompt.text === '' ? 'New thread' : request.prompt.text,
@@ -363,18 +364,31 @@ async function submitFirst(
     branch: null,
     updatedAt: Date.now(),
     claudeWorktree: false,
-  })
-  const session = sessions().find((item) => item.id === sessionId)
+  }
+  if (chosen !== 'inactive') {
+    recordInteraction(sessionId, run.provider, chosen ?? request.status)
+  }
+  addStarting(starting)
+  const session =
+    chosen === 'inactive'
+      ? { ...starting, status: chosen }
+      : sessions().find((item) => item.id === sessionId)
   if (session === undefined) {
     throw new Error(`${sessionId} is not listed after it started`)
   }
-  client.opening = sessionId
-  client.sessionId = sessionId
+  if (chosen !== 'inactive') {
+    client.opening = sessionId
+    client.sessionId = sessionId
+  }
   client.send({ type: 'started', id: request.id, session })
   publishSessions()
   moveOutboxPrompt(request.id, sessionId, place.projectId, place.worktreeId)
   await run.submit(request.id, request.prompt, request.delivery)
   recordPrompt(request.settings, place, sessionId)
+  if (chosen === 'inactive') {
+    await updateSession(sessionId, { status: chosen })
+    publishSessions()
+  }
 }
 
 async function sendExisting(
