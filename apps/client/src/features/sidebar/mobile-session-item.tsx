@@ -67,7 +67,7 @@ function MobileSessionItemView(props: {
   }
 
   function deactivate() {
-    if (thread.busy) {
+    if (thread.busy || !props.saved) {
       setWarning(true)
       return
     }
@@ -185,13 +185,9 @@ function MobileSessionItemView(props: {
 
   return (
     <li className="list-none py-0.5">
-      <SwipeRow
-        status={session.status}
-        enabled={props.saved}
-        onSwipe={complete}
-      >
+      <SwipeRow status={session.status} onSwipe={complete}>
         <ContextMenu>
-          <ContextMenuTrigger asChild disabled={!props.saved}>
+          <ContextMenuTrigger asChild>
             <div
               role="button"
               tabIndex={0}

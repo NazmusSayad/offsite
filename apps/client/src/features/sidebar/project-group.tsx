@@ -6,7 +6,12 @@ import { ProjectIcon } from '@/components/icons'
 import { MachineLogo } from '@/constants/machine-icons'
 import { DesktopGroupedSessionItem } from '@/features/sidebar/desktop-grouped-session-item'
 import { MobileGroupedSessionItem } from '@/features/sidebar/mobile-grouped-session-item'
-import { chatSelected, chatSelection, chatSessionId } from '@/lib/outbox'
+import {
+  chatKey,
+  chatSelected,
+  chatSelection,
+  chatSessionId,
+} from '@/lib/outbox'
 import { openSession } from '@/lib/sessions'
 import {
   activityOf,
@@ -71,13 +76,10 @@ export function ProjectGroup(props: {
         }
         const index = props.ordered.indexOf(session)
         return props.mobile ? (
-          <MobileGroupedSessionItem
-            key={machineKey(session.machine, session.id)}
-            {...item}
-          />
+          <MobileGroupedSessionItem key={chatKey(session)} {...item} />
         ) : (
           <DesktopGroupedSessionItem
-            key={machineKey(session.machine, session.id)}
+            key={chatKey(session)}
             {...item}
             hotkey={index >= 0 && index < 9 ? String(index + 1) : null}
           />

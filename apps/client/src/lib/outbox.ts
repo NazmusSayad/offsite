@@ -1,5 +1,6 @@
 import type { PromptDelivery } from '@offsite/core/config'
 import type { Prompt, OutboxPrompt } from '@offsite/core/items'
+import { machineKey } from '@/api/machines'
 import { editDraft } from '@/features/composer/drafts'
 import type { UserItem } from '@/features/transcript/timeline'
 import { openSession } from './sessions'
@@ -16,6 +17,7 @@ import {
 
 const PREFIX = 'outbox:'
 const none: OutboxPrompt[] = []
+const startedChats = new Map<string, string>()
 
 export function receiveOutbox(machine: string, outbox: OutboxPrompt[]) {
   setMachine(machine, { outbox })
@@ -83,6 +85,7 @@ export function moveStartedPrompt(
   sessionId: string,
   place: { projectId: string; worktreeId: string | null }
 ) {
+  startedChats.set(machineKey(machine, sessionId), `${PREFIX}${id}`)
   const saved =
     getState().machines.find((item) => item.id === machine)?.outbox ?? none
   setMachine(machine, {
@@ -124,7 +127,7 @@ export function addToOutbox(
             ?.running === true
             ? 'queued'
             : 'sending',
-        snoozed: status === 'snoozed',
+        sessionStatus: status === 'snoozed' ? 'snoozed' : 'active',
         createdAt: Date.now(),
       },
     ],
@@ -200,13 +203,24 @@ export function outboxChats(machines: Machine[]) {
       worktreeId: item.worktreeId,
       branch: null,
       updatedAt: item.createdAt,
-      status: item.snoozed ? 'snoozed' : 'active',
+      status: item.sessionStatus,
       claudeWorktree: false,
     }))
 }
 
+export function chatKey(chat: Pick<MachineSession, 'machine' | 'id'>) {
+  return machineKey(
+    chat.machine,
+    startedChats.get(machineKey(chat.machine, chat.id)) ?? chat.id
+  )
+}
+
 export function chatSessionId(id: string) {
   return id.startsWith(PREFIX) ? null : id
+}
+
+export function chatPending(id: string) {
+  return id.startsWith(PREFIX) ? id.slice(PREFIX.length) : null
 }
 
 export function chatSelection(

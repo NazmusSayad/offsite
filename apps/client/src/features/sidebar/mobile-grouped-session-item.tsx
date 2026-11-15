@@ -50,7 +50,7 @@ export function MobileGroupedSessionItem(props: {
   }
 
   function deactivate() {
-    if (thread.busy) {
+    if (thread.busy || !props.saved) {
       setWarning(true)
       return
     }
@@ -168,13 +168,9 @@ export function MobileGroupedSessionItem(props: {
 
   return (
     <li className="list-none">
-      <SwipeRow
-        status={session.status}
-        enabled={props.saved}
-        onSwipe={complete}
-      >
+      <SwipeRow status={session.status} onSwipe={complete}>
         <ContextMenu>
-          <ContextMenuTrigger asChild disabled={!props.saved}>
+          <ContextMenuTrigger asChild>
             <div
               role="button"
               tabIndex={0}

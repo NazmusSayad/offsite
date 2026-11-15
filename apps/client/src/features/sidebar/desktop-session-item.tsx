@@ -78,7 +78,7 @@ function DesktopSessionItemView(props: {
   }
 
   function deactivate() {
-    if (thread.busy) {
+    if (thread.busy || !props.saved) {
       setWarning(true)
       return
     }
@@ -109,7 +109,7 @@ function DesktopSessionItemView(props: {
     </AlertDialog>
   )
 
-  const menu = props.saved && (
+  const menu = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
@@ -221,7 +221,7 @@ function DesktopSessionItemView(props: {
   return (
     <li className="list-none py-0.5">
       <ContextMenu>
-        <ContextMenuTrigger asChild disabled={!props.saved}>
+        <ContextMenuTrigger asChild>
           <div
             role="button"
             tabIndex={0}
@@ -297,44 +297,42 @@ function DesktopSessionItemView(props: {
                 </span>
               </div>
             </div>
-            {props.saved && (
-              <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex flex-col items-end py-(--sidebar-content-inset) pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
-                <div className="flex h-6 items-center">
-                  {session.status === 'inactive' ? (
-                    <button
-                      className="text-muted-foreground hover:text-foreground me-0.75 inline-flex size-5 cursor-pointer items-center justify-center transition-colors"
-                      title="Resume"
-                      aria-label="Resume"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        void editSession(session.machine, session.id, {
-                          status: 'active',
-                        })
-                      }}
-                    >
-                      <HugeiconsIcon icon={PlayIcon} className="size-4" />
-                    </button>
-                  ) : (
-                    <button
-                      className="text-muted-foreground hover:text-foreground me-0.75 inline-flex size-5 cursor-pointer items-center justify-center transition-colors"
-                      title="Done"
-                      aria-label="Done"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        deactivate()
-                      }}
-                    >
-                      <HugeiconsIcon
-                        icon={TickDouble01Icon}
-                        strokeWidth={1.25}
-                        className="size-5 scale-110"
-                      />
-                    </button>
-                  )}
-                </div>
-                <div className="mt-1 flex h-5 items-center">{menu}</div>
+            <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex flex-col items-end py-(--sidebar-content-inset) pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
+              <div className="flex h-6 items-center">
+                {session.status === 'inactive' ? (
+                  <button
+                    className="text-muted-foreground hover:text-foreground me-0.75 inline-flex size-5 cursor-pointer items-center justify-center transition-colors"
+                    title="Resume"
+                    aria-label="Resume"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      void editSession(session.machine, session.id, {
+                        status: 'active',
+                      })
+                    }}
+                  >
+                    <HugeiconsIcon icon={PlayIcon} className="size-4" />
+                  </button>
+                ) : (
+                  <button
+                    className="text-muted-foreground hover:text-foreground me-0.75 inline-flex size-5 cursor-pointer items-center justify-center transition-colors"
+                    title="Done"
+                    aria-label="Done"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      deactivate()
+                    }}
+                  >
+                    <HugeiconsIcon
+                      icon={TickDouble01Icon}
+                      strokeWidth={1.25}
+                      className="size-5 scale-110"
+                    />
+                  </button>
+                )}
               </div>
-            )}
+              <div className="mt-1 flex h-5 items-center">{menu}</div>
+            </div>
           </div>
         </ContextMenuTrigger>
         {contextMenu}

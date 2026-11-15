@@ -204,7 +204,7 @@ export function providerOf(sessionId: string) {
 export function recordInteraction(
   id: string,
   provider: Provider,
-  status: 'active' | 'snoozed' | null
+  status: 'active' | 'pinned' | 'snoozed' | 'minimized' | null
 ) {
   db.insert(sessionsTable)
     .values({

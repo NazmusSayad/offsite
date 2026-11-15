@@ -60,7 +60,7 @@ export function DesktopGroupedSessionItem(props: {
   }
 
   function deactivate() {
-    if (thread.busy) {
+    if (thread.busy || !props.saved) {
       setWarning(true)
       return
     }
@@ -91,7 +91,7 @@ export function DesktopGroupedSessionItem(props: {
     </AlertDialog>
   )
 
-  const menu = props.saved && (
+  const menu = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
@@ -203,7 +203,7 @@ export function DesktopGroupedSessionItem(props: {
   return (
     <li className="list-none">
       <ContextMenu>
-        <ContextMenuTrigger asChild disabled={!props.saved}>
+        <ContextMenuTrigger asChild>
           <div
             role="button"
             tabIndex={0}
@@ -248,26 +248,24 @@ export function DesktopGroupedSessionItem(props: {
                 <HotkeyHint keyName={props.hotkey} placement="row" />
               )}
             </span>
-            {props.saved && (
-              <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
-                {menu}
-                <button
-                  className="text-muted-foreground hover:text-foreground ms-0.5 me-0.5 inline-flex size-5 cursor-pointer items-center justify-center transition-colors"
-                  title="Done"
-                  aria-label="Done"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    deactivate()
-                  }}
-                >
-                  <HugeiconsIcon
-                    icon={TickDouble01Icon}
-                    strokeWidth={1.35}
-                    className="size-5 scale-110"
-                  />
-                </button>
-              </div>
-            )}
+            <div className="group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100 pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5 opacity-0 transition-opacity has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
+              {menu}
+              <button
+                className="text-muted-foreground hover:text-foreground ms-0.5 me-0.5 inline-flex size-5 cursor-pointer items-center justify-center transition-colors"
+                title="Done"
+                aria-label="Done"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  deactivate()
+                }}
+              >
+                <HugeiconsIcon
+                  icon={TickDouble01Icon}
+                  strokeWidth={1.35}
+                  className="size-5 scale-110"
+                />
+              </button>
+            </div>
           </div>
         </ContextMenuTrigger>
         {contextMenu}
