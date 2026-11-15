@@ -12,7 +12,7 @@ import {
   noticeSession,
   sendText,
 } from './notice-sessions.ts'
-import { noticeSummary } from './notice-summary.ts'
+import { doneSummary, planSummary, questionSummary } from './notice-summary.ts'
 import { type NoticeButton, notify } from './notices.ts'
 import { resend } from './runs.ts'
 import { sessions } from './sessions.ts'
@@ -109,26 +109,30 @@ async function finishedNotice(run: LiveRun) {
       ? null
       : duration(Date.now() - summary.startedAt),
   ].filter((part) => part !== null)
-  const short =
-    reply === '' ? null : await noticeSummary(run.cwd, summary.request, reply)
+  const asks = reply.slice(reply.lastIndexOf('\n') + 1).includes('?')
+  const short = asks
+    ? await questionSummary(run.cwd, summary.request, reply)
+    : reply === '' && summary.actions.length === 0
+      ? null
+      : await doneSummary(run.cwd, summary.request, summary.actions, reply)
+  const text =
+    short ?? (asks ? `${provider} asks a question` : `${provider} finished`)
   await notify({
     ...base(run, session),
-    body: [short ?? (reply || `${provider} finished`), stats.join(' · ')]
-      .filter((part) => part !== '')
-      .join('\n'),
-    summary: short ?? (reply.split('\n')[0] || 'finished'),
-    state: 'done',
+    body: [text, stats.join(' · ')].filter((part) => part !== '').join('\n'),
+    summary: text,
+    state: asks ? 'asks' : 'done',
     image: await noticeImage(summary.images),
-    buttons: finishedButtons(session, reply, summary.files),
+    buttons: finishedButtons(session, asks, summary.files),
   })
 }
 
 function finishedButtons(
   session: NoticeSession,
-  reply: string,
+  asks: boolean,
   files: number
 ): NoticeButton[] {
-  if (reply.endsWith('?')) {
+  if (asks) {
     return [
       {
         title: 'Yes, go ahead',
@@ -208,7 +212,7 @@ async function requestNotice(run: LiveRun, request: PermissionRequest) {
   }
   if (request.kind === 'plan') {
     const plan = plainText(request.plan)
-    const short = await noticeSummary(
+    const short = await planSummary(
       run.cwd,
       (await turnSummary(run.sessionId, run.cwd)).request,
       plan
