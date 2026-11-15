@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip } from '@/components/ui/tooltip'
+import { applyBrowserUpdate, checkBrowserUpdate } from '@/lib/browser-update'
 import { logger } from '@/lib/log'
 import type { Prefs } from '@/lib/prefs'
 import { showError, updatePrefs, useStore } from '@/lib/store'
@@ -90,11 +91,14 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
 }
 
 function UpdateRow() {
-  const [updating, setUpdating] = useState(false)
+  const available = useStore((state) => state.browserUpdate)
+  const [status, setStatus] = useState<
+    'idle' | 'checking' | 'current' | 'updating'
+  >('idle')
   const [failure, setFailure] = useState<string | null>(null)
 
-  async function update() {
-    setUpdating(true)
+  async function check() {
+    setStatus('checking')
     setFailure(null)
     try {
       const registration =
@@ -102,24 +106,26 @@ function UpdateRow() {
           ? await navigator.serviceWorker.getRegistration()
           : undefined
       if (registration === undefined) {
-        const response = await fetch(`/?update=${Date.now()}`, {
-          cache: 'no-store',
-        })
-        if (!response.ok) {
-          throw new Error(`the server answered ${response.status}`)
-        }
-      } else {
-        await registration.update()
-        const worker = registration.installing ?? registration.waiting
-        if (worker !== null) {
-          await activated(worker)
-        }
+        location.reload()
+        return
       }
-      location.reload()
+      setStatus((await checkBrowserUpdate(registration)) ? 'idle' : 'current')
+    } catch (error) {
+      log.error('could not check for updates', error)
+      setFailure(`Could not check for updates: ${errorMessage(error)}`)
+      setStatus('idle')
+    }
+  }
+
+  async function update() {
+    setStatus('updating')
+    setFailure(null)
+    try {
+      await applyBrowserUpdate()
     } catch (error) {
       log.error('could not update', error)
-      setFailure(errorMessage(error))
-      setUpdating(false)
+      setFailure(`Could not update: ${errorMessage(error)}`)
+      setStatus('idle')
     }
   }
 
@@ -128,41 +134,42 @@ function UpdateRow() {
       <div className="flex items-center gap-3">
         {failure !== null && (
           <span className="text-destructive text-xs wrap-anywhere">
-            Could not update: {failure}
+            {failure}
           </span>
+        )}
+        {status === 'current' && !available && (
+          <span className="text-muted-foreground text-xs">Up to date</span>
         )}
         <span className="text-muted-foreground text-sm">
           {process.env.OFFSITE_VERSION ?? 'dev'}
         </span>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={updating}
-          onClick={() => void update()}
-        >
-          {updating && (
-            <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
-          )}
-          {updating ? 'Updating…' : 'Update'}
-        </Button>
+        {available || status === 'updating' ? (
+          <Button
+            size="sm"
+            disabled={status === 'updating'}
+            onClick={() => void update()}
+          >
+            {status === 'updating' && (
+              <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
+            )}
+            {status === 'updating' ? 'Updating…' : 'Update'}
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={status === 'checking'}
+            onClick={() => void check()}
+          >
+            {status === 'checking' && (
+              <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
+            )}
+            {status === 'checking' ? 'Checking…' : 'Check for updates'}
+          </Button>
+        )}
       </div>
     </Row>
   )
-}
-
-async function activated(worker: ServiceWorker) {
-  await new Promise<void>((resolve, reject) => {
-    function settle() {
-      if (worker.state === 'activated') {
-        resolve()
-      }
-      if (worker.state === 'redundant') {
-        reject(new Error('the new version failed to install'))
-      }
-    }
-    worker.addEventListener('statechange', settle)
-    settle()
-  })
 }
 
 function AppIconRow() {

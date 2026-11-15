@@ -8,8 +8,13 @@ import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { isNoticeData, showNotice } from './lib/notices'
 import { readToken } from './lib/tokens'
 
-self.skipWaiting()
 clientsClaim()
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'skipWaiting') {
+    self.skipWaiting()
+  }
+})
 
 if (
   import.meta.env.PROD &&
