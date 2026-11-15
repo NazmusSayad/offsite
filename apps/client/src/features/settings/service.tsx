@@ -46,19 +46,13 @@ export function ServiceButton(props: { machine: string }) {
         <Button
           variant="outline"
           size="sm"
-          className="flex-none sm:w-full"
           disabled={checking}
           onClick={() => void check()}
         >
           {checking ? 'Checking…' : latest ? 'Up to date' : 'Check for updates'}
         </Button>
       ) : (
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex-none sm:w-full"
-          onClick={() => setOpen(true)}
-        >
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
           {!service.installed ? (
             'Install OffSite'
           ) : service.update?.status === 'downloading' ? (
