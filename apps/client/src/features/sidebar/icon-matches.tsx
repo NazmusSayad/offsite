@@ -4,16 +4,22 @@ import {
   Cancel01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import type { Color } from 'colorthief'
 import { useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
+import { createRoot } from 'react-dom/client'
 import { Button } from '@/components/ui/button'
 import { DialogClose, DialogTitle } from '@/components/ui/dialog'
+import { MachineLogo } from '@/constants/machine-icons'
+import { deviceStyles } from '@/features/sidebar/device-variants'
+import { frameStyles } from '@/features/sidebar/frame-styles'
 import {
-  CATEGORIES,
-  render,
-  renderShape,
-  SHAPES,
-  VARIANTS,
+  logoCanvas,
+  renderStyle,
+  styles,
+  themes,
 } from '@/features/sidebar/icon-variants'
+import { logoColors } from '@/features/sidebar/logo-colors'
 import { getState, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
@@ -61,14 +67,23 @@ export function IconMatches(props: {
       (item) => item.machine === props.machine && item.id === props.projectId
     )
   )
+  const [source, setSource] = useState<{
+    image: HTMLImageElement
+    colors: Color[]
+    device: HTMLImageElement
+    taken: Uint8ClampedArray[]
+  } | null>(null)
+  const [theme, setTheme] = useState('Most used 1')
   const [variants, setVariants] = useState<
-    { category: string; label: string; logo: string }[] | null
+    { label: string; logo: string }[] | null
   >(null)
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('Color')
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const logo = props.matching.logo
   const other = props.matching.matches[0]
+  const choices = source === null ? [] : themes(source.colors)
+  const selectedLogo =
+    variants?.find((variant) => variant.label === selected)?.logo ?? null
 
   useEffect(() => {
     let cancelled = false
@@ -86,33 +101,11 @@ export function IconMatches(props: {
         if (owner === undefined) {
           throw new Error('This machine is no longer available')
         }
-        const letter = Array.from(owner.name.trim())
-          .slice(0, 1)
-          .join('')
-          .toUpperCase()
+        const device = await deviceIcon(owner.icon)
         const image = await load(logo)
-        const rendered = [
-          ...VARIANTS.map((variant) => ({
-            category: variant.category,
-            label: variant.label,
-            logo: render(image, variant.filter, variant.tint),
-          })),
-          ...SHAPES.map((shape) => ({
-            category: shape.category,
-            label: shape.label,
-            logo: renderShape(image, shape, letter),
-          })),
-        ]
-        const next = []
-        for (const variant of rendered) {
-          const own = await pixels(variant.logo)
-          if (taken.every((item) => !same(own, item))) {
-            next.push(variant)
-          }
-        }
+        const colors = logoColors(image)
         if (!cancelled) {
-          setVariants(next)
-          setSelected(next.length === 0 ? logo : next[0].logo)
+          setSource({ image, colors, device, taken })
         }
       } catch (failure) {
         if (!cancelled) {
@@ -124,6 +117,58 @@ export function IconMatches(props: {
       cancelled = true
     }
   }, [logo, props.machine, props.projectId])
+
+  useEffect(() => {
+    if (source === null) {
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const picked = themes(source.colors).find(
+          (item) => item.label === theme
+        )
+        if (picked === undefined) {
+          throw new Error(`${theme} is not an icon color`)
+        }
+        const base = logoCanvas(source.image, picked.tint)
+        const next: { label: string; logo: string }[] = []
+        for (const style of [
+          ...styles(picked.accent),
+          ...frameStyles(),
+          ...deviceStyles(),
+        ]) {
+          const rendered = renderStyle(base, style, picked, source.device)
+          const own = await pixels(rendered)
+          if (source.taken.every((item) => !same(own, item))) {
+            next.push({ label: style.label, logo: rendered })
+          }
+        }
+        if (!cancelled) {
+          setVariants(next)
+          setSelected((current) => {
+            if (
+              current !== null &&
+              next.some((variant) => variant.label === current)
+            ) {
+              return current
+            }
+            if (next.length === 0) {
+              return null
+            }
+            return next[0].label
+          })
+        }
+      } catch (failure) {
+        if (!cancelled) {
+          setError(errorMessage(failure))
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [source, theme])
 
   return (
     <>
@@ -159,11 +204,11 @@ export function IconMatches(props: {
           </div>
         </div>
         <div className="flex min-w-0 items-center gap-2.5 border-l p-2.5">
-          {selected === null ? (
+          {selectedLogo === null ? (
             <span className="bg-muted size-8 flex-none rounded-lg" />
           ) : (
             <img
-              src={selected}
+              src={selectedLogo}
               alt=""
               className="ring-foreground/10 size-8 flex-none rounded-lg object-cover ring-1"
             />
@@ -177,24 +222,31 @@ export function IconMatches(props: {
         </div>
       </div>
       <div
-        role="tablist"
+        role="radiogroup"
+        aria-label="Icon color"
         className="mx-5 mt-3 flex [scrollbar-width:none] gap-1 overflow-x-auto"
       >
-        {CATEGORIES.map((item) => (
+        {choices.map((item) => (
           <button
-            key={item}
+            key={item.label}
             type="button"
-            role="tab"
-            aria-selected={item === category}
+            role="radio"
+            aria-checked={item.label === theme}
             className={cn(
-              'flex h-6 shrink-0 cursor-pointer items-center rounded-md px-2.5 text-xs font-medium transition-colors',
-              item === category
+              'flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors',
+              item.label === theme
                 ? 'bg-muted text-foreground'
                 : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
             )}
-            onClick={() => setCategory(item)}
+            onClick={() => setTheme(item.label)}
           >
-            {item}
+            {item.swatch !== null && (
+              <span
+                className="ring-foreground/20 size-2.5 flex-none rounded-full ring-1"
+                style={{ backgroundColor: item.swatch }}
+              />
+            )}
+            {item.label}
           </button>
         ))}
       </div>
@@ -202,32 +254,24 @@ export function IconMatches(props: {
         <div className="grid grid-cols-6 gap-1">
           {variants === null &&
             error === null &&
-            [
-              { label: 'Original' },
-              ...[...VARIANTS, ...SHAPES].filter(
-                (variant) => variant.category === category
-              ),
-            ].map((variant) => (
-              <span key={variant.label} className="block p-2">
+            Array.from({ length: 6 }, (_, index) => (
+              <span key={index} className="block p-2">
                 <span className="bg-muted mx-auto block aspect-square w-full max-w-11 rounded-lg" />
               </span>
             ))}
           {variants !== null &&
-            [
-              { label: 'Original', logo },
-              ...variants.filter((variant) => variant.category === category),
-            ].map((variant) => (
+            variants.map((variant) => (
               <button
                 key={variant.label}
                 type="button"
                 title={variant.label}
                 aria-label={variant.label}
-                aria-pressed={selected === variant.logo}
+                aria-pressed={selected === variant.label}
                 className={cn(
                   'hover:bg-muted cursor-pointer rounded-lg p-2 transition-colors',
-                  selected === variant.logo && 'bg-muted ring-ring ring-1'
+                  selected === variant.label && 'bg-muted ring-ring ring-1'
                 )}
-                onClick={() => setSelected(variant.logo)}
+                onClick={() => setSelected(variant.label)}
               >
                 <img
                   src={variant.logo}
@@ -255,16 +299,24 @@ export function IconMatches(props: {
         )}
         <Button
           type="button"
+          variant="outline"
           size="sm"
           className="ml-auto"
-          disabled={selected === null}
+          onClick={() => props.onUse(logo)}
+        >
+          Use original
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          disabled={selectedLogo === null}
           onClick={() => {
-            if (selected !== null) {
-              props.onUse(selected)
+            if (selectedLogo !== null) {
+              props.onUse(selectedLogo)
             }
           }}
         >
-          {selected === logo ? 'Use same icon' : 'Use icon'}
+          Use icon
         </Button>
       </div>
     </>
@@ -294,6 +346,18 @@ async function otherIcons(machine: string, projectId: string) {
     }
   }
   return icons
+}
+
+async function deviceIcon(icon: string | null) {
+  const holder = document.createElement('div')
+  const root = createRoot(holder)
+  flushSync(() => root.render(<MachineLogo icon={icon} />))
+  const markup = holder.innerHTML.replaceAll(
+    'stroke-width="1.5"',
+    'stroke-width="2.25"'
+  )
+  root.unmount()
+  return load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`)
 }
 
 async function load(source: string) {

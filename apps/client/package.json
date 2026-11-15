@@ -21,6 +21,7 @@
     "@tiptap/react": "^3.33.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "colorthief": "^3.5.0",
     "consola": "^3.4.2",
     "diff": "^9.0.0",
     "es-toolkit": "^1.52.0",
