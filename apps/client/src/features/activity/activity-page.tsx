@@ -5,20 +5,35 @@ import {
   ShieldAlertIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { type ReactNode, useEffect, useState } from 'react'
+import type { ThreadModel } from '@offsite/core/sessions'
+import {
+  type ReactNode,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from 'react'
+import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
+import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
-import { ProviderIcon } from '@/components/icons'
 import { MachineLogo } from '@/constants/machine-icons'
 import { SubagentIcon } from '@/features/transcript/agent-pill'
-import { UsageMeter } from '@/features/usage/usage-meters'
-import { providerNames } from '@/lib/format'
+import { logger } from '@/lib/log'
 import { router } from '@/lib/router'
 import { closeSession } from '@/lib/sessions'
-import { type Machine, threadState, useStore } from '@/lib/store'
+import { type MachineSession, threadState, useStore } from '@/lib/store'
 import { activityPage, onGuard } from '@/lib/url'
-import { hasUsage } from '@/lib/usage'
 import { cn } from '@/lib/utils'
-import { type Agent, AgentTile, runningTasks, stageOf } from './agent-card'
+import { ActivityCanvas, reveal } from './activity-canvas'
+import {
+  type Agent,
+  cardId,
+  modelLabel,
+  runningTasks,
+  stageOf,
+} from './agent-card'
+
+const log = logger.withTag('activity')
 
 export function openActivityPage() {
   if (activityPage()) {
@@ -38,46 +53,128 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
   const sessions = useStore((state) => state.sessions)
   const inactive = useStore((state) => state.inactive)
   const unseen = useStore((state) => state.unseen)
+  const [models, setModels] = useState<Record<string, ThreadModel>>({})
   const [now, setNow] = useState(Date.now)
-  const agents = machines
-    .filter((machine) => machine.status === 'online')
-    .flatMap((machine) => [
-      ...Object.entries(machine.activity).flatMap((entry) => {
-        const session = [...sessions, ...inactive].find(
-          (item) => item.machine === machine.id && item.id === entry[0]
-        )
-        return session === undefined
-          ? []
-          : [
-              {
-                session,
-                activity: entry[1],
-                done: threadState(
-                  entry[1],
-                  unseen.includes(machineKey(machine.id, entry[0]))
-                ).done,
-              },
-            ]
-      }),
-      ...sessions
-        .filter(
-          (session) =>
-            session.machine === machine.id &&
-            machine.activity[session.id] === undefined &&
-            unseen.includes(machineKey(machine.id, session.id))
-        )
-        .map((session) => ({ session, activity: null, done: true })),
-    ])
+  const canvas = useRef<ReactZoomPanPinchRef>(null)
+  const focused = useRef<string | null>(null)
+  const asked = useRef(new Set<string>())
+  const online = machines.filter((machine) => machine.status === 'online')
+  const finished = sessions.filter(
+    (session) =>
+      online.some(
+        (machine) =>
+          machine.id === session.machine &&
+          machine.activity[session.id] === undefined
+      ) && unseen.includes(machineKey(session.machine, session.id))
+  )
+  const missing = finished.filter(
+    (session) => models[modelKey(session)] === undefined
+  )
+  const agents = online
+    .flatMap((machine) => {
+      const accounts = [...machine.claudeAccounts, ...machine.codexAccounts]
+      return [
+        ...Object.entries(machine.activity).flatMap((entry) => {
+          const session = [...sessions, ...inactive].find(
+            (item) => item.machine === machine.id && item.id === entry[0]
+          )
+          return session === undefined
+            ? []
+            : [
+                {
+                  session,
+                  activity: entry[1],
+                  done: threadState(
+                    entry[1],
+                    unseen.includes(machineKey(machine.id, entry[0]))
+                  ).done,
+                  account:
+                    accounts.find(
+                      (account) => account.id === entry[1].settings.accountId
+                    )?.name ?? null,
+                  model: modelLabel(
+                    entry[1].settings.model,
+                    entry[1].settings.effort,
+                    entry[1]
+                  ),
+                },
+              ]
+        }),
+        ...finished
+          .filter((session) => session.machine === machine.id)
+          .map((session) => {
+            const found = models[modelKey(session)]
+            return {
+              session,
+              activity: null,
+              done: true,
+              account:
+                accounts.find((account) => account.id === found?.accountId)
+                  ?.name ?? null,
+              model: found?.model ?? null,
+            }
+          }),
+      ]
+    })
     .sort(
       (first, second) =>
         stageOf(first) - stageOf(second) ||
         second.session.updatedAt - first.session.updatedAt
     )
+  const boards = [...new Set(agents.map((agent) => projectKey(agent)))].map(
+    (key) => agents.filter((agent) => projectKey(agent) === key)
+  )
+  const ordered = boards.flat()
+
+  const load = useEffectEvent(() => {
+    const wanted = missing.filter(
+      (session) => !asked.current.has(modelKey(session))
+    )
+    for (const machine of new Set(wanted.map((session) => session.machine))) {
+      const batch = wanted.filter((session) => session.machine === machine)
+      for (const session of batch) {
+        asked.current.add(modelKey(session))
+      }
+      call(machine, 'activity.models', {
+        sessionIds: batch.map((session) => session.id),
+      }).then(
+        (result) =>
+          setModels((all) => ({
+            ...all,
+            ...Object.fromEntries(
+              batch.map((session) => [modelKey(session), result[session.id]])
+            ),
+          })),
+        (error: unknown) => {
+          for (const session of batch) {
+            asked.current.delete(modelKey(session))
+          }
+          log.error('could not load thread models', error)
+        }
+      )
+    }
+  })
+  const pending = missing.map((session) => modelKey(session)).join('\n')
+
+  useEffect(() => load(), [pending])
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 15_000)
     return () => clearInterval(timer)
   }, [])
+
+  function jump(targets: Agent[]) {
+    const index = targets.findIndex(
+      (agent) => cardId(agent.session) === focused.current
+    )
+    const next = targets[(index + 1) % targets.length]
+    const element = document.getElementById(cardId(next.session))
+    if (canvas.current === null || element === null) {
+      return
+    }
+    focused.current = cardId(next.session)
+    reveal(canvas.current, element, props.mobile)
+  }
 
   return (
     <main
@@ -89,8 +186,8 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
     >
       <header
         className={cn(
-          'flex h-(--workspace-topbar-height) shrink-0 items-center gap-4 text-xs tabular-nums',
-          props.mobile ? 'px-2' : 'px-5'
+          'flex h-(--workspace-topbar-height) shrink-0 items-center gap-1 border-b text-xs tabular-nums',
+          props.mobile ? 'px-2' : 'px-4'
         )}
       >
         {props.leading}
@@ -102,7 +199,9 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
               className="text-question size-3.5"
             />
           }
-          value={agents.filter((agent) => stageOf(agent) === 0).length}
+          count={agents.filter((agent) => stageOf(agent) === 0).length}
+          targets={ordered.filter((agent) => stageOf(agent) === 0)}
+          onJump={jump}
         />
         <Stat
           title="Working"
@@ -112,15 +211,21 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
               className="text-info size-3.5"
             />
           }
-          value={agents.filter((agent) => stageOf(agent) === 1).length}
+          count={agents.filter((agent) => stageOf(agent) === 1).length}
+          targets={ordered.filter((agent) => stageOf(agent) === 1)}
+          onJump={jump}
         />
         <Stat
           title="Subagents"
           icon={<SubagentIcon className="text-muted-foreground size-3" />}
-          value={agents.reduce(
+          count={agents.reduce(
             (sum, agent) => sum + (agent.activity?.backgroundAgents ?? 0),
             0
           )}
+          targets={ordered.filter(
+            (agent) => (agent.activity?.backgroundAgents ?? 0) > 0
+          )}
+          onJump={jump}
         />
         <Stat
           title="Background tasks"
@@ -130,15 +235,9 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
               className="text-muted-foreground size-3.5"
             />
           }
-          value={agents.reduce(
-            (sum, agent) =>
-              agent.activity === null
-                ? sum
-                : sum +
-                  runningTasks(agent.activity) -
-                  agent.activity.backgroundAgents,
-            0
-          )}
+          count={agents.reduce((sum, agent) => sum + backgroundTasks(agent), 0)}
+          targets={ordered.filter((agent) => backgroundTasks(agent) > 0)}
+          onJump={jump}
         />
         <Stat
           title="Done"
@@ -148,146 +247,79 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
               className="text-success size-3.5"
             />
           }
-          value={agents.filter((agent) => stageOf(agent) === 3).length}
+          count={agents.filter((agent) => stageOf(agent) === 3).length}
+          targets={ordered.filter((agent) => stageOf(agent) === 3)}
+          onJump={jump}
         />
       </header>
-      <div className="min-h-0 flex-1 overflow-auto">
-        {agents.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-5 pt-[20vh]">
-            <p className="text-muted-foreground text-sm">No agents running</p>
-            {machines
-              .filter((machine) => machine.status !== 'online')
-              .map((machine) => (
-                <MachineTree
-                  key={machine.id}
-                  machine={machine}
-                  agents={[]}
-                  now={now}
-                />
-              ))}
-          </div>
-        ) : (
-          <div className="grid items-start gap-x-10 gap-y-8 px-5 pt-2 pb-10 md:grid-cols-[repeat(auto-fill,minmax(24rem,1fr))]">
-            {machines
-              .filter(
-                (machine) =>
-                  machine.status !== 'online' ||
-                  agents.some((agent) => agent.session.machine === machine.id)
-              )
-              .map((machine) => (
-                <MachineTree
-                  key={machine.id}
-                  machine={machine}
-                  agents={agents.filter(
-                    (agent) => agent.session.machine === machine.id
-                  )}
-                  now={now}
-                />
-              ))}
-          </div>
-        )}
-      </div>
+      {agents.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 px-5 pt-[20vh]">
+          <p className="text-muted-foreground text-sm">No agents running</p>
+          {machines
+            .filter((machine) => machine.status !== 'online')
+            .map((machine) => (
+              <p
+                key={machine.id}
+                className="text-muted-foreground flex items-center gap-2 text-xs"
+              >
+                <MachineLogo icon={machine.icon} className="size-4 shrink-0" />
+                <span className="text-foreground">{machine.name}</span>
+                {machine.status === 'connecting' && 'Connecting…'}
+                {machine.status === 'offline' && 'Offline'}
+                {machine.status === 'unpaired' && 'Needs pairing'}
+              </p>
+            ))}
+        </div>
+      ) : (
+        <ActivityCanvas
+          canvas={canvas}
+          machines={machines.filter(
+            (machine) =>
+              machine.status !== 'online' ||
+              agents.some((agent) => agent.session.machine === machine.id)
+          )}
+          boards={boards}
+          now={now}
+          mobile={props.mobile}
+        />
+      )}
     </main>
   )
 }
 
-function Stat(props: { title: string; icon: ReactNode; value: number }) {
-  if (props.value === 0) {
+function Stat(props: {
+  title: string
+  icon: ReactNode
+  count: number
+  targets: Agent[]
+  onJump: (targets: Agent[]) => void
+}) {
+  if (props.count === 0) {
     return null
   }
   return (
-    <span
-      className="text-foreground flex items-center gap-1.5"
+    <button
+      className="text-foreground hover:bg-foreground/5 flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-2"
       title={props.title}
+      aria-label={`${props.title}: ${props.count}`}
+      onClick={() => props.onJump(props.targets)}
     >
       {props.icon}
-      {props.value}
-    </span>
+      {props.count}
+    </button>
   )
 }
 
-function MachineTree(props: {
-  machine: Machine
-  agents: Agent[]
-  now: number
-}) {
-  const groups = [
-    ...new Set(props.agents.map((agent) => accountKey(agent))),
-  ].map((key) => props.agents.filter((agent) => accountKey(agent) === key))
-
-  return (
-    <section className="flex min-w-0 flex-col">
-      <h2 className="flex h-8 min-w-0 items-center gap-2">
-        <MachineLogo icon={props.machine.icon} className="size-4 shrink-0" />
-        <span className="text-foreground truncate font-medium">
-          {props.machine.name}
-        </span>
-        {props.machine.status !== 'online' && (
-          <span className="text-warning-foreground ml-auto shrink-0 text-xs">
-            {props.machine.status === 'connecting' && 'Connecting…'}
-            {props.machine.status === 'offline' && 'Offline'}
-            {props.machine.status === 'unpaired' && 'Needs pairing'}
-          </span>
-        )}
-      </h2>
-      <ul className="ml-[7px]">
-        {groups.map((agents) => (
-          <Twig key={accountKey(agents[0])} anchor="row">
-            <AccountRow machine={props.machine} agents={agents} />
-            <ul className="ml-[7px]">
-              {agents.map((agent) => (
-                <Twig key={agent.session.id} anchor="tile">
-                  <AgentTile agent={agent} now={props.now} />
-                </Twig>
-              ))}
-            </ul>
-          </Twig>
-        ))}
-      </ul>
-    </section>
-  )
+function backgroundTasks(agent: Agent) {
+  return agent.activity === null
+    ? 0
+    : runningTasks(agent.activity) - agent.activity.backgroundAgents
 }
 
-function AccountRow(props: { machine: Machine; agents: Agent[] }) {
-  const provider = props.agents[0].session.provider
-  const accountId = props.agents[0].activity?.settings.accountId ?? null
-  const account = [
-    ...props.machine.claudeAccounts,
-    ...props.machine.codexAccounts,
-  ].find((item) => item.id === accountId)
-
-  return (
-    <div className="flex h-8 min-w-0 items-center gap-2">
-      <ProviderIcon provider={provider} className="size-4 shrink-0" />
-      <span className="text-foreground truncate">
-        {account?.name ?? providerNames[provider]}
-      </span>
-      {account !== undefined && hasUsage(account) && (
-        <UsageMeter
-          machine={props.machine.id}
-          account={account}
-          icon={false}
-          className="ml-auto"
-        />
-      )}
-    </div>
-  )
+function modelKey(session: MachineSession) {
+  return `${machineKey(session.machine, session.id)} ${session.updatedAt}`
 }
 
-function Twig(props: { anchor: 'row' | 'tile'; children: ReactNode }) {
-  return (
-    <li
-      className={cn(
-        'before:border-foreground/15 after:border-foreground/15 relative pl-5 before:absolute before:top-0 before:left-0 before:w-3.5 before:rounded-bl-md before:border-b before:border-l after:absolute after:top-0 after:bottom-0 after:left-0 after:border-l last:after:hidden',
-        props.anchor === 'row' && 'pt-2 before:h-6',
-        props.anchor === 'tile' && 'pt-1.5 before:h-[23px]'
-      )}
-    >
-      {props.children}
-    </li>
-  )
-}
-
-function accountKey(agent: Agent) {
-  return `${agent.session.provider}\n${agent.activity?.settings.accountId ?? null}`
+function projectKey(agent: Agent) {
+  return `${agent.session.machine}\n${agent.session.projectId}`
 }

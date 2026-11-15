@@ -17,6 +17,7 @@ import {
   removeAccount,
   updateAccount,
 } from '../services/accounts.ts'
+import { activityModels } from '../services/activity-models.ts'
 import * as bookmarks from '../services/bookmarks.ts'
 import { runtime, sessionContext } from '../services/debug.ts'
 import { ping, transcribe, workflows } from '../services/dictation.ts'
@@ -175,6 +176,7 @@ const handlers: Handlers = {
     await stop(params.sessionId)
     return null
   },
+  'activity.models': (params) => activityModels(params.sessionIds),
   'sessions.runtime': (params) => runtime(params.sessionId),
   'sessions.context': (params) =>
     sessionContext(params.sessionId, params.projectId, params.worktreeId),

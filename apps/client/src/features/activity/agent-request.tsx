@@ -29,16 +29,16 @@ export function AgentRequest(props: {
     const question = request.questions[0]
     const quick = request.questions.length === 1 && !question.multiSelect
     return (
-      <div className="flex flex-col gap-1.5 px-2.5 pb-2 pl-8">
-        <p className="text-muted-foreground truncate text-xs">
+      <div className="border-question/30 -mx-3 -mb-3 flex flex-col gap-2 border-t px-3 pt-2.5 pb-3 pl-9">
+        <p className="text-foreground/90 text-[13px] leading-5 wrap-anywhere">
           {question.question}
         </p>
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1.5">
           {quick &&
             question.options.map((option) => (
               <Button
                 key={option.label}
-                size="xs"
+                size="sm"
                 variant="outline"
                 title={option.description}
                 onClick={() =>
@@ -48,7 +48,7 @@ export function AgentRequest(props: {
                 {option.label}
               </Button>
             ))}
-          <Button size="xs" variant="ghost" onClick={props.onOpen}>
+          <Button size="sm" variant="ghost" onClick={props.onOpen}>
             {quick ? 'Other…' : 'Answer'}
           </Button>
         </div>
@@ -57,21 +57,32 @@ export function AgentRequest(props: {
   }
 
   return (
-    <div className="flex items-center gap-1 px-2.5 pb-2 pl-8">
-      <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-xs">
+    <div className="border-question/30 -mx-3 -mb-3 flex flex-col gap-2 border-t px-3 pt-2.5 pb-3 pl-9">
+      <p className="text-foreground/90 line-clamp-3 font-mono text-xs leading-5 wrap-anywhere">
         {request.kind === 'plan' ? 'Plan' : summary(request.item, props.cwd)}
-      </span>
-      {request.kind === 'plan' && (
-        <Button size="xs" variant="ghost" onClick={props.onOpen}>
-          Read
+      </p>
+      <div className="flex gap-1.5">
+        {request.kind === 'plan' && (
+          <Button size="sm" variant="ghost" onClick={props.onOpen}>
+            Read
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1"
+          onClick={() => respond('deny', null)}
+        >
+          Decline
         </Button>
-      )}
-      <Button size="xs" variant="outline" onClick={() => respond('deny', null)}>
-        Decline
-      </Button>
-      <Button size="xs" onClick={() => respond('allow', null)}>
-        Approve
-      </Button>
+        <Button
+          size="sm"
+          className="flex-1"
+          onClick={() => respond('allow', null)}
+        >
+          Approve
+        </Button>
+      </div>
     </div>
   )
 }

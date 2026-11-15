@@ -4,7 +4,7 @@ import type {
   LastPickedModelForProvider,
   SessionSettings,
 } from '@offsite/core/config'
-import { desc, isNotNull, lt, sql } from 'drizzle-orm'
+import { desc, eq, isNotNull, lt, sql } from 'drizzle-orm'
 import { broadcast } from '../lib/hub.ts'
 import { db } from './db.ts'
 import { interactions } from './schema.ts'
@@ -78,6 +78,21 @@ export function lastSettings(sessionId: string | null) {
       desc(sql`${interactions.projectSession} = ${sessionId}`),
       desc(interactions.createdAt)
     )
+    .limit(1)
+    .get()
+}
+
+export function sessionSettings(sessionId: string) {
+  return db
+    .select({
+      provider: interactions.provider,
+      accountId: interactions.account,
+      model: interactions.model,
+      effort: interactions.effort,
+    })
+    .from(interactions)
+    .where(eq(interactions.projectSession, sessionId))
+    .orderBy(desc(interactions.createdAt))
     .limit(1)
     .get()
 }

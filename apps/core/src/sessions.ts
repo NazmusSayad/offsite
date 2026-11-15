@@ -81,6 +81,11 @@ export type SessionActivity = {
   modelNames: Record<string, string>
 }
 
+export type ThreadModel = {
+  accountId: string | null
+  model: string | null
+}
+
 export const exportDetails = ['messages', 'steps', 'details', 'full'] as const
 
 export type ExportDetail = (typeof exportDetails)[number]
