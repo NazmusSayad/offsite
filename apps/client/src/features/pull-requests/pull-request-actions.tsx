@@ -1,12 +1,7 @@
 import {
-  AlertCircleIcon,
   ArrowDown01Icon,
   Cancel01Icon,
-  CancelCircleIcon,
-  CheckmarkCircle02Icon,
-  Clock01Icon,
   Copy01Icon,
-  EyeIcon,
   GitCommitIcon,
   GitCompareArrowsIcon,
   GitMergeIcon,
@@ -14,6 +9,7 @@ import {
   Loading03Icon,
   MoreHorizontalIcon,
   ThumbsUpIcon,
+  CheckIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import { BranchIcon } from '@offsite/core/icons/git'
@@ -23,7 +19,7 @@ import type {
   PullRequestDetails,
 } from '@offsite/core/pull-requests'
 import { useState } from 'react'
-import { useLocalStorage } from 'usehooks-ts'
+import { useLocalStorage, useReadLocalStorage } from 'usehooks-ts'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,29 +42,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useCopy } from '@/lib/clipboard'
+import { deactivateSession } from '@/lib/sessions'
+import { activityOf, threadState, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
+import { MergeStatus, type Notice } from './merge-status'
 
 type Perform = (action: PullRequestAction, label: string) => Promise<boolean>
-
-type Notice = { kind: PullRequestAction['kind']; text: string }
-
-type Status = {
-  text: string
-  tone: 'good' | 'bad' | 'wait' | 'merged' | 'none'
-  icon: IconSvgElement
-}
-
-const pendingLabels: Record<PullRequestAction['kind'], string> = {
-  merge: 'Merging',
-  close: 'Closing',
-  reopen: 'Reopening',
-  ready: 'Marking ready',
-  draft: 'Converting to draft',
-  checkout: 'Checking out',
-  approve: 'Approving',
-  requestChanges: 'Requesting changes',
-  comment: 'Posting comment',
-}
 
 const methodLabels: Record<
   MergeMethod,
@@ -95,6 +74,8 @@ const methodLabels: Record<
 }
 
 export function PullRequestActions(props: {
+  machine: string
+  sessionId: string | null
   url: string
   details: PullRequestDetails | null
   busy: PullRequestAction['kind'] | null
@@ -244,8 +225,10 @@ export function PullRequestActions(props: {
               details={details}
               method={method}
               cleanup={cleanup && !details.crossRepository}
+              machine={props.machine}
+              sessionId={props.sessionId}
               onConfirm={() =>
-                void props.onPerform(
+                props.onPerform(
                   {
                     kind: 'merge',
                     method,
@@ -376,13 +359,22 @@ function MergeDialog(props: {
   details: PullRequestDetails
   method: MergeMethod
   cleanup: boolean
-  onConfirm: () => void
+  machine: string
+  sessionId: string | null
+  onConfirm: () => Promise<boolean>
 }) {
   const details = props.details
-  const waiting =
-    details.checks === 'pending' ||
-    details.checks === 'failing' ||
-    details.mergeState === 'BLOCKED'
+  const sessionId = props.sessionId
+  const scope = useReadLocalStorage<{
+    machine: string
+    projectId: string
+  } | null>('sidebarScope')
+  const busy = useStore(
+    (state) =>
+      sessionId !== null &&
+      threadState(activityOf(state.machines, props.machine, sessionId), false)
+        .busy
+  )
 
   return (
     <>
@@ -392,98 +384,41 @@ function MergeDialog(props: {
         </AlertDialogTitle>
         <AlertDialogDescription>
           Merges into <code>{details.base}</code>
-          {props.cleanup ? ' and deletes the branch.' : '.'}
-          {waiting && ' Waits for required checks and reviews.'}
+          {props.cleanup &&
+            (sessionId === null
+              ? ' and deletes the branch'
+              : ', deletes the branch')}
+          {sessionId !== null && ' and marks this thread as done'}.
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction
+          variant={sessionId === null ? 'default' : 'outline'}
           icon={methodLabels[props.method].icon}
-          onClick={props.onConfirm}
+          onClick={() => void props.onConfirm()}
         >
-          Confirm
+          Merge
         </AlertDialogAction>
+        {sessionId !== null && (
+          <AlertDialogAction
+            icon={CheckIcon}
+            disabled={busy}
+            title={
+              busy
+                ? 'The thread is still working'
+                : 'Merge and mark this thread as done'
+            }
+            onClick={async () => {
+              if (await props.onConfirm()) {
+                await deactivateSession(props.machine, sessionId, scope)
+              }
+            }}
+          >
+            Confirm
+          </AlertDialogAction>
+        )}
       </AlertDialogFooter>
     </>
   )
-}
-
-function MergeStatus(props: {
-  details: PullRequestDetails
-  busy: PullRequestAction['kind'] | null
-  notice: Notice | null
-}) {
-  const status =
-    props.busy !== null
-      ? {
-          text: pendingLabels[props.busy],
-          tone: 'none' as const,
-          icon: Loading03Icon,
-        }
-      : props.notice !== null
-        ? noticeStatus(props.notice)
-        : mergeStatus(props.details)
-  if (status === null) {
-    return null
-  }
-  return (
-    <p
-      role="status"
-      title={status.text}
-      className={cn(
-        'flex items-center gap-1.5 text-xs font-medium',
-        status.tone === 'good' && 'text-success',
-        status.tone === 'bad' && 'text-destructive',
-        status.tone === 'wait' && 'text-warning',
-        status.tone === 'merged' && 'text-violet-500',
-        status.tone === 'none' && 'text-muted-foreground'
-      )}
-    >
-      <HugeiconsIcon
-        icon={status.icon}
-        className={cn(
-          'size-3.5 shrink-0',
-          props.busy !== null && 'animate-spin'
-        )}
-      />
-      <span className="truncate">{status.text}</span>
-    </p>
-  )
-}
-
-function noticeStatus(notice: Notice): Status {
-  if (notice.kind === 'merge') {
-    return { text: notice.text, tone: 'merged', icon: GitMergeIcon }
-  }
-  if (notice.kind === 'close') {
-    return { text: notice.text, tone: 'bad', icon: CancelCircleIcon }
-  }
-  return { text: notice.text, tone: 'good', icon: CheckmarkCircle02Icon }
-}
-
-function mergeStatus(details: PullRequestDetails): Status | null {
-  if (details.state !== 'OPEN' || details.draft) {
-    return null
-  }
-  if (details.mergeable === 'CONFLICTING') {
-    return {
-      text: 'Conflicts with the base branch',
-      tone: 'bad',
-      icon: AlertCircleIcon,
-    }
-  }
-  if (details.checks === 'failing') {
-    return { text: 'Some checks failed', tone: 'bad', icon: CancelCircleIcon }
-  }
-  if (details.review === 'CHANGES_REQUESTED') {
-    return { text: 'Changes requested', tone: 'bad', icon: AlertCircleIcon }
-  }
-  if (details.checks === 'pending') {
-    return { text: 'Checks are running', tone: 'wait', icon: Clock01Icon }
-  }
-  if (details.review === 'REVIEW_REQUIRED') {
-    return { text: 'Review required', tone: 'wait', icon: EyeIcon }
-  }
-  return { text: 'Ready to merge', tone: 'good', icon: CheckmarkCircle02Icon }
 }

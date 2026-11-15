@@ -49,6 +49,7 @@ export function PullRequestView(props: {
   machine: string
   projectId: string
   worktreeId: string | null
+  sessionId: string | null
   url: string
   running: boolean
   mobile: boolean
@@ -441,6 +442,8 @@ export function PullRequestView(props: {
         </div>
       )}
       <PullRequestActions
+        machine={props.machine}
+        sessionId={props.sessionId}
         url={props.url}
         details={details}
         busy={busy}
