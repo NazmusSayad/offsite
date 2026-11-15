@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useCopy } from '@/lib/clipboard'
 import { deactivateSession } from '@/lib/sessions'
+import { untilGuardLeft } from '@/lib/url'
 import { cn } from '@/lib/utils'
 import { MergeStatus, type Notice } from './merge-status'
 
@@ -237,6 +238,7 @@ export function PullRequestActions(props: {
                   `Merged #${details.number}`
                 )
               }
+              onClose={() => setMerging(false)}
               onDone={props.onClose}
             />
           )}
@@ -363,6 +365,7 @@ function MergeDialog(props: {
   machine: string
   sessionId: string | null
   onConfirm: () => Promise<boolean>
+  onClose: () => void
   onDone: () => void
 }) {
   const details = props.details
@@ -410,6 +413,8 @@ function MergeDialog(props: {
                 setFinishing(false)
                 return
               }
+              props.onClose()
+              await untilGuardLeft()
               await deactivateSession(props.machine, sessionId, scope)
               props.onDone()
             }}

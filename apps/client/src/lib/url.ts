@@ -175,6 +175,21 @@ function reconcileGuard() {
   }
 }
 
+export function untilGuardLeft() {
+  return new Promise<void>((resolve) => {
+    if (!onGuard()) {
+      resolve()
+      return
+    }
+    const stop = router.history.subscribe(() => {
+      if (!onGuard()) {
+        stop()
+        resolve()
+      }
+    })
+  })
+}
+
 export function startGuard() {
   guarded = onGuard()
   router.history.subscribe(({ action }) => {
