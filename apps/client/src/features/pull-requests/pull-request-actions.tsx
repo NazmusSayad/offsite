@@ -43,7 +43,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useCopy } from '@/lib/clipboard'
 import { deactivateSession } from '@/lib/sessions'
-import { activityOf, threadState, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { MergeStatus, type Notice } from './merge-status'
 
@@ -369,12 +368,6 @@ function MergeDialog(props: {
     machine: string
     projectId: string
   } | null>('sidebarScope')
-  const busy = useStore(
-    (state) =>
-      sessionId !== null &&
-      threadState(activityOf(state.machines, props.machine, sessionId), false)
-        .busy
-  )
 
   return (
     <>
@@ -403,12 +396,7 @@ function MergeDialog(props: {
         {sessionId !== null && (
           <AlertDialogAction
             icon={CheckIcon}
-            disabled={busy}
-            title={
-              busy
-                ? 'The thread is still working'
-                : 'Merge and mark this thread as done'
-            }
+            title="Merge and mark this thread as done"
             onClick={async () => {
               if (await props.onConfirm()) {
                 await deactivateSession(props.machine, sessionId, scope)
