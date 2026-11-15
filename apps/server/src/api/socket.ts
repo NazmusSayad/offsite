@@ -30,6 +30,7 @@ import {
   listEntries,
   listFiles,
   readProjectFile,
+  readPath,
   readUpload,
   renameProjectEntry,
   saveUpload,
@@ -273,6 +274,7 @@ const handlers: Handlers = {
       client.device
     ),
   'files.readUpload': (params) => readUpload(params.path),
+  'files.readPath': (params) => readPath(params.path),
   'files.upload': (params) =>
     saveUpload(params.name, Buffer.from(params.data, 'base64')),
   'dictation.transcribe': (params) =>

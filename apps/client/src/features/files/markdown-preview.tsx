@@ -184,7 +184,7 @@ function PreviewImage(props: {
   )
 }
 
-function isExternal(href: string) {
+export function isExternal(href: string) {
   return /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(href)
 }
 
@@ -198,7 +198,7 @@ function projectPath(file: string, href: string) {
   }
 }
 
-function headingFor(container: Element, fragment: string) {
+export function headingFor(container: Element, fragment: string) {
   return [...container.querySelectorAll('h1, h2, h3, h4, h5, h6')].find(
     (heading) => slug(heading.textContent) === fragment.toLowerCase()
   )
