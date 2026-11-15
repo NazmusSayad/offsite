@@ -4,6 +4,7 @@ import {
   cpSync,
   existsSync,
   mkdirSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -74,23 +75,37 @@ async function registerLinux() {
     )
   }
   mkdirSync(path.dirname(unitFile), { recursive: true })
-  writeFileSync(
-    unitFile,
-    [
-      '[Unit]',
-      'Description=offsite',
-      '',
-      '[Service]',
-      `ExecStart=/bin/sh "${scriptFile.replaceAll('%', '%%')}"`,
-      '',
-      '[Install]',
-      'WantedBy=default.target',
-      '',
-    ].join('\n')
-  )
+  writeFileSync(unitFile, unit())
   await systemctl(['daemon-reload'])
   await systemctl(['enable', `${NAME}.service`])
   await systemctl(['restart', `${NAME}.service`])
+}
+
+export async function updateUnit() {
+  if (process.platform !== 'linux') {
+    return false
+  }
+  if (readFileSync(unitFile, 'utf8') === unit()) {
+    return false
+  }
+  writeFileSync(unitFile, unit())
+  await systemctl(['daemon-reload'])
+  return true
+}
+
+function unit() {
+  return [
+    '[Unit]',
+    'Description=offsite',
+    '',
+    '[Service]',
+    `ExecStart=/bin/sh "${scriptFile.replaceAll('%', '%%')}"`,
+    'OOMPolicy=continue',
+    '',
+    '[Install]',
+    'WantedBy=default.target',
+    '',
+  ].join('\n')
 }
 
 async function unregisterLinux() {
