@@ -5,8 +5,6 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { z } from 'zod'
 
-let coreFiles = new Set<string>()
-
 const devEnv = z.object({
   OFFSITE_DEV_SERVER: z.url({ protocol: /^http$/ }),
   OFFSITE_CONNECT: z
@@ -54,27 +52,6 @@ export default defineConfig({
         },
       ],
     },
-    {
-      name: 'offsite-core-files',
-      apply: 'build',
-      generateBundle(_, bundle) {
-        const files = Object.values(bundle).flatMap((file) =>
-          file.type === 'chunk' && file.isEntry ? [file.fileName] : []
-        )
-        for (const name of files) {
-          const file = bundle[name]
-          if (file.type !== 'chunk') {
-            continue
-          }
-          for (const imported of file.imports) {
-            if (!files.includes(imported)) {
-              files.push(imported)
-            }
-          }
-        }
-        coreFiles = new Set(files)
-      },
-    },
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
@@ -83,19 +60,8 @@ export default defineConfig({
       devOptions: { enabled: true, type: 'module' },
       includeManifestIcons: false,
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,png,wasm,woff2}'],
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        manifestTransforms: [
-          (entries) => ({
-            manifest: entries.filter(
-              (entry) =>
-                !(
-                  entry.url.startsWith('assets/') && entry.url.endsWith('.js')
-                ) || coreFiles.has(entry.url)
-            ),
-            warnings: [],
-          }),
-        ],
+        globPatterns: ['**/*'],
+        maximumFileSizeToCacheInBytes: 64 * 1024 * 1024,
       },
       manifest: {
         name: 'OffSite',

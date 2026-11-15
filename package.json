@@ -6,12 +6,14 @@
     "lint:fix": "oxlint . --fix && oxfmt",
     "test": "vitest run",
     "test:watch": "vitest watch",
+    "test:e2e": "playwright test",
     "dev": "node scripts/dev.mts",
     "build": "pnpm --filter client build && pnpm --filter server build",
     "web": "pnpm --filter web dev",
     "prepare": "husky"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@types/node": "^26.6.6",
     "concurrently": "^10.0.7",
     "eslint-import-resolver-typescript": "^4.4.5",

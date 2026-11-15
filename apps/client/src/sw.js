@@ -11,7 +11,7 @@ import { readToken } from './lib/tokens'
 clientsClaim()
 
 self.addEventListener('message', (event) => {
-  if (event.data?.type === 'skipWaiting') {
+  if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting()
   }
 })

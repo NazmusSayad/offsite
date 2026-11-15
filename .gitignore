@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .playwright-cli/
+test-results/
+playwright-report/
 .astro/
 .next/
 .source/

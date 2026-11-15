@@ -9,7 +9,7 @@ import { ErrorBoundary } from '@/components/error-boundary'
 import { warmHighlighter } from '@/components/markdown/warm-highlighter'
 import { loadDrafts } from '@/features/composer/drafts'
 import { startTerminal } from '@/features/terminal/session'
-import { watchBrowserUpdate } from '@/lib/browser-update'
+import { startBrowserUpdates } from '@/lib/browser-update'
 import { logger, startLogging } from '@/lib/log'
 import { refreshPushSubscription } from '@/lib/notifications'
 import { router } from '@/lib/router'
@@ -47,13 +47,6 @@ listen({
 start()
 
 if ('serviceWorker' in navigator) {
-  const updating = navigator.serviceWorker.controller !== null
-  const pwa = document.querySelector('link[rel="manifest"]') !== null
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (updating) {
-      location.reload()
-    }
-  })
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (event.data.type === 'openSession') {
       openSession({
@@ -68,17 +61,10 @@ if ('serviceWorker' in navigator) {
       }
     }
   })
-  navigator.serviceWorker
-    .register(
-      import.meta.env.DEV ? '/dev-sw.js?dev-sw' : pwa ? '/sw.js?pwa' : '/sw.js',
-      {
-        type: import.meta.env.DEV ? 'module' : 'classic',
-      }
-    )
-    .then(watchBrowserUpdate, (error: unknown) =>
-      log.error('could not register the service worker', error)
-    )
 }
+startBrowserUpdates().catch((error: unknown) =>
+  log.error('could not register the service worker', error)
+)
 
 void startTerminal()
 router.routeTree.update({ component: App })
