@@ -2,7 +2,7 @@ import {
   ArrowDown01Icon,
   CircleDashedIcon,
   CloudIcon,
-  Folder01Icon,
+  FolderGit2Icon,
   SearchIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -117,7 +117,7 @@ export function WorktreeBar(props: {
                   aria-label="Where the agent works"
                   orientation="horizontal"
                   value={worktree === null ? 'checkout' : 'worktree'}
-                  className="bg-foreground/5 flex h-5.5 shrink-0 items-center gap-0.5 rounded-[7px] p-0.5 shadow-[inset_0_1px_1px_rgb(0_0_0/0.04)]"
+                  className="bg-foreground/5 flex h-5.5 shrink-0 items-center gap-0.5 rounded-[7px] p-0.5 shadow-[inset_0_1px_1px_rgb(0_0_0/0.04)] dark:bg-transparent dark:shadow-none"
                   onMouseDown={(event) => event.preventDefault()}
                   onValueChange={(value) => {
                     if (value === 'checkout') {
@@ -144,7 +144,7 @@ export function WorktreeBar(props: {
                     value="checkout"
                     title="Work in this checkout"
                     aria-label="Checkout"
-                    className="text-muted-foreground hover:text-foreground data-[state=checked]:text-foreground focus-visible:ring-ring/40 relative flex h-4.5 shrink-0 cursor-pointer items-center gap-1 rounded-[5px] px-1.25 text-[0.6875rem] whitespace-nowrap transition-colors duration-150 outline-none focus-visible:ring-2"
+                    className="text-muted-foreground hover:text-foreground data-[state=checked]:text-foreground dark:data-[state=checked]:text-foreground/75 focus-visible:ring-ring/40 relative flex h-4.5 shrink-0 cursor-pointer items-center gap-1 rounded-[5px] px-1.25 text-[0.625rem] whitespace-nowrap transition-colors duration-150 outline-none focus-visible:ring-2"
                   >
                     {worktree === null && (
                       <motion.span
@@ -152,20 +152,20 @@ export function WorktreeBar(props: {
                         layoutDependency={worktree === null}
                         transition={spring}
                         style={{ borderRadius: 5 }}
-                        className="bg-background absolute inset-0 shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_0.5px_rgb(0_0_0/0.06)] dark:bg-white/12"
+                        className="bg-background absolute inset-0 shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_0.5px_rgb(0_0_0/0.06)] dark:bg-white/4"
                       />
                     )}
                     <HugeiconsIcon
-                      icon={Folder01Icon}
+                      icon={FolderGit2Icon}
                       className="relative size-3 shrink-0"
                     />
-                    <span className="relative">Checkout</span>
+                    <span className="relative [text-box:trim-both_cap_alphabetic]">Checkout</span>
                   </RadioGroup.Item>
                   <RadioGroup.Item
                     value="worktree"
                     title="Work in a new worktree"
                     aria-label="Worktree"
-                    className="text-muted-foreground hover:text-foreground data-[state=checked]:text-foreground focus-visible:ring-ring/40 relative flex h-4.5 shrink-0 cursor-pointer items-center gap-1 rounded-[5px] px-1.25 text-[0.6875rem] whitespace-nowrap transition-colors duration-150 outline-none focus-visible:ring-2"
+                    className="text-muted-foreground hover:text-foreground data-[state=checked]:text-foreground dark:data-[state=checked]:text-foreground/75 focus-visible:ring-ring/40 relative flex h-4.5 shrink-0 cursor-pointer items-center gap-1 rounded-[5px] px-1.25 text-[0.625rem] whitespace-nowrap transition-colors duration-150 outline-none focus-visible:ring-2"
                   >
                     {worktree !== null && (
                       <motion.span
@@ -173,14 +173,14 @@ export function WorktreeBar(props: {
                         layoutDependency={worktree === null}
                         transition={spring}
                         style={{ borderRadius: 5 }}
-                        className="bg-background absolute inset-0 shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_0.5px_rgb(0_0_0/0.06)] dark:bg-white/12"
+                        className="bg-background absolute inset-0 shadow-[0_1px_2px_rgb(0_0_0/0.08),0_0_0_0.5px_rgb(0_0_0/0.06)] dark:bg-white/4"
                       />
                     )}
                     <HugeiconsIcon
                       icon={NewWorktreeIcon}
                       className="relative size-3 shrink-0"
                     />
-                    <span className="relative">Worktree</span>
+                    <span className="relative [text-box:trim-both_cap_alphabetic]">Worktree</span>
                   </RadioGroup.Item>
                 </RadioGroup.Root>
               </LayoutGroup>
