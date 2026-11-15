@@ -1,6 +1,7 @@
 import {
   Add01Icon,
-  ArrowRight01Icon,
+  ArrowDown01Icon,
+  ArrowUp01Icon,
   Delete02Icon,
   DragDropVerticalIcon,
   Link01Icon,
@@ -9,6 +10,7 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Reorder, useDragControls } from 'motion/react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { useShallow } from 'zustand/shallow'
 import {
   connectAddresses,
   editMachine,
@@ -31,139 +33,19 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { MachineLogo } from '@/constants/machine-icons'
-import { AddMachineDialog } from '@/features/sidebar/machine-dialog'
 import { fullTime, providerNames } from '@/lib/format'
-import { type Machine, update, useStore } from '@/lib/store'
+import { type Machine, showSettingsPage, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 import { Row, Section, TextInput } from './controls'
 import { MachineIconPicker } from './machine-icon-picker'
+import { ServiceButton } from './service'
 
-const statuses = {
-  connecting: 'Connecting…',
-  online: 'Online',
-  offline: 'Offline',
-  unpaired: 'Needs pairing',
-}
-
-export function MachinesPage() {
-  const machines = useStore((state) => state.machines)
-  const edited = useStore((state) =>
-    state.machines.find((item) => item.id === state.settingsEditedMachine)
-  )
-  const [adding, setAdding] = useState(false)
-  const [order, setOrder] = useState<string[] | null>(null)
-  const listed =
-    order === null
-      ? machines
-      : [...machines].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
-
-  if (edited !== undefined) {
-    return <EditMachinePage machine={edited} />
-  }
-
-  return (
-    <>
-      <Section
-        title="Machines"
-        note="This browser connects to each one directly. The list stays in this browser"
-      >
-        <Reorder.Group
-          as="div"
-          axis="y"
-          className="divide-y"
-          values={listed.map((machine) => machine.id)}
-          onReorder={setOrder}
-        >
-          {listed.map((machine) => (
-            <ReorderRow
-              key={machine.id}
-              value={machine.id}
-              disabled={false}
-              className="min-h-13 gap-4"
-              onDragEnd={() => {
-                if (order !== null) {
-                  reorderMachines(order)
-                }
-                setOrder(null)
-              }}
-            >
-              <MachineLogo
-                icon={machine.icon}
-                className="text-muted-foreground size-5 shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="flex items-baseline gap-2">
-                  <span className="truncate text-sm font-medium">
-                    {machine.name}
-                  </span>
-                  {machine.system !== null && (
-                    <span className="text-muted-foreground shrink-0 text-xs">
-                      {machine.system.version}
-                    </span>
-                  )}
-                </p>
-                {machine.addresses.map((address) => (
-                  <p
-                    key={address}
-                    className="text-muted-foreground truncate font-mono text-xs"
-                  >
-                    {address}
-                  </p>
-                ))}
-                {machine.providers
-                  .filter((item) => item.state === 'error')
-                  .map((item) => (
-                    <p
-                      key={item.provider}
-                      className="text-destructive truncate text-xs"
-                      title={item.error ?? undefined}
-                    >
-                      {providerNames[item.provider]} threads: {item.error}
-                    </p>
-                  ))}
-              </div>
-              <span className="text-muted-foreground max-w-1/2 shrink-0 truncate text-xs">
-                {statuses[machine.status]}
-                {machine.status === 'online' &&
-                  machine.via !== null &&
-                  machine.via !== machine.addresses[0] &&
-                  ` · via ${new URL(machine.via).host}`}
-              </span>
-              <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  title="Reconnect, trying the first address first"
-                  onClick={() => reconnectMachine(machine.id)}
-                >
-                  <HugeiconsIcon icon={Refresh01Icon} />
-                </Button>
-                <Button
-                  size="icon-sm"
-                  variant="ghost-muted"
-                  title="Open machine"
-                  onClick={() => update({ settingsEditedMachine: machine.id })}
-                >
-                  <HugeiconsIcon icon={ArrowRight01Icon} />
-                </Button>
-              </div>
-            </ReorderRow>
-          ))}
-        </Reorder.Group>
-      </Section>
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
-          Add machine…
-        </Button>
-      </div>
-      {adding && <AddMachineDialog onClose={() => setAdding(false)} />}
-    </>
-  )
-}
-
-function EditMachinePage(props: { machine: Machine }) {
+export function ConnectionPage(props: { machine: Machine }) {
   const machine = props.machine
+  const machines = useStore(
+    useShallow((state) => state.machines.map((item) => item.id))
+  )
+  const position = machines.indexOf(machine.id)
   const [adding, setAdding] = useState(false)
   const [pairing, setPairing] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -179,6 +61,12 @@ function EditMachinePage(props: { machine: Machine }) {
       newAddress.current?.focus()
     }
   }, [adding])
+
+  function move(to: number) {
+    const ids = machines.filter((id) => id !== machine.id)
+    ids.splice(to, 0, machine.id)
+    reorderMachines(ids)
+  }
 
   function saveAddresses(addresses: string[]) {
     setError(null)
@@ -220,7 +108,54 @@ function EditMachinePage(props: { machine: Machine }) {
 
   return (
     <>
-      <Section title="Machine">
+      <Section title="Status">
+        <Row
+          label={
+            <span className="flex items-center gap-2.5">
+              <MachineStatusDot status={machine.status} />
+              <span className="min-w-0 truncate">
+                {machineStatuses[machine.status]}
+                {machine.status === 'online' &&
+                  machine.via !== null &&
+                  machine.via !== machine.addresses[0] && (
+                    <span className="text-muted-foreground font-normal">
+                      {' '}
+                      · via {new URL(machine.via).host}
+                    </span>
+                  )}
+              </span>
+            </span>
+          }
+        >
+          <Button
+            size="sm"
+            variant="outline"
+            title="Reconnect, trying the first address first"
+            onClick={() => reconnectMachine(machine.id)}
+          >
+            <HugeiconsIcon icon={Refresh01Icon} />
+            Reconnect
+          </Button>
+        </Row>
+        {machine.system !== null && (
+          <Row label="Version">
+            <span className="text-muted-foreground text-sm">
+              {machine.system.version}
+            </span>
+          </Row>
+        )}
+        {machine.providers
+          .filter((item) => item.state === 'error')
+          .map((item) => (
+            <p
+              key={item.provider}
+              className="text-destructive px-4 py-3 text-xs wrap-anywhere"
+            >
+              {providerNames[item.provider]} threads: {item.error}
+            </p>
+          ))}
+      </Section>
+      <Section title="Appearance" note="Only in this browser">
         <Row label="Name">
           <TextInput
             key={machine.label}
@@ -234,15 +169,40 @@ function EditMachinePage(props: { machine: Machine }) {
           />
         </Row>
         <MachineIconPicker machine={machine} />
+        {machines.length > 1 && (
+          <Row label="Position">
+            <div className="flex items-center gap-1">
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                title="Move up"
+                disabled={position === 0}
+                onClick={() => move(position - 1)}
+              >
+                <HugeiconsIcon icon={ArrowUp01Icon} />
+              </Button>
+              <span className="text-muted-foreground min-w-12 text-center text-sm tabular-nums">
+                {position + 1} of {machines.length}
+              </span>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                title="Move down"
+                disabled={position === machines.length - 1}
+                onClick={() => move(position + 1)}
+              >
+                <HugeiconsIcon icon={ArrowDown01Icon} />
+              </Button>
+            </div>
+          </Row>
+        )}
       </Section>
       {!locked && (
         <Section title="Pairing">
           <div className="flex min-h-13 items-center justify-between gap-4 px-4 py-2.5">
             {machine.pairedAt !== null && machine.status !== 'unpaired' && (
               <span className="text-sm">
-                {machine.pairedAt === null
-                  ? 'Paired'
-                  : `Paired ${fullTime(machine.pairedAt)}`}
+                Paired {fullTime(machine.pairedAt)}
               </span>
             )}
             {(machine.pairedAt === null || machine.status === 'unpaired') && (
@@ -360,6 +320,11 @@ function EditMachinePage(props: { machine: Machine }) {
           </button>
         )}
       </Section>
+      {machine.system !== null && machine.system.version !== 'dev' && (
+        <div className="flex justify-center">
+          <ServiceButton machine={machine.id} />
+        </div>
+      )}
       {error !== null && (
         <p className="text-destructive px-1 text-xs break-all">{error}</p>
       )}
@@ -384,7 +349,7 @@ function EditMachinePage(props: { machine: Machine }) {
                 variant="destructive"
                 icon={Delete02Icon}
                 onClick={() => {
-                  update({ settingsEditedMachine: null })
+                  showSettingsPage('General')
                   removeMachine(machine.id)
                 }}
               >
@@ -395,6 +360,28 @@ function EditMachinePage(props: { machine: Machine }) {
         </AlertDialog>
       )}
     </>
+  )
+}
+
+export const machineStatuses = {
+  connecting: 'Connecting…',
+  online: 'Online',
+  offline: 'Offline',
+  unpaired: 'Needs pairing',
+}
+
+export function MachineStatusDot(props: { status: Machine['status'] }) {
+  return (
+    <span
+      className={cn(
+        'size-2 shrink-0 rounded-full',
+        props.status === 'online' && 'bg-success',
+        props.status === 'unpaired' && 'bg-warning',
+        props.status === 'offline' && 'bg-muted-foreground/40',
+        props.status === 'connecting' &&
+          'bg-muted-foreground/40 animate-pulse motion-reduce:animate-none'
+      )}
+    />
   )
 }
 

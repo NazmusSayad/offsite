@@ -39,7 +39,7 @@ import {
   type MachineProject,
   type MachineSession,
   showPalette,
-  showSettingsPage,
+  showSettings,
   threadState,
   useStore,
 } from '@/lib/store'
@@ -141,7 +141,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
     } else if (machines.length > 0) {
       setAdding(machines[0].id)
     } else {
-      showSettingsPage('Machines')
+      showSettings(true)
     }
   }
 
