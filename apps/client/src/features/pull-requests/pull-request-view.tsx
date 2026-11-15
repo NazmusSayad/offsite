@@ -127,7 +127,7 @@ export function PullRequestView(props: {
     }
   }, [details, error])
 
-  async function perform(action: PullRequestAction, label: string) {
+  async function run(action: PullRequestAction) {
     setBusy(action.kind)
     try {
       await call(props.machine, 'pulls.run', {
@@ -136,16 +136,35 @@ export function PullRequestView(props: {
         url: props.url,
         action,
       })
-      setNotice({ kind: action.kind, text: label })
-      setTimeout(() => setNotice(null), 3000)
-      setVersion((value) => value + 1)
       return true
     } catch (caught) {
       showError(caught)
-      return false
-    } finally {
       setBusy(null)
+      return false
     }
+  }
+
+  async function perform(action: PullRequestAction, label: string) {
+    if (!(await run(action))) {
+      return false
+    }
+    try {
+      setDetails(
+        await call(props.machine, 'pulls.view', {
+          projectId: props.projectId,
+          worktreeId: props.worktreeId,
+          url: props.url,
+          fresh: true,
+        })
+      )
+    } catch (caught) {
+      showError(caught)
+    }
+    setNotice({ kind: action.kind, text: label })
+    setTimeout(() => setNotice(null), 3000)
+    setVersion((value) => value + 1)
+    setBusy(null)
+    return true
   }
 
   return (
@@ -464,6 +483,7 @@ export function PullRequestView(props: {
         busy={busy}
         notice={notice}
         onPerform={perform}
+        onRun={run}
         onClose={props.onClose}
       />
     </div>
