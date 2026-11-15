@@ -1,5 +1,4 @@
-import { readConfig } from '../storage/config.ts'
-import { generateText } from './generate-text.ts'
+import { generateText, type Thread } from './generate-text.ts'
 import { git } from './git.ts'
 
 const BRANCH_PREFIX = 'offsite/'
@@ -25,14 +24,13 @@ export type Named = {
   warning: string | null
 }
 
-export async function generatedName(cwd: string, text: string): Promise<Named> {
+export async function generatedName(
+  thread: Thread,
+  cwd: string,
+  text: string
+): Promise<Named> {
   const fallback = fallbackName(text)
-  const settings = readConfig().smallModel
-  if (
-    settings.provider === null ||
-    settings.model === null ||
-    text.trim() === ''
-  ) {
+  if (text.trim() === '') {
     return { branch: fallback, generated: true, warning: null }
   }
   const controller = new AbortController()
@@ -42,9 +40,12 @@ export async function generatedName(cwd: string, text: string): Promise<Named> {
     reply = await Promise.race([
       generateText(
         'branch-name',
+        thread,
         cwd,
-        NAME_INSTRUCTIONS,
-        text.slice(0, NAME_INPUT_LIMIT),
+        {
+          instructions: NAME_INSTRUCTIONS,
+          prompt: text.slice(0, NAME_INPUT_LIMIT),
+        },
         controller
       ),
       new Promise<never>((_resolve, reject) =>

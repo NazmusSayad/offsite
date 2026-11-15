@@ -39,6 +39,7 @@ export function PullRequestGuide(props: {
   machine: string
   projectId: string
   worktreeId: string | null
+  sessionId: string | null
   url: string
   head: string
   view: 'guidebook' | 'changes'
@@ -60,6 +61,7 @@ export function PullRequestGuide(props: {
         await call(props.machine, 'pulls.writeGuide', {
           projectId: props.projectId,
           worktreeId: props.worktreeId,
+          sessionId: props.sessionId,
           url: props.url,
         })
       )
@@ -88,6 +90,7 @@ export function PullRequestGuide(props: {
         const written = await call(props.machine, 'pulls.writeGuide', {
           projectId: props.projectId,
           worktreeId: props.worktreeId,
+          sessionId: props.sessionId,
           url: props.url,
         })
         if (current) {
@@ -107,7 +110,13 @@ export function PullRequestGuide(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.projectId, props.worktreeId, props.url])
+  }, [
+    props.machine,
+    props.projectId,
+    props.worktreeId,
+    props.sessionId,
+    props.url,
+  ])
 
   const guides = state?.guides ?? []
   const guide =

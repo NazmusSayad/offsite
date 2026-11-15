@@ -6,6 +6,7 @@ import type { WorktreeDetails, WorktreeStage } from '@offsite/core/git'
 import { keyedLock } from '../lib/locks.ts'
 import { home } from '../storage/storage.ts'
 import { chosenName, generatedName, type Named } from './branch-names.ts'
+import type { Thread } from './generate-text.ts'
 import { git, gitError } from './git.ts'
 
 const FETCH_TIMEOUT = 60_000
@@ -18,7 +19,12 @@ const locked = keyedLock()
 
 export async function createWorktree(
   repo: string,
-  request: { name: string | null; prompt: string; base: string | null },
+  request: {
+    name: string | null
+    prompt: string
+    base: string | null
+    thread: Thread
+  },
   onStage: (stage: WorktreeStage) => void
 ) {
   const top = await repoTop(repo)
@@ -34,7 +40,7 @@ export async function createWorktree(
         return start
       })(),
       request.name === null
-        ? generatedName(top, request.prompt)
+        ? generatedName(request.thread, top, request.prompt)
         : chosenName(top, request.name),
     ])
     const start = prepared[0]
@@ -56,12 +62,13 @@ export async function createWorktree(
 export async function moveIntoWorktree(
   repo: string,
   name: string | null,
-  title: string
+  title: string,
+  thread: Thread
 ) {
   const top = await repoTop(repo)
   const prefix = (await git(repo, ['rev-parse', '--show-prefix'])).stdout.trim()
   const named = await (name === null
-    ? generatedName(top, title)
+    ? generatedName(thread, top, title)
     : chosenName(top, name))
   return locked(top, async () => {
     const start = (await git(repo, ['rev-parse', 'HEAD'])).stdout.trim()

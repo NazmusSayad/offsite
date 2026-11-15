@@ -1,6 +1,7 @@
 import { history, Run } from '../lib/claude/index.ts'
 import { type Client, publish } from '../lib/hub.ts'
 import { runs } from '../lib/live.ts'
+import { threadSettings } from './generate-text.ts'
 import { moveToNewWorktree, worktreeState } from './project-worktrees.ts'
 import { locked } from './runs.ts'
 import { findSession, providerOf } from './sessions.ts'
@@ -36,11 +37,17 @@ export function moveToWorktree(
         'Wait for background tasks to finish before moving the chat'
       )
     }
+    const thread = threadSettings(sessionId)
     if (run !== undefined) {
       run.stop()
       await run.closed
     }
-    const worktree = await moveToNewWorktree(session, name, session.title)
+    const worktree = await moveToNewWorktree(
+      session,
+      name,
+      session.title,
+      thread
+    )
     placeSession(
       sessionId,
       { projectId: session.projectId, worktreeId: worktree.id },

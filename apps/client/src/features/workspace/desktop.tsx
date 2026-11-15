@@ -120,6 +120,7 @@ export function DesktopLayout() {
     machine: selection?.machine ?? '',
     projectId: selection?.projectId ?? '',
     worktreeId: selection?.worktreeId ?? null,
+    sessionId: selection?.sessionId ?? null,
     repos: git.repos,
     onRefresh: git.refresh,
   })
@@ -271,6 +272,7 @@ export function DesktopLayout() {
                   machine={selection.machine}
                   projectId={selection.projectId}
                   worktreeId={selection.worktreeId}
+                  sessionId={selection.sessionId}
                   repos={git.repos}
                   onRefresh={git.refresh}
                 />

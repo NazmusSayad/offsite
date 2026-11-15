@@ -20,14 +20,13 @@ import {
 import { projectOf, useStore } from '@/lib/store'
 import { isPullRequestUrl, openPullRequest } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
+import { type Action, eligible } from './eligible'
 import {
   BaseSelect,
   type Draft,
   PullRequestForm,
   type Target,
 } from './pull-request-form'
-
-export type Action = 'commit' | 'push' | 'pullRequest'
 
 const stateIcons = {
   working: CircleDashedIcon,
@@ -49,6 +48,7 @@ export function GitDialog(props: {
   machine: string
   projectId: string
   worktreeId: string | null
+  sessionId: string | null
   action: Action
   repos: GitRepo[]
   onClose: () => void
@@ -149,6 +149,7 @@ export function GitDialog(props: {
         repo,
         message,
         push: andPush,
+        sessionId: props.sessionId,
       })
       patch(repo, { state: 'done', text: done })
     })
@@ -183,6 +184,7 @@ export function GitDialog(props: {
       repo,
       base,
       commit: commitFirst,
+      sessionId: props.sessionId,
     })
     if (result.kind === 'open') {
       patch(repo, {
@@ -494,22 +496,6 @@ export function GitDialog(props: {
       </DialogContent>
     </Dialog>
   )
-}
-
-export function eligible(repos: GitRepo[], action: Action) {
-  if (action === 'commit') {
-    return repos.filter((repo) => repo.changed > 0)
-  }
-  if (action === 'push') {
-    return repos.filter(
-      (repo) =>
-        repo.branch !== null && (repo.upstream === null || repo.ahead > 0)
-    )
-  }
-  if (action === 'pullRequest') {
-    return repos.filter((repo) => repo.branch !== null)
-  }
-  throw new Error(`Unknown git action ${String(action)}`)
 }
 
 function repoName(path: string, projectName: string) {

@@ -111,10 +111,16 @@ async function finishedNotice(run: LiveRun) {
   ].filter((part) => part !== null)
   const asks = reply.slice(reply.lastIndexOf('\n') + 1).includes('?')
   const short = asks
-    ? await questionSummary(run.cwd, summary.request, reply)
+    ? await questionSummary(run.settings, run.cwd, summary.request, reply)
     : reply === '' && summary.actions.length === 0
       ? null
-      : await doneSummary(run.cwd, summary.request, summary.actions, reply)
+      : await doneSummary(
+          run.settings,
+          run.cwd,
+          summary.request,
+          summary.actions,
+          reply
+        )
   const text =
     short ?? (asks ? `${provider} asks a question` : `${provider} finished`)
   await notify({
@@ -213,6 +219,7 @@ async function requestNotice(run: LiveRun, request: PermissionRequest) {
   if (request.kind === 'plan') {
     const plan = plainText(request.plan)
     const short = await planSummary(
+      run.settings,
       run.cwd,
       (await turnSummary(run.sessionId, run.cwd)).request,
       plan

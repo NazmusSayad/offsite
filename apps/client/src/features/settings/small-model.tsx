@@ -1,13 +1,6 @@
-import {
-  type Config,
-  DEFAULT_SMALL_MODELS,
-  type SmallModel,
-} from '@offsite/core/config'
-import type { Account, Model } from '@offsite/core/providers'
-import { useEffect, useState } from 'react'
-import { call } from '@/api/connection'
+import { type Config, DEFAULT_SMALL_MODELS } from '@offsite/core/config'
+import type { Model, Provider } from '@offsite/core/providers'
 import { updateConfig } from '@/api/machine-config'
-import { ProviderIcon } from '@/components/icons'
 import {
   Select,
   SelectContent,
@@ -17,153 +10,58 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { providerNames } from '@/lib/format'
-import { errorMessage } from '@/lib/utils'
 import { Row, Section } from './controls'
+
+const DEFAULT = 'offsite:default'
 
 export function SmallModelSection(props: {
   machine: string
   config: Config
-  claudeAccounts: Account[]
-  codexAccounts: Account[]
-  openCode: { available: boolean }
+  provider: Provider
+  models: Model[]
 }) {
-  const settings = props.config.smallModel
-  const [models, setModels] = useState<Model[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (settings.provider === null) {
-      return
-    }
-    let current = true
-    setModels(null)
-    setError(null)
-    call(props.machine, 'capabilities', {
-      provider: settings.provider,
-      accountId: settings.accountId,
-      projectId: null,
-      worktreeId: null,
-    }).then(
-      (capabilities) => {
-        if (current) {
-          setModels(capabilities.models)
-        }
-      },
-      (caught: unknown) => {
-        if (current) {
-          setError(errorMessage(caught))
-        }
-      }
-    )
-    return () => {
-      current = false
-    }
-  }, [props.machine, settings.provider, settings.accountId])
-
-  function save(value: SmallModel) {
-    void updateConfig(props.machine, { ...props.config, smallModel: value })
-  }
+  const settings = props.config[props.provider]
+  const fallback =
+    props.provider === 'opencode' ? null : DEFAULT_SMALL_MODELS[props.provider]
 
   function choose(value: string) {
-    if (value === 'off') {
-      save({ provider: null, accountId: null, model: null })
-      return
-    }
-    if (value === 'opencode') {
-      save({ provider: 'opencode', accountId: null, model: null })
-      return
-    }
-    const account = [...props.claudeAccounts, ...props.codexAccounts].find(
-      (item) => item.id === value
-    )
-    if (account === undefined) {
-      throw new Error('That account was removed')
-    }
-    save({
-      provider: account.provider,
-      accountId: account.id,
-      model: DEFAULT_SMALL_MODELS[account.provider],
+    void updateConfig(props.machine, {
+      ...props.config,
+      [props.provider]: {
+        ...settings,
+        smallModel: value === DEFAULT ? null : value,
+      },
     })
   }
 
   return (
     <Section
       title="Small model"
-      note="Commits, pull requests, titles and branch names"
+      note="Titles, notifications, branch names, commits and pull requests, on the thread's account"
     >
-      <Row label="Account">
-        <Select
-          value={
-            settings.provider === null
-              ? 'off'
-              : settings.provider === 'opencode'
-                ? 'opencode'
-                : (settings.accountId ?? 'off')
-          }
-          onValueChange={choose}
-        >
+      <Row label="Model">
+        <Select value={settings.smallModel ?? DEFAULT} onValueChange={choose}>
           <SelectTrigger className="w-56">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="off">Off</SelectItem>
-            {[...props.claudeAccounts, ...props.codexAccounts].map(
-              (account) => (
-                <SelectItem
-                  key={account.id}
-                  value={account.id}
-                  disabled={!account.valid}
-                >
-                  <ProviderIcon
-                    provider={account.provider}
-                    className="size-4"
-                  />
-                  {`${providerNames[account.provider]} · ${account.name}`}
+            <SelectItem value={DEFAULT}>
+              {fallback === null
+                ? 'Thread’s model'
+                : `Default · ${props.models.find((model) => model.value === fallback)?.name ?? fallback}`}
+            </SelectItem>
+            {props.provider !== 'opencode' &&
+              props.models.map((model) => (
+                <SelectItem key={model.value} value={model.value}>
+                  {model.name}
                 </SelectItem>
-              )
-            )}
-            {props.openCode.available && (
-              <SelectItem value="opencode">
-                <ProviderIcon provider="opencode" className="size-4" />
-                {providerNames.opencode}
-              </SelectItem>
-            )}
-          </SelectContent>
-        </Select>
-      </Row>
-      {settings.provider !== null && (
-        <Row label="Model">
-          <Select
-            value={settings.model ?? undefined}
-            disabled={models === null}
-            onValueChange={(model) => save({ ...settings, model })}
-          >
-            <SelectTrigger className="w-56">
-              <SelectValue
-                placeholder={
-                  error !== null
-                    ? 'Unavailable'
-                    : models === null
-                      ? 'Loading…'
-                      : 'Choose a model'
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {settings.provider !== 'opencode' &&
-                (models ?? []).map((model) => (
-                  <SelectItem key={model.value} value={model.value}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-              {settings.provider === 'opencode' &&
-                [
-                  ...new Set((models ?? []).map((model) => model.description)),
-                ].map((provider) => (
+              ))}
+            {props.provider === 'opencode' &&
+              [...new Set(props.models.map((model) => model.description))].map(
+                (provider) => (
                   <SelectGroup key={provider}>
                     <SelectLabel>{provider}</SelectLabel>
-                    {(models ?? [])
+                    {props.models
                       .filter((model) => model.description === provider)
                       .map((model) => (
                         <SelectItem key={model.value} value={model.value}>
@@ -171,16 +69,11 @@ export function SmallModelSection(props: {
                         </SelectItem>
                       ))}
                   </SelectGroup>
-                ))}
-            </SelectContent>
-          </Select>
-        </Row>
-      )}
-      {error !== null && (
-        <p className="text-destructive px-4 py-3 text-xs wrap-anywhere">
-          {error}
-        </p>
-      )}
+                )
+              )}
+          </SelectContent>
+        </Select>
+      </Row>
     </Section>
   )
 }

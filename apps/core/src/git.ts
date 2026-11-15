@@ -111,6 +111,7 @@ export type GitMethods = {
       repo: string
       message: string
       push: boolean
+      sessionId: string | null
     }
     result: { message: string }
   }
@@ -153,6 +154,7 @@ export type GitMethods = {
       worktreeId: string | null
       repo: string
       staged: boolean
+      sessionId: string | null
     }
     result: string
   }
@@ -215,6 +217,7 @@ export type GitMethods = {
       repo: string
       base: string
       commit: boolean
+      sessionId: string | null
     }
     result: PullRequestDraft
   }

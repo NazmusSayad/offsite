@@ -9,14 +9,6 @@ const modelSetting = z.strictObject({
   hidden: z.boolean(),
 })
 
-const smallModel = z
-  .strictObject({
-    provider: z.enum(['claude', 'codex', 'opencode']).nullable().default(null),
-    accountId: z.string().nullable().default(null),
-    model: z.string().nullable().default(null),
-  })
-  .prefault({})
-
 const posixDir = z
   .string()
   .refine((value) => path.posix.isAbsolute(value), 'must be an absolute path')
@@ -66,14 +58,17 @@ function accountSchema(provider: 'claude' | 'codex') {
 
 const modelSettings = z.record(z.string(), modelSetting).default({})
 
+const smallModel = z.string().nullable().default(null)
+
 const configSchema: z.ZodType<Config> = z.strictObject({
-  version: z.literal(3).default(3),
+  version: z.literal(4).default(4),
   claude: z
     .strictObject({
       enabled: z.boolean().default(true),
       baseDir: platformDirs,
       accounts: z.array(accountSchema('claude')).default([]),
       models: modelSettings,
+      smallModel,
     })
     .prefault({}),
   codex: z
@@ -81,12 +76,14 @@ const configSchema: z.ZodType<Config> = z.strictObject({
       enabled: z.boolean().default(true),
       accounts: z.array(accountSchema('codex')).default([]),
       models: modelSettings,
+      smallModel,
     })
     .prefault({}),
   opencode: z
     .strictObject({
       enabled: z.boolean().default(true),
       models: modelSettings,
+      smallModel,
     })
     .prefault({}),
   workingDir: z
@@ -96,7 +93,6 @@ const configSchema: z.ZodType<Config> = z.strictObject({
       windows: workingDir(path.win32.isAbsolute),
     })
     .prefault({}),
-  smallModel,
   delivery: z.enum(['queue', 'steer']).default('steer'),
   autoSkipQuestionTimeout: z.number().positive().nullable().default(180),
   autoPermissionMode: z.enum(['bypass', 'allow', 'deny']).default('bypass'),
@@ -184,12 +180,15 @@ function migrate(value: unknown) {
     return value
   }
   if (!('version' in value)) {
-    return fromVersion2(fromVersion1(value))
+    return fromVersion3(fromVersion2(fromVersion1(value)))
   }
   if (value.version === 2) {
-    return fromVersion2(value)
+    return fromVersion3(fromVersion2(value))
   }
   if (value.version === 3) {
+    return fromVersion3(value)
+  }
+  if (value.version === 4) {
     return value
   }
   throw new Error(
@@ -242,6 +241,22 @@ function fromVersion2(value: object) {
       titles.provider === undefined || titles.provider === null
         ? commitMessage
         : titleGeneration,
+  }
+}
+
+function fromVersion3(value: object) {
+  const config: Record<string, unknown> = { ...value, version: 4 }
+  const chosen = (config.smallModel ?? {}) as Record<string, unknown>
+  delete config.smallModel
+  if (typeof chosen.provider !== 'string' || typeof chosen.model !== 'string') {
+    return config
+  }
+  return {
+    ...config,
+    [chosen.provider]: {
+      ...(config[chosen.provider] as object | undefined),
+      smallModel: chosen.model,
+    },
   }
 }
 

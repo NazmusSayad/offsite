@@ -6,7 +6,6 @@ import type {
   TerminalConfig,
   TerminalIdentity,
 } from '@offsite/core/config'
-import type { Account } from '@offsite/core/providers'
 import { shellIntegrationIssue } from '@offsite/core/shell-check'
 import { useState } from 'react'
 import { updateConfig } from '@/api/machine-config'
@@ -25,16 +24,12 @@ import { AgentsSection } from './agents'
 import { Row, Section, TextInput } from './controls'
 import { ServiceSection } from './service'
 import { ShellInput } from './shell-input'
-import { SmallModelSection } from './small-model'
 
 export function MachinePage(props: {
   machine: string
   config: Config
   platform: Platform
   defaultShell: string
-  claudeAccounts: Account[]
-  codexAccounts: Account[]
-  openCode: { available: boolean }
   onRestore: () => void
 }) {
   const workingDir = props.config.workingDir[props.platform] ?? ''
@@ -69,14 +64,6 @@ export function MachinePage(props: {
         defaultShell={props.defaultShell}
       />
       <AgentsSection machine={props.machine} config={props.config} />
-      <SmallModelSection
-        key={`small-model-${props.machine}`}
-        machine={props.machine}
-        config={props.config}
-        claudeAccounts={props.claudeAccounts}
-        codexAccounts={props.codexAccounts}
-        openCode={props.openCode}
-      />
       <div className="flex justify-center">
         <Button variant="ghost-muted" size="xs" onClick={props.onRestore}>
           Restore machine defaults

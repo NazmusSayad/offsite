@@ -42,7 +42,8 @@ export const pullRequestHandlers: Pick<
   'pulls.writeGuide': async (params) =>
     writeReviewGuide(
       (await localRepo(params, params.url)) ?? os.homedir(),
-      params.url
+      params.url,
+      params.sessionId
     ),
   'pulls.run': async (params) => {
     const local = await localRepo(params, params.url)

@@ -163,6 +163,7 @@ export function usePanelOptions(
           machine: props.selection.machine,
           projectId: props.selection.projectId,
           worktreeId: props.selection.worktreeId,
+          sessionId: props.selection.sessionId,
         }),
     },
   ]

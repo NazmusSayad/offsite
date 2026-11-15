@@ -2,11 +2,17 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type Options, query } from '@anthropic-ai/claude-agent-sdk'
+import {
+  DEFAULT_SMALL_MODELS,
+  type SessionSettings,
+} from '@offsite/core/config'
 import { claudeOptions } from '../lib/claude/index.ts'
 import { codexText } from '../lib/codex/index.ts'
+import { runs } from '../lib/live.ts'
 import { openCodeText } from '../lib/opencode/index.ts'
 import { readConfig } from '../storage/config.ts'
 import { db } from '../storage/db.ts'
+import { lastSettings } from '../storage/interactions.ts'
 import { generations } from '../storage/schema.ts'
 import { assertEnabled } from './accounts.ts'
 
@@ -19,45 +25,80 @@ const ISOLATED = {
   'commit-message': false,
 } satisfies Record<(typeof generations.$inferSelect)['task'], boolean>
 
+export type Thread = Pick<SessionSettings, 'provider' | 'accountId' | 'model'>
+
+export function threadSettings(sessionId: string | null): Thread {
+  const run = sessionId === null ? undefined : runs.get(sessionId)
+  if (run !== undefined) {
+    return run.settings
+  }
+  const last = lastSettings(sessionId)
+  if (last === undefined) {
+    throw new Error(
+      'Send a message in a thread first, so offsite knows which account to use'
+    )
+  }
+  return last
+}
+
+function smallModel(thread: Thread) {
+  const chosen = readConfig()[thread.provider].smallModel
+  if (chosen !== null) {
+    return chosen
+  }
+  if (thread.provider !== 'opencode') {
+    return DEFAULT_SMALL_MODELS[thread.provider]
+  }
+  if (thread.model === null) {
+    throw new Error(
+      'Choose a model for this thread, or a small model in Settings → OpenCode'
+    )
+  }
+  return thread.model
+}
+
 export async function generateText(
   task: keyof typeof ISOLATED,
+  thread: Thread,
   cwd: string,
-  instructions: string,
-  prompt: string,
+  text: { instructions: string; prompt: string },
   abortController?: AbortController
 ) {
-  const { provider, accountId, model } = readConfig().smallModel
-  if (provider === null || model === null) {
-    throw new Error('Choose a small model in Settings → General')
-  }
-  assertEnabled(provider, accountId)
+  assertEnabled(thread.provider, thread.accountId)
+  const model = smallModel(thread)
   async function reply(model: string) {
-    if (provider === 'codex') {
-      return codexText(accountId, cwd, model, instructions, prompt)
+    if (thread.provider === 'codex') {
+      return codexText(
+        thread.accountId,
+        cwd,
+        model,
+        text.instructions,
+        text.prompt
+      )
     }
-    if (provider === 'opencode') {
-      return openCodeText(cwd, model, `${instructions}\n\n${prompt}`)
+    if (thread.provider === 'opencode') {
+      return openCodeText(cwd, model, `${text.instructions}\n\n${text.prompt}`)
     }
     if (!ISOLATED[task]) {
       return claudeText(
-        claudeOptions(accountId, cwd),
+        claudeOptions(thread.accountId, cwd),
         model,
-        instructions,
-        prompt
+        text.instructions,
+        text.prompt
       )
     }
     const directory = await mkdtemp(path.join(tmpdir(), 'offsite-title-'))
     try {
       return await claudeText(
         {
-          ...claudeOptions(accountId, directory),
+          ...claudeOptions(thread.accountId, directory),
           strictMcpConfig: true,
           settings: { disableAllHooks: true },
           abortController,
         },
         model,
-        instructions,
-        prompt
+        text.instructions,
+        text.prompt
       )
     } finally {
       await rm(directory, { recursive: true, force: true })
@@ -65,11 +106,11 @@ export async function generateText(
   }
   const generation = {
     task,
-    provider,
-    account: accountId,
+    provider: thread.provider,
+    account: thread.accountId,
     model,
-    instructions,
-    input: prompt,
+    instructions: text.instructions,
+    input: text.prompt,
     createdAt: Date.now(),
   }
   let output

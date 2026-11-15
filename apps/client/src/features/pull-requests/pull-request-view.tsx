@@ -400,6 +400,7 @@ export function PullRequestView(props: {
               machine={props.machine}
               projectId={props.projectId}
               worktreeId={props.worktreeId}
+              sessionId={props.sessionId}
               url={details.url}
               head={details.headOid}
               view={tab === 'guide' ? 'guidebook' : 'changes'}

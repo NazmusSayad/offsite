@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../storage/db.ts'
 import { reviewGuides } from '../storage/schema.ts'
-import { generateText } from './generate-text.ts'
+import { generateText, threadSettings } from './generate-text.ts'
 import { gh, pullRequestDiff } from './pull-requests.ts'
 
 const DIFF_LIMIT = 100_000
@@ -104,7 +104,8 @@ export function reviewGuide(url: string): ReviewGuideState {
 
 export async function writeReviewGuide(
   cwd: string,
-  target: string
+  target: string,
+  sessionId: string | null
 ): Promise<ReviewGuideState> {
   const pull: {
     url: string
@@ -121,7 +122,8 @@ export async function writeReviewGuide(
       'url,headRefOid,title,body,files',
     ])
   )
-  const pending = running.get(pull.url) ?? saveGuide(cwd, target, pull)
+  const pending =
+    running.get(pull.url) ?? saveGuide(cwd, target, pull, sessionId)
   running.set(pull.url, pending)
   await pending
   return { guides: savedGuides(pull.url), running: false }
@@ -140,10 +142,11 @@ function savedGuides(url: string) {
 async function saveGuide(
   cwd: string,
   target: string,
-  pull: Parameters<typeof createGuide>[2] & { url: string }
+  pull: Parameters<typeof createGuide>[2] & { url: string },
+  sessionId: string | null
 ) {
   try {
-    const guide = await createGuide(cwd, target, pull)
+    const guide = await createGuide(cwd, target, pull, sessionId)
     db.insert(reviewGuides)
       .values({ id: `${pull.url}@${guide.head}`, url: pull.url, guide })
       .onConflictDoUpdate({ target: reviewGuides.id, set: { guide } })
@@ -162,7 +165,8 @@ async function createGuide(
     title: string
     body: string
     files: { path: string; additions: number; deletions: number }[]
-  }
+  },
+  sessionId: string | null
 ): Promise<ReviewGuide> {
   const patch = await pullRequestDiff(target, pull.headRefOid)
   const cut = patch.length > DIFF_LIMIT
@@ -182,7 +186,12 @@ async function createGuide(
     patch.slice(0, DIFF_LIMIT),
     '</diff>',
   ].join('\n')
-  const text = await generateText('review-guide', cwd, INSTRUCTIONS, prompt)
+  const text = await generateText(
+    'review-guide',
+    threadSettings(sessionId),
+    cwd,
+    { instructions: INSTRUCTIONS, prompt }
+  )
   const json = text
     .trim()
     .replace(/^```(?:json)?\s*/, '')

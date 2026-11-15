@@ -143,7 +143,12 @@ export type PullRequestMethods = {
     result: ReviewGuideState
   }
   'pulls.writeGuide': {
-    params: { projectId: string; worktreeId: string | null; url: string }
+    params: {
+      projectId: string
+      worktreeId: string | null
+      sessionId: string | null
+      url: string
+    }
     result: ReviewGuideState
   }
 }
