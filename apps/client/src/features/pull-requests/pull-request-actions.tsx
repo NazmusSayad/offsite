@@ -391,19 +391,18 @@ function MergeDialog(props: {
           {methodLabels[props.method].button} #{details.number}?
         </AlertDialogTitle>
         <AlertDialogDescription>
-          Merge <code>{details.head}</code> into <code>{details.base}</code>
-          {props.cleanup ? ', then delete the branch.' : '.'}
-          {waiting &&
-            ' If checks or reviews are still needed, GitHub merges it later, when they pass.'}
+          Merges into <code>{details.base}</code>
+          {props.cleanup ? ' and deletes the branch.' : '.'}
+          {waiting && ' Waits for required checks and reviews.'}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
-        <AlertDialogCancel>No</AlertDialogCancel>
+        <AlertDialogCancel>Cancel</AlertDialogCancel>
         <AlertDialogAction
           icon={methodLabels[props.method].icon}
           onClick={props.onConfirm}
         >
-          Yes, merge
+          Confirm
         </AlertDialogAction>
       </AlertDialogFooter>
     </>
