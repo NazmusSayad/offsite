@@ -1,8 +1,7 @@
 import { Add01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { WorktreeIcon } from '@offsite/core/icons/git'
-import { homePath, rankProjects } from '@/api/projects'
-import { MoreLabel, MoreProjectsLabel, ProjectIcon } from '@/components/icons'
+import { rankProjects } from '@/api/projects'
+import { MoreProjectsLabel, ProjectIcon } from '@/components/icons'
 import {
   ContextMenuItem,
   ContextMenuPortal,
@@ -21,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MachineLogo } from '@/constants/machine-icons'
-import { type MachineProject, projectOf, useStore } from '@/lib/store'
+import { type MachineProject, useStore } from '@/lib/store'
 import { cn, touch } from '@/lib/utils'
 import { useHoverMenu } from './hover-menu'
 import { createTab } from './page'
@@ -109,159 +108,34 @@ function ProjectItems(props: {
   part: 'top' | 'more'
 }) {
   const projects = useStore((store) => store.projects)
-  const worktrees = useStore((store) => store.worktrees)
   const menu = menuParts(props.contextMenu)
 
   return rankProjects(rootsOf(projects, props.machine))[props.part].map(
-    (project) =>
-      worktrees.some(
-        (item) =>
-          item.machine === props.machine && item.projectId === project.id
-      ) ? (
-        <menu.Sub key={project.id}>
-          <menu.SubTrigger className={cn(props.part === 'top' && 'pl-7')}>
-            <ProjectIcon
-              machine={props.machine}
-              projectId={project.id}
-              className="size-4"
-            />
-            <span className="max-w-60 truncate">{project.name}</span>
-            <span className="text-muted-foreground flex items-center gap-0.5 text-xs tabular-nums">
-              <HugeiconsIcon icon={WorktreeIcon} className="size-3.5" />
-              {
-                worktrees.filter(
-                  (item) =>
-                    item.machine === props.machine &&
-                    item.projectId === project.id
-                ).length
-              }
-            </span>
-          </menu.SubTrigger>
-          <menu.Portal>
-            <menu.SubContent className="max-h-80 overflow-y-auto">
-              <WorktreeItems
-                contextMenu={props.contextMenu}
-                machine={props.machine}
-                rootId={project.id}
-              />
-            </menu.SubContent>
-          </menu.Portal>
-        </menu.Sub>
-      ) : (
-        <menu.Item
-          key={project.id}
-          className={cn(props.part === 'top' && 'pl-7')}
-          onSelect={() =>
-            void createTab(props.machine, {
-              projectId: project.id,
-              worktreeId: null,
-            })
-          }
-        >
-          <ProjectIcon
-            machine={props.machine}
-            projectId={project.id}
-            className="size-4"
-          />
-          <span className="max-w-60 truncate">{project.name}</span>
-          {props.contextMenu !== true && (
-            <HugeiconsIcon
-              icon={Add01Icon}
-              className="text-muted-foreground ml-auto hidden size-4 pointer-coarse:block"
-            />
-          )}
-        </menu.Item>
-      )
-  )
-}
-
-function WorktreeItems(props: {
-  contextMenu?: boolean
-  machine: string
-  rootId: string
-}) {
-  const project = useStore((store) =>
-    projectOf(store, props.machine, props.rootId)
-  )
-  const worktrees = useStore((store) => store.worktrees)
-  const menu = menuParts(props.contextMenu)
-  const home = useStore(
-    (store) =>
-      store.machines.find((machine) => machine.id === props.machine)?.system
-        ?.homeDir
-  )
-
-  const family = [
-    ...(project === undefined
-      ? []
-      : [
-          {
-            id: project.id,
-            worktreeId: null,
-            path: project.path,
-            name: project.name,
-          },
-        ]),
-    ...worktrees
-      .filter(
-        (worktree) =>
-          worktree.machine === props.machine &&
-          worktree.projectId === props.rootId
-      )
-      .map((worktree) => ({
-        id: worktree.id,
-        worktreeId: worktree.id,
-        path: worktree.path,
-        name:
-          home === undefined ? worktree.path : homePath(worktree.path, home),
-      })),
-  ]
-
-  function item(entry: (typeof family)[number]) {
-    return (
+    (project) => (
       <menu.Item
-        key={entry.id}
-        title={entry.path}
+        key={project.id}
+        className={cn(props.part === 'top' && 'pl-7')}
         onSelect={() =>
           void createTab(props.machine, {
-            projectId: props.rootId,
-            worktreeId: entry.worktreeId,
+            projectId: project.id,
+            worktreeId: null,
           })
         }
       >
-        {entry.worktreeId === null ? (
-          <ProjectIcon
-            machine={props.machine}
-            projectId={props.rootId}
-            className="size-4"
+        <ProjectIcon
+          machine={props.machine}
+          projectId={project.id}
+          className="size-4"
+        />
+        <span className="max-w-60 truncate">{project.name}</span>
+        {props.contextMenu !== true && (
+          <HugeiconsIcon
+            icon={Add01Icon}
+            className="text-muted-foreground ml-auto hidden size-4 pointer-coarse:block"
           />
-        ) : (
-          <HugeiconsIcon icon={WorktreeIcon} />
         )}
-        <span className="max-w-80 truncate">{entry.name}</span>
       </menu.Item>
     )
-  }
-
-  return (
-    <>
-      {family.slice(0, 6).map(item)}
-      {family.length > 6 && (
-        <menu.Sub>
-          <menu.SubTrigger>
-            <MoreLabel
-              text={`${family.length - 6} more worktrees`}
-              className="size-4"
-            />
-          </menu.SubTrigger>
-          <menu.Portal>
-            <menu.SubContent className="max-h-80 overflow-y-auto">
-              {family.slice(6).map(item)}
-            </menu.SubContent>
-          </menu.Portal>
-        </menu.Sub>
-      )}
-    </>
   )
 }
 
