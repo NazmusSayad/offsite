@@ -81,6 +81,7 @@ export function PullRequestActions(props: {
   busy: PullRequestAction['kind'] | null
   notice: Notice | null
   onPerform: Perform
+  onRun: (action: PullRequestAction) => Promise<boolean>
   onClose: () => void
 }) {
   const details = props.details
@@ -238,6 +239,13 @@ export function PullRequestActions(props: {
                   `Merged #${details.number}`
                 )
               }
+              onMerge={() =>
+                props.onRun({
+                  kind: 'merge',
+                  method,
+                  deleteBranch: cleanup && !details.crossRepository,
+                })
+              }
               onClose={() => setMerging(false)}
               onDone={props.onClose}
             />
@@ -365,6 +373,7 @@ function MergeDialog(props: {
   machine: string
   sessionId: string | null
   onConfirm: () => Promise<boolean>
+  onMerge: () => Promise<boolean>
   onClose: () => void
   onDone: () => void
 }) {
@@ -411,14 +420,14 @@ function MergeDialog(props: {
               onClick={async (event) => {
                 event.preventDefault()
                 setFinishing(true)
-                if (!(await props.onConfirm())) {
+                if (!(await props.onMerge())) {
                   setFinishing(false)
                   return
                 }
                 props.onClose()
                 await untilGuardLeft()
-                await deactivateSession(props.machine, sessionId, scope)
                 props.onDone()
+                void deactivateSession(props.machine, sessionId, scope)
               }}
             >
               {finishing && (
