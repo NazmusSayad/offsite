@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@/components/error-boundary'
 import { warmHighlighter } from '@/components/markdown/warm-highlighter'
 import { loadDrafts } from '@/features/composer/drafts'
 import { startTerminal } from '@/features/terminal/session'
+import { watchBrowserUpdate } from '@/lib/browser-update'
 import { logger, startLogging } from '@/lib/log'
 import { refreshPushSubscription } from '@/lib/notifications'
 import { router } from '@/lib/router'
@@ -23,6 +24,27 @@ const root = document.getElementById('root')
 if (!root) {
   throw new Error('root element missing')
 }
+
+addEventListener(
+  'keydown',
+  (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'w') {
+      event.preventDefault()
+    }
+  },
+  { capture: true }
+)
+
+await loadDrafts()
+startConnections()
+listen({
+  open: (machine) => {
+    refreshPushSubscription(machine).catch((error: unknown) =>
+      log.error('could not refresh the push subscription', error)
+    )
+  },
+})
+start()
 
 if ('serviceWorker' in navigator) {
   const updating = navigator.serviceWorker.controller !== null
@@ -53,31 +75,11 @@ if ('serviceWorker' in navigator) {
         type: import.meta.env.DEV ? 'module' : 'classic',
       }
     )
-    .catch((error: unknown) =>
+    .then(watchBrowserUpdate, (error: unknown) =>
       log.error('could not register the service worker', error)
     )
 }
 
-addEventListener(
-  'keydown',
-  (event) => {
-    if ((event.metaKey || event.ctrlKey) && event.key === 'w') {
-      event.preventDefault()
-    }
-  },
-  { capture: true }
-)
-
-await loadDrafts()
-startConnections()
-listen({
-  open: (machine) => {
-    refreshPushSubscription(machine).catch((error: unknown) =>
-      log.error('could not refresh the push subscription', error)
-    )
-  },
-})
-start()
 void startTerminal()
 router.routeTree.update({ component: App })
 createRoot(root).render(

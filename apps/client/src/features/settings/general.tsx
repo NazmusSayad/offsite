@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip } from '@/components/ui/tooltip'
+import { applyBrowserUpdate, checkBrowserUpdate } from '@/lib/browser-update'
 import { logger } from '@/lib/log'
 import type { Prefs } from '@/lib/prefs'
 import { showError, updatePrefs, useStore } from '@/lib/store'
@@ -90,8 +91,9 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
 }
 
 function UpdateRow() {
+  const available = useStore((state) => state.browserUpdate)
   const [status, setStatus] = useState<
-    'idle' | 'checking' | 'current' | 'available' | 'updating'
+    'idle' | 'checking' | 'current' | 'updating'
   >('idle')
   const [failure, setFailure] = useState<string | null>(null)
 
@@ -107,11 +109,7 @@ function UpdateRow() {
         location.reload()
         return
       }
-      await registration.update()
-      if (registration.installing !== null) {
-        await reached(registration.installing, ['installed', 'activated'])
-      }
-      setStatus(registration.waiting === null ? 'current' : 'available')
+      setStatus((await checkBrowserUpdate(registration)) ? 'idle' : 'current')
     } catch (error) {
       log.error('could not check for updates', error)
       setFailure(`Could not check for updates: ${errorMessage(error)}`)
@@ -123,14 +121,7 @@ function UpdateRow() {
     setStatus('updating')
     setFailure(null)
     try {
-      const registration = await navigator.serviceWorker.getRegistration()
-      if (registration === undefined || registration.waiting === null) {
-        throw new Error('the new version is no longer waiting')
-      }
-      const worker = registration.waiting
-      worker.postMessage({ type: 'skipWaiting' })
-      await reached(worker, ['activated'])
-      location.reload()
+      await applyBrowserUpdate()
     } catch (error) {
       log.error('could not update', error)
       setFailure(`Could not update: ${errorMessage(error)}`)
@@ -146,16 +137,13 @@ function UpdateRow() {
             {failure}
           </span>
         )}
-        {status === 'current' && (
+        {status === 'current' && !available && (
           <span className="text-muted-foreground text-xs">Up to date</span>
-        )}
-        {status === 'available' && (
-          <span className="text-xs">Update available</span>
         )}
         <span className="text-muted-foreground text-sm">
           {process.env.OFFSITE_VERSION ?? 'dev'}
         </span>
-        {status === 'available' || status === 'updating' ? (
+        {available || status === 'updating' ? (
           <Button
             size="sm"
             disabled={status === 'updating'}
@@ -182,21 +170,6 @@ function UpdateRow() {
       </div>
     </Row>
   )
-}
-
-async function reached(worker: ServiceWorker, states: ServiceWorkerState[]) {
-  await new Promise<void>((resolve, reject) => {
-    function settle() {
-      if (states.includes(worker.state)) {
-        resolve()
-      }
-      if (worker.state === 'redundant') {
-        reject(new Error('the new version failed to install'))
-      }
-    }
-    worker.addEventListener('statechange', settle)
-    settle()
-  })
 }
 
 function AppIconRow() {

@@ -133,6 +133,7 @@ export type State = {
   exporting: MachineSession | null
   removingWorktree: { machine: string; worktreeId: string } | null
   pairingFailure: string | null
+  browserUpdate: boolean
   settingsOpen: boolean
   settingsPage: SettingsPage
   settingsAccount: string | null
