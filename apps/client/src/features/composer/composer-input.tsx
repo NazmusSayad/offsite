@@ -11,7 +11,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import { useEffect, useLayoutEffect } from 'react'
 import { skillPill, skillRanges } from '@/lib/skills'
 import { getState, showError } from '@/lib/store'
-import { cn } from '@/lib/utils'
+import { cn, touch } from '@/lib/utils'
 import { Attachment } from './composer-attachment'
 import { copiedPrompt, copyPrompt, pastePrompt } from './copy'
 import { prepareDraftFiles, useDraft } from './drafts'
@@ -169,6 +169,38 @@ export function ComposerInput(props: {
     return () => {
       mounted = null
     }
+  }, [editor])
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.key.length !== 1 ||
+        event.key === ' ' ||
+        touch.matches ||
+        !editor.isEditable ||
+        editor.view.hasFocus() ||
+        editor.view.dom.getClientRects().length === 0 ||
+        document.getSelection()?.isCollapsed === false ||
+        (event.target instanceof Element &&
+          event.target.closest(
+            'input, textarea, select, [contenteditable], [role="textbox"], [role="dialog"], [role="alertdialog"], [role="menu"], [role="menubar"], [role="listbox"], [role="combobox"], [role="grid"], [role="tree"], [role="tablist"], [role="radiogroup"], [role="slider"], [role="spinbutton"]'
+          ) !== null)
+      ) {
+        return
+      }
+      event.preventDefault()
+      editor.view.focus()
+      editor.view.dispatch(
+        editor.state.tr.insertText(event.key).scrollIntoView()
+      )
+    }
+    addEventListener('keydown', onKeyDown)
+    return () => removeEventListener('keydown', onKeyDown)
   }, [editor])
 
   useLayoutEffect(() => {
