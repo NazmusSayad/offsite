@@ -36,7 +36,6 @@ import {
   machineOf,
   type SettingsPage,
   showSettings,
-  showMachineSettings,
   showSettingsPage,
   update,
   updatePrefs,
@@ -48,6 +47,7 @@ import { DictationPage } from './dictation'
 import { EditorPage } from './editor'
 import { GeneralPage } from './general'
 import { MachinePage } from './machine'
+import { MachineNav } from './machine-nav'
 import { NotificationsPage } from './notifications'
 import { ProjectsPage } from './projects'
 import { ProviderPage } from './provider'
@@ -173,20 +173,7 @@ function SettingsPanel() {
                 </Button>
               </div>
               {view.flat && machinePages.map(navButton)}
-              {!view.flat &&
-                view.machines.map((item) => (
-                  <button
-                    key={item.id}
-                    className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-9 flex-none items-center gap-2 rounded-md px-2 text-sm transition-colors"
-                    onClick={() => showMachineSettings(item.id)}
-                  >
-                    <MachineLogo icon={item.icon} className="size-4 shrink-0" />
-                    <span className="min-w-0 flex-1 truncate text-left">
-                      {item.name}
-                    </span>
-                    <MachineStatusDot status={item.status} />
-                  </button>
-                ))}
+              {!view.flat && <MachineNav machines={view.machines} />}
             </div>
           </>
         )}

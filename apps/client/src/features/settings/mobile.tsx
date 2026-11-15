@@ -4,6 +4,7 @@ import {
   ArrowRight01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { Reorder } from 'motion/react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -19,7 +20,7 @@ import {
 } from '@/lib/store'
 import { useCloseOnBack } from '@/lib/url'
 import { cn } from '@/lib/utils'
-import { MachineStatusDot, machineStatuses } from './connection'
+import { MachineStatusDot, machineStatuses, ReorderRow } from './connection'
 import { Section } from './controls'
 import {
   browserPages,
@@ -29,6 +30,7 @@ import {
   SettingsContent,
   useSettingsView,
 } from './dialog'
+import { useMachineOrder } from './machine-nav'
 
 export function MobileSettings() {
   const open = useStore((state) => state.settingsOpen)
@@ -52,6 +54,7 @@ function MobileSettingsPanel() {
   const view = useSettingsView()
   const machine = view.machine
   const [adding, setAdding] = useState(false)
+  const list = useMachineOrder(view.machines)
   useCloseOnBack(true, back)
 
   function back() {
@@ -152,14 +155,29 @@ function MobileSettingsPanel() {
                   Add machine
                 </Button>
               </div>
-              {view.machines.length > 0 && (
+              {view.flat && (
                 <div className="divide-y overflow-hidden rounded-xl border">
-                  {view.flat && machinePages.map(pageRow)}
-                  {!view.flat &&
-                    view.machines.map((item) => (
+                  {machinePages.map(pageRow)}
+                </div>
+              )}
+              {!view.flat && view.machines.length > 0 && (
+                <Reorder.Group
+                  as="div"
+                  axis="y"
+                  className="divide-y overflow-hidden rounded-xl border"
+                  values={list.machines.map((item) => item.id)}
+                  onReorder={list.reorder}
+                >
+                  {list.machines.map((item) => (
+                    <ReorderRow
+                      key={item.id}
+                      value={item.id}
+                      disabled={false}
+                      className="gap-0 py-0 pr-0"
+                      onDragEnd={list.save}
+                    >
                       <button
-                        key={item.id}
-                        className="active:bg-accent flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm font-medium"
+                        className="active:bg-accent flex min-h-12 min-w-0 flex-1 items-center gap-3 pr-4 pl-3 text-left text-sm font-medium"
                         onClick={() => showMachineSettings(item.id)}
                       >
                         <MachineLogo
@@ -178,8 +196,9 @@ function MobileSettingsPanel() {
                           className="text-muted-foreground size-4 shrink-0"
                         />
                       </button>
-                    ))}
-                </div>
+                    </ReorderRow>
+                  ))}
+                </Reorder.Group>
               )}
             </section>
             {adding && <AddMachineDialog onClose={() => setAdding(false)} />}
