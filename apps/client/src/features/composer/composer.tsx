@@ -350,6 +350,7 @@ export function Composer(props: {
               newThread={hero}
               markers={markers}
               files={knownFiles}
+              draft={key}
               onEdit={edit}
               onCaret={setCaret}
               onPaste={(event) => {
