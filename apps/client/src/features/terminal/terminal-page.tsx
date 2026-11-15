@@ -138,7 +138,8 @@ export function TerminalGroups() {
               (item) =>
                 item.machine.id === group.machine.id &&
                 item.place.worktreeId !== null &&
-                item.place.projectId === group.place.projectId
+                item.place.projectId === group.place.projectId &&
+                item.count > 0
             )}
           />
           {rows[index + 1]?.machine.id !== group.machine.id && (
@@ -290,7 +291,8 @@ function WorktreeGroups(props: { machine: string; rootId: string | null }) {
   const groups = useGroups().filter(
     (group) =>
       group.machine.id === props.machine &&
-      group.place.projectId === props.rootId
+      group.place.projectId === props.rootId &&
+      (group.place.worktreeId === null || group.count > 0)
   )
 
   const home = useStore(
