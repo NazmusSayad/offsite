@@ -20,11 +20,6 @@ export function moveToWorktree(
     if (session === null) {
       throw new Error('offsite cannot find this chat, reload the page')
     }
-    if (session.claudeWorktree) {
-      throw new Error(
-        'Claude Code moved this chat into its own worktree. Ask it to leave that worktree first'
-      )
-    }
     const run = runs.get(sessionId)
     if (run !== undefined && run.provider !== 'claude') {
       throw new Error('Only Claude Code chats can move to a new worktree')
@@ -48,11 +43,10 @@ export function moveToWorktree(
       session.title,
       thread
     )
-    placeSession(
-      sessionId,
-      { projectId: session.projectId, worktreeId: worktree.id },
-      false
-    )
+    placeSession(sessionId, {
+      projectId: session.projectId,
+      worktreeId: worktree.id,
+    })
     if (worktree.warning !== null) {
       client.send({ type: 'warning', message: worktree.warning })
     }
@@ -99,11 +93,7 @@ export function moveToMain(sessionId: string) {
       run.stop()
       await run.closed
     }
-    placeSession(
-      sessionId,
-      { projectId: session.projectId, worktreeId: null },
-      false
-    )
+    placeSession(sessionId, { projectId: session.projectId, worktreeId: null })
     return null
   })
 }

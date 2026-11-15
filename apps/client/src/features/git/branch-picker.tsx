@@ -136,10 +136,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
     (state) => projectOf(state, machine, projectId)?.scratch === true
   )
   const movable =
-    session !== undefined &&
-    session.provider === 'claude' &&
-    !session.claudeWorktree &&
-    !scratch
+    session !== undefined && session.provider === 'claude' && !scratch
   const [moving, setMoving] = useState(false)
   const [confirmingMove, setConfirmingMove] = useState(false)
 

@@ -23,16 +23,8 @@ import {
   threadsReady,
 } from './threads.ts'
 
-export function placeSession(
-  sessionId: string,
-  place: Place,
-  claudeWorktree: boolean
-) {
-  const values = {
-    projectId: place.projectId,
-    worktreeId: place.worktreeId,
-    claudeWorktree,
-  }
+export function placeSession(sessionId: string, place: Place) {
+  const values = { projectId: place.projectId, worktreeId: place.worktreeId }
   db.insert(sessionPlaces)
     .values({ sessionId, ...values })
     .onConflictDoUpdate({ target: sessionPlaces.sessionId, set: values })
@@ -45,10 +37,9 @@ export function placeSession(
 export async function followClaudeFolder(
   sessionId: string,
   cwd: string,
-  folder: string,
-  change: 'entered' | 'left' | 'started'
+  folder: string
 ) {
-  placeSession(sessionId, await placeAtFolder(cwd, folder), change !== 'left')
+  placeSession(sessionId, await placeAtFolder(cwd, folder))
 }
 
 export async function unusedWorktree(place: Place) {

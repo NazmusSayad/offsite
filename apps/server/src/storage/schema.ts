@@ -38,7 +38,6 @@ export const sessionPlaces = snakeCase.table('session_places', {
   sessionId: text().primaryKey(),
   projectId: text().notNull(),
   worktreeId: text().references(() => worktrees.id, { onDelete: 'cascade' }),
-  claudeWorktree: integer({ mode: 'boolean' }).notNull().default(false),
 })
 
 export const sessionOpens = snakeCase.table('session_opens', {

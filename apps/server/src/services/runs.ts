@@ -363,7 +363,6 @@ async function submitFirst(
     worktreeId: place.worktreeId,
     branch: null,
     updatedAt: Date.now(),
-    claudeWorktree: false,
   }
   if (chosen !== 'inactive') {
     recordInteraction(sessionId, run.provider, chosen ?? request.status)
