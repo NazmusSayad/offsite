@@ -90,11 +90,13 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
 }
 
 function UpdateRow() {
-  const [updating, setUpdating] = useState(false)
+  const [status, setStatus] = useState<
+    'idle' | 'checking' | 'current' | 'available' | 'updating'
+  >('idle')
   const [failure, setFailure] = useState<string | null>(null)
 
-  async function update() {
-    setUpdating(true)
+  async function check() {
+    setStatus('checking')
     setFailure(null)
     try {
       const registration =
@@ -102,24 +104,37 @@ function UpdateRow() {
           ? await navigator.serviceWorker.getRegistration()
           : undefined
       if (registration === undefined) {
-        const response = await fetch(`/?update=${Date.now()}`, {
-          cache: 'no-store',
-        })
-        if (!response.ok) {
-          throw new Error(`the server answered ${response.status}`)
-        }
-      } else {
-        await registration.update()
-        const worker = registration.installing ?? registration.waiting
-        if (worker !== null) {
-          await activated(worker)
-        }
+        location.reload()
+        return
       }
+      await registration.update()
+      if (registration.installing !== null) {
+        await reached(registration.installing, ['installed', 'activated'])
+      }
+      setStatus(registration.waiting === null ? 'current' : 'available')
+    } catch (error) {
+      log.error('could not check for updates', error)
+      setFailure(`Could not check for updates: ${errorMessage(error)}`)
+      setStatus('idle')
+    }
+  }
+
+  async function update() {
+    setStatus('updating')
+    setFailure(null)
+    try {
+      const registration = await navigator.serviceWorker.getRegistration()
+      if (registration === undefined || registration.waiting === null) {
+        throw new Error('the new version is no longer waiting')
+      }
+      const worker = registration.waiting
+      worker.postMessage({ type: 'skipWaiting' })
+      await reached(worker, ['activated'])
       location.reload()
     } catch (error) {
       log.error('could not update', error)
-      setFailure(errorMessage(error))
-      setUpdating(false)
+      setFailure(`Could not update: ${errorMessage(error)}`)
+      setStatus('idle')
     }
   }
 
@@ -128,32 +143,51 @@ function UpdateRow() {
       <div className="flex items-center gap-3">
         {failure !== null && (
           <span className="text-destructive text-xs wrap-anywhere">
-            Could not update: {failure}
+            {failure}
           </span>
+        )}
+        {status === 'current' && (
+          <span className="text-muted-foreground text-xs">Up to date</span>
+        )}
+        {status === 'available' && (
+          <span className="text-xs">Update available</span>
         )}
         <span className="text-muted-foreground text-sm">
           {process.env.OFFSITE_VERSION ?? 'dev'}
         </span>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={updating}
-          onClick={() => void update()}
-        >
-          {updating && (
-            <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
-          )}
-          {updating ? 'Updating…' : 'Update'}
-        </Button>
+        {status === 'available' || status === 'updating' ? (
+          <Button
+            size="sm"
+            disabled={status === 'updating'}
+            onClick={() => void update()}
+          >
+            {status === 'updating' && (
+              <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
+            )}
+            {status === 'updating' ? 'Updating…' : 'Update'}
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={status === 'checking'}
+            onClick={() => void check()}
+          >
+            {status === 'checking' && (
+              <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
+            )}
+            {status === 'checking' ? 'Checking…' : 'Check for updates'}
+          </Button>
+        )}
       </div>
     </Row>
   )
 }
 
-async function activated(worker: ServiceWorker) {
+async function reached(worker: ServiceWorker, states: ServiceWorkerState[]) {
   await new Promise<void>((resolve, reject) => {
     function settle() {
-      if (worker.state === 'activated') {
+      if (states.includes(worker.state)) {
         resolve()
       }
       if (worker.state === 'redundant') {
