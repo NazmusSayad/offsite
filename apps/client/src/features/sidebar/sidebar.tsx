@@ -204,7 +204,9 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
       session,
       selected: chatSelected(selection, session),
       activity: activityOf(machines, session.machine, session.id),
-      unseen: unseen.includes(machineKey(session.machine, session.id)),
+      unseen:
+        session.status !== 'inactive' &&
+        unseen.includes(machineKey(session.machine, session.id)),
       saved: chatSessionId(session.id) !== null,
       scope,
       onSelect: (chat: MachineSession) => openSession(chatSelection(chat)),

@@ -86,7 +86,8 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
                   activity: entry[1],
                   done: threadState(
                     entry[1],
-                    unseen.includes(machineKey(machine.id, entry[0]))
+                    session.status !== 'inactive' &&
+                      unseen.includes(machineKey(machine.id, entry[0]))
                   ).done,
                   account:
                     accounts.find(
