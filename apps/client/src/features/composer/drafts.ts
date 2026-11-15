@@ -8,6 +8,7 @@ import {
   type PersistStorage,
   type StorageValue,
 } from 'zustand/middleware'
+import { readBase64 } from '@/api/upload'
 
 type Draft = {
   text: string
@@ -18,10 +19,16 @@ type Draft = {
 type Stash = Omit<Draft, 'settings'> & { id: string; createdAt: number }
 type Drafts = { drafts: Record<string, Draft>; stash: Stash[] }
 
+const COPY_LIMIT = 10 * 1024 * 1024
+
 const storageKey = 'composerDrafts'
 const empty: Draft = { text: '', images: [], files: [], settings: null }
 const database = createStore('offsite-drafts', 'drafts')
 const fileDatabase = createStore('offsite-draft-files', 'files')
+const fileCopies = new Map<
+  string,
+  { type: string; data: string } | 'too large' | 'missing'
+>()
 const save = debounce(
   (value: StorageValue<Drafts>) => void set(storageKey, value, database),
   300
@@ -65,6 +72,7 @@ export function editDraft(key: string, change: (draft: Draft) => Draft) {
       !draft.files.some((other) => other.id === file.id) &&
       !stash.some((item) => item.files.some((other) => other.id === file.id))
     ) {
+      fileCopies.delete(file.id)
       void del(file.id, fileDatabase)
     }
   }
@@ -85,7 +93,32 @@ export function editDraft(key: string, change: (draft: Draft) => Draft) {
 export async function saveDraftFile(file: File) {
   const id = crypto.randomUUID()
   await set(id, file, fileDatabase)
+  fileCopies.set(id, await copyOf(file))
   return id
+}
+
+export async function prepareDraftFiles(files: { id: string }[]) {
+  for (const file of files) {
+    if (fileCopies.has(file.id)) {
+      continue
+    }
+    const saved = await loadDraftFile(file.id)
+    fileCopies.set(
+      file.id,
+      saved === undefined ? 'missing' : await copyOf(saved)
+    )
+  }
+}
+
+export function draftFileCopy(id: string) {
+  return fileCopies.get(id)
+}
+
+async function copyOf(file: File) {
+  if (file.size > COPY_LIMIT) {
+    return 'too large'
+  }
+  return { type: file.type, data: await readBase64(file) }
 }
 
 export async function loadDraftFile(id: string) {
@@ -199,6 +232,7 @@ export function deleteStash(id: string) {
     stash: state.stash.filter((stashed) => stashed.id !== id),
   }))
   for (const file of item.files) {
+    fileCopies.delete(file.id)
     void del(file.id, fileDatabase)
   }
 }
