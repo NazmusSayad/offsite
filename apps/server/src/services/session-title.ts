@@ -1,6 +1,6 @@
 import type { Item } from '@offsite/core/items'
 import { titleJobs } from '../lib/live.ts'
-import { generateText } from './generate-text.ts'
+import { generateText, threadSettings } from './generate-text.ts'
 import { placePath } from './project-worktrees.ts'
 import { sessionHistory } from './session-history.ts'
 import { findSession, providerOf, refresh, updateSession } from './sessions.ts'
@@ -94,12 +94,10 @@ export async function generateSessionTitle(
     if (history.type !== 'history') {
       throw new Error(`Could not read session ${id}`)
     }
-    const reply = await generateText(
-      'session-title',
-      cwd,
-      TITLE_INSTRUCTIONS,
-      `Current title: ${JSON.stringify(session.title)}\n\nConversation:\n${transcript(history.items)}`
-    )
+    const reply = await generateText('session-title', threadSettings(id), cwd, {
+      instructions: TITLE_INSTRUCTIONS,
+      prompt: `Current title: ${JSON.stringify(session.title)}\n\nConversation:\n${transcript(history.items)}`,
+    })
     const title = reply
       .split('\n')[0]
       .trim()

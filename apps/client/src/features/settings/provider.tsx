@@ -17,6 +17,7 @@ import { cn, errorMessage } from '@/lib/utils'
 import { AccountPage, NewAccountPage } from './account'
 import { Row, Section, TextInput } from './controls'
 import { LinkDialog } from './link-dialog'
+import { SmallModelSection } from './small-model'
 
 export function ProviderPage(props: {
   machine: string
@@ -168,45 +169,57 @@ function ProviderModels(props: {
   }
 
   return (
-    <Section title="Models">
-      {error !== null && (
-        <p className="text-destructive px-4 py-3 text-xs wrap-anywhere">
-          {error}
-        </p>
+    <>
+      {models !== null && (
+        <SmallModelSection
+          machine={props.machine}
+          config={props.config}
+          provider={props.provider}
+          models={models}
+        />
       )}
-      {error === null && models === null && (
-        <p className="text-muted-foreground px-4 py-3 text-xs">Loading…</p>
-      )}
-      {(models ?? []).map((model) => {
-        const setting = settings[model.value] ?? { hidden: model.deprecated }
-        return (
-          <div
-            key={model.value}
-            className="flex min-h-11 items-center gap-3 px-4 py-1.5"
-          >
+      <Section title="Models">
+        {error !== null && (
+          <p className="text-destructive px-4 py-3 text-xs wrap-anywhere">
+            {error}
+          </p>
+        )}
+        {error === null && models === null && (
+          <p className="text-muted-foreground px-4 py-3 text-xs">Loading…</p>
+        )}
+        {(models ?? []).map((model) => {
+          const setting = settings[model.value] ?? { hidden: model.deprecated }
+          return (
             <div
-              className={cn(
-                'min-w-0 flex-1 truncate text-sm',
-                setting.hidden && 'text-muted-foreground'
-              )}
+              key={model.value}
+              className="flex min-h-11 items-center gap-3 px-4 py-1.5"
             >
-              {model.name}
-              {props.provider === 'opencode' && (
-                <span className="text-muted-foreground ml-2 text-xs">
-                  {model.description}
-                </span>
-              )}
+              <div
+                className={cn(
+                  'min-w-0 flex-1 truncate text-sm',
+                  setting.hidden && 'text-muted-foreground'
+                )}
+              >
+                {model.name}
+                {props.provider === 'opencode' && (
+                  <span className="text-muted-foreground ml-2 text-xs">
+                    {model.description}
+                  </span>
+                )}
+              </div>
+              <Switch
+                size="sm"
+                checked={!setting.hidden}
+                onCheckedChange={(shown) =>
+                  save(model.value, { hidden: !shown })
+                }
+                aria-label={`Show ${model.name}`}
+              />
             </div>
-            <Switch
-              size="sm"
-              checked={!setting.hidden}
-              onCheckedChange={(shown) => save(model.value, { hidden: !shown })}
-              aria-label={`Show ${model.name}`}
-            />
-          </div>
-        )
-      })}
-    </Section>
+          )
+        })}
+      </Section>
+    </>
   )
 }
 

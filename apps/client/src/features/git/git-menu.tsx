@@ -29,7 +29,8 @@ import {
   SyncCounts,
   syncAction,
 } from './branch-picker'
-import { type Action, eligible, GitDialog } from './git-dialog'
+import { type Action, eligible } from './eligible'
+import { GitDialog } from './git-dialog'
 
 const STATUS_REFRESH = 3000
 const FETCH_REFRESH = 180_000
@@ -146,6 +147,7 @@ type GitTarget = {
   machine: string
   projectId: string
   worktreeId: string | null
+  sessionId: string | null
   repos: GitRepo[]
   onRefresh: () => void
 }
@@ -168,6 +170,7 @@ export function useGitCommands(props: GitTarget) {
             repo,
             message: '',
             push: false,
+            sessionId: props.sessionId,
           })
         }
         if (kind === 'push') {
@@ -303,6 +306,7 @@ export function GitCommandDialog(props: { git: GitCommands }) {
           machine={git.target.machine}
           projectId={git.target.projectId}
           worktreeId={git.target.worktreeId}
+          sessionId={git.target.sessionId}
           action={git.action}
           repos={git.target.repos}
           onClose={() => git.setAction(null)}

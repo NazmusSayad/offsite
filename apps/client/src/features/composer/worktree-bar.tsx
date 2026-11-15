@@ -45,6 +45,7 @@ export function WorktreeBar(props: {
   machine: string
   projectId: string
   worktreeId: string | null
+  sessionId: string | null
   repos: GitRepo[]
   onRefresh: () => void
 }) {
@@ -159,7 +160,9 @@ export function WorktreeBar(props: {
                       icon={FolderGit2Icon}
                       className="relative size-3 shrink-0"
                     />
-                    <span className="relative [text-box:trim-both_cap_alphabetic]">Checkout</span>
+                    <span className="relative [text-box:trim-both_cap_alphabetic]">
+                      Checkout
+                    </span>
                   </RadioGroup.Item>
                   <RadioGroup.Item
                     value="worktree"
@@ -180,7 +183,9 @@ export function WorktreeBar(props: {
                       icon={NewWorktreeIcon}
                       className="relative size-3 shrink-0"
                     />
-                    <span className="relative [text-box:trim-both_cap_alphabetic]">Worktree</span>
+                    <span className="relative [text-box:trim-both_cap_alphabetic]">
+                      Worktree
+                    </span>
                   </RadioGroup.Item>
                 </RadioGroup.Root>
               </LayoutGroup>
@@ -237,6 +242,7 @@ export function WorktreeBar(props: {
                           machine: props.machine,
                           projectId: props.projectId,
                           worktreeId: props.worktreeId,
+                          sessionId: props.sessionId,
                           onRefresh: props.onRefresh,
                         }}
                       />

@@ -500,6 +500,7 @@ export function Composer(props: {
             machine={machine}
             projectId={projectId}
             worktreeId={worktreeId}
+            sessionId={selection?.sessionId ?? null}
             repos={props.repos}
             onRefresh={props.onRefreshGit}
           />

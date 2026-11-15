@@ -295,6 +295,7 @@ async function deliver(
         name: request.worktree.name,
         prompt: request.prompt.text,
         base: request.worktree.base,
+        thread: request.settings,
       },
       (stage) => client.send({ type: 'worktreeStage', stage })
     )

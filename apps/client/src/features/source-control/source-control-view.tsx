@@ -47,6 +47,7 @@ export function SourceControlView(props: {
   machine: string
   projectId: string
   worktreeId: string | null
+  sessionId: string | null
   name: string
   root: string
   header: ReactNode
@@ -150,6 +151,7 @@ export function SourceControlView(props: {
         worktreeId: props.worktreeId,
         repo: repo.path,
         staged: repo.staged.length > 0,
+        sessionId: props.sessionId,
       })
       if (requests.current.get(repo.path) === request) {
         props.onMessage(repo.path, text)

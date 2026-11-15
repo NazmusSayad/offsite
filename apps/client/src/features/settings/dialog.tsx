@@ -356,9 +356,6 @@ export function SettingsContent(props: { view: SettingsView }) {
               config={config}
               platform={system.platform}
               defaultShell={system.defaultShell}
-              claudeAccounts={machine.claudeAccounts}
-              codexAccounts={machine.codexAccounts}
-              openCode={machine.openCode}
               onRestore={() => setConfirming('machine')}
             />
           )}

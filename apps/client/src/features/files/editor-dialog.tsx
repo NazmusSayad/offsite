@@ -51,6 +51,7 @@ export function EditorDialog(props: {
   machine: string
   projectId: string
   worktreeId: string | null
+  sessionId: string | null
   onClose: () => void
 }) {
   const project = useStore((state) =>
@@ -298,6 +299,7 @@ export function EditorDialog(props: {
                 machine={props.machine}
                 projectId={props.projectId}
                 worktreeId={props.worktreeId}
+                sessionId={props.sessionId}
                 name={project?.name ?? ''}
                 root={root}
                 header={header}

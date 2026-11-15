@@ -12,6 +12,7 @@ import { eq } from 'drizzle-orm'
 import { broadcast } from '../lib/hub.ts'
 import { db } from '../storage/db.ts'
 import { worktrees as worktreesTable } from '../storage/schema.ts'
+import type { Thread } from './generate-text.ts'
 import { git } from './git.ts'
 import { findProject, projectPath, projects } from './projects.ts'
 import {
@@ -70,7 +71,12 @@ export function places() {
 
 export async function addProjectWorktree(
   projectId: string,
-  request: { name: string | null; prompt: string; base: string | null },
+  request: {
+    name: string | null
+    prompt: string
+    base: string | null
+    thread: Thread
+  },
   onStage: (stage: WorktreeStage) => void
 ) {
   const worktree = await createWorktree(
@@ -85,7 +91,8 @@ export async function addProjectWorktree(
 export async function moveToNewWorktree(
   place: Place,
   name: string | null,
-  title: string
+  title: string,
+  thread: Thread
 ) {
   if (findProject(place.projectId).scratch) {
     throw new Error('A chat without a project cannot move to a worktree')
@@ -93,7 +100,8 @@ export async function moveToNewWorktree(
   const worktree = await moveIntoWorktree(
     placePath(place.projectId, place.worktreeId),
     name,
-    title
+    title,
+    thread
   )
   return {
     ...worktree,

@@ -40,6 +40,7 @@ type Target = {
   machine: string
   projectId: string
   worktreeId: string | null
+  sessionId: string | null
   onRefresh: () => void
 }
 
@@ -167,6 +168,7 @@ function ChangesMenu(props: {
           repo: props.repo.path,
           message: '',
           push,
+          sessionId: props.target.sessionId,
         })
     )
   }

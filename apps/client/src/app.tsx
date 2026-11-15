@@ -50,6 +50,7 @@ export function App() {
             machine={editor.machine}
             projectId={editor.projectId}
             worktreeId={editor.worktreeId}
+            sessionId={editor.sessionId}
             onClose={() => showEditor(null)}
           />
         </Suspense>

@@ -8,44 +8,15 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import type { GitRepo, PullRequestDraft } from '@offsite/core/git'
-import { generateText } from './generate-text.ts'
+import type { GitRepo } from '@offsite/core/git'
+import { generateText, threadSettings } from './generate-text.ts'
 
-const DIFF_LIMIT = 80_000
+export const DIFF_LIMIT = 80_000
 const UNTRACKED_LIMIT = 100
 const NEW_FILE_LIMIT = 256 * 1024
 const REPO_DEPTH = 3
 const FETCH_TIMEOUT = 60_000
 const run = promisify(execFile)
-
-const PULL_REQUEST_INSTRUCTIONS = `You write GitHub pull requests as Markdown.
-
-## TITLE RULES
-
-- Use the conventional commits format: type(scope): subject
-- Types: feat, fix, docs, style, refactor, perf, test, chore, ci
-- Scope is optional; include it when the change targets a clear area
-- Subject: imperative mood, lowercase, no trailing period
-- Maximum 72 characters in total
-- Describe the overall change, not a single commit
-
-## BODY RULES
-
-- Use short Markdown sections with level-2 headings. Choose only sections that fit the change: \`New features\`, \`Improvements\`, \`Fixes\`, \`Before\` / \`After\`, or \`Breaking changes\`. Do not use all of them as a template.
-- Use bullet points under every section, never paragraphs. Each bullet describes one feature or change in one short sentence.
-- For a small change, use one section with one bullet. For larger changes, use only the sections needed, with at most three short bullets across the body.
-- Aim for 20-50 words; fewer is better when enough. Never exceed 80 words.
-- Describe the outcome, not the implementation walkthrough. Do not enumerate changed files, functions, commits, or incidental cleanup; reviewers can read the diff.
-- Add a \`Breaking changes\` section only for an actual compatibility break or required migration.
-- No generic \`Summary\` section, bold labels, checklists, boilerplate openings like "This pull request", or closing summaries.
-
-## RULES
-
-Base every statement on the provided commits and diff; do NOT invent details.
-
-## OUTPUT
-
-Return one Markdown document. The title is the level-1 heading (\`# <title>\`), and everything after it is the body.`
 
 export async function gitRepos(cwd: string) {
   return Promise.all(
@@ -57,8 +28,14 @@ export async function gitRepos(cwd: string) {
   )
 }
 
-export async function commit(cwd: string, message: string, andPush: boolean) {
-  const text = message.trim() === '' ? await commitMessage(cwd, false) : message
+export async function commit(
+  cwd: string,
+  message: string,
+  andPush: boolean,
+  sessionId: string | null
+) {
+  const text =
+    message.trim() === '' ? await commitMessage(cwd, false, sessionId) : message
   await git(cwd, ['add', '--all', '--', '.'])
   await git(cwd, ['commit', '--message', text])
   if (andPush) {
@@ -201,120 +178,11 @@ function recency(branch: string, base: string, recent: string[]) {
   return index
 }
 
-export async function preparePullRequest(
+export async function commitMessage(
   cwd: string,
-  base: string,
-  commitChanges: boolean
-): Promise<PullRequestDraft> {
-  const head = (await gitStatus(cwd)).branch
-  if (head === null) {
-    throw new Error('Not on a branch')
-  }
-  if (commitChanges) {
-    await commit(cwd, '', true)
-  }
-  const status = await gitStatus(cwd)
-  if (status.upstream === null || status.ahead > 0) {
-    await push(cwd)
-  }
-  const open = (
-    await run(
-      'gh',
-      [
-        'pr',
-        'list',
-        '--head',
-        head,
-        '--base',
-        base,
-        '--state',
-        'open',
-        '--json',
-        'url',
-        '--jq',
-        '.[0].url // ""',
-      ],
-      { cwd }
-    )
-  ).stdout.trim()
-  if (open !== '') {
-    return { kind: 'open', url: open }
-  }
-  await git(cwd, ['fetch', 'origin', base])
-  const commits = (
-    await git(cwd, ['log', '--format=- %B', `origin/${base}..HEAD`])
-  ).stdout.trim()
-  if (commits === '') {
-    throw new Error(`No commits between ${base} and ${head}`)
-  }
-  const diff = (
-    await git(cwd, [
-      'diff',
-      '--no-color',
-      '--no-ext-diff',
-      `origin/${base}...HEAD`,
-    ])
-  ).stdout.slice(0, DIFF_LIMIT)
-  const lines = (
-    await generateText(
-      'pull-request',
-      cwd,
-      PULL_REQUEST_INSTRUCTIONS,
-      `Commits between base and head:\n${commits}\n\n${diff}\n\nGenerate the pull request Markdown document from the above.`
-    )
-  ).split('\n')
-  const title = lines[0]
-    .trim()
-    .replace(/^#{1,6}\s*/, '')
-    .replace(/^(\*\*|__|\*|_|`)+/, '')
-    .replace(/(\*\*|__|\*|_|`)+$/, '')
-    .trim()
-  if (title === '') {
-    throw new Error('The model returned an empty title')
-  }
-  return {
-    kind: 'draft',
-    base,
-    head,
-    title,
-    body: lines.slice(1).join('\n').trim(),
-  }
-}
-
-export async function createPullRequest(
-  cwd: string,
-  request: { base: string; head: string; title: string; body: string }
+  staged: boolean,
+  sessionId: string | null
 ) {
-  const url = (
-    await run(
-      'gh',
-      [
-        'pr',
-        'create',
-        '--title',
-        request.title,
-        '--body',
-        request.body,
-        '--base',
-        request.base,
-        '--head',
-        request.head,
-        '--assignee',
-        '@me',
-      ],
-      { cwd }
-    )
-  ).stdout
-    .trim()
-    .split('\n')
-    .at(-1)
-  if (url === undefined) {
-    throw new Error('gh did not return a pull request URL')
-  }
-  return { url }
-}
-
-export async function commitMessage(cwd: string, staged: boolean) {
   const diff = (
     staged
       ? (await git(cwd, ['diff', '--cached', '--no-color', '--no-ext-diff']))
@@ -324,12 +192,10 @@ export async function commitMessage(cwd: string, staged: boolean) {
   if (diff === '') {
     throw new Error('There is nothing to commit')
   }
-  return generateText(
-    'commit-message',
-    cwd,
-    'You write concise git commit messages.',
-    `Write a git commit message for this diff. Reply with only the message: a short summary line, optionally followed by a blank line and a brief body.\n\n${diff}`
-  )
+  return generateText('commit-message', threadSettings(sessionId), cwd, {
+    instructions: 'You write concise git commit messages.',
+    prompt: `Write a git commit message for this diff. Reply with only the message: a short summary line, optionally followed by a blank line and a brief body.\n\n${diff}`,
+  })
 }
 
 export async function projectDiff(cwd: string) {
@@ -353,7 +219,7 @@ export async function projectRepos(cwd: string) {
   return (await isRepo(cwd)) ? [''] : childRepos(cwd, '', REPO_DEPTH)
 }
 
-async function gitStatus(cwd: string) {
+export async function gitStatus(cwd: string) {
   const output = await git(cwd, [
     '--no-optional-locks',
     'status',

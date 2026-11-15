@@ -172,6 +172,7 @@ function MobileChat(props: { selection: Selection }) {
     machine: props.selection.machine,
     projectId: props.selection.projectId,
     worktreeId: props.selection.worktreeId,
+    sessionId: props.selection.sessionId,
     repos: git.repos,
     onRefresh: git.refresh,
   })

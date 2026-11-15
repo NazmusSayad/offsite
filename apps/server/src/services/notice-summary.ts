@@ -1,6 +1,5 @@
 import { logger } from '../lib/log.ts'
-import { readConfig } from '../storage/config.ts'
-import { generateText } from './generate-text.ts'
+import { generateText, type Thread } from './generate-text.ts'
 
 const log = logger.withTag('notice-summary')
 
@@ -69,47 +68,68 @@ Move uploads to a background queue with retries
 Switch the search index to SQLite to cut memory use`
 
 export function doneSummary(
+  thread: Thread,
   cwd: string,
   request: string,
   actions: string[],
   reply: string
 ) {
   return shorten(
+    thread,
     cwd,
     DONE_INSTRUCTIONS,
     `DEVELOPER REQUEST:\n${request.slice(0, REQUEST_LIMIT)}\n\nACTIONS THE AGENT TOOK IN THIS TURN, IN ORDER:\n${actions.length === 0 ? 'none' : actions.join('\n').slice(-ACTIONS_LIMIT)}\n\nFINAL MESSAGE OF THE AGENT:\n${reply.slice(-REPLY_LIMIT)}`
   )
 }
 
-export function questionSummary(cwd: string, request: string, reply: string) {
+export function questionSummary(
+  thread: Thread,
+  cwd: string,
+  request: string,
+  reply: string
+) {
   return shorten(
+    thread,
     cwd,
     QUESTION_INSTRUCTIONS,
     `DEVELOPER REQUEST:\n${request.slice(0, REQUEST_LIMIT)}\n\nFINAL MESSAGE OF THE AGENT:\n${reply.slice(-REPLY_LIMIT)}`
   )
 }
 
-export async function planSummary(cwd: string, request: string, plan: string) {
+export async function planSummary(
+  thread: Thread,
+  cwd: string,
+  request: string,
+  plan: string
+) {
   if ([...plan].length <= SUMMARY_LIMIT) {
     return null
   }
   return shorten(
+    thread,
     cwd,
     PLAN_INSTRUCTIONS,
     `USER REQUEST:\n${request.slice(0, REQUEST_LIMIT)}\n\nPLAN:\n${plan.slice(-REPLY_LIMIT)}`
   )
 }
 
-async function shorten(cwd: string, instructions: string, input: string) {
-  const settings = readConfig().smallModel
-  if (settings.provider === null || settings.model === null) {
-    return null
-  }
+async function shorten(
+  thread: Thread,
+  cwd: string,
+  instructions: string,
+  input: string
+) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIME_LIMIT)
   try {
     const answer = await Promise.race([
-      generateText('notice-summary', cwd, instructions, input, controller),
+      generateText(
+        'notice-summary',
+        thread,
+        cwd,
+        { instructions, prompt: input },
+        controller
+      ),
       new Promise<never>((_resolve, reject) =>
         controller.signal.addEventListener('abort', () =>
           reject(

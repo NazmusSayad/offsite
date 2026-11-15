@@ -4,11 +4,9 @@ import { localBranches } from '../services/branches.ts'
 import {
   commit,
   commitMessage,
-  createPullRequest,
   fetchProject,
   gitRepos,
   listBranches,
-  preparePullRequest,
   projectDiff,
   pullRequestBranches,
   push,
@@ -16,6 +14,10 @@ import {
   sync,
 } from '../services/git.ts'
 import { placePath } from '../services/project-worktrees.ts'
+import {
+  createPullRequest,
+  preparePullRequest,
+} from '../services/pull-request-drafts.ts'
 import {
   commitFiles,
   history,
@@ -35,7 +37,8 @@ export const gitHandlers: Pick<Handlers, keyof GitMethods> = {
     commit(
       path.join(placePath(params.projectId, params.worktreeId), params.repo),
       params.message,
-      params.push
+      params.push,
+      params.sessionId
     ),
   'git.changes': (params) =>
     sourceControl(placePath(params.projectId, params.worktreeId)),
@@ -59,7 +62,8 @@ export const gitHandlers: Pick<Handlers, keyof GitMethods> = {
   'git.message': (params) =>
     commitMessage(
       path.join(placePath(params.projectId, params.worktreeId), params.repo),
-      params.staged
+      params.staged,
+      params.sessionId
     ),
   'git.undoCommit': (params) =>
     undoCommit(
@@ -113,7 +117,8 @@ export const gitHandlers: Pick<Handlers, keyof GitMethods> = {
     preparePullRequest(
       path.join(placePath(params.projectId, params.worktreeId), params.repo),
       params.base,
-      params.commit
+      params.commit,
+      params.sessionId
     ),
   'git.createPullRequest': (params) =>
     createPullRequest(

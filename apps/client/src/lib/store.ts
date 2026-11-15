@@ -128,6 +128,7 @@ export type State = {
     machine: string
     projectId: string
     worktreeId: string | null
+    sessionId: string | null
   } | null
   exporting: MachineSession | null
   removingWorktree: { machine: string; worktreeId: string } | null

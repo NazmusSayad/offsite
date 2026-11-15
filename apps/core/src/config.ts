@@ -60,35 +60,31 @@ export type LastPickedEffortForModel = {
   usedAt: number
 }
 
-export type SmallModel = {
-  provider: Provider | null
-  accountId: string | null
-  model: string | null
-}
-
 export type DictationConfig = {
   workflowId: string | null
 }
 
 export type Config = {
-  version: 3
+  version: 4
   claude: {
     enabled: boolean
     baseDir: Record<Platform, string | null>
     accounts: AccountConfig[]
     models: Record<string, ModelSetting>
+    smallModel: string | null
   }
   codex: {
     enabled: boolean
     accounts: AccountConfig[]
     models: Record<string, ModelSetting>
+    smallModel: string | null
   }
   opencode: {
     enabled: boolean
     models: Record<string, ModelSetting>
+    smallModel: string | null
   }
   workingDir: Record<Platform, string | null>
-  smallModel: SmallModel
   delivery: PromptDelivery
   autoSkipQuestionTimeout: number | null
   autoPermissionMode: 'bypass' | 'allow' | 'deny'

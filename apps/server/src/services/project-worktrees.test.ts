@@ -66,7 +66,12 @@ async function addRepo(subfolder: string | null = null) {
 async function newWorktree(projectId: string, name: string) {
   return worktrees.addProjectWorktree(
     projectId,
-    { name, prompt: '', base: null },
+    {
+      name,
+      prompt: '',
+      base: null,
+      thread: { provider: 'claude', accountId: null, model: null },
+    },
     vi.fn()
   )
 }
@@ -331,7 +336,8 @@ describe('moving a chat to a new worktree', () => {
     const moved = await worktrees.moveToNewWorktree(
       { projectId: project.id, worktreeId: null },
       'moved',
-      'title'
+      'title',
+      { provider: 'claude', accountId: null, model: null }
     )
 
     expect(git(repo, 'status', '--porcelain')).toBe('')
