@@ -98,7 +98,6 @@ export type Machine = {
   claudeAccounts: Account[]
   codexAccounts: Account[]
   openCode: { available: boolean }
-  notifier: boolean
   activity: Record<string, SessionActivity>
   providers: ProviderStatus[]
   terminals: TerminalTab[]

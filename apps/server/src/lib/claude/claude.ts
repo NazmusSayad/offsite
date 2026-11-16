@@ -129,9 +129,9 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
                   hookEventName: 'PostToolUse',
                   updatedToolOutput: {
                     message,
-                    localSent: delivered === 'local',
-                    pushSent: delivered === 'push',
-                    ...(delivered === 'none'
+                    localSent: delivered.local,
+                    pushSent: delivered.push,
+                    ...(!delivered.local && !delivered.push
                       ? { disabledReason: 'no_transport' }
                       : {}),
                   },

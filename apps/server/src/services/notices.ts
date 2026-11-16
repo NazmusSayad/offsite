@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type { Notice } from '@offsite/core/push'
-import { broadcast, type Client } from '../lib/hub.ts'
+import { broadcast, type Client, clients } from '../lib/hub.ts'
 import { logger } from '../lib/log.ts'
-import { notifierConnected, sendPush } from './push.ts'
+import { sendPush } from './push.ts'
 
 const log = logger.withTag('notices')
 
@@ -52,11 +52,9 @@ export async function notify(input: NoticeInput) {
   }
   forgetOld()
   stored.set(id, { at: Date.now(), runs })
-  if (notifierConnected()) {
-    broadcast({ type: 'notice', notice })
-    return 'local'
-  }
-  return (await sendPush(notice)) ? 'push' : 'none'
+  const local = clients.size > 0
+  broadcast({ type: 'notice', notice })
+  return { local, push: await sendPush(notice) }
 }
 
 export async function act(client: Client, id: string, action: string) {

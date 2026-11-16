@@ -3,8 +3,10 @@ import { useEffect } from 'react'
 import { call, isConnected, machineUrl } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { logger } from '@/lib/log'
-import { showNotice } from './notices'
-import { activityOf, getState, machineOf, threadState, useStore } from './store'
+import { isNoticeData, showNotice } from './notices'
+import { router } from './router'
+import { activityOf, getState, threadState, useStore } from './store'
+import { currentSearch } from './url'
 
 const log = logger.withTag('notifications')
 
@@ -13,7 +15,6 @@ type PushKeys = { publicKey: string; privateKey: string }
 const storageKey = 'notifications'
 
 let pushWork: Promise<unknown> = Promise.resolve()
-const claiming = new Set<string>()
 
 export function notificationPermission() {
   if (!window.isSecureContext) {
@@ -52,64 +53,38 @@ export async function watchPermission(
 }
 
 export async function showNoticeHere(machine: string, notice: Notice) {
-  if (!canShow(machine) || (!document.hidden && !notice.whileVisible)) {
+  if (
+    notificationPermission() !== 'granted' ||
+    !notificationsWanted() ||
+    (!notice.whileVisible && watching(machine, notice.target.sessionId)) ||
+    (pushSupport() === 'supported' && (await pushSubscribed()))
+  ) {
     return
   }
   const registration = await navigator.serviceWorker.ready
-  await showNotice(registration, machine, notice, machineUrl(machine))
-}
-
-function canShow(machine: string) {
-  return (
-    notificationPermission() === 'granted' &&
-    notificationsWanted() &&
-    machineOf(getState(), machine).notifier
-  )
-}
-
-export function claimNotifications() {
-  const machines = getState()
-    .machines.filter(
-      (machine) =>
-        isConnected(machine.id) &&
-        !machine.notifier &&
-        !claiming.has(machine.id)
-    )
-    .map((machine) => machine.id)
-  if (machines.length === 0) {
-    return
-  }
-  for (const machine of machines) {
-    claiming.add(machine)
-  }
-  pushEndpoint()
-    .then((endpoint) =>
-      Promise.all(
-        machines.map((machine) =>
-          call(machine, 'notifications.claim', { endpoint })
-        )
+  await navigator.locks.request(`notice ${notice.id}`, async () => {
+    const shown = await registration.getNotifications()
+    if (
+      shown.some(
+        (item) => isNoticeData(item.data) && item.data.notice.id === notice.id
       )
-    )
-    .catch((error: unknown) =>
-      log.error('could not claim notifications', error)
-    )
-    .finally(() => {
-      for (const machine of machines) {
-        claiming.delete(machine)
-      }
-    })
+    ) {
+      return
+    }
+    await showNotice(registration, machine, notice, machineUrl(machine))
+  })
 }
 
-async function pushEndpoint() {
-  if (pushSupport() !== 'supported') {
-    return null
+export function watching(machine: string, sessionId: string) {
+  if (document.hidden || !document.hasFocus()) {
+    return false
   }
-  const registration = await navigator.serviceWorker.getRegistration()
-  if (registration === undefined) {
-    return null
-  }
-  const subscription = await registration.pushManager.getSubscription()
-  return subscription === null ? null : subscription.endpoint
+  const search = currentSearch()
+  return (
+    router.history.location.pathname === '/' &&
+    search.machine === machine &&
+    search.session === sessionId
+  )
 }
 
 export function pushSupport() {
