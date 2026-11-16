@@ -1,7 +1,7 @@
 import type { RpcMethods } from '@offsite/core/protocol'
 import type { ReviewGuide } from '@offsite/core/pull-requests'
 import type { SessionPick } from '@offsite/core/search'
-import { integer, real, snakeCase, text } from 'drizzle-orm/sqlite-core'
+import { blob, integer, real, snakeCase, text } from 'drizzle-orm/sqlite-core'
 
 export const projects = snakeCase.table('projects', {
   id: text().primaryKey(),
@@ -144,4 +144,10 @@ export const generations = snakeCase.table('generations', {
   error: text(),
   durationMs: integer().notNull(),
   createdAt: integer().notNull(),
+})
+
+export const noticeIcons = snakeCase.table('notice_icons', {
+  key: text().primaryKey(),
+  projectId: text().references(() => projects.id, { onDelete: 'cascade' }),
+  image: blob({ mode: 'buffer' }).notNull(),
 })

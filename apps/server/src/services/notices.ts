@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { Notice } from '@offsite/core/push'
 import { broadcast, type Client, clients } from '../lib/hub.ts'
 import { logger } from '../lib/log.ts'
-import { noticeIcon } from './notice-icons.ts'
+import { noticeIconPath } from './notice-icons.ts'
 import { sendDismissPush, sendPush } from './push.ts'
 
 const log = logger.withTag('notices')
@@ -54,7 +54,7 @@ export async function notify(input: NoticeInput) {
     source: input.source,
     state: input.state,
     image: input.image,
-    icon: await noticeIcon(input.session.projectId, input.state),
+    icon: noticeIconPath(input.session.projectId, input.state),
     actions: input.buttons.slice(0, 2).map((button, index) => {
       const action = String(index)
       if (button.kind === 'run') {

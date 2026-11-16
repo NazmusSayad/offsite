@@ -31,6 +31,7 @@ import {
 } from './services/files.ts'
 import { serveGithubMedia } from './services/github-images.ts'
 import { loadHttps, removeHttps, saveHttps } from './services/https.ts'
+import { serveNoticeIcon } from './services/notice-icons.ts'
 import { serveNoticeImage } from './services/notice-images.ts'
 import { failInterrupted } from './services/outbox.ts'
 import { startPush } from './services/push.ts'
@@ -211,6 +212,10 @@ function answerRequest(request: IncomingMessage, response: ServerResponse) {
   }
   if (url.pathname.startsWith('/api/notice-image/')) {
     serveNoticeImage(url.pathname, response)
+    return
+  }
+  if (url.pathname.startsWith('/api/notice-icon/')) {
+    void serveNoticeIcon(url.pathname, request, response)
     return
   }
   if (url.pathname.startsWith('/api/app-icon/')) {
