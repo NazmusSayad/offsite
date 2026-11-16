@@ -406,6 +406,7 @@ export const NEEDS_PAIRING = 4001
 export type ListedMachine = {
   id: string
   addresses: string[]
+  name: string | null
   key: string | null
 }
 

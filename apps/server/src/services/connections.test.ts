@@ -29,6 +29,7 @@ const fake = await vi.hoisted(async () => {
       serverArguments: [],
       auth: false,
       connect: null as string[] | null,
+      connectName: null as string | null,
     },
   }
 })
@@ -75,6 +76,7 @@ afterAll(() => {
 beforeEach(() => {
   fake.args.auth = false
   fake.args.connect = null
+  fake.args.connectName = null
   for (const connection of storage.readConnections()) {
     storage.removeConnection(connection.address)
   }
@@ -90,9 +92,12 @@ afterEach(() => {
 })
 
 function saved() {
-  return storage
-    .readConnections()
-    .map((item) => ({ address: item.address, key: item.key }))
+  return storage.readConnections().map((item) => ({
+    address: item.address,
+    addresses: item.addresses,
+    name: item.name,
+    key: item.key,
+  }))
 }
 
 function setTerminal(isTTY: boolean) {
@@ -107,32 +112,51 @@ describe('offsite connect add', () => {
     await connections.addConnection({
       address: machineAddress,
       code: 'good-code',
+      addresses: ['https://192.168.0.102:20202', machineAddress],
+      name: 'Windows',
     })
 
     expect(saved()).toEqual([
-      { address: machineAddress, key: 'key-from-the-machine' },
+      {
+        address: machineAddress,
+        addresses: ['https://192.168.0.102:20202', machineAddress],
+        name: 'Windows',
+        key: 'key-from-the-machine',
+      },
     ])
     expect(console.log).toHaveBeenCalledWith(
-      `Connected to ${machineAddress}; browsers get it the next time they open this machine's web app`
+      `Connected to ${machineAddress}; browsers reach it at https://192.168.0.102:20202, ${machineAddress} the next time they open this machine's web app`
     )
   })
 
   it('replaces the key when the same machine is added again', async () => {
-    storage.saveConnection(machineAddress, 'older-key')
+    storage.saveConnection(machineAddress, [machineAddress], null, 'older-key')
 
     await connections.addConnection({
       address: machineAddress,
       code: 'good-code',
+      addresses: [machineAddress],
+      name: null,
     })
 
     expect(saved()).toEqual([
-      { address: machineAddress, key: 'key-from-the-machine' },
+      {
+        address: machineAddress,
+        addresses: [machineAddress],
+        name: null,
+        key: 'key-from-the-machine',
+      },
     ])
   })
 
   it('stops with the reason when the other machine refuses the code', async () => {
     await expect(
-      connections.addConnection({ address: machineAddress, code: 'used-code' })
+      connections.addConnection({
+        address: machineAddress,
+        code: 'used-code',
+        addresses: [machineAddress],
+        name: null,
+      })
     ).rejects.toThrow('exit 1')
 
     expect(console.error).toHaveBeenCalledWith(
@@ -146,6 +170,8 @@ describe('offsite connect add', () => {
       connections.addConnection({
         address: 'http://127.0.0.1:1',
         code: 'good-code',
+        addresses: ['http://127.0.0.1:1'],
+        name: null,
       })
     ).rejects.toThrow('exit 1')
 
@@ -158,8 +184,18 @@ describe('offsite connect add', () => {
 
 describe('offsite connect remove', () => {
   it('deletes only the picked machines, and only on this machine', async () => {
-    storage.saveConnection('http://windows.local:2020', 'windows-key')
-    storage.saveConnection('http://wsl.local:2020', 'wsl-key')
+    storage.saveConnection(
+      'http://windows.local:2020',
+      ['http://windows.local:2020'],
+      null,
+      'windows-key'
+    )
+    storage.saveConnection(
+      'http://wsl.local:2020',
+      ['http://wsl.local:2020'],
+      null,
+      'wsl-key'
+    )
     setTerminal(true)
     vi.spyOn(consola, 'prompt').mockResolvedValue([
       'http://windows.local:2020',
@@ -169,7 +205,12 @@ describe('offsite connect remove', () => {
     await connections.removeConnections()
 
     expect(saved()).toEqual([
-      { address: 'http://wsl.local:2020', key: 'wsl-key' },
+      {
+        address: 'http://wsl.local:2020',
+        addresses: ['http://wsl.local:2020'],
+        name: null,
+        key: 'wsl-key',
+      },
     ])
     expect(request).not.toHaveBeenCalled()
     expect(console.log).toHaveBeenCalledWith(
@@ -178,7 +219,12 @@ describe('offsite connect remove', () => {
   })
 
   it('removes nothing when nothing is picked', async () => {
-    storage.saveConnection('http://windows.local:2020', 'windows-key')
+    storage.saveConnection(
+      'http://windows.local:2020',
+      ['http://windows.local:2020'],
+      null,
+      'windows-key'
+    )
     setTerminal(true)
     vi.spyOn(consola, 'prompt').mockResolvedValue(null as never)
 
@@ -198,7 +244,12 @@ describe('offsite connect remove', () => {
   })
 
   it('needs a terminal to pick from', async () => {
-    storage.saveConnection('http://windows.local:2020', 'windows-key')
+    storage.saveConnection(
+      'http://windows.local:2020',
+      ['http://windows.local:2020'],
+      null,
+      'windows-key'
+    )
     setTerminal(false)
 
     await expect(connections.removeConnections()).rejects.toThrow('exit 1')
@@ -212,39 +263,91 @@ describe('offsite connect remove', () => {
 
 describe('the list of machines for the web app', () => {
   it('lists every connected machine with the key this machine got for it', () => {
-    storage.saveConnection('http://windows.local:2020', 'windows-key')
-    storage.saveConnection('http://wsl.local:2020', 'wsl-key')
+    storage.saveConnection(
+      'http://windows.local:2020',
+      ['http://windows.local:2020'],
+      null,
+      'windows-key'
+    )
+    storage.saveConnection(
+      'http://wsl.local:2020',
+      ['http://wsl.local:2020'],
+      null,
+      'wsl-key'
+    )
 
     expect(connections.listMachines(null)).toEqual([
       {
         id: 'http://windows.local:2020',
         addresses: ['http://windows.local:2020'],
+        name: null,
         key: 'windows-key',
       },
       {
         id: 'http://wsl.local:2020',
         addresses: ['http://wsl.local:2020'],
+        name: null,
         key: 'wsl-key',
+      },
+    ])
+  })
+
+  it('gives browsers every address of a connected machine', () => {
+    storage.saveConnection(
+      'https://os-win.sayad.cc',
+      ['https://192.168.0.102:20202', 'https://os-win.sayad.cc'],
+      null,
+      'windows-key'
+    )
+
+    expect(connections.listMachines(null)).toEqual([
+      {
+        id: 'https://os-win.sayad.cc',
+        addresses: ['https://192.168.0.102:20202', 'https://os-win.sayad.cc'],
+        name: null,
+        key: 'windows-key',
       },
     ])
   })
 
   it('puts the --connect addresses first, without a key', () => {
     fake.args.connect = ['http://127.0.0.1:8001', 'https://mac.example']
-    storage.saveConnection('http://windows.local:2020', 'windows-key')
+    storage.saveConnection(
+      'http://windows.local:2020',
+      ['http://windows.local:2020'],
+      null,
+      'windows-key'
+    )
 
     expect(connections.listMachines(null)).toEqual([
       {
         id: 'host',
         addresses: ['http://127.0.0.1:8001', 'https://mac.example'],
+        name: null,
         key: null,
       },
       {
         id: 'http://windows.local:2020',
         addresses: ['http://windows.local:2020'],
+        name: null,
         key: 'windows-key',
       },
     ])
+  })
+
+  it('gives the names set with --connect-name and connect add --name', () => {
+    fake.args.connect = ['https://of.sayad.cc']
+    fake.args.connectName = 'Mac'
+    storage.saveConnection(
+      'https://os-win.sayad.cc',
+      ['https://os-win.sayad.cc'],
+      'Windows',
+      'windows-key'
+    )
+
+    expect(
+      connections.listMachines(null)?.map((machine) => machine.name)
+    ).toEqual(['Mac', 'Windows'])
   })
 
   it('is empty when nothing is connected', () => {
@@ -253,7 +356,12 @@ describe('the list of machines for the web app', () => {
 
   it('needs a paired browser when pairing is on', () => {
     fake.args.auth = true
-    storage.saveConnection('http://windows.local:2020', 'windows-key')
+    storage.saveConnection(
+      'http://windows.local:2020',
+      ['http://windows.local:2020'],
+      null,
+      'windows-key'
+    )
     const token = auth.redeemCode(auth.addCode('phone'))
 
     expect(connections.listMachines(null)).toBe(null)
@@ -262,6 +370,7 @@ describe('the list of machines for the web app', () => {
       {
         id: 'http://windows.local:2020',
         addresses: ['http://windows.local:2020'],
+        name: null,
         key: 'windows-key',
       },
     ])

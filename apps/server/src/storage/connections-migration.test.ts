@@ -82,6 +82,16 @@ describe('forward connection keys migration', () => {
     expect(rows('SELECT hash FROM devices')).toEqual([{ hash: 'through-hub' }])
   })
 
+  it('gives each connected machine its address as its only address and no name', () => {
+    expect(rows('SELECT address, addresses, name FROM connections')).toEqual([
+      {
+        address: 'http://windows.local:2020',
+        addresses: '["http://windows.local:2020"]',
+        name: null,
+      },
+    ])
+  })
+
   it('keeps connected machines and drops the per-browser keys', () => {
     expect(rows('SELECT address, key, created_at FROM connections')).toEqual([
       {

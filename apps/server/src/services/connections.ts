@@ -12,6 +12,8 @@ import {
 export async function addConnection(connection: {
   address: string
   code: string
+  addresses: string[]
+  name: string | null
 }) {
   let response
   try {
@@ -30,9 +32,14 @@ export async function addConnection(connection: {
     process.exit(1)
   }
   const reply = z.object({ token: z.string() }).parse(await response.json())
-  saveConnection(connection.address, reply.token)
+  saveConnection(
+    connection.address,
+    connection.addresses,
+    connection.name,
+    reply.token
+  )
   console.log(
-    `Connected to ${connection.address}; browsers get it the next time they open this machine's web app`
+    `Connected to ${connection.address}; browsers reach it at ${connection.addresses.join(', ')} the next time they open this machine's web app`
   )
 }
 
@@ -52,7 +59,7 @@ export async function removeConnections() {
     cancel: 'null',
     options: saved.map((item) => ({
       value: item.address,
-      label: `${item.address} · connected ${new Date(item.createdAt).toLocaleString()}`,
+      label: `${item.name ?? item.addresses.join(', ')} · connected ${new Date(item.createdAt).toLocaleString()}`,
     })),
   })) as unknown as string[] | null
   if (picked === null || picked.length === 0) {
@@ -72,10 +79,18 @@ export function listMachines(given: string | null): ListedMachine[] | null {
   return [
     ...(args.connect === null
       ? []
-      : [{ id: 'host', addresses: args.connect, key: null }]),
+      : [
+          {
+            id: 'host',
+            addresses: args.connect,
+            name: args.connectName,
+            key: null,
+          },
+        ]),
     ...readConnections().map((connection) => ({
       id: connection.address,
-      addresses: [connection.address],
+      addresses: connection.addresses,
+      name: connection.name,
       key: connection.key,
     })),
   ]

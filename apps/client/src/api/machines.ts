@@ -24,6 +24,8 @@ export type StoredMachine = {
   label: string | null
   pairedAt: number | null
   listId: string | null
+  listName: string | null
+  listAddresses: string[]
   projects: Project[]
 }
 
@@ -95,12 +97,14 @@ export function restoreMachine(machine: StoredMachine): Machine {
     addresses: machine.addresses,
     via: null,
     status: 'connecting',
-    name: machine.label ?? machine.name,
+    name: machine.listName ?? machine.label ?? machine.name,
     hostname: machine.name,
     label: machine.label,
     icon: machine.icon,
     pairedAt: machine.pairedAt ?? null,
     listId: machine.listId ?? null,
+    listName: machine.listName ?? null,
+    listAddresses: machine.listAddresses ?? [],
     config: null,
     lastPickedModelByProvider: null,
     lastMessageAtByAccount: [],
@@ -157,8 +161,10 @@ export function receiveMachines() {
     setMachine(machine.id, {
       label: machine.label,
       icon: machine.icon,
-      name: machine.label ?? current.hostname,
+      name: machine.listName ?? machine.label ?? current.hostname,
       listId: machine.listId ?? null,
+      listName: machine.listName ?? null,
+      listAddresses: machine.listAddresses ?? [],
     })
     if (
       machine.addresses.join(' ') !== current.addresses.join(' ') ||
@@ -191,13 +197,7 @@ export async function addMachine(addresses: string[], code: string | null) {
   if (code !== null) {
     await saveToken(id, await redeemCode(addresses, code))
   }
-  createMachine(
-    id,
-    addresses,
-    new URL(addresses[0]).hostname,
-    code === null ? null : Date.now(),
-    null
-  )
+  createMachine(id, addresses, code === null ? null : Date.now(), null, null)
   return id
 }
 
@@ -231,18 +231,33 @@ export async function syncListedMachines() {
       createMachine(
         id,
         item.addresses,
-        new URL(item.addresses[0]).hostname,
         item.key === null ? null : Date.now(),
-        item.id
+        item.id,
+        item.name
       )
       continue
     }
     if (item.key !== null) {
       await saveToken(existing.id, item.key)
     }
-    setMachine(existing.id, { listId: item.id, addresses: item.addresses })
+    const kept = existing.addresses.filter(
+      (address) =>
+        item.addresses.includes(address) ||
+        !existing.listAddresses.includes(address)
+    )
+    const addresses = [
+      ...kept,
+      ...item.addresses.filter((address) => !kept.includes(address)),
+    ]
+    setMachine(existing.id, {
+      listId: item.id,
+      listName: item.name,
+      listAddresses: item.addresses,
+      name: item.name ?? existing.label ?? existing.hostname,
+      addresses,
+    })
     if (
-      item.addresses.join(' ') !== existing.addresses.join(' ') ||
+      addresses.join(' ') !== existing.addresses.join(' ') ||
       (item.key !== null && existing.status === 'unpaired')
     ) {
       reconnectMachine(existing.id)
@@ -274,9 +289,9 @@ function newMachineId() {
 function createMachine(
   id: string,
   addresses: string[],
-  name: string,
   pairedAt: number | null,
-  listId: string | null
+  listId: string | null,
+  listName: string | null
 ) {
   update({
     machines: [
@@ -284,11 +299,13 @@ function createMachine(
       restoreMachine({
         id,
         addresses,
-        name,
+        name: new URL(addresses[0]).hostname,
         label: null,
         icon: 'computer',
         pairedAt,
         listId,
+        listName,
+        listAddresses: listId === null ? [] : addresses,
         projects: [],
       }),
     ],
@@ -335,7 +352,7 @@ export function editMachine(
   const next = { ...known, ...patch }
   setMachine(id, {
     ...patch,
-    name: next.label ?? next.hostname,
+    name: next.listName ?? next.label ?? next.hostname,
   })
   persistMachines()
   if (next.addresses.join(' ') !== known.addresses.join(' ')) {
@@ -400,6 +417,8 @@ export function persistMachines() {
     icon: machine.icon,
     pairedAt: machine.pairedAt,
     listId: machine.listId,
+    listName: machine.listName,
+    listAddresses: machine.listAddresses,
     projects: state.projects
       .filter((project) => project.machine === machine.id)
       .map((project) => ({

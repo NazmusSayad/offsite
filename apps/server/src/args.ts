@@ -19,7 +19,12 @@ let command = 'web' as
   | 'https-rm'
 let name = null as string | null
 let https = null as { cert: string; key: string } | null
-let connection = null as { address: string; code: string } | null
+let connection = null as {
+  address: string
+  code: string
+  addresses: string[]
+  name: string | null
+} | null
 
 export const SERVICE_PORT = '2020'
 
@@ -41,6 +46,10 @@ const program = new Command('offsite')
   .option(
     '--connect <addresses>',
     'Add this machine to the web app with these comma separated addresses; needs --no-auth'
+  )
+  .option(
+    '--connect-name <name>',
+    "Name the web app shows for this machine, which it can't change; needs --connect"
   )
   .addOption(new Option('--service <dir>').hideHelp())
   .configureHelp({ showGlobalOptions: true })
@@ -75,7 +84,12 @@ connectCommand
   .command('add')
   .description('Connects to another machine with its pairing link')
   .argument('<link>', 'Pairing link from offsite pair on the other machine')
-  .action((link) => {
+  .option(
+    '--address <addresses>',
+    'More comma separated addresses browsers can reach it at, like its Wi-Fi address'
+  )
+  .option('--name <name>', "Name browsers show for it, which they can't change")
+  .action((link, options) => {
     command = 'connect-add'
     const params = new URLSearchParams(URL.parse(link)?.hash.slice(1) ?? '')
     const address = URL.parse(params.get('machine') ?? '')
@@ -85,7 +99,27 @@ connectCommand
         'error: use the pairing link from offsite pair on the other machine'
       )
     }
-    connection = { address: address.origin, code }
+    const more =
+      options.address === undefined
+        ? []
+        : options.address.split(',').map((given) => {
+            const url = URL.parse(given)
+            if (
+              url === null ||
+              (url.protocol !== 'http:' && url.protocol !== 'https:')
+            ) {
+              return program.error(
+                `error: --address ${given} needs http:// or https://, like https://192.168.0.10:2020`
+              )
+            }
+            return url.origin
+          })
+    connection = {
+      address: address.origin,
+      code,
+      addresses: [...new Set([...more, address.origin])],
+      name: options.name ?? null,
+    }
   })
 
 connectCommand
@@ -175,6 +209,10 @@ if (options.connect !== undefined && options.auth) {
   program.error('error: --connect needs --no-auth')
 }
 
+if (options.connectName !== undefined && options.connect === undefined) {
+  program.error('error: --connect-name needs --connect')
+}
+
 if (options.connect !== undefined && command === 'serve') {
   program.error("error: --connect can't be used with offsite serve")
 }
@@ -205,6 +243,7 @@ export const args = {
   command,
   name,
   connect,
+  connectName: options.connectName ?? null,
   https,
   connection,
   portGiven,
@@ -217,6 +256,9 @@ export const args = {
     ...(options.auth ? [] : ['--no-auth']),
     ...(options.pwa === true ? ['--pwa'] : []),
     ...(options.connect === undefined ? [] : ['--connect', options.connect]),
+    ...(options.connectName === undefined
+      ? []
+      : ['--connect-name', options.connectName]),
   ],
 }
 

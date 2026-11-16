@@ -68,6 +68,8 @@ function stored(
     label: null,
     pairedAt: null,
     listId,
+    listName: null,
+    listAddresses: listId === null ? [] : addresses,
     projects: [],
   }
 }
@@ -135,8 +137,13 @@ describe('restoreProjects', () => {
 describe('syncListedMachines', () => {
   it('adds every listed machine with its key and connects to it', async () => {
     answer([
-      { id: 'host', addresses: ['http://127.0.0.1:8001'], key: null },
-      { id: WINDOWS, addresses: [WINDOWS], key: 'windows-key' },
+      {
+        id: 'host',
+        addresses: ['http://127.0.0.1:8001'],
+        name: null,
+        key: null,
+      },
+      { id: WINDOWS, addresses: [WINDOWS], name: null, key: 'windows-key' },
     ])
 
     await syncListedMachines()
@@ -184,7 +191,9 @@ describe('syncListedMachines', () => {
     have(stored('mine', [WINDOWS], null))
     tokens.set('mine', 'old-key')
     setMachine('mine', { status: 'unpaired' })
-    answer([{ id: WINDOWS, addresses: [WINDOWS], key: 'windows-key' }])
+    answer([
+      { id: WINDOWS, addresses: [WINDOWS], name: null, key: 'windows-key' },
+    ])
 
     await syncListedMachines()
 
@@ -199,7 +208,7 @@ describe('syncListedMachines', () => {
   it('saves a new key without reconnecting a machine that is connected', async () => {
     have(stored('mine', [WINDOWS], WINDOWS))
     setMachine('mine', { status: 'online' })
-    answer([{ id: WINDOWS, addresses: [WINDOWS], key: 'new-key' }])
+    answer([{ id: WINDOWS, addresses: [WINDOWS], name: null, key: 'new-key' }])
 
     await syncListedMachines()
 
@@ -207,28 +216,100 @@ describe('syncListedMachines', () => {
     expect(connectMachine).not.toHaveBeenCalled()
   })
 
-  it('follows a listed machine to its new addresses', async () => {
+  it('adds new addresses from the list after the ones it has', async () => {
     have(stored('mac', ['http://127.0.0.1:8001'], 'host'))
     answer([
       {
         id: 'host',
         addresses: ['https://mac.example', 'http://127.0.0.1:8001'],
+        name: null,
         key: null,
       },
     ])
 
     await syncListedMachines()
 
-    expect(machines()).toEqual([
-      {
-        addresses: ['https://mac.example', 'http://127.0.0.1:8001'],
-        listId: 'host',
-        token: null,
-      },
+    expect(machineAt('https://mac.example').addresses).toEqual([
+      'http://127.0.0.1:8001',
+      'https://mac.example',
     ])
-    expect(connectMachine).toHaveBeenCalledWith('mac', [
+    expect(machineAt('https://mac.example').listAddresses).toEqual([
       'https://mac.example',
       'http://127.0.0.1:8001',
+    ])
+    expect(connectMachine).toHaveBeenCalledWith('mac', [
+      'http://127.0.0.1:8001',
+      'https://mac.example',
+    ])
+  })
+
+  it('keeps addresses added in this browser and the order set here', async () => {
+    have({
+      ...stored('windows', ['http://10.0.0.5:2020', WINDOWS], WINDOWS),
+      listAddresses: [WINDOWS],
+    })
+    answer([
+      {
+        id: WINDOWS,
+        addresses: [WINDOWS, 'https://192.168.0.102:20202'],
+        name: null,
+        key: null,
+      },
+    ])
+
+    await syncListedMachines()
+
+    expect(machineAt(WINDOWS).addresses).toEqual([
+      'http://10.0.0.5:2020',
+      WINDOWS,
+      'https://192.168.0.102:20202',
+    ])
+    expect(loadMachines()[0].listAddresses).toEqual([
+      WINDOWS,
+      'https://192.168.0.102:20202',
+    ])
+  })
+
+  it('drops list addresses the list no longer gives', async () => {
+    have({
+      ...stored(
+        'windows',
+        ['https://192.168.0.102:20202', 'http://10.0.0.5:2020', WINDOWS],
+        WINDOWS
+      ),
+      listAddresses: [WINDOWS, 'https://192.168.0.102:20202'],
+    })
+    setMachine('windows', { status: 'online' })
+    answer([{ id: WINDOWS, addresses: [WINDOWS], name: null, key: null }])
+
+    await syncListedMachines()
+
+    expect(machineAt(WINDOWS).addresses).toEqual([
+      'http://10.0.0.5:2020',
+      WINDOWS,
+    ])
+    expect(connectMachine).toHaveBeenCalledWith('windows', [
+      'http://10.0.0.5:2020',
+      WINDOWS,
+    ])
+  })
+
+  it('keeps the addresses of a machine it takes over', async () => {
+    have(stored('mine', [WINDOWS], null))
+    answer([
+      {
+        id: WINDOWS,
+        addresses: ['https://192.168.0.102:20202', WINDOWS],
+        name: null,
+        key: null,
+      },
+    ])
+
+    await syncListedMachines()
+
+    expect(machineAt(WINDOWS).addresses).toEqual([
+      WINDOWS,
+      'https://192.168.0.102:20202',
     ])
   })
 
@@ -241,7 +322,7 @@ describe('syncListedMachines', () => {
     tokens.set('windows', 'windows-key')
     tokens.set('wsl', 'wsl-key')
     tokens.set('mine', 'my-key')
-    answer([{ id: WSL, addresses: [WSL], key: 'wsl-key' }])
+    answer([{ id: WSL, addresses: [WSL], name: null, key: 'wsl-key' }])
 
     await syncListedMachines()
 
@@ -257,9 +338,51 @@ describe('syncListedMachines', () => {
     expect(loadMachines().map((machine) => machine.id)).toEqual(['wsl', 'mine'])
   })
 
+  it('shows the name from the list over the name set in this browser', async () => {
+    have({ ...stored('mine', [WINDOWS], null), label: 'My PC' })
+    answer([
+      {
+        id: WINDOWS,
+        addresses: [WINDOWS],
+        name: 'Windows',
+        key: 'windows-key',
+      },
+      { id: WSL, addresses: [WSL], name: 'WSL', key: 'wsl-key' },
+    ])
+
+    await syncListedMachines()
+
+    expect(
+      getState().machines.map((machine) => [machine.name, machine.listName])
+    ).toEqual([
+      ['Windows', 'Windows'],
+      ['WSL', 'WSL'],
+    ])
+    expect(loadMachines().map((machine) => machine.listName)).toEqual([
+      'Windows',
+      'WSL',
+    ])
+  })
+
+  it("goes back to this browser's name when the list stops naming it", async () => {
+    have({
+      ...stored('mine', [WINDOWS], WINDOWS),
+      label: 'My PC',
+      listName: 'Windows',
+    })
+    answer([{ id: WINDOWS, addresses: [WINDOWS], name: null, key: null }])
+
+    await syncListedMachines()
+
+    expect(machineAt(WINDOWS).name).toBe('My PC')
+    expect(machineAt(WINDOWS).listName).toBe(null)
+  })
+
   it('treats machines saved by an older version as added by hand', async () => {
     const older: Partial<StoredMachine> = stored('old', [WINDOWS], null)
     delete older.listId
+    delete older.listName
+    delete older.listAddresses
     localStorage.setItem('machines', JSON.stringify([older]))
     have(...loadMachines())
     answer([])

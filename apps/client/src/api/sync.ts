@@ -207,7 +207,7 @@ function resync(machine: string, snapshot: SyncSnapshot) {
     }
     setMachine(machine, {
       status: 'online',
-      name: known.label ?? snapshot.hostname,
+      name: known.listName ?? known.label ?? snapshot.hostname,
       hostname: snapshot.hostname,
       system: {
         defaults: snapshot.defaults,

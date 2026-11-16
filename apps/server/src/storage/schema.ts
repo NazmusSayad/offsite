@@ -64,6 +64,8 @@ export const devices = snakeCase.table('devices', {
 
 export const connections = snakeCase.table('connections', {
   address: text().primaryKey(),
+  addresses: text({ mode: 'json' }).$type<string[]>().notNull(),
+  name: text(),
   key: text().notNull(),
   createdAt: integer().notNull(),
 })

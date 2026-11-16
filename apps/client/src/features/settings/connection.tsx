@@ -42,7 +42,7 @@ export function ConnectionPage(props: { machine: Machine }) {
   const [error, setError] = useState<string | null>(null)
   const [order, setOrder] = useState<string[] | null>(null)
   const addresses = order ?? machine.addresses
-  const locked = machine.listId !== null
+  const listed = machine.listId !== null
   const newAddress = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -141,9 +141,10 @@ export function ConnectionPage(props: { machine: Machine }) {
       <Section title="Appearance" note="Only in this browser">
         <Row label="Name">
           <TextInput
-            key={machine.label}
-            value={machine.label ?? ''}
+            key={machine.listName ?? machine.label}
+            value={machine.listName ?? machine.label ?? ''}
             placeholder={machine.hostname}
+            disabled={machine.listName !== null}
             onCommit={(label) =>
               editMachine(machine.id, {
                 label: label.trim() === '' ? null : label.trim(),
@@ -153,7 +154,7 @@ export function ConnectionPage(props: { machine: Machine }) {
         </Row>
         <MachineIconPicker machine={machine} />
       </Section>
-      {!locked && (
+      {!listed && (
         <Section title="Pairing">
           <div className="flex min-h-13 items-center justify-between gap-4 px-4 py-2.5">
             {machine.pairedAt !== null && machine.status !== 'unpaired' && (
@@ -208,7 +209,6 @@ export function ConnectionPage(props: { machine: Machine }) {
             <ReorderRow
               key={address}
               value={address}
-              disabled={locked}
               onDragEnd={() => {
                 if (order !== null) {
                   saveAddresses(order)
@@ -219,7 +219,7 @@ export function ConnectionPage(props: { machine: Machine }) {
               <TextInput
                 className="flex-1 font-mono"
                 value={address}
-                disabled={locked}
+                disabled={machine.listAddresses.includes(address)}
                 onCommit={(text) =>
                   saveAddresses(
                     addresses.map((item, at) => (at === index ? text : item))
@@ -230,7 +230,10 @@ export function ConnectionPage(props: { machine: Machine }) {
                 size="icon-sm"
                 variant="ghost"
                 title="Remove address"
-                disabled={locked || addresses.length === 1}
+                disabled={
+                  machine.listAddresses.includes(address) ||
+                  addresses.length === 1
+                }
                 onClick={() =>
                   saveAddresses(addresses.filter((_, at) => at !== index))
                 }
@@ -265,7 +268,7 @@ export function ConnectionPage(props: { machine: Machine }) {
             />
           </div>
         )}
-        {!adding && !locked && (
+        {!adding && (
           <button
             type="button"
             className="text-muted-foreground hover:bg-muted/50 hover:text-foreground flex w-full items-center gap-2 px-4 py-3 text-sm transition-colors"
@@ -284,7 +287,7 @@ export function ConnectionPage(props: { machine: Machine }) {
       {error !== null && (
         <p className="text-destructive px-1 text-xs break-all">{error}</p>
       )}
-      {!locked && (
+      {!listed && (
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline" className="text-destructive">
@@ -343,7 +346,6 @@ export function MachineStatusDot(props: { status: Machine['status'] }) {
 
 export function ReorderRow(props: {
   value: string
-  disabled: boolean
   className?: string
   onDragEnd: () => void
   children: ReactNode
@@ -363,10 +365,7 @@ export function ReorderRow(props: {
       )}
     >
       <span
-        className={cn(
-          'text-muted-foreground hover:text-foreground cursor-grab touch-none active:cursor-grabbing',
-          props.disabled && 'pointer-events-none opacity-50'
-        )}
+        className="text-muted-foreground hover:text-foreground cursor-grab touch-none active:cursor-grabbing"
         title="Drag to reorder"
         onPointerDown={(event) => controls.start(event)}
       >

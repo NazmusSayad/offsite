@@ -45,7 +45,52 @@ describe('offsite connect add', () => {
     expect(args.connection).toEqual({
       address: 'https://windows.example:2020',
       code: 'secret',
+      addresses: ['https://windows.example:2020'],
+      name: null,
     })
+  })
+
+  it('adds the --address addresses before the link address', async () => {
+    const args = await parse(
+      'connect',
+      'add',
+      'https://os-win.sayad.cc/pair#machine=https%3A%2F%2Fos-win.sayad.cc&code=secret',
+      '--address',
+      'https://192.168.0.102:20202/,https://os-win.sayad.cc'
+    )
+
+    expect(args.connection?.addresses).toEqual([
+      'https://192.168.0.102:20202',
+      'https://os-win.sayad.cc',
+    ])
+  })
+
+  it('reads the name browsers show for it', async () => {
+    const args = await parse(
+      'connect',
+      'add',
+      'https://os-win.sayad.cc/pair#machine=https%3A%2F%2Fos-win.sayad.cc&code=secret',
+      '--name',
+      'Windows'
+    )
+
+    expect(args.connection?.name).toBe('Windows')
+  })
+
+  it('refuses an --address without http:// or https://', async () => {
+    await expect(
+      parse(
+        'connect',
+        'add',
+        'https://os-win.sayad.cc/pair#machine=https%3A%2F%2Fos-win.sayad.cc&code=secret',
+        '--address',
+        '192.168.0.102:20202'
+      )
+    ).rejects.toThrow('exit 1')
+
+    expect(written()).toContain(
+      'error: --address 192.168.0.102:20202 needs http:// or https://'
+    )
   })
 
   it.each([
@@ -72,6 +117,29 @@ describe('offsite connect remove', () => {
 })
 
 describe('--connect', () => {
+  it('passes --connect-name on to the service', async () => {
+    const args = await parse(
+      '--no-auth',
+      '--connect',
+      'https://of.sayad.cc',
+      '--connect-name',
+      'Mac'
+    )
+
+    expect(args.connectName).toBe('Mac')
+    expect(args.serverArguments).toEqual(
+      expect.arrayContaining(['--connect-name', 'Mac'])
+    )
+  })
+
+  it('needs --connect for --connect-name', async () => {
+    await expect(parse('--no-auth', '--connect-name', 'Mac')).rejects.toThrow(
+      'exit 1'
+    )
+
+    expect(written()).toContain('error: --connect-name needs --connect')
+  })
+
   it('needs --no-auth', async () => {
     await expect(parse('--connect', 'http://127.0.0.1:8001')).rejects.toThrow(
       'exit 1'

@@ -172,7 +172,6 @@ function MobileSettingsPanel() {
                     <ReorderRow
                       key={item.id}
                       value={item.id}
-                      disabled={false}
                       className="gap-0 py-0 pr-0"
                       onDragEnd={list.save}
                     >

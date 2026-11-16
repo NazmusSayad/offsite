@@ -2,13 +2,18 @@ import { eq } from 'drizzle-orm'
 import { db } from './db.ts'
 import { connections } from './schema.ts'
 
-export function saveConnection(address: string, key: string) {
+export function saveConnection(
+  address: string,
+  addresses: string[],
+  name: string | null,
+  key: string
+) {
   const createdAt = Date.now()
   db.insert(connections)
-    .values({ address, key, createdAt })
+    .values({ address, addresses, name, key, createdAt })
     .onConflictDoUpdate({
       target: connections.address,
-      set: { key, createdAt },
+      set: { addresses, name, key, createdAt },
     })
     .run()
 }
