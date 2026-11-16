@@ -11,7 +11,7 @@ import { loadDrafts } from '@/features/composer/drafts'
 import { startTerminal } from '@/features/terminal/session'
 import { startBrowserUpdates } from '@/lib/browser-update'
 import { logger, startLogging } from '@/lib/log'
-import { refreshPushSubscription, watching } from '@/lib/notifications'
+import { alreadySeen, refreshPushSubscription } from '@/lib/notifications'
 import { startReads } from '@/lib/reads'
 import { router } from '@/lib/router'
 import { openSession } from '@/lib/sessions'
@@ -64,7 +64,7 @@ if ('serviceWorker' in navigator) {
     }
     if (event.data.type === 'watching') {
       event.ports[0].postMessage(
-        watching(event.data.machine, event.data.sessionId)
+        alreadySeen(event.data.machine, event.data.sessionId)
       )
     }
   })
