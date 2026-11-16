@@ -9,6 +9,8 @@ const log = logger.withTag('notices')
 const TITLE_LIMIT = 100
 const BODY_LIMIT = 500
 const KEEP = 24 * 60 * 60 * 1000
+const ACTIVE_LIMIT = 15_000
+const ANSWER_LIMIT = 2000
 
 export type NoticeButton =
   | { title: string; kind: 'open' | 'diff' }
@@ -23,6 +25,7 @@ const stored = new Map<
   string,
   { at: number; runs: Map<string, (client: Client) => Promise<unknown>> }
 >()
+const asking = new Map<string, (here: boolean) => void>()
 
 export async function notify(input: NoticeInput) {
   const id = randomUUID()
@@ -52,9 +55,15 @@ export async function notify(input: NoticeInput) {
   }
   forgetOld()
   stored.set(id, { at: Date.now(), runs })
-  const local = clients.size > 0
-  broadcast({ type: 'notice', notice })
-  return { local, push: await sendPush(notice) }
+  const active = [...clients].filter(
+    (client) => Date.now() - client.activeAt < ACTIVE_LIMIT
+  )
+  if (active.length > 0 && (await anyoneHere(active, notice))) {
+    return { local: true, push: false }
+  }
+  const pushed = await sendPush(notice)
+  broadcast({ type: 'notice', notice, pushed })
+  return { local: clients.size > 0, push: pushed }
 }
 
 export async function act(client: Client, id: string, action: string) {
@@ -64,6 +73,31 @@ export async function act(client: Client, id: string, action: string) {
   }
   log.info(`running action ${action} of notification ${id}`)
   await run(client)
+}
+
+export function receiveAnswer(id: string, here: boolean) {
+  asking.get(id)?.(here)
+}
+
+function anyoneHere(active: Client[], notice: Notice) {
+  return new Promise<boolean>((resolve) => {
+    let waiting = active.length
+    const timer = setTimeout(() => finish(false), ANSWER_LIMIT)
+    function finish(here: boolean) {
+      clearTimeout(timer)
+      asking.delete(notice.id)
+      resolve(here)
+    }
+    asking.set(notice.id, (here) => {
+      waiting -= 1
+      if (here || waiting === 0) {
+        finish(here)
+      }
+    })
+    for (const client of active) {
+      client.send({ type: 'notice.ask', notice })
+    }
+  })
 }
 
 function forgetOld() {

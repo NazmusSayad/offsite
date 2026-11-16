@@ -23,7 +23,12 @@ import {
 } from '@/lib/accounts'
 import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
-import { showNoticeHere } from '@/lib/notifications'
+import {
+  answerNotice,
+  reportPresence,
+  showNoticeHere,
+  startPresence,
+} from '@/lib/notifications'
 import { moveStartedPrompt, receiveOutbox } from '@/lib/outbox'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
@@ -129,6 +134,7 @@ export function start() {
     open: (machine, url) => {
       setMachine(machine, { via: url })
       void resync(machine)
+      reportPresence(machine)
     },
     close: (machine) => {
       const known = getState().machines.find((item) => item.id === machine)
@@ -140,6 +146,7 @@ export function start() {
       setMachine(machine, { status: 'unpaired', via: null }),
     event: receive,
   })
+  startPresence()
   addEventListener('storage', (event) => {
     if (event.key === 'machines') {
       receiveMachines()
@@ -414,8 +421,13 @@ function receive(machine: string, event: ServerEvent) {
       return
     }
     case 'notice':
-      showNoticeHere(machine, event.notice).catch((error: unknown) =>
-        log.error('could not show a notification', error)
+      showNoticeHere(machine, event.notice, event.pushed).catch(
+        (error: unknown) => log.error('could not show a notification', error)
+      )
+      return
+    case 'notice.ask':
+      answerNotice(machine, event.notice).catch((error: unknown) =>
+        log.error('could not answer a notification', error)
       )
       return
     case 'terminals':
