@@ -399,8 +399,6 @@ export type RpcReply =
   | { type: 'reply'; id: number; unchanged: true }
   | { type: 'reply'; id: number; error: string }
 
-export type Login = { key: string } | Record<string, never>
-
 export const NEEDS_PAIRING = 4001
 
 export type ListedMachine = {

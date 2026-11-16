@@ -223,11 +223,11 @@ export async function syncListedMachines() {
     const existing =
       getState().machines.find((machine) => machine.listId === item.id) ??
       findMachine(item.addresses)
+    const id = existing?.id ?? newMachineId()
+    if (item.key !== null) {
+      await saveToken(id, item.key)
+    }
     if (existing === undefined) {
-      const id = newMachineId()
-      if (item.key !== null) {
-        await saveToken(id, item.key)
-      }
       createMachine(
         id,
         item.addresses,
@@ -236,9 +236,6 @@ export async function syncListedMachines() {
         item.name
       )
       continue
-    }
-    if (item.key !== null) {
-      await saveToken(existing.id, item.key)
     }
     const kept = existing.addresses.filter(
       (address) =>
