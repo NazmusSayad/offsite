@@ -23,7 +23,7 @@ const fake = await vi.hoisted(async () => {
 })
 
 vi.mock('../args.ts', () => ({
-  args: { dir: fake.root },
+  args: { dir: fake.root, service: false, serverArguments: [] },
   serverDir: path.join(import.meta.dirname, '..', '..'),
   version: 'test',
 }))
@@ -100,6 +100,9 @@ function connectPage(reply: 'here' | 'left' | 'silent') {
       const message = JSON.parse(text)
       if (message.type === 'reply') {
         replies.get(message.id)?.()
+        return
+      }
+      if (message.type === 'welcome') {
         return
       }
       received.push(message)
