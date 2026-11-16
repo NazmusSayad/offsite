@@ -28,19 +28,22 @@ export async function noticeImage(files: string[]) {
     return null
   }
   try {
-    const png = await grid(found)
-    const token = randomBytes(24).toString('base64url')
-    for (const entry of images) {
-      if (Date.now() - entry[1].at > KEEP || images.size >= LIMIT) {
-        images.delete(entry[0])
-      }
-    }
-    images.set(token, { at: Date.now(), png })
-    return `${PREFIX}${token}`
+    return keepImage(await grid(found))
   } catch (error) {
     log.warn('could not build the notification image:', error)
     return null
   }
+}
+
+export function keepImage(png: Buffer) {
+  const token = randomBytes(24).toString('base64url')
+  for (const entry of images) {
+    if (Date.now() - entry[1].at > KEEP || images.size >= LIMIT) {
+      images.delete(entry[0])
+    }
+  }
+  images.set(token, { at: Date.now(), png })
+  return `${PREFIX}${token}`
 }
 
 export function serveNoticeImage(pathname: string, response: ServerResponse) {

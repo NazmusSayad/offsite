@@ -25,6 +25,7 @@ export type Notice = {
   source: Provider
   state: NoticeState
   image: string | null
+  icon: string | null
   actions: NoticeAction[]
   whileVisible: boolean
   target: { projectId: string; worktreeId: string | null; sessionId: string }
