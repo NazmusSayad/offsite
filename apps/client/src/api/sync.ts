@@ -25,6 +25,7 @@ import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
 import {
   answerAwake,
+  dismissNotices,
   reportPresence,
   showNoticeHere,
   startPresence,
@@ -32,6 +33,7 @@ import {
 import { moveStartedPrompt, receiveOutbox } from '@/lib/outbox'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
+import { restartSeen } from '@/lib/seen'
 import { closeSession, loadSession, openSession } from '@/lib/sessions'
 import {
   createAppStore,
@@ -412,8 +414,14 @@ function receive(machine: string, event: ServerEvent) {
       )
       return
     case 'notice.ask':
+      restartSeen(machine, event.sessionId)
       answerAwake(machine, event.id).catch((error: unknown) =>
         log.error('could not answer a notification', error)
+      )
+      return
+    case 'notice.dismiss':
+      dismissNotices(machine, event.tag).catch((error: unknown) =>
+        log.error('could not remove a notification', error)
       )
       return
     case 'terminals':

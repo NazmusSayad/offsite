@@ -1,9 +1,11 @@
 import type { Notice, NoticeState } from '@offsite/core/push'
 
+type NoticeEntry = { machine: string; notice: Notice }
+
 export type NoticeData = {
   machine: string
   notice: Notice
-  digest: { machine: string; notice: Notice }[]
+  digest: NoticeEntry[]
 }
 
 type ShowOptions = NotificationOptions & {
@@ -56,13 +58,41 @@ export async function showNotice(
     )
     return
   }
-  const urgent = entries.reduce((top, item) =>
-    urgency[item.notice.state] > urgency[top.notice.state] ? item : top
-  )
   for (const item of shown) {
     item.close()
   }
-  await registration.showNotification('While you were away', {
+  await showDigest(registration, entries, true)
+}
+
+export async function removeNotices(
+  registration: ServiceWorkerRegistration,
+  gone: (entry: NoticeEntry) => boolean
+) {
+  for (const item of await registration.getNotifications()) {
+    if (!isNoticeData(item.data)) {
+      continue
+    }
+    const kept = item.data.digest.filter((entry) => !gone(entry))
+    if (kept.length === item.data.digest.length) {
+      continue
+    }
+    if (kept.length === 0) {
+      item.close()
+      continue
+    }
+    await showDigest(registration, kept, false)
+  }
+}
+
+async function showDigest(
+  registration: ServiceWorkerRegistration,
+  entries: NoticeEntry[],
+  renotify: boolean
+) {
+  const urgent = entries.reduce((top, item) =>
+    urgency[item.notice.state] > urgency[top.notice.state] ? item : top
+  )
+  const digest: ShowOptions = {
     ...options(
       urgent.notice,
       { machine: urgent.machine, notice: urgent.notice, digest: entries },
@@ -75,7 +105,9 @@ export async function showNotice(
       )
       .join('\n'),
     tag: 'digest',
-  })
+    renotify,
+  }
+  await registration.showNotification('While you were away', digest)
 }
 
 export function isNoticeData(data: unknown): data is NoticeData {

@@ -50,6 +50,39 @@ export async function sendPush(notice: Notice) {
   if (subscriptions.length === 0) {
     return false
   }
+  const delivered = await deliver(subscriptions, (subscription) => ({
+    ...notice,
+    machineId: subscription.machine,
+  }))
+  log.info(
+    `notification ${notice.id.slice(0, 8)}: sent a push to ${delivered} of ${subscriptions.length} browsers`
+  )
+  return delivered > 0
+}
+
+export async function sendDismissPush(tag: string) {
+  const all = targets()
+  const subscriptions = all.filter(
+    (subscription) =>
+      !new URL(subscription.endpoint).hostname.endsWith('.push.apple.com')
+  )
+  if (subscriptions.length === 0) {
+    return
+  }
+  const delivered = await deliver(subscriptions, (subscription) => ({
+    type: 'dismiss',
+    tag,
+    machineId: subscription.machine,
+  }))
+  log.info(
+    `${tag}: sent a push to remove its notification to ${delivered} of ${subscriptions.length} browsers, skipped ${all.length - subscriptions.length} on Apple's push service`
+  )
+}
+
+async function deliver(
+  subscriptions: (typeof pushSubscriptions.$inferSelect)[],
+  payload: (subscription: typeof pushSubscriptions.$inferSelect) => object
+) {
   const gone: string[] = []
   let delivered = 0
   await Promise.all(
@@ -60,7 +93,7 @@ export async function sendPush(notice: Notice) {
             endpoint: subscription.endpoint,
             keys: { p256dh: subscription.p256dh, auth: subscription.auth },
           },
-          JSON.stringify({ ...notice, machineId: subscription.machine }),
+          JSON.stringify(payload(subscription)),
           {
             vapidDetails: {
               subject: SUBJECT,
@@ -86,21 +119,17 @@ export async function sendPush(notice: Notice) {
       }
     })
   )
-  log.info(
-    `notification ${notice.id.slice(0, 8)}: sent a push to ${delivered} of ${subscriptions.length} browsers`
-  )
-  if (gone.length === 0) {
-    return delivered > 0
-  }
-  db.delete(pushSubscriptions)
-    .where(
-      and(
-        eq(pushSubscriptions.server, server),
-        inArray(pushSubscriptions.endpoint, gone)
+  if (gone.length > 0) {
+    db.delete(pushSubscriptions)
+      .where(
+        and(
+          eq(pushSubscriptions.server, server),
+          inArray(pushSubscriptions.endpoint, gone)
+        )
       )
-    )
-    .run()
-  return delivered > 0
+      .run()
+  }
+  return delivered
 }
 
 function targets() {

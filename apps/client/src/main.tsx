@@ -11,9 +11,14 @@ import { loadDrafts } from '@/features/composer/drafts'
 import { startTerminal } from '@/features/terminal/session'
 import { startBrowserUpdates } from '@/lib/browser-update'
 import { logger, startLogging } from '@/lib/log'
-import { alreadySeen, refreshPushSubscription } from '@/lib/notifications'
+import {
+  alreadySeen,
+  dropSeenNotices,
+  refreshPushSubscription,
+} from '@/lib/notifications'
 import { startReads } from '@/lib/reads'
 import { router } from '@/lib/router'
+import { startSeen } from '@/lib/seen'
 import { openSession } from '@/lib/sessions'
 
 const log = logger.withTag('app')
@@ -38,10 +43,14 @@ addEventListener(
 await loadDrafts()
 startConnections()
 startReads()
+startSeen()
 listen({
   open: (machine) => {
     refreshPushSubscription(machine).catch((error: unknown) =>
       log.error('could not refresh the push subscription', error)
+    )
+    dropSeenNotices(machine).catch((error: unknown) =>
+      log.error('could not remove notifications that were already seen', error)
     )
   },
 })

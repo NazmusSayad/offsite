@@ -2,7 +2,7 @@ import type { Notice, PushSubscriptionInfo } from '@offsite/core/push'
 import { useEffect } from 'react'
 import { call, isConnected, machineUrl } from '@/api/connection'
 import { logger } from '@/lib/log'
-import { isNoticeData, showNotice } from './notices'
+import { isNoticeData, removeNotices, showNotice } from './notices'
 import { router } from './router'
 import { activityOf, getState, threadState, useStore } from './store'
 import { currentSearch } from './url'
@@ -84,6 +84,39 @@ export async function showNoticeHere(
     }
     await showNotice(registration, machine, notice, machineUrl(machine))
   })
+}
+
+export async function dismissNotices(machine: string, tag: string) {
+  if (notificationPermission() !== 'granted') {
+    return
+  }
+  const registration = await navigator.serviceWorker.ready
+  await removeNotices(
+    registration,
+    (entry) => entry.machine === machine && entry.notice.tag === tag
+  )
+}
+
+export async function dropSeenNotices(machine: string) {
+  if (notificationPermission() !== 'granted') {
+    return
+  }
+  const registration = await navigator.serviceWorker.ready
+  const ids = (await registration.getNotifications()).flatMap((item) =>
+    isNoticeData(item.data)
+      ? item.data.digest
+          .filter((entry) => entry.machine === machine)
+          .map((entry) => entry.notice.id)
+      : []
+  )
+  if (ids.length === 0) {
+    return
+  }
+  const seen = await call(machine, 'notices.dismissed', { ids })
+  await removeNotices(
+    registration,
+    (entry) => entry.machine === machine && seen.includes(entry.notice.id)
+  )
 }
 
 export async function answerAwake(machine: string, id: string) {
