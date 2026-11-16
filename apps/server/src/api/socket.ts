@@ -51,7 +51,7 @@ import {
   removeProject,
   updateProject,
 } from '../services/projects.ts'
-import { claimNotifier, subscribe, unsubscribe } from '../services/push.ts'
+import { subscribe, unsubscribe } from '../services/push.ts'
 import { open, resend, restart, rewind, send, stop } from '../services/runs.ts'
 import { agentHistory } from '../services/session-history.ts'
 import { generateSessionTitle } from '../services/session-title.ts'
@@ -292,16 +292,12 @@ const handlers: Handlers = {
     linkBrowse(client.device, client.address),
   'browser.open': (params) => openSite(params.url, params.fromPage),
   'tasks.output': (params) => taskOutput(params.sessionId, params.path),
-  'push.subscribe': (params, client) => {
-    subscribe(params, client)
+  'push.subscribe': (params) => {
+    subscribe(params)
     return null
   },
   'push.unsubscribe': (params) => {
     unsubscribe(params.endpoint)
-    return null
-  },
-  'notifications.claim': (params, client) => {
-    claimNotifier(client, params.endpoint)
     return null
   },
   'notices.act': async (params, client) => {
@@ -327,7 +323,6 @@ export function connectClient(
     socket,
     device,
     address,
-    heardAt: Date.now(),
     opening: null,
     sessionId: null,
     send: (message) => socket.send(JSON.stringify(message)),
@@ -339,7 +334,6 @@ export function connectClient(
     ALIVE_INTERVAL
   )
   socket.on('message', (data, isBinary) => {
-    client.heardAt = Date.now()
     if (isBinary) {
       terminalInput(client, data as Buffer)
       return

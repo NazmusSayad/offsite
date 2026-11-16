@@ -115,7 +115,6 @@ export function restoreMachine(machine: StoredMachine): Machine {
     claudeAccounts: [],
     codexAccounts: [],
     openCode: { available: false },
-    notifier: false,
     activity: {},
     providers: [],
     terminals: [],

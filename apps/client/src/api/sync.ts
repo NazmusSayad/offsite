@@ -23,7 +23,7 @@ import {
 } from '@/lib/accounts'
 import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
-import { claimNotifications, showNoticeHere } from '@/lib/notifications'
+import { showNoticeHere } from '@/lib/notifications'
 import { moveStartedPrompt, receiveOutbox } from '@/lib/outbox'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
@@ -133,15 +133,13 @@ export function start() {
     close: (machine) => {
       const known = getState().machines.find((item) => item.id === machine)
       if (known !== undefined && known.status !== 'offline') {
-        setMachine(machine, { status: 'offline', via: null, notifier: false })
+        setMachine(machine, { status: 'offline', via: null })
       }
     },
     unpaired: (machine) =>
-      setMachine(machine, { status: 'unpaired', via: null, notifier: false }),
+      setMachine(machine, { status: 'unpaired', via: null }),
     event: receive,
   })
-  addEventListener('keydown', claimNotifications, { capture: true })
-  addEventListener('pointerdown', claimNotifications, { capture: true })
   addEventListener('storage', (event) => {
     if (event.key === 'machines') {
       receiveMachines()
@@ -419,9 +417,6 @@ function receive(machine: string, event: ServerEvent) {
       showNoticeHere(machine, event.notice).catch((error: unknown) =>
         log.error('could not show a notification', error)
       )
-      return
-    case 'notifier':
-      setMachine(machine, { notifier: event.active })
       return
     case 'terminals':
       setMachine(machine, { terminals: event.tabs })

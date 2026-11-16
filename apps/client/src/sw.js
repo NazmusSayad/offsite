@@ -8,6 +8,8 @@ import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { isNoticeData, showNotice } from './lib/notices'
 import { readToken } from './lib/tokens'
 
+const WATCHING_TIMEOUT = 1000
+
 clientsClaim()
 
 self.addEventListener('message', (event) => {
@@ -39,6 +41,9 @@ async function showPushed(data) {
     await self.registration.showNotification('OffSite', { data: null })
     return
   }
+  if (!message.whileVisible && (await watching(message))) {
+    return
+  }
   const machines = (await stored('/machines')) ?? []
   const machine = machines.find((item) => item.id === message.machineId)
   await showNotice(
@@ -47,6 +52,38 @@ async function showPushed(data) {
     message,
     machine?.addresses[0] ?? null
   )
+}
+
+async function watching(message) {
+  const windows = await self.clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true,
+  })
+  const answers = await Promise.all(
+    windows
+      .filter((window) => window.focused)
+      .map((window) => askWatching(window, message))
+  )
+  return answers.includes(true)
+}
+
+function askWatching(window, message) {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel()
+    const timer = setTimeout(() => resolve(false), WATCHING_TIMEOUT)
+    channel.port1.onmessage = (event) => {
+      clearTimeout(timer)
+      resolve(event.data === true)
+    }
+    window.postMessage(
+      {
+        type: 'watching',
+        machine: message.machineId,
+        sessionId: message.target.sessionId,
+      },
+      [channel.port2]
+    )
+  })
 }
 
 function readMessage(data) {

@@ -11,7 +11,7 @@ import { loadDrafts } from '@/features/composer/drafts'
 import { startTerminal } from '@/features/terminal/session'
 import { startBrowserUpdates } from '@/lib/browser-update'
 import { logger, startLogging } from '@/lib/log'
-import { refreshPushSubscription } from '@/lib/notifications'
+import { refreshPushSubscription, watching } from '@/lib/notifications'
 import { router } from '@/lib/router'
 import { openSession } from '@/lib/sessions'
 import { replaceSearch } from '@/lib/url'
@@ -59,6 +59,11 @@ if ('serviceWorker' in navigator) {
       if (event.data.panel === 'diff') {
         replaceSearch({ panel: 'diff' })
       }
+    }
+    if (event.data.type === 'watching') {
+      event.ports[0].postMessage(
+        watching(event.data.machine, event.data.sessionId)
+      )
     }
   })
 }
