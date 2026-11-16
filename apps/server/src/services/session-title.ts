@@ -1,4 +1,5 @@
 import type { Item } from '@offsite/core/items'
+import { earlier } from '../lib/claude/index.ts'
 import { titleJobs } from '../lib/live.ts'
 import { generateText, threadSettings } from './generate-text.ts'
 import { placePath } from './project-worktrees.ts'
@@ -39,7 +40,10 @@ function transcript(items: Item[]) {
     if (item.parent !== null) {
       return []
     }
-    if (item.kind === 'user' && item.format === 'text') {
+    if (
+      item.kind === 'user' &&
+      (item.format === 'text' || item.format === 'command')
+    ) {
       return [{ user: true, text: `USER:\n${shorten(item.text)}` }]
     }
     if (item.kind === 'assistant') {
@@ -94,9 +98,24 @@ export async function generateSessionTitle(
     if (history.type !== 'history') {
       throw new Error(`Could not read session ${id}`)
     }
+    let items = history.items
+    let before = history.before
+    while (
+      before !== null &&
+      !items.some(
+        (item) =>
+          item.parent === null &&
+          item.kind === 'user' &&
+          (item.format === 'text' || item.format === 'command')
+      )
+    ) {
+      const page = await earlier(id, before)
+      items = [...page.items, ...items]
+      before = page.before
+    }
     const reply = await generateText('session-title', threadSettings(id), cwd, {
       instructions: TITLE_INSTRUCTIONS,
-      prompt: `Current title: ${JSON.stringify(session.title)}\n\nConversation:\n${transcript(history.items)}`,
+      prompt: `Current title: ${JSON.stringify(session.title)}\n\nConversation:\n${transcript(items)}`,
     })
     const title = reply
       .split('\n')[0]
