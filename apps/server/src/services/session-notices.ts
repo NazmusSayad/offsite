@@ -16,7 +16,7 @@ import { doneSummary, planSummary, questionSummary } from './notice-summary.ts'
 import { type NoticeButton, notify } from './notices.ts'
 import { resend } from './runs.ts'
 import { sessions, setUnread } from './sessions.ts'
-import { duration, plainText, turnSummary } from './turn-summary.ts'
+import { plainText, turnSummary } from './turn-summary.ts'
 
 const log = logger.withTag('session-notices')
 
@@ -99,14 +99,6 @@ async function finishedNotice(run: LiveRun) {
   const summary = await turnSummary(run.sessionId, run.cwd)
   const provider = providerName(run.provider)
   const reply = plainText(summary.reply)
-  const stats = [
-    summary.files === 0
-      ? null
-      : `${summary.files} ${summary.files === 1 ? 'file' : 'files'} · +${summary.lines.added} −${summary.lines.removed}`,
-    summary.startedAt === null
-      ? null
-      : duration(Date.now() - summary.startedAt),
-  ].filter((part) => part !== null)
   const asks = reply.slice(reply.lastIndexOf('\n') + 1).includes('?')
   const short = asks
     ? await questionSummary(run.settings, run.cwd, summary.request, reply)
@@ -123,18 +115,17 @@ async function finishedNotice(run: LiveRun) {
     short ?? (asks ? `${provider} asks a question` : `${provider} finished`)
   await notify({
     ...base(run, session),
-    body: [text, stats.join(' · ')].filter((part) => part !== '').join('\n'),
+    body: text,
     summary: text,
     state: asks ? 'asks' : 'done',
     image: await noticeImage(summary.images),
-    buttons: finishedButtons(session, asks, summary.files),
+    buttons: finishedButtons(session, asks),
   })
 }
 
 function finishedButtons(
   session: NoticeSession,
-  asks: boolean,
-  files: number
+  asks: boolean
 ): NoticeButton[] {
   if (asks) {
     return [
@@ -146,13 +137,7 @@ function finishedButtons(
       { title: 'Reply', kind: 'open' },
     ]
   }
-  if (files > 0) {
-    return [
-      { title: 'View diff', kind: 'diff' },
-      { title: 'Reply', kind: 'open' },
-    ]
-  }
-  return [{ title: 'Reply', kind: 'open' }]
+  return []
 }
 
 async function requestNotice(run: LiveRun, request: PermissionRequest) {

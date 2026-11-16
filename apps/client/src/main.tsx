@@ -15,7 +15,6 @@ import { alreadySeen, refreshPushSubscription } from '@/lib/notifications'
 import { startReads } from '@/lib/reads'
 import { router } from '@/lib/router'
 import { openSession } from '@/lib/sessions'
-import { replaceSearch } from '@/lib/url'
 
 const log = logger.withTag('app')
 
@@ -58,9 +57,6 @@ if ('serviceWorker' in navigator) {
         sessionId: event.data.sessionId,
         pending: null,
       })
-      if (event.data.panel === 'diff') {
-        replaceSearch({ panel: 'diff' })
-      }
     }
     if (event.data.type === 'watching') {
       event.ports[0].postMessage(
