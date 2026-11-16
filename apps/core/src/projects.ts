@@ -1,5 +1,13 @@
 export const NO_PROJECT = 'no-project'
 
+export function projectColorIndex(name: string, count: number) {
+  let index = 0
+  for (const glyph of name.normalize('NFKC').trim().toLowerCase()) {
+    index = (index * 31 + (glyph.codePointAt(0) ?? 0)) % count
+  }
+  return index
+}
+
 export type Project = {
   id: string
   path: string

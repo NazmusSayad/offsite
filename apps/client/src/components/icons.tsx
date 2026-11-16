@@ -5,7 +5,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { CLAUDE_LOGO, OPENCODE_LOGO } from '@offsite/core/icons/providers'
-import { NO_PROJECT } from '@offsite/core/projects'
+import { NO_PROJECT, projectColorIndex } from '@offsite/core/projects'
 import type { Provider } from '@offsite/core/providers'
 import { projectOf, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -124,10 +124,7 @@ export function ProjectBadge(props: {
   const text = Array.from(`${glyphs[0]}${second}`.toUpperCase())
     .slice(0, 2)
     .join('')
-  let index = 0
-  for (const glyph of name.toLowerCase()) {
-    index = (index * 31 + (glyph.codePointAt(0) ?? 0)) % colors.length
-  }
+  const index = projectColorIndex(name, colors.length)
 
   return (
     <span

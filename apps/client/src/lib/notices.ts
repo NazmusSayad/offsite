@@ -38,7 +38,14 @@ export async function showNotice(
   notice: Notice,
   address: string | null
 ) {
-  const entry = { machine, notice }
+  const shownNotice = {
+    ...notice,
+    icon:
+      notice.icon === null || address === null
+        ? null
+        : new URL(notice.icon, address).href,
+  }
+  const entry = { machine, notice: shownNotice }
   const shown = (await registration.getNotifications()).filter(
     (item) => isNoticeData(item.data) && item.tag !== notice.tag
   )
@@ -54,7 +61,13 @@ export async function showNotice(
   if (entries.length < DIGEST_FROM) {
     await registration.showNotification(
       notice.title,
-      options(notice, { machine, notice, digest: [entry] }, address)
+      options(
+        shownNotice,
+        { machine, notice: shownNotice, digest: [entry] },
+        notice.image === null || address === null
+          ? null
+          : new URL(notice.image, address).href
+      )
     )
     return
   }
@@ -117,16 +130,13 @@ export function isNoticeData(data: unknown): data is NoticeData {
 function options(
   notice: Notice,
   data: NoticeData,
-  address: string | null
+  image: string | null
 ): ShowOptions {
   return {
     body: notice.body,
     tag: notice.tag,
-    icon: `/notification-icons/${notice.source}-${notice.state}.png`,
-    image:
-      notice.image === null || address === null
-        ? undefined
-        : new URL(notice.image, address).href,
+    icon: notice.icon === null ? undefined : notice.icon,
+    image: image === null ? undefined : image,
     actions: notice.actions.map((action) => ({
       action: action.id,
       title: action.title,
