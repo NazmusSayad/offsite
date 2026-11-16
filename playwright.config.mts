@@ -1,7 +1,8 @@
 import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
-  testDir: 'e2e',
+  testDir: 'apps/__tests__',
+  workers: 1,
   timeout: 10 * 60_000,
   webServer: {
     command: 'pnpm --filter client build && pnpm dev --pwa',

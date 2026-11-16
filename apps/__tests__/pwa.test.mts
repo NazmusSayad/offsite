@@ -3,7 +3,7 @@ import { readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 
-const root = path.join(import.meta.dirname, '..')
+const root = path.join(import.meta.dirname, '..', '..')
 const dist = path.join(root, 'apps', 'client', 'dist')
 
 function builtFiles() {
