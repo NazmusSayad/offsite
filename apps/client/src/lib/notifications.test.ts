@@ -14,21 +14,25 @@ const fake = vi.hoisted(() => ({
   location: { pathname: '/' },
   selection: {} as object | null,
   wide: { matches: false },
+  machines: ['machine'],
+  connected: ['machine'],
+  notification: { permission: 'granted' },
+  logError: vi.fn(),
 }))
 
 vi.mock('@/api/connection', () => ({
   call: vi.fn(async () => null),
-  isConnected: () => true,
+  isConnected: (machine: string) => fake.connected.includes(machine),
   machineUrl: () => 'https://of.example',
 }))
 vi.mock('@/api/machines', () => ({ machineKey: vi.fn() }))
 vi.mock('@/lib/log', () => ({
-  logger: { withTag: () => ({ error: vi.fn(), info: vi.fn() }) },
+  logger: { withTag: () => ({ error: fake.logError, info: vi.fn() }) },
 }))
 vi.mock('./store', () => ({
   activityOf: vi.fn(),
   getState: () => ({
-    machines: [{ id: 'machine' }],
+    machines: fake.machines.map((id) => ({ id })),
     selection: fake.selection,
   }),
   threadState: vi.fn(),
@@ -99,7 +103,7 @@ beforeAll(() => {
     },
     configurable: true,
   })
-  vi.stubGlobal('Notification', { permission: 'granted' })
+  vi.stubGlobal('Notification', fake.notification)
   vi.stubGlobal('PushManager', class {})
   notifications.startPresence()
 })
@@ -114,6 +118,12 @@ beforeEach(() => {
   fake.location.pathname = '/'
   fake.selection = {}
   fake.wide.matches = false
+  fake.machines = ['machine']
+  fake.connected = ['machine']
+  fake.notification.permission = 'granted'
+  fake.logError.mockClear()
+  vi.mocked(connection.call).mockReset()
+  vi.mocked(connection.call).mockResolvedValue(null)
   vi.spyOn(document, 'hasFocus').mockReturnValue(true)
   vi.spyOn(document, 'hidden', 'get').mockReturnValue(false)
 })
@@ -266,6 +276,26 @@ describe('showing a notification from an open page', () => {
     expect(shownTitles()).toEqual(['Fix login'])
   })
 
+  it('stays quiet when this browser has not allowed notifications', async () => {
+    fake.notification.permission = 'denied'
+
+    await notifications.showNoticeHere('machine', notice, false)
+
+    expect(shownTitles()).toEqual([])
+  })
+
+  it('shows a notice that asks for you even while that conversation is on screen', async () => {
+    fake.search = { machine: 'machine', session: 'session' }
+
+    await notifications.showNoticeHere(
+      'machine',
+      { ...notice, whileVisible: true },
+      false
+    )
+
+    expect(shownTitles()).toEqual(['Fix login'])
+  })
+
   it('stays quiet when notifications are turned off in settings', async () => {
     localStorage.setItem('notifications', 'off')
 
@@ -318,6 +348,37 @@ describe('telling the servers whether you are using this page', () => {
     expect(presenceSent()).toHaveLength(2)
   })
 
+  it('tells every connected server, but not one that is offline', () => {
+    fake.machines = ['machine', 'other', 'offline']
+    fake.connected = ['machine', 'other']
+
+    fire('keydown')
+
+    expect(presenceSent()).toEqual([
+      ['machine', 'notifications.presence', { active: true }],
+      ['other', 'notifications.presence', { active: true }],
+    ])
+  })
+
+  it('counts the page becoming visible again as using it', () => {
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(presenceSent()).toEqual([
+      ['machine', 'notifications.presence', { active: true }],
+    ])
+  })
+
+  it('keeps working when a server could not be told', async () => {
+    vi.mocked(connection.call).mockRejectedValueOnce(new Error('offline'))
+
+    fire('pointerdown')
+    await vi.waitFor(() => expect(fake.logError).toHaveBeenCalled())
+    vi.setSystemTime(now + 5000)
+    fire('pointerdown')
+
+    expect(presenceSent()).toHaveLength(2)
+  })
+
   it('ignores input while the window is not focused', () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(false)
 
@@ -367,6 +428,16 @@ describe('telling the servers whether you are using this page', () => {
     expect(presenceSent()).toHaveLength(1)
   })
 
+  it('does not tell a server that reconnects while the window is not focused', () => {
+    fire('pointerdown')
+    vi.mocked(connection.call).mockClear()
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+
+    notifications.reportPresence('machine')
+
+    expect(presenceSent()).toEqual([])
+  })
+
   it('answers that you are here and shows it when you used the page in the last 15 seconds', async () => {
     fire('pointerdown')
     vi.mocked(connection.call).mockClear()
@@ -403,6 +474,30 @@ describe('telling the servers whether you are using this page', () => {
     expect(presenceSent()).toEqual([
       ['machine', 'notices.here', { id: 'notice', here: false }],
     ])
+    expect(shownTitles()).toEqual([])
+  })
+
+  it('answers that you are here but shows nothing on a desktop window you are using', async () => {
+    fake.wide.matches = true
+    fire('pointerdown')
+    vi.mocked(connection.call).mockClear()
+
+    await notifications.answerNotice('machine', notice)
+
+    expect(presenceSent()).toEqual([
+      ['machine', 'notices.here', { id: 'notice', here: true }],
+    ])
+    expect(shownTitles()).toEqual([])
+  })
+
+  it('shows nothing itself when the answer could not be sent, so the server pushes it', async () => {
+    fire('pointerdown')
+    vi.mocked(connection.call).mockRejectedValueOnce(new Error('offline'))
+
+    await expect(notifications.answerNotice('machine', notice)).rejects.toThrow(
+      'offline'
+    )
+
     expect(shownTitles()).toEqual([])
   })
 })
