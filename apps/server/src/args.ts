@@ -8,6 +8,8 @@ let command = 'web' as
   | 'web'
   | 'serve'
   | 'pair'
+  | 'connect-add'
+  | 'connect-remove'
   | 'unpair'
   | 'install'
   | 'uninstall'
@@ -17,6 +19,7 @@ let command = 'web' as
   | 'https-rm'
 let name = null as string | null
 let https = null as { cert: string; key: string } | null
+let connection = null as { address: string; code: string } | null
 
 export const SERVICE_PORT = '2020'
 
@@ -60,6 +63,48 @@ program
   .action((options) => {
     command = 'pair'
     name = options.name ?? null
+  })
+
+const connectCommand = program
+  .command('connect')
+  .description(
+    'Connects this machine to other machines, so browsers paired with it get them too'
+  )
+
+connectCommand
+  .command('add')
+  .description('Connects to another machine with its pairing link')
+  .argument('<link>', 'Pairing link from offsite pair on the other machine')
+  .action((given) => {
+    command = 'connect-add'
+    const url = URL.parse(
+      /^[a-z]+:\/\//i.test(given) ? given : `http://${given}`
+    )
+    const params = new URLSearchParams(url?.hash.slice(1) ?? '')
+    const machine = params.get('machine')
+    const address = machine === null ? url : URL.parse(machine)
+    const code = params.get('code')
+    if (
+      address === null ||
+      (address.protocol !== 'http:' && address.protocol !== 'https:')
+    ) {
+      return program.error(
+        'error: use the link from offsite pair on the other machine'
+      )
+    }
+    if (code === null) {
+      return program.error(
+        'error: that link has no pairing code; run offsite pair on the other machine for a new one'
+      )
+    }
+    connection = { address: address.origin, code }
+  })
+
+connectCommand
+  .command('remove')
+  .description('Picks connected machines to remove')
+  .action(() => {
+    command = 'connect-remove'
   })
 
 program
@@ -173,6 +218,7 @@ export const args = {
   name,
   connect,
   https,
+  connection,
   portGiven,
   service: options.service !== undefined,
   pair: options.pair && options.service === undefined,

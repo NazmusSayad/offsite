@@ -1,9 +1,11 @@
-import type {
-  RpcMethod,
-  RpcMethods,
-  RpcReply,
-  ServerEvent,
-  ServerMessage,
+import {
+  NEEDS_PAIRING,
+  type RpcMethod,
+  type RpcMethods,
+  type RpcReply,
+  type ServerEvent,
+  type ServerMessage,
+  type SyncSnapshot,
 } from '@offsite/core/protocol'
 import {
   decodeFrame,
@@ -14,7 +16,7 @@ import { logger } from '@/lib/log'
 import { readToken } from '@/lib/tokens'
 
 type Listener = {
-  open?: (machine: string, url: string) => void
+  open?: (machine: string, url: string, snapshot: SyncSnapshot) => void
   close?: (machine: string) => void
   unpaired?: (machine: string) => void
   event?: (machine: string, event: ServerEvent) => void
@@ -27,7 +29,6 @@ type Connection = {
   url: string
   socket: WebSocket | null
   connected: boolean
-  ping: Promise<boolean> | null
   heardAt: number
   timer: number | undefined
   failures: number
@@ -44,8 +45,8 @@ type Connection = {
 
 const RECONNECT_DELAY = 1000
 const RECONNECT_LIMIT = 30_000
-const PING_INTERVAL = 10_000
-const PING_TIMEOUT = 10_000
+const CHECK_INTERVAL = 2000
+const SILENCE_LIMIT = 10_000
 const CONNECT_TIMEOUT = 3000
 const CALL_TIMEOUT = 30_000
 const LONG_CALL_TIMEOUT = 5 * 60_000
@@ -85,9 +86,9 @@ export class DisconnectedError extends ConnectionError {}
 export function startConnections() {
   window.setInterval(() => {
     for (const machine of connections.keys()) {
-      void checkConnection(machine)
+      checkConnection(machine)
     }
-  }, PING_INTERVAL)
+  }, CHECK_INTERVAL)
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       return
@@ -100,7 +101,7 @@ export function startConnections() {
 function wake() {
   for (const [machine, connection] of connections) {
     if (connection.connected) {
-      void checkConnection(machine)
+      checkConnection(machine)
       continue
     }
     if (connection.timer === undefined) {
@@ -109,7 +110,7 @@ function wake() {
     window.clearTimeout(connection.timer)
     connection.timer = undefined
     connection.failures = 0
-    void openSocket(machine, connection, 0)
+    void openSockets(machine, connection)
   }
 }
 
@@ -122,7 +123,6 @@ export function connectMachine(machine: string, urls: string[]) {
     url: urls[0],
     socket: null,
     connected: false,
-    ping: null,
     heardAt: 0,
     timer: undefined,
     failures: 0,
@@ -130,7 +130,7 @@ export function connectMachine(machine: string, urls: string[]) {
     reused: new Map(),
   }
   connections.set(machine, connection)
-  void openSocket(machine, connection, 0)
+  void openSockets(machine, connection)
 }
 
 export function disconnectMachine(machine: string) {
@@ -240,111 +240,108 @@ export function sendFrame(
   connection.socket.send(encodeFrame(kind, id, data))
 }
 
-export async function checkConnection(machine: string) {
+function checkConnection(machine: string) {
   const connection = connections.get(machine)
-  if (connection === undefined) {
-    return false
+  if (
+    connection === undefined ||
+    connection.socket === null ||
+    !connection.connected ||
+    Date.now() - connection.heardAt < SILENCE_LIMIT
+  ) {
+    return
   }
-  connection.ping ??= pingServer(machine, connection).finally(() => {
-    connection.ping = null
-  })
-  return await connection.ping
+  log.warn(`${connection.url} went quiet, reconnecting`)
+  connection.socket.onclose = null
+  connection.socket.close()
+  disconnect(machine, connection)
+  void openSockets(machine, connection)
 }
 
-async function openSocket(
-  machine: string,
-  connection: Connection,
-  attempt: number
-) {
-  const url = connection.urls[attempt % connection.urls.length]
-  connection.url = url
-  log.debug(`connecting to ${url}, attempt ${attempt + 1}`)
-  const ticket = await requestTicket(machine, url).catch((error: unknown) => {
-    log.warn(`could not get a ticket from ${url}:`, error)
-    return undefined
-  })
+async function openSockets(machine: string, connection: Connection) {
+  const token = await readToken(machine)
   if (connections.get(machine) !== connection) {
     return
   }
-  if (ticket === 'unpaired') {
-    log.warn(`${url} says this browser is not paired`)
-    for (const listener of listeners) {
-      listener.unpaired?.(machine)
+  log.debug(`connecting to ${connection.urls.join(', ')}`)
+  const attempts = new Set<WebSocket>()
+  let unpaired = false
+  for (const url of connection.urls) {
+    const socket = new WebSocket(`${url.replace(/^http/, 'ws')}/ws`)
+    socket.binaryType = 'arraybuffer'
+    attempts.add(socket)
+    let timer = window.setTimeout(() => socket.close(), CONNECT_TIMEOUT)
+    socket.onopen = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => socket.close(), CALL_TIMEOUT)
+      socket.send(JSON.stringify(token === undefined ? {} : { key: token }))
     }
-    return
+    socket.onmessage = (event) => {
+      if (connection.socket === socket) {
+        receive(machine, connection, event.data)
+        return
+      }
+      if (
+        connection.socket !== null ||
+        connections.get(machine) !== connection
+      ) {
+        socket.close()
+        return
+      }
+      const message = JSON.parse(String(event.data)) as ServerMessage
+      if (message.type !== 'welcome') {
+        return
+      }
+      window.clearTimeout(timer)
+      for (const other of attempts) {
+        if (other !== socket) {
+          other.close()
+        }
+      }
+      connection.socket = socket
+      connection.url = url
+      connection.connected = true
+      connection.heardAt = Date.now()
+      connection.failures = 0
+      log.info(`connected to ${url}`)
+      for (const listener of listeners) {
+        listener.open?.(machine, url, message.snapshot)
+      }
+    }
+    socket.onclose = (event) => {
+      window.clearTimeout(timer)
+      if (connection.socket === socket) {
+        log.info(`the connection to ${url} closed (code ${event.code})`)
+        disconnect(machine, connection)
+        retry(machine, connection)
+        return
+      }
+      attempts.delete(socket)
+      if (event.code === NEEDS_PAIRING) {
+        log.warn(`${url} says this browser is not paired`)
+        unpaired = true
+      }
+      if (
+        attempts.size > 0 ||
+        connection.socket !== null ||
+        connections.get(machine) !== connection
+      ) {
+        return
+      }
+      if (unpaired) {
+        for (const listener of listeners) {
+          listener.unpaired?.(machine)
+        }
+        return
+      }
+      for (const listener of listeners) {
+        listener.close?.(machine)
+      }
+      retry(machine, connection)
+    }
   }
-  if (ticket === undefined) {
-    failAttempt(machine, connection, attempt)
-    return
-  }
-  const query = ticket === null ? '' : `?${new URLSearchParams({ ticket })}`
-  const next = new WebSocket(`${url.replace(/^http/, 'ws')}/ws${query}`)
-  next.binaryType = 'arraybuffer'
-  const timer = window.setTimeout(() => next.close(), CONNECT_TIMEOUT)
-  next.onopen = () => {
-    window.clearTimeout(timer)
-    if (connection.socket !== next) {
-      next.close()
-      return
-    }
-    connection.connected = true
-    connection.heardAt = Date.now()
-    connection.failures = 0
-    log.info(`connected to ${url}`)
-    for (const listener of listeners) {
-      listener.open?.(machine, url)
-    }
-  }
-  next.onmessage = (event) => {
-    if (connection.socket === next) {
-      receive(machine, connection, event.data)
-    }
-  }
-  next.onclose = (event) => {
-    window.clearTimeout(timer)
-    if (connection.socket !== next) {
-      return
-    }
-    log.info(`the connection to ${url} closed (code ${event.code})`)
-    if (connection.connected) {
-      disconnect(machine, connection)
-      retry(machine, connection, 0)
-      return
-    }
-    failAttempt(machine, connection, attempt)
-  }
-  connection.socket = next
 }
 
-async function requestTicket(machine: string, url: string) {
-  const token = await readToken(machine)
-  const response = await fetch(`${url}/api/ticket`, {
-    method: 'POST',
-    headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(CONNECT_TIMEOUT),
-  })
-  if (response.status === 401) {
-    return 'unpaired'
-  }
-  if (!response.ok) {
-    throw new Error(await response.text())
-  }
-  const body: { ticket: string | null } = await response.json()
-  return body.ticket
-}
-
-function failAttempt(machine: string, connection: Connection, attempt: number) {
-  if ((attempt + 1) % connection.urls.length !== 0) {
-    void openSocket(machine, connection, attempt + 1)
-    return
-  }
-  for (const listener of listeners) {
-    listener.close?.(machine)
-  }
-  retry(machine, connection, attempt + 1)
-}
-
-function retry(machine: string, connection: Connection, attempt: number) {
+function retry(machine: string, connection: Connection) {
   const delay =
     Math.min(RECONNECT_LIMIT, RECONNECT_DELAY * 2 ** connection.failures) *
     (0.8 + Math.random() * 0.4)
@@ -354,7 +351,7 @@ function retry(machine: string, connection: Connection, attempt: number) {
   )
   connection.timer = window.setTimeout(() => {
     connection.timer = undefined
-    void openSocket(machine, connection, attempt)
+    void openSockets(machine, connection)
   }, delay)
 }
 
@@ -365,40 +362,11 @@ function disconnect(machine: string, connection: Connection) {
     )
   }
   connection.pending.clear()
+  connection.socket = null
   connection.connected = false
   for (const listener of listeners) {
     listener.close?.(machine)
   }
-}
-
-async function pingServer(machine: string, connection: Connection) {
-  const current = connection.socket
-  if (current === null || !connection.connected) {
-    return false
-  }
-  if (Date.now() - connection.heardAt < PING_TIMEOUT) {
-    return true
-  }
-  const alive = await Promise.race([
-    call(machine, 'ping', undefined).then(
-      () => true,
-      () => false
-    ),
-    new Promise<boolean>((resolve) =>
-      window.setTimeout(() => resolve(false), PING_TIMEOUT)
-    ),
-  ])
-  if (alive || connection.socket !== current || !connection.connected) {
-    return alive
-  }
-  log.warn(`${connection.url} did not answer a ping, reconnecting`)
-  current.onclose = null
-  current.close()
-  disconnect(machine, connection)
-  if (connections.get(machine) === connection) {
-    retry(machine, connection, 0)
-  }
-  return false
 }
 
 function receive(machine: string, connection: Connection, data: unknown) {
@@ -411,7 +379,7 @@ function receive(machine: string, connection: Connection, data: unknown) {
     return
   }
   const message = JSON.parse(String(data)) as ServerMessage
-  if (message.type === 'alive') {
+  if (message.type === 'alive' || message.type === 'welcome') {
     return
   }
   if (message.type === 'reply') {

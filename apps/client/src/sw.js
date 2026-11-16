@@ -149,23 +149,16 @@ async function call(machine, method, params) {
 
 async function callAddress(address, id, method, params) {
   const token = await readToken(id)
-  const response = await fetch(`${address}/api/ticket`, {
-    method: 'POST',
-    headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
-  })
-  if (!response.ok) {
-    throw new Error(await response.text())
-  }
-  const body = await response.json()
-  const query =
-    body.ticket === null
-      ? ''
-      : `?${new URLSearchParams({ ticket: body.ticket })}`
   return await new Promise((resolve, reject) => {
-    const socket = new WebSocket(`${address.replace(/^http/, 'ws')}/ws${query}`)
-    socket.onopen = () => socket.send(JSON.stringify({ id: 1, method, params }))
+    const socket = new WebSocket(`${address.replace(/^http/, 'ws')}/ws`)
+    socket.onopen = () =>
+      socket.send(JSON.stringify(token === undefined ? {} : { key: token }))
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data)
+      if (message.type === 'welcome') {
+        socket.send(JSON.stringify({ id: 1, method, params }))
+        return
+      }
       if (message.type !== 'reply') {
         return
       }
@@ -176,7 +169,14 @@ async function callAddress(address, id, method, params) {
         resolve(message.result)
       }
     }
-    socket.onclose = () => reject(new Error('offsite closed the connection'))
+    socket.onclose = (event) =>
+      reject(
+        new Error(
+          event.reason === ''
+            ? 'offsite closed the connection'
+            : `offsite closed the connection: ${event.reason}`
+        )
+      )
   })
 }
 

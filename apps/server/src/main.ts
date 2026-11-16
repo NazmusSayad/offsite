@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto'
 import { accessSync, constants, statSync } from 'node:fs'
 import {
   createServer,
@@ -9,8 +8,8 @@ import { createServer as createSecureServer } from 'node:https'
 import path from 'node:path'
 import { mediaTypes } from '@offsite/core/media'
 import { consola } from 'consola'
-import { type WebSocket, WebSocketServer } from 'ws'
-import { connectClient } from './api/socket.ts'
+import { WebSocketServer } from 'ws'
+import { logIn, watchPaired } from './api/login.ts'
 import { args } from './args.ts'
 import { findClaude } from './lib/claude/index.ts'
 import { logger } from './lib/log.ts'
@@ -18,6 +17,12 @@ import { proxySocket, serveProxy } from './lib/proxy/proxy.ts'
 import { serveAppIcon } from './services/app-icon.ts'
 import { backfillSessionProviders } from './services/backfill-session-providers.ts'
 import { saveBrowserLogs } from './services/browser-logs.ts'
+import {
+  addConnection,
+  answerKeys,
+  removeConnections,
+  startConnections,
+} from './services/connections.ts'
 import {
   canBrowse,
   serveMedia,
@@ -45,17 +50,13 @@ import {
   addCode,
   findDevice,
   hasDevices,
-  isPaired,
   readDevices,
-  recordUse,
   redeemCode,
   removeDevices,
 } from './storage/auth.ts'
 import { claudeBaseDir } from './storage/config.ts'
 import { listenServer, lockHome, writeJson } from './storage/storage.ts'
 
-const UNPAIR_CHECK = 5000
-const TICKET_LIFETIME = 60_000
 const log = logger.withTag('server')
 
 const browseTypes = new Map([
@@ -89,6 +90,22 @@ if (args.command === 'pair') {
   const links = pairingLinks(addCode(args.name))
   console.log('Open this link in a browser within 5 minutes to pair it:')
   console.log(`  ${links.local}`)
+  console.log(
+    'Or connect another offsite to this one by running there: offsite connect add <this link>'
+  )
+  process.exit(0)
+}
+
+if (args.command === 'connect-add') {
+  if (args.connection === null) {
+    throw new Error('offsite connect add needs a pairing link')
+  }
+  await addConnection(args.connection)
+  process.exit(0)
+}
+
+if (args.command === 'connect-remove') {
+  await removeConnections()
   process.exit(0)
 }
 
@@ -148,7 +165,6 @@ if (findClaude() === null) {
 }
 
 const code = args.auth && args.pair && !hasDevices() ? addCode(null) : null
-const tickets = new Map<string, { device: string; expiresAt: number }>()
 
 const server =
   tls === null ? createServer(listener) : createSecureServer(tls, listener)
@@ -215,7 +231,6 @@ function answerRequest(request: IncomingMessage, response: ServerResponse) {
 }
 
 const sockets = new WebSocketServer({ noServer: true, perMessageDeflate: true })
-const paired = new Map<WebSocket, string>()
 
 server.on('upgrade', (request, socket, head) => {
   const url = URL.parse(request.url ?? '/', 'http://localhost')
@@ -227,40 +242,19 @@ server.on('upgrade', (request, socket, head) => {
     proxySocket(request, socket, head)
     return
   }
-  const device = args.auth ? redeemTicket(url.searchParams.get('ticket')) : null
   const remoteAddress = request.socket.remoteAddress
-  if (
-    url.pathname !== '/ws' ||
-    remoteAddress === undefined ||
-    (args.auth && device === null)
-  ) {
+  if (url.pathname !== '/ws' || remoteAddress === undefined) {
     socket.destroy()
     return
   }
-  sockets.handleUpgrade(request, socket, head, (client) => {
-    connectClient(client, device, remoteAddress)
-    if (device === null) {
-      return
-    }
-    paired.set(client, device)
-    client.on('close', () => paired.delete(client))
-    recordUse(device)
-  })
+  sockets.handleUpgrade(request, socket, head, (client) =>
+    logIn(client, remoteAddress)
+  )
 })
 
 if (args.auth) {
-  setInterval(() => {
-    for (const [client, device] of paired) {
-      if (!isPaired(device)) {
-        client.close()
-      }
-    }
-    for (const [ticket, item] of tickets) {
-      if (item.expiresAt <= Date.now()) {
-        tickets.delete(ticket)
-      }
-    }
-  }, UNPAIR_CHECK)
+  startConnections()
+  watchPaired()
 }
 
 server.listen(port, args.host, () => {
@@ -326,13 +320,17 @@ function answerApi(
   const given =
     request.headers.authorization?.match(/^Bearer (.+)$/)?.[1] ?? null
   if (pathname === '/api/pair') {
-    const token = given === null ? null : redeemCode(given)
-    if (token === null) {
+    const issued = given === null ? null : redeemCode(given)
+    if (issued === null) {
       response.statusCode = 401
       response.end('That pairing code expired or was already used')
       return
     }
-    answerJson(response, { token })
+    answerJson(response, issued)
+    return
+  }
+  if (pathname.startsWith('/api/keys/')) {
+    answerKeys(pathname, given, request, response)
     return
   }
   if (pathname === '/api/logs') {
@@ -343,22 +341,6 @@ function answerApi(
       return
     }
     void saveBrowserLogs(device, request, response)
-    return
-  }
-  if (pathname === '/api/ticket') {
-    if (!args.auth) {
-      answerJson(response, { ticket: null })
-      return
-    }
-    const device = given === null ? null : findDevice(given)
-    if (device === null) {
-      response.statusCode = 401
-      response.end('This browser needs pairing')
-      return
-    }
-    const ticket = randomBytes(32).toString('base64url')
-    tickets.set(ticket, { device, expiresAt: Date.now() + TICKET_LIFETIME })
-    answerJson(response, { ticket })
     return
   }
   response.statusCode = 404
@@ -432,18 +414,6 @@ function loopback(host: string) {
 function answerJson(response: ServerResponse, body: unknown) {
   response.setHeader('content-type', 'application/json')
   response.end(JSON.stringify(body))
-}
-
-function redeemTicket(ticket: string | null) {
-  if (ticket === null) {
-    return null
-  }
-  const found = tickets.get(ticket)
-  tickets.delete(ticket)
-  if (found === undefined || found.expiresAt <= Date.now()) {
-    return null
-  }
-  return found.device
 }
 
 async function unpair() {

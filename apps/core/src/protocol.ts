@@ -85,8 +85,6 @@ export type SyncSnapshot = ConfigWithDefaults & {
 
 export type RpcMethods = PullRequestMethods &
   GitMethods & {
-    ping: { params: void; result: null }
-    sync: { params: void; result: SyncSnapshot }
     'config.get': { params: void; result: ConfigWithDefaults }
     'config.save': { params: Config; result: Config }
     'appIcon.save': { params: AppIconId; result: AppIconId }
@@ -401,13 +399,21 @@ export type RpcReply =
   | { type: 'reply'; id: number; unchanged: true }
   | { type: 'reply'; id: number; error: string }
 
+export type Login = { key: string } | Record<string, never>
+
+export const NEEDS_PAIRING = 4001
+
+export type ConnectedMachine = { addresses: string[]; key: string }
+
 export type ServerMessage =
   | ServerEvent
   | { type: 'terminal'; event: TerminalEvent }
   | { type: 'alive' }
+  | { type: 'welcome'; snapshot: SyncSnapshot }
   | RpcReply
 
 export type ServerEvent =
+  | { type: 'machines'; machines: ConnectedMachine[] }
   | { type: 'activity'; activity: Record<string, SessionActivity> }
   | { type: 'limits'; accountId: string; limits: Limits }
   | { type: 'usage'; accountId: string; usage: Usage }
