@@ -23,7 +23,7 @@ import getPort from 'get-port'
 const server = path.join(import.meta.dirname, '..', 'server')
 const started: ChildProcess[] = []
 const folders: string[] = []
-const notice = 'Message not sent · Fix the login page'
+const notification = 'Message not sent · Fix the login page'
 const delivered = new Map<Page, number>()
 
 test.describe.configure({ timeout: 180_000 })
@@ -185,7 +185,7 @@ async function openDevice(
   delivered.set(page, 0)
   page.on('websocket', (socket) =>
     socket.on('framereceived', (frame) => {
-      if (String(frame.payload).startsWith('{"type":"notice",')) {
+      if (String(frame.payload).startsWith('{"type":"notification",')) {
         delivered.set(page, (delivered.get(page) ?? 0) + 1)
       }
     })
@@ -268,7 +268,7 @@ test('a desktop where offsite is not focused shows the notification', async ({
   await switchAway(laptop)
   finishRun(machine)
 
-  await expect.poll(() => shown(laptop)).toEqual([notice])
+  await expect.poll(() => shown(laptop)).toEqual([notification])
 })
 
 test('a phone showing the conversation list stays quiet', async ({
@@ -321,7 +321,7 @@ test('a phone showing another conversation shows the notification', async ({
 
   finishRun(machine)
 
-  await expect.poll(() => shown(phone)).toEqual([notice])
+  await expect.poll(() => shown(phone)).toEqual([notification])
   expect(delivered.get(laptop)).toBe(0)
 })
 
@@ -339,9 +339,11 @@ test('only the most recently used device gets the notification, and the next one
 
   finishRun(machine)
 
-  await expect.poll(() => shown(desktop)).toEqual([notice])
+  await expect.poll(() => shown(desktop)).toEqual([notification])
   expect(delivered.get(laptop)).toBe(0)
-  await expect.poll(() => shown(laptop), { timeout: 70_000 }).toEqual([notice])
+  await expect
+    .poll(() => shown(laptop), { timeout: 70_000 })
+    .toEqual([notification])
 })
 
 test('the notification stays on the device that is used within a minute', async ({
@@ -358,7 +360,7 @@ test('the notification stays on the device that is used within a minute', async 
 
   finishRun(machine)
 
-  await expect.poll(() => shown(desktop)).toEqual([notice])
+  await expect.poll(() => shown(desktop)).toEqual([notification])
   await desktop.bringToFront()
   await desktop.waitForTimeout(65_000)
   expect(delivered.get(laptop)).toBe(0)

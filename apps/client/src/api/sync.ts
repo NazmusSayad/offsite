@@ -25,9 +25,9 @@ import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
 import {
   answerAwake,
-  dismissNotices,
+  dismissNotifications,
   reportPresence,
-  showNoticeHere,
+  showNotificationHere,
   startPresence,
 } from '@/lib/notifications'
 import { moveStartedPrompt, receiveOutbox } from '@/lib/outbox'
@@ -408,19 +408,19 @@ function receive(machine: string, event: ServerEvent) {
       syncUrl(true)
       return
     }
-    case 'notice':
-      showNoticeHere(machine, event.notice, event.pushed).catch(
+    case 'notification':
+      showNotificationHere(machine, event.notification, event.pushed).catch(
         (error: unknown) => log.error('could not show a notification', error)
       )
       return
-    case 'notice.ask':
+    case 'notification.ask':
       restartSeen(machine, event.sessionId)
       answerAwake(machine, event.id).catch((error: unknown) =>
         log.error('could not answer a notification', error)
       )
       return
-    case 'notice.dismiss':
-      dismissNotices(machine, event.tag).catch((error: unknown) =>
+    case 'notification.dismiss':
+      dismissNotifications(machine, event.tag).catch((error: unknown) =>
         log.error('could not remove a notification', error)
       )
       return

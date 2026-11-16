@@ -31,8 +31,8 @@ import {
 } from './services/files.ts'
 import { serveGithubMedia } from './services/github-images.ts'
 import { loadHttps, removeHttps, saveHttps } from './services/https.ts'
-import { serveNoticeIcon } from './services/notice-icons.ts'
-import { serveNoticeImage } from './services/notice-images.ts'
+import { serveNotificationIcon } from './services/notification-icons.ts'
+import { serveNotificationImage } from './services/notification-images.ts'
 import { failInterrupted } from './services/outbox.ts'
 import { startPush } from './services/push.ts'
 import { stopAll } from './services/runs.ts'
@@ -210,12 +210,12 @@ function answerRequest(request: IncomingMessage, response: ServerResponse) {
     void answerStatus(response)
     return
   }
-  if (url.pathname.startsWith('/api/notice-image/')) {
-    serveNoticeImage(url.pathname, response)
+  if (url.pathname.startsWith('/api/notification-image/')) {
+    serveNotificationImage(url.pathname, response)
     return
   }
-  if (url.pathname.startsWith('/api/notice-icon/')) {
-    void serveNoticeIcon(url.pathname, request, response)
+  if (url.pathname.startsWith('/api/notification-icon/')) {
+    void serveNotificationIcon(url.pathname, request, response)
     return
   }
   if (url.pathname.startsWith('/api/app-icon/')) {

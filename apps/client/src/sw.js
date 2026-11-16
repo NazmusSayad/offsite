@@ -5,7 +5,11 @@ import {
   precacheAndRoute,
 } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
-import { isNoticeData, removeNotices, showNotice } from './lib/notices'
+import {
+  isNotificationData,
+  removeNotifications,
+  showPushNotification,
+} from './lib/push-notifications'
 import { readToken } from './lib/tokens'
 
 const WATCHING_TIMEOUT = 1000
@@ -42,10 +46,11 @@ async function showPushed(data) {
     return
   }
   if (message.type === 'dismiss') {
-    await removeNotices(
+    await removeNotifications(
       self.registration,
       (entry) =>
-        entry.machine === message.machineId && entry.notice.tag === message.tag
+        entry.machine === message.machineId &&
+        entry.notification.tag === message.tag
     )
     return
   }
@@ -54,7 +59,7 @@ async function showPushed(data) {
   }
   const machines = (await stored('/machines')) ?? []
   const machine = machines.find((item) => item.id === message.machineId)
-  await showNotice(
+  await showPushNotification(
     self.registration,
     message.machineId,
     message,
@@ -192,7 +197,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   event.waitUntil(
     Promise.all([
-      clickNotice(event.notification.data, event.action),
+      clickNotification(event.notification.data, event.action),
       reportSeen(event.notification.data),
     ])
   )
@@ -203,7 +208,7 @@ self.addEventListener('notificationclose', (event) => {
 })
 
 async function reportSeen(data) {
-  if (!isNoticeData(data)) {
+  if (!isNotificationData(data)) {
     return
   }
   const browser = await stored('/browser')
@@ -219,18 +224,18 @@ async function reportSeen(data) {
   )
 }
 
-async function clickNotice(data, actionId) {
-  if (!isNoticeData(data)) {
+async function clickNotification(data, actionId) {
+  if (!isNotificationData(data)) {
     await openTarget(null, null)
     return
   }
-  const action = data.notice.actions.find((item) => item.id === actionId)
+  const action = data.notification.actions.find((item) => item.id === actionId)
   if (action?.kind === 'run') {
     const machines = (await stored('/machines')) ?? []
     const machine = machines.find((item) => item.id === data.machine)
     try {
-      await call(machine, 'notices.act', {
-        id: data.notice.id,
+      await call(machine, 'notifications.act', {
+        id: data.notification.id,
         action: action.id,
       })
       return
@@ -238,15 +243,16 @@ async function clickNotice(data, actionId) {
       console.error('could not run the notification action', error)
     }
   }
-  await openTarget(data.machine, data.notice)
+  await openTarget(data.machine, data.notification)
 }
 
-async function openTarget(machine, notice) {
+async function openTarget(machine, notification) {
   const windows = await self.clients.matchAll({
     type: 'window',
     includeUncontrolled: true,
   })
-  const message = notice === null ? null : pageMessage(machine, notice)
+  const message =
+    notification === null ? null : pageMessage(machine, notification)
   const page = windows[0]
   if (page) {
     if (message !== null) {
@@ -256,17 +262,17 @@ async function openTarget(machine, notice) {
     return
   }
   await self.clients.openWindow(
-    notice === null ? '/' : targetUrl(machine, notice.target)
+    notification === null ? '/' : targetUrl(machine, notification.target)
   )
 }
 
-function pageMessage(machine, notice) {
+function pageMessage(machine, notification) {
   return {
     type: 'openSession',
     machine,
-    project: notice.target.projectId,
-    worktree: notice.target.worktreeId,
-    sessionId: notice.target.sessionId,
+    project: notification.target.projectId,
+    worktree: notification.target.worktreeId,
+    sessionId: notification.target.sessionId,
   }
 }
 

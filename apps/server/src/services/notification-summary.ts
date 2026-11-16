@@ -1,7 +1,7 @@
 import { logger } from '../lib/log.ts'
 import { generateText, type Thread } from './generate-text.ts'
 
-const log = logger.withTag('notice-summary')
+const log = logger.withTag('notification-summary')
 
 const REQUEST_LIMIT = 1500
 const ACTIONS_LIMIT = 3000
@@ -124,7 +124,7 @@ async function shorten(
   try {
     const answer = await Promise.race([
       generateText(
-        'notice-summary',
+        'notification-summary',
         thread,
         cwd,
         { instructions, prompt: input },

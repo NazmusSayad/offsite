@@ -6,19 +6,23 @@ import type {
 import { type LiveRun, runs } from '../lib/live.ts'
 import { logger } from '../lib/log.ts'
 import { providerName } from './accounts.ts'
-import { noticeImage } from './notice-images.ts'
+import { notificationImage } from './notification-images.ts'
 import {
-  type NoticeSession,
-  noticeSession,
+  type NotificationSession,
+  notificationSession,
   sendText,
-} from './notice-sessions.ts'
-import { doneSummary, planSummary, questionSummary } from './notice-summary.ts'
-import { type NoticeButton, notify } from './notices.ts'
+} from './notification-sessions.ts'
+import {
+  doneSummary,
+  planSummary,
+  questionSummary,
+} from './notification-summary.ts'
+import { type NotificationButton, notify } from './notifications.ts'
 import { resend } from './runs.ts'
 import { sessions, setUnread } from './sessions.ts'
 import { plainText, turnSummary } from './turn-summary.ts'
 
-const log = logger.withTag('session-notices')
+const log = logger.withTag('session-notifications')
 
 const AUTO_RESOLVE_QUIET = 5000
 
@@ -40,12 +44,12 @@ export function watchActivity() {
     if (!run.running && before?.running === true) {
       setUnread(run.sessionId, true)
       if (before.prompted && !run.failed) {
-        report(finishedNotice(run))
+        report(finishedNotification(run))
       }
     }
     for (const pending of run.pending.values()) {
       if (before?.requests.has(pending.request.id) !== true) {
-        report(requestNotice(run, pending.request))
+        report(requestNotification(run, pending.request))
       }
     }
   }
@@ -56,7 +60,7 @@ export function watchActivity() {
   }
 }
 
-export function notSentNotice(
+export function notSentNotification(
   rows: { id: string; sessionId: string | null; text: string }[]
 ) {
   for (const row of rows) {
@@ -91,8 +95,8 @@ export function notSentNotice(
   }
 }
 
-async function finishedNotice(run: LiveRun) {
-  const session = noticeSession(run.sessionId, run.settings)
+async function finishedNotification(run: LiveRun) {
+  const session = notificationSession(run.sessionId, run.settings)
   if (session === null) {
     return
   }
@@ -118,15 +122,15 @@ async function finishedNotice(run: LiveRun) {
     body: text,
     summary: text,
     state: asks ? 'asks' : 'done',
-    image: await noticeImage(summary.images),
+    image: await notificationImage(summary.images),
     buttons: finishedButtons(session, asks),
   })
 }
 
 function finishedButtons(
-  session: NoticeSession,
+  session: NotificationSession,
   asks: boolean
-): NoticeButton[] {
+): NotificationButton[] {
   if (asks) {
     return [
       {
@@ -140,14 +144,14 @@ function finishedButtons(
   return []
 }
 
-async function requestNotice(run: LiveRun, request: PermissionRequest) {
+async function requestNotification(run: LiveRun, request: PermissionRequest) {
   if (
     request.autoResolve !== undefined &&
     request.autoResolve.at - Date.now() < AUTO_RESOLVE_QUIET
   ) {
     return
   }
-  const session = noticeSession(run.sessionId, run.settings)
+  const session = notificationSession(run.sessionId, run.settings)
   if (session === null) {
     return
   }
@@ -179,7 +183,7 @@ async function requestNotice(run: LiveRun, request: PermissionRequest) {
       state: 'asks',
       buttons:
         single && question.options.length === 2
-          ? question.options.map((option): NoticeButton => ({
+          ? question.options.map((option): NotificationButton => ({
               title: option.label,
               kind: 'run',
               run: respond('allow', { [question.question]: option.label }),
@@ -248,7 +252,7 @@ function approvalBody(item: Item) {
   }
 }
 
-function base(run: LiveRun, session: NoticeSession) {
+function base(run: LiveRun, session: NotificationSession) {
   return {
     title: session.title,
     source: run.settings.provider,

@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import type { Notice } from '@offsite/core/push'
+import type { PushNotification } from '@offsite/core/push'
 import { broadcast, type Client, clients } from '../lib/hub.ts'
 import { logger } from '../lib/log.ts'
-import { noticeIconPath } from './notice-icons.ts'
+import { notificationIconPath } from './notification-icons.ts'
 import { sendDismissPush, sendPush } from './push.ts'
 
-const log = logger.withTag('notices')
+const log = logger.withTag('notifications')
 
 const TITLE_LIMIT = 100
 const BODY_LIMIT = 500
@@ -13,16 +13,16 @@ const KEEP = 24 * 60 * 60 * 1000
 const ANSWER_LIMIT = 2000
 const SEEN_LIMIT = 60_000
 
-export type NoticeButton =
+export type NotificationButton =
   | { title: string; kind: 'open' }
   | { title: string; kind: 'run'; run: (client: Client) => Promise<unknown> }
 
-export type NoticeInput = Omit<
-  Notice,
+export type NotificationInput = Omit<
+  PushNotification,
   'id' | 'tag' | 'icon' | 'actions' | 'target'
 > & {
   session: { sessionId: string; projectId: string; worktreeId: string | null }
-  buttons: NoticeButton[]
+  buttons: NotificationButton[]
 }
 
 const stored = new Map<
@@ -42,10 +42,10 @@ const dismissed = new Map<string, number>()
 const usedAt = new Map<string, number>()
 const asking = new Map<string, (client: Client) => void>()
 
-export async function notify(input: NoticeInput) {
+export async function notify(input: NotificationInput) {
   const id = randomUUID()
   const runs = new Map<string, (client: Client) => Promise<unknown>>()
-  const notice: Notice = {
+  const notification: PushNotification = {
     id,
     tag: `session:${input.session.sessionId}`,
     title: trim(input.title, TITLE_LIMIT),
@@ -54,7 +54,7 @@ export async function notify(input: NoticeInput) {
     source: input.source,
     state: input.state,
     image: input.image,
-    icon: noticeIconPath(input.session.projectId, input.state),
+    icon: notificationIconPath(input.session.projectId, input.state),
     actions: input.buttons.slice(0, 2).map((button, index) => {
       const action = String(index)
       if (button.kind === 'run') {
@@ -71,15 +71,15 @@ export async function notify(input: NoticeInput) {
   }
   forgetOld()
   stored.set(id, { at: Date.now(), runs })
-  const entry = open.get(notice.tag) ?? {
+  const entry = open.get(notification.tag) ?? {
     ids: [],
     timers: new Set(),
     pushed: false,
     sentTo: new Set(),
   }
   entry.ids.push(id)
-  open.set(notice.tag, entry)
-  return await offer(notice, new Set())
+  open.set(notification.tag, entry)
+  return await offer(notification, new Set())
 }
 
 export async function act(client: Client, id: string, action: string) {
@@ -113,7 +113,7 @@ export async function markSeen(sessionId: string) {
   log.info(
     `${tag}: seen for 3 seconds, removing its notification from every device`
   )
-  broadcast({ type: 'notice.dismiss', tag })
+  broadcast({ type: 'notification.dismiss', tag })
   if (entry.pushed || [...entry.sentTo].some((page) => !clients.has(page))) {
     await sendDismissPush(tag)
   }
@@ -128,27 +128,27 @@ export function receiveAnswer(client: Client, id: string, browser: string) {
   asking.get(id)?.(client)
 }
 
-async function offer(notice: Notice, tried: Set<string>) {
-  const page = await pickAwake(notice, tried)
-  if (dismissed.has(notice.id)) {
+async function offer(notification: PushNotification, tried: Set<string>) {
+  const page = await pickAwake(notification, tried)
+  if (dismissed.has(notification.id)) {
     log.info(
-      `notification ${notice.id.slice(0, 8)}: already seen, not sending it on`
+      `notification ${notification.id.slice(0, 8)}: already seen, not sending it on`
     )
     return { local: true, push: false }
   }
   if (page === null) {
-    const pushed = await sendPush(notice)
-    if (dismissed.has(notice.id)) {
+    const pushed = await sendPush(notification)
+    if (dismissed.has(notification.id)) {
       if (pushed) {
-        await sendDismissPush(notice.tag)
+        await sendDismissPush(notification.tag)
       }
       return { local: clients.size > 0, push: pushed }
     }
-    const entry = open.get(notice.tag)
+    const entry = open.get(notification.tag)
     if (pushed && entry !== undefined) {
       entry.pushed = true
     }
-    broadcast({ type: 'notice', notice, pushed })
+    broadcast({ type: 'notification', notification, pushed })
     return { local: clients.size > 0, push: pushed }
   }
   const browser = page.browser
@@ -158,28 +158,28 @@ async function offer(notice: Notice, tried: Set<string>) {
   tried.add(browser)
   const sentAt = Date.now()
   log.info(
-    `notification ${notice.id.slice(0, 8)} (${notice.title}): sent to ${page.name}`
+    `notification ${notification.id.slice(0, 8)} (${notification.title}): sent to ${page.name}`
   )
-  page.send({ type: 'notice', notice, pushed: false })
-  open.get(notice.tag)?.sentTo.add(page)
+  page.send({ type: 'notification', notification, pushed: false })
+  open.get(notification.tag)?.sentTo.add(page)
   const timer = setTimeout(() => {
-    open.get(notice.tag)?.timers.delete(timer)
+    open.get(notification.tag)?.timers.delete(timer)
     if (lastUse(browser) > sentAt) {
       return
     }
     log.info(
-      `notification ${notice.id.slice(0, 8)}: ${page.name} did not use it within a minute, passing it on`
+      `notification ${notification.id.slice(0, 8)}: ${page.name} did not use it within a minute, passing it on`
     )
-    offer(notice, tried).catch((error: unknown) =>
+    offer(notification, tried).catch((error: unknown) =>
       log.warn('could not pass a notification on to the next device:', error)
     )
   }, SEEN_LIMIT)
-  open.get(notice.tag)?.timers.add(timer)
+  open.get(notification.tag)?.timers.add(timer)
   return { local: true, push: false }
 }
 
-function pickAwake(notice: Notice, tried: Set<string>) {
-  const id = notice.id
+function pickAwake(notification: PushNotification, tried: Set<string>) {
+  const id = notification.id
   return new Promise<Client | null>((resolve) => {
     const asked = [...clients]
     const awake = new Set<Client>()
@@ -221,9 +221,9 @@ function pickAwake(notice: Notice, tried: Set<string>) {
     })
     for (const client of asked) {
       client.send({
-        type: 'notice.ask',
+        type: 'notification.ask',
         id,
-        sessionId: notice.target.sessionId,
+        sessionId: notification.target.sessionId,
       })
     }
     if (asked.length === 0) {

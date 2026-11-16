@@ -128,7 +128,7 @@ export const generations = snakeCase.table('generations', {
     enum: [
       'session-title',
       'branch-name',
-      'notice-summary',
+      'notification-summary',
       'review-guide',
       'pull-request',
       'commit-message',
@@ -146,7 +146,7 @@ export const generations = snakeCase.table('generations', {
   createdAt: integer().notNull(),
 })
 
-export const noticeIcons = snakeCase.table('notice_icons', {
+export const notificationIcons = snakeCase.table('notification_icons', {
   key: text().primaryKey(),
   projectId: text().references(() => projects.id, { onDelete: 'cascade' }),
   image: blob({ mode: 'buffer' }).notNull(),

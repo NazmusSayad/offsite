@@ -12,17 +12,17 @@ import {
   type Project,
   projectColorIndex,
 } from '@offsite/core/projects'
-import { NOTICE_STATES, type NoticeState } from '@offsite/core/push'
+import { NOTIFICATION_STATES, type NotificationState } from '@offsite/core/push'
 import { eq } from 'drizzle-orm'
 import sharp from 'sharp'
 import { logger } from '../lib/log.ts'
 import { db } from '../storage/db.ts'
-import { noticeIcons } from '../storage/schema.ts'
+import { notificationIcons } from '../storage/schema.ts'
 import { projects } from './projects.ts'
 
-const log = logger.withTag('notice-icons')
+const log = logger.withTag('notification-icons')
 
-const PREFIX = '/api/notice-icon/v1/'
+const PREFIX = '/api/notification-icon/v1/'
 const SIZE = 192
 const STATUS_SIZE = 157
 const STATUS_STROKE = 1.75
@@ -61,17 +61,20 @@ const statuses = {
   push: { icon: Notification01Icon, color: '#6cbcfe' },
 }
 
-export function noticeIconPath(projectId: string, state: NoticeState) {
+export function notificationIconPath(
+  projectId: string,
+  state: NotificationState
+) {
   return `${PREFIX}${projectId}/${state}`
 }
 
-export async function serveNoticeIcon(
+export async function serveNotificationIcon(
   pathname: string,
   request: IncomingMessage,
   response: ServerResponse
 ) {
   const parts = pathname.slice(PREFIX.length).split('/')
-  const state = NOTICE_STATES.find((item) => item === parts[1])
+  const state = NOTIFICATION_STATES.find((item) => item === parts[1])
   if (
     !pathname.startsWith(PREFIX) ||
     parts.length !== 2 ||
@@ -82,7 +85,7 @@ export async function serveNoticeIcon(
     return
   }
   try {
-    const icon = await noticeIcon(parts[0], state)
+    const icon = await notificationIcon(parts[0], state)
     const etag = `"${createHash('sha256').update(icon).digest('base64url')}"`
     response.setHeader('cache-control', 'private, max-age=3600')
     response.setHeader('etag', etag)
@@ -101,14 +104,14 @@ export async function serveNoticeIcon(
   }
 }
 
-async function noticeIcon(projectId: string, state: NoticeState) {
+async function notificationIcon(projectId: string, state: NotificationState) {
   const found = projects().find((item) => item.id === projectId)
   const project = found === undefined || found.scratch ? null : found
   const key = `${PREFIX}${project === null ? NO_PROJECT : project.id}/${state}`
   const saved = db
     .select()
-    .from(noticeIcons)
-    .where(eq(noticeIcons.key, key))
+    .from(notificationIcons)
+    .where(eq(notificationIcons.key, key))
     .get()
   if (saved !== undefined) {
     return saved.image
@@ -125,7 +128,7 @@ async function noticeIcon(projectId: string, state: NoticeState) {
     .resize(SIZE, SIZE)
     .png()
     .toBuffer()
-  db.insert(noticeIcons)
+  db.insert(notificationIcons)
     .values({
       key,
       projectId: project === null ? null : project.id,
@@ -136,7 +139,7 @@ async function noticeIcon(projectId: string, state: NoticeState) {
   return png
 }
 
-function statusSvg(state: NoticeState) {
+function statusSvg(state: NotificationState) {
   const status = statuses[state]
   const elements = status.icon.map((element) => {
     const attributes = Object.entries(element[1])

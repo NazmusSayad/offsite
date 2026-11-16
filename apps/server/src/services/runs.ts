@@ -41,7 +41,7 @@ import {
 } from './projects.ts'
 import type { Found } from './provider-sessions.ts'
 import { sessionHistory } from './session-history.ts'
-import { notSentNotice } from './session-notices.ts'
+import { notSentNotification } from './session-notifications.ts'
 import {
   listedUpdatedAt,
   providerOf,
@@ -233,7 +233,7 @@ export async function send(
     await deliver(client, request)
   } catch (error) {
     setOutboxStatus(request.id, 'failed')
-    notSentNotice([
+    notSentNotification([
       {
         id: request.id,
         sessionId: request.sessionId,

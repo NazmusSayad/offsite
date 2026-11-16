@@ -12,8 +12,11 @@ import {
 import type { SessionSettings } from '@offsite/core/config'
 import type { Account, ProviderCapabilities } from '@offsite/core/providers'
 import { type StoredAccount, storedAccount } from '../../services/accounts.ts'
-import { noticeSession, sendText } from '../../services/notice-sessions.ts'
-import { notify } from '../../services/notices.ts'
+import {
+  notificationSession,
+  sendText,
+} from '../../services/notification-sessions.ts'
+import { notify } from '../../services/notifications.ts'
 import { claudeBaseDir } from '../../storage/config.ts'
 import { runs } from '../live.ts'
 import { logger } from '../log.ts'
@@ -102,7 +105,10 @@ export function claudeOptions(accountId: string | null, cwd: string): Options {
               if (run === undefined) {
                 throw new Error(`Session ${input.session_id} is not running`)
               }
-              const session = noticeSession(input.session_id, run.settings)
+              const session = notificationSession(
+                input.session_id,
+                run.settings
+              )
               if (session === null) {
                 throw new Error(`Session ${input.session_id} is not listed`)
               }

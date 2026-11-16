@@ -1,6 +1,6 @@
 import type { Item, PermissionRequest } from '@offsite/core/items'
 import type { SessionActivity } from '@offsite/core/sessions'
-import { watchActivity } from '../services/session-notices.ts'
+import { watchActivity } from '../services/session-notifications.ts'
 import { readConfig } from '../storage/config.ts'
 import type { Run } from './claude/index.ts'
 import type { CodexRun } from './codex/index.ts'
