@@ -213,7 +213,7 @@ async function reportSeen(data) {
 
 async function clickNotice(data, actionId) {
   if (!isNoticeData(data)) {
-    await openTarget(null, null, 'open')
+    await openTarget(null, null)
     return
   }
   const action = data.notice.actions.find((item) => item.id === actionId)
@@ -230,15 +230,15 @@ async function clickNotice(data, actionId) {
       console.error('could not run the notification action', error)
     }
   }
-  await openTarget(data.machine, data.notice, action?.kind ?? 'open')
+  await openTarget(data.machine, data.notice)
 }
 
-async function openTarget(machine, notice, kind) {
+async function openTarget(machine, notice) {
   const windows = await self.clients.matchAll({
     type: 'window',
     includeUncontrolled: true,
   })
-  const message = notice === null ? null : pageMessage(machine, notice, kind)
+  const message = notice === null ? null : pageMessage(machine, notice)
   const page = windows[0]
   if (page) {
     if (message !== null) {
@@ -248,22 +248,21 @@ async function openTarget(machine, notice, kind) {
     return
   }
   await self.clients.openWindow(
-    notice === null ? '/' : targetUrl(machine, notice.target, kind)
+    notice === null ? '/' : targetUrl(machine, notice.target)
   )
 }
 
-function pageMessage(machine, notice, kind) {
+function pageMessage(machine, notice) {
   return {
     type: 'openSession',
     machine,
     project: notice.target.projectId,
     worktree: notice.target.worktreeId,
     sessionId: notice.target.sessionId,
-    panel: kind === 'diff' ? 'diff' : null,
   }
 }
 
-function targetUrl(machine, target, kind) {
+function targetUrl(machine, target) {
   const params = new URLSearchParams()
   params.set('machine', machine)
   params.set('project', target.projectId)
@@ -271,8 +270,5 @@ function targetUrl(machine, target, kind) {
     params.set('worktree', target.worktreeId)
   }
   params.set('session', target.sessionId)
-  if (kind === 'diff') {
-    params.set('panel', 'diff')
-  }
   return `/?${params}`
 }

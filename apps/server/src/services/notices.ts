@@ -13,7 +13,7 @@ const ANSWER_LIMIT = 2000
 const SEEN_LIMIT = 60_000
 
 export type NoticeButton =
-  | { title: string; kind: 'open' | 'diff' }
+  | { title: string; kind: 'open' }
   | { title: string; kind: 'run'; run: (client: Client) => Promise<unknown> }
 
 export type NoticeInput = Omit<Notice, 'id' | 'tag' | 'actions' | 'target'> & {

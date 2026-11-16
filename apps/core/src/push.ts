@@ -13,7 +13,7 @@ export type NoticeState = (typeof NOTICE_STATES)[number]
 export type NoticeAction = {
   id: string
   title: string
-  kind: 'open' | 'diff' | 'run'
+  kind: 'open' | 'run'
 }
 
 export type Notice = {
