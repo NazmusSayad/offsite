@@ -3,7 +3,7 @@ import {
   DEFAULT_PROVIDER,
 } from '@offsite/core/config'
 import type { Project, Worktree } from '@offsite/core/projects'
-import type { ServerEvent } from '@offsite/core/protocol'
+import type { ServerEvent, SyncSnapshot } from '@offsite/core/protocol'
 import { isEqual } from 'es-toolkit'
 import { toast } from 'sonner'
 import {
@@ -46,10 +46,11 @@ import {
 } from '@/lib/url'
 import { receiveLimits, receiveUsage } from '@/lib/usage'
 import { errorMessage } from '@/lib/utils'
-import { call, connectMachine, listen } from './connection'
+import { connectMachine, listen } from './connection'
 import { flushDelta, queueDelta } from './delta'
 import { receiveConfig, receiveLastPickedModels } from './machine-config'
 import {
+  addConnectedMachine,
   addMachine,
   connectAddresses,
   loadMachines,
@@ -126,9 +127,9 @@ export function start() {
   })
   applyTheme()
   listen({
-    open: (machine, url) => {
+    open: (machine, url, snapshot) => {
       setMachine(machine, { via: url })
-      void resync(machine)
+      resync(machine, snapshot)
     },
     close: (machine) => {
       const known = getState().machines.find((item) => item.id === machine)
@@ -195,9 +196,8 @@ async function attach() {
   }
 }
 
-async function resync(machine: string) {
+function resync(machine: string, snapshot: SyncSnapshot) {
   try {
-    const snapshot = await call(machine, 'sync', undefined)
     const known = getState().machines.find((item) => item.id === machine)
     if (known === undefined) {
       return
@@ -268,6 +268,18 @@ function reopenThread(machine: string) {
 }
 
 function receive(machine: string, event: ServerEvent) {
+  if (event.type === 'machines') {
+    for (const connected of event.machines) {
+      addConnectedMachine(connected.addresses, connected.key).catch(
+        (error: unknown) =>
+          log.error(
+            `could not add the machine at ${connected.addresses.join(', ')}`,
+            error
+          )
+      )
+    }
+    return
+  }
   if (event.type === 'delta') {
     queueDelta(machine, event.sessionId, event.text)
     return

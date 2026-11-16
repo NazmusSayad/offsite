@@ -99,8 +99,6 @@ const handlers: Handlers = {
   ...serviceHandlers,
   ...pullRequestHandlers,
   ...gitHandlers,
-  ping: () => null,
-  sync: () => syncSnapshot(),
   'config.get': () => configInfo(),
   'appIcon.save': (params) => saveAppIcon(params),
   'config.save': (params) => saveSettings(params),
@@ -329,6 +327,7 @@ export function connectClient(
   }
   clients.add(client)
   log.info(`a browser connected from ${address}`)
+  client.send({ type: 'welcome', snapshot: syncSnapshot() })
   const alive = setInterval(
     () => client.send({ type: 'alive' }),
     ALIVE_INTERVAL
@@ -349,6 +348,7 @@ export function connectClient(
     clients.delete(client)
     detachTerminal(client)
   })
+  return client
 }
 
 async function answer(client: Client, text: string) {
@@ -393,8 +393,6 @@ async function answer(client: Client, text: string) {
     })
   } finally {
     const took = Math.round(performance.now() - started)
-    if (call.method !== 'ping') {
-      log.debug(`${call.method} from ${client.address} took ${took}ms`)
-    }
+    log.debug(`${call.method} from ${client.address} took ${took}ms`)
   }
 }

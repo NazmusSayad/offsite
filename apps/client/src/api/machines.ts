@@ -182,38 +182,74 @@ export function receiveMachines() {
 }
 
 export async function addMachine(addresses: string[], code: string | null) {
-  const existing = getState().machines.find((item) =>
-    item.addresses.some((address) => addresses.includes(address))
-  )
+  const existing = findMachine(addresses)
   if (existing !== undefined) {
     if (code !== null) {
       await pairMachine(existing.id, code)
     }
     return existing.id
   }
-  const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
-    byte.toString(16).padStart(2, '0')
-  ).join('')
+  const id = newMachineId()
   if (code !== null) {
     await saveToken(id, await redeemCode(addresses, code))
   }
+  createMachine(
+    id,
+    addresses,
+    new URL(addresses[0]).hostname,
+    code === null ? null : Date.now()
+  )
+  return id
+}
+
+export async function addConnectedMachine(addresses: string[], key: string) {
+  const existing = findMachine(addresses)
+  if (existing !== undefined) {
+    await saveToken(existing.id, key)
+    if (existing.status === 'unpaired') {
+      reconnectMachine(existing.id)
+    }
+    return
+  }
+  const id = newMachineId()
+  await saveToken(id, key)
+  createMachine(id, addresses, new URL(addresses[0]).hostname, Date.now())
+}
+
+function findMachine(addresses: string[]) {
+  return getState().machines.find((item) =>
+    item.addresses.some((address) => addresses.includes(address))
+  )
+}
+
+function newMachineId() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+    byte.toString(16).padStart(2, '0')
+  ).join('')
+}
+
+function createMachine(
+  id: string,
+  addresses: string[],
+  name: string,
+  pairedAt: number | null
+) {
   update({
     machines: [
       ...getState().machines,
       restoreMachine({
         id,
         addresses,
-        name: new URL(addresses[0]).hostname,
+        name,
         label: null,
         icon: 'computer',
-        pairedAt: code === null ? null : Date.now(),
+        pairedAt,
         projects: [],
       }),
     ],
   })
   persistMachines()
   connectMachine(id, addresses)
-  return id
 }
 
 export async function pairMachine(id: string, code: string) {
