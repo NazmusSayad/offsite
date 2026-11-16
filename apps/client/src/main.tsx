@@ -12,6 +12,7 @@ import { startTerminal } from '@/features/terminal/session'
 import { startBrowserUpdates } from '@/lib/browser-update'
 import { logger, startLogging } from '@/lib/log'
 import { refreshPushSubscription, watching } from '@/lib/notifications'
+import { startReads } from '@/lib/reads'
 import { router } from '@/lib/router'
 import { openSession } from '@/lib/sessions'
 import { replaceSearch } from '@/lib/url'
@@ -37,6 +38,7 @@ addEventListener(
 
 await loadDrafts()
 startConnections()
+startReads()
 listen({
   open: (machine) => {
     refreshPushSubscription(machine).catch((error: unknown) =>

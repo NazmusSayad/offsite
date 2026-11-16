@@ -56,7 +56,6 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
   const projects = useStore((state) => state.projects)
-  const unseen = useStore((state) => state.unseen)
   const inactive = useStore((state) => state.inactive)
   const inactiveTotal = useStore((state) => state.inactiveTotal)
   const groupActiveByProject = useStore(
@@ -204,9 +203,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
       session,
       selected: chatSelected(selection, session),
       activity: activityOf(machines, session.machine, session.id),
-      unseen:
-        session.status !== 'inactive' &&
-        unseen.includes(machineKey(session.machine, session.id)),
+      unseen: session.status !== 'inactive' && session.unread,
       saved: chatSessionId(session.id) !== null,
       scope,
       onSelect: (chat: MachineSession) => openSession(chatSelection(chat)),

@@ -162,6 +162,7 @@ function withStatus(items: Found[]): Session[] {
           Date.now() - updatedAt > day)
           ? 'inactive'
           : record.status,
+      unread: record !== undefined && record.unread,
     }
   })
 }
@@ -238,6 +239,14 @@ export function recordOpen(id: string, query: string | null) {
     .values({ sessionId: id, ...opens })
     .onConflictDoUpdate({ target: sessionOpensTable.sessionId, set: opens })
     .run()
+}
+
+export function setUnread(id: string, unread: boolean) {
+  db.update(sessionsTable)
+    .set({ unread })
+    .where(eq(sessionsTable.sessionId, id))
+    .run()
+  publishSessions()
 }
 
 export function publishSessions() {
@@ -449,6 +458,9 @@ export async function updateSession(id: string, patch: SessionPatch) {
       })
       .run()
     await refresh(provider)
+  }
+  if (patch.unread !== undefined) {
+    setUnread(id, patch.unread)
   }
   if (patch.title !== undefined) {
     markChanged(providerOf(id), id)

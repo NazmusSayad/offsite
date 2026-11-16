@@ -1,5 +1,6 @@
 import type { Session } from '@offsite/core/sessions'
 import { isEqual } from 'es-toolkit'
+import { readWatched, withRead } from '@/lib/reads'
 import { withBump } from '@/lib/sent-sessions'
 import { getState, update } from '@/lib/store'
 import { syncUrl } from '@/lib/url'
@@ -20,7 +21,7 @@ export function setSessions(machine: string, sessions: Session[]) {
   )
   const next = [
     ...state.sessions.filter((item) => item.machine !== machine),
-    ...sessions.map((session) => withBump({ ...session, machine })),
+    ...sessions.map((session) => withRead(withBump({ ...session, machine }))),
     ...(opened === undefined
       ? []
       : [withBump({ ...opened, status: 'inactive' as const })]),
@@ -40,6 +41,7 @@ export function setSessions(machine: string, sessions: Session[]) {
   }
   update({ sessions: next, inactiveVersion })
   followMovedSession(machine, sessions)
+  readWatched()
 }
 
 function followMovedSession(machine: string, sessions: Session[]) {

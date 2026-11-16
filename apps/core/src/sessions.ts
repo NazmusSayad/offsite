@@ -11,11 +11,13 @@ export type Session = {
   branch: string | null
   updatedAt: number
   status: 'active' | 'pinned' | 'snoozed' | 'minimized' | 'inactive'
+  unread: boolean
 }
 
 export type SessionPatch = {
   title?: string
   status?: 'active' | 'pinned' | 'snoozed' | 'minimized' | 'inactive'
+  unread?: boolean
 }
 
 export type ContextUsage = {

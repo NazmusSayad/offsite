@@ -142,7 +142,6 @@ export type State = {
   bookmarksOpen: boolean
   focus: BookmarkTarget | null
   usage: Record<string, Usage>
-  unseen: string[]
   generatingTitles: string[]
   selection: Selection | null
   view: number
