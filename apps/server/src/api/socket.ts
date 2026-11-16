@@ -357,7 +357,6 @@ export function connectClient(
     clients.delete(client)
     detachTerminal(client)
   })
-  return client
 }
 
 async function answer(client: Client, text: string) {

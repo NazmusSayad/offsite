@@ -87,6 +87,7 @@ export type Machine = {
   icon: string | null
   label: string | null
   pairedAt: number | null
+  listId: string | null
   config: Config | null
   lastPickedModelByProvider: LastPickedModelForProvider[] | null
   lastMessageAtByAccount: LastMessageAtForAccount[]

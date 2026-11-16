@@ -55,9 +55,7 @@ import { connectMachine, listen } from './connection'
 import { flushDelta, queueDelta } from './delta'
 import { receiveConfig, receiveLastPickedModels } from './machine-config'
 import {
-  addConnectedMachine,
   addMachine,
-  connectAddresses,
   loadMachines,
   machineKey,
   pairingFromUrl,
@@ -66,6 +64,7 @@ import {
   restoreMachine,
   restoreProjects,
   shareMachines,
+  syncListedMachines,
 } from './machines'
 import { setSessions } from './session-list'
 
@@ -188,9 +187,6 @@ export function start() {
 }
 
 async function attach() {
-  if (connectAddresses !== null) {
-    await addMachine(connectAddresses, null)
-  }
   try {
     const pairing = pairingFromUrl()
     if (pairing !== null) {
@@ -200,6 +196,7 @@ async function attach() {
     log.warn('the pairing link failed:', error)
     update({ pairingFailure: errorMessage(error) })
   }
+  await syncListedMachines()
 }
 
 function resync(machine: string, snapshot: SyncSnapshot) {
@@ -274,18 +271,6 @@ function reopenThread(machine: string) {
 }
 
 function receive(machine: string, event: ServerEvent) {
-  if (event.type === 'machines') {
-    for (const connected of event.machines) {
-      addConnectedMachine(connected.addresses, connected.key).catch(
-        (error: unknown) =>
-          log.error(
-            `could not add the machine at ${connected.addresses.join(', ')}`,
-            error
-          )
-      )
-    }
-    return
-  }
   if (event.type === 'delta') {
     queueDelta(machine, event.sessionId, event.text)
     return

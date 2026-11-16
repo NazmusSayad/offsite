@@ -7,10 +7,6 @@ import { z } from 'zod'
 
 const devEnv = z.object({
   OFFSITE_DEV_SERVER: z.url({ protocol: /^http$/ }),
-  OFFSITE_CONNECT: z
-    .string()
-    .transform((value) => value.split(','))
-    .pipe(z.array(z.url({ protocol: /^https?$/ }))),
 })
 
 export default defineConfig({
@@ -41,16 +37,6 @@ export default defineConfig({
           },
         }
       },
-      transformIndexHtml: () => [
-        {
-          tag: 'meta',
-          attrs: {
-            name: 'offsite-connect',
-            content: devEnv.parse(process.env).OFFSITE_CONNECT.join(' '),
-          },
-          injectTo: 'head',
-        },
-      ],
     },
     VitePWA({
       strategies: 'injectManifest',

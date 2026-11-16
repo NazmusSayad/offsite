@@ -44,7 +44,7 @@ try {
     [
       {
         name: 'server',
-        command: `node --watch-path=src src/main.ts --port ${serverPort} --dir ${JSON.stringify(dir)} --no-auth${host}${pwa}`,
+        command: `node --watch-path=src src/main.ts --port ${serverPort} --dir ${JSON.stringify(dir)} --no-auth --connect ${JSON.stringify(connect)}${host}${pwa}`,
         cwd: path.join(apps, 'server'),
         prefixColor: 'blue',
       },
@@ -55,7 +55,6 @@ try {
         prefixColor: 'magenta',
         env: {
           OFFSITE_DEV_SERVER: server,
-          OFFSITE_CONNECT: connect,
         },
       },
     ],

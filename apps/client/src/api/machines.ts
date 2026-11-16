@@ -1,4 +1,5 @@
 import type { Project } from '@offsite/core/projects'
+import type { ListedMachine } from '@offsite/core/protocol'
 import { logger } from '@/lib/log'
 import { router } from '@/lib/router'
 import {
@@ -9,7 +10,7 @@ import {
   setMachine,
   update,
 } from '@/lib/store'
-import { removeToken, saveToken } from '@/lib/tokens'
+import { readToken, removeToken, saveToken } from '@/lib/tokens'
 import { syncUrl } from '@/lib/url'
 import { connectMachine, disconnectMachine } from './connection'
 
@@ -22,16 +23,11 @@ export type StoredMachine = {
   icon: string | null
   label: string | null
   pairedAt: number | null
+  listId: string | null
   projects: Project[]
 }
 
 const storageKey = 'machines'
-
-export const connectAddresses =
-  document
-    .querySelector('meta[name="offsite-connect"]')
-    ?.getAttribute('content')
-    ?.split(' ') ?? null
 
 export function loadMachines(): StoredMachine[] {
   const raw = localStorage.getItem(storageKey)
@@ -104,6 +100,7 @@ export function restoreMachine(machine: StoredMachine): Machine {
     label: machine.label,
     icon: machine.icon,
     pairedAt: machine.pairedAt ?? null,
+    listId: machine.listId ?? null,
     config: null,
     lastPickedModelByProvider: null,
     lastMessageAtByAccount: [],
@@ -161,6 +158,7 @@ export function receiveMachines() {
       label: machine.label,
       icon: machine.icon,
       name: machine.label ?? current.hostname,
+      listId: machine.listId ?? null,
     })
     if (
       machine.addresses.join(' ') !== current.addresses.join(' ') ||
@@ -197,23 +195,68 @@ export async function addMachine(addresses: string[], code: string | null) {
     id,
     addresses,
     new URL(addresses[0]).hostname,
-    code === null ? null : Date.now()
+    code === null ? null : Date.now(),
+    null
   )
   return id
 }
 
-export async function addConnectedMachine(addresses: string[], key: string) {
-  const existing = findMachine(addresses)
-  if (existing !== undefined) {
-    await saveToken(existing.id, key)
-    if (existing.status === 'unpaired') {
-      reconnectMachine(existing.id)
-    }
+export async function syncListedMachines() {
+  const host = findMachine([location.origin])
+  const token = host === undefined ? undefined : await readToken(host.id)
+  const response = await fetch('/api/machines', {
+    method: 'POST',
+    headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
+  }).catch((error: unknown) => {
+    log.warn('could not get the list of machines:', error)
+    return null
+  })
+  if (response === null) {
     return
   }
-  const id = newMachineId()
-  await saveToken(id, key)
-  createMachine(id, addresses, new URL(addresses[0]).hostname, Date.now())
+  if (!response.ok) {
+    log.warn(`could not get the list of machines: ${await response.text()}`)
+    return
+  }
+  const listed: ListedMachine[] = await response.json()
+  for (const item of listed) {
+    const existing =
+      getState().machines.find((machine) => machine.listId === item.id) ??
+      findMachine(item.addresses)
+    if (existing === undefined) {
+      const id = newMachineId()
+      if (item.key !== null) {
+        await saveToken(id, item.key)
+      }
+      createMachine(
+        id,
+        item.addresses,
+        new URL(item.addresses[0]).hostname,
+        item.key === null ? null : Date.now(),
+        item.id
+      )
+      continue
+    }
+    if (item.key !== null) {
+      await saveToken(existing.id, item.key)
+    }
+    setMachine(existing.id, { listId: item.id, addresses: item.addresses })
+    if (
+      item.addresses.join(' ') !== existing.addresses.join(' ') ||
+      (item.key !== null && existing.status === 'unpaired')
+    ) {
+      reconnectMachine(existing.id)
+    }
+  }
+  for (const machine of getState().machines) {
+    if (
+      machine.listId !== null &&
+      !listed.some((item) => item.id === machine.listId)
+    ) {
+      removeMachine(machine.id)
+    }
+  }
+  persistMachines()
 }
 
 function findMachine(addresses: string[]) {
@@ -232,7 +275,8 @@ function createMachine(
   id: string,
   addresses: string[],
   name: string,
-  pairedAt: number | null
+  pairedAt: number | null,
+  listId: string | null
 ) {
   update({
     machines: [
@@ -244,6 +288,7 @@ function createMachine(
         label: null,
         icon: 'computer',
         pairedAt,
+        listId,
         projects: [],
       }),
     ],
@@ -354,6 +399,7 @@ export function persistMachines() {
     label: machine.label,
     icon: machine.icon,
     pairedAt: machine.pairedAt,
+    listId: machine.listId,
     projects: state.projects
       .filter((project) => project.machine === machine.id)
       .map((project) => ({

@@ -9,7 +9,6 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { Reorder, useDragControls } from 'motion/react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import {
-  connectAddresses,
   editMachine,
   pairMachine,
   readMachineLink,
@@ -43,9 +42,7 @@ export function ConnectionPage(props: { machine: Machine }) {
   const [error, setError] = useState<string | null>(null)
   const [order, setOrder] = useState<string[] | null>(null)
   const addresses = order ?? machine.addresses
-  const locked = machine.addresses.some(
-    (address) => connectAddresses !== null && connectAddresses.includes(address)
-  )
+  const locked = machine.listId !== null
   const newAddress = useRef<HTMLInputElement>(null)
 
   useEffect(() => {

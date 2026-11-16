@@ -1,13 +1,7 @@
 import type { RpcMethods } from '@offsite/core/protocol'
 import type { ReviewGuide } from '@offsite/core/pull-requests'
 import type { SessionPick } from '@offsite/core/search'
-import {
-  type AnySQLiteColumn,
-  integer,
-  real,
-  snakeCase,
-  text,
-} from 'drizzle-orm/sqlite-core'
+import { integer, real, snakeCase, text } from 'drizzle-orm/sqlite-core'
 
 export const projects = snakeCase.table('projects', {
   id: text().primaryKey(),
@@ -66,24 +60,12 @@ export const devices = snakeCase.table('devices', {
   createdAt: integer().notNull(),
   expiresAt: integer().notNull(),
   lastUsedAt: integer(),
-  issuedBy: text().references((): AnySQLiteColumn => devices.hash, {
-    onDelete: 'cascade',
-  }),
 })
 
 export const connections = snakeCase.table('connections', {
   address: text().primaryKey(),
   key: text().notNull(),
   createdAt: integer().notNull(),
-})
-
-export const issuedKeys = snakeCase.table('issued_keys', {
-  key: text().primaryKey(),
-  browser: text().notNull(),
-  address: text()
-    .notNull()
-    .references(() => connections.address, { onDelete: 'cascade' }),
-  expiresAt: integer().notNull(),
 })
 
 export const pushSubscriptions = snakeCase.table('push_subscriptions', {

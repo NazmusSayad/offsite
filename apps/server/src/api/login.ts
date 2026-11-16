@@ -4,7 +4,6 @@ import { z } from 'zod'
 import { args } from '../args.ts'
 import { clients } from '../lib/hub.ts'
 import { logger } from '../lib/log.ts'
-import { shareConnections } from '../services/connections.ts'
 import { findDevice, isPaired, recordUse } from '../storage/auth.ts'
 import { connectClient } from './socket.ts'
 
@@ -45,9 +44,8 @@ export function logIn(socket: WebSocket, address: string) {
       socket.close(NEEDS_PAIRING, 'This browser needs pairing')
       return
     }
-    const client = connectClient(socket, device, address)
+    connectClient(socket, device, address)
     recordUse(device)
-    shareConnections(client, device)
   })
 }
 

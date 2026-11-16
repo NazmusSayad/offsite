@@ -27,6 +27,7 @@ describe('restoreProjects', () => {
       icon: null,
       label: null,
       pairedAt: null,
+      listId: null,
       projects: [
         project('current', {}),
         project('old-root', { parentId: null, worktreeBranch: null }),

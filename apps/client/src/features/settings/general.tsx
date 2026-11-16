@@ -5,7 +5,6 @@ import { schemes } from '@offsite/core/schemes'
 import { Collapsible } from 'radix-ui'
 import { useState } from 'react'
 import { call } from '@/api/connection'
-import { connectAddresses } from '@/api/machines'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -174,10 +173,9 @@ function UpdateRow() {
 
 function AppIconRow() {
   const host = useStore((state) =>
-    state.machines.find((machine) =>
-      machine.addresses.some((address) =>
-        (connectAddresses ?? [location.origin]).includes(address)
-      )
+    state.machines.find(
+      (machine) =>
+        machine.listId === 'host' || machine.addresses.includes(location.origin)
     )
   )
   if (host === undefined || host.appIcon === null) {

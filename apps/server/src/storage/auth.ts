@@ -24,17 +24,13 @@ export function redeemCode(code: string) {
   if (found === undefined || found.expiresAt <= Date.now()) {
     return null
   }
-  return addDevice(found.name, null)
-}
-
-export function addDevice(name: string | null, issuedBy: string | null) {
   const now = Date.now()
   const expiresAt = now + DEVICE_LIFETIME
   const token = `${readableDate(expiresAt)}.${randomBytes(32).toString('base64url')}`
   db.insert(devices)
-    .values({ hash: hash(token), name, createdAt: now, expiresAt, issuedBy })
+    .values({ hash: hash(token), name: found.name, createdAt: now, expiresAt })
     .run()
-  return { token, expiresAt }
+  return token
 }
 
 function readableDate(time: number) {
@@ -88,6 +84,6 @@ export function recordUse(device: string) {
     .run()
 }
 
-export function hash(secret: string) {
+function hash(secret: string) {
   return createHash('sha256').update(secret).digest('hex')
 }

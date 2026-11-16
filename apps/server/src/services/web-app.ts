@@ -56,12 +56,6 @@ export function serveFile(
     if (!args.pwa) {
       page = page.replace(/<link rel="manifest"[^>]*>/, '')
     }
-    if (args.connect !== null) {
-      page = page.replace(
-        '</head>',
-        `<meta name="offsite-connect" content="${args.connect.join(' ')}"></head>`
-      )
-    }
     response.end(page)
     return
   }

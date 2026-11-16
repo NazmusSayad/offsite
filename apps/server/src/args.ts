@@ -68,33 +68,21 @@ program
 const connectCommand = program
   .command('connect')
   .description(
-    'Connects this machine to other machines, so browsers paired with it get them too'
+    'Connects this machine to other machines, so browsers that open its web app get them too'
   )
 
 connectCommand
   .command('add')
   .description('Connects to another machine with its pairing link')
   .argument('<link>', 'Pairing link from offsite pair on the other machine')
-  .action((given) => {
+  .action((link) => {
     command = 'connect-add'
-    const url = URL.parse(
-      /^[a-z]+:\/\//i.test(given) ? given : `http://${given}`
-    )
-    const params = new URLSearchParams(url?.hash.slice(1) ?? '')
-    const machine = params.get('machine')
-    const address = machine === null ? url : URL.parse(machine)
+    const params = new URLSearchParams(URL.parse(link)?.hash.slice(1) ?? '')
+    const address = URL.parse(params.get('machine') ?? '')
     const code = params.get('code')
-    if (
-      address === null ||
-      (address.protocol !== 'http:' && address.protocol !== 'https:')
-    ) {
+    if (address === null || code === null) {
       return program.error(
-        'error: use the link from offsite pair on the other machine'
-      )
-    }
-    if (code === null) {
-      return program.error(
-        'error: that link has no pairing code; run offsite pair on the other machine for a new one'
+        'error: use the pairing link from offsite pair on the other machine'
       )
     }
     connection = { address: address.origin, code }

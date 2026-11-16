@@ -19,9 +19,8 @@ import { backfillSessionProviders } from './services/backfill-session-providers.
 import { saveBrowserLogs } from './services/browser-logs.ts'
 import {
   addConnection,
-  answerKeys,
+  listMachines,
   removeConnections,
-  startConnections,
 } from './services/connections.ts'
 import {
   canBrowse,
@@ -253,7 +252,6 @@ server.on('upgrade', (request, socket, head) => {
 })
 
 if (args.auth) {
-  startConnections()
   watchPaired()
 }
 
@@ -320,17 +318,22 @@ function answerApi(
   const given =
     request.headers.authorization?.match(/^Bearer (.+)$/)?.[1] ?? null
   if (pathname === '/api/pair') {
-    const issued = given === null ? null : redeemCode(given)
-    if (issued === null) {
+    const token = given === null ? null : redeemCode(given)
+    if (token === null) {
       response.statusCode = 401
       response.end('That pairing code expired or was already used')
       return
     }
-    answerJson(response, issued)
+    answerJson(response, { token })
     return
   }
-  if (pathname.startsWith('/api/keys/')) {
-    answerKeys(pathname, given, request, response)
+  if (pathname === '/api/machines') {
+    if (args.auth && (given === null || findDevice(given) === null)) {
+      response.statusCode = 401
+      response.end('This browser needs pairing')
+      return
+    }
+    answerJson(response, listMachines())
     return
   }
   if (pathname === '/api/logs') {

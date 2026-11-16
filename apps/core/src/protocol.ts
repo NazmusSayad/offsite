@@ -403,7 +403,11 @@ export type Login = { key: string } | Record<string, never>
 
 export const NEEDS_PAIRING = 4001
 
-export type ConnectedMachine = { addresses: string[]; key: string }
+export type ListedMachine = {
+  id: string
+  addresses: string[]
+  key: string | null
+}
 
 export type ServerMessage =
   | ServerEvent
@@ -413,7 +417,6 @@ export type ServerMessage =
   | RpcReply
 
 export type ServerEvent =
-  | { type: 'machines'; machines: ConnectedMachine[] }
   | { type: 'activity'; activity: Record<string, SessionActivity> }
   | { type: 'limits'; accountId: string; limits: Limits }
   | { type: 'usage'; accountId: string; usage: Usage }
