@@ -23,7 +23,7 @@ import { sessionPlaces } from '../storage/schema.ts'
 import type { Place } from './project-worktrees.ts'
 import { projects } from './projects.ts'
 
-export type Found = Omit<Session, 'status'>
+export type Found = Omit<Session, 'status' | 'unread'>
 
 const TIME_LIMIT = 10_000
 

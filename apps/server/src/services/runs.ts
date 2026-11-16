@@ -370,7 +370,7 @@ async function submitFirst(
   addStarting(starting)
   const session =
     chosen === 'inactive'
-      ? { ...starting, status: chosen }
+      ? { ...starting, status: chosen, unread: false }
       : sessions().find((item) => item.id === sessionId)
   if (session === undefined) {
     throw new Error(`${sessionId} is not listed after it started`)

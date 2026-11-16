@@ -9,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Input } from '@/components/ui/input'
 import { errorMessage } from '@/lib/utils'
 
 export function MoveWorktreeDialog(props: {
@@ -16,13 +17,14 @@ export function MoveWorktreeDialog(props: {
   projectId: string
   worktreeId: string | null
   name: string
-  onConfirm: () => void
+  onConfirm: (branch: string | null) => void
 }) {
   const machine = props.machine
   const projectId = props.projectId
   const worktreeId = props.worktreeId
   const [changes, setChanges] = useState<string[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [branch, setBranch] = useState(props.name)
 
   useEffect(() => {
     call(machine, 'sessions.moveChanges', { projectId, worktreeId }).then(
@@ -31,14 +33,14 @@ export function MoveWorktreeDialog(props: {
     )
   }, [machine, projectId, worktreeId])
 
+  function confirm() {
+    props.onConfirm(branch.trim() === '' ? null : branch.trim())
+  }
+
   return (
     <>
       <AlertDialogHeader>
-        <AlertDialogTitle>
-          {props.name === ''
-            ? 'Move chat to a new worktree?'
-            : `Move chat to the new worktree ${props.name}?`}
-        </AlertDialogTitle>
+        <AlertDialogTitle>Move chat to a new worktree?</AlertDialogTitle>
         <AlertDialogDescription>
           {error !== null && `Could not check for uncommitted files: ${error}`}
           {error === null && changes === null && 'Checking uncommitted files…'}
@@ -62,9 +64,22 @@ export function MoveWorktreeDialog(props: {
           ))}
         </ul>
       )}
+      <Input
+        aria-label="Branch name"
+        placeholder="Branch name, empty to generate one"
+        spellCheck={false}
+        autoComplete="off"
+        value={branch}
+        onChange={(event) => setBranch(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+            confirm()
+          }
+        }}
+      />
       <AlertDialogFooter>
         <AlertDialogCancel>Cancel</AlertDialogCancel>
-        <AlertDialogAction icon={NewWorktreeIcon} onClick={props.onConfirm}>
+        <AlertDialogAction icon={NewWorktreeIcon} onClick={confirm}>
           Move chat
         </AlertDialogAction>
       </AlertDialogFooter>

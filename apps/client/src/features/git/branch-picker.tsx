@@ -192,12 +192,12 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
     }
   }
 
-  async function move(sessionId: string) {
+  async function move(sessionId: string, branch: string | null) {
     setMoving(true)
     try {
       const result = await call(machine, 'sessions.move', {
         sessionId,
-        name: name === '' ? null : name,
+        name: branch,
       })
       props.onClose()
       toast.success(`Moved this chat to the new worktree ${result.branch}`)
@@ -418,7 +418,10 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
                 projectId={projectId}
                 worktreeId={worktreeId}
                 name={name}
-                onConfirm={() => void move(session.id)}
+                onConfirm={(branch) => {
+                  setConfirmingMove(false)
+                  void move(session.id, branch)
+                }}
               />
             </AlertDialogContent>
           </AlertDialog>

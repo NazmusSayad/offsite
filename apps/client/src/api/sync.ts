@@ -98,7 +98,6 @@ export function start() {
     bookmarksOpen: false,
     focus: null,
     usage: {},
-    unseen: [],
     generatingTitles: [],
     selection,
     view: 0,
@@ -292,9 +291,6 @@ function receive(machine: string, event: ServerEvent) {
       const previous = known.activity
       const running =
         current !== null && event.activity[current]?.running === true
-      const finished = Object.keys(previous).filter(
-        (id) => previous[id].running && event.activity[id]?.running !== true
-      )
       setMachine(machine, {
         activity: Object.fromEntries(
           Object.entries(event.activity).map((entry) => [
@@ -307,13 +303,6 @@ function receive(machine: string, event: ServerEvent) {
       })
       update({
         partial: running || !selected ? state.partial : '',
-        unseen: [
-          ...state.unseen,
-          ...finished
-            .filter((id) => id !== current)
-            .map((id) => machineKey(machine, id))
-            .filter((key) => !state.unseen.includes(key)),
-        ],
       })
       return
     }

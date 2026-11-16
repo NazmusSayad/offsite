@@ -1,6 +1,5 @@
 import { Add01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { machineKey } from '@/api/machines'
 import { useProjectName } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { MachineLogo } from '@/constants/machine-icons'
@@ -31,7 +30,6 @@ export function ProjectGroup(props: {
   const machineIcon = useStore((state) => machineOf(state, props.machine).icon)
   const selection = useStore((state) => state.selection)
   const machines = useStore((state) => state.machines)
-  const unseen = useStore((state) => state.unseen)
 
   return (
     <>
@@ -70,7 +68,7 @@ export function ProjectGroup(props: {
           session,
           selected: chatSelected(selection, session),
           activity: activityOf(machines, session.machine, session.id),
-          unseen: unseen.includes(machineKey(session.machine, session.id)),
+          unseen: session.unread,
           saved: chatSessionId(session.id) !== null,
           onSelect: () => openSession(chatSelection(session)),
         }

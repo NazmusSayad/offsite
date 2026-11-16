@@ -23,6 +23,7 @@ function chat(projectId: string, worktreeId: string | null): Session {
     branch: null,
     updatedAt: 1,
     status: 'active',
+    unread: false,
   }
 }
 

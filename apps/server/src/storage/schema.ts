@@ -32,6 +32,7 @@ export const sessions = snakeCase.table('sessions', {
   status: text({
     enum: ['active', 'pinned', 'snoozed', 'minimized'],
   }).notNull(),
+  unread: integer({ mode: 'boolean' }).notNull().default(false),
 })
 
 export const sessionPlaces = snakeCase.table('session_places', {
