@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "bc8a975b-93f1-4c3b-acb8-f6111760133d",
+  "id": "51f36b5a-b0dc-4698-9835-e1e9c5dcb65c",
   "prevIds": [
-    "b07e4cc5-b146-43c0-870d-ae8302d08cbb"
+    "9c3665bb-ac62-469a-bea3-8f64cb21b7f6"
   ],
   "ddl": [
     {
@@ -883,6 +883,16 @@
       "default": null,
       "generated": null,
       "name": "status",
+      "entityType": "columns",
+      "table": "sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "unread",
       "entityType": "columns",
       "table": "sessions"
     },

@@ -40,7 +40,7 @@ import {
 } from '../services/files.ts'
 import { logoFiles, readLogo } from '../services/logos.ts'
 import { searchMessages } from '../services/message-search.ts'
-import { act } from '../services/notices.ts'
+import { act, receiveAnswer } from '../services/notices.ts'
 import { removeFromOutbox } from '../services/outbox.ts'
 import { updatePending } from '../services/pending-status.ts'
 import { placePath, publishWorktrees } from '../services/project-worktrees.ts'
@@ -298,6 +298,14 @@ const handlers: Handlers = {
     unsubscribe(params.endpoint)
     return null
   },
+  'notifications.presence': (params, client) => {
+    client.activeAt = params.active ? Date.now() : 0
+    return null
+  },
+  'notices.here': (params) => {
+    receiveAnswer(params.id, params.here)
+    return null
+  },
   'notices.act': async (params, client) => {
     await act(client, params.id, params.action)
     return null
@@ -321,6 +329,7 @@ export function connectClient(
     socket,
     device,
     address,
+    activeAt: 0,
     opening: null,
     sessionId: null,
     send: (message) => socket.send(JSON.stringify(message)),

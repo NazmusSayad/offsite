@@ -12,6 +12,7 @@ import {
   refreshSettings,
 } from './accounts'
 import { chatPending, chatSessionId } from './outbox'
+import { readSession } from './reads'
 import { router } from './router'
 import { bumpSession } from './sent-sessions'
 import {
@@ -80,12 +81,10 @@ export function openSession(
         ? { name: '', base: null }
         : null,
     paletteOpen: false,
-    unseen: getState().unseen.filter(
-      (key) =>
-        selection.sessionId === null ||
-        key !== machineKey(selection.machine, selection.sessionId)
-    ),
   })
+  if (selection.sessionId !== null) {
+    void readSession(selection.machine, selection.sessionId)
+  }
   syncUrl(replace)
   refreshSettings(selection.machine)
   if (selection.sessionId !== null && machine.status === 'online') {

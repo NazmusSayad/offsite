@@ -15,7 +15,7 @@ import {
 import { doneSummary, planSummary, questionSummary } from './notice-summary.ts'
 import { type NoticeButton, notify } from './notices.ts'
 import { resend } from './runs.ts'
-import { sessions } from './sessions.ts'
+import { sessions, setUnread } from './sessions.ts'
 import { duration, plainText, turnSummary } from './turn-summary.ts'
 
 const log = logger.withTag('session-notices')
@@ -37,13 +37,11 @@ export function watchActivity() {
         [...run.pending.values()].map((pending) => pending.request.id)
       ),
     })
-    if (
-      !run.running &&
-      before?.running === true &&
-      before.prompted &&
-      !run.failed
-    ) {
-      report(finishedNotice(run))
+    if (!run.running && before?.running === true) {
+      setUnread(run.sessionId, true)
+      if (before.prompted && !run.failed) {
+        report(finishedNotice(run))
+      }
     }
     for (const pending of run.pending.values()) {
       if (before?.requests.has(pending.request.id) !== true) {

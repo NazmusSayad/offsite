@@ -1,12 +1,12 @@
 import type { Notice, PushSubscriptionInfo } from '@offsite/core/push'
 import { useEffect } from 'react'
 import { call, isConnected, machineUrl } from '@/api/connection'
-import { machineKey } from '@/api/machines'
 import { logger } from '@/lib/log'
 import { isNoticeData, showNotice } from './notices'
 import { router } from './router'
 import { activityOf, getState, threadState, useStore } from './store'
 import { currentSearch } from './url'
+import { wide } from './utils'
 
 const log = logger.withTag('notifications')
 
@@ -14,7 +14,12 @@ type PushKeys = { publicKey: string; privateKey: string }
 
 const storageKey = 'notifications'
 
+const ACTIVE_LIMIT = 15_000
+const PRESENCE_INTERVAL = 5000
+
 let pushWork: Promise<unknown> = Promise.resolve()
+let activeAt = 0
+let reportedAt = 0
 
 export function notificationPermission() {
   if (!window.isSecureContext) {
@@ -52,12 +57,16 @@ export async function watchPermission(
   status.addEventListener('change', listener, { signal })
 }
 
-export async function showNoticeHere(machine: string, notice: Notice) {
+export async function showNoticeHere(
+  machine: string,
+  notice: Notice,
+  pushed: boolean
+) {
   if (
     notificationPermission() !== 'granted' ||
     !notificationsWanted() ||
-    (!notice.whileVisible && watching(machine, notice.target.sessionId)) ||
-    (pushSupport() === 'supported' && (await pushSubscribed()))
+    (!notice.whileVisible && alreadySeen(machine, notice.target.sessionId)) ||
+    (pushed && pushSupport() === 'supported' && (await pushSubscribed()))
   ) {
     return
   }
@@ -75,8 +84,80 @@ export async function showNoticeHere(machine: string, notice: Notice) {
   })
 }
 
+export async function answerNotice(machine: string, notice: Notice) {
+  const here = active()
+  await call(machine, 'notices.here', { id: notice.id, here })
+  if (here) {
+    await showNoticeHere(machine, notice, false)
+  }
+}
+
+export function startPresence() {
+  addEventListener('keydown', noteActivity, { capture: true })
+  addEventListener('pointerdown', noteActivity, { capture: true })
+  addEventListener('wheel', noteActivity, { capture: true, passive: true })
+  addEventListener('focus', noteActivity)
+  addEventListener('blur', leave)
+  addEventListener('pagehide', leave)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      leave()
+    } else {
+      noteActivity()
+    }
+  })
+}
+
+export function reportPresence(machine: string) {
+  if (active()) {
+    sendPresence([machine], true)
+  }
+}
+
+function noteActivity() {
+  activeAt = Date.now()
+  if (!inUse() || activeAt - reportedAt < PRESENCE_INTERVAL) {
+    return
+  }
+  reportedAt = activeAt
+  sendPresence(connectedMachines(), true)
+}
+
+function leave() {
+  reportedAt = 0
+  sendPresence(connectedMachines(), false)
+}
+
+function active() {
+  return inUse() && Date.now() - activeAt < ACTIVE_LIMIT
+}
+
+function inUse() {
+  return !document.hidden && document.hasFocus()
+}
+
+function sendPresence(machines: string[], active: boolean) {
+  Promise.all(
+    machines.map((machine) =>
+      call(machine, 'notifications.presence', { active })
+    )
+  ).catch((error: unknown) =>
+    log.error('could not tell the server whether this page is in use', error)
+  )
+}
+
+export function alreadySeen(machine: string, sessionId: string) {
+  return (
+    watching(machine, sessionId) ||
+    (inUse() &&
+      (wide.matches ||
+        (router.history.location.pathname === '/' &&
+          getState().selection === null)))
+  )
+}
+
 export function watching(machine: string, sessionId: string) {
-  if (document.hidden || !document.hasFocus()) {
+  if (!inUse()) {
     return false
   }
   const search = currentSearch()
@@ -240,7 +321,7 @@ export function useAttentionBadge() {
       state.sessions.filter((session) => {
         const thread = threadState(
           activityOf(state.machines, session.machine, session.id),
-          state.unseen.includes(machineKey(session.machine, session.id))
+          session.unread
         )
         return thread.waiting || thread.done
       }).length

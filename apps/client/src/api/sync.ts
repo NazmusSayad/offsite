@@ -23,7 +23,12 @@ import {
 } from '@/lib/accounts'
 import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
-import { showNoticeHere } from '@/lib/notifications'
+import {
+  answerNotice,
+  reportPresence,
+  showNoticeHere,
+  startPresence,
+} from '@/lib/notifications'
 import { moveStartedPrompt, receiveOutbox } from '@/lib/outbox'
 import { loadPrefs } from '@/lib/prefs'
 import { router } from '@/lib/router'
@@ -94,7 +99,6 @@ export function start() {
     bookmarksOpen: false,
     focus: null,
     usage: {},
-    unseen: [],
     generatingTitles: [],
     selection,
     view: 0,
@@ -130,6 +134,7 @@ export function start() {
     open: (machine, url, snapshot) => {
       setMachine(machine, { via: url })
       resync(machine, snapshot)
+      reportPresence(machine)
     },
     close: (machine) => {
       const known = getState().machines.find((item) => item.id === machine)
@@ -141,6 +146,7 @@ export function start() {
       setMachine(machine, { status: 'unpaired', via: null }),
     event: receive,
   })
+  startPresence()
   addEventListener('storage', (event) => {
     if (event.key === 'machines') {
       receiveMachines()
@@ -297,9 +303,6 @@ function receive(machine: string, event: ServerEvent) {
       const previous = known.activity
       const running =
         current !== null && event.activity[current]?.running === true
-      const finished = Object.keys(previous).filter(
-        (id) => previous[id].running && event.activity[id]?.running !== true
-      )
       setMachine(machine, {
         activity: Object.fromEntries(
           Object.entries(event.activity).map((entry) => [
@@ -312,13 +315,6 @@ function receive(machine: string, event: ServerEvent) {
       })
       update({
         partial: running || !selected ? state.partial : '',
-        unseen: [
-          ...state.unseen,
-          ...finished
-            .filter((id) => id !== current)
-            .map((id) => machineKey(machine, id))
-            .filter((key) => !state.unseen.includes(key)),
-        ],
       })
       return
     }
@@ -426,8 +422,13 @@ function receive(machine: string, event: ServerEvent) {
       return
     }
     case 'notice':
-      showNoticeHere(machine, event.notice).catch((error: unknown) =>
-        log.error('could not show a notification', error)
+      showNoticeHere(machine, event.notice, event.pushed).catch(
+        (error: unknown) => log.error('could not show a notification', error)
+      )
+      return
+    case 'notice.ask':
+      answerNotice(machine, event.notice).catch((error: unknown) =>
+        log.error('could not answer a notification', error)
       )
       return
     case 'terminals':
