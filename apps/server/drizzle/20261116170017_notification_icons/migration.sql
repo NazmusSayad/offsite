@@ -1,4 +1,3 @@
-DROP TABLE `notice_icons`;--> statement-breakpoint
 CREATE TABLE `notification_icons` (
 	`key` text PRIMARY KEY,
 	`project_id` text,

@@ -1,10 +1,10 @@
 {
-  "id": "ba230124-7fb7-4642-88b9-88c7c01e76ac",
-  "prevIds": [
-    "b70bc45b-410e-4248-b2b1-16e5ee7f362d"
-  ],
   "version": "7",
   "dialect": "sqlite",
+  "id": "e3186a65-a6b1-4aeb-8089-ffeab1f5b028",
+  "prevIds": [
+    "53824433-85e1-49b6-9006-b90b3b7a2405"
+  ],
   "ddl": [
     {
       "name": "bookmarks",
