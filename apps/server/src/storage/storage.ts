@@ -17,7 +17,9 @@ import { logger } from '../lib/log.ts'
 export const home = args.dir
 
 const lockFile = path.join(home, 'server.pid')
-const savedServer = z.object({ port: z.number() }).nullable()
+const savedServer = z
+  .object({ port: z.number(), https: z.boolean().default(false) })
+  .nullable()
 const log = logger.withTag('storage')
 
 mkdirSync(home, { recursive: true })
@@ -26,12 +28,13 @@ export const scratchAvailable =
   spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: home })
     .status !== 0
 
-export function listenPort() {
+export function listenServer(https: boolean) {
+  const given = { port: Number(args.port), https }
   if (args.command !== 'pair' || args.portGiven) {
-    return args.port
+    return given
   }
   const saved = readSettings('server.json', savedServer, null)
-  return saved === null ? args.port : saved.port
+  return saved === null ? given : saved
 }
 
 export function lockHome() {
