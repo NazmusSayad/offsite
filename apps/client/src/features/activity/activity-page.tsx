@@ -52,7 +52,6 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
   const inactive = useStore((state) => state.inactive)
-  const unseen = useStore((state) => state.unseen)
   const [models, setModels] = useState<Record<string, ThreadModel>>({})
   const [now, setNow] = useState(Date.now)
   const canvas = useRef<ReactZoomPanPinchRef>(null)
@@ -65,7 +64,7 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
         (machine) =>
           machine.id === session.machine &&
           machine.activity[session.id] === undefined
-      ) && unseen.includes(machineKey(session.machine, session.id))
+      ) && session.unread
   )
   const missing = finished.filter(
     (session) => models[modelKey(session)] === undefined
@@ -86,8 +85,7 @@ export function ActivityPage(props: { leading: ReactNode; mobile: boolean }) {
                   activity: entry[1],
                   done: threadState(
                     entry[1],
-                    session.status !== 'inactive' &&
-                      unseen.includes(machineKey(machine.id, entry[0]))
+                    session.status !== 'inactive' && session.unread
                   ).done,
                   account:
                     accounts.find(

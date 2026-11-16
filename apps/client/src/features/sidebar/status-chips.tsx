@@ -28,7 +28,6 @@ export function StatusChips(props: {
 }) {
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
-  const unseen = useStore((state) => state.unseen)
   const waiting = sessions.filter(
     (session) =>
       activityOf(machines, session.machine, session.id)?.waiting === true
@@ -37,7 +36,7 @@ export function StatusChips(props: {
     (session) =>
       threadState(
         activityOf(machines, session.machine, session.id),
-        unseen.includes(machineKey(session.machine, session.id))
+        session.unread
       ).done
   )
   const showDone = !props.hideDone && done.length > 0
@@ -177,7 +176,6 @@ export function FittedStatusChips() {
 function ChipList(props: { kind: 'done' | 'waiting' | 'merged' | 'all' }) {
   const machines = useStore((state) => state.machines)
   const sessions = useStore((state) => state.sessions)
-  const unseen = useStore((state) => state.unseen)
   const waiting = sessions.filter(
     (session) =>
       activityOf(machines, session.machine, session.id)?.waiting === true
@@ -186,7 +184,7 @@ function ChipList(props: { kind: 'done' | 'waiting' | 'merged' | 'all' }) {
     (session) =>
       threadState(
         activityOf(machines, session.machine, session.id),
-        unseen.includes(machineKey(session.machine, session.id))
+        session.unread
       ).done
   )
   const [allDone, setAllDone] = useState(false)

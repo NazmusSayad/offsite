@@ -1,7 +1,6 @@
 import type { Notice, PushSubscriptionInfo } from '@offsite/core/push'
 import { useEffect } from 'react'
 import { call, isConnected, machineUrl } from '@/api/connection'
-import { machineKey } from '@/api/machines'
 import { logger } from '@/lib/log'
 import { isNoticeData, showNotice } from './notices'
 import { router } from './router'
@@ -240,7 +239,7 @@ export function useAttentionBadge() {
       state.sessions.filter((session) => {
         const thread = threadState(
           activityOf(state.machines, session.machine, session.id),
-          state.unseen.includes(machineKey(session.machine, session.id))
+          session.unread
         )
         return thread.waiting || thread.done
       }).length

@@ -204,6 +204,7 @@ export function outboxChats(machines: Machine[]) {
       branch: null,
       updatedAt: item.createdAt,
       status: item.sessionStatus,
+      unread: false,
     }))
 }
 

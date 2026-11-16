@@ -117,7 +117,6 @@ export function ProjectMenuItems(props: {
   const machines = useStore((state) => state.machines)
   const registered = useStore((state) => state.projects)
   const sessions = useStore((state) => state.sessions)
-  const unseen = useStore((state) => state.unseen)
   const activity = useActivityPage()
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -153,7 +152,7 @@ export function ProjectMenuItems(props: {
   const attention = sessions.filter((session) => {
     const thread = threadState(
       activityOf(machines, session.machine, session.id),
-      unseen.includes(machineKey(session.machine, session.id))
+      session.unread
     )
     return thread.waiting || thread.working || thread.done
   })

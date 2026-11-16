@@ -301,7 +301,6 @@ function forgetMachine(id: string) {
     projects: state.projects.filter((item) => item.machine !== id),
     sessions: state.sessions.filter((item) => item.machine !== id),
     inactive: state.inactive.filter((item) => item.machine !== id),
-    unseen: state.unseen.filter((key) => !key.startsWith(`${id} `)),
     ...(state.settingsMachine === id && {
       settingsMachine: machines.at(0)?.id ?? null,
     }),
