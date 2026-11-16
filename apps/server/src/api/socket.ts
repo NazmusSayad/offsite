@@ -40,7 +40,13 @@ import {
 } from '../services/files.ts'
 import { logoFiles, readLogo } from '../services/logos.ts'
 import { searchMessages } from '../services/message-search.ts'
-import { act, noteUse, receiveAnswer } from '../services/notices.ts'
+import {
+  act,
+  markSeen,
+  noteUse,
+  receiveAnswer,
+  seenOf,
+} from '../services/notices.ts'
 import { removeFromOutbox } from '../services/outbox.ts'
 import { updatePending } from '../services/pending-status.ts'
 import { placePath, publishWorktrees } from '../services/project-worktrees.ts'
@@ -311,6 +317,11 @@ const handlers: Handlers = {
     await act(client, params.id, params.action)
     return null
   },
+  'notices.seen': async (params) => {
+    await markSeen(params.sessionId)
+    return null
+  },
+  'notices.dismissed': (params) => seenOf(params.ids),
   terminal: async (params, client) => {
     await terminalRequest(client, params)
     return null

@@ -5,7 +5,7 @@ import {
   precacheAndRoute,
 } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
-import { isNoticeData, showNotice } from './lib/notices'
+import { isNoticeData, removeNotices, showNotice } from './lib/notices'
 import { readToken } from './lib/tokens'
 
 const WATCHING_TIMEOUT = 1000
@@ -39,6 +39,14 @@ async function showPushed(data) {
   const message = readMessage(data)
   if (message === null) {
     await self.registration.showNotification('OffSite', { data: null })
+    return
+  }
+  if (message.type === 'dismiss') {
+    await removeNotices(
+      self.registration,
+      (entry) =>
+        entry.machine === message.machineId && entry.notice.tag === message.tag
+    )
     return
   }
   if (!message.whileVisible && (await watching(message))) {
