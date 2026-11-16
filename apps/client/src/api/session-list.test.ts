@@ -9,7 +9,7 @@ import {
 import { syncUrl } from '@/lib/url'
 import { setSessions } from './session-list'
 
-vi.mock('@/lib/url', () => ({ syncUrl: vi.fn() }))
+vi.mock('@/lib/url', () => ({ currentSearch: () => ({}), syncUrl: vi.fn() }))
 
 const MACHINE = 'machine'
 

@@ -65,7 +65,7 @@ export async function showNoticeHere(
   if (
     notificationPermission() !== 'granted' ||
     !notificationsWanted() ||
-    (!notice.whileVisible && watching(machine, notice.target.sessionId)) ||
+    (!notice.whileVisible && alreadySeen(machine, notice.target.sessionId)) ||
     (pushed && pushSupport() === 'supported' && (await pushSubscribed()))
   ) {
     return
@@ -146,20 +146,25 @@ function sendPresence(machines: string[], active: boolean) {
   )
 }
 
+export function alreadySeen(machine: string, sessionId: string) {
+  return (
+    watching(machine, sessionId) ||
+    (inUse() &&
+      (wide.matches ||
+        (router.history.location.pathname === '/' &&
+          getState().selection === null)))
+  )
+}
+
 export function watching(machine: string, sessionId: string) {
   if (!inUse()) {
     return false
   }
-  if (wide.matches) {
-    return true
-  }
-  if (router.history.location.pathname !== '/') {
-    return false
-  }
   const search = currentSearch()
   return (
-    getState().selection === null ||
-    (search.machine === machine && search.session === sessionId)
+    router.history.location.pathname === '/' &&
+    search.machine === machine &&
+    search.session === sessionId
   )
 }
 

@@ -223,21 +223,41 @@ describe('showing a notification from an open page', () => {
     expect(shownTitles()).toEqual(['Fix login'])
   })
 
-  it('tells the push handler when this page already shows that conversation', () => {
+  it('tells the push handler when you already see that conversation', () => {
+    fake.search = { machine: 'machine', session: 'session' }
+
+    expect(notifications.alreadySeen('machine', 'session')).toBe(true)
+    expect(notifications.alreadySeen('machine', 'other')).toBe(false)
+
+    fake.selection = null
+    expect(notifications.alreadySeen('machine', 'other')).toBe(true)
+
+    fake.selection = {}
+    fake.wide.matches = true
+    expect(notifications.alreadySeen('machine', 'other')).toBe(true)
+
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    expect(notifications.alreadySeen('machine', 'other')).toBe(false)
+  })
+
+  it('counts a conversation as watched only while it is on screen, so only that one is marked read', () => {
+    fake.wide.matches = true
     fake.search = { machine: 'machine', session: 'session' }
 
     expect(notifications.watching('machine', 'session')).toBe(true)
     expect(notifications.watching('machine', 'other')).toBe(false)
 
+    fake.location.pathname = '/activity'
+    expect(notifications.watching('machine', 'session')).toBe(false)
+
+    fake.location.pathname = '/'
     fake.selection = null
-    expect(notifications.watching('machine', 'other')).toBe(true)
+    fake.search = {}
+    expect(notifications.watching('machine', 'session')).toBe(false)
 
-    fake.selection = {}
-    fake.wide.matches = true
-    expect(notifications.watching('machine', 'other')).toBe(true)
-
-    vi.spyOn(document, 'hasFocus').mockReturnValue(false)
-    expect(notifications.watching('machine', 'other')).toBe(false)
+    fake.search = { machine: 'machine', session: 'session' }
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(true)
+    expect(notifications.watching('machine', 'session')).toBe(false)
   })
 
   it('shows it when the conversation is open but the window is not focused', async () => {
