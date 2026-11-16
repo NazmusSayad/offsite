@@ -16,18 +16,18 @@ import {
   WorktreeIcon,
   NewWorktreeIcon,
 } from '@offsite/core/icons/git'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { call } from '@/api/connection'
 import { MoreLabel } from '@/components/icons'
 import { AlertDialog, AlertDialogContent } from '@/components/ui/alert-dialog'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import { RemoteBranches, Submenu } from '@/features/git/branch-submenu'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { RemoteBranches, Row, Submenu } from '@/features/git/branch-submenu'
 import { MoveWorktreeDialog } from '@/features/git/move-worktree-dialog'
 import { setOpen as setTerminalOpen } from '@/features/terminal/session'
 import { logger } from '@/lib/log'
@@ -51,8 +51,8 @@ export function BranchPicker(props: BranchTarget) {
   const worktree = props.worktreeId !== null
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
         <button
           className="text-muted-foreground hover:text-foreground hidden max-w-48 cursor-pointer items-center gap-1 text-xs sm:flex"
           title="Switch or create a branch"
@@ -69,11 +69,14 @@ export function BranchPicker(props: BranchTarget) {
           />
           <span className="truncate">{props.repo.branch ?? 'detached'}</span>
         </button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="flex w-72 flex-col">
-        <BranchList target={props} onClose={() => setOpen(false)} />
-      </PopoverContent>
-    </Popover>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="flex w-72 flex-col overflow-hidden p-0"
+      >
+        <BranchList target={props} menu onClose={() => setOpen(false)} />
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -91,13 +94,17 @@ export function BranchDialog(props: BranchTarget & { onClose: () => void }) {
         }}
       >
         <DialogTitle className="sr-only">Switch branch</DialogTitle>
-        <BranchList target={props} onClose={props.onClose} />
+        <BranchList target={props} menu={false} onClose={props.onClose} />
       </DialogContent>
     </Dialog>
   )
 }
 
-function BranchList(props: { target: BranchTarget; onClose: () => void }) {
+function BranchList(props: {
+  target: BranchTarget
+  menu: boolean
+  onClose: () => void
+}) {
   const target = props.target
   const machine = target.machine
   const projectId = target.projectId
@@ -107,7 +114,6 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
   const [branches, setBranches] = useState<
     { name: string; local: boolean; worktree: string | null }[] | null
   >(null)
-  const [sub, setSub] = useState<'local' | 'remote' | null>(null)
   const [query, setQuery] = useState('')
   const [switching, setSwitching] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -139,6 +145,14 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
     session !== undefined && session.provider === 'claude' && !scratch
   const [moving, setMoving] = useState(false)
   const [confirmingMove, setConfirmingMove] = useState(false)
+  const input = useRef<HTMLInputElement>(null)
+  const list = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!touch.matches) {
+      input.current?.focus()
+    }
+  }, [])
 
   useEffect(() => {
     call(machine, 'git.localBranches', {
@@ -224,17 +238,15 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
     }
   }
 
-  function localRow(
-    branch: {
-      name: string
-      local: boolean
-      worktree: string | null
-    },
-    inSubmenu: boolean
-  ) {
+  function localRow(branch: {
+    name: string
+    local: boolean
+    worktree: string | null
+  }) {
     return (
-      <button
+      <Row
         key={branch.name}
+        menu={props.menu}
         disabled={switching || branch.worktree !== null}
         title={
           branch.worktree === null
@@ -242,16 +254,10 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             : `Open in the worktree ${branch.worktree}. A branch can be open in only one worktree at a time`
         }
         className={cn(
-          'hover:bg-accent hover:text-accent-foreground mb-0.5 flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50',
           branch.name === target.repo.branch &&
             'text-foreground bg-foreground/[0.08]'
         )}
-        onMouseEnter={() => {
-          if (!inSubmenu) {
-            setSub(null)
-          }
-        }}
-        onClick={() => {
+        onSelect={() => {
           if (branch.name === target.repo.branch) {
             props.onClose()
             return
@@ -284,12 +290,27 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             Remote
           </span>
         )}
-      </button>
+      </Row>
     )
   }
 
   return (
-    <>
+    <div
+      className="flex min-h-0 flex-col"
+      onKeyDownCapture={(event) => {
+        if (
+          event.target !== input.current &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.altKey &&
+          ((event.key.length === 1 && event.key !== ' ') ||
+            event.key === 'Backspace')
+        ) {
+          event.stopPropagation()
+          input.current?.focus()
+        }
+      }}
+    >
       <div className="shrink-0 px-3 pt-2.5">
         <div className="border-border/70 focus-within:border-ring relative border-b pb-1.5 transition-colors">
           <HugeiconsIcon
@@ -297,12 +318,26 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             className="text-muted-foreground/55 pointer-events-none absolute top-1.5 left-0 size-4"
           />
           <input
+            ref={input}
             value={query}
             placeholder="Search or create a branch..."
             disabled={switching || moving}
             className="placeholder:text-muted-foreground/70 h-6.5 w-full bg-transparent ps-5 text-sm outline-none"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                return
+              }
+              event.stopPropagation()
+              if (event.key === 'ArrowDown') {
+                event.preventDefault()
+                list.current
+                  ?.querySelector<HTMLElement>(
+                    '[role^=menuitem]:not([data-disabled])'
+                  )
+                  ?.focus()
+                return
+              }
               if (
                 event.key !== 'Enter' ||
                 name === '' ||
@@ -319,10 +354,10 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
       </div>
       {action !== null && (
         <div className="border-border/70 shrink-0 border-b px-2 py-1.5">
-          <button
+          <Row
+            menu={props.menu}
             disabled={syncing || switching}
-            className="hover:bg-accent hover:text-accent-foreground flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50"
-            onClick={() => void sync()}
+            onSelect={() => void sync()}
           >
             <HugeiconsIcon
               icon={syncing ? CircleDashedIcon : action.icon}
@@ -330,10 +365,10 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             />
             <span className="min-w-0 flex-1 truncate">{action.label}</span>
             <SyncCounts behind={target.repo.behind} ahead={target.repo.ahead} />
-          </button>
+          </Row>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1.5">
+      <div ref={list} className="min-h-0 flex-1 overflow-y-auto px-2 py-1.5">
         {branches === null && (
           <p className="text-muted-foreground p-2 text-center text-sm">
             Loading branches…
@@ -344,13 +379,10 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             No branches
           </p>
         )}
-        {(name === '' ? local.shown : matches).map((branch) =>
-          localRow(branch, false)
-        )}
+        {(name === '' ? local.shown : matches).map(localRow)}
         {name === '' && local.more.length > 0 && (
           <Submenu
-            open={sub === 'local'}
-            onOpenChange={(open) => setSub(open ? 'local' : null)}
+            menu={props.menu}
             trigger={
               <MoreLabel
                 text={`${local.more.length} more branches`}
@@ -358,13 +390,12 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
               />
             }
           >
-            {local.more.map((branch) => localRow(branch, true))}
+            {local.more.map(localRow)}
           </Submenu>
         )}
         {name === '' && branches !== null && (
           <Submenu
-            open={sub === 'remote'}
-            onOpenChange={(open) => setSub(open ? 'remote' : null)}
+            menu={props.menu}
             trigger={
               <>
                 <HugeiconsIcon icon={CloudIcon} className="size-3.5 shrink-0" />
@@ -373,6 +404,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
             }
           >
             <RemoteBranches
+              menu={props.menu}
               machine={machine}
               projectId={projectId}
               worktreeId={worktreeId}
@@ -383,24 +415,24 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
           </Submenu>
         )}
         {branches !== null && name !== '' && !exists && (
-          <button
+          <Row
+            menu={props.menu}
             disabled={switching}
-            className="hover:bg-accent hover:text-accent-foreground flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50"
-            onClick={() => void switchTo(name, true)}
+            onSelect={() => void switchTo(name, true)}
           >
             <HugeiconsIcon icon={NewBranchIcon} className="size-3.5 shrink-0" />
             <span className="min-w-0 flex-1 truncate">
               Create branch <span className="font-medium">{name}</span>
             </span>
-          </button>
+          </Row>
         )}
       </div>
       {movable && !(name !== '' && exists) && (
         <div className="border-border/70 shrink-0 border-t px-2 py-1.5">
-          <button
+          <Row
+            menu={props.menu}
             disabled={switching || moving}
-            className="hover:bg-accent hover:text-accent-foreground flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm disabled:cursor-default disabled:opacity-50"
-            onClick={() => setConfirmingMove(true)}
+            onSelect={() => setConfirmingMove(true)}
           >
             <HugeiconsIcon
               icon={moving ? CircleDashedIcon : NewWorktreeIcon}
@@ -410,7 +442,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
               Move chat to new worktree{' '}
               {name !== '' && <span className="font-medium">{name}</span>}
             </span>
-          </button>
+          </Row>
           <AlertDialog open={confirmingMove} onOpenChange={setConfirmingMove}>
             <AlertDialogContent focus="action">
               <MoveWorktreeDialog
@@ -427,7 +459,7 @@ function BranchList(props: { target: BranchTarget; onClose: () => void }) {
           </AlertDialog>
         </div>
       )}
-    </>
+    </div>
   )
 }
 
