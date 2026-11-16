@@ -9,8 +9,8 @@ const log = logger.withTag('notices')
 const TITLE_LIMIT = 100
 const BODY_LIMIT = 500
 const KEEP = 24 * 60 * 60 * 1000
-const ACTIVE_LIMIT = 15_000
 const ANSWER_LIMIT = 2000
+const SEEN_LIMIT = 60_000
 
 export type NoticeButton =
   | { title: string; kind: 'open' | 'diff' }
@@ -25,7 +25,8 @@ const stored = new Map<
   string,
   { at: number; runs: Map<string, (client: Client) => Promise<unknown>> }
 >()
-const asking = new Map<string, (here: boolean) => void>()
+const usedAt = new Map<string, number>()
+const asking = new Map<string, (client: Client) => void>()
 
 export async function notify(input: NoticeInput) {
   const id = randomUUID()
@@ -55,15 +56,7 @@ export async function notify(input: NoticeInput) {
   }
   forgetOld()
   stored.set(id, { at: Date.now(), runs })
-  const active = [...clients].filter(
-    (client) => Date.now() - client.activeAt < ACTIVE_LIMIT
-  )
-  if (active.length > 0 && (await anyoneHere(active, notice))) {
-    return { local: true, push: false }
-  }
-  const pushed = await sendPush(notice)
-  broadcast({ type: 'notice', notice, pushed })
-  return { local: clients.size > 0, push: pushed }
+  return await offer(notice, new Set())
 }
 
 export async function act(client: Client, id: string, action: string) {
@@ -75,29 +68,94 @@ export async function act(client: Client, id: string, action: string) {
   await run(client)
 }
 
-export function receiveAnswer(id: string, here: boolean) {
-  asking.get(id)?.(here)
+export function noteUse(client: Client, browser: string) {
+  client.browser = browser
+  client.usedAt = Date.now()
+  usedAt.set(browser, Date.now())
 }
 
-function anyoneHere(active: Client[], notice: Notice) {
-  return new Promise<boolean>((resolve) => {
-    let waiting = active.length
-    const timer = setTimeout(() => finish(false), ANSWER_LIMIT)
-    function finish(here: boolean) {
-      clearTimeout(timer)
-      asking.delete(notice.id)
-      resolve(here)
+export function receiveAnswer(client: Client, id: string, browser: string) {
+  client.browser = browser
+  asking.get(id)?.(client)
+}
+
+async function offer(notice: Notice, tried: Set<string>) {
+  const page = await pickAwake(notice.id, tried)
+  if (page === null) {
+    const pushed = await sendPush(notice)
+    broadcast({ type: 'notice', notice, pushed })
+    return { local: clients.size > 0, push: pushed }
+  }
+  const browser = page.browser
+  if (browser === null) {
+    throw new Error('a page answered without saying which browser it is')
+  }
+  tried.add(browser)
+  const sentAt = Date.now()
+  page.send({ type: 'notice', notice, pushed: false })
+  setTimeout(() => {
+    if (lastUse(browser) > sentAt) {
+      return
     }
-    asking.set(notice.id, (here) => {
-      waiting -= 1
-      if (here || waiting === 0) {
-        finish(here)
+    offer(notice, tried).catch((error: unknown) =>
+      log.warn('could not pass a notification on to the next device:', error)
+    )
+  }, SEEN_LIMIT)
+  return { local: true, push: false }
+}
+
+function pickAwake(id: string, tried: Set<string>) {
+  return new Promise<Client | null>((resolve) => {
+    const asked = [...clients]
+    const awake = new Set<Client>()
+    const timer = setTimeout(() => choose(true), ANSWER_LIMIT)
+    function choose(final: boolean) {
+      const ranked = asked
+        .filter(
+          (client) => client.browser === null || !tried.has(client.browser)
+        )
+        .sort(
+          (first, second) =>
+            browserUse(second) - browserUse(first) ||
+            second.usedAt - first.usedAt
+        )
+      for (const client of ranked) {
+        if (awake.has(client)) {
+          finish(client)
+          return
+        }
+        if (!final) {
+          return
+        }
+      }
+      finish(null)
+    }
+    function finish(client: Client | null) {
+      clearTimeout(timer)
+      asking.delete(id)
+      resolve(client)
+    }
+    asking.set(id, (client) => {
+      if (asked.includes(client)) {
+        awake.add(client)
+        choose(false)
       }
     })
-    for (const client of active) {
-      client.send({ type: 'notice.ask', notice })
+    for (const client of asked) {
+      client.send({ type: 'notice.ask', id })
+    }
+    if (asked.length === 0) {
+      finish(null)
     }
   })
+}
+
+function browserUse(client: Client) {
+  return client.browser === null ? 0 : lastUse(client.browser)
+}
+
+function lastUse(browser: string) {
+  return usedAt.get(browser) ?? 0
 }
 
 function forgetOld() {

@@ -374,8 +374,8 @@ export type RpcMethods = PullRequestMethods &
     }
     'push.subscribe': { params: PushRegistration; result: null }
     'push.unsubscribe': { params: { endpoint: string }; result: null }
-    'notifications.presence': { params: { active: boolean }; result: null }
-    'notices.here': { params: { id: string; here: boolean }; result: null }
+    'notifications.used': { params: { browser: string }; result: null }
+    'notices.awake': { params: { id: string; browser: string }; result: null }
     'notices.act': { params: { id: string; action: string }; result: null }
     terminal: { params: TerminalRequest; result: null }
     'terminal.shells': { params: void; result: Shell[] }
@@ -459,5 +459,5 @@ export type ServerEvent =
   | { type: 'settings'; sessionId: string; settings: SessionSettings }
   | { type: 'context'; sessionId: string; context: ContextUsage | null }
   | { type: 'notice'; notice: Notice; pushed: boolean }
-  | { type: 'notice.ask'; notice: Notice }
+  | { type: 'notice.ask'; id: string }
   | { type: 'terminals'; tabs: TerminalTab[] }

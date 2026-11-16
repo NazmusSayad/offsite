@@ -13,12 +13,11 @@ const log = logger.withTag('notifications')
 type PushKeys = { publicKey: string; privateKey: string }
 
 const storageKey = 'notifications'
+const browserKey = 'browser'
 
-const ACTIVE_LIMIT = 15_000
 const PRESENCE_INTERVAL = 5000
 
 let pushWork: Promise<unknown> = Promise.resolve()
-let activeAt = 0
 let reportedAt = 0
 
 export function notificationPermission() {
@@ -62,6 +61,9 @@ export async function showNoticeHere(
   notice: Notice,
   pushed: boolean
 ) {
+  if (!pushed) {
+    reportedAt = 0
+  }
   if (
     notificationPermission() !== 'granted' ||
     !notificationsWanted() ||
@@ -84,12 +86,8 @@ export async function showNoticeHere(
   })
 }
 
-export async function answerNotice(machine: string, notice: Notice) {
-  const here = active()
-  await call(machine, 'notices.here', { id: notice.id, here })
-  if (here) {
-    await showNoticeHere(machine, notice, false)
-  }
+export async function answerAwake(machine: string, id: string) {
+  await call(machine, 'notices.awake', { id, browser: browserId() })
 }
 
 export function startPresence() {
@@ -97,53 +95,60 @@ export function startPresence() {
   addEventListener('pointerdown', noteActivity, { capture: true })
   addEventListener('wheel', noteActivity, { capture: true, passive: true })
   addEventListener('focus', noteActivity)
-  addEventListener('blur', leave)
-  addEventListener('pagehide', leave)
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      leave()
-    } else {
+    if (!document.hidden) {
       noteActivity()
     }
   })
+  if (window.isSecureContext) {
+    saveBrowserId().catch((error: unknown) =>
+      log.error('could not save this browser for the service worker', error)
+    )
+  }
 }
 
 export function reportPresence(machine: string) {
-  if (active()) {
-    sendPresence([machine], true)
+  if (inUse()) {
+    sendUse([machine])
   }
 }
 
 function noteActivity() {
-  activeAt = Date.now()
-  if (!inUse() || activeAt - reportedAt < PRESENCE_INTERVAL) {
+  const now = Date.now()
+  if (!inUse() || now - reportedAt < PRESENCE_INTERVAL) {
     return
   }
-  reportedAt = activeAt
-  sendPresence(connectedMachines(), true)
-}
-
-function leave() {
-  reportedAt = 0
-  sendPresence(connectedMachines(), false)
-}
-
-function active() {
-  return inUse() && Date.now() - activeAt < ACTIVE_LIMIT
+  reportedAt = now
+  sendUse(connectedMachines())
 }
 
 function inUse() {
   return !document.hidden && document.hasFocus()
 }
 
-function sendPresence(machines: string[], active: boolean) {
+function sendUse(machines: string[]) {
   Promise.all(
     machines.map((machine) =>
-      call(machine, 'notifications.presence', { active })
+      call(machine, 'notifications.used', { browser: browserId() })
     )
   ).catch((error: unknown) =>
-    log.error('could not tell the server whether this page is in use', error)
+    log.error('could not tell the server that this page is in use', error)
   )
+}
+
+function browserId() {
+  const stored = localStorage.getItem(browserKey)
+  if (stored !== null) {
+    return stored
+  }
+  const created = crypto.randomUUID()
+  localStorage.setItem(browserKey, created)
+  return created
+}
+
+async function saveBrowserId() {
+  const cache = await caches.open('offsite-worker')
+  await cache.put('/browser', new Response(JSON.stringify(browserId())))
 }
 
 export function alreadySeen(machine: string, sessionId: string) {

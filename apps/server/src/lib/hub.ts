@@ -5,7 +5,8 @@ export type Client = {
   socket: WebSocket
   device: string | null
   address: string
-  activeAt: number
+  browser: string | null
+  usedAt: number
   opening: string | null
   sessionId: string | null
   send: (message: ServerMessage) => void

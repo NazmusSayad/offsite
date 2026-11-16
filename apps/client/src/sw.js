@@ -182,8 +182,34 @@ async function callAddress(address, id, method, params) {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  event.waitUntil(clickNotice(event.notification.data, event.action))
+  event.waitUntil(
+    Promise.all([
+      clickNotice(event.notification.data, event.action),
+      reportSeen(event.notification.data),
+    ])
+  )
 })
+
+self.addEventListener('notificationclose', (event) => {
+  event.waitUntil(reportSeen(event.notification.data))
+})
+
+async function reportSeen(data) {
+  if (!isNoticeData(data)) {
+    return
+  }
+  const browser = await stored('/browser')
+  if (browser === null) {
+    return
+  }
+  const senders = new Set(data.digest.map((item) => item.machine))
+  const machines = (await stored('/machines')) ?? []
+  await Promise.allSettled(
+    machines
+      .filter((machine) => senders.has(machine.id))
+      .map((machine) => call(machine, 'notifications.used', { browser }))
+  )
+}
 
 async function clickNotice(data, actionId) {
   if (!isNoticeData(data)) {

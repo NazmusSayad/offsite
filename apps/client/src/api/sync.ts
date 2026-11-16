@@ -24,7 +24,7 @@ import {
 import { receiveBookmarks } from '@/lib/bookmarks'
 import { logger } from '@/lib/log'
 import {
-  answerNotice,
+  answerAwake,
   reportPresence,
   showNoticeHere,
   startPresence,
@@ -412,7 +412,7 @@ function receive(machine: string, event: ServerEvent) {
       )
       return
     case 'notice.ask':
-      answerNotice(machine, event.notice).catch((error: unknown) =>
+      answerAwake(machine, event.id).catch((error: unknown) =>
         log.error('could not answer a notification', error)
       )
       return
