@@ -35,6 +35,12 @@ export function ActivityCanvas(props: {
   const [width, setWidth] = useState(0)
   const [height, setHeight] = useState(0)
   const [sheet, setSheet] = useState({ width: 0, height: 0 })
+  const groups = props.machines.map((machine) => ({
+    machine,
+    boards: props.boards.filter(
+      (agents) => agents[0].session.machine === machine.id
+    ),
+  }))
   const padding = props.mobile ? 16 : 24
   const boardWidth = props.mobile ? width - padding * 2 : 352
   const columns = props.mobile
@@ -42,11 +48,10 @@ export function ActivityCanvas(props: {
     : Math.max(
         1,
         Math.min(
-          props.boards.length,
+          Math.max(...groups.map((group) => group.boards.length)),
           Math.floor((width - padding * 2 + boardGap) / (boardWidth + boardGap))
         )
       )
-  const several = props.machines.length > 1
   const fit = Math.min(1, width / sheet.width, height / sheet.height)
 
   useEffect(() => {
@@ -115,7 +120,7 @@ export function ActivityCanvas(props: {
               >
                 <div
                   ref={measure}
-                  className="flex flex-col gap-6"
+                  className="flex flex-col gap-8"
                   style={{
                     padding,
                     paddingBottom: padding + 56,
@@ -125,42 +130,37 @@ export function ActivityCanvas(props: {
                       padding * 2,
                   }}
                 >
-                  <div className="flex flex-wrap gap-x-8 gap-y-3">
-                    {props.machines.map((machine) => (
+                  {groups.map((group) => (
+                    <div key={group.machine.id} className="flex flex-col gap-3">
                       <MachineLabel
-                        key={machine.id}
-                        machine={machine}
-                        agents={props.boards
-                          .flat()
-                          .filter(
-                            (agent) => agent.session.machine === machine.id
-                          )}
+                        machine={group.machine}
+                        agents={group.boards.flat()}
                       />
-                    ))}
-                  </div>
-                  <div style={{ columnCount: columns, columnGap: boardGap }}>
-                    {props.boards.map((agents) => (
-                      <ProjectBoard
-                        key={`${agents[0].session.machine}\n${agents[0].session.projectId}`}
-                        agents={agents}
-                        machine={
-                          several
-                            ? props.machines.find(
-                                (machine) =>
-                                  machine.id === agents[0].session.machine
-                              )
-                            : undefined
-                        }
-                        width={boardWidth}
-                        now={props.now}
-                        onReveal={(element) => {
-                          if (props.canvas.current !== null) {
-                            reveal(props.canvas.current, element, props.mobile)
-                          }
-                        }}
-                      />
-                    ))}
-                  </div>
+                      {group.boards.length > 0 && (
+                        <div
+                          style={{ columnCount: columns, columnGap: boardGap }}
+                        >
+                          {group.boards.map((agents) => (
+                            <ProjectBoard
+                              key={agents[0].session.projectId}
+                              agents={agents}
+                              width={boardWidth}
+                              now={props.now}
+                              onReveal={(element) => {
+                                if (props.canvas.current !== null) {
+                                  reveal(
+                                    props.canvas.current,
+                                    element,
+                                    props.mobile
+                                  )
+                                }
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </TransformComponent>
               <div
@@ -227,10 +227,10 @@ function MachineLabel(props: { machine: Machine; agents: Agent[] }) {
   )
 
   return (
-    <div className="flex min-w-0 items-center gap-3 text-xs">
+    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs">
       <span className="flex min-w-0 items-center gap-2">
-        <MachineLogo icon={props.machine.icon} className="size-4 shrink-0" />
-        <span className="text-foreground truncate text-sm font-medium">
+        <MachineLogo icon={props.machine.icon} className="size-5 shrink-0" />
+        <span className="text-foreground truncate text-lg font-semibold">
           {props.machine.name}
         </span>
       </span>
@@ -263,7 +263,6 @@ function MachineLabel(props: { machine: Machine; agents: Agent[] }) {
 
 function ProjectBoard(props: {
   agents: Agent[]
-  machine: Machine | undefined
   width: number
   now: number
   onReveal: (element: HTMLElement) => void
@@ -294,19 +293,8 @@ function ProjectBoard(props: {
           projectId={session.projectId}
           className="size-8 text-sm"
         />
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="text-foreground truncate text-lg leading-6 font-semibold">
-            {name === '' ? 'Unknown project' : name}
-          </span>
-          {props.machine !== undefined && (
-            <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
-              <MachineLogo
-                icon={props.machine.icon}
-                className="size-3.5 shrink-0"
-              />
-              <span className="truncate">{props.machine.name}</span>
-            </span>
-          )}
+        <span className="text-foreground min-w-0 flex-1 truncate text-base font-semibold">
+          {name === '' ? 'Unknown project' : name}
         </span>
         <span className="text-muted-foreground shrink-0 text-sm tabular-nums">
           {props.agents.length}
