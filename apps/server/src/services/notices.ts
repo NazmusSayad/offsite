@@ -92,11 +92,17 @@ async function offer(notice: Notice, tried: Set<string>) {
   }
   tried.add(browser)
   const sentAt = Date.now()
+  log.info(
+    `notification ${notice.id.slice(0, 8)} (${notice.title}): sent to ${page.name}`
+  )
   page.send({ type: 'notice', notice, pushed: false })
   setTimeout(() => {
     if (lastUse(browser) > sentAt) {
       return
     }
+    log.info(
+      `notification ${notice.id.slice(0, 8)}: ${page.name} did not use it within a minute, passing it on`
+    )
     offer(notice, tried).catch((error: unknown) =>
       log.warn('could not pass a notification on to the next device:', error)
     )
@@ -128,6 +134,9 @@ function pickAwake(id: string, tried: Set<string>) {
           return
         }
       }
+      log.info(
+        `notification ${id.slice(0, 8)}: ${ranked.length === 0 ? 'every connected page already had it' : 'no other page answered within 2 seconds'}, pushing it to every browser`
+      )
       finish(null)
     }
     function finish(client: Client | null) {
@@ -145,6 +154,9 @@ function pickAwake(id: string, tried: Set<string>) {
       client.send({ type: 'notice.ask', id })
     }
     if (asked.length === 0) {
+      log.info(
+        `notification ${id.slice(0, 8)}: no page is connected, pushing it to every browser`
+      )
       finish(null)
     }
   })

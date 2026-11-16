@@ -86,7 +86,9 @@ export async function sendPush(notice: Notice) {
       }
     })
   )
-  log.debug(`sent a push to ${delivered} of ${subscriptions.length} browsers`)
+  log.info(
+    `notification ${notice.id.slice(0, 8)}: sent a push to ${delivered} of ${subscriptions.length} browsers`
+  )
   if (gone.length === 0) {
     return delivered > 0
   }

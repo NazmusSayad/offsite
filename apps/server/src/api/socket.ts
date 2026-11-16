@@ -77,6 +77,7 @@ import {
   terminalRequest,
 } from '../services/terminal/terminal.ts'
 import { readUsage } from '../services/usage.ts'
+import { readDevices } from '../storage/auth.ts'
 import { configInfo } from '../storage/config.ts'
 import { saveAppIcon } from '../storage/state.ts'
 import { gitHandlers } from './git-handlers.ts'
@@ -328,6 +329,11 @@ export function connectClient(
   const client: Client = {
     socket,
     device,
+    name:
+      device === null
+        ? 'an unpaired browser'
+        : (readDevices().find((item) => item.hash === device)?.name ??
+          'an unnamed device'),
     address,
     browser: null,
     usedAt: 0,
@@ -336,7 +342,7 @@ export function connectClient(
     send: (message) => socket.send(JSON.stringify(message)),
   }
   clients.add(client)
-  log.info(`a browser connected from ${address}`)
+  log.info(`${client.name} connected from ${address}`)
   client.send({ type: 'welcome', snapshot: syncSnapshot() })
   const alive = setInterval(
     () => client.send({ type: 'alive' }),
@@ -350,10 +356,10 @@ export function connectClient(
     void answer(client, String(data))
   })
   socket.on('error', (error) =>
-    log.warn(`a browser connection from ${address} failed:`, error)
+    log.warn(`the connection from ${client.name} failed:`, error)
   )
   socket.on('close', (code) => {
-    log.info(`a browser from ${address} disconnected (code ${code})`)
+    log.info(`${client.name} disconnected (code ${code})`)
     clearInterval(alive)
     clients.delete(client)
     detachTerminal(client)
@@ -394,7 +400,7 @@ async function answer(client: Client, text: string) {
       client.send({ type: 'reply', id: call.id, result, hash })
     }
   } catch (error) {
-    log.warn(`${call.method} from ${client.address} failed:`, error)
+    log.warn(`${call.method} from ${client.name} failed:`, error)
     client.send({
       type: 'reply',
       id: call.id,
@@ -402,6 +408,6 @@ async function answer(client: Client, text: string) {
     })
   } finally {
     const took = Math.round(performance.now() - started)
-    log.debug(`${call.method} from ${client.address} took ${took}ms`)
+    log.debug(`${call.method} from ${client.name} took ${took}ms`)
   }
 }
