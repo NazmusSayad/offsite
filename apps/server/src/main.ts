@@ -5,6 +5,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from 'node:http'
+import { createServer as createSecureServer } from 'node:https'
 import path from 'node:path'
 import { mediaTypes } from '@offsite/core/media'
 import { consola } from 'consola'
@@ -25,6 +26,7 @@ import {
   streamFile,
 } from './services/files.ts'
 import { serveGithubMedia } from './services/github-images.ts'
+import { loadHttps, removeHttps, saveHttps } from './services/https.ts'
 import { serveNoticeImage } from './services/notice-images.ts'
 import { failInterrupted } from './services/outbox.ts'
 import { startPush } from './services/push.ts'
@@ -50,7 +52,7 @@ import {
   removeDevices,
 } from './storage/auth.ts'
 import { claudeBaseDir } from './storage/config.ts'
-import { listenPort, lockHome, writeJson } from './storage/storage.ts'
+import { listenServer, lockHome, writeJson } from './storage/storage.ts'
 
 const UNPAIR_CHECK = 5000
 const TICKET_LIFETIME = 60_000
@@ -70,14 +72,18 @@ const browseTypes = new Map([
   ['.otf', 'font/otf'],
 ])
 
-const port = Number(listenPort())
+const tls =
+  args.command === 'web' || args.command === 'serve' ? loadHttps() : null
+const listening = listenServer(tls !== null)
+const port = listening.port
+const protocol = listening.https ? 'https' : 'http'
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   console.error(`invalid port ${args.port}`)
   log.error(`invalid port ${args.port}`)
   process.exit(1)
 }
 
-const address = `http://${args.host}:${port}`
+const address = `${protocol}://${args.host}:${port}`
 
 if (args.command === 'pair') {
   const links = pairingLinks(addCode(args.name))
@@ -111,6 +117,19 @@ if (args.command === 'update') {
   process.exit(0)
 }
 
+if (args.command === 'https') {
+  if (args.https === null) {
+    throw new Error('offsite https needs a certificate and a key')
+  }
+  saveHttps(args.https)
+  process.exit(0)
+}
+
+if (args.command === 'https-rm') {
+  removeHttps()
+  process.exit(0)
+}
+
 lockHome()
 log.info(
   `starting offsite ${args.command} with pid ${process.pid} on ${address}, dir ${args.dir}, auth ${args.auth ? 'on' : 'off'}`
@@ -131,7 +150,10 @@ if (findClaude() === null) {
 const code = args.auth && args.pair && !hasDevices() ? addCode(null) : null
 const tickets = new Map<string, { device: string; expiresAt: number }>()
 
-const server = createServer((request, response) => {
+const server =
+  tls === null ? createServer(listener) : createSecureServer(tls, listener)
+
+function listener(request: IncomingMessage, response: ServerResponse) {
   try {
     answerRequest(request, response)
   } catch (error) {
@@ -143,7 +165,7 @@ const server = createServer((request, response) => {
     response.statusCode = 500
     response.end('request failed')
   }
-})
+}
 
 function answerRequest(request: IncomingMessage, response: ServerResponse) {
   const url = URL.parse(request.url ?? '/', 'http://localhost')
@@ -244,7 +266,8 @@ if (args.auth) {
 server.listen(port, args.host, () => {
   writeJson('server.json', {
     port,
-    status: `http://${loopback(args.host)}:${port}/api/status/${statusSecret}`,
+    https: tls !== null,
+    status: `${protocol}://${loopback(args.host)}:${port}/api/status/${statusSecret}`,
     service: args.service,
   })
   if (args.service) {

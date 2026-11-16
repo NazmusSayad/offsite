@@ -1,4 +1,6 @@
 import { existsSync, rmSync } from 'node:fs'
+import http, { type IncomingMessage } from 'node:http'
+import https from 'node:https'
 import path from 'node:path'
 import { setTimeout } from 'node:timers/promises'
 import { packageManagers } from '@offsite/core/service'
@@ -117,9 +119,7 @@ export async function status() {
   }
   let response
   try {
-    response = await fetch(running.data.status, {
-      signal: AbortSignal.timeout(STATUS_TIMEOUT),
-    })
+    response = await fetchStatus(running.data.status)
   } catch (error) {
     console.log(`Running (pid ${pid}); it isn't answering:`, error)
     return
@@ -128,7 +128,7 @@ export async function status() {
     console.log(`Running (pid ${pid}); it answered ${response.status}`)
     return
   }
-  const state = statusSchema.parse(await response.json())
+  const state = statusSchema.parse(JSON.parse(response.body))
   console.log(
     `Running offsite ${state.version} (pid ${pid}${running.data.service ? ', started at login' : ''})`
   )
@@ -197,13 +197,41 @@ async function runningService() {
   if (pid === null || !running.success || !running.data.service) {
     return null
   }
-  const response = await fetch(running.data.status, {
-    signal: AbortSignal.timeout(STATUS_TIMEOUT),
-  })
+  const response = await fetchStatus(running.data.status)
   if (!response.ok) {
     throw new Error(`the running service answered ${response.status}`)
   }
-  return { pid, version: statusSchema.parse(await response.json()).version }
+  return {
+    pid,
+    version: statusSchema.parse(JSON.parse(response.body)).version,
+  }
+}
+
+async function fetchStatus(url: string) {
+  const options = {
+    signal: AbortSignal.timeout(STATUS_TIMEOUT),
+    rejectUnauthorized: false,
+  }
+  const response = await new Promise<IncomingMessage>((resolve, reject) => {
+    if (url.startsWith('https:')) {
+      https.get(url, options, resolve).on('error', reject)
+      return
+    }
+    if (url.startsWith('http:')) {
+      http.get(url, options, resolve).on('error', reject)
+      return
+    }
+    reject(new Error(`the status address ${url} isn't http or https`))
+  })
+  let body = ''
+  for await (const chunk of response.setEncoding('utf8')) {
+    body += chunk
+  }
+  const code = response.statusCode
+  if (code === undefined) {
+    throw new Error(`${url} answered without a status code`)
+  }
+  return { ok: code >= 200 && code < 300, status: code, body }
 }
 
 async function stopService() {

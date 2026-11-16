@@ -13,7 +13,10 @@ let command = 'web' as
   | 'uninstall'
   | 'status'
   | 'update'
+  | 'https'
+  | 'https-rm'
 let name = null as string | null
+let https = null as { cert: string; key: string } | null
 
 export const SERVICE_PORT = '2020'
 
@@ -92,6 +95,25 @@ program
   })
 
 program
+  .command('https')
+  .description(
+    'Serves HTTPS with this certificate and key from the next start, including at login'
+  )
+  .argument('<cert>', 'Certificate file')
+  .argument('<key>', 'Private key file')
+  .action((cert, key) => {
+    command = 'https'
+    https = { cert: path.resolve(cert), key: path.resolve(key) }
+  })
+
+program
+  .command('https-rm')
+  .description('Serves HTTP again from the next start')
+  .action(() => {
+    command = 'https-rm'
+  })
+
+program
   .command('status')
   .description('Shows whether offsite is running, and if it is idle or busy')
   .action(() => {
@@ -150,6 +172,7 @@ export const args = {
   command,
   name,
   connect,
+  https,
   portGiven,
   service: options.service !== undefined,
   pair: options.pair && options.service === undefined,
