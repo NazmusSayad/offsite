@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from 'vitest'
+import { readToken } from './lib/tokens'
 
 vi.mock('workbox-core', () => ({ clientsClaim: vi.fn() }))
 vi.mock('workbox-precaching', () => ({
@@ -274,6 +275,79 @@ describe('clicking a notification', () => {
     expect(openWindow).toHaveBeenCalledWith(
       '/?machine=machine&project=project&session=session'
     )
+  })
+
+  it('runs a button action on the machine after logging in with its key', async () => {
+    machines = [
+      {
+        id: 'machine',
+        addresses: ['http://127.0.0.1:1', 'https://of.example'],
+      },
+    ]
+    vi.mocked(readToken).mockResolvedValue('machine-key')
+    const original = globalThis.WebSocket
+    const sent: Record<string, string[]> = {}
+    const closed: string[] = []
+    vi.stubGlobal(
+      'WebSocket',
+      class {
+        onopen: (() => void) | null = null
+        onmessage: ((event: { data: string }) => void) | null = null
+        onclose: ((event: { reason: string }) => void) | null = null
+        url: string
+
+        constructor(url: string) {
+          this.url = url
+          sent[url] = []
+          queueMicrotask(() => {
+            if (url.startsWith('ws://127.0.0.1:1')) {
+              this.onclose?.({ reason: '' })
+              return
+            }
+            this.onopen?.()
+          })
+        }
+
+        send(text: string) {
+          sent[this.url].push(text)
+          const message = JSON.parse(text)
+          const reply =
+            'method' in message
+              ? { type: 'reply', id: message.id, result: null }
+              : { type: 'welcome', snapshot: {} }
+          queueMicrotask(() =>
+            this.onmessage?.({ data: JSON.stringify(reply) })
+          )
+        }
+
+        close() {
+          closed.push(this.url)
+        }
+      }
+    )
+
+    await click(
+      {
+        ...data,
+        notice: {
+          ...notice,
+          actions: [{ id: '0', title: 'Resend', kind: 'run' }],
+        },
+      },
+      '0'
+    )
+
+    expect(sent['wss://of.example/ws']).toEqual([
+      JSON.stringify({ key: 'machine-key' }),
+      JSON.stringify({
+        id: 1,
+        method: 'notices.act',
+        params: { id: 'notice', action: '0' },
+      }),
+    ])
+    expect(closed).toEqual(['wss://of.example/ws'])
+    expect(openWindow).not.toHaveBeenCalled()
+    vi.stubGlobal('WebSocket', original)
   })
 
   it('opens offsite when the notification has no conversation', async () => {

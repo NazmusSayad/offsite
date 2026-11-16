@@ -328,12 +328,13 @@ function answerApi(
     return
   }
   if (pathname === '/api/machines') {
-    if (args.auth && (given === null || findDevice(given) === null)) {
+    const machines = listMachines(given)
+    if (machines === null) {
       response.statusCode = 401
       response.end('This browser needs pairing')
       return
     }
-    answerJson(response, listMachines())
+    answerJson(response, machines)
     return
   }
   if (pathname === '/api/logs') {

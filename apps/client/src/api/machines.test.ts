@@ -1,6 +1,43 @@
 import type { Project } from '@offsite/core/projects'
-import { describe, expect, it } from 'vitest'
-import { restoreProjects, type StoredMachine } from './machines'
+import type { ListedMachine } from '@offsite/core/protocol'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  createAppStore,
+  getState,
+  type Machine,
+  setMachine,
+  type State,
+  update,
+} from '@/lib/store'
+import { connectMachine, disconnectMachine } from './connection'
+import {
+  loadMachines,
+  restoreMachine,
+  restoreProjects,
+  type StoredMachine,
+  syncListedMachines,
+} from './machines'
+
+const tokens = vi.hoisted(() => new Map<string, string>())
+
+vi.mock('@/lib/tokens', () => ({
+  readToken: async (machine: string) => tokens.get(machine),
+  saveToken: async (machine: string, token: string) => {
+    tokens.set(machine, token)
+  },
+  removeToken: async (machine: string) => {
+    tokens.delete(machine)
+  },
+}))
+vi.mock('@/lib/router', () => ({ router: { navigate: vi.fn() } }))
+vi.mock('@/lib/url', () => ({ syncUrl: vi.fn() }))
+vi.mock('./connection', () => ({
+  connectMachine: vi.fn(),
+  disconnectMachine: vi.fn(),
+}))
+
+const WINDOWS = 'http://windows.local:2020'
+const WSL = 'http://wsl.local:2020'
 
 function project(id: string, extra: object): Project {
   return {
@@ -18,16 +55,69 @@ function project(id: string, extra: object): Project {
   }
 }
 
+function stored(
+  id: string,
+  addresses: string[],
+  listId: string | null
+): StoredMachine {
+  return {
+    id,
+    addresses,
+    name: id,
+    icon: null,
+    label: null,
+    pairedAt: null,
+    listId,
+    projects: [],
+  }
+}
+
+function have(...machines: StoredMachine[]) {
+  update({ machines: machines.map(restoreMachine) })
+}
+
+function answer(list: ListedMachine[]) {
+  vi.mocked(fetch).mockResolvedValue(Response.json(list))
+}
+
+function machines() {
+  return getState().machines.map((machine: Machine) => ({
+    addresses: machine.addresses,
+    listId: machine.listId,
+    token: tokens.get(machine.id) ?? null,
+  }))
+}
+
+function machineAt(address: string) {
+  const found = getState().machines.find((machine) =>
+    machine.addresses.includes(address)
+  )
+  if (found === undefined) {
+    throw new Error(`no machine at ${address}`)
+  }
+  return found
+}
+
+beforeEach(() => {
+  tokens.clear()
+  localStorage.clear()
+  vi.mocked(connectMachine).mockClear()
+  vi.mocked(disconnectMachine).mockClear()
+  vi.stubGlobal('fetch', vi.fn())
+  createAppStore({
+    machines: [],
+    projects: [],
+    sessions: [],
+    inactive: [],
+    settingsMachine: null,
+    selection: null,
+  } as unknown as State)
+})
+
 describe('restoreProjects', () => {
   it('drops worktrees cached as projects by an older version', () => {
     const machine: StoredMachine = {
-      id: 'machine',
-      addresses: [],
-      name: 'Machine',
-      icon: null,
-      label: null,
-      pairedAt: null,
-      listId: null,
+      ...stored('machine', [], null),
       projects: [
         project('current', {}),
         project('old-root', { parentId: null, worktreeBranch: null }),
@@ -39,5 +129,172 @@ describe('restoreProjects', () => {
       'current',
       'old-root',
     ])
+  })
+})
+
+describe('syncListedMachines', () => {
+  it('adds every listed machine with its key and connects to it', async () => {
+    answer([
+      { id: 'host', addresses: ['http://127.0.0.1:8001'], key: null },
+      { id: WINDOWS, addresses: [WINDOWS], key: 'windows-key' },
+    ])
+
+    await syncListedMachines()
+
+    expect(machines()).toEqual([
+      { addresses: ['http://127.0.0.1:8001'], listId: 'host', token: null },
+      { addresses: [WINDOWS], listId: WINDOWS, token: 'windows-key' },
+    ])
+    expect(machineAt('http://127.0.0.1:8001').pairedAt).toBe(null)
+    expect(machineAt(WINDOWS).pairedAt).not.toBe(null)
+    expect(connectMachine).toHaveBeenCalledWith(machineAt(WINDOWS).id, [
+      WINDOWS,
+    ])
+    expect(loadMachines().map((machine) => machine.listId)).toEqual([
+      'host',
+      WINDOWS,
+    ])
+  })
+
+  it("asks the page's own server with this browser's key for it", async () => {
+    have(stored('page', [location.origin], null))
+    tokens.set('page', 'page-key')
+    answer([])
+
+    await syncListedMachines()
+
+    expect(fetch).toHaveBeenCalledWith('/api/machines', {
+      method: 'POST',
+      headers: { authorization: 'Bearer page-key' },
+    })
+  })
+
+  it('asks without a key when this browser has none for the page', async () => {
+    answer([])
+
+    await syncListedMachines()
+
+    expect(fetch).toHaveBeenCalledWith('/api/machines', {
+      method: 'POST',
+      headers: {},
+    })
+  })
+
+  it('takes over a machine it already has at the same address', async () => {
+    have(stored('mine', [WINDOWS], null))
+    tokens.set('mine', 'old-key')
+    setMachine('mine', { status: 'unpaired' })
+    answer([{ id: WINDOWS, addresses: [WINDOWS], key: 'windows-key' }])
+
+    await syncListedMachines()
+
+    expect(machines()).toEqual([
+      { addresses: [WINDOWS], listId: WINDOWS, token: 'windows-key' },
+    ])
+    expect(machineAt(WINDOWS).id).toBe('mine')
+    expect(disconnectMachine).toHaveBeenCalledWith('mine')
+    expect(connectMachine).toHaveBeenCalledWith('mine', [WINDOWS])
+  })
+
+  it('saves a new key without reconnecting a machine that is connected', async () => {
+    have(stored('mine', [WINDOWS], WINDOWS))
+    setMachine('mine', { status: 'online' })
+    answer([{ id: WINDOWS, addresses: [WINDOWS], key: 'new-key' }])
+
+    await syncListedMachines()
+
+    expect(tokens.get('mine')).toBe('new-key')
+    expect(connectMachine).not.toHaveBeenCalled()
+  })
+
+  it('follows a listed machine to its new addresses', async () => {
+    have(stored('mac', ['http://127.0.0.1:8001'], 'host'))
+    answer([
+      {
+        id: 'host',
+        addresses: ['https://mac.example', 'http://127.0.0.1:8001'],
+        key: null,
+      },
+    ])
+
+    await syncListedMachines()
+
+    expect(machines()).toEqual([
+      {
+        addresses: ['https://mac.example', 'http://127.0.0.1:8001'],
+        listId: 'host',
+        token: null,
+      },
+    ])
+    expect(connectMachine).toHaveBeenCalledWith('mac', [
+      'https://mac.example',
+      'http://127.0.0.1:8001',
+    ])
+  })
+
+  it('removes listed machines that left the list and keeps the others', async () => {
+    have(
+      stored('windows', [WINDOWS], WINDOWS),
+      stored('wsl', [WSL], WSL),
+      stored('mine', ['http://laptop.local:2020'], null)
+    )
+    tokens.set('windows', 'windows-key')
+    tokens.set('wsl', 'wsl-key')
+    tokens.set('mine', 'my-key')
+    answer([{ id: WSL, addresses: [WSL], key: 'wsl-key' }])
+
+    await syncListedMachines()
+
+    expect(machines()).toEqual([
+      { addresses: [WSL], listId: WSL, token: 'wsl-key' },
+      {
+        addresses: ['http://laptop.local:2020'],
+        listId: null,
+        token: 'my-key',
+      },
+    ])
+    expect(disconnectMachine).toHaveBeenCalledWith('windows')
+    expect(loadMachines().map((machine) => machine.id)).toEqual(['wsl', 'mine'])
+  })
+
+  it('treats machines saved by an older version as added by hand', async () => {
+    const older: Partial<StoredMachine> = stored('old', [WINDOWS], null)
+    delete older.listId
+    localStorage.setItem('machines', JSON.stringify([older]))
+    have(...loadMachines())
+    answer([])
+
+    await syncListedMachines()
+
+    expect(machines()).toEqual([
+      { addresses: [WINDOWS], listId: null, token: null },
+    ])
+  })
+
+  it.each([
+    [
+      'cannot be reached',
+      () => vi.mocked(fetch).mockRejectedValue(new TypeError('offline')),
+    ],
+    [
+      'refuses the browser',
+      () =>
+        vi
+          .mocked(fetch)
+          .mockResolvedValue(
+            new Response('This browser needs pairing', { status: 401 })
+          ),
+    ],
+  ])('keeps every machine when the server %s', async (_, fail) => {
+    have(stored('windows', [WINDOWS], WINDOWS))
+    tokens.set('windows', 'windows-key')
+    fail()
+
+    await syncListedMachines()
+
+    expect(machines()).toEqual([
+      { addresses: [WINDOWS], listId: WINDOWS, token: 'windows-key' },
+    ])
+    expect(disconnectMachine).not.toHaveBeenCalled()
   })
 })

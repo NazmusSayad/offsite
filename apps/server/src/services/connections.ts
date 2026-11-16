@@ -2,6 +2,7 @@ import type { ListedMachine } from '@offsite/core/protocol'
 import { consola } from 'consola'
 import { z } from 'zod'
 import { args } from '../args.ts'
+import { findDevice } from '../storage/auth.ts'
 import {
   readConnections,
   removeConnection,
@@ -64,7 +65,10 @@ export async function removeConnections() {
   }
 }
 
-export function listMachines(): ListedMachine[] {
+export function listMachines(given: string | null): ListedMachine[] | null {
+  if (args.auth && (given === null || findDevice(given) === null)) {
+    return null
+  }
   return [
     ...(args.connect === null
       ? []
