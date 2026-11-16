@@ -13,7 +13,7 @@ import { startBrowserUpdates } from '@/lib/browser-update'
 import { logger, startLogging } from '@/lib/log'
 import {
   alreadySeen,
-  dropSeenNotices,
+  dropSeenNotifications,
   refreshPushSubscription,
 } from '@/lib/notifications'
 import { startReads } from '@/lib/reads'
@@ -49,7 +49,7 @@ listen({
     refreshPushSubscription(machine).catch((error: unknown) =>
       log.error('could not refresh the push subscription', error)
     )
-    dropSeenNotices(machine).catch((error: unknown) =>
+    dropSeenNotifications(machine).catch((error: unknown) =>
       log.error('could not remove notifications that were already seen', error)
     )
   },

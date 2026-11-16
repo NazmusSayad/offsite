@@ -4,7 +4,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm'
 import { broadcast } from '../lib/hub.ts'
 import { db } from '../storage/db.ts'
 import { outbox as outboxTable } from '../storage/schema.ts'
-import { notSentNotice } from './session-notices.ts'
+import { notSentNotification } from './session-notifications.ts'
 
 export function addToOutbox(request: RpcMethods['sessions.send']['params']) {
   db.insert(outboxTable)
@@ -115,7 +115,7 @@ export function failQueued(sessionId: string) {
     )
     .run()
   broadcastOutbox()
-  notSentNotice(
+  notSentNotification(
     failing.map((item) => ({
       id: item.id,
       sessionId: item.sessionId,

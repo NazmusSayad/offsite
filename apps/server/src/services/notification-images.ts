@@ -5,7 +5,7 @@ import path from 'node:path'
 import sharp from 'sharp'
 import { logger } from '../lib/log.ts'
 
-const log = logger.withTag('notice-images')
+const log = logger.withTag('notification-images')
 
 const WIDTH = 1024
 const HEIGHT = 512
@@ -13,12 +13,12 @@ const GAP = 8
 const TILES = 6
 const KEEP = 24 * 60 * 60 * 1000
 const LIMIT = 50
-const PREFIX = '/api/notice-image/'
+const PREFIX = '/api/notification-image/'
 const imageFiles = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp'])
 
 const images = new Map<string, { at: number; png: Buffer }>()
 
-export async function noticeImage(files: string[]) {
+export async function notificationImage(files: string[]) {
   const found = files.filter(
     (file) =>
       imageFiles.has(path.extname(file).toLowerCase()) &&
@@ -28,25 +28,25 @@ export async function noticeImage(files: string[]) {
     return null
   }
   try {
-    return keepImage(await grid(found))
+    const png = await grid(found)
+    const token = randomBytes(24).toString('base64url')
+    for (const entry of images) {
+      if (Date.now() - entry[1].at > KEEP || images.size >= LIMIT) {
+        images.delete(entry[0])
+      }
+    }
+    images.set(token, { at: Date.now(), png })
+    return `${PREFIX}${token}`
   } catch (error) {
     log.warn('could not build the notification image:', error)
     return null
   }
 }
 
-export function keepImage(png: Buffer) {
-  const token = randomBytes(24).toString('base64url')
-  for (const entry of images) {
-    if (Date.now() - entry[1].at > KEEP || images.size >= LIMIT) {
-      images.delete(entry[0])
-    }
-  }
-  images.set(token, { at: Date.now(), png })
-  return `${PREFIX}${token}`
-}
-
-export function serveNoticeImage(pathname: string, response: ServerResponse) {
+export function serveNotificationImage(
+  pathname: string,
+  response: ServerResponse
+) {
   const image = images.get(pathname.slice(PREFIX.length))
   if (image === undefined) {
     response.statusCode = 404

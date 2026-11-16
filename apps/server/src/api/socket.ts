@@ -46,7 +46,7 @@ import {
   noteUse,
   receiveAnswer,
   seenOf,
-} from '../services/notices.ts'
+} from '../services/notifications.ts'
 import { removeFromOutbox } from '../services/outbox.ts'
 import { updatePending } from '../services/pending-status.ts'
 import { placePath, publishWorktrees } from '../services/project-worktrees.ts'
@@ -309,19 +309,19 @@ const handlers: Handlers = {
     noteUse(client, params.browser)
     return null
   },
-  'notices.awake': (params, client) => {
+  'notifications.awake': (params, client) => {
     receiveAnswer(client, params.id, params.browser)
     return null
   },
-  'notices.act': async (params, client) => {
+  'notifications.act': async (params, client) => {
     await act(client, params.id, params.action)
     return null
   },
-  'notices.seen': async (params) => {
+  'notifications.seen': async (params) => {
     await markSeen(params.sessionId)
     return null
   },
-  'notices.dismissed': (params) => seenOf(params.ids),
+  'notifications.dismissed': (params) => seenOf(params.ids),
   terminal: async (params, client) => {
     await terminalRequest(client, params)
     return null

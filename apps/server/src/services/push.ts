@@ -1,4 +1,4 @@
-import type { Notice, PushRegistration } from '@offsite/core/push'
+import type { PushNotification, PushRegistration } from '@offsite/core/push'
 import { and, eq, inArray } from 'drizzle-orm'
 import webPush from 'web-push'
 import { logger } from '../lib/log.ts'
@@ -45,17 +45,17 @@ export function unsubscribe(endpoint: string) {
   log.info('a browser unsubscribed from push notifications')
 }
 
-export async function sendPush(notice: Notice) {
+export async function sendPush(notification: PushNotification) {
   const subscriptions = targets()
   if (subscriptions.length === 0) {
     return false
   }
   const delivered = await deliver(subscriptions, (subscription) => ({
-    ...notice,
+    ...notification,
     machineId: subscription.machine,
   }))
   log.info(
-    `notification ${notice.id.slice(0, 8)}: sent a push to ${delivered} of ${subscriptions.length} browsers`
+    `notification ${notification.id.slice(0, 8)}: sent a push to ${delivered} of ${subscriptions.length} browsers`
   )
   return delivered > 0
 }

@@ -19,7 +19,7 @@ import { assertEnabled } from './accounts.ts'
 const ISOLATED = {
   'session-title': true,
   'branch-name': true,
-  'notice-summary': true,
+  'notification-summary': true,
   'review-guide': true,
   'pull-request': false,
   'commit-message': false,

@@ -1,8 +1,12 @@
-import type { Notice, PushSubscriptionInfo } from '@offsite/core/push'
+import type { PushNotification, PushSubscriptionInfo } from '@offsite/core/push'
 import { useEffect } from 'react'
 import { call, isConnected, machineUrl } from '@/api/connection'
 import { logger } from '@/lib/log'
-import { isNoticeData, removeNotices, showNotice } from './notices'
+import {
+  isNotificationData,
+  removeNotifications,
+  showPushNotification,
+} from './push-notifications'
 import { router } from './router'
 import { activityOf, getState, threadState, useStore } from './store'
 import { currentSearch } from './url'
@@ -56,9 +60,9 @@ export async function watchPermission(
   status.addEventListener('change', listener, { signal })
 }
 
-export async function showNoticeHere(
+export async function showNotificationHere(
   machine: string,
-  notice: Notice,
+  notification: PushNotification,
   pushed: boolean
 ) {
   if (!pushed) {
@@ -67,60 +71,68 @@ export async function showNoticeHere(
   if (
     notificationPermission() !== 'granted' ||
     !notificationsWanted() ||
-    (!notice.whileVisible && alreadySeen(machine, notice.target.sessionId)) ||
+    (!notification.whileVisible &&
+      alreadySeen(machine, notification.target.sessionId)) ||
     (pushed && pushSupport() === 'supported' && (await pushSubscribed()))
   ) {
     return
   }
   const registration = await navigator.serviceWorker.ready
-  await navigator.locks.request(`notice ${notice.id}`, async () => {
+  await navigator.locks.request(`notification ${notification.id}`, async () => {
     const shown = await registration.getNotifications()
     if (
       shown.some(
-        (item) => isNoticeData(item.data) && item.data.notice.id === notice.id
+        (item) =>
+          isNotificationData(item.data) &&
+          item.data.notification.id === notification.id
       )
     ) {
       return
     }
-    await showNotice(registration, machine, notice, machineUrl(machine))
+    await showPushNotification(
+      registration,
+      machine,
+      notification,
+      machineUrl(machine)
+    )
   })
 }
 
-export async function dismissNotices(machine: string, tag: string) {
+export async function dismissNotifications(machine: string, tag: string) {
   if (notificationPermission() !== 'granted') {
     return
   }
   const registration = await navigator.serviceWorker.ready
-  await removeNotices(
+  await removeNotifications(
     registration,
-    (entry) => entry.machine === machine && entry.notice.tag === tag
+    (entry) => entry.machine === machine && entry.notification.tag === tag
   )
 }
 
-export async function dropSeenNotices(machine: string) {
+export async function dropSeenNotifications(machine: string) {
   if (notificationPermission() !== 'granted') {
     return
   }
   const registration = await navigator.serviceWorker.ready
   const ids = (await registration.getNotifications()).flatMap((item) =>
-    isNoticeData(item.data)
+    isNotificationData(item.data)
       ? item.data.digest
           .filter((entry) => entry.machine === machine)
-          .map((entry) => entry.notice.id)
+          .map((entry) => entry.notification.id)
       : []
   )
   if (ids.length === 0) {
     return
   }
-  const seen = await call(machine, 'notices.dismissed', { ids })
-  await removeNotices(
+  const seen = await call(machine, 'notifications.dismissed', { ids })
+  await removeNotifications(
     registration,
-    (entry) => entry.machine === machine && seen.includes(entry.notice.id)
+    (entry) => entry.machine === machine && seen.includes(entry.notification.id)
   )
 }
 
 export async function answerAwake(machine: string, id: string) {
-  await call(machine, 'notices.awake', { id, browser: browserId() })
+  await call(machine, 'notifications.awake', { id, browser: browserId() })
 }
 
 export function startPresence() {

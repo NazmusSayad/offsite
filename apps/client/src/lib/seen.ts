@@ -44,7 +44,7 @@ function follow(restart: boolean) {
     return
   }
   timer = window.setTimeout(() => {
-    call(machine, 'notices.seen', { sessionId }).catch((error: unknown) =>
+    call(machine, 'notifications.seen', { sessionId }).catch((error: unknown) =>
       log.error('could not tell the server that this chat was seen', error)
     )
   }, SEEN_AFTER)

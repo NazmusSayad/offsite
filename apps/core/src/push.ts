@@ -1,6 +1,6 @@
 import type { Provider } from './providers.ts'
 
-export const NOTICE_STATES = [
+export const NOTIFICATION_STATES = [
   'done',
   'asks',
   'approve',
@@ -8,25 +8,25 @@ export const NOTICE_STATES = [
   'push',
 ] as const
 
-export type NoticeState = (typeof NOTICE_STATES)[number]
+export type NotificationState = (typeof NOTIFICATION_STATES)[number]
 
-export type NoticeAction = {
+export type NotificationAction = {
   id: string
   title: string
   kind: 'open' | 'run'
 }
 
-export type Notice = {
+export type PushNotification = {
   id: string
   tag: string
   title: string
   body: string
   summary: string
   source: Provider
-  state: NoticeState
+  state: NotificationState
   image: string | null
   icon: string | null
-  actions: NoticeAction[]
+  actions: NotificationAction[]
   whileVisible: boolean
   target: { projectId: string; worktreeId: string | null; sessionId: string }
 }

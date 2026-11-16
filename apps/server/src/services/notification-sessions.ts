@@ -5,7 +5,7 @@ import { readConfig } from '../storage/config.ts'
 import { send } from './runs.ts'
 import { sessions } from './sessions.ts'
 
-export type NoticeSession = {
+export type NotificationSession = {
   sessionId: string
   projectId: string
   worktreeId: string | null
@@ -13,7 +13,10 @@ export type NoticeSession = {
   settings: SessionSettings
 }
 
-export function noticeSession(sessionId: string, settings: SessionSettings) {
+export function notificationSession(
+  sessionId: string,
+  settings: SessionSettings
+) {
   const session = sessions().find((item) => item.id === sessionId)
   if (session === undefined) {
     return null
@@ -27,7 +30,11 @@ export function noticeSession(sessionId: string, settings: SessionSettings) {
   }
 }
 
-export function sendText(client: Client, session: NoticeSession, text: string) {
+export function sendText(
+  client: Client,
+  session: NotificationSession,
+  text: string
+) {
   return send(client, {
     id: randomUUID(),
     sessionId: session.sessionId,

@@ -11,7 +11,10 @@ import { eq, max } from 'drizzle-orm'
 import { broadcast } from '../lib/hub.ts'
 import { db } from '../storage/db.ts'
 import { projectScores } from '../storage/interactions.ts'
-import { projects as projectsTable } from '../storage/schema.ts'
+import {
+  notificationIcons,
+  projects as projectsTable,
+} from '../storage/schema.ts'
 import { home, scratchAvailable } from '../storage/storage.ts'
 import { findLogo, prepareLogo } from './logos.ts'
 
@@ -144,6 +147,11 @@ export async function updateProject(id: string, patch: ProjectPatch) {
         logo: patch.logo === null ? null : await prepareLogo(patch.logo),
       })
       .where(eq(projectsTable.id, id))
+      .run()
+  }
+  if (patch.name !== undefined || patch.logo !== undefined) {
+    db.delete(notificationIcons)
+      .where(eq(notificationIcons.projectId, id))
       .run()
   }
   if (patch.scratch === false) {
