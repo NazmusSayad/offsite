@@ -22,6 +22,7 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { platforms } from '@/features/terminal/config'
 import { AgentsSection } from './agents'
 import { Row, Section, TextInput } from './controls'
+import { FinishedCheckSection } from './finished-check'
 import { ServiceSection } from './service'
 import { ShellInput } from './shell-input'
 
@@ -64,6 +65,7 @@ export function MachinePage(props: {
         defaultShell={props.defaultShell}
       />
       <AgentsSection machine={props.machine} config={props.config} />
+      <FinishedCheckSection machine={props.machine} config={props.config} />
       <div className="flex justify-center">
         <Button variant="ghost-muted" size="xs" onClick={props.onRestore}>
           Restore machine defaults

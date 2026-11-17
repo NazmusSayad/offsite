@@ -132,9 +132,12 @@ export const generations = snakeCase.table('generations', {
       'review-guide',
       'pull-request',
       'commit-message',
+      'finished-check',
     ],
   }).notNull(),
-  provider: text({ enum: ['claude', 'codex', 'opencode'] }).notNull(),
+  provider: text({
+    enum: ['claude', 'codex', 'opencode', 'openrouter'],
+  }).notNull(),
   account: text(),
   model: text().notNull(),
   instructions: text().notNull(),

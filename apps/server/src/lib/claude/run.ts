@@ -20,13 +20,14 @@ import {
 import { publish } from '../hub.ts'
 import {
   broadcastActivity,
+  holdsCompletion,
   publishItems,
   runs,
   scheduleAutoResolve,
 } from '../live.ts'
 import { logger } from '../log.ts'
 import { loadAgentModels } from './agent-models.ts'
-import { backgroundTasks } from './background-tasks.ts'
+import { applyBackgroundTasks } from './background-tasks.ts'
 import { claudeEffort, claudeMode, runOptions } from './claude.ts'
 import {
   contextTokens,
@@ -37,6 +38,7 @@ import {
   toMessage,
   turnFailed,
 } from './content.ts'
+import { FinishedState } from './finished.ts'
 import { toItems, toRequest } from './items.ts'
 import { recordEventLimits } from './limits.ts'
 import { permissionResult } from './permission.ts'
@@ -74,6 +76,8 @@ export class Run {
   backgroundAgents = 0
   agentTasks = 0
   failed = false
+  readonly finished = new FinishedState()
+  commands: { id: string; description: string }[] = []
   tasks: Record<string, TaskStatus> = {}
   agentModels: Record<string, string> = {}
   modelNames: Record<string, string> = {}
@@ -197,6 +201,7 @@ export class Run {
     this.inbox.push({ prompt, uuid, priority: undefined })
     this.wake?.()
     this.add(promptMessage(prompt, uuid))
+    this.finished.release()
     this.running = true
     this.prompted = true
     broadcastActivity()
@@ -239,6 +244,7 @@ export class Run {
       }
     }
     clearTimeout(this.idleTimer)
+    this.finished.release()
     for (const id of this.pending.keys()) {
       this.settle(id, { behavior: 'deny', message: 'Session ended' })
     }
@@ -341,9 +347,10 @@ export class Run {
         switch (message.subtype) {
           case 'init':
             clearTimeout(this.idleTimer)
-            if (!this.running) {
+            if (!this.running && !holdsCompletion(this)) {
               this.prompted = false
             }
+            this.finished.release()
             this.running = true
             this.updateSettings({
               ...this.settings,
@@ -352,16 +359,11 @@ export class Run {
             void followStart(this.sessionId, this.cwd, message.cwd)
             void loadAgentModels(this)
             return
-          case 'background_tasks_changed': {
-            const changed = backgroundTasks(message, this.tasks)
-            this.agentTasks = changed.agentTasks
-            this.backgroundTasks = changed.backgroundTasks
-            this.backgroundAgents = changed.backgroundAgents
-            this.tasks = changed.tasks
+          case 'background_tasks_changed':
+            applyBackgroundTasks(this, message)
             broadcastActivity()
             this.armIdleTimer()
             return
-          }
           case 'task_notification':
             if (message.ambient === true) {
               return
@@ -418,6 +420,9 @@ export class Run {
       return
     }
     this.running = false
+    if (!this.failed && this.commands.length > 0) {
+      void this.finished.check(this)
+    }
     broadcastActivity()
     this.armIdleTimer()
   }

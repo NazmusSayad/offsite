@@ -3,7 +3,7 @@ import type {
   PermissionDecision,
   PermissionRequest,
 } from '@offsite/core/items'
-import { type LiveRun, runs } from '../lib/live.ts'
+import { holdsCompletion, type LiveRun, runs } from '../lib/live.ts'
 import { logger } from '../lib/log.ts'
 import { providerName } from './accounts.ts'
 import { notificationImage } from './notification-images.ts'
@@ -28,20 +28,21 @@ const AUTO_RESOLVE_QUIET = 5000
 
 const seen = new Map<
   string,
-  { running: boolean; prompted: boolean; requests: Set<string> }
+  { busy: boolean; prompted: boolean; requests: Set<string> }
 >()
 
 export function watchActivity() {
   for (const run of runs.values()) {
     const before = seen.get(run.sessionId)
+    const busy = run.running || holdsCompletion(run)
     seen.set(run.sessionId, {
-      running: run.running,
+      busy,
       prompted: run.prompted,
       requests: new Set(
         [...run.pending.values()].map((pending) => pending.request.id)
       ),
     })
-    if (!run.running && before?.running === true) {
+    if (!busy && before?.busy === true) {
       setUnread(run.sessionId, true)
       if (before.prompted && !run.failed) {
         report(finishedNotification(run))
