@@ -63,21 +63,34 @@ function serve(name: string, args: string[], cwd: string) {
   })
 }
 
-async function answers(name: string, url: string) {
+async function answers(name: string, port: number | string, page: string) {
   const deadline = Date.now() + 10 * 60_000
+  const failures = new Map<string, string>()
   while (Date.now() < deadline) {
     if (states[name].state === 'failed') {
       throw new Error(states[name].error)
     }
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(60_000),
-    }).catch(() => null)
-    if (response !== null && response.status < 500) {
-      return
+    for (const host of ['localhost', '127.0.0.1', '[::1]']) {
+      const url = `http://${host}:${port}${page}`
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(30_000),
+      }).catch((error: Error) => {
+        failures.set(host, `${error.message} ${String(error.cause)}`)
+        return null
+      })
+      if (response !== null && response.status < 500) {
+        console.log(`[${name}] ${url} answered ${response.status}`)
+        return
+      }
+      if (response !== null) {
+        failures.set(host, `answered ${response.status}`)
+      }
     }
     await sleep(2000)
   }
-  throw new Error(`${url} did not answer in 10 minutes`)
+  throw new Error(
+    `port ${port} did not answer ${page} in 10 minutes: ${[...failures].map((entry) => `${entry[0]} ${entry[1]}`).join('; ')}`
+  )
 }
 
 async function step(name: string, url: string, work: () => Promise<void>) {
@@ -99,20 +112,30 @@ async function startApp(app: (typeof apps)[number]) {
     cpSync(path.join(probes, app.name), folder, { recursive: true })
     await exec(app.name, ['npm', 'install'], folder)
     serve(app.name, app.dev, folder)
-    await answers(app.name, `${url}${app.probe}`)
+    await answers(app.name, app.port, app.probe)
   })
 }
 
 async function startOffsite() {
   await step('offsite', 'http://localhost:47841', async () => {
-    await exec('offsite', ['npm', 'install', '--global', 'offsite@latest'], '/')
+    await exec(
+      'offsite',
+      [
+        'npm',
+        'install',
+        '--global',
+        'offsite@latest',
+        '@anthropic-ai/claude-code@latest',
+      ],
+      '/'
+    )
     version = (await run('offsite', ['--version'])).stdout.trim()
     serve(
       'offsite',
       ['offsite', '--host', '0.0.0.0', '--port', '47841', '--dir', data],
       '/'
     )
-    await answers('offsite', 'http://localhost:47841/')
+    await answers('offsite', 47841, '/')
   })
   if (states.offsite.state !== 'ready') {
     return
@@ -147,7 +170,7 @@ async function startOffsite() {
       throw new Error('pnpm dev printed no web port')
     }
     states['offsite-dev'].url = `http://localhost:${port}/`
-    await answers('offsite-dev', states['offsite-dev'].url)
+    await answers('offsite-dev', port, '/')
   })
 }
 
