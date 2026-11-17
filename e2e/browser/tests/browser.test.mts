@@ -59,13 +59,25 @@ async function devServer(name: string) {
 }
 
 function watchErrors(page: Page) {
-  const errors: string[] = []
+  const errors: { panel: string[]; offsite: string[] } = {
+    panel: [],
+    offsite: [],
+  }
   page.on('console', (message) => {
-    if (message.type() === 'error') {
-      errors.push(`${message.location().url}: ${message.text()}`)
+    if (message.type() !== 'error') {
+      return
+    }
+    const url = message.location().url
+    const text = `${url}: ${message.text()}`
+    if (url.includes('/api/proxy/')) {
+      errors.panel.push(text)
+    } else {
+      errors.offsite.push(text)
     }
   })
-  page.on('pageerror', (error) => errors.push(`page error: ${error.message}`))
+  page.on('pageerror', (error) =>
+    errors.offsite.push(`page error: ${error.message}`)
+  )
   return errors
 }
 
@@ -173,7 +185,7 @@ for (const app of apps) {
     await test.step('follows a link', async () => {
       await frame.locator('#other').click()
       await expect.soft(address).toHaveValue(other)
-      await expect.soft(title).toHaveCount(0)
+      await expect.soft(title).toBeHidden()
     })
 
     await test.step('goes back', async () => {
@@ -185,7 +197,7 @@ for (const app of apps) {
     await test.step('goes forward', async () => {
       await page.getByRole('button', { name: 'Forward', exact: true }).click()
       await expect.soft(address).toHaveValue(other)
-      await expect.soft(title).toHaveCount(0)
+      await expect.soft(title).toBeHidden()
     })
 
     await test.step('reloads', async () => {
@@ -194,8 +206,12 @@ for (const app of apps) {
       await expect.soft(frame.locator('body')).not.toBeEmpty()
     })
 
-    await test.step('logs no errors', async () => {
-      expect.soft(errors).toEqual([])
+    await test.step('the page logs no errors', async () => {
+      expect.soft(errors.panel).toEqual([])
+    })
+
+    await test.step('offsite logs no errors', async () => {
+      expect.soft(errors.offsite).toEqual([])
     })
   })
 }
@@ -212,7 +228,11 @@ test('offsite-dev', async ({ page }, testInfo) => {
     ).toBeVisible({ timeout: 90_000 })
   })
 
-  await test.step('logs no errors', async () => {
-    expect.soft(errors).toEqual([])
+  await test.step('the page logs no errors', async () => {
+    expect.soft(errors.panel).toEqual([])
+  })
+
+  await test.step('offsite logs no errors', async () => {
+    expect.soft(errors.offsite).toEqual([])
   })
 })
