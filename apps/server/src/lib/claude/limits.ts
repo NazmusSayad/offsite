@@ -56,11 +56,32 @@ function windowLimit(
   window: Record<string, unknown>,
   current: RateLimit | null
 ): RateLimit {
+  const resetsAt = typeof window.resetsAt === 'number' ? window.resetsAt : null
   return {
     utilization:
       typeof window.utilization === 'number' ? window.utilization : null,
-    resetsAt: typeof window.resetsAt === 'number' ? window.resetsAt : null,
-    rejected: current?.rejected ?? false,
+    resetsAt,
+    rejected: windowRejected(window.status, resetsAt, current),
+  }
+}
+
+function windowRejected(
+  status: unknown,
+  resetsAt: number | null,
+  current: RateLimit | null
+) {
+  switch (status) {
+    case 'rejected':
+      return true
+    case 'allowed':
+    case 'allowed_warning':
+      return false
+    case undefined:
+      return (
+        current !== null && current.resetsAt === resetsAt && current.rejected
+      )
+    default:
+      throw new Error(`Unknown rate limit status ${String(status)}`)
   }
 }
 
