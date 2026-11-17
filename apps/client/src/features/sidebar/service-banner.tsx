@@ -13,7 +13,7 @@ import { applyBrowserUpdate } from '@/lib/browser-update'
 import { type Machine, showError, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-function Group(props: {
+export function Group(props: {
   icon: typeof ServerIcon
   tone: string
   label: string

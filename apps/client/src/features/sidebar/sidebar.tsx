@@ -11,6 +11,7 @@ import { useLocalStorage } from 'usehooks-ts'
 import { machineKey } from '@/api/machines'
 import { HotkeyHint } from '@/components/hotkey-hint'
 import { BookmarksDialog } from '@/features/bookmarks/bookmarks-dialog'
+import { CleanupBanner } from '@/features/sidebar/cleanup-banner'
 import { ConnectionStatus } from '@/features/sidebar/connection-status'
 import { DesktopSessionItem } from '@/features/sidebar/desktop-session-item'
 import { MobileMenu } from '@/features/sidebar/mobile-menu'
@@ -395,6 +396,7 @@ export function Sidebar(props: { className: string; mobile: boolean }) {
           </ul>
         </nav>
         {!import.meta.env.DEV && <ServiceBanners />}
+        <CleanupBanner />
         {!props.mobile && (
           <div
             role="separator"

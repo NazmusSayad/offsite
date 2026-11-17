@@ -1,5 +1,6 @@
 import type { AppIconId } from './app-icons.ts'
 import type { Bookmark, BookmarkRef, BookmarkTarget } from './bookmarks.ts'
+import type { CleanupState } from './cleanup.ts'
 import type {
   Config,
   ConfigWithDefaults,
@@ -81,6 +82,7 @@ export type SyncSnapshot = ConfigWithDefaults & {
   appIcon: AppIconId
   bookmarks: BookmarkRef[]
   service: ServiceState
+  cleanup: CleanupState
 }
 
 export type RpcMethods = PullRequestMethods &
@@ -96,6 +98,8 @@ export type RpcMethods = PullRequestMethods &
       params: void
       result: { latest: string; newer: boolean }
     }
+    'cleanup.check': { params: void; result: CleanupState }
+    'cleanup.run': { params: { ids: string[] }; result: CleanupState }
     'projects.add': { params: { path: string }; result: Project }
     'projects.update': {
       params: { id: string; patch: ProjectPatch }
@@ -440,6 +444,7 @@ export type ServerEvent =
   | { type: 'lastEfforts'; lastEfforts: LastPickedEffortForModel[] }
   | { type: 'appIcon'; appIcon: AppIconId }
   | { type: 'service'; service: ServiceState }
+  | { type: 'cleanup'; cleanup: CleanupState }
   | { type: 'bookmarks'; bookmarks: BookmarkRef[] }
   | { type: 'projects'; projects: Project[] }
   | { type: 'worktrees'; worktrees: Worktree[] }

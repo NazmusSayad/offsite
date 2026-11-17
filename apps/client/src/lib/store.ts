@@ -4,6 +4,7 @@ import type {
   BookmarkRef,
   BookmarkTarget,
 } from '@offsite/core/bookmarks'
+import type { CleanupState } from '@offsite/core/cleanup'
 import type {
   Config,
   ConfigWithDefaults,
@@ -96,6 +97,7 @@ export type Machine = {
   lastPickedEffortByModel: LastPickedEffortForModel[]
   appIcon: AppIconId | null
   service: ServiceState | null
+  cleanup: CleanupState | null
   configError: string | null
   system: Omit<ConfigWithDefaults, 'config'> | null
   claudeAccounts: Account[]

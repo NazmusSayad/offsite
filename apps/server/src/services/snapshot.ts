@@ -9,6 +9,7 @@ import {
 } from '../storage/interactions.ts'
 import { readAppIcon } from '../storage/state.ts'
 import { readBookmarks } from './bookmarks.ts'
+import { cleanupState } from './cleanup/cleanup.ts'
 import { outboxPrompts } from './outbox.ts'
 import { worktrees } from './project-worktrees.ts'
 import { projects } from './projects.ts'
@@ -34,5 +35,6 @@ export function syncSnapshot(): SyncSnapshot {
     appIcon: readAppIcon(),
     bookmarks: readBookmarks(),
     service: serviceState(),
+    cleanup: cleanupState(),
   }
 }
