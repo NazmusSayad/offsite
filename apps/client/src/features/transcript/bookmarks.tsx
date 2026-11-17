@@ -64,7 +64,6 @@ function BookmarkToggle(props: {
 }
 
 export function useBookmarks(props: {
-  content: RefObject<HTMLDivElement | null>
   scroller: RefObject<HTMLDivElement | null>
   rows: Row[]
   onJump: (key: string) => Promise<void>
@@ -84,7 +83,7 @@ export function useBookmarks(props: {
     focus !== null && props.rows.some((row) => row.key === focus.itemId)
 
   useEffect(() => {
-    const root = props.content.current
+    const root = props.scroller.current
     if (root === null) {
       throw new Error('transcript is not mounted')
     }
@@ -119,7 +118,7 @@ export function useBookmarks(props: {
       cancelAnimationFrame(frame)
       CSS.highlights.delete('bookmark')
     }
-  }, [props.content, bookmarks, selection?.sessionId, items, earlier])
+  }, [props.scroller, bookmarks, selection?.sessionId, items, earlier])
 
   useEffect(() => {
     if (focus === null || !loaded) {
@@ -133,19 +132,18 @@ export function useBookmarks(props: {
       const itemId = focus.itemId
       update({ focus: null })
       void (async () => {
-        if (props.content.current?.querySelector(selector) === null) {
+        if (props.scroller.current?.querySelector(selector) === null) {
           await props.onJump(itemId)
         }
-        const root = props.content.current
         const scroller = props.scroller.current
-        const row = root?.querySelector(selector)
-        if (root === null || scroller === null || !(row instanceof Element)) {
+        const row = scroller?.querySelector(selector)
+        if (scroller === null || !(row instanceof Element)) {
           throw new Error('the bookmarked message is not on screen')
         }
         const range =
           focus.start === null
             ? null
-            : excerptRange(root, focus, [...earlier, ...items])
+            : excerptRange(scroller, focus, [...earlier, ...items])
         const target = range ?? row
         const box = target.getBoundingClientRect()
         const view = scroller.getBoundingClientRect()

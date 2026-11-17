@@ -224,23 +224,16 @@ const components: Components = {
       )
     }
     return (
-      <span
-        className={cn(
-          'my-2 block [&+br]:hidden',
-          mediaKind(src) === 'video' && 'w-full max-w-sm'
-        )}
-      >
-        <Media
-          src={src}
-          alt={alt ?? ''}
-          name={src.startsWith('data:') ? 'Image' : src.split(/[?#]/)[0]}
-          kind={mediaKind(src) ?? 'image'}
-          raw={`![${alt ?? ''}](${src})`}
-          size={null}
-          address={src.startsWith('data:') ? null : src}
-          local={false}
-        />
-      </span>
+      <Media
+        src={src}
+        alt={alt ?? ''}
+        name={src.startsWith('data:') ? 'Image' : src.split(/[?#]/)[0]}
+        kind={mediaKind(src) ?? 'image'}
+        raw={`![${alt ?? ''}](${src})`}
+        size={null}
+        address={src.startsWith('data:') ? null : src}
+        local={false}
+      />
     )
   },
   pre: MarkdownPre,

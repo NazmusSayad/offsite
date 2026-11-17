@@ -148,7 +148,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     await scrollToRow(list.current, key)
   }
 
-  useBookmarks({ content: scroller, scroller, rows, onJump: jump })
+  useBookmarks({ scroller, rows, onJump: jump })
 
   const toggle = useCallback(
     (key: string) => {
@@ -176,7 +176,6 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     <>
       {finding && (
         <ThreadFindBar
-          content={scroller}
           scroller={scroller}
           onClose={() => {
             setFinding(false)

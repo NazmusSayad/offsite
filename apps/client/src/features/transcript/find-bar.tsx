@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
 export function ThreadFindBar(props: {
-  content: RefObject<HTMLDivElement | null>
   scroller: RefObject<HTMLDivElement | null>
   onClose: () => void
 }) {
@@ -23,7 +22,7 @@ export function ThreadFindBar(props: {
   useEffect(() => input.current?.focus(), [])
 
   useEffect(() => {
-    const element = props.content.current
+    const element = props.scroller.current
     if (element === null) {
       throw new Error('transcript is not mounted')
     }
@@ -46,7 +45,7 @@ export function ThreadFindBar(props: {
       observer.disconnect()
       cancelAnimationFrame(frame)
     }
-  }, [query, props.content])
+  }, [query, props.scroller])
 
   useEffect(() => {
     if (matches.length === 0) {
@@ -66,12 +65,11 @@ export function ThreadFindBar(props: {
   }, [matches, current])
 
   function search(nextQuery: string, nextIndex: number) {
-    const content = props.content.current
     const scroller = props.scroller.current
-    if (content === null || scroller === null) {
+    if (scroller === null) {
       throw new Error('transcript is not mounted')
     }
-    const found = nextQuery === '' ? [] : findRanges(content, nextQuery)
+    const found = nextQuery === '' ? [] : findRanges(scroller, nextQuery)
     const position =
       found.length === 0 ? 0 : (nextIndex + found.length) % found.length
     setQuery(nextQuery)

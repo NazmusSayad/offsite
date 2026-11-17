@@ -27,7 +27,6 @@ function CodeBlockView(props: {
 }) {
   const [wrap, setWrap] = useState(true)
   const [source, setSource] = useState(false)
-  const [fullscreen, setFullscreen] = useState(false)
   const [failed, setFailed] = useState<string | null>(null)
   const diagram = useRef<HTMLButtonElement>(null)
   const clipboard = useCopy()
@@ -50,11 +49,9 @@ function CodeBlockView(props: {
           <MermaidDiagram
             ref={diagram}
             code={props.code}
-            open={fullscreen}
             actions={
               <DiagramViewerActions subject={{ code: props.code, diagram }} />
             }
-            onOpenChange={setFullscreen}
             onError={setFailed}
           />
         </div>

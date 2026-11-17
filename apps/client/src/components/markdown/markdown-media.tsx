@@ -100,31 +100,16 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
     )
   }
   return (
-    <span
-      className={cn(
-        'my-2 block w-fit max-w-full [&+br]:hidden',
-        mediaKind(props.path) === 'video' && 'w-full max-w-sm'
-      )}
-    >
-      {loaded !== null && (
-        <Media
-          src={loaded.src}
-          alt={props.alt}
-          name={props.path}
-          kind={mediaKind(props.path) ?? 'image'}
-          raw={props.raw}
-          size={loaded.size}
-          address={props.path}
-          local
-        />
-      )}
-      {loaded === null && mediaKind(props.path) === 'video' && (
-        <span className="border-border/40 block aspect-[3/2] w-full rounded-lg border" />
-      )}
-      {loaded === null && (mediaKind(props.path) ?? 'image') === 'image' && (
-        <span className="bg-muted/60 block aspect-video w-[30rem] max-w-full rounded-lg" />
-      )}
-    </span>
+    <Media
+      src={loaded?.src ?? null}
+      alt={props.alt}
+      name={props.path}
+      kind={mediaKind(props.path) ?? 'image'}
+      raw={props.raw}
+      size={loaded?.size ?? null}
+      address={props.path}
+      local
+    />
   )
 }
 
@@ -175,36 +160,16 @@ export function GithubMedia(props: {
       />
     )
   }
-  if (props.kind === 'video') {
-    return (
-      <span className="my-2 block w-full max-w-sm [&+br]:hidden">
-        {loaded === null ? (
-          <span className="border-border/40 block aspect-[3/2] w-full rounded-lg border" />
-        ) : (
-          <Media
-            src={loaded.src}
-            alt={props.alt}
-            name="Video"
-            kind="video"
-            raw={props.raw}
-            size={null}
-            address={props.url}
-            local={false}
-          />
-        )}
-      </span>
-    )
-  }
-  if (loaded !== null && failed === loaded.src) {
-    return (
-      <MediaUnavailable
-        kind="image"
-        reason="It could not be loaded"
-        raw={props.raw}
-      />
-    )
-  }
-  if (props.size !== undefined) {
+  if (props.kind === 'image' && props.size !== undefined) {
+    if (loaded !== null && failed === loaded.src) {
+      return (
+        <MediaUnavailable
+          kind="image"
+          reason="It could not be loaded"
+          raw={props.raw}
+        />
+      )
+    }
     return loaded === null ? (
       <span className="block max-w-full" style={props.size} />
     ) : (
@@ -220,27 +185,21 @@ export function GithubMedia(props: {
     )
   }
   return (
-    <span className="my-2 block w-fit max-w-full [&+br]:hidden">
-      {loaded === null ? (
-        <span className="bg-muted/60 block aspect-video w-[30rem] max-w-full rounded-lg" />
-      ) : (
-        <Media
-          src={loaded.src}
-          alt={props.alt}
-          name="Image"
-          kind="image"
-          raw={props.raw}
-          size={null}
-          address={props.url}
-          local={false}
-        />
-      )}
-    </span>
+    <Media
+      src={loaded?.src ?? null}
+      alt={props.alt}
+      name={props.kind === 'video' ? 'Video' : 'Image'}
+      kind={props.kind}
+      raw={props.raw}
+      size={null}
+      address={props.url}
+      local={false}
+    />
   )
 }
 
 export function Media(props: {
-  src: string
+  src: string | null
   alt: string
   name: string
   kind: 'image' | 'video' | 'audio'
@@ -250,64 +209,73 @@ export function Media(props: {
   local: boolean
 }) {
   const [failed, setFailed] = useState<string | null>(null)
+  const src = props.src
+  const box = cn(
+    'my-2 block [&+br]:hidden',
+    props.kind === 'video' ? 'w-full max-w-sm' : 'w-fit max-w-full'
+  )
+  if (src === null) {
+    return (
+      <span className={box}>
+        {props.kind === 'video' && (
+          <span className="border-border/40 block aspect-[3/2] w-full rounded-lg border" />
+        )}
+        {props.kind === 'image' && (
+          <span className="bg-muted/60 block aspect-video w-[30rem] max-w-full rounded-lg" />
+        )}
+      </span>
+    )
+  }
+  if (failed === src) {
+    return (
+      <span className={box}>
+        <MediaUnavailable
+          kind={props.kind}
+          reason="It could not be loaded"
+          raw={props.raw}
+        />
+      </span>
+    )
+  }
   const subject = {
-    src: props.src,
+    src,
     kind: props.kind,
     address: props.address,
     local: props.local,
   }
-  if (failed === props.src) {
-    return (
-      <MediaUnavailable
-        kind={props.kind}
-        reason="It could not be loaded"
-        raw={props.raw}
-      />
-    )
-  }
-  if (props.kind === 'video') {
-    return (
-      <MediaContextMenu subject={subject}>
-        <span className="block w-full">
+  return (
+    <MediaContextMenu subject={subject}>
+      <span className={box}>
+        {props.kind === 'video' && (
           <ViewableVideo
-            src={props.src}
+            src={src}
             alt={props.alt}
             name={props.name}
             className="block aspect-[3/2] w-full"
             actions={<MediaViewerActions subject={subject} />}
-            onError={() => setFailed(props.src)}
+            onError={() => setFailed(src)}
           />
-        </span>
-      </MediaContextMenu>
-    )
-  }
-  if (props.kind === 'audio') {
-    return (
-      <MediaContextMenu subject={subject}>
-        <span className="block w-fit max-w-full">
+        )}
+        {props.kind === 'audio' && (
           <Suspense>
             <AudioPlayer
-              src={props.src}
+              src={src}
               label={props.alt === '' ? props.name : props.alt}
               className="flex w-[28rem] max-w-full"
-              onError={() => setFailed(props.src)}
+              onError={() => setFailed(src)}
             />
           </Suspense>
-        </span>
-      </MediaContextMenu>
-    )
-  }
-  return (
-    <MediaContextMenu subject={subject}>
-      <span className="block w-fit max-w-full">
-        <MarkdownImage
-          src={props.src}
-          alt={props.alt}
-          name={props.name}
-          size={props.size}
-          actions={<MediaViewerActions subject={subject} />}
-          onError={() => setFailed(props.src)}
-        />
+        )}
+        {props.kind === 'image' && (
+          <MarkdownImage
+            src={src}
+            alt={props.alt}
+            name={props.name}
+            size={props.size}
+            actions={<MediaViewerActions subject={subject} />}
+            onError={() => setFailed(src)}
+          />
+        )}
       </span>
     </MediaContextMenu>
   )
