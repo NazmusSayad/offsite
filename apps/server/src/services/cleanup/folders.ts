@@ -1,9 +1,13 @@
+import { realpathSync } from 'node:fs'
 import { lstat, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
-import { logFolder } from '../../lib/log.ts'
+import { logFolder, logger } from '../../lib/log.ts'
+import { db } from '../../storage/db.ts'
+import { outbox } from '../../storage/schema.ts'
 import { hasCode, home } from '../../storage/storage.ts'
 
 const DAY = 86_400_000
+const log = logger.withTag('cleanup')
 const groups = {
   uploads: {
     folder: path.join(home, 'uploads'),
@@ -25,26 +29,27 @@ const groups = {
 export type FileGroup = keyof typeof groups
 
 export async function folderStats(entry: string) {
-  let stats
-  try {
-    stats = await lstat(entry)
-  } catch (error) {
-    if (hasCode(error, 'ENOENT')) {
-      return { bytes: 0, changedAt: 0 }
-    }
-    throw error
-  }
-  if (!stats.isDirectory()) {
-    return { bytes: stats.size, changedAt: stats.mtimeMs }
-  }
-  const children = await Promise.all(
-    (await entries(entry)).map((name) => folderStats(path.join(entry, name)))
-  )
   let bytes = 0
-  let changedAt = stats.mtimeMs
-  for (const child of children) {
-    bytes += child.bytes
-    changedAt = Math.max(changedAt, child.changedAt)
+  let changedAt = 0
+  const pending = [entry]
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    let stats
+    try {
+      stats = await lstat(next)
+    } catch (error) {
+      if (hasCode(error, 'ENOENT')) {
+        continue
+      }
+      throw error
+    }
+    changedAt = Math.max(changedAt, stats.mtimeMs)
+    if (stats.isDirectory()) {
+      for (const name of await entries(next)) {
+        pending.push(path.join(next, name))
+      }
+    } else if (stats.nlink === 1) {
+      bytes += stats.size
+    }
   }
   return { bytes, changedAt }
 }
@@ -53,23 +58,66 @@ export async function entries(folder: string) {
   try {
     return await readdir(folder)
   } catch (error) {
-    if (hasCode(error, 'ENOENT')) {
+    if (hasCode(error, 'ENOENT') || hasCode(error, 'ENOTDIR')) {
       return []
     }
     throw error
   }
 }
 
-export async function oldFiles(group: FileGroup, now: number) {
-  const settings = groups[group]
-  const found = await Promise.all(
-    (await entries(settings.folder))
-      .filter((name) => settings.names.test(name))
-      .map((name) => path.join(settings.folder, name))
-      .filter((file) => file !== logFolder)
-      .map(async (file) => ({ file, ...(await folderStats(file)) }))
+export function realPath(entry: string) {
+  try {
+    return realpathSync.native(entry)
+  } catch (error) {
+    if (
+      hasCode(error, 'ENOENT') ||
+      hasCode(error, 'ENOTDIR') ||
+      hasCode(error, 'EACCES') ||
+      hasCode(error, 'EPERM')
+    ) {
+      return path.resolve(entry)
+    }
+    throw error
+  }
+}
+
+export function inside(child: string, parent: string) {
+  return (
+    child === parent ||
+    child.startsWith(
+      parent.endsWith(path.sep) ? parent : `${parent}${path.sep}`
+    )
   )
-  return found.filter((item) => now - item.changedAt >= settings.age)
+}
+
+async function oldFiles(group: FileGroup, now: number) {
+  const settings = groups[group]
+  const waiting =
+    group === 'uploads'
+      ? JSON.stringify(
+          db.select({ request: outbox.request }).from(outbox).all()
+        )
+      : ''
+  const found: { file: string; bytes: number }[] = []
+  for (const name of await entries(settings.folder)) {
+    const file = path.join(settings.folder, name)
+    if (
+      !settings.names.test(name) ||
+      file === logFolder ||
+      (group === 'uploads' && waiting.includes(name))
+    ) {
+      continue
+    }
+    try {
+      const stats = await folderStats(file)
+      if (now - stats.changedAt >= settings.age) {
+        found.push({ file, bytes: stats.bytes })
+      }
+    } catch (error) {
+      log.warn(`could not check ${file}:`, error)
+    }
+  }
+  return found
 }
 
 export async function fileGroupItem(group: FileGroup, now: number) {
@@ -86,7 +134,16 @@ export async function fileGroupItem(group: FileGroup, now: number) {
 }
 
 export async function deleteOldFiles(group: FileGroup, now: number) {
+  const failed: string[] = []
   for (const item of await oldFiles(group, now)) {
-    await rm(item.file, { recursive: true, force: true })
+    try {
+      await rm(item.file, { recursive: true, force: true })
+    } catch (error) {
+      log.warn(`could not delete ${item.file}:`, error)
+      failed.push(item.file)
+    }
+  }
+  if (failed.length > 0) {
+    throw new Error(`could not delete ${failed.join(', ')}`)
   }
 }
