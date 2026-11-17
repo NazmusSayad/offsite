@@ -1,8 +1,8 @@
 import { BrushCleaningIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { CleanupDialog } from '@/features/cleanup/cleanup-dialog'
-import { Group } from '@/features/sidebar/service-banner'
 import { fileSize } from '@/lib/format'
 import { useStore } from '@/lib/store'
 
@@ -30,15 +30,21 @@ export function CleanupBanner() {
     <>
       {found && (
         <div className="shrink-0 px-(--sidebar-content-inset) pb-(--sidebar-content-inset)">
-          <Group
-            icon={BrushCleaningIcon}
-            tone="border-muted-foreground from-muted-foreground/14 text-muted-foreground"
-            label={`Clean up ${fileSize(bytes)}`}
-            count={1}
-            busy={false}
-            open={null}
-            onClick={() => setOpen(true)}
-          />
+          <div className="border-muted-foreground from-muted-foreground/14 text-muted-foreground overflow-hidden rounded-r-md border-l-2 bg-linear-to-r to-transparent">
+            <button
+              type="button"
+              className="flex h-8 w-full items-center gap-2 pr-1.5 pl-2.5 text-left transition-colors hover:bg-white/4"
+              onClick={() => setOpen(true)}
+            >
+              <HugeiconsIcon
+                icon={BrushCleaningIcon}
+                className="size-4 shrink-0"
+              />
+              <span className="text-sidebar-foreground min-w-0 flex-1 truncate text-[0.8125rem] font-medium">
+                Clean up {fileSize(bytes)}
+              </span>
+            </button>
+          </div>
         </div>
       )}
       <Dialog open={open} onOpenChange={setOpen}>

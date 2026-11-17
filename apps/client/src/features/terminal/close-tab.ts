@@ -63,12 +63,16 @@ function setClosingAll(next: { open: boolean; closing: ClosingAll }) {
   }
 }
 
-function dialogOpen() {
-  return (
-    document.querySelector(
+function openDialogs() {
+  return [
+    ...document.querySelectorAll(
       '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
-    ) !== null
-  )
+    ),
+  ]
+}
+
+function dialogOpen() {
+  return openDialogs().length > 0
 }
 
 async function busyProgram(machine: string, id: number) {
@@ -103,6 +107,7 @@ export async function closeTab(id: number) {
     return
   }
   checking.add(id)
+  const before = openDialogs()
   const busy = await busyProgram(terminalMachine(), id)
   checking.delete(id)
   if (busy.checked && busy.program === null) {
@@ -110,7 +115,7 @@ export async function closeTab(id: number) {
     return
   }
   const current = findTab(id)
-  if (!current || dialogOpen()) {
+  if (!current || openDialogs().some((dialog) => !before.includes(dialog))) {
     return
   }
   setClosing({

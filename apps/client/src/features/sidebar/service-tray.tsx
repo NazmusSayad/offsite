@@ -1,4 +1,8 @@
-import { CircleDotDashedIcon } from '@hugeicons/core-free-icons'
+import {
+  CircleDotDashedIcon,
+  Download01Icon,
+  ReloadIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -14,34 +18,22 @@ import {
 import type { Machine } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
-export function ServiceTray(props: {
-  kind: 'update' | 'restart' | 'install'
-  machines: Machine[]
-}) {
+export function ServiceTray(props: { machines: Machine[] }) {
   return (
-    <div className="animate-in fade-in slide-in-from-top-1 flex flex-col pb-2 duration-150">
-      <ul className="flex flex-col">
-        {props.machines.map((machine) => (
-          <li
-            key={machine.id}
-            className="border-sidebar-border/60 mr-2 ml-[2.125rem] border-t py-2 first:border-t-0 first:pt-1"
-          >
-            {props.kind === 'update' && <UpdateLine machine={machine} />}
-            {props.kind === 'restart' && <RestartLine machine={machine} />}
-            {props.kind === 'install' && <ServiceInstall machine={machine} />}
-          </li>
-        ))}
-      </ul>
-      {props.kind === 'update' && (
-        <p className="text-muted-foreground mr-2 ml-[2.125rem] text-xs">
-          Downloads in the background. OffSite asks before restarting.
-        </p>
-      )}
-    </div>
+    <ul className="animate-in fade-in slide-in-from-top-1 flex flex-col pb-2 duration-150">
+      {props.machines.map((machine) => (
+        <li
+          key={machine.id}
+          className="border-sidebar-border/60 mr-2 ml-[2.125rem] border-t py-2 first:border-t-0 first:pt-1"
+        >
+          <ServiceInstall machine={machine} />
+        </li>
+      ))}
+    </ul>
   )
 }
 
-function UpdateLine(props: { machine: Machine }) {
+export function UpdateLine(props: { machine: Machine }) {
   const machine = props.machine
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -77,27 +69,6 @@ function UpdateLine(props: { machine: Machine }) {
             </span>
           }
         />
-        <div className="bg-sidebar-accent mt-1.5 h-1 overflow-hidden rounded-full">
-          <div
-            className={cn(
-              'bg-success h-full rounded-full transition-[width]',
-              update.percent === null && 'w-1/3 animate-pulse'
-            )}
-            style={
-              update.percent === null
-                ? undefined
-                : { width: `${update.percent}%` }
-            }
-          />
-        </div>
-        {update.output !== null && (
-          <p
-            className="text-muted-foreground mt-1 truncate font-mono text-[0.6875rem]"
-            title={update.output}
-          >
-            {update.output}
-          </p>
-        )}
         <TaskError error={error} />
       </>
     )
@@ -115,12 +86,10 @@ function UpdateLine(props: { machine: Machine }) {
             disabled={starting}
             onClick={() => void download()}
           >
-            {starting && (
-              <HugeiconsIcon
-                icon={CircleDotDashedIcon}
-                className="animate-spin"
-              />
-            )}
+            <HugeiconsIcon
+              icon={starting ? CircleDotDashedIcon : Download01Icon}
+              className={cn(starting && 'animate-spin')}
+            />
             Update
           </Button>
         }
@@ -130,7 +99,7 @@ function UpdateLine(props: { machine: Machine }) {
   )
 }
 
-function RestartLine(props: { machine: Machine }) {
+export function RestartLine(props: { machine: Machine }) {
   const machine = props.machine
   const [working, setWorking] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -167,11 +136,13 @@ function RestartLine(props: { machine: Machine }) {
             disabled={working || busy === null}
             onClick={() => void restart()}
           >
-            {(working || (busy === null && error === null)) && (
+            {working || (busy === null && error === null) ? (
               <HugeiconsIcon
                 icon={CircleDotDashedIcon}
                 className="animate-spin"
               />
+            ) : (
+              <HugeiconsIcon icon={ReloadIcon} />
             )}
             {working ? 'Restarting' : 'Restart'}
           </Button>

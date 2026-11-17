@@ -1,4 +1,8 @@
-import { ArrowDown01Icon, RefreshIcon } from '@hugeicons/core-free-icons'
+import {
+  ArrowDown01Icon,
+  Download01Icon,
+  RefreshIcon,
+} from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { appIcons } from '@offsite/core/app-icons'
 import { schemes } from '@offsite/core/schemes'
@@ -15,6 +19,8 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip } from '@/components/ui/tooltip'
+import { TaskLine } from '@/features/sidebar/service-task-parts'
+import { RestartLine, UpdateLine } from '@/features/sidebar/service-tray'
 import { applyBrowserUpdate, checkBrowserUpdate } from '@/lib/browser-update'
 import { fileSize } from '@/lib/format'
 import { logger } from '@/lib/log'
@@ -58,7 +64,7 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
             }
           />
         </Row>
-        <Row label="Move sessions to Snooze when you send">
+        <Row label="Move new sessions to Snooze when you send">
           <Switch
             checked={prefs.autoMoveToSnooze}
             onCheckedChange={(autoMoveToSnooze) =>
@@ -137,7 +143,7 @@ function CleanupRow() {
           {busy && (
             <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
           )}
-          {busy ? 'Checking…' : 'Check for cleanup'}
+          {busy ? 'Checking' : 'Check for cleanup'}
         </Button>
       </div>
     </Row>
@@ -146,69 +152,73 @@ function CleanupRow() {
 
 function UpdateRow() {
   const available = useStore((state) => state.browserUpdate)
+  const machines = useStore((state) => state.machines)
   const [status, setStatus] = useState<
     'idle' | 'checking' | 'current' | 'updating'
   >('idle')
-  const [failure, setFailure] = useState<string | null>(null)
+  const [failures, setFailures] = useState<string[]>([])
+  const updates = machines.filter(
+    (machine) => machine.status === 'online' && machine.service?.update != null
+  )
 
   async function check() {
     setStatus('checking')
-    setFailure(null)
-    try {
-      const registration =
-        'serviceWorker' in navigator
-          ? await navigator.serviceWorker.getRegistration()
-          : undefined
-      if (registration === undefined) {
-        location.reload()
+    setFailures([])
+    const checked = machines.filter(
+      (machine) =>
+        machine.status === 'online' &&
+        machine.service?.installed === true &&
+        machine.system !== null &&
+        machine.system.version !== 'dev'
+    )
+    const results = await Promise.allSettled([
+      checkBrowser(),
+      ...checked.map((machine) =>
+        call(machine.id, 'service.check', undefined).then(
+          (result) => result.newer
+        )
+      ),
+    ])
+    const found: string[] = []
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
         return
       }
-      setStatus((await checkBrowserUpdate(registration)) ? 'idle' : 'current')
-    } catch (error) {
-      log.error('could not check for updates', error)
-      setFailure(`Could not check for updates: ${errorMessage(error)}`)
-      setStatus('idle')
-    }
+      const name = index === 0 ? 'this browser' : checked[index - 1].name
+      log.error(`could not check for updates on ${name}`, result.reason)
+      found.push(`Could not check ${name}: ${errorMessage(result.reason)}`)
+    })
+    setFailures(found)
+    setStatus(
+      results.some((result) => result.status === 'fulfilled' && result.value) ||
+        found.length > 0
+        ? 'idle'
+        : 'current'
+    )
   }
 
   async function update() {
     setStatus('updating')
-    setFailure(null)
+    setFailures([])
     try {
       await applyBrowserUpdate()
     } catch (error) {
       log.error('could not update', error)
-      setFailure(`Could not update: ${errorMessage(error)}`)
+      setFailures([`Could not update: ${errorMessage(error)}`])
       setStatus('idle')
     }
   }
 
   return (
-    <Row label="Version">
-      <div className="flex items-center gap-3">
-        {failure !== null && (
-          <span className="text-destructive text-xs wrap-anywhere">
-            {failure}
+    <>
+      <Row label="Version">
+        <div className="flex items-center gap-3">
+          {status === 'current' && !available && updates.length === 0 && (
+            <span className="text-muted-foreground text-xs">Up to date</span>
+          )}
+          <span className="text-muted-foreground text-sm">
+            {process.env.OFFSITE_VERSION ?? 'dev'}
           </span>
-        )}
-        {status === 'current' && !available && (
-          <span className="text-muted-foreground text-xs">Up to date</span>
-        )}
-        <span className="text-muted-foreground text-sm">
-          {process.env.OFFSITE_VERSION ?? 'dev'}
-        </span>
-        {available || status === 'updating' ? (
-          <Button
-            size="sm"
-            disabled={status === 'updating'}
-            onClick={() => void update()}
-          >
-            {status === 'updating' && (
-              <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
-            )}
-            {status === 'updating' ? 'Updating…' : 'Update'}
-          </Button>
-        ) : (
           <Button
             size="sm"
             variant="outline"
@@ -218,12 +228,69 @@ function UpdateRow() {
             {status === 'checking' && (
               <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
             )}
-            {status === 'checking' ? 'Checking…' : 'Check for updates'}
+            {status === 'checking' ? 'Checking' : 'Check for updates'}
           </Button>
-        )}
-      </div>
-    </Row>
+        </div>
+      </Row>
+      {(available || status === 'updating' || updates.length > 0) && (
+        <ul className="flex flex-col gap-3 px-4 py-3">
+          {(available || status === 'updating') && (
+            <li>
+              <TaskLine
+                name="Browser"
+                detail="New version available"
+                action={
+                  <Button
+                    type="button"
+                    size="xs"
+                    disabled={status === 'updating'}
+                    onClick={() => void update()}
+                  >
+                    <HugeiconsIcon
+                      icon={
+                        status === 'updating' ? RefreshIcon : Download01Icon
+                      }
+                      className={cn(status === 'updating' && 'animate-spin')}
+                    />
+                    {status === 'updating' ? 'Updating' : 'Update'}
+                  </Button>
+                }
+              />
+            </li>
+          )}
+          {updates.map((machine) => (
+            <li key={machine.id}>
+              {machine.service?.update?.status === 'ready' ? (
+                <RestartLine machine={machine} />
+              ) : (
+                <UpdateLine machine={machine} />
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {failures.length > 0 && (
+        <div className="flex flex-col gap-1 px-4 py-3">
+          {failures.map((failure) => (
+            <p key={failure} className="text-destructive text-xs wrap-anywhere">
+              {failure}
+            </p>
+          ))}
+        </div>
+      )}
+    </>
   )
+}
+
+async function checkBrowser() {
+  const registration =
+    'serviceWorker' in navigator
+      ? await navigator.serviceWorker.getRegistration()
+      : undefined
+  if (registration === undefined) {
+    return false
+  }
+  return checkBrowserUpdate(registration)
 }
 
 function AppIconRow() {

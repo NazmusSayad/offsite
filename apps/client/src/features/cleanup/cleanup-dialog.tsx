@@ -141,7 +141,7 @@ export function CleanupDialog(props: { onClose: () => void }) {
             }
             onClick={() => void remove()}
           >
-            {deleting ? 'Deleting…' : `Delete ${fileSize(selectedBytes)}`}
+            {deleting ? 'Deleting' : `Delete ${fileSize(selectedBytes)}`}
           </Button>
         )}
       </DialogFooter>
