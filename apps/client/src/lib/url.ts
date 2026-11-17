@@ -96,13 +96,21 @@ export function pushSearch(next: Search, layer: 'overlay' | undefined) {
   navigate({ ...currentSearch(), ...next }, false, layer)
 }
 
+export function openPanel(next: Search) {
+  if (wide.matches || router.history.location.state.layer === 'overlay') {
+    replaceSearch(next)
+    return
+  }
+  pushSearch(next, 'overlay')
+}
+
 export function openBrowser(target: string) {
   const state = getState()
   if (state.selection === null) {
     throw new Error('no project is open to show the browser in')
   }
   if (target.startsWith('file:')) {
-    replaceSearch({
+    openPanel({
       panel: 'browser',
       browse: decodeURIComponent(new URL(target).pathname),
     })
@@ -113,7 +121,7 @@ export function openBrowser(target: string) {
     target.startsWith('/') ||
     /^[a-z]:[\\/]/i.test(target)
   ) {
-    replaceSearch({ panel: 'browser', browse: target })
+    openPanel({ panel: 'browser', browse: target })
     return
   }
   const folder = placePathOf(
@@ -125,7 +133,7 @@ export function openBrowser(target: string) {
   if (folder === undefined) {
     throw new Error(`project ${state.selection.projectId} is not listed`)
   }
-  replaceSearch({ panel: 'browser', browse: `${folder}/${target}` })
+  openPanel({ panel: 'browser', browse: `${folder}/${target}` })
 }
 
 const pullRequestPattern =

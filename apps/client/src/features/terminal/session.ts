@@ -22,6 +22,7 @@ import {
 } from '@/lib/store'
 import {
   currentSearch,
+  openPanel,
   rememberTerminal,
   replaceSearch,
   terminalPage,
@@ -265,7 +266,7 @@ export function machineTabAlerted(target: string, id: number) {
 export function setOpen(open: boolean) {
   if (open) {
     requestTab()
-    replaceSearch({ bottom: 'terminal' })
+    openPanel({ bottom: 'terminal' })
     return
   }
   if (router.history.location.state.layer === 'overlay') {
