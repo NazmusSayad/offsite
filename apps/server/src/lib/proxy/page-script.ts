@@ -1,3 +1,6 @@
+import { PAGE_SPRITES } from './page-sprites.ts'
+import { PAGE_STORAGE } from './page-storage.ts'
+
 type PageConfig = {
   key: string
   url: string
@@ -147,11 +150,18 @@ const PAGE_SCRIPT = String.raw`function (config) {
     })
   }
 
+  let readCookies = function () {}
+  function noteCookies(header) {
+    if (header !== null) readCookies(decodeURIComponent(header))
+  }
   self.fetch = function (input, init) {
     const options = Object.assign({}, init, { credentials: 'omit' })
     if (options.mode === 'same-origin') options.mode = 'cors'
-    if (input instanceof RealRequest) return realFetch(input, options)
-    return realFetch(absolute(input), options)
+    const request = input instanceof RealRequest ? realFetch(input, options) : realFetch(absolute(input), options)
+    return request.then(function (response) {
+      noteCookies(response.headers.get('x-offsite-cookie'))
+      return response
+    })
   }
   const RealRequest = self.Request
   self.Request = class Request extends RealRequest {
@@ -164,6 +174,9 @@ const PAGE_SCRIPT = String.raw`function (config) {
   const realOpen = XMLHttpRequest.prototype.open
   XMLHttpRequest.prototype.open = function (method, url) {
     const rest = Array.prototype.slice.call(arguments, 2)
+    this.addEventListener('readystatechange', function () {
+      if (this.readyState === 2) noteCookies(this.getResponseHeader('x-offsite-cookie'))
+    })
     return realOpen.call(this, method, encode(url), ...rest)
   }
   patch(XMLHttpRequest.prototype, 'withCredentials', function () {
@@ -190,9 +203,10 @@ const PAGE_SCRIPT = String.raw`function (config) {
     if (target === null) return text
     const runtime = origin + prefix + 'runtime.js?url=' + encodeURIComponent(target.href) + '&origin=' + encodeURIComponent(origin)
     const script = absolute(target.href)
-    const code = options && options.type === 'module'
-      ? 'import ' + JSON.stringify(runtime) + ';import ' + JSON.stringify(script) + ';'
-      : 'importScripts(' + JSON.stringify(runtime) + ');importScripts(' + JSON.stringify(script) + ');'
+    if (options && options.type === 'module') {
+      return 'data:text/javascript,' + encodeURIComponent('import ' + JSON.stringify(runtime) + ';import ' + JSON.stringify(script) + ';')
+    }
+    const code = 'importScripts(' + JSON.stringify(runtime) + ');importScripts(' + JSON.stringify(script) + ');'
     return URL.createObjectURL(new Blob([code], { type: 'text/javascript' }))
   }
   for (const name of ['Worker', 'SharedWorker']) {
@@ -297,7 +311,7 @@ const PAGE_SCRIPT = String.raw`function (config) {
   const linkNames = new Set(['href', 'src', 'action', 'formaction', 'poster', 'data'])
   Element.prototype.setAttribute = function (name, value) {
     const lower = String(name).toLowerCase()
-    if (lower === 'integrity' || lower === 'crossorigin') return
+    if (lower === 'integrity') return
     if (linkNames.has(lower) && linkTags.has(this.tagName)) {
       native.set.call(this, name, encode(value))
       return
@@ -306,11 +320,17 @@ const PAGE_SCRIPT = String.raw`function (config) {
       native.set.call(this, name, encodeSet(value))
       return
     }
+    if (this.tagName === 'use' && (lower === 'href' || lower === 'xlink:href')) {
+      fixUse(this, name, String(value))
+      return
+    }
     native.set.call(this, name, value)
   }
+  const useLinks = new WeakMap()
   Element.prototype.getAttribute = function (name) {
     const value = native.get.call(this, name)
     if (value === null) return null
+    if (useLinks.has(this) && /^(xlink:)?href$/i.test(name)) return useLinks.get(this)
     const url = decode(value)
     if (url === null) return value
     const parsed = URL.parse(url)
@@ -340,15 +360,31 @@ const PAGE_SCRIPT = String.raw`function (config) {
   function encodeCss(text) {
     return String(text).replace(/url\(\s*(['"]?)(.*?)\1\s*\)/g, function (match, quote, url) {
       return 'url(' + quote + encode(url) + quote + ')'
+    }).replace(/@import\s+(['"])(.*?)\1/g, function (match, quote, url) {
+      return '@import ' + quote + encode(url) + quote
     })
   }
+  const realText = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent')
+  Object.defineProperty(HTMLStyleElement.prototype, 'textContent', {
+    configurable: true,
+    enumerable: true,
+    get() { return realText.get.call(this) },
+    set(value) { realText.set.call(this, value === null ? value : encodeCss(value)) },
+  })
   for (const name of ['insertRule', 'replace', 'replaceSync']) {
     const realRule = CSSStyleSheet.prototype[name]
     CSSStyleSheet.prototype[name] = function (text, index) {
       return realRule.call(this, encodeCss(text), index)
     }
   }
+${PAGE_SPRITES}
   function fixElement(element) {
+    if (element.tagName === 'use') {
+      const name = native.get.call(element, 'href') === null ? 'xlink:href' : 'href'
+      const value = native.get.call(element, name)
+      if (value !== null) fixUse(element, name, value)
+      return
+    }
     const style = native.get.call(element, 'style')
     if (style !== null) {
       const next = encodeCss(style)
@@ -377,10 +413,10 @@ const PAGE_SCRIPT = String.raw`function (config) {
       for (const node of record.addedNodes) {
         if (node.nodeType !== 1) continue
         fixElement(node)
-        for (const child of node.querySelectorAll('[src],[href],[action],[srcset],[poster],[data],[style],style')) fixElement(child)
+        for (const child of node.querySelectorAll('[src],[href],[action],[srcset],[poster],[data],[style],style,use')) fixElement(child)
       }
     }
-  }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] })
+  }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'href'] })
 
   getter(Document.prototype, 'URL', pageUrl)
   getter(Document.prototype, 'documentURI', pageUrl)
@@ -398,70 +434,7 @@ const PAGE_SCRIPT = String.raw`function (config) {
     return realPost(message, '*', transfer)
   }
 
-  const cookies = new Map()
-  for (const item of config.cookies.split('; ')) {
-    const index = item.indexOf('=')
-    if (index > 0) cookies.set(item.slice(0, index), item.slice(index + 1))
-  }
-  patch(Document.prototype, 'cookie', function () {
-    return {
-      get() { return Array.from(cookies, function (item) { return item[0] + '=' + item[1] }).join('; ') },
-      set(value) {
-        const text = String(value)
-        const pair = text.split(';')[0]
-        const index = pair.indexOf('=')
-        const name = pair.slice(0, index).trim()
-        const age = /;\s*max-age=(-?\d+)/i.exec(text)
-        const expires = /;\s*expires=([^;]+)/i.exec(text)
-        const gone = (age && Number(age[1]) <= 0) || (expires && Date.parse(expires[1]) <= Date.now())
-        if (gone) cookies.delete(name)
-        else cookies.set(name, pair.slice(index + 1).trim())
-        realFetch(prefix + 'cookie', { method: 'POST', body: JSON.stringify({ url: pageUrl(), cookie: text }) })
-      },
-    }
-  })
-
-  function storageArea(initial, save) {
-    const data = new Map(Object.entries(initial))
-    const area = {
-      getItem(name) { return data.has(String(name)) ? data.get(String(name)) : null },
-      setItem(name, value) { data.set(String(name), String(value)); save(data) },
-      removeItem(name) { data.delete(String(name)); save(data) },
-      clear() { data.clear(); save(data) },
-      key(index) { return Array.from(data.keys())[index] ?? null },
-      get length() { return data.size },
-    }
-    return new Proxy(area, {
-      get(target, name) {
-        if (name in target) return Reflect.get(target, name)
-        return typeof name === 'string' ? data.get(name) : undefined
-      },
-      set(target, name, value) { target.setItem(name, value); return true },
-      deleteProperty(target, name) { target.removeItem(name); return true },
-      has(target, name) { return name in target || data.has(name) },
-      ownKeys() { return Array.from(data.keys()) },
-      getOwnPropertyDescriptor(target, name) {
-        return data.has(name) ? { value: data.get(name), enumerable: true, configurable: true, writable: true } : undefined
-      },
-    })
-  }
-  let saveTimer = null
-  let pending = null
-  function sendStorage(keepalive) {
-    if (pending === null) return
-    const body = JSON.stringify({ origin: new URL(pageUrl()).origin, data: pending })
-    pending = null
-    realFetch(prefix + 'storage', { method: 'POST', body, keepalive: keepalive && body.length < 60000 })
-  }
-  const local = storageArea(config.storage, function (data) {
-    pending = Object.fromEntries(data)
-    clearTimeout(saveTimer)
-    saveTimer = setTimeout(function () { sendStorage(false) }, 50)
-  })
-  const session = storageArea({}, function () {})
-  Object.defineProperty(window, 'localStorage', { get() { return local }, configurable: true })
-  Object.defineProperty(window, 'sessionStorage', { get() { return session }, configurable: true })
-  addEventListener('pagehide', function () { sendStorage(true) })
+${PAGE_STORAGE}
 
   function report(replaced) {
     postPanel({ event: 'location', url: pageUrl(), replaced: replaced === true })
@@ -481,22 +454,23 @@ const PAGE_SCRIPT = String.raw`function (config) {
     navigate(url)
     return window
   }
+  addEventListener('click', function (event) {
+    if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return
+    const anchor = event.target instanceof Element ? event.target.closest('a[href], area[href]') : null
+    if (anchor === null || anchor.hasAttribute('download')) return
+    const next = URL.parse(anchor.href)
+    if (next === null || !/^https?:$/.test(next.protocol)) return
+    const escapes = /^_(top|parent|blank)$/i.test(anchor.target)
+    if (!escapes && (panel === null || next.host === new URL(pageUrl()).host)) return
+    event.preventDefault()
+    navigate(next.href)
+  })
   if (panel === null) return
   report()
   addEventListener('popstate', report)
   addEventListener('hashchange', report)
   addEventListener('pageshow', report)
   addEventListener('pagehide', function () { postPanel({ event: 'loading' }) })
-  addEventListener('click', function (event) {
-    if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return
-    const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null
-    if (anchor === null || anchor.hasAttribute('download')) return
-    const next = URL.parse(anchor.href)
-    if (next === null || !/^https?:$/.test(next.protocol)) return
-    if (next.host === new URL(pageUrl()).host) return
-    event.preventDefault()
-    navigate(next.href)
-  })
   addEventListener('message', function (event) {
     if (event.source !== panel || !event.data || event.data.offsite !== 'browser') return
     event.stopImmediatePropagation()

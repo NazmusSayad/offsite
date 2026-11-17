@@ -17,7 +17,7 @@ type Context = {
 }
 
 const CACHE_LIMIT = 500
-const MARKERS = /\b(?:location|top|parent|import)\b/
+const MARKERS = /\b(?:location|top|parent|import|export)\b/
 const WINDOWS = new Set(['window', 'self', 'globalThis', 'frames'])
 const FUNCTIONS = new Set([
   'FunctionDeclaration',

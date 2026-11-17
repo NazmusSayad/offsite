@@ -189,6 +189,14 @@ export function BrowserPanel(props: {
     )
   }
 
+  function reload() {
+    if (page === null) {
+      setVersion(version + 1)
+      return
+    }
+    command('reload')
+  }
+
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
       <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-2 border-b pr-3 pl-3">
@@ -219,13 +227,7 @@ export function BrowserPanel(props: {
             variant="ghost"
             title="Reload"
             aria-label="Reload"
-            onClick={() => {
-              if (page === null) {
-                setVersion(version + 1)
-                return
-              }
-              command('reload')
-            }}
+            onClick={reload}
           >
             <HugeiconsIcon
               icon={RefreshCwIcon}
@@ -247,7 +249,17 @@ export function BrowserPanel(props: {
               return
             }
             if (!/^~([\\/]|$)/.test(address)) {
-              openBrowser(browserAddress(address))
+              const next = browserAddress(address)
+              if (next !== target) {
+                openBrowser(next)
+                return
+              }
+              const input = event.currentTarget.elements.namedItem('address')
+              if (!(input instanceof HTMLInputElement)) {
+                throw new Error('the address field is missing')
+              }
+              input.value = next
+              reload()
               return
             }
             if (home === null) {
