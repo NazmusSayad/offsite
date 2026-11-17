@@ -367,6 +367,10 @@ export type RpcMethods = PullRequestMethods &
       params: void
       result: { id: string; name: string }[]
     }
+    'finishedCheck.models': {
+      params: void
+      result: { id: string; name: string }[]
+    }
     'browser.open': {
       params: { url: string; fromPage: boolean }
       result: string

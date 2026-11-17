@@ -122,6 +122,12 @@ const configSchema: z.ZodType<Config> = z.strictObject({
       workflowId: z.string().nullable().default(null),
     })
     .prefault({}),
+  finishedCheck: z
+    .strictObject({
+      openRouterModel: z.string().min(1).nullable().default(null),
+      openRouterKeyEnv: z.string().min(1).nullable().default(null),
+    })
+    .prefault({}),
 })
 
 export const defaults = configSchema.parse({})

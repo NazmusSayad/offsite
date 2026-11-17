@@ -23,6 +23,7 @@ const ISOLATED = {
   'review-guide': true,
   'pull-request': false,
   'commit-message': false,
+  'finished-check': true,
 } satisfies Record<(typeof generations.$inferSelect)['task'], boolean>
 
 export type Thread = Pick<SessionSettings, 'provider' | 'accountId' | 'model'>

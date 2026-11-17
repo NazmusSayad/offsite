@@ -38,6 +38,7 @@ import {
   taskOutput,
   writeProjectFile,
 } from '../services/files.ts'
+import { decisionModels } from '../services/finished-check.ts'
 import { logoFiles, readLogo } from '../services/logos.ts'
 import { searchMessages } from '../services/message-search.ts'
 import {
@@ -293,6 +294,7 @@ const handlers: Handlers = {
     transcribe(Buffer.from(params.audio, 'base64')),
   'dictation.ping': () => ping(),
   'dictation.workflows': () => workflows(),
+  'finishedCheck.models': () => decisionModels(),
   'files.browse': (_params, client) =>
     linkBrowse(client.device, client.address),
   'browser.open': (params) => openSite(params.url, params.fromPage),
