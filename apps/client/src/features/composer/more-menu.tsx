@@ -93,6 +93,10 @@ export function isSnoozeShortcut(event: KeyboardEvent) {
   )
 }
 
+function autoSnoozes(state: State) {
+  return state.prefs.autoMoveToSnooze && state.selection?.sessionId === null
+}
+
 function snoozesOnSend(state: State) {
   const selection = state.selection
   const session =
@@ -103,7 +107,7 @@ function snoozesOnSend(state: State) {
             item.machine === selection.machine &&
             item.id === selection.sessionId
         )
-  return state.prefs.autoMoveToSnooze || session?.status === 'snoozed'
+  return autoSnoozes(state) || session?.status === 'snoozed'
 }
 
 export function sendStatus(flipSnooze: boolean) {
@@ -111,7 +115,7 @@ export function sendStatus(flipSnooze: boolean) {
   if (flipSnooze) {
     return snoozesOnSend(state) ? 'active' : 'snoozed'
   }
-  return state.prefs.autoMoveToSnooze ? 'snoozed' : null
+  return autoSnoozes(state) ? 'snoozed' : null
 }
 
 export function MoreMenu(props: {
