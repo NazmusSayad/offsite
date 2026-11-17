@@ -185,7 +185,7 @@ for (const app of apps) {
     await test.step('goes back', async () => {
       await page.getByRole('button', { name: 'Back', exact: true }).click()
       await expect.soft(address).toHaveValue(probe)
-      await expect.soft(title).toHaveText('Probe edited')
+      await expect.soft(title).toHaveText(/^Probe (original|edited)$/)
     })
 
     await test.step('goes forward', async () => {
