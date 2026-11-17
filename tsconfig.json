@@ -9,5 +9,10 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["*.mts", "scripts/**/*.mts", "apps/__tests__/**/*.mts"]
+  "include": [
+    "*.mts",
+    "scripts/**/*.mts",
+    "apps/__tests__/**/*.mts",
+    "e2e/**/*.mts"
+  ]
 }

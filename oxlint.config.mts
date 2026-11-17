@@ -10,7 +10,7 @@ export default defineConfig({
   ],
   categories: { correctness: 'error' },
   options: { typeAware: true, typeCheck: true },
-  ignorePatterns: ['*.config.{js,ts,mjs,mts}'],
+  ignorePatterns: ['*.config.{js,ts,mjs,mts}', 'e2e/browser/devbox/probes'],
   settings: {
     react: { version: '19' },
     'import/resolver': {

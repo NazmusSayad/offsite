@@ -8,3 +8,4 @@ playwright-report/
 .source/
 next-env.d.ts
 *.tsbuildinfo
+e2e/browser/output/

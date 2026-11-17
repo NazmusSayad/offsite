@@ -1,0 +1,32 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Probe</title>
+  </head>
+  <body>
+    <h1 id="probe-title">Probe original</h1>
+    <p id="location"></p>
+    <button id="count">count 0</button>
+    <button id="api">api</button>
+    <p id="api-result"></p>
+    <p id="cookie"></p>
+    <a id="other" href="/">other</a>
+    <script>
+      let count = 0
+      const show = (id: string, text: string) => {
+        document.getElementById(id)!.textContent = text
+      }
+      show('location', location.href)
+      document.getElementById('count')!.addEventListener('click', () => {
+        count += 1
+        show('count', `count ${count}`)
+      })
+      document.getElementById('api')!.addEventListener('click', async () => {
+        const response = await fetch('/api/probe.json')
+        const data = await response.json()
+        show('api-result', data.message)
+        show('cookie', document.cookie.includes('probe=yes') ? 'yes' : 'no')
+      })
+    </script>
+  </body>
+</html>
