@@ -8,6 +8,7 @@ import {
   use,
   useCallback,
   useLayoutEffect,
+  useState,
 } from 'react'
 
 const FileViewer = lazy(async () => ({
@@ -153,11 +154,10 @@ function PeleDiagram(props: { code: string; onError: (code: string) => void }) {
 export function MermaidDiagram(props: {
   ref: RefObject<HTMLButtonElement | null>
   code: string
-  open: boolean
   actions: ReactNode
-  onOpenChange: (open: boolean) => void
   onError: (code: string) => void
 }) {
+  const [open, setOpen] = useState(false)
   return (
     <>
       <button
@@ -165,11 +165,11 @@ export function MermaidDiagram(props: {
         type="button"
         aria-label="View diagram"
         className="chat-markdown-mermaid focus-visible:ring-ring block w-full cursor-zoom-in overflow-x-auto rounded-lg outline-none focus-visible:ring-2"
-        onClick={() => props.onOpenChange(true)}
+        onClick={() => setOpen(true)}
       >
         <Diagram code={props.code} onError={props.onError} />
       </button>
-      {props.open && (
+      {open && (
         <Suspense>
           <FileViewer
             name="Mermaid diagram"
@@ -178,7 +178,7 @@ export function MermaidDiagram(props: {
               src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(diagramSvg(props.ref.current))}`,
             })}
             actions={props.actions}
-            onClose={() => props.onOpenChange(false)}
+            onClose={() => setOpen(false)}
           />
         </Suspense>
       )}

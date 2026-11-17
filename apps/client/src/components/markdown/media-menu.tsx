@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useCopy } from '@/lib/clipboard'
-import { downloadFile, saveBlob } from '@/lib/media'
+import { saveBlob } from '@/lib/media'
 import { showError } from '@/lib/store'
 
 export type MediaSubject = {
@@ -343,15 +343,11 @@ function withSvg(
 }
 
 async function download(subject: MediaSubject) {
+  const blob = await fetchBlob(subject.src)
   if (subject.local && subject.address !== null) {
-    await downloadFile(subject.src, subject.address)
+    saveBlob(blob, subject.address)
     return
   }
-  const response = await fetch(subject.src)
-  if (!response.ok) {
-    throw new Error(await response.text())
-  }
-  const blob = await response.blob()
   const extension = [...mediaTypes].find((entry) => entry[1] === blob.type)
   saveBlob(
     blob,
@@ -359,12 +355,16 @@ async function download(subject: MediaSubject) {
   )
 }
 
-async function pngImage(src: string) {
+async function fetchBlob(src: string) {
   const response = await fetch(src)
   if (!response.ok) {
     throw new Error(await response.text())
   }
-  const blob = await response.blob()
+  return await response.blob()
+}
+
+async function pngImage(src: string) {
+  const blob = await fetchBlob(src)
   if (blob.type === 'image/png') {
     return blob
   }

@@ -27,6 +27,7 @@ export function PreviewDialog(props: {
           close.focus({ preventScroll: true })
         }}
         onCloseAutoFocus={props.onCloseAutoFocus}
+        onContextMenu={(event) => event.stopPropagation()}
       >
         {props.children}
       </DialogContent>
