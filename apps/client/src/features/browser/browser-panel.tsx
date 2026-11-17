@@ -78,6 +78,9 @@ export function BrowserPanel(props: {
   const online = useStore(
     (state) => machineOf(state, props.machine).status === 'online'
   )
+  const home = useStore(
+    (state) => machineOf(state, props.machine).system?.homeDir ?? null
+  )
 
   useEffect(() => {
     if (target === null || !online) {
@@ -243,7 +246,16 @@ export function BrowserPanel(props: {
             if (address === '') {
               return
             }
-            openBrowser(browserAddress(address))
+            if (!/^~([\\/]|$)/.test(address)) {
+              openBrowser(browserAddress(address))
+              return
+            }
+            if (home === null) {
+              throw new Error(
+                'the home folder of this machine is not known yet'
+              )
+            }
+            openBrowser(`${home}${address.slice(1)}`)
           }}
         >
           <Input
