@@ -196,7 +196,12 @@ async function forward(
   response: ServerResponse
 ) {
   const headers = upstreamHeaders(site, target, request)
-  headers['accept-encoding'] = 'gzip, deflate, br'
+  const encodings = (request.headers['accept-encoding'] ?? '')
+    .split(',')
+    .map((item) => item.split(';')[0]?.trim() ?? '')
+    .filter((item) => item === 'gzip' || item === 'deflate' || item === 'br')
+  headers['accept-encoding'] =
+    encodings.length === 0 ? 'identity' : encodings.join(', ')
   const upstream = openUpstream(site, target, request, headers)
   response.on('close', () => upstream.destroy())
   const answer = once(upstream, 'response') as Promise<[IncomingMessage]>
