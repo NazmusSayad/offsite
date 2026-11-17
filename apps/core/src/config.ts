@@ -64,6 +64,11 @@ export type DictationConfig = {
   workflowId: string | null
 }
 
+export type FinishedCheckConfig = {
+  openRouterModel: string | null
+  openRouterKeyEnv: string
+}
+
 export type Config = {
   version: 4
   claude: {
@@ -92,6 +97,7 @@ export type Config = {
   offsiteSkills: boolean
   terminal: TerminalConfig
   dictation: DictationConfig
+  finishedCheck: FinishedCheckConfig
 }
 
 export type ConfigWithDefaults = {

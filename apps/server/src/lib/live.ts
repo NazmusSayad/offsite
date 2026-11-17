@@ -35,7 +35,7 @@ export function activity() {
       prompted: run.prompted,
       compacting: run.compacting,
       backgroundAgents: run.backgroundAgents,
-      holdsCompletion: !run.failed && run.agentTasks > 0,
+      holdsCompletion: holdsCompletion(run),
       tasks: run.tasks,
       settings: run.settings,
       workingSince: workingSince.get(run.sessionId) ?? null,
@@ -47,6 +47,13 @@ export function activity() {
     }
   }
   return result
+}
+
+export function holdsCompletion(run: LiveRun) {
+  return (
+    !run.failed &&
+    (run.agentTasks > 0 || (run.provider === 'claude' && run.finished.awaiting))
+  )
 }
 
 export function broadcastActivity() {
