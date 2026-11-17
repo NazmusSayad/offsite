@@ -1,5 +1,3 @@
-import { readdir, readFile, stat } from 'node:fs/promises'
-import path from 'node:path'
 import {
   getSessionMessages,
   getSubagentMessages,
@@ -8,81 +6,10 @@ import {
 } from '@anthropic-ai/claude-agent-sdk'
 import type { Item } from '@offsite/core/items'
 import type { RpcMethods, ServerEvent } from '@offsite/core/protocol'
-import { claudeBaseDir } from '../../storage/config.ts'
 import { runs } from '../live.ts'
 import { contextTokens, type Message, toMessage } from './content.ts'
 import { toItems } from './items.ts'
-
-async function sessionFile(sessionId: string) {
-  const projectsDir = path.join(claudeBaseDir(), 'projects')
-  for (const dir of await readdir(projectsDir)) {
-    const file = path.join(projectsDir, dir, `${sessionId}.jsonl`)
-    try {
-      return { file, stats: await stat(file) }
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        continue
-      }
-      throw error
-    }
-  }
-  return null
-}
-
-async function readSession(sessionId: string, file: string) {
-  const text = await readFile(file, 'utf8')
-  const entries = text.split('\n').flatMap((line): SessionStoreEntry[] => {
-    const entry = parseLine(line)
-    return entry !== null && typeof entry.type === 'string'
-      ? [{ ...entry, type: entry.type }]
-      : []
-  })
-  const pages: { before: number; disk: SessionMessage[] }[] = []
-  const seen = new Set<string>()
-  let before: number | null = entries.length
-  while (before !== null) {
-    const kept = entries.slice(0, before)
-    const disk = await getSessionMessages(sessionId, {
-      sessionStore: { append: () => Promise.resolve(), load: async () => kept },
-    })
-    pages.push({ before, disk: disk.filter((item) => !seen.has(item.uuid)) })
-    for (const item of disk) {
-      seen.add(item.uuid)
-    }
-    before = compactedBefore(entries, disk[0]?.uuid)
-  }
-  return { entries, pages }
-}
-
-let cached: {
-  file: string
-  mtimeMs: number
-  size: number
-  session: ReturnType<typeof readSession>
-} | null = null
-
-async function loadSession(sessionId: string) {
-  const found = await sessionFile(sessionId)
-  if (found === null) {
-    return null
-  }
-  if (
-    cached !== null &&
-    cached.file === found.file &&
-    cached.mtimeMs === found.stats.mtimeMs &&
-    cached.size === found.stats.size
-  ) {
-    return cached.session
-  }
-  const session = readSession(sessionId, found.file)
-  cached = {
-    file: found.file,
-    mtimeMs: found.stats.mtimeMs,
-    size: found.stats.size,
-    session,
-  }
-  return session
-}
+import { compactedBefore, loadSession, type Session } from './session-file.ts'
 
 function messageTimes(entries: SessionStoreEntry[]) {
   const times = new Map<string, number>()
@@ -102,31 +29,6 @@ function toolOutputs(entries: SessionStoreEntry[]) {
     }
   }
   return outputs
-}
-
-function compactedBefore(
-  entries: SessionStoreEntry[],
-  uuid: string | undefined
-) {
-  if (uuid === undefined) {
-    return null
-  }
-  const start = entries.findIndex((entry) => entry.uuid === uuid)
-  const index = entries.findLastIndex(
-    (entry, position) =>
-      position < start &&
-      entry.type === 'system' &&
-      entry.subtype === 'compact_boundary'
-  )
-  return index < 0 ? null : index
-}
-
-function parseLine(line: string): Record<string, unknown> | null {
-  try {
-    return JSON.parse(line) as Record<string, unknown>
-  } catch {
-    return null
-  }
 }
 
 function mainMessages(disk: SessionMessage[], entries: SessionStoreEntry[]) {
@@ -177,9 +79,11 @@ export async function image(sessionId: string, uuid: string, index: number) {
   if (session === null) {
     throw new Error(`session ${sessionId} not found`)
   }
-  const item = session.pages
-    .flatMap((page) => page.disk)
-    .find((candidate) => candidate.uuid === uuid)
+  const item =
+    findMessage(session, uuid) ??
+    (session.start === 0
+      ? undefined
+      : findMessage(await loadSession(sessionId, true), uuid))
   if (item === undefined) {
     throw new Error(`message ${uuid} not found`)
   }
@@ -193,6 +97,15 @@ export async function image(sessionId: string, uuid: string, index: number) {
     throw new Error(`message ${uuid} has no image ${index}`)
   }
   return { mediaType: block.mediaType, data: block.data }
+}
+
+function findMessage(session: Session | null, uuid: string) {
+  if (session === null) {
+    throw new Error('session not found')
+  }
+  return session.pages
+    .flatMap((page) => page.disk)
+    .find((candidate) => candidate.uuid === uuid)
 }
 
 export async function shownMessages(sessionId: string) {
@@ -241,24 +154,39 @@ export async function history(sessionId: string): Promise<ServerEvent> {
     settings: run?.settings ?? null,
     context:
       run?.context ?? (tokens === null ? null : { tokens, window: null }),
-    before: compactedBefore(entries, disk[0]?.uuid),
+    before: boundaryOffset(session, compactedBefore(entries, disk[0]?.uuid)),
     partial: run?.partial ?? '',
   }
 }
 
 export async function earlier(sessionId: string, before: number) {
-  const session = await loadSession(sessionId)
+  const session = await loadSession(sessionId, true)
   if (session === null) {
     throw new Error(`session ${sessionId} not found`)
   }
-  const index = session.pages.findIndex((page) => page.before === before)
-  if (index < 0) {
-    throw new Error(`no messages before entry ${before}`)
+  const entry = session.offsets.indexOf(before)
+  const index = session.pages.findIndex((page) => page.before === entry)
+  if (entry < 0 || index < 0) {
+    throw new Error(`no messages before byte ${before}`)
   }
   const items = toItems(
     mainMessages(session.pages[index].disk, session.entries)
   )
-  return { items, before: session.pages[index + 1]?.before ?? null }
+  return {
+    items,
+    before: boundaryOffset(session, session.pages[index + 1]?.before ?? null),
+  }
+}
+
+function boundaryOffset(session: Session | null, entry: number | null) {
+  if (session === null || entry === null) {
+    return null
+  }
+  const offset = session.offsets[entry]
+  if (offset === undefined) {
+    throw new Error(`entry ${entry} has no position in the session file`)
+  }
+  return offset
 }
 
 export async function agentMessages(
