@@ -407,16 +407,25 @@ ${PAGE_SPRITES}
     const set = native.get.call(element, 'srcset')
     if (set !== null && !set.includes(prefix)) native.set.call(element, 'srcset', encodeSet(set))
   }
+  const linkedElements = '[src],[href],[action],[srcset],[poster],[data],[style],style,use'
   new MutationObserver(function (records) {
     for (const record of records) {
       if (record.type === 'attributes' || record.target.nodeName === 'STYLE') fixElement(record.target)
       for (const node of record.addedNodes) {
         if (node.nodeType !== 1) continue
         fixElement(node)
-        for (const child of node.querySelectorAll('[src],[href],[action],[srcset],[poster],[data],[style],style,use')) fixElement(child)
+        for (const child of node.querySelectorAll(linkedElements)) fixElement(child)
       }
     }
   }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'href'] })
+  const realParse = DOMParser.prototype.parseFromString
+  DOMParser.prototype.parseFromString = function (text, type) {
+    const parsed = realParse.call(this, text, type)
+    if (type === 'text/html') {
+      for (const element of parsed.querySelectorAll(linkedElements)) fixElement(element)
+    }
+    return parsed
+  }
 
   getter(Document.prototype, 'URL', pageUrl)
   getter(Document.prototype, 'documentURI', pageUrl)
