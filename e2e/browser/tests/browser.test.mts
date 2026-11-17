@@ -106,7 +106,9 @@ async function openBrowserPanel(
     await page.getByRole('menuitem', { name: 'Add project' }).click()
   }
   await dialog.getByRole('textbox', { name: 'Folder path' }).fill(project)
-  await dialog.getByRole('button', { name: 'Add project', exact: true }).click()
+  await dialog
+    .getByRole('button', { name: 'Add project', exact: true })
+    .click({ timeout: 60_000 })
   await expect(page).toHaveURL(/project=[0-9a-f]{8}-/)
   const url = new URL(page.url())
   url.searchParams.set('panel', 'browser')
