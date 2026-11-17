@@ -9,8 +9,6 @@ const FileViewer = lazy(async () => ({
 
 const database = createStore('offsite-mermaid', 'diagrams')
 
-let diagrams = 0
-
 export function useMermaid(code: string | null) {
   const theme = useStore((state) => state.prefs.theme)
   const [svg, setSvg] = useState<string | null>(null)
@@ -61,8 +59,10 @@ export function useMermaid(code: string | null) {
               ),
             },
           })
-          diagrams += 1
-          return mermaid.render(`mermaid-${diagrams}`, source)
+          return mermaid.render(
+            `mermaid-${Math.random().toString(36).slice(2)}`,
+            source
+          )
         })
         .then((result) => {
           void set(key, result.svg, database)
