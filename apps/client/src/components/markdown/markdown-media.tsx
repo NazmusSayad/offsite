@@ -24,7 +24,13 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { ViewableImage } from '@/components/viewable-image'
 import { ViewableVideo } from '@/components/viewable-video'
 import { useCopy } from '@/lib/clipboard'
-import { downloadFile, githubMediaUrl, mediaKind, mediaUrl } from '@/lib/media'
+import {
+  cachedMediaLink,
+  downloadFile,
+  githubMediaUrl,
+  mediaKind,
+  mediaLink,
+} from '@/lib/media'
 import { type Place, showError, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
@@ -56,19 +62,32 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
   const selection = useStore((state) => state.selection)
   const clipboard = useCopy()
   const [media, setMedia] = useState<
-    { path: string; src: string } | { path: string; error: string } | null
-  >(null)
+    | {
+        path: string
+        src: string
+        size: { width: number; height: number } | null
+      }
+    | { path: string; error: string }
+    | null
+  >(() => {
+    const cached =
+      selection === null ? null : cachedMediaLink(selection, props.path)
+    return cached === null ? null : { path: props.path, ...cached }
+  })
 
   useEffect(() => {
     if (selection === null) {
       return
     }
+    if (cachedMediaLink(selection, props.path) !== null) {
+      return
+    }
     let current = true
     async function load(place: Place, path: string) {
       try {
-        const src = await mediaUrl(place, path)
+        const link = await mediaLink(place, path)
         if (current) {
-          setMedia({ path, src })
+          setMedia({ path, ...link })
         }
       } catch (caught) {
         if (current) {
@@ -97,7 +116,9 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
       className={cn(
         'border-border bg-muted/50 flex flex-col gap-1 rounded-xl border p-1 my-2 [&+br]:hidden',
         mediaKind(props.path) === 'audio' && 'w-fit max-w-[min(100%,36rem)]',
-        mediaKind(props.path) !== 'audio' && 'w-full max-w-sm'
+        mediaKind(props.path) === 'video' && 'w-full max-w-sm',
+        (mediaKind(props.path) ?? 'image') === 'image' &&
+          'w-fit max-w-full min-w-60'
       )}
     >
       <span className="text-muted-foreground flex items-center gap-1.5 pl-1.5 [contain:inline-size]">
@@ -153,10 +174,14 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
           name={props.path}
           kind={mediaKind(props.path) ?? 'image'}
           raw={props.raw}
+          size={loaded.size}
         />
       )}
-      {loaded === null && mediaKind(props.path) !== 'audio' && (
+      {loaded === null && mediaKind(props.path) === 'video' && (
         <span className="border-border/40 block aspect-[3/2] w-full rounded-lg border" />
+      )}
+      {loaded === null && (mediaKind(props.path) ?? 'image') === 'image' && (
+        <span className="bg-muted/60 block aspect-video w-[30rem] max-w-full rounded-lg" />
       )}
     </span>
   )
@@ -221,6 +246,7 @@ export function GithubMedia(props: {
             name="Video"
             kind="video"
             raw={props.raw}
+            size={null}
           />
         )}
       </span>
@@ -235,8 +261,10 @@ export function GithubMedia(props: {
       />
     )
   }
-  return (
-    loaded !== null && (
+  if (props.size !== undefined) {
+    return loaded === null ? (
+      <span className="block max-w-full" style={props.size} />
+    ) : (
       <img
         src={loaded.src}
         alt={props.alt}
@@ -247,6 +275,22 @@ export function GithubMedia(props: {
         onError={() => setFailed(loaded.src)}
       />
     )
+  }
+  return (
+    <span className="my-2 block w-fit max-w-full [&+br]:hidden">
+      {loaded === null ? (
+        <span className="bg-muted/60 block aspect-video w-[30rem] max-w-full rounded-lg" />
+      ) : (
+        <Media
+          src={loaded.src}
+          alt={props.alt}
+          name="Image"
+          kind="image"
+          raw={props.raw}
+          size={null}
+        />
+      )}
+    </span>
   )
 }
 
@@ -256,6 +300,7 @@ export function Media(props: {
   name: string
   kind: 'image' | 'video' | 'audio'
   raw: string
+  size: { width: number; height: number } | null
 }) {
   const [failed, setFailed] = useState<string | null>(null)
   if (failed === props.src) {
@@ -291,14 +336,70 @@ export function Media(props: {
     )
   }
   return (
-    <ViewableImage
+    <MarkdownImage
       src={props.src}
       alt={props.alt}
       name={props.name}
-      className="border-border/40 block aspect-[3/2] w-full overflow-hidden rounded-lg border"
-      imageClassName="pointer-events-auto size-full object-contain"
+      size={props.size}
       onError={() => setFailed(props.src)}
     />
+  )
+}
+
+function MarkdownImage(props: {
+  src: string
+  alt: string
+  name: string
+  size: { width: number; height: number } | null
+  onError: () => void
+}) {
+  const [measured, setMeasured] = useState<{
+    src: string
+    size: { width: number; height: number }
+  } | null>(null)
+  const size =
+    props.size ?? (measured?.src === props.src ? measured.size : null)
+
+  function measure(image: HTMLImageElement) {
+    setMeasured({
+      src: props.src,
+      size: { width: image.naturalWidth, height: image.naturalHeight },
+    })
+  }
+
+  if (size !== null) {
+    return (
+      <ViewableImage
+        src={props.src}
+        alt={props.alt}
+        name={props.name}
+        className="block max-w-full overflow-hidden"
+        style={{
+          width: `min(${size.width}px, 30rem, ${(30 * size.width) / size.height}rem)`,
+          aspectRatio: `${size.width} / ${size.height}`,
+        }}
+        imageClassName="pointer-events-auto block size-full"
+        onError={props.onError}
+      />
+    )
+  }
+  return (
+    <span className="bg-muted/60 relative block aspect-video w-[30rem] max-w-full rounded-lg">
+      <img
+        ref={(image) => {
+          if (image !== null && image.complete && image.naturalWidth > 0) {
+            measure(image)
+          }
+        }}
+        src={props.src}
+        alt=""
+        aria-hidden
+        decoding="async"
+        className="invisible absolute inset-0 size-full"
+        onLoad={(event) => measure(event.currentTarget)}
+        onError={props.onError}
+      />
+    </span>
   )
 }
 

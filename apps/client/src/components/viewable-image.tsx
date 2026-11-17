@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { type CSSProperties, lazy, Suspense, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 const FileViewer = lazy(async () => ({
@@ -10,6 +10,7 @@ export function ViewableImage(props: {
   alt: string
   name: string
   className?: string
+  style?: CSSProperties
   imageClassName?: string
   onError?: () => void
 }) {
@@ -23,6 +24,7 @@ export function ViewableImage(props: {
           'focus-visible:ring-ring cursor-zoom-in rounded-lg outline-none focus-visible:ring-2',
           props.className
         )}
+        style={props.style}
         onClick={() => setOpen(true)}
       >
         <img

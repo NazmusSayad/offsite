@@ -1,10 +1,17 @@
 import { GlobeIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { memo, useState } from 'react'
+import {
+  type ComponentProps,
+  createContext,
+  memo,
+  useContext,
+  useState,
+} from 'react'
 import { VscGithubInverted } from 'react-icons/vsc'
 import ReactMarkdown, {
   type Components,
   defaultUrlTransform,
+  type ExtraProps,
 } from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
@@ -53,6 +60,8 @@ const schema = {
 }
 
 const failedHosts = new Set<string>()
+
+const MarkdownSource = createContext({ text: '', streaming: false })
 
 const components: Components = {
   blockquote({ node, children }) {
@@ -218,7 +227,7 @@ const components: Components = {
       <span
         className={cn(
           'my-2 block [&+br]:hidden',
-          mediaKind(src) !== 'audio' && 'w-full max-w-sm'
+          mediaKind(src) === 'video' && 'w-full max-w-sm'
         )}
       >
         <Media
@@ -227,32 +236,63 @@ const components: Components = {
           name={src.startsWith('data:') ? 'Image' : src.split(/[?#]/)[0]}
           kind={mediaKind(src) ?? 'image'}
           raw={`![${alt ?? ''}](${src})`}
+          size={null}
         />
       </span>
     )
   },
-  pre({ node, children }) {
-    const code = node?.children[0]
-    if (code?.type !== 'element' || code.tagName !== 'code') {
-      return <pre>{children}</pre>
-    }
-    const text = code.children
-      .map((child) => (child.type === 'text' ? child.value : ''))
-      .join('')
-    const classes = code.properties.className
-    const language = Array.isArray(classes)
-      ? classes
-          .map(String)
-          .find((name) => name.startsWith('language-'))
-          ?.slice('language-'.length)
-      : undefined
-    return (
-      <CodeBlock
-        code={text.replace(/\n$/, '')}
-        language={language === 'gitignore' ? 'ini' : (language ?? 'text')}
-      />
-    )
-  },
+  pre: MarkdownPre,
+}
+
+function MarkdownPre(props: ComponentProps<'pre'> & ExtraProps) {
+  const source = useContext(MarkdownSource)
+  const node = props.node
+  const code = node?.children[0]
+  if (code?.type !== 'element' || code.tagName !== 'code') {
+    return <pre>{props.children}</pre>
+  }
+  const text = code.children
+    .map((child) => (child.type === 'text' ? child.value : ''))
+    .join('')
+  const classes = code.properties.className
+  const language = Array.isArray(classes)
+    ? classes
+        .map(String)
+        .find((name) => name.startsWith('language-'))
+        ?.slice('language-'.length)
+    : undefined
+  return (
+    <CodeBlock
+      code={text.replace(/\n$/, '')}
+      language={language === 'gitignore' ? 'ini' : (language ?? 'text')}
+      open={source.streaming && !closedFence(source.text, node?.position, text)}
+    />
+  )
+}
+
+function closedFence(
+  text: string,
+  position:
+    | { start: { offset?: number }; end: { offset?: number } }
+    | undefined,
+  code: string
+) {
+  const start = position?.start.offset
+  const end = position?.end.offset
+  if (start === undefined || end === undefined) {
+    return false
+  }
+  const fence = text.slice(start, end)
+  const opening = /^(?:`{3,}|~{3,})/.exec(fence)?.[0]
+  const closing = /(?:^|\n)[ \t>]*(`{3,}|~{3,})[ \t\r]*$/.exec(fence)?.[1]
+  return (
+    opening !== undefined &&
+    closing !== undefined &&
+    opening[0] === closing[0] &&
+    closing.length >= opening.length &&
+    fence.replace(/\r$/, '').split(/\r\n|\r|\n/).length >
+      code.split(/\r\n|\r|\n/).length
+  )
 }
 
 export const Markdown = memo(MarkdownView)
@@ -278,33 +318,37 @@ function MarkdownView(props: {
       )}
       data-streaming={props.streaming === true ? '' : undefined}
     >
-      <ReactMarkdown
-        remarkPlugins={[
-          remarkGfm,
-          remarkGithubAlerts,
-          remarkWindowsPaths,
-          ...(props.lineBreaks === true ? [remarkBreaks] : []),
-          ...(props.streaming === true ? [parser] : []),
-          ...(props.skills === undefined || props.skills.length === 0
-            ? []
-            : [remarkSkills(props.skills)]),
-          ...(props.images === true ? [remarkImages()] : []),
-          ...(props.uploads === true ? [remarkUploads()] : []),
-          ...(props.mentions === true ? [remarkMentions()] : []),
-          ...(props.rawHtml === false ? [] : [remarkUnclosedHtml]),
-        ]}
-        rehypePlugins={
-          props.rawHtml === false
-            ? [rehypeStandaloneImages]
-            : [rehypeRaw, [rehypeSanitize, schema], rehypeStandaloneImages]
-        }
-        components={{ ...components, ...props.components }}
-        urlTransform={(url) =>
-          url.startsWith('file:') ? url : defaultUrlTransform(url)
-        }
+      <MarkdownSource
+        value={{ text: props.text, streaming: props.streaming === true }}
       >
-        {props.text}
-      </ReactMarkdown>
+        <ReactMarkdown
+          remarkPlugins={[
+            remarkGfm,
+            remarkGithubAlerts,
+            remarkWindowsPaths,
+            ...(props.lineBreaks === true ? [remarkBreaks] : []),
+            ...(props.streaming === true ? [parser] : []),
+            ...(props.skills === undefined || props.skills.length === 0
+              ? []
+              : [remarkSkills(props.skills)]),
+            ...(props.images === true ? [remarkImages()] : []),
+            ...(props.uploads === true ? [remarkUploads()] : []),
+            ...(props.mentions === true ? [remarkMentions()] : []),
+            ...(props.rawHtml === false ? [] : [remarkUnclosedHtml]),
+          ]}
+          rehypePlugins={
+            props.rawHtml === false
+              ? [rehypeStandaloneImages]
+              : [rehypeRaw, [rehypeSanitize, schema], rehypeStandaloneImages]
+          }
+          components={{ ...components, ...props.components }}
+          urlTransform={(url) =>
+            url.startsWith('file:') ? url : defaultUrlTransform(url)
+          }
+        >
+          {props.text}
+        </ReactMarkdown>
+      </MarkdownSource>
     </div>
   )
 }

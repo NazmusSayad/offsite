@@ -587,13 +587,30 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .chat-markdown[data-streaming] > *,
-  .chat-markdown[data-streaming] .chat-markdown-shiki {
+  .chat-markdown[data-streaming] .chat-markdown-shiki,
+  .chat-markdown[data-streaming] .chat-markdown-mermaid {
     transition: opacity 600ms ease-out;
 
     @starting-style {
       opacity: 0;
     }
   }
+}
+
+.pele {
+  --pele-bg: var(--secondary);
+  --pele-fg: var(--foreground);
+  --pele-muted: var(--muted-foreground);
+  --pele-line: var(--diagram-line);
+  --pele-surface: var(--diagram-surface);
+  --pele-surface-alt: var(--accent);
+  --pele-border: var(--diagram-line);
+  --pele-accent: var(--primary);
+  --pele-critical: var(--destructive);
+}
+
+.dark .pele {
+  --pele-bg: color-mix(in srgb, var(--input) 32%, var(--background));
 }
 
 .chat-markdown-table-scroll {

@@ -16,7 +16,7 @@ import {
 } from '@/components/markdown/export-image'
 import { Highlight } from '@/components/markdown/highlight'
 import { LanguageIcon } from '@/components/markdown/language-icon'
-import { MermaidDiagram, useMermaid } from '@/components/markdown/mermaid'
+import { diagramSvg, MermaidDiagram } from '@/components/markdown/mermaid'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -31,13 +31,23 @@ import { showError } from '@/lib/store'
 
 export const CodeBlock = memo(CodeBlockView)
 
-function CodeBlockView(props: { code: string; language: string }) {
+function CodeBlockView(props: {
+  code: string
+  language: string
+  open: boolean
+}) {
   const [wrap, setWrap] = useState(true)
   const [source, setSource] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
+  const [failed, setFailed] = useState<string | null>(null)
   const diagram = useRef<HTMLButtonElement>(null)
   const language = languageInfo(props.language)
-  const svg = useMermaid(props.language === 'mermaid' ? props.code : null)
+  const drawable =
+    props.language === 'mermaid' &&
+    !props.open &&
+    props.code.trim() !== '' &&
+    failed !== props.code
+  const showDiagram = drawable && !source
   const clipboard = useCopy()
   const wrapLabel = wrap ? 'Disable line wrap' : 'Wrap lines'
   const sourceLabel = source ? 'Show diagram' : 'Show code'
@@ -61,7 +71,7 @@ function CodeBlockView(props: { code: string; language: string }) {
           </span>
         </span>
         <span className="flex items-center gap-0.5" role="toolbar">
-          {svg !== null && (
+          {drawable && (
             <Tooltip label={sourceLabel}>
               <Button
                 type="button"
@@ -75,7 +85,7 @@ function CodeBlockView(props: { code: string; language: string }) {
               </Button>
             </Tooltip>
           )}
-          {(svg === null || source) && (
+          {!showDiagram && (
             <Tooltip label={wrapLabel}>
               <Button
                 type="button"
@@ -89,7 +99,7 @@ function CodeBlockView(props: { code: string; language: string }) {
               </Button>
             </Tooltip>
           )}
-          {svg !== null && !source ? (
+          {showDiagram ? (
             <>
               <Tooltip label="Fullscreen">
                 <Button
@@ -129,12 +139,18 @@ function CodeBlockView(props: { code: string; language: string }) {
                     Download as Code
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onSelect={() =>
-                      saveBlob(
-                        new Blob([svg], { type: 'image/svg+xml' }),
-                        'mermaid-diagram.svg'
-                      )
-                    }
+                    onSelect={() => {
+                      try {
+                        saveBlob(
+                          new Blob([diagramSvg(diagram.current)], {
+                            type: 'image/svg+xml',
+                          }),
+                          'mermaid-diagram.svg'
+                        )
+                      } catch (error) {
+                        showError(error)
+                      }
+                    }}
                   >
                     Download as SVG
                   </DropdownMenuItem>
@@ -176,7 +192,15 @@ function CodeBlockView(props: { code: string; language: string }) {
                   >
                     Copy as Code
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => void clipboard.copy(svg)}>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      try {
+                        void clipboard.copy(diagramSvg(diagram.current))
+                      } catch (error) {
+                        showError(error)
+                      }
+                    }}
+                  >
                     Copy as SVG
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -209,12 +233,13 @@ function CodeBlockView(props: { code: string; language: string }) {
           )}
         </span>
       </div>
-      {svg !== null && !source ? (
+      {showDiagram ? (
         <MermaidDiagram
           ref={diagram}
-          svg={svg}
+          code={props.code}
           open={fullscreen}
           onOpenChange={setFullscreen}
+          onError={setFailed}
         />
       ) : (
         <Highlight code={props.code} language={props.language} />

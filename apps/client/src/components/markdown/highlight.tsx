@@ -6,11 +6,18 @@ import { useCodeTheme } from '@/lib/theme'
 
 const log = logger.withTag('markdown')
 
+const highlighted = new Map<string, ReactNode>()
+
 export function Highlight(props: { code: string; language: string }) {
   const [node, setNode] = useState<ReactNode>(null)
   const codeTheme = useCodeTheme()
+  const key = `${codeTheme}\n${props.language}\n${props.code}`
+  const cached = highlighted.get(key)
 
   useEffect(() => {
+    if (highlighted.has(key)) {
+      return
+    }
     let current = true
     import('@pierre/diffs')
       .then(({ getSharedHighlighter, renderTokenLines }) =>
@@ -41,41 +48,52 @@ export function Highlight(props: { code: string; language: string }) {
           })
       )
       .then((lines) => {
+        const result = (
+          <div className="chat-markdown-shiki">
+            {toJsxRuntime(
+              {
+                type: 'element',
+                tagName: 'pre',
+                properties: { className: ['shiki'] },
+                children: [
+                  {
+                    type: 'element',
+                    tagName: 'code',
+                    properties: {},
+                    children: lines,
+                  },
+                ],
+              },
+              { Fragment, jsx, jsxs }
+            )}
+          </div>
+        )
+        highlighted.set(key, result)
+        const oldest = highlighted.keys().next()
+        if (highlighted.size > 500 && !oldest.done) {
+          highlighted.delete(oldest.value)
+        }
         if (current) {
-          setNode(
-            <div className="chat-markdown-shiki">
-              {toJsxRuntime(
-                {
-                  type: 'element',
-                  tagName: 'pre',
-                  properties: { className: ['shiki'] },
-                  children: [
-                    {
-                      type: 'element',
-                      tagName: 'code',
-                      properties: {},
-                      children: lines,
-                    },
-                  ],
-                },
-                { Fragment, jsx, jsxs }
-              )}
-            </div>
-          )
+          setNode(result)
         }
       })
       .catch((error: unknown) => log.error(error))
     return () => {
       current = false
     }
-  }, [props.code, props.language, codeTheme])
+  }, [key, props.code, props.language, codeTheme])
 
+  if (cached !== undefined) {
+    return cached
+  }
   if (node !== null) {
     return node
   }
   return (
-    <pre>
-      <code>{props.code}</code>
-    </pre>
+    <div className="chat-markdown-shiki">
+      <pre className="shiki invisible" aria-hidden>
+        <code>{props.code}</code>
+      </pre>
+    </div>
   )
 }

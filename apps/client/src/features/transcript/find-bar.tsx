@@ -178,5 +178,15 @@ function findRanges(root: HTMLElement, query: string) {
       ranges.push(range)
     }
   }
-  return ranges
+  const boxes = new Map(
+    ranges.map((range) => [range, range.getBoundingClientRect()])
+  )
+  return ranges.sort((first, second) => {
+    const a = boxes.get(first)
+    const b = boxes.get(second)
+    if (a === undefined || b === undefined) {
+      throw new Error('a match has no position')
+    }
+    return a.top - b.top || a.left - b.left
+  })
 }

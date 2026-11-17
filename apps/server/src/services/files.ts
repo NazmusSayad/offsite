@@ -19,6 +19,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import path from 'node:path'
 import { mediaTypes } from '@offsite/core/media'
 import type { FilePreview } from '@offsite/core/projects'
+import sharp from 'sharp'
 import { isPaired } from '../storage/auth.ts'
 import { hasCode, home } from '../storage/storage.ts'
 
@@ -182,7 +183,7 @@ export function deleteProjectEntry(cwd: string, file: string) {
   rmSync(resolveProjectEntry(cwd, file), { recursive: true })
 }
 
-export function linkProjectMedia(
+export async function linkProjectMedia(
   cwd: string,
   file: string,
   device: string | null
@@ -196,7 +197,19 @@ export function linkProjectMedia(
   if (mediaType === undefined) {
     throw new Error(`${file} is not an image, video or audio file`)
   }
-  return addLink(full, mediaType, device)
+  return {
+    token: addLink(full, mediaType, device),
+    size: mediaType.startsWith('image/') ? await imageSize(full) : null,
+  }
+}
+
+async function imageSize(file: string) {
+  try {
+    const metadata = await sharp(file).metadata()
+    return metadata.autoOrient
+  } catch {
+    return null
+  }
 }
 
 export function linkProjectDownload(
