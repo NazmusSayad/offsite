@@ -15,22 +15,14 @@ export function TurnJumper(props: {
   const [fits, setFits] = useState(true)
   const rail = useRef<HTMLDivElement>(null)
   const turns = props.rows.flatMap((row, index) =>
-    row.kind === 'user'
-      ? [
-          {
-            key: row.key,
-            index,
-            prompt: promptPreview(row.item),
-            reply: replyPreview(props.rows, index),
-          },
-        ]
-      : []
+    row.kind === 'user' ? [{ key: row.key, index, item: row.item }] : []
   )
   const current = Math.max(
     turns.findIndex((turn) => turn.key === visible[0]),
     0
   )
   const preview = hovered === null ? null : turns[hovered]
+  const reply = preview === null ? '' : replyPreview(props.rows, preview.index)
 
   useEffect(() => {
     const element = props.scroller.current
@@ -108,7 +100,7 @@ export function TurnJumper(props: {
     >
       <button
         type="button"
-        aria-label={`Jump to your message: ${preview?.prompt ?? turns[current].prompt}`}
+        aria-label={`Jump to your message: ${promptPreview((preview ?? turns[current]).item)}`}
         className="focus-visible:ring-ring absolute inset-x-0 -inset-y-3 cursor-pointer rounded-md outline-none focus-visible:ring-2"
         onPointerMove={(event) => setHovered(indexAt(event.clientY))}
         onPointerLeave={() => setHovered(null)}
@@ -188,11 +180,11 @@ export function TurnJumper(props: {
           }}
         >
           <p className="line-clamp-2 text-sm leading-5 font-medium wrap-anywhere">
-            {preview.prompt}
+            {promptPreview(preview.item)}
           </p>
-          {preview.reply !== '' && (
+          {reply !== '' && (
             <p className="text-muted-foreground mt-1 line-clamp-3 text-xs leading-[1.125rem] wrap-anywhere">
-              {preview.reply}
+              {reply}
             </p>
           )}
         </div>

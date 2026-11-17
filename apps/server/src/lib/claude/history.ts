@@ -196,10 +196,11 @@ export async function image(sessionId: string, uuid: string, index: number) {
 }
 
 export async function shownMessages(sessionId: string) {
-  const [disk, session] = await Promise.all([
-    getSessionMessages(sessionId),
-    loadSession(sessionId),
-  ])
+  const session = await loadSession(sessionId)
+  const disk =
+    session === null
+      ? await getSessionMessages(sessionId)
+      : session.pages[0].disk
   const found = runs.get(sessionId)
   const saved = session?.entries.findLast(
     (entry) => entry.type === 'last-prompt' && entry.rewound === true
