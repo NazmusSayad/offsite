@@ -18,7 +18,7 @@ import {
 import { home, scratchAvailable } from '../storage/storage.ts'
 import { findLogo, prepareLogo } from './logos.ts'
 
-const scratchRoot = path.join(home, 'scratch')
+export const scratchRoot = path.join(home, 'scratch')
 
 export function projects(): Project[] {
   const scores = projectScores()

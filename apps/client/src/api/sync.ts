@@ -225,6 +225,7 @@ function resync(machine: string, snapshot: SyncSnapshot) {
       terminals: snapshot.terminals,
       appIcon: snapshot.appIcon,
       service: snapshot.service,
+      cleanup: snapshot.cleanup,
       lastMessageAtByAccount: snapshot.lastSent,
       lastPickedEffortByModel: snapshot.lastEfforts,
     })
@@ -328,6 +329,9 @@ function receive(machine: string, event: ServerEvent) {
       return
     case 'service':
       setMachine(machine, { service: event.service })
+      return
+    case 'cleanup':
+      setMachine(machine, { cleanup: event.cleanup })
       return
     case 'bookmarks':
       receiveBookmarks(machine, event.bookmarks)

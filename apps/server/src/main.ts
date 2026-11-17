@@ -17,6 +17,7 @@ import { proxySocket, serveProxy } from './lib/proxy/proxy.ts'
 import { serveAppIcon } from './services/app-icon.ts'
 import { backfillSessionProviders } from './services/backfill-session-providers.ts'
 import { saveBrowserLogs } from './services/browser-logs.ts'
+import { scheduleCleanup } from './services/cleanup/cleanup.ts'
 import {
   addConnection,
   listMachines,
@@ -157,6 +158,7 @@ await backfillSessionProviders()
 failInterrupted()
 watchSessions()
 refreshAll()
+scheduleCleanup()
 
 if (findClaude() === null) {
   console.error('could not find claude on PATH; install Claude Code first')

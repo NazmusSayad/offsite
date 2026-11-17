@@ -103,3 +103,17 @@ export function duration(seconds: number) {
   }
   return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${rest}`
 }
+
+export function fileSize(bytes: number) {
+  const units = ['KB', 'MB', 'GB', 'TB']
+  if (bytes < 1024) {
+    return `${bytes} B`
+  }
+  let value = bytes / 1024
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit++
+  }
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`
+}

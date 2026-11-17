@@ -13,7 +13,7 @@ const FETCH_TIMEOUT = 60_000
 const LOCAL_LIMIT = 10
 const REMOTE_LIMIT = 5
 const SEARCH_LIMIT = 20
-const worktreeRoot = path.join(home, 'worktrees')
+export const worktreeRoot = path.join(home, 'worktrees')
 const run = promisify(execFile)
 const locked = keyedLock()
 

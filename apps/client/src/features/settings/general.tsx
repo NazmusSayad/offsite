@@ -22,6 +22,7 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { TaskLine } from '@/features/sidebar/service-task-parts'
 import { RestartLine, UpdateLine } from '@/features/sidebar/service-tray'
 import { applyBrowserUpdate, checkBrowserUpdate } from '@/lib/browser-update'
+import { fileSize } from '@/lib/format'
 import { logger } from '@/lib/log'
 import type { Prefs } from '@/lib/prefs'
 import { showError, updatePrefs, useStore } from '@/lib/store'
@@ -84,6 +85,7 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
       </Section>
       <Section title="App">
         <AppIconRow />
+        <CleanupRow />
         <UpdateRow />
       </Section>
       <div className="flex justify-center">
@@ -92,6 +94,59 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
         </Button>
       </div>
     </>
+  )
+}
+
+function CleanupRow() {
+  const machines = useStore((state) => state.machines)
+  const [checking, setChecking] = useState(false)
+  const online = machines.flatMap((machine) =>
+    machine.status === 'online' && machine.cleanup !== null
+      ? [{ id: machine.id, cleanup: machine.cleanup }]
+      : []
+  )
+  const busy = checking || online.some((machine) => machine.cleanup.checking)
+  const bytes = online
+    .flatMap((machine) => machine.cleanup.items)
+    .reduce((total, item) => total + item.bytes, 0)
+
+  async function check() {
+    setChecking(true)
+    const results = await Promise.allSettled(
+      online.map((machine) => call(machine.id, 'cleanup.check', undefined))
+    )
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        showError(result.reason)
+      }
+    }
+    setChecking(false)
+  }
+
+  return (
+    <Row label="Cleanup">
+      <div className="flex items-center gap-3">
+        {!busy &&
+          online.some((machine) => machine.cleanup.checkedAt !== null) && (
+            <span className="text-muted-foreground text-xs">
+              {bytes > 0
+                ? `${fileSize(bytes)} can be freed`
+                : 'Nothing to clean up'}
+            </span>
+          )}
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy || online.length === 0}
+          onClick={() => void check()}
+        >
+          {busy && (
+            <HugeiconsIcon icon={RefreshIcon} className="animate-spin" />
+          )}
+          {busy ? 'Checking' : 'Check for cleanup'}
+        </Button>
+      </div>
+    </Row>
   )
 }
 
