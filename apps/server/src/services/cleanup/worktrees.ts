@@ -1,18 +1,20 @@
-import { existsSync } from 'node:fs'
+import { execFile } from 'node:child_process'
+import { lstat } from 'node:fs/promises'
 import path from 'node:path'
+import { promisify } from 'node:util'
 import type { CleanupItem } from '@offsite/core/cleanup'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { runs } from '../../lib/live.ts'
 import { logger } from '../../lib/log.ts'
 import { db } from '../../storage/db.ts'
-import { worktrees as worktreesTable } from '../../storage/schema.ts'
+import {
+  sessionPlaces,
+  worktrees as worktreesTable,
+} from '../../storage/schema.ts'
 import { git } from '../git.ts'
 import { publishWorktrees, worktrees } from '../project-worktrees.ts'
 import { projects } from '../projects.ts'
-import { gh } from '../pull-requests.ts'
 import { enabledProviders, refreshAll } from '../sessions.ts'
-import { closeWorktreeTerminals } from '../terminal/terminal.ts'
 import { knownThreads, threadFailed, threadsReady } from '../threads.ts'
 import {
   currentBranch,
@@ -20,50 +22,38 @@ import {
   listWorktrees,
   worktreeRoot,
 } from '../worktrees.ts'
-import { entries, folderStats } from './folders.ts'
+import { entries, folderStats, inside, realPath } from './folders.ts'
+import { busyReason } from './usage.ts'
 
 const DAY = 86_400_000
 const MERGED_AGE = 3 * DAY
 const PUSHED_AGE = 7 * DAY
 const UNPUSHED_AGE = 30 * DAY
+const GH_TIMEOUT = 60_000
+const run = promisify(execFile)
 const log = logger.withTag('cleanup')
-const mergedSchema = z.array(z.object({ mergedAt: z.string() }))
+const mergedSchema = z.array(
+  z.object({ mergedAt: z.string(), headRefOid: z.string() })
+)
 
 export type WorktreeItem = Extract<CleanupItem, { kind: 'worktree' }>
 
-export async function worktreeItems(now: number) {
-  const folders = new Map<string, { ids: string[]; project: string | null }>()
-  for (const worktree of worktrees()) {
-    if (!existsSync(worktree.path)) {
-      continue
-    }
-    const folder = path.resolve(
-      (await git(worktree.path, ['rev-parse', '--show-toplevel'])).stdout.trim()
-    )
-    const project =
-      projects().find((item) => item.id === worktree.projectId)?.name ?? null
-    folders.set(folder, {
-      ids: [...(folders.get(folder)?.ids ?? []), worktree.id],
-      project,
-    })
-  }
+export async function worktreeItems(now: number, ids: string[] | null) {
+  const found: WorktreeItem[] = []
   for (const repo of await entries(worktreeRoot)) {
     for (const name of await entries(path.join(worktreeRoot, repo))) {
       const folder = path.join(worktreeRoot, repo, name)
-      if (!folders.has(folder)) {
-        folders.set(folder, { ids: [], project: null })
+      if (ids !== null && !ids.includes(`worktree:${folder}`)) {
+        continue
       }
-    }
-  }
-  const found: WorktreeItem[] = []
-  for (const entry of folders) {
-    try {
-      const item = await worktreeItem(entry[0], entry[1].project, now)
-      if (item !== null) {
-        found.push(item)
+      try {
+        const item = await worktreeItem(folder, now)
+        if (item !== null) {
+          found.push(item)
+        }
+      } catch (error) {
+        log.warn(`could not check the worktree ${folder}:`, error)
       }
-    } catch (error) {
-      log.warn(`could not check the worktree ${entry[0]}:`, error)
     }
   }
   return found
@@ -71,26 +61,43 @@ export async function worktreeItems(now: number) {
 
 async function worktreeItem(
   folder: string,
-  project: string | null,
   now: number
 ): Promise<WorktreeItem | null> {
+  if (!(await lstat(folder)).isDirectory()) {
+    return null
+  }
+  const real = realPath(folder)
+  const top = path.resolve(
+    (await git(folder, ['rev-parse', '--show-toplevel'])).stdout.trim()
+  )
+  if (top !== real || (await listWorktrees(folder))[0].folder === real) {
+    return null
+  }
+  const rows = ownRows(real)
   if (
-    [...runs.values()].some(
-      (run) => run.cwd === folder || run.cwd.startsWith(`${folder}${path.sep}`)
-    )
+    busyReason(real, {
+      projectId: null,
+      worktreeIds: rows.map((row) => row.id),
+    }) !== null
   ) {
     return null
   }
-  if ((await listWorktrees(folder))[0].folder === folder) {
-    return null
-  }
   const branch = await currentBranch(folder)
-  const changes = (await git(folder, ['status', '--porcelain'])).stdout
+  const changes = (
+    await git(folder, ['--no-optional-locks', 'status', '--porcelain'])
+  ).stdout
     .split('\n')
     .filter((line) => line !== '').length
   const commits = Number(
     (
-      await git(folder, ['rev-list', '--count', 'HEAD', '--not', '--remotes'])
+      await git(folder, [
+        'rev-list',
+        '--count',
+        'HEAD',
+        '--not',
+        ...(branch === null ? ['--branches'] : []),
+        '--remotes',
+      ])
     ).stdout.trim()
   )
   const stats = await folderStats(folder)
@@ -98,14 +105,20 @@ async function worktreeItem(
   const item = {
     id: `worktree:${folder}`,
     kind: 'worktree' as const,
-    project,
+    project:
+      projects().find((project) => project.id === rows.at(0)?.projectId)
+        ?.name ?? null,
     folder,
     branch,
     changes,
     commits,
     bytes: stats.bytes,
   }
-  if (merged !== null && now - merged >= MERGED_AGE) {
+  if (
+    merged !== null &&
+    now - merged >= MERGED_AGE &&
+    now - stats.changedAt >= MERGED_AGE
+  ) {
     return { ...item, reason: 'merged', since: merged }
   }
   if (changes === 0 && commits === 0) {
@@ -118,47 +131,69 @@ async function worktreeItem(
     : null
 }
 
+function ownRows(folder: string) {
+  return worktrees().filter((worktree) =>
+    inside(realPath(worktree.path), folder)
+  )
+}
+
 async function mergedAt(folder: string, branch: string) {
-  let output
+  const head = (await git(folder, ['rev-parse', 'HEAD'])).stdout.trim()
   try {
-    output = await gh(folder, [
-      'pr',
-      'list',
-      '--head',
-      branch,
-      '--state',
-      'merged',
-      '--json',
-      'mergedAt',
-      '--limit',
-      '1',
-    ])
+    const output = await run(
+      'gh',
+      [
+        'pr',
+        'list',
+        '--head',
+        branch,
+        '--state',
+        'merged',
+        '--json',
+        'mergedAt,headRefOid',
+        '--limit',
+        '20',
+      ],
+      {
+        cwd: folder,
+        env: { ...process.env, GH_PROMPT_DISABLED: '1', NO_COLOR: '1' },
+        timeout: GH_TIMEOUT,
+      }
+    )
+    const pull = mergedSchema
+      .parse(JSON.parse(output.stdout))
+      .find((item) => item.headRefOid === head)
+    return pull === undefined ? null : Date.parse(pull.mergedAt)
   } catch (error) {
     log.warn(`could not look up the pull request of ${branch}:`, error)
     return null
   }
-  const pull = mergedSchema.parse(JSON.parse(output)).at(0)
-  return pull === undefined ? null : Date.parse(pull.mergedAt)
 }
 
 export async function deleteWorktreeItem(item: WorktreeItem) {
-  const saved = worktrees().filter(
-    (worktree) =>
-      worktree.path === item.folder ||
-      worktree.path.startsWith(`${item.folder}${path.sep}`)
-  )
-  for (const worktree of saved) {
-    closeWorktreeTerminals(worktree.id)
+  const real = realPath(item.folder)
+  const rows = ownRows(real)
+  const reason = busyReason(real, {
+    projectId: null,
+    worktreeIds: rows.map((row) => row.id),
+  })
+  if (reason !== null) {
+    throw new Error(`${item.folder} was not deleted because ${reason}`)
   }
   await deleteWorktree(item.folder, item.folder, item.branch)
   await threadsReady()
   const failed = enabledProviders().some((provider) => threadFailed(provider))
-  for (const worktree of saved) {
+  for (const row of rows) {
     if (
       !failed &&
-      !knownThreads().some((thread) => thread.worktreeId === worktree.id)
+      !knownThreads().some((thread) => thread.worktreeId === row.id) &&
+      db
+        .select()
+        .from(sessionPlaces)
+        .where(eq(sessionPlaces.worktreeId, row.id))
+        .get() === undefined
     ) {
-      db.delete(worktreesTable).where(eq(worktreesTable.id, worktree.id)).run()
+      db.delete(worktreesTable).where(eq(worktreesTable.id, row.id)).run()
     }
   }
   publishWorktrees()
