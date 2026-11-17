@@ -2,10 +2,16 @@ import { once } from 'node:events'
 import http, { type IncomingMessage, type ServerResponse } from 'node:http'
 import https from 'node:https'
 import { isIP, type Socket } from 'node:net'
-import type { Duplex } from 'node:stream'
+import { type Duplex, PassThrough } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import zlib from 'node:zlib'
 import { z } from 'zod'
+import {
+  createDecoder,
+  decodeBody,
+  decodeHtml,
+  readBody,
+  readLimited,
+} from './body.ts'
 import { rewriteCss } from './css.ts'
 import { rewriteHtml } from './html.ts'
 import { pageScript } from './page-script.ts'
@@ -25,8 +31,8 @@ const TARGET = /^(https?)\/([^/?#]+)(.*)$/
 const SANDBOX =
   'sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-presentation allow-pointer-lock'
 const UPSTREAM_TIMEOUT = 60_000
+const CONNECT_TIMEOUT = 10_000
 const MAX_BODY = 8 * 1024 * 1024
-const MAX_PAGE = 32 * 1024 * 1024
 const MAX_HEADERS = 256 * 1024
 const REQUEST_HEADERS_DROPPED = new Set([
   'accept-encoding',
@@ -190,7 +196,12 @@ async function forward(
   response: ServerResponse
 ) {
   const headers = upstreamHeaders(site, target, request)
-  headers['accept-encoding'] = 'gzip, deflate, br'
+  const encodings = (request.headers['accept-encoding'] ?? '')
+    .split(',')
+    .map((item) => item.split(';')[0]?.trim() ?? '')
+    .filter((item) => item === 'gzip' || item === 'deflate' || item === 'br')
+  headers['accept-encoding'] =
+    encodings.length === 0 ? 'identity' : encodings.join(', ')
   const upstream = openUpstream(site, target, request, headers)
   response.on('close', () => upstream.destroy())
   const answer = once(upstream, 'response') as Promise<[IncomingMessage]>
@@ -202,12 +213,20 @@ async function forward(
   if (status === undefined || status < 200 || status > 999) {
     throw new Error(`${target.origin} sent an invalid status`)
   }
-  for (const cookie of incoming.headers['set-cookie'] ?? []) {
+  const cookies = incoming.headers['set-cookie'] ?? []
+  for (const cookie of cookies) {
     await site.jar.setCookie(cookie, target.href, { ignoreError: true })
   }
   const kind = rewriteKind(incoming, request)
   response.statusCode = status
   copyHeaders(incoming, response, kind !== null)
+  if (cookies.length > 0) {
+    const page = refererOf(site, request) ?? target.href
+    response.setHeader(
+      'x-offsite-cookie',
+      encodeURIComponent(site.jar.getCookieStringSync(page, { http: false }))
+    )
+  }
   if (kind === 'html') {
     response.removeHeader('last-modified')
     response.removeHeader('expires')
@@ -226,9 +245,34 @@ async function forward(
     await pipeline(incoming, response)
     return
   }
-  const text = decodeBody(await readBody(incoming), incoming)
   response.setHeader('content-type', contentType(kind))
-  response.end(await rewriteBody(site, target, kind, text))
+  if (kind === 'html') {
+    const encoding = incoming.headers['content-encoding']
+    const script = pageScript({
+      key: site.key,
+      url: target.href,
+      cookies: site.jar.getCookieStringSync(target.href, { http: false }),
+      storage: site.storage.get(target.origin) ?? {},
+      origin: null,
+    })
+    await pipeline(
+      incoming,
+      encoding === undefined || encoding === 'identity'
+        ? new PassThrough()
+        : createDecoder(encoding),
+      (source: AsyncIterable<Buffer>) => decodeHtml(source, incoming),
+      rewriteHtml(site.key, target, script),
+      response
+    )
+    return
+  }
+  const text = decodeBody(await readBody(incoming), incoming)
+  const rewrite = linkRewriter(site.key, target)
+  response.end(
+    kind === 'css'
+      ? rewriteCss(text, rewrite)
+      : rewriteScript(text, rewrite, `${site.key} ${target.origin}`)
+  )
 }
 
 function openUpstream(
@@ -259,6 +303,20 @@ function openUpstream(
   upstream.on('timeout', () =>
     upstream.destroy(new Error(`${target.host} took too long to answer`))
   )
+  upstream.on('socket', (socket) => {
+    if (!socket.connecting) {
+      return
+    }
+    const timer = setTimeout(
+      () =>
+        upstream.destroy(
+          new Error(`${target.host} is not answering. Is it running?`)
+        ),
+      CONNECT_TIMEOUT
+    )
+    socket.once('connect', () => clearTimeout(timer))
+    socket.once('close', () => clearTimeout(timer))
+  })
   return upstream
 }
 
@@ -344,29 +402,6 @@ function contentType(kind: 'html' | 'css' | 'script') {
   return 'text/javascript; charset=utf-8'
 }
 
-async function rewriteBody(
-  site: Site,
-  target: URL,
-  kind: 'html' | 'css' | 'script',
-  text: string
-) {
-  const rewrite = linkRewriter(site.key, target)
-  if (kind === 'css') {
-    return rewriteCss(text, rewrite)
-  }
-  if (kind === 'script') {
-    return rewriteScript(text, rewrite, `${site.key} ${target.origin}`)
-  }
-  const script = pageScript({
-    key: site.key,
-    url: target.href,
-    cookies: site.jar.getCookieStringSync(target.href, { http: false }),
-    storage: site.storage.get(target.origin) ?? {},
-    origin: null,
-  })
-  return rewriteHtml(text, site.key, target, script)
-}
-
 function copyHeaders(
   incoming: IncomingMessage,
   response: ServerResponse,
@@ -399,61 +434,6 @@ function copyHeaders(
       'cache-control',
       cache === undefined ? 'no-transform' : `${cache}, no-transform`
     )
-  }
-}
-
-async function readBody(incoming: IncomingMessage) {
-  const encoding = incoming.headers['content-encoding']
-  if (encoding === undefined || encoding === 'identity') {
-    return readLimited(incoming, MAX_PAGE)
-  }
-  const decoder = createDecoder(encoding)
-  const results = await Promise.all([
-    readLimited(decoder, MAX_PAGE),
-    pipeline(incoming, decoder),
-  ])
-  return results[0]
-}
-
-function createDecoder(encoding: string) {
-  if (encoding === 'gzip') {
-    return zlib.createGunzip()
-  }
-  if (encoding === 'deflate') {
-    return zlib.createInflate()
-  }
-  if (encoding === 'br') {
-    return zlib.createBrotliDecompress()
-  }
-  throw new Error(`the site sent unknown compression: ${encoding}`)
-}
-
-async function readLimited(source: AsyncIterable<Buffer>, limit: number) {
-  const chunks: Buffer[] = []
-  let size = 0
-  for await (const chunk of source) {
-    size += chunk.length
-    if (size > limit) {
-      throw new Error('This page is too large')
-    }
-    chunks.push(chunk)
-  }
-  return Buffer.concat(chunks)
-}
-
-function decodeBody(body: Buffer, incoming: IncomingMessage) {
-  const declared =
-    /charset=["']?([\w-]+)/i.exec(
-      incoming.headers['content-type'] ?? ''
-    )?.[1] ??
-    /<meta[^>]+charset=["']?([\w-]+)/i.exec(
-      body.subarray(0, 1024).toString('latin1')
-    )?.[1] ??
-    'utf-8'
-  try {
-    return new TextDecoder(declared).decode(body)
-  } catch {
-    return new TextDecoder('utf-8').decode(body)
   }
 }
 

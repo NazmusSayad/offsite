@@ -1,16 +1,10 @@
-import {
-  type DefaultTreeAdapterTypes,
-  defaultTreeAdapter,
-  html,
-  parse,
-  serialize,
-} from 'parse5'
+import type { Token } from 'parse5'
+import { RewritingStream } from 'parse5-html-rewriting-stream'
 import { rewriteCss } from './css.ts'
 import { rewriteHandler, rewriteScript } from './script.ts'
 import { linkRewriter } from './sites.ts'
 
-type Element = DefaultTreeAdapterTypes.Element
-type Parent = DefaultTreeAdapterTypes.ParentNode
+type Tag = { tagName: string; attrs: Token.Attribute[] }
 
 type Page = { key: string; base: URL; rewrite: (url: string) => string }
 
@@ -43,8 +37,8 @@ const LINK_TAGS = new Set([
   'track',
   'video',
 ])
-const REMOVED = new Set(['integrity', 'crossorigin', 'nonce', 'ping'])
-const NAVIGATING = new Set(['a', 'area', 'base', 'form'])
+const REMOVED = new Set(['integrity', 'nonce', 'ping'])
+const NAVIGATING = new Set(['base', 'form'])
 const SCRIPT_TYPES = new Set([
   '',
   'module',
@@ -59,93 +53,80 @@ const META_REMOVED = new Set([
   'x-frame-options',
 ])
 
-export function rewriteHtml(
-  source: string,
-  key: string,
-  base: URL,
-  script: string
-) {
-  const document = parse(source)
+export function rewriteHtml(key: string, base: URL, script: string) {
   const page = { key, base, rewrite: linkRewriter(key, base) }
-  rewriteChildren(document, page)
-  const head = findHead(document)
-  const runtime = defaultTreeAdapter.createElement('script', html.NS.HTML, [])
-  defaultTreeAdapter.insertText(runtime, script)
-  const first = head.childNodes[0]
-  if (first === undefined) {
-    defaultTreeAdapter.appendChild(head, runtime)
-  } else {
-    defaultTreeAdapter.insertBefore(head, runtime, first)
-  }
-  return serialize(document)
-}
-
-function findHead(node: Parent): Element {
-  for (const child of node.childNodes) {
-    if ('tagName' in child) {
-      if (child.tagName === 'head') {
-        return child
+  const stream = new RewritingStream()
+  const runtime = `<script>${script}</script>`
+  let injected = false
+  let inline: { tagName: string; type: string; text: string } | null = null
+  stream.on('startTag', (tag) => {
+    if (!injected && tag.tagName !== 'html') {
+      injected = true
+      if (tag.tagName === 'head') {
+        stream.emitStartTag(tag)
+        stream.emitRaw(runtime)
+        return
       }
-      if (child.tagName === 'html') {
-        return findHead(child)
-      }
+      stream.emitRaw(runtime)
     }
-  }
-  throw new Error('the page has no head')
+    if (rewriteTag(tag, page)) {
+      return
+    }
+    stream.emitStartTag(tag)
+    if (tag.tagName === 'style' || tag.tagName === 'script') {
+      const type = attribute(tag, 'type')?.value.trim().toLowerCase() ?? ''
+      inline = { tagName: tag.tagName, type, text: '' }
+    }
+  })
+  stream.on('text', (_text, raw) => {
+    if (inline === null) {
+      stream.emitRaw(raw)
+      return
+    }
+    inline.text += raw
+  })
+  stream.on('endTag', (tag, raw) => {
+    if (inline !== null && inline.tagName === tag.tagName) {
+      stream.emitRaw(rewriteInline(inline, page))
+      inline = null
+    }
+    stream.emitRaw(raw)
+  })
+  return stream
 }
 
-function rewriteChildren(node: Parent, page: Page) {
-  const remove: DefaultTreeAdapterTypes.ChildNode[] = []
-  for (const child of node.childNodes) {
-    if (!('tagName' in child)) {
-      continue
-    }
-    if (rewriteElement(child, page)) {
-      remove.push(child)
-      continue
-    }
-    rewriteChildren(child, page)
-    if ('content' in child) {
-      rewriteChildren(child.content, page)
-    }
-  }
-  for (const child of remove) {
-    defaultTreeAdapter.detachNode(child)
-  }
-}
-
-function rewriteElement(element: Element, page: Page) {
-  const tag = element.tagName
-  if (tag === 'meta') {
-    const equiv = attribute(element, 'http-equiv')?.value.toLowerCase()
+function rewriteTag(tag: Tag, page: Page) {
+  const name = tag.tagName
+  if (name === 'meta') {
+    const equiv = attribute(tag, 'http-equiv')?.value.toLowerCase()
     if (equiv !== undefined && META_REMOVED.has(equiv)) {
       return true
     }
-    if (attribute(element, 'name')?.value.toLowerCase() === 'referrer') {
+    if (attribute(tag, 'name')?.value.toLowerCase() === 'referrer') {
       return true
     }
     if (equiv === 'refresh') {
-      rewriteRefresh(element, page)
+      rewriteRefresh(tag, page)
     }
   }
-  if (tag === 'base') {
-    const href = attribute(element, 'href')?.value
+  if (name === 'base') {
+    const href = attribute(tag, 'href')?.value
     const next = href === undefined ? null : URL.parse(href, page.base)
     if (next !== null) {
       page.base = next
       page.rewrite = linkRewriter(page.key, next)
     }
   }
-  element.attrs = element.attrs.filter((item) => !REMOVED.has(item.name))
-  if (NAVIGATING.has(tag)) {
-    element.attrs = element.attrs.filter(
+  tag.attrs = tag.attrs.filter((item) => !REMOVED.has(item.name))
+  if (NAVIGATING.has(name)) {
+    tag.attrs = tag.attrs.filter(
       (item) =>
         item.name !== 'target' ||
         !/^_(top|parent|blank)$/i.test(item.value.trim())
     )
   }
-  for (const item of element.attrs) {
-    if (LINKS.has(item.name) && LINK_TAGS.has(tag)) {
+  for (const item of tag.attrs) {
+    if (LINKS.has(item.name) && LINK_TAGS.has(name)) {
       item.value = page.rewrite(item.value)
     } else if (item.name === 'srcset' || item.name === 'imagesrcset') {
       item.value = rewriteSrcset(item.value, page.rewrite)
@@ -155,28 +136,27 @@ function rewriteElement(element: Element, page: Page) {
       item.value = rewriteHandler(item.value, page.rewrite)
     }
   }
-  if (tag === 'style') {
-    rewriteText(element, (text) => rewriteCss(text, page.rewrite))
-  }
-  if (tag === 'script') {
-    rewriteInlineScript(element, page)
-  }
   return false
 }
 
-function rewriteInlineScript(element: Element, page: Page) {
-  const type = (attribute(element, 'type')?.value ?? '').trim().toLowerCase()
-  if (type === 'importmap') {
-    rewriteText(element, (text) =>
-      JSON.stringify(rewriteMapLinks(JSON.parse(text), page))
-    )
-    return
+function rewriteInline(
+  inline: { tagName: string; type: string; text: string },
+  page: Page
+) {
+  if (inline.tagName === 'style') {
+    return rewriteCss(inline.text, page.rewrite)
   }
-  if (SCRIPT_TYPES.has(type)) {
-    rewriteText(element, (text) =>
-      rewriteScript(text, page.rewrite, `${page.key} ${page.base.origin}`)
+  if (inline.type === 'importmap') {
+    return JSON.stringify(rewriteMapLinks(JSON.parse(inline.text), page))
+  }
+  if (SCRIPT_TYPES.has(inline.type)) {
+    return rewriteScript(
+      inline.text,
+      page.rewrite,
+      `${page.key} ${page.base.origin}`
     )
   }
+  return inline.text
 }
 
 function rewriteMapLinks(value: unknown, page: Page): unknown {
@@ -194,16 +174,8 @@ function rewriteMapLinks(value: unknown, page: Page): unknown {
   )
 }
 
-function rewriteText(element: Element, rewrite: (text: string) => string) {
-  for (const child of element.childNodes) {
-    if ('value' in child) {
-      child.value = rewrite(child.value)
-    }
-  }
-}
-
-function rewriteRefresh(element: Element, page: Page) {
-  const content = attribute(element, 'content')
+function rewriteRefresh(tag: Tag, page: Page) {
+  const content = attribute(tag, 'content')
   if (content === undefined) {
     return
   }
@@ -227,6 +199,6 @@ function rewriteSrcset(value: string, rewrite: (url: string) => string) {
     .join(', ')
 }
 
-function attribute(element: Element, name: string) {
-  return element.attrs.find((item) => item.name === name)
+function attribute(tag: Tag, name: string) {
+  return tag.attrs.find((item) => item.name === name)
 }

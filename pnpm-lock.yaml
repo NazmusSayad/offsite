@@ -313,6 +313,9 @@ importers:
       parse5:
         specifier: ^8.0.1
         version: 8.1.1
+      parse5-html-rewriting-stream:
+        specifier: ^8.1.1
+        version: 8.1.1
       sharp:
         specifier: ^0.35.5
         version: 0.35.5(@types/node@26.6.6)
@@ -6543,6 +6546,12 @@ packages:
   parse-ms@4.0.0:
     resolution: {integrity: sha512-TXfryirbmq34y8QBwgqCVLi+8oA3oWx2eAnSn62ITyEhEYaWRlVZ2DvMM9eZbMs/RfxPu/PK/aBLyGj4IrqMHw==}
     engines: {node: '>=18'}
+
+  parse5-html-rewriting-stream@8.1.1:
+    resolution: {integrity: sha512-Vkd95znJKyvcUB8I9/XlUVgLsC18RQyZERtIaaLu8Dy1/FJejDBOgRBqHN3/H/loUFwkEG6gam0eqnpNsLjcfQ==}
+
+  parse5-sax-parser@8.0.1:
+    resolution: {integrity: sha512-6eHc4FeWwv8uBX1yMZ8Vl5zcT61k8EpK/rgRwNl/BLY4pOkUqXI1RIwGSIvxyBXzl5TGj4TvIQBJGwTU4P+ddg==}
 
   parse5@8.1.1:
     resolution: {integrity: sha512-EcR/6WDcU7b2N3vQSxKALCk9lXGtUMQxXio008OEMBE0kavu/7JLfBEeFPzi43nMqVDSbEn3QCK+BMCc9zO//w==}
@@ -13887,6 +13896,16 @@ snapshots:
       is-hexadecimal: 2.0.1
 
   parse-ms@4.0.0: {}
+
+  parse5-html-rewriting-stream@8.1.1:
+    dependencies:
+      entities: 9.0.0
+      parse5: 8.1.1
+      parse5-sax-parser: 8.0.1
+
+  parse5-sax-parser@8.0.1:
+    dependencies:
+      parse5: 8.1.1
 
   parse5@8.1.1:
     dependencies:
