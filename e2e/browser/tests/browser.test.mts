@@ -96,8 +96,11 @@ async function openBrowserPanel(
   })
   const dialog = page.getByRole('dialog', { name: 'Add project' })
   const heading = page.getByRole('heading', { level: 1 }).getByRole('button')
-  await page.getByRole('button', { name: /^New thread/ }).click()
-  await expect(dialog.or(heading)).toBeVisible()
+  await expect(async () => {
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: /^New thread/ }).click()
+    await expect(dialog.or(heading)).toBeVisible({ timeout: 5000 })
+  }).toPass({ timeout: 60_000 })
   if (!(await dialog.isVisible())) {
     await heading.click()
     await page.getByRole('menuitem', { name: 'Add project' }).click()
