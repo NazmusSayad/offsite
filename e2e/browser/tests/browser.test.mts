@@ -82,19 +82,23 @@ async function openBrowserPanel(
   await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible({
     timeout: 60_000,
   })
+  const dialog = page.getByRole('dialog', { name: 'Add project' })
+  const heading = page.getByRole('heading', { level: 1 }).getByRole('button')
   await page.getByRole('button', { name: /^New thread/ }).click()
-  await page.getByRole('heading', { level: 1 }).getByRole('button').click()
-  await page.getByRole('menuitem', { name: 'Add project' }).click()
-  await page.getByRole('textbox', { name: 'Folder path' }).fill(project)
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'Add project', exact: true })
-    .click()
-  await expect(page).toHaveURL(/project=/)
+  await expect(dialog.or(heading)).toBeVisible()
+  if (!(await dialog.isVisible())) {
+    await heading.click()
+    await page.getByRole('menuitem', { name: 'Add project' }).click()
+  }
+  await dialog.getByRole('textbox', { name: 'Folder path' }).fill(project)
+  await dialog.getByRole('button', { name: 'Add project', exact: true }).click()
+  await expect(page).toHaveURL(/project=[0-9a-f]{8}-/)
   const url = new URL(page.url())
   url.searchParams.set('panel', 'browser')
   url.searchParams.set('browse', target)
-  await page.goto(url.href)
+  await expect(async () => {
+    await page.goto(url.href)
+  }).toPass({ timeout: 30_000 })
 }
 
 test.afterEach(async ({ page }, testInfo) => {

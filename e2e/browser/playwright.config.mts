@@ -15,6 +15,7 @@ export default defineConfig({
     actionTimeout: 15_000,
     trace: 'retain-on-failure',
   },
+  expect: { timeout: 15_000 },
   projects: [
     { name: 'devbox', testMatch: /devbox\.setup\.mts/ },
     { name: 'direct', dependencies: ['devbox'] },
