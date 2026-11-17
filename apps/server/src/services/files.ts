@@ -22,6 +22,7 @@ import type { FilePreview } from '@offsite/core/projects'
 import sharp from 'sharp'
 import { isPaired } from '../storage/auth.ts'
 import { hasCode, home } from '../storage/storage.ts'
+import { videoSize } from './video-size.ts'
 
 const FILE_LIMIT = 20_000
 const SNIFF_LENGTH = 8000
@@ -199,7 +200,11 @@ export async function linkProjectMedia(
   }
   return {
     token: addLink(full, mediaType, device),
-    size: mediaType.startsWith('image/') ? await imageSize(full) : null,
+    size: mediaType.startsWith('image/')
+      ? await imageSize(full)
+      : mediaType.startsWith('video/')
+        ? await videoSize(full, mediaType)
+        : null,
   }
 }
 
