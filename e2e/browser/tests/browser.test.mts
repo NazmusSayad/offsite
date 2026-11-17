@@ -138,6 +138,7 @@ for (const app of apps) {
     const count = frame.locator('#count')
     const address = page.getByRole('textbox', { name: 'URL or file path' })
     const errors = watchErrors(page)
+    await editProbe(app.name, 'original')
     await openBrowserPanel(page, base, `/apps/probe-${app.name}`, probe)
 
     await test.step('loads the page', async () => {
@@ -169,17 +170,10 @@ for (const app of apps) {
 
     await test.step('updates on edit', async () => {
       await editProbe(app.name, 'edited')
-      try {
-        await expect.soft(title).toHaveText('Probe edited', { timeout: 30_000 })
-        if (app.keepsState) {
-          await expect.soft(count).toHaveText('count 2')
-        }
-      } finally {
-        await editProbe(app.name, 'original')
+      await expect.soft(title).toHaveText('Probe edited', { timeout: 30_000 })
+      if (app.keepsState) {
+        await expect.soft(count).toHaveText('count 2')
       }
-      await expect.soft(title).toHaveText('Probe original', {
-        timeout: 30_000,
-      })
     })
 
     await test.step('follows a link', async () => {
@@ -191,7 +185,7 @@ for (const app of apps) {
     await test.step('goes back', async () => {
       await page.getByRole('button', { name: 'Back', exact: true }).click()
       await expect.soft(address).toHaveValue(probe)
-      await expect.soft(title).toHaveText('Probe original')
+      await expect.soft(title).toHaveText('Probe edited')
     })
 
     await test.step('goes forward', async () => {
