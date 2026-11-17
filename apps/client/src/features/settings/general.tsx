@@ -57,7 +57,7 @@ export function GeneralPage(props: { prefs: Prefs; onRestore: () => void }) {
             }
           />
         </Row>
-        <Row label="Move sessions to Snooze when you send">
+        <Row label="Move new sessions to Snooze when you send">
           <Switch
             checked={prefs.autoMoveToSnooze}
             onCheckedChange={(autoMoveToSnooze) =>
