@@ -29,3 +29,7 @@ services:
       - tunnel
     volumes:
       - ./:/opt/viewer/e2e
+
+networks:
+  default:
+    enable_ipv6: true

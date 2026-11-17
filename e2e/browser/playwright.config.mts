@@ -19,7 +19,11 @@ export default defineConfig({
   projects: [
     { name: 'devbox', testMatch: /devbox\.setup\.mts/ },
     { name: 'direct', dependencies: ['devbox'] },
-    { name: 'https', dependencies: ['devbox'] },
+    {
+      name: 'https',
+      dependencies: ['devbox'],
+      use: { launchOptions: { args: ['--ignore-certificate-errors'] } },
+    },
     { name: 'tunnel', dependencies: ['devbox'] },
   ],
 })
