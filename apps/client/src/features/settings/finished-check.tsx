@@ -12,7 +12,7 @@ import {
 import { errorMessage } from '@/lib/utils'
 import { Row, Section, TextInput } from './controls'
 
-const SMALL_MODEL = 'offsite:small-model'
+const NONE = 'offsite:none'
 
 export function FinishedCheckSection(props: {
   machine: string
@@ -59,13 +59,13 @@ export function FinishedCheckSection(props: {
           <span className="text-muted-foreground text-xs">Checking…</span>
         ) : (
           <Select
-            value={settings.openRouterModel ?? SMALL_MODEL}
+            value={settings.openRouterModel ?? NONE}
             onValueChange={(value) =>
               void updateConfig(props.machine, {
                 ...props.config,
                 finishedCheck: {
                   ...settings,
-                  openRouterModel: value === SMALL_MODEL ? null : value,
+                  openRouterModel: value === NONE ? null : value,
                 },
               })
             }
@@ -74,7 +74,7 @@ export function FinishedCheckSection(props: {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={SMALL_MODEL}>Small model</SelectItem>
+              <SelectItem value={NONE}>None</SelectItem>
               {settings.openRouterModel !== null &&
                 !models.some(
                   (model) => model.id === settings.openRouterModel
@@ -96,12 +96,15 @@ export function FinishedCheckSection(props: {
         <TextInput
           key={`${props.machine}-${settings.openRouterKeyEnv}`}
           className="font-mono"
-          value={settings.openRouterKeyEnv}
-          valid={(name) => name.trim() !== ''}
+          value={settings.openRouterKeyEnv ?? ''}
+          placeholder="OPENROUTER_API_KEY"
           onCommit={(name) =>
             updateConfig(props.machine, {
               ...props.config,
-              finishedCheck: { ...settings, openRouterKeyEnv: name.trim() },
+              finishedCheck: {
+                ...settings,
+                openRouterKeyEnv: name.trim() === '' ? null : name.trim(),
+              },
             })
           }
         />

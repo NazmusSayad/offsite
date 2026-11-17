@@ -66,7 +66,7 @@ export type DictationConfig = {
 
 export type FinishedCheckConfig = {
   openRouterModel: string | null
-  openRouterKeyEnv: string
+  openRouterKeyEnv: string | null
 }
 
 export type Config = {

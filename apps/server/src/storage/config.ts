@@ -125,7 +125,7 @@ const configSchema: z.ZodType<Config> = z.strictObject({
   finishedCheck: z
     .strictObject({
       openRouterModel: z.string().min(1).nullable().default(null),
-      openRouterKeyEnv: z.string().min(1).default('OPENROUTER_API_KEY'),
+      openRouterKeyEnv: z.string().min(1).nullable().default(null),
     })
     .prefault({}),
 })

@@ -79,7 +79,7 @@ export async function waitsForCommands(run: Run) {
     })
     const state = `DEVELOPER'S REQUEST:\n${summary.request.slice(0, REQUEST_LIMIT)}\n\nAGENT'S FINAL MESSAGE:\n${summary.reply.slice(-REPLY_LIMIT)}\n\nRUNNING COMMANDS:\n${commands.join('\n')}`
     const config = readConfig().finishedCheck
-    const key = process.env[config.openRouterKeyEnv]
+    const key = process.env[config.openRouterKeyEnv ?? 'OPENROUTER_API_KEY']
     if (config.openRouterModel !== null && key !== undefined && key !== '') {
       return await decide(config.openRouterModel, key, state)
     }
