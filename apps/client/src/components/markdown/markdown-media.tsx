@@ -1,12 +1,6 @@
 import {
-  CheckIcon,
-  CopyIcon,
-  Download01Icon,
-  Image01Icon,
   ImageNotFound01Icon,
-  MusicNote01Icon,
   UnavailableIcon,
-  Video01Icon,
   VideoOffIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -14,24 +8,25 @@ import {
   createContext,
   type CSSProperties,
   lazy,
+  type ReactNode,
   Suspense,
   useContext,
   useEffect,
   useState,
 } from 'react'
-import { Button } from '@/components/ui/button'
-import { Tooltip } from '@/components/ui/tooltip'
+import {
+  MediaContextMenu,
+  MediaViewerActions,
+} from '@/components/markdown/media-menu'
 import { ViewableImage } from '@/components/viewable-image'
 import { ViewableVideo } from '@/components/viewable-video'
-import { useCopy } from '@/lib/clipboard'
 import {
   cachedMediaLink,
-  downloadFile,
   githubMediaUrl,
   mediaKind,
   mediaLink,
 } from '@/lib/media'
-import { type Place, showError, useStore } from '@/lib/store'
+import { type Place, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
 const AudioPlayer = lazy(async () => ({
@@ -39,12 +34,6 @@ const AudioPlayer = lazy(async () => ({
 }))
 
 export const GithubRepository = createContext<string | null>(null)
-
-const kindIcons = {
-  image: Image01Icon,
-  video: Video01Icon,
-  audio: MusicNote01Icon,
-}
 
 const unavailableIcons = {
   image: ImageNotFound01Icon,
@@ -60,7 +49,6 @@ const unavailableLabels = {
 
 export function LocalMedia(props: { path: string; alt: string; raw: string }) {
   const selection = useStore((state) => state.selection)
-  const clipboard = useCopy()
   const [media, setMedia] = useState<
     | {
         path: string
@@ -114,59 +102,10 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
   return (
     <span
       className={cn(
-        'border-border bg-muted/50 flex flex-col gap-1 rounded-xl border p-1 my-2 [&+br]:hidden',
-        mediaKind(props.path) === 'audio' && 'w-fit max-w-[min(100%,36rem)]',
-        mediaKind(props.path) === 'video' && 'w-full max-w-sm',
-        (mediaKind(props.path) ?? 'image') === 'image' &&
-          'w-fit max-w-full min-w-60'
+        'my-2 block w-fit max-w-full [&+br]:hidden',
+        mediaKind(props.path) === 'video' && 'w-full max-w-sm'
       )}
     >
-      <span className="text-muted-foreground flex items-center gap-1.5 pl-1.5 [contain:inline-size]">
-        <HugeiconsIcon
-          icon={kindIcons[mediaKind(props.path) ?? 'image']}
-          aria-hidden
-          className="size-3.5 shrink-0"
-        />
-        <span
-          className="text-2xs min-w-0 flex-1 truncate font-mono"
-          title={props.path}
-        >
-          {props.path}
-        </span>
-        <span className="flex items-center gap-0.5">
-          <Tooltip label={clipboard.copied ? 'Copied' : 'Copy path'}>
-            <Button
-              type="button"
-              variant="ghost-muted"
-              size="icon-micro"
-              aria-label="Copy path"
-              onClick={() => void clipboard.copy(props.path)}
-            >
-              <HugeiconsIcon
-                icon={clipboard.copied ? CheckIcon : CopyIcon}
-                className="size-4"
-              />
-            </Button>
-          </Tooltip>
-          <Tooltip label="Download">
-            <Button
-              type="button"
-              variant="ghost-muted"
-              size="icon-micro"
-              aria-label="Download"
-              disabled={loaded === null}
-              onClick={() => {
-                if (loaded === null) {
-                  throw new Error('media is still loading')
-                }
-                void downloadFile(loaded.src, props.path).catch(showError)
-              }}
-            >
-              <HugeiconsIcon icon={Download01Icon} className="size-4" />
-            </Button>
-          </Tooltip>
-        </span>
-      </span>
       {loaded !== null && (
         <Media
           src={loaded.src}
@@ -175,6 +114,8 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
           kind={mediaKind(props.path) ?? 'image'}
           raw={props.raw}
           size={loaded.size}
+          address={props.path}
+          local
         />
       )}
       {loaded === null && mediaKind(props.path) === 'video' && (
@@ -247,6 +188,8 @@ export function GithubMedia(props: {
             kind="video"
             raw={props.raw}
             size={null}
+            address={props.url}
+            local={false}
           />
         )}
       </span>
@@ -288,6 +231,8 @@ export function GithubMedia(props: {
           kind="image"
           raw={props.raw}
           size={null}
+          address={props.url}
+          local={false}
         />
       )}
     </span>
@@ -301,8 +246,16 @@ export function Media(props: {
   kind: 'image' | 'video' | 'audio'
   raw: string
   size: { width: number; height: number } | null
+  address: string | null
+  local: boolean
 }) {
   const [failed, setFailed] = useState<string | null>(null)
+  const subject = {
+    src: props.src,
+    kind: props.kind,
+    address: props.address,
+    local: props.local,
+  }
   if (failed === props.src) {
     return (
       <MediaUnavailable
@@ -314,35 +267,49 @@ export function Media(props: {
   }
   if (props.kind === 'video') {
     return (
-      <ViewableVideo
-        src={props.src}
-        alt={props.alt}
-        name={props.name}
-        className="block aspect-[3/2] w-full"
-        onError={() => setFailed(props.src)}
-      />
+      <MediaContextMenu subject={subject}>
+        <span className="block w-full">
+          <ViewableVideo
+            src={props.src}
+            alt={props.alt}
+            name={props.name}
+            className="block aspect-[3/2] w-full"
+            actions={<MediaViewerActions subject={subject} />}
+            onError={() => setFailed(props.src)}
+          />
+        </span>
+      </MediaContextMenu>
     )
   }
   if (props.kind === 'audio') {
     return (
-      <Suspense>
-        <AudioPlayer
-          src={props.src}
-          label={props.alt === '' ? props.name : props.alt}
-          className="flex w-[28rem] max-w-full"
-          onError={() => setFailed(props.src)}
-        />
-      </Suspense>
+      <MediaContextMenu subject={subject}>
+        <span className="block w-fit max-w-full">
+          <Suspense>
+            <AudioPlayer
+              src={props.src}
+              label={props.alt === '' ? props.name : props.alt}
+              className="flex w-[28rem] max-w-full"
+              onError={() => setFailed(props.src)}
+            />
+          </Suspense>
+        </span>
+      </MediaContextMenu>
     )
   }
   return (
-    <MarkdownImage
-      src={props.src}
-      alt={props.alt}
-      name={props.name}
-      size={props.size}
-      onError={() => setFailed(props.src)}
-    />
+    <MediaContextMenu subject={subject}>
+      <span className="block w-fit max-w-full">
+        <MarkdownImage
+          src={props.src}
+          alt={props.alt}
+          name={props.name}
+          size={props.size}
+          actions={<MediaViewerActions subject={subject} />}
+          onError={() => setFailed(props.src)}
+        />
+      </span>
+    </MediaContextMenu>
   )
 }
 
@@ -351,6 +318,7 @@ function MarkdownImage(props: {
   alt: string
   name: string
   size: { width: number; height: number } | null
+  actions: ReactNode
   onError: () => void
 }) {
   const [measured, setMeasured] = useState<{
@@ -379,6 +347,7 @@ function MarkdownImage(props: {
           aspectRatio: `${size.width} / ${size.height}`,
         }}
         imageClassName="pointer-events-auto block size-full"
+        actions={props.actions}
         onError={props.onError}
       />
     )

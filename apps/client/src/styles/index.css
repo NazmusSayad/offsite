@@ -598,7 +598,7 @@
 }
 
 .pele {
-  --pele-bg: var(--secondary);
+  --pele-bg: var(--background);
   --pele-fg: var(--foreground);
   --pele-muted: var(--muted-foreground);
   --pele-line: var(--diagram-line);
@@ -607,10 +607,6 @@
   --pele-border: var(--diagram-line);
   --pele-accent: var(--primary);
   --pele-critical: var(--destructive);
-}
-
-.dark .pele {
-  --pele-bg: color-mix(in srgb, var(--input) 32%, var(--background));
 }
 
 .chat-markdown-table-scroll {

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { AudioPlayer } from '@/components/audio-player'
 import { PreviewDialog, PreviewHeader } from '@/components/preview-dialog'
 import { VideoPlayer } from '@/components/video-player'
@@ -7,11 +8,12 @@ import { type Preview, usePreview } from '@/lib/preview'
 export function FileViewer(props: {
   name: string
   load: () => Promise<Preview>
+  actions?: ReactNode
   onClose: () => void
 }) {
   return (
     <PreviewDialog open onClose={props.onClose}>
-      <PreviewHeader title={props.name} />
+      <PreviewHeader title={props.name}>{props.actions}</PreviewHeader>
       <div className="min-h-0 flex-1">
         <ViewerBody
           name={props.name}

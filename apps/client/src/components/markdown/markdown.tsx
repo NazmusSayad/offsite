@@ -237,6 +237,8 @@ const components: Components = {
           kind={mediaKind(src) ?? 'image'}
           raw={`![${alt ?? ''}](${src})`}
           size={null}
+          address={src.startsWith('data:') ? null : src}
+          local={false}
         />
       </span>
     )

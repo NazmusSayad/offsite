@@ -2,6 +2,7 @@ import DOMPurify from 'dompurify'
 import type { DiagramType } from 'pele/lazy'
 import {
   lazy,
+  type ReactNode,
   type RefObject,
   Suspense,
   use,
@@ -153,6 +154,7 @@ export function MermaidDiagram(props: {
   ref: RefObject<HTMLButtonElement | null>
   code: string
   open: boolean
+  actions: ReactNode
   onOpenChange: (open: boolean) => void
   onError: (code: string) => void
 }) {
@@ -162,7 +164,7 @@ export function MermaidDiagram(props: {
         ref={props.ref}
         type="button"
         aria-label="View diagram"
-        className="chat-markdown-mermaid focus-visible:ring-ring block w-full cursor-zoom-in overflow-x-auto rounded-lg px-3 pt-2 pb-3 outline-none focus-visible:ring-2"
+        className="chat-markdown-mermaid focus-visible:ring-ring block w-full cursor-zoom-in overflow-x-auto rounded-lg outline-none focus-visible:ring-2"
         onClick={() => props.onOpenChange(true)}
       >
         <Diagram code={props.code} onError={props.onError} />
@@ -175,6 +177,7 @@ export function MermaidDiagram(props: {
               kind: 'image',
               src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(diagramSvg(props.ref.current))}`,
             })}
+            actions={props.actions}
             onClose={() => props.onOpenChange(false)}
           />
         </Suspense>

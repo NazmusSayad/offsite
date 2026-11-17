@@ -1,6 +1,6 @@
 import { PlayIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { lazy, Suspense, useState } from 'react'
+import { lazy, type ReactNode, Suspense, useState } from 'react'
 import { duration } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -13,6 +13,7 @@ export function ViewableVideo(props: {
   alt: string
   name: string
   className?: string
+  actions?: ReactNode
   onError: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -65,6 +66,7 @@ export function ViewableVideo(props: {
           <FileViewer
             name={props.name}
             load={async () => ({ kind: 'video', src: props.src })}
+            actions={props.actions}
             onClose={() => setOpen(false)}
           />
         </Suspense>
