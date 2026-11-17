@@ -32,6 +32,8 @@ export function applyTheme() {
   style.setProperty('--composer-stop-color', scheme.palette[1])
   style.setProperty('--green', scheme.palette[2])
   style.setProperty('--yellow', scheme.palette[3])
+  style.setProperty('--diagram-surface', scheme.selectionBackground)
+  style.setProperty('--diagram-line', scheme.palette[8])
   document
     .querySelector('meta[name="theme-color"]')
     ?.setAttribute('content', scheme.background)

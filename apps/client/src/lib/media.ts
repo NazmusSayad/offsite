@@ -6,6 +6,14 @@ const GITHUB_ATTACHMENT =
   /^https:\/\/github\.com\/user-attachments\/assets\/[0-9a-f-]{36}$/i
 const GITHUB_LINK_LIFETIME = 25 * 60_000
 const githubLinks = new Map<string, { src: Promise<string>; until: number }>()
+const MEDIA_LINK_LIFETIME = 25 * 60_000
+const mediaLinks = new Map<
+  string,
+  {
+    link: { src: string; size: { width: number; height: number } | null }
+    until: number
+  }
+>()
 
 export function mediaKind(src: string) {
   const extension = /\.[a-z0-9]+$/i.exec(src.split(/[?#]/)[0])?.[0]
@@ -25,13 +33,34 @@ export function mediaKind(src: string) {
   return null
 }
 
-export async function mediaUrl(place: Place, path: string) {
-  const token = await call(place.machine, 'files.media', {
+export function cachedMediaLink(place: Place, path: string) {
+  const cached = mediaLinks.get(mediaKey(place, path))
+  return cached !== undefined && cached.until > Date.now() ? cached.link : null
+}
+
+export async function mediaLink(place: Place, path: string) {
+  const result = await call(place.machine, 'files.media', {
     projectId: place.projectId,
     worktreeId: place.worktreeId,
     path,
   })
-  return `${machineUrl(place.machine)}/api/media?${new URLSearchParams({ token })}`
+  const link = {
+    src: `${machineUrl(place.machine)}/api/media?${new URLSearchParams({ token: result.token })}`,
+    size: result.size,
+  }
+  mediaLinks.set(mediaKey(place, path), {
+    link,
+    until: Date.now() + MEDIA_LINK_LIFETIME,
+  })
+  return link
+}
+
+export async function mediaUrl(place: Place, path: string) {
+  return (await mediaLink(place, path)).src
+}
+
+function mediaKey(place: Place, path: string) {
+  return `${place.machine} ${place.projectId} ${place.worktreeId} ${path}`
 }
 
 export function isGithubAttachment(src: string) {

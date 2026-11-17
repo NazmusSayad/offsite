@@ -1,3 +1,4 @@
+import type { LegendListRef } from '@legendapp/list/react'
 import { isEqual } from 'es-toolkit'
 import { type RefObject, useEffect, useRef, useState } from 'react'
 import type { Row, UserItem } from '@/features/transcript/timeline'
@@ -5,6 +6,7 @@ import { cn } from '@/lib/utils'
 
 export function TurnJumper(props: {
   rows: Row[]
+  list: RefObject<LegendListRef | null>
   scroller: RefObject<HTMLDivElement | null>
   onJump: (key: string) => void
 }) {
@@ -17,6 +19,7 @@ export function TurnJumper(props: {
       ? [
           {
             key: row.key,
+            index,
             prompt: promptPreview(row.item),
             reply: replyPreview(props.rows, index),
           },
@@ -34,23 +37,22 @@ export function TurnJumper(props: {
     if (element === null) {
       throw new Error('transcript is not mounted')
     }
+    let frame = 0
     function update() {
-      if (element === null) {
-        throw new Error('transcript is not mounted')
-      }
-      const view = element.getBoundingClientRect()
-      const starts = [
-        ...element.querySelectorAll<HTMLElement>('[data-kind="user"]'),
-      ]
-      const next = starts.flatMap((turn, index) => {
-        const top = turn.getBoundingClientRect().top
-        const bottom =
-          starts[index + 1]?.getBoundingClientRect().top ?? Infinity
-        return top < view.bottom && bottom > view.top && turn.dataset.row
-          ? [turn.dataset.row]
-          : []
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const state = props.list.current?.getState()
+        if (state === undefined) {
+          return
+        }
+        const next = turns.flatMap((turn, index) => {
+          const last = (turns[index + 1]?.index ?? props.rows.length) - 1
+          return turn.index <= state.end && last >= state.start
+            ? [turn.key]
+            : []
+        })
+        setVisible((previous) => (isEqual(previous, next) ? previous : next))
       })
-      setVisible((previous) => (isEqual(previous, next) ? previous : next))
     }
     const observer = new ResizeObserver(() => {
       if (element === null) {
@@ -73,8 +75,10 @@ export function TurnJumper(props: {
     return () => {
       observer.disconnect()
       element.removeEventListener('scroll', update)
+      cancelAnimationFrame(frame)
     }
-  }, [props.scroller, turns.length])
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.scroller, props.list, props.rows])
 
   if (turns.length < 2) {
     return null
@@ -195,15 +199,6 @@ export function TurnJumper(props: {
       )}
     </div>
   )
-}
-
-export function scrollToRow(element: HTMLDivElement | null, key: string) {
-  const row = element?.querySelector(`[data-row="${CSS.escape(key)}"]`)
-  if (element === null || !(row instanceof HTMLElement)) {
-    throw new Error('that message is not on screen')
-  }
-  element.scrollTop +=
-    row.getBoundingClientRect().top - element.getBoundingClientRect().top - 24
 }
 
 function promptPreview(item: UserItem) {

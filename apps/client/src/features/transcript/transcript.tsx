@@ -1,10 +1,10 @@
 import { AlertDiamondIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { LegendList, type LegendListRef } from '@legendapp/list/react'
 import { isEqual, omit } from 'es-toolkit'
 import {
   memo,
   useCallback,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -24,10 +24,12 @@ import {
 import { CompactionRow } from '@/features/transcript/compaction-row'
 import { ThreadFindBar } from '@/features/transcript/find-bar'
 import { ForkButton } from '@/features/transcript/fork-button'
+import { scrollToEnd, scrollToRow } from '@/features/transcript/list-scroll'
 import { PlanCard } from '@/features/transcript/plan-card'
 import { QuestionCard } from '@/features/transcript/question-card'
 import { QuoteButton } from '@/features/transcript/quote-button'
 import { ResumeButton } from '@/features/transcript/resume-button'
+import { useSelectedRows } from '@/features/transcript/selected-rows'
 import { threadTasks } from '@/features/transcript/tasks'
 import {
   isTool,
@@ -37,7 +39,7 @@ import {
 } from '@/features/transcript/timeline'
 import { ContextGroup } from '@/features/transcript/tool-group'
 import { Shimmer } from '@/features/transcript/tool-row'
-import { scrollToRow, TurnJumper } from '@/features/transcript/turn-jumper'
+import { TurnJumper } from '@/features/transcript/turn-jumper'
 import {
   MessageCopyButton,
   UserMessage,
@@ -53,7 +55,12 @@ import {
 } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
-const PAGE = 30
+const followEnd = {
+  animated: false,
+  on: { dataChange: true, footerLayout: false, itemLayout: true, layout: true },
+}
+
+const followEndSmooth = { ...followEnd, animated: true }
 
 function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   const selection = useStore((state) => state.selection)
@@ -62,18 +69,13 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   const earlier = useStore((state) => state.earlier)
   const before = useStore((state) => state.before)
   const partial = useStore((state) => state.partial)
-  const requests = useStore((state) => state.requests)
   const prompts = useStore(useShallow(selectedPrompts))
   const activity = useStore(selectedActivity)
+  const list = useRef<LegendListRef>(null)
   const scroller = useRef<HTMLDivElement>(null)
-  const content = useRef<HTMLDivElement>(null)
-  const pinned = useRef(true)
-  const fromBottom = useRef<number | null>(null)
   const [loadingEarlier, setLoadingEarlier] = useState(false)
   const [expanded, setExpanded] = useState<string[]>([])
-  const [top, setTop] = useState<{ key: string; above: number } | null>(null)
   const [finding, setFinding] = useState(false)
-  const jumpTo = useRef<string | null>(null)
   const cwd = useStore((state) =>
     selection === null
       ? ''
@@ -88,35 +90,11 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   const sentAt = useStore((state) => state.sentAt)
 
   useLayoutEffect(() => {
-    const element = scroller.current
-    if (element === null || sentAt === 0) {
+    if (list.current === null || sentAt === 0) {
       return
     }
-    pinned.current = true
-    element.scrollTop = element.scrollHeight
+    void scrollToEnd(list.current)
   }, [sentAt])
-
-  useEffect(() => {
-    const element = scroller.current
-    if (element === null || content.current === null) {
-      throw new Error('transcript is not mounted')
-    }
-    const observer = new ResizeObserver(() => {
-      if (pinned.current) {
-        element.scrollTop = element.scrollHeight
-      }
-    })
-    observer.observe(element)
-    observer.observe(content.current)
-    return () => observer.disconnect()
-  }, [])
-
-  useLayoutEffect(() => {
-    const element = scroller.current
-    if (element !== null && pinned.current) {
-      element.scrollTop = element.scrollHeight
-    }
-  }, [items, partial, requests, running])
 
   const found = useMemo(
     () => threadTasks([...earlier, ...items], activity),
@@ -132,28 +110,9 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     ...olderRows,
     ...liveRows(items, loaded ? prompts : [], running, sending, partial),
   ]
-  const topIndex = rows.findIndex((row) => row.key === top?.key)
-  const start = finding
-    ? 0
-    : Math.max(
-        0,
-        topIndex === -1 ? rows.length - PAGE : topIndex - (top?.above ?? 0)
-      )
-
-  useLayoutEffect(() => {
-    const element = scroller.current
-    if (element !== null && fromBottom.current !== null) {
-      element.scrollTop = element.scrollHeight - fromBottom.current
-    }
-    fromBottom.current = null
-  }, [earlier, start])
-
-  useLayoutEffect(() => {
-    if (jumpTo.current !== null) {
-      scrollToRow(scroller.current, jumpTo.current)
-      jumpTo.current = null
-    }
-  }, [start])
+  const selected = useSelectedRows(scroller)
+  const firstSelected = rows.findIndex((row) => row.key === selected?.first)
+  const lastSelected = rows.findIndex((row) => row.key === selected?.last)
 
   useHotkeys(
     'mod+f',
@@ -176,85 +135,116 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     { enableOnFormTags: true, enableOnContentEditable: true }
   )
 
-  // oxlint-disable-next-line react-hooks/exhaustive-deps
-  useLayoutEffect(() => {
-    const element = scroller.current
-    if (element === null || rows.length === 0) {
-      return
-    }
-    if (topIndex === -1) {
-      setTop({ key: rows[start].key, above: 0 })
-    } else {
-      showMore(element)
-    }
-  })
-
-  function showMore(element: HTMLDivElement) {
-    if (start === 0 || element.scrollTop >= element.clientHeight) {
-      return
-    }
-    fromBottom.current = element.scrollHeight - element.scrollTop
-    setTop({ key: rows[start].key, above: PAGE })
-  }
-
-  function jump(key: string) {
-    const index = rows.findIndex((row) => row.key === key)
-    if (index === -1) {
+  async function jump(key: string) {
+    const row = rows.find((candidate) => candidate.key === key)
+    if (list.current === null || row === undefined) {
       throw new Error('that message is not loaded')
     }
-    if (index >= start) {
-      scrollToRow(scroller.current, key)
-      return
-    }
-    jumpTo.current = key
-    setTop({ key, above: 1 })
+    await list.current.scrollToKey({
+      key: listKey(row),
+      animated: false,
+      viewOffset: 24,
+    })
+    await scrollToRow(list.current, key)
   }
 
-  useBookmarks({ content, scroller, rows, onJump: jump })
+  useBookmarks({ content: scroller, scroller, rows, onJump: jump })
 
-  const toggle = useCallback((key: string) => {
-    setExpanded((current) =>
-      current.includes(key)
-        ? current.filter((item) => item !== key)
-        : [...current, key]
-    )
+  const toggle = useCallback(
+    (key: string) => {
+      const current = list.current
+      if (current !== null && !(running && current.getState().isFollowingEnd)) {
+        current.cancelScroll()
+        current.anchorVisibleContent({ key })
+      }
+      setExpanded((keys) =>
+        keys.includes(key)
+          ? keys.filter((item) => item !== key)
+          : [...keys, key]
+      )
+    },
+    [running]
+  )
+
+  const attach = useCallback((instance: LegendListRef | null) => {
+    list.current = instance
+    const node = instance?.getScrollableNode()
+    scroller.current = node instanceof HTMLDivElement ? node : null
   }, [])
 
   return (
     <>
       {finding && (
         <ThreadFindBar
-          content={content}
+          content={scroller}
           scroller={scroller}
           onClose={() => {
             setFinding(false)
-            if (rows.length > 0) {
-              setTop({ key: rows[0].key, above: 0 })
-            }
             document.querySelector<HTMLElement>('[data-composer]')?.focus()
           }}
         />
       )}
-      <TurnJumper rows={rows} scroller={scroller} onJump={jump} />
-      <div
-        ref={scroller}
+      <TurnJumper
+        rows={rows}
+        list={list}
+        scroller={scroller}
+        onJump={(key) => void jump(key)}
+      />
+      <LegendList
+        ref={attach}
         data-transcript
-        className="topbar-scroll-fade relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-8"
-        onScroll={(event) => {
-          const element = event.currentTarget
-          pinned.current =
-            element.scrollHeight - element.scrollTop - element.clientHeight < 40
-          showMore(element)
+        data={rows}
+        extraData={{
+          found,
+          running,
+          activity,
+          sending,
+          expanded,
+          cwd,
+          older: olderRows.length,
         }}
-      >
-        <div ref={content}>
+        keyExtractor={listKey}
+        getItemType={itemType}
+        estimatedItemSize={90}
+        recycleItems={false}
+        initialScrollAtEnd
+        maintainScrollAtEnd={
+          running &&
+          !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            ? followEndSmooth
+            : followEnd
+        }
+        maintainScrollAtEndThreshold={0}
+        maintainVisibleContentPosition={
+          finding ? false : { data: true, size: true }
+        }
+        alwaysRender={
+          finding
+            ? { indices: rows.map((_, index) => index) }
+            : firstSelected !== -1 && lastSelected !== -1
+              ? {
+                  indices: Array.from(
+                    {
+                      length:
+                        Math.max(firstSelected, lastSelected) -
+                        Math.min(firstSelected, lastSelected) +
+                        1,
+                    },
+                    (_, offset) =>
+                      Math.min(firstSelected, lastSelected) + offset
+                  ),
+                }
+              : undefined
+        }
+        className="topbar-scroll-fade relative min-h-0 flex-1 overflow-x-hidden overscroll-y-contain [overflow-anchor:none]"
+        ListHeaderComponent={
           <Wrapper width="chat" className="pt-3">
             {!loaded && (
               <p className="text-muted-foreground py-6 text-center text-xs">
                 Loading…
               </p>
             )}
-            {before !== null && start === 0 && (
+            {before !== null && (
               <div className="flex justify-center pb-4">
                 <Button
                   type="button"
@@ -262,12 +252,6 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
                   variant="ghost-muted"
                   disabled={loadingEarlier}
                   onClick={async () => {
-                    const element = scroller.current
-                    if (element !== null) {
-                      fromBottom.current =
-                        element.scrollHeight - element.scrollTop
-                    }
-                    setTop({ key: rows[0].key, above: PAGE })
                     setLoadingEarlier(true)
                     await loadEarlier()
                     setLoadingEarlier(false)
@@ -277,54 +261,75 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
                 </Button>
               </div>
             )}
-            {rows.slice(start).map((row, offset) => {
-              const index = start + offset
-              const previous = rows[index - 1]
-              const older = index < olderRows.length
-              return (
-                <div
-                  key={row.key}
-                  data-row={row.key}
-                  data-kind={row.kind}
-                  className={cn(
-                    previous === undefined
-                      ? undefined
-                      : row.kind === 'user'
-                        ? 'pt-6'
-                        : row.kind === 'working'
-                          ? undefined
-                          : isTool(row) && isTool(previous)
-                            ? 'pt-2'
-                            : isTool(row) || isTool(previous)
-                              ? 'pt-3'
-                              : 'pt-4',
-                    row.kind === 'assistant' && 'group/assistant'
-                  )}
-                >
-                  <RowView
-                    row={row}
-                    agents={found.agents}
-                    tasks={found.tasks}
-                    running={running}
-                    compacting={activity?.compacting === true}
-                    sending={sending}
-                    fork={!older}
-                    expanded={expanded.includes(row.key)}
-                    onToggle={toggle}
-                    onOpenTask={props.onOpenTask}
-                    rewind={!older}
-                    resume={row === rows.at(-1)}
-                    cwd={cwd}
-                  />
-                </div>
-              )
-            })}
           </Wrapper>
-        </div>
-        <QuoteButton scroller={scroller} />
-      </div>
+        }
+        ListFooterComponent={
+          <>
+            <div className="h-8" />
+            <QuoteButton scroller={scroller} />
+          </>
+        }
+        renderItem={(info) => {
+          const row = info.item
+          const index = info.index
+          const previous = rows[index - 1]
+          const older = index < olderRows.length
+          return (
+            <Wrapper width="chat" className="">
+              <div
+                data-row={row.key}
+                data-kind={row.kind}
+                className={cn(
+                  previous === undefined
+                    ? undefined
+                    : row.kind === 'user'
+                      ? 'pt-6'
+                      : row.kind === 'working'
+                        ? undefined
+                        : isTool(row) && isTool(previous)
+                          ? 'pt-2'
+                          : isTool(row) || isTool(previous)
+                            ? 'pt-3'
+                            : 'pt-4',
+                  row.kind === 'assistant' && 'group/assistant'
+                )}
+              >
+                <RowView
+                  row={row}
+                  agents={found.agents}
+                  tasks={found.tasks}
+                  running={running}
+                  compacting={activity?.compacting === true}
+                  sending={sending}
+                  fork={!older}
+                  expanded={expanded.includes(row.key)}
+                  onToggle={toggle}
+                  onOpenTask={props.onOpenTask}
+                  rewind={!older}
+                  resume={index === rows.length - 1}
+                  cwd={cwd}
+                />
+              </div>
+            </Wrapper>
+          )
+        }}
+      />
     </>
   )
+}
+
+function listKey(row: Row) {
+  return row.kind === 'assistant' ? row.slot : row.key
+}
+
+function itemType(row: Row) {
+  if (row.kind !== 'assistant' && row.kind !== 'user') {
+    return row.kind
+  }
+  const length =
+    row.kind === 'assistant' ? row.text.length : row.item.text.length
+  const bucket = Math.max(0, Math.floor(Math.log2(length / 1000)))
+  return bucket < 2 ? `${row.kind}:${bucket}` : `${row.kind}:${listKey(row)}`
 }
 
 export const Transcript = memo(TranscriptView)

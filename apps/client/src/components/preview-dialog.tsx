@@ -13,6 +13,19 @@ export function PreviewDialog(props: {
       <DialogContent
         aria-describedby={undefined}
         className="top-0 left-0 flex h-dvh w-dvw max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-none"
+        onOpenAutoFocus={(event) => {
+          if (!(event.currentTarget instanceof HTMLElement)) {
+            throw new Error('Preview dialog content is not an element')
+          }
+          const close = event.currentTarget.querySelector<HTMLButtonElement>(
+            ':scope > [data-slot=dialog-close]'
+          )
+          if (close === null) {
+            throw new Error('Preview dialog has no close button')
+          }
+          event.preventDefault()
+          close.focus({ preventScroll: true })
+        }}
         onCloseAutoFocus={props.onCloseAutoFocus}
       >
         {props.children}

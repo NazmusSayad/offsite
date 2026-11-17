@@ -1,10 +1,10 @@
 import type { FilePreview } from '@offsite/core/projects'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { Components } from 'react-markdown'
 import { bundledLanguagesInfo } from 'shiki/langs'
 import { Highlight } from '@/components/markdown/highlight'
 import { Markdown } from '@/components/markdown/markdown'
-import { useMermaid } from '@/components/markdown/mermaid'
+import { Diagram } from '@/components/markdown/mermaid'
 import { headingFor, isExternal } from '@/features/files/markdown-preview'
 import { mediaKind } from '@/lib/media'
 import { openBrowser } from '@/lib/url'
@@ -133,15 +133,14 @@ function MarkdownFile(props: { target: string; base: string; text: string }) {
 }
 
 function MermaidFile(props: { text: string }) {
-  const svg = useMermaid(props.text)
-  if (svg === null) {
+  const [failed, setFailed] = useState<string | null>(null)
+  if (failed === props.text) {
     return <CodeFile code={props.text} language="mermaid" />
   }
   return (
-    <div
-      className="flex justify-center p-4 [&>svg]:h-auto [&>svg]:max-w-full"
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
+    <div className="p-4">
+      <Diagram code={props.text} onError={setFailed} />
+    </div>
   )
 }
 

@@ -348,7 +348,10 @@ export type RpcMethods = PullRequestMethods &
     }
     'files.media': {
       params: { projectId: string; worktreeId: string | null; path: string }
-      result: string
+      result: {
+        token: string
+        size: { width: number; height: number } | null
+      }
     }
     'files.download': {
       params: { projectId: string; worktreeId: string | null; path: string }

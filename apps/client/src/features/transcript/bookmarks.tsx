@@ -67,7 +67,7 @@ export function useBookmarks(props: {
   content: RefObject<HTMLDivElement | null>
   scroller: RefObject<HTMLDivElement | null>
   rows: Row[]
-  onJump: (key: string) => void
+  onJump: (key: string) => Promise<void>
 }) {
   const selection = useStore((state) => state.selection)
   const bookmarks = useStore(
@@ -130,11 +130,12 @@ export function useBookmarks(props: {
     }
     const selector = `[data-row="${CSS.escape(focus.itemId)}"]`
     if (found) {
-      if (props.content.current?.querySelector(selector) === null) {
-        props.onJump(focus.itemId)
-      }
+      const itemId = focus.itemId
       update({ focus: null })
-      setTimeout(() => {
+      void (async () => {
+        if (props.content.current?.querySelector(selector) === null) {
+          await props.onJump(itemId)
+        }
         const root = props.content.current
         const scroller = props.scroller.current
         const row = root?.querySelector(selector)
@@ -165,7 +166,7 @@ export function useBookmarks(props: {
             { duration: 2400, easing: 'ease-out' }
           )
         }
-      }, 60)
+      })().catch(showError)
       return
     }
     if (before !== null) {

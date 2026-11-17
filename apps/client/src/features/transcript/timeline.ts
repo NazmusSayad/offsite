@@ -24,6 +24,7 @@ export type Row =
   | {
       kind: 'assistant'
       key: string
+      slot: string
       message: string
       text: string
       time: number | null
@@ -48,6 +49,8 @@ export function isTool(row: Row) {
 export function turnRows(turn: Turn, live: { partial: string } | null): Row[] {
   const rows: Row[] = []
   const turnKey = turn.prompt?.id ?? 'start'
+  const slotKey = turn.prompt?.id ?? turn.items.at(0)?.id ?? 'start'
+  let assistants = 0
 
   if (turn.prompt !== null) {
     rows.push({
@@ -59,7 +62,10 @@ export function turnRows(turn: Turn, live: { partial: string } | null): Row[] {
   }
 
   for (const item of turn.items) {
-    const row = rowOf(item, live !== null)
+    const row = rowOf(item, live !== null, `${slotKey}:assistant:${assistants}`)
+    if (row?.kind === 'assistant') {
+      assistants++
+    }
     const previous = rows.at(-1)
     if (row?.kind === 'group' && previous?.kind === 'group') {
       previous.entries.push(...row.entries)
@@ -76,6 +82,7 @@ export function turnRows(turn: Turn, live: { partial: string } | null): Row[] {
     rows.push({
       kind: 'assistant',
       key: `${turnKey}:partial`,
+      slot: `${slotKey}:assistant:${assistants}`,
       message: '',
       text: live.partial,
       time: null,
@@ -93,12 +100,13 @@ export function turnRows(turn: Turn, live: { partial: string } | null): Row[] {
   return rows
 }
 
-function rowOf(item: Item, live: boolean): Row | null {
+function rowOf(item: Item, live: boolean, slot: string): Row | null {
   switch (item.kind) {
     case 'assistant':
       return {
         kind: 'assistant',
         key: item.id,
+        slot,
         message: item.message,
         text: item.text,
         time: item.time,

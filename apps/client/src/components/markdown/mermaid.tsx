@@ -1,105 +1,162 @@
-import { createStore, get, set } from 'idb-keyval'
-import { lazy, type Ref, Suspense, useEffect, useState } from 'react'
-import { useStore } from '@/lib/store'
-import { currentScheme } from '@/lib/theme'
+import DOMPurify from 'dompurify'
+import type { DiagramType } from 'pele/lazy'
+import {
+  lazy,
+  type ReactNode,
+  type RefObject,
+  Suspense,
+  use,
+  useCallback,
+  useLayoutEffect,
+} from 'react'
 
 const FileViewer = lazy(async () => ({
   default: (await import('@/components/file-viewer')).FileViewer,
 }))
 
-const database = createStore('offsite-mermaid', 'diagrams')
+type Pele = typeof import('pele/lazy')
 
-export function useMermaid(code: string | null) {
-  const theme = useStore((state) => state.prefs.theme)
-  const [svg, setSvg] = useState<string | null>(null)
+type PeleLoad = { status: 'loaded'; pele: Pele } | { status: 'failed' }
 
-  useEffect(() => {
-    if (code === null) {
-      return
+let coreLoad: Promise<PeleLoad> | null = null
+const diagramLoads = new Map<DiagramType, Promise<PeleLoad>>()
+let purifier: ReturnType<typeof DOMPurify> | null = null
+
+const colorVariables = [
+  '--pele-bg',
+  '--pele-fg',
+  '--pele-muted',
+  '--pele-line',
+  '--pele-surface',
+  '--pele-surface-alt',
+  '--pele-border',
+  '--pele-accent',
+  '--pele-critical',
+  ...Array.from({ length: 8 }, (_, index) => `--pele-series-${index + 1}`),
+]
+
+function loadCore() {
+  coreLoad ??= import('pele/lazy').then(
+    (pele): PeleLoad => ({ status: 'loaded', pele }),
+    (): PeleLoad => ({ status: 'failed' })
+  )
+  return coreLoad
+}
+
+function loadDiagramType(pele: Pele, type: DiagramType) {
+  let load = diagramLoads.get(type)
+  if (load === undefined) {
+    load = pele.load(type).then(
+      (): PeleLoad => ({ status: 'loaded', pele }),
+      (): PeleLoad => ({ status: 'failed' })
+    )
+    diagramLoads.set(type, load)
+  }
+  return load
+}
+
+function detectType(pele: Pele, source: string) {
+  try {
+    return pele.detectType(source)
+  } catch {
+    return null
+  }
+}
+
+function sanitize(svg: string) {
+  purifier ??= DOMPurify(window)
+  return purifier.sanitize(svg, {
+    FORBID_ATTR: ['href', 'xlink:href', 'src', 'srcset'],
+    FORBID_TAGS: ['a', 'image', 'foreignObject', 'style'],
+    USE_PROFILES: { svg: true, svgFilters: true },
+    RETURN_DOM_FRAGMENT: true,
+  })
+}
+
+export function diagramSvg(root: Element | null) {
+  const svg = root?.querySelector('svg')
+  if (svg === null || svg === undefined) {
+    throw new Error('The diagram is not drawn')
+  }
+  const copy = svg.cloneNode(true)
+  if (!(copy instanceof SVGSVGElement)) {
+    throw new Error('The diagram is not an SVG')
+  }
+  const computed = getComputedStyle(svg)
+  for (const name of colorVariables) {
+    const value = computed.getPropertyValue(name).trim()
+    if (value !== '') {
+      copy.style.setProperty(name, value)
     }
-    let current = true
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const key = `${theme}\n${code}`
-    function render(source: string) {
-      const scheme = currentScheme()
-      import('mermaid')
-        .then(({ default: mermaid }) => {
-          mermaid.initialize({
-            startOnLoad: false,
-            theme: 'base',
-            themeCSS: `rect.basic, .node rect, .cluster rect, rect.actor { rx: 6px; ry: 6px } * { filter: none !important } .edgeLabel, .edgeLabel p { background-color: var(--mermaid-surface, ${scheme.background}) } .edgeLabel rect, .cluster rect, .relationshipLabelBox { fill: var(--mermaid-surface, ${scheme.background}); opacity: 1 }`,
-            themeVariables: {
-              darkMode: true,
-              fontFamily: getComputedStyle(document.body).fontFamily,
-              fontSize: '13px',
-              useGradient: false,
-              background: scheme.background,
-              primaryColor: scheme.selectionBackground,
-              primaryTextColor: scheme.foreground,
-              primaryBorderColor: scheme.palette[8],
-              lineColor: scheme.palette[8],
-              textColor: scheme.foreground,
-              edgeLabelBackground: scheme.background,
-              clusterBkg: scheme.background,
-              clusterBorder: scheme.palette[0],
-              noteBkgColor: scheme.palette[0],
-              noteTextColor: scheme.foreground,
-              noteBorderColor: scheme.palette[8],
-              pieOpacity: '0.8',
-              pieStrokeColor: scheme.background,
-              pieOuterStrokeColor: scheme.background,
-              pieSectionTextColor: scheme.background,
-              ...Object.fromEntries(
-                [4, 5, 6, 2, 3, 1].flatMap((color, index) => [
-                  [`pie${index + 1}`, scheme.palette[color]],
-                  [`git${index}`, scheme.palette[color]],
-                  [`cScale${index}`, scheme.palette[color]],
-                  [`cScaleLabel${index}`, scheme.background],
-                ])
-              ),
-            },
-          })
-          return mermaid.render(
-            `mermaid-${Math.random().toString(36).slice(2)}`,
-            source
-          )
-        })
-        .then((result) => {
-          void set(key, result.svg, database)
-          if (current) {
-            setSvg(result.svg)
-          }
-        })
-        .catch(() => {
-          if (current) {
-            setSvg(null)
-          }
-        })
+  }
+  copy.style.maxWidth = 'none'
+  copy.style.backgroundColor = getComputedStyle(document.body).backgroundColor
+  return new XMLSerializer().serializeToString(copy)
+}
+
+export function Diagram(props: {
+  code: string
+  onError: (code: string) => void
+}) {
+  return (
+    <Suspense
+      fallback={
+        <pre className="invisible m-0!" aria-hidden>
+          {props.code}
+        </pre>
+      }
+    >
+      <PeleDiagram code={props.code} onError={props.onError} />
+    </Suspense>
+  )
+}
+
+function PeleDiagram(props: { code: string; onError: (code: string) => void }) {
+  const source = props.code.trim()
+  const core = use(loadCore())
+  const type = core.status === 'loaded' ? detectType(core.pele, source) : null
+  const load =
+    core.status === 'loaded' && type !== null
+      ? use(loadDiagramType(core.pele, type))
+      : core
+  const failed = load.status === 'failed' || type === null
+  const code = props.code
+  const onError = props.onError
+
+  useLayoutEffect(() => {
+    if (failed) {
+      onError(code)
     }
-    void get<string>(key, database).then((cached) => {
-      if (!current) {
+  }, [failed, code, onError])
+
+  const mountDiagram = useCallback(
+    (container: HTMLSpanElement) => {
+      if (load.status !== 'loaded') {
         return
       }
-      if (cached !== undefined) {
-        setSvg(cached)
-        return
-      }
-      timer = setTimeout(() => render(code), 400)
-    })
-    return () => {
-      current = false
-      clearTimeout(timer)
-    }
-  }, [code, theme])
+      const mounted = load.pele.mount(container, source, {
+        links: false,
+        images: false,
+        zoom: false,
+        autoDirection: false,
+        sanitize,
+        onError: () => onError(code),
+      })
+      return () => mounted.destroy()
+    },
+    [load, source, code, onError]
+  )
 
-  return code === null ? null : svg
+  return <span ref={mountDiagram} className="flex w-full justify-center" />
 }
 
 export function MermaidDiagram(props: {
-  ref: Ref<HTMLButtonElement>
-  svg: string
+  ref: RefObject<HTMLButtonElement | null>
+  code: string
   open: boolean
+  actions: ReactNode
   onOpenChange: (open: boolean) => void
+  onError: (code: string) => void
 }) {
   return (
     <>
@@ -107,23 +164,20 @@ export function MermaidDiagram(props: {
         ref={props.ref}
         type="button"
         aria-label="View diagram"
-        className="focus-visible:ring-ring flex w-full cursor-zoom-in justify-center rounded-lg px-3 pt-2 pb-3 outline-none [--mermaid-surface:color-mix(in_srgb,var(--text)_3.2%,var(--bg))] focus-visible:ring-2 [&>svg]:h-auto"
+        className="chat-markdown-mermaid focus-visible:ring-ring block w-full cursor-zoom-in overflow-x-auto rounded-lg outline-none focus-visible:ring-2"
         onClick={() => props.onOpenChange(true)}
-        dangerouslySetInnerHTML={{ __html: props.svg }}
-      />
+      >
+        <Diagram code={props.code} onError={props.onError} />
+      </button>
       {props.open && (
         <Suspense>
           <FileViewer
             name="Mermaid diagram"
             load={async () => ({
               kind: 'image',
-              src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-                new XMLSerializer().serializeToString(
-                  new DOMParser().parseFromString(props.svg, 'text/html').body
-                    .firstElementChild!
-                )
-              )}`,
+              src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(diagramSvg(props.ref.current))}`,
             })}
+            actions={props.actions}
             onClose={() => props.onOpenChange(false)}
           />
         </Suspense>
