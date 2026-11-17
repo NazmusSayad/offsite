@@ -76,6 +76,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
   const [loadingEarlier, setLoadingEarlier] = useState(false)
   const [expanded, setExpanded] = useState<string[]>([])
   const [finding, setFinding] = useState(false)
+  const [settled, setSettled] = useState(false)
   const cwd = useStore((state) =>
     selection === null
       ? ''
@@ -95,6 +96,17 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
     }
     void scrollToEnd(list.current)
   }, [sentAt])
+
+  useLayoutEffect(() => {
+    if (!loaded) {
+      setSettled(false)
+      return
+    }
+    if (list.current === null) {
+      throw new Error('transcript is not mounted')
+    }
+    void scrollToEnd(list.current).then(() => setSettled(true))
+  }, [loaded])
 
   const found = useMemo(
     () => threadTasks([...earlier, ...items], activity),
@@ -209,6 +221,7 @@ function TranscriptView(props: { onOpenTask: (id: string) => void }) {
         initialScrollAtEnd
         maintainScrollAtEnd={
           running &&
+          settled &&
           !window.matchMedia('(prefers-reduced-motion: reduce)').matches
             ? followEndSmooth
             : followEnd
