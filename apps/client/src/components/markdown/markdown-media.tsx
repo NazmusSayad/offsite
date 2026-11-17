@@ -27,7 +27,7 @@ import {
   mediaLink,
 } from '@/lib/media'
 import { type Place, useStore } from '@/lib/store'
-import { cn, errorMessage } from '@/lib/utils'
+import { errorMessage } from '@/lib/utils'
 
 const AudioPlayer = lazy(async () => ({
   default: (await import('@/components/audio-player')).AudioPlayer,
@@ -210,17 +210,11 @@ export function Media(props: {
 }) {
   const [failed, setFailed] = useState<string | null>(null)
   const src = props.src
-  const box = cn(
-    'my-2 block [&+br]:hidden',
-    props.kind === 'video' ? 'w-full max-w-sm' : 'w-fit max-w-full'
-  )
+  const box = 'my-2 block w-fit max-w-full [&+br]:hidden'
   if (src === null) {
     return (
       <span className={box}>
-        {props.kind === 'video' && (
-          <span className="border-border/40 block aspect-[3/2] w-full rounded-lg border" />
-        )}
-        {props.kind === 'image' && (
+        {props.kind !== 'audio' && (
           <span className="bg-muted/60 block aspect-video w-[30rem] max-w-full rounded-lg" />
         )}
       </span>
@@ -251,7 +245,7 @@ export function Media(props: {
             src={src}
             alt={props.alt}
             name={props.name}
-            className="block aspect-[3/2] w-full"
+            size={props.size}
             actions={<MediaViewerActions subject={subject} />}
             onError={() => setFailed(src)}
           />
