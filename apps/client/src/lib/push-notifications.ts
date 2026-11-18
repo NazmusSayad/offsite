@@ -24,13 +24,13 @@ const urgency: Record<NotificationState, number> = {
   done: 2,
 }
 
-const marks: Record<NotificationState, string> = {
-  asks: '?',
-  approve: '?',
-  'not-sent': '!',
-  push: '•',
-  done: '✓',
-}
+const groups: { state: NotificationState; heading: string }[] = [
+  { state: 'asks', heading: '❓ Questions' },
+  { state: 'approve', heading: '✋ Needs approval' },
+  { state: 'not-sent', heading: '⚠️ Not sent' },
+  { state: 'push', heading: '📣 Updates' },
+  { state: 'done', heading: '✅ Done' },
+]
 
 export async function showPushNotification(
   registration: ServiceWorkerRegistration,
@@ -119,16 +119,30 @@ async function showDigest(
       },
       null
     ),
-    body: entries
-      .map(
-        (item) =>
-          `${marks[item.notification.state]} ${item.notification.title} — ${item.notification.summary}`
-      )
+    body: groups
+      .flatMap((group) => {
+        const lines = entries
+          .filter((item) => item.notification.state === group.state)
+          .map((item) => digestLine(item.notification))
+        return lines.length === 0 ? [] : [group.heading, ...lines]
+      })
       .join('\n'),
     tag: 'digest',
     renotify,
   }
   await registration.showNotification('While you were away', digest)
+}
+
+function digestLine(notification: PushNotification) {
+  switch (notification.state) {
+    case 'approve':
+    case 'not-sent':
+      return notification.title
+    case 'asks':
+    case 'push':
+    case 'done':
+      return `${notification.title}: ${notification.summary}`
+  }
 }
 
 export function isNotificationData(data: unknown): data is NotificationData {

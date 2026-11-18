@@ -180,7 +180,7 @@ async function requestNotification(run: LiveRun, request: PermissionRequest) {
         question.options.length > 2
           ? `${question.question}\n${question.options.map((option, index) => `${index + 1}. ${option.label}`).join('  ')}`
           : question.question,
-      summary: `asks: ${question.question}`,
+      summary: question.question,
       state: 'asks',
       buttons:
         single && question.options.length === 2

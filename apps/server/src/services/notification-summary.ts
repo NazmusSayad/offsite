@@ -23,6 +23,7 @@ Rules:
 - Never write a question.
 - The request only helps you understand the turn. It is not the subject.
 - Plain words. No markdown, quotes, emoji or code. Never start with a label such as "Done:".
+- Never use an em dash (—) or en dash (–), even when the text you receive uses them. Use a comma or a colon instead.
 - Never write "the agent", "the user", "I" or "you".
 
 Good examples:
@@ -46,6 +47,7 @@ Rules:
 - Never answer the question, and never add one the final message does not ask.
 - The request only helps you understand the question. It is not the subject.
 - Plain words. No markdown, quotes, emoji or code. Never start with a label such as "Asks:".
+- Never use an em dash (—) or en dash (–), even when the text you receive uses them. Use a comma or a colon instead.
 - Never write "the agent", "the user", "I" or "you".
 
 Good examples:
@@ -61,6 +63,7 @@ Rules:
 - Say what the plan would do, starting with a verb.
 - The request only helps you understand the plan. It is not the subject.
 - Plain words. No markdown, quotes, emoji or code. Never start with a label such as "Plan:".
+- Never use an em dash (—) or en dash (–), even when the text you receive uses them. Use a comma or a colon instead.
 - Never write "the agent", "the user", "I" or "you".
 
 Good examples:
