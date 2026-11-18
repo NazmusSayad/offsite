@@ -162,7 +162,10 @@ for (const app of apps) {
 
     await test.step('calls its API', async () => {
       const result = frame.locator('#api-result')
-      await frame.locator('#api').click()
+      await expect(async () => {
+        await frame.locator('#api').click()
+        await expect(result).not.toBeEmpty({ timeout: 5000 })
+      }).toPass({ timeout: 30_000 })
       if (!app.server) {
         await expect.soft(result).toHaveText('hello')
         return

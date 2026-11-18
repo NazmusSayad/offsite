@@ -187,7 +187,7 @@ function offsiteClone(folder: string) {
     ]
   }
   if (source === 'repo') {
-    return ['git', '-c', 'safe.directory=*', 'clone', repo, folder]
+    return ['git', 'clone', repo, folder]
   }
   throw new Error(`Unknown OFFSITE_SOURCE ${source}`)
 }
