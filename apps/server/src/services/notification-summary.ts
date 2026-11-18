@@ -1,5 +1,9 @@
 import { logger } from '../lib/log.ts'
-import { generateText, type Thread } from './generate-text.ts'
+import {
+  type GenerationLink,
+  generateText,
+  type Thread,
+} from './generate-text.ts'
 
 const log = logger.withTag('notification-summary')
 
@@ -73,27 +77,29 @@ Switch the search index to SQLite to cut memory use`
 export function doneSummary(
   thread: Thread,
   cwd: string,
-  request: string,
-  actions: string[],
-  reply: string
+  link: GenerationLink,
+  turn: { request: string; actions: string[]; reply: string }
 ) {
   return shorten(
     thread,
     cwd,
+    link,
     DONE_INSTRUCTIONS,
-    `DEVELOPER REQUEST:\n${request.slice(0, REQUEST_LIMIT)}\n\nACTIONS THE AGENT TOOK IN THIS TURN, IN ORDER:\n${actions.length === 0 ? 'none' : actions.join('\n').slice(-ACTIONS_LIMIT)}\n\nFINAL MESSAGE OF THE AGENT:\n${reply.slice(-REPLY_LIMIT)}`
+    `DEVELOPER REQUEST:\n${turn.request.slice(0, REQUEST_LIMIT)}\n\nACTIONS THE AGENT TOOK IN THIS TURN, IN ORDER:\n${turn.actions.length === 0 ? 'none' : turn.actions.join('\n').slice(-ACTIONS_LIMIT)}\n\nFINAL MESSAGE OF THE AGENT:\n${turn.reply.slice(-REPLY_LIMIT)}`
   )
 }
 
 export function questionSummary(
   thread: Thread,
   cwd: string,
+  link: GenerationLink,
   request: string,
   reply: string
 ) {
   return shorten(
     thread,
     cwd,
+    link,
     QUESTION_INSTRUCTIONS,
     `DEVELOPER REQUEST:\n${request.slice(0, REQUEST_LIMIT)}\n\nFINAL MESSAGE OF THE AGENT:\n${reply.slice(-REPLY_LIMIT)}`
   )
@@ -102,6 +108,7 @@ export function questionSummary(
 export async function planSummary(
   thread: Thread,
   cwd: string,
+  link: GenerationLink,
   request: string,
   plan: string
 ) {
@@ -111,6 +118,7 @@ export async function planSummary(
   return shorten(
     thread,
     cwd,
+    link,
     PLAN_INSTRUCTIONS,
     `USER REQUEST:\n${request.slice(0, REQUEST_LIMIT)}\n\nPLAN:\n${plan.slice(-REPLY_LIMIT)}`
   )
@@ -119,6 +127,7 @@ export async function planSummary(
 async function shorten(
   thread: Thread,
   cwd: string,
+  link: GenerationLink,
   instructions: string,
   input: string
 ) {
@@ -130,7 +139,7 @@ async function shorten(
         'notification-summary',
         thread,
         cwd,
-        { instructions, prompt: input },
+        { instructions, prompt: input, link },
         controller
       ),
       new Promise<never>((_resolve, reject) =>

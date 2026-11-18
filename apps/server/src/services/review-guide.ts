@@ -190,7 +190,11 @@ async function createGuide(
     'review-guide',
     threadSettings(sessionId),
     cwd,
-    { instructions: INSTRUCTIONS, prompt }
+    {
+      instructions: INSTRUCTIONS,
+      prompt,
+      link: { sessionId, itemId: null, taskIds: null },
+    }
   )
   const json = text
     .trim()

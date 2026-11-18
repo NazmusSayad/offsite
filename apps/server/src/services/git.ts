@@ -193,6 +193,7 @@ export async function commitMessage(
     throw new Error('There is nothing to commit')
   }
   return generateText('commit-message', threadSettings(sessionId), cwd, {
+    link: { sessionId, itemId: null, taskIds: null },
     instructions: 'You write concise git commit messages.',
     prompt: `Write a git commit message for this diff. Reply with only the message: a short summary line, optionally followed by a blank line and a brief body.\n\n${diff}`,
   })
