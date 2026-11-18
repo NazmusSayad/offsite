@@ -95,6 +95,27 @@ export function diagramSvg(root: Element | null) {
   return new XMLSerializer().serializeToString(copy)
 }
 
+export async function diagramImage(root: Element | null, type: string) {
+  const image = new Image()
+  image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(diagramSvg(root))}`
+  await image.decode()
+  const canvas = document.createElement('canvas')
+  canvas.width = image.naturalWidth * 3
+  canvas.height = image.naturalHeight * 3
+  const context = canvas.getContext('2d')
+  if (context === null) {
+    throw new Error(`This browser cannot create ${type} images`)
+  }
+  context.drawImage(image, 0, 0, canvas.width, canvas.height)
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, type)
+  )
+  if (blob === null || blob.type !== type) {
+    throw new Error(`This browser cannot create ${type} images`)
+  }
+  return blob
+}
+
 export function Diagram(props: {
   code: string
   onError: (code: string) => void

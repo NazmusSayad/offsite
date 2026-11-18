@@ -10,12 +10,8 @@ import {
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import { mediaTypes } from '@offsite/core/media'
 import type { ReactNode, RefObject } from 'react'
-import {
-  downloadImage,
-  elementImage,
-  imageFormats,
-} from '@/components/markdown/export-image'
-import { diagramSvg } from '@/components/markdown/mermaid'
+import { imageFormats } from '@/components/markdown/export-image'
+import { diagramImage, diagramSvg } from '@/components/markdown/mermaid'
 import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
@@ -268,7 +264,7 @@ function DiagramCopyItems(props: {
       </Item>
       <Item
         onSelect={() =>
-          void props.onCopyImage(elementImage(diagram.current, 'image/png'))
+          void props.onCopyImage(diagramImage(diagram.current, 'image/png'))
         }
       >
         <HugeiconsIcon icon={CopyIcon} />
@@ -316,11 +312,7 @@ function DiagramDownloadItems(props: {
         <Item
           key={format.type}
           onSelect={() =>
-            void downloadImage(
-              diagram.current,
-              format,
-              'mermaid-diagram'
-            ).catch(showError)
+            void downloadDiagram(diagram, format).catch(showError)
           }
         >
           <HugeiconsIcon icon={Download01Icon} />
@@ -340,6 +332,16 @@ function withSvg(
   } catch (error) {
     showError(error)
   }
+}
+
+async function downloadDiagram(
+  diagram: RefObject<HTMLButtonElement | null>,
+  format: (typeof imageFormats)[number]
+) {
+  saveBlob(
+    await diagramImage(diagram.current, format.type),
+    `mermaid-diagram.${format.extension}`
+  )
 }
 
 async function download(subject: MediaSubject) {
