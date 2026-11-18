@@ -15,6 +15,7 @@ import {
 import { deleteWorktreeItem, worktreeItems } from './worktrees.ts'
 
 const DAY = 86_400_000
+const HOUR = 3_600_000
 const FILE = 'cleanup.json'
 const log = logger.withTag('cleanup')
 const locked = keyedLock()
@@ -60,7 +61,7 @@ const savedSchema = z.object({
 
 let saved = readSettings(FILE, savedSchema, { checkedAt: null, items: [] })
 let checking = false
-let timer: NodeJS.Timeout | undefined
+let attemptedAt: number | null = null
 
 export function cleanupState(): CleanupState {
   return {
@@ -73,14 +74,20 @@ export function cleanupState(): CleanupState {
 }
 
 export function scheduleCleanup() {
-  const wait =
-    saved.checkedAt === null
-      ? 0
-      : Math.max(0, saved.checkedAt + DAY - Date.now())
-  timer = setTimeout(() => void checkDaily(), wait)
+  void checkIfDue()
+  setInterval(() => void checkIfDue(), HOUR)
 }
 
-async function checkDaily() {
+async function checkIfDue() {
+  const now = Date.now()
+  if (
+    checking ||
+    (saved.checkedAt !== null && now - saved.checkedAt < DAY) ||
+    (attemptedAt !== null && now - attemptedAt < DAY)
+  ) {
+    return
+  }
+  attemptedAt = now
   try {
     await checkCleanup()
   } catch (error) {
@@ -90,16 +97,14 @@ async function checkDaily() {
 
 export function checkCleanup() {
   return locked('cleanup', async () => {
-    clearTimeout(timer)
     checking = true
     publish()
     try {
       const now = Date.now()
-      save(now, await findItems(now))
+      save(now, await findItems(now, null))
     } finally {
       checking = false
       publish()
-      timer = setTimeout(() => void checkDaily(), DAY)
     }
     return cleanupState()
   })
@@ -108,23 +113,38 @@ export function checkCleanup() {
 export function runCleanup(ids: string[]) {
   return locked('cleanup', async () => {
     const now = Date.now()
-    const found = await findItems(now)
+    const found = await findItems(now, ids)
     const deleted = new Set<string>()
     const failures: string[] = []
-    for (const item of found.filter((entry) => ids.includes(entry.id))) {
+    for (const item of found) {
       try {
         await deleteItem(item, now)
         deleted.add(item.id)
       } catch (error) {
         log.warn(`could not clean up ${item.id}:`, error)
+        failures.push(error instanceof Error ? error.message : String(error))
+      }
+    }
+    for (const item of saved.items) {
+      if (
+        (item.kind === 'worktree' || item.kind === 'chat') &&
+        ids.includes(item.id) &&
+        !found.some((entry) => entry.id === item.id)
+      ) {
         failures.push(
-          `${item.id}: ${error instanceof Error ? error.message : String(error)}`
+          `${item.folder} was not deleted because it is in use or changed since the last check`
         )
       }
     }
     save(
-      now,
-      found.filter((item) => !deleted.has(item.id))
+      saved.checkedAt,
+      saved.items.flatMap((item) => {
+        if (!ids.includes(item.id)) {
+          return [item]
+        }
+        const current = found.find((entry) => entry.id === item.id)
+        return current === undefined || deleted.has(item.id) ? [] : [current]
+      })
     )
     publish()
     if (failures.length > 0) {
@@ -134,16 +154,22 @@ export function runCleanup(ids: string[]) {
   })
 }
 
-async function findItems(now: number) {
+async function findItems(now: number, ids: string[] | null) {
   const found: (CleanupItem | null)[] = [
-    ...(await worktreeItems(now)),
-    ...(await chatItems(now)),
-    await fileGroupItem('uploads', now),
-    await fileGroupItem('pasted', now),
-    await fileGroupItem('logs', now),
-    generationsItem(now),
-    reviewGuidesItem(now),
+    ...(await worktreeItems(now, ids)),
+    ...(await chatItems(now, ids)),
   ]
+  for (const group of ['uploads', 'pasted', 'logs'] as const) {
+    if (ids === null || ids.includes(group)) {
+      found.push(await fileGroupItem(group, now))
+    }
+  }
+  if (ids === null || ids.includes('generations')) {
+    found.push(generationsItem(now))
+  }
+  if (ids === null || ids.includes('reviewGuides')) {
+    found.push(reviewGuidesItem(now))
+  }
   return found.filter((item) => item !== null)
 }
 
@@ -168,7 +194,7 @@ async function deleteItem(item: CleanupItem, now: number) {
   }
 }
 
-function save(checkedAt: number, items: CleanupItem[]) {
+function save(checkedAt: number | null, items: CleanupItem[]) {
   saved = {
     checkedAt,
     items: items.map((item) =>
