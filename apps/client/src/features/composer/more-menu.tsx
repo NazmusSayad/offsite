@@ -93,21 +93,30 @@ export function isSnoozeShortcut(event: KeyboardEvent) {
   )
 }
 
+function selectedStatus(state: State) {
+  const selection = state.selection
+  if (selection === null) {
+    return undefined
+  }
+  if (selection.sessionId === null) {
+    return null
+  }
+  return [...state.sessions, ...state.inactive].find(
+    (item) =>
+      item.machine === selection.machine && item.id === selection.sessionId
+  )?.status
+}
+
 function autoSnoozes(state: State) {
-  return state.prefs.autoMoveToSnooze && state.selection?.sessionId === null
+  const status = selectedStatus(state)
+  return (
+    state.prefs.autoMoveToSnooze &&
+    (status === null || status === 'active' || status === 'inactive')
+  )
 }
 
 function snoozesOnSend(state: State) {
-  const selection = state.selection
-  const session =
-    selection === null || selection.sessionId === null
-      ? undefined
-      : state.sessions.find(
-          (item) =>
-            item.machine === selection.machine &&
-            item.id === selection.sessionId
-        )
-  return autoSnoozes(state) || session?.status === 'snoozed'
+  return autoSnoozes(state) || selectedStatus(state) === 'snoozed'
 }
 
 export function sendStatus(flipSnooze: boolean) {
