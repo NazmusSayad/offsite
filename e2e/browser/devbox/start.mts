@@ -16,8 +16,6 @@ type State = {
 const root = '/apps'
 const data = '/data/offsite'
 const probes = path.join(import.meta.dirname, 'probes')
-const repo = '/opt/offsite-repo'
-const source = process.env.OFFSITE_SOURCE
 const run = promisify(execFile)
 const states: Record<string, State> = {}
 let version = ''
@@ -126,7 +124,7 @@ async function startOffsite() {
         'npm',
         'install',
         '--global',
-        offsitePackage(),
+        'offsite@latest',
         '@anthropic-ai/claude-code@latest',
       ],
       '/'
@@ -144,7 +142,20 @@ async function startOffsite() {
   }
   const folder = path.join(root, 'offsite')
   await step('offsite-dev', '', async () => {
-    await exec('offsite-dev', offsiteClone(folder), root)
+    await exec(
+      'offsite-dev',
+      [
+        'git',
+        'clone',
+        '--depth',
+        '1',
+        '--branch',
+        `v${version}`,
+        'https://github.com/NazmusSayad/offsite',
+        folder,
+      ],
+      root
+    )
     await exec('offsite-dev', ['pnpm', 'install', '--frozen-lockfile'], folder)
     serve('offsite-dev', ['pnpm', 'dev'], folder)
     const deadline = Date.now() + 60_000
@@ -161,35 +172,6 @@ async function startOffsite() {
     states['offsite-dev'].url = `http://localhost:${port}/`
     await answers('offsite-dev', port, '/')
   })
-}
-
-function offsitePackage() {
-  if (source === 'npm') {
-    return 'offsite@latest'
-  }
-  if (source === 'repo') {
-    return path.join(repo, 'dist', 'offsite-0.0.0.tgz')
-  }
-  throw new Error(`Unknown OFFSITE_SOURCE ${source}`)
-}
-
-function offsiteClone(folder: string) {
-  if (source === 'npm') {
-    return [
-      'git',
-      'clone',
-      '--depth',
-      '1',
-      '--branch',
-      `v${version}`,
-      'https://github.com/NazmusSayad/offsite',
-      folder,
-    ]
-  }
-  if (source === 'repo') {
-    return ['git', 'clone', repo, folder]
-  }
-  throw new Error(`Unknown OFFSITE_SOURCE ${source}`)
 }
 
 function send(response: ServerResponse, status: number, body: unknown) {

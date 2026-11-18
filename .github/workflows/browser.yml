@@ -4,11 +4,6 @@ on:
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:
-  push:
-    paths:
-      - 'apps/**'
-      - 'e2e/browser/**'
-      - '.github/workflows/browser.yml'
 
 permissions:
   contents: read
@@ -17,26 +12,9 @@ jobs:
   browser:
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    env:
-      OFFSITE_SOURCE: ${{ github.event_name == 'schedule' && 'npm' || 'repo' }}
 
     steps:
       - uses: actions/checkout@v5
-
-      - if: env.OFFSITE_SOURCE == 'repo'
-        uses: pnpm/action-setup@v4
-        with:
-          version: 12.10.1
-      - if: env.OFFSITE_SOURCE == 'repo'
-        uses: actions/setup-node@v5
-        with:
-          node-version: 24
-      - if: env.OFFSITE_SOURCE == 'repo'
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm build
-          node scripts/build-npm.mts
-          npm pack ./dist/npm --pack-destination dist
 
       - run: docker compose up --build --exit-code-from viewer
         working-directory: e2e/browser

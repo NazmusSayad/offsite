@@ -1,5 +1,5 @@
 FROM node:24-bookworm
-RUN npm install --global pnpm@12.10.1 && git config --global --add safe.directory '*'
+RUN npm install --global pnpm@12.10.1
 ENV CI=1 \
     npm_config_yes=true \
     NG_CLI_ANALYTICS=false \
