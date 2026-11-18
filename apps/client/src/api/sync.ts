@@ -26,12 +26,13 @@ import { logger } from '@/lib/log'
 import {
   answerAwake,
   dismissNotifications,
-  reportPresence,
+  rememberBrowser,
   showNotificationHere,
-  startPresence,
 } from '@/lib/notifications'
 import { moveStartedPrompt, receiveOutbox } from '@/lib/outbox'
 import { loadPrefs } from '@/lib/prefs'
+import { reportPresence, startPresence } from '@/lib/presence'
+import { withAnswers, withDeadline } from '@/lib/requests'
 import { router } from '@/lib/router'
 import { restartSeen } from '@/lib/seen'
 import { closeSession, loadSession, openSession } from '@/lib/sessions'
@@ -148,6 +149,7 @@ export function start() {
     event: receive,
   })
   startPresence()
+  rememberBrowser()
   addEventListener('storage', (event) => {
     if (event.key === 'machines') {
       receiveMachines()
@@ -477,6 +479,16 @@ function receive(machine: string, event: ServerEvent) {
     }
     case 'request':
       update({ requests: [...state.requests, event.request] })
+      return
+    case 'requestDeadline':
+      update({
+        requests: withDeadline(state.requests, event.requestId, event.at),
+      })
+      return
+    case 'requestAnswers':
+      update({
+        requests: withAnswers(state.requests, event.requestId, event.answers),
+      })
       return
     case 'requestDone':
       update({

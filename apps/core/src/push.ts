@@ -42,3 +42,18 @@ export type PushRegistration = {
   privateKey: string
   machine: string
 }
+
+export type NotificationMethods = {
+  'push.subscribe': { params: PushRegistration; result: null }
+  'push.unsubscribe': { params: { endpoint: string }; result: null }
+  'notifications.awake': {
+    params: { id: string; browser: string }
+    result: null
+  }
+  'notifications.act': {
+    params: { id: string; action: string }
+    result: null
+  }
+  'notifications.seen': { params: { sessionId: string }; result: null }
+  'notifications.dismissed': { params: { ids: string[] }; result: string[] }
+}

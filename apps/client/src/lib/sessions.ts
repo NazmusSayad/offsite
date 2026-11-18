@@ -1,5 +1,5 @@
 import type { PromptDelivery } from '@offsite/core/config'
-import type { PermissionDecision, Prompt } from '@offsite/core/items'
+import type { Prompt } from '@offsite/core/items'
 import { NO_PROJECT } from '@offsite/core/projects'
 import type { SessionPatch } from '@offsite/core/sessions'
 import { type TerminalPlace, terminalViewOf } from '@offsite/core/terminal'
@@ -277,23 +277,6 @@ export function stopClaude(machine: string, sessionId: string) {
 
 export function stopTask(machine: string, sessionId: string, taskId: string) {
   call(machine, 'sessions.stopTask', { sessionId, taskId }).catch(showError)
-}
-
-export function respond(
-  requestId: string,
-  decision: PermissionDecision,
-  answers: Record<string, string> | null
-) {
-  const selection = getState().selection
-  if (selection === null || selection.sessionId === null) {
-    return
-  }
-  call(selection.machine, 'sessions.respond', {
-    sessionId: selection.sessionId,
-    requestId,
-    decision,
-    answers,
-  }).catch(showError)
 }
 
 export async function forkFrom(messageId: string) {
