@@ -114,6 +114,7 @@ export async function generateSessionTitle(
       before = page.before
     }
     const reply = await generateText('session-title', threadSettings(id), cwd, {
+      link: { sessionId: id, itemId: items.at(-1)?.id ?? null, taskIds: null },
       instructions: TITLE_INSTRUCTIONS,
       prompt: `Current title: ${JSON.stringify(session.title)}\n\nConversation:\n${transcript(items)}`,
     })

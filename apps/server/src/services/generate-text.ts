@@ -15,6 +15,7 @@ import { db } from '../storage/db.ts'
 import { lastSettings } from '../storage/interactions.ts'
 import { generations } from '../storage/schema.ts'
 import { assertEnabled } from './accounts.ts'
+import { places } from './project-worktrees.ts'
 
 const ISOLATED = {
   'session-title': true,
@@ -27,6 +28,21 @@ const ISOLATED = {
 } satisfies Record<(typeof generations.$inferSelect)['task'], boolean>
 
 export type Thread = Pick<SessionSettings, 'provider' | 'accountId' | 'model'>
+
+export type GenerationLink = {
+  sessionId: string | null
+  itemId: string | null
+  taskIds: string[] | null
+}
+
+export function generationLinks(cwd: string, link: GenerationLink) {
+  const place = places().find((entry) => entry[0] === cwd)
+  return {
+    ...link,
+    projectId: place === undefined ? null : place[1].projectId,
+    worktreeId: place === undefined ? null : place[1].worktreeId,
+  }
+}
 
 export function threadSettings(sessionId: string | null): Thread {
   const run = sessionId === null ? undefined : runs.get(sessionId)
@@ -62,7 +78,7 @@ export async function generateText(
   task: keyof typeof ISOLATED,
   thread: Thread,
   cwd: string,
-  text: { instructions: string; prompt: string },
+  text: { instructions: string; prompt: string; link: GenerationLink },
   abortController?: AbortController
 ) {
   assertEnabled(thread.provider, thread.accountId)
@@ -113,6 +129,7 @@ export async function generateText(
     instructions: text.instructions,
     input: text.prompt,
     createdAt: Date.now(),
+    ...generationLinks(cwd, text.link),
   }
   let output
   try {

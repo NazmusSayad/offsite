@@ -19,13 +19,15 @@ export async function turnSummary(sessionId: string, cwd: string) {
   const prompt = start === -1 ? null : items[start]
   const turn = items.slice(start + 1)
   const replies = turn.flatMap((item) =>
-    item.kind === 'assistant' ? [item.text] : []
+    item.kind === 'assistant' ? [item] : []
   )
+  const reply = replies.at(-1)
   return {
     request: prompt !== null && prompt.kind === 'user' ? prompt.text : '',
-    reply: replies.at(-1) ?? '',
+    reply: reply === undefined ? '' : reply.text,
+    replyId: reply === undefined ? null : reply.id,
     actions: [...new Set(turn.flatMap(action))],
-    images: replies.flatMap((text) => sharedImages(text, cwd)),
+    images: replies.flatMap((item) => sharedImages(item.text, cwd)),
   }
 }
 

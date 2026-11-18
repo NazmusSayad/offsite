@@ -92,6 +92,7 @@ export async function preparePullRequest(
   ).stdout.slice(0, DIFF_LIMIT)
   const lines = (
     await generateText('pull-request', threadSettings(sessionId), cwd, {
+      link: { sessionId, itemId: null, taskIds: null },
       instructions: PULL_REQUEST_INSTRUCTIONS,
       prompt: `Commits between base and head:\n${commits}\n\n${diff}\n\nGenerate the pull request Markdown document from the above.`,
     })

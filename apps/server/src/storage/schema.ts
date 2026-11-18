@@ -147,6 +147,11 @@ export const generations = snakeCase.table('generations', {
   error: text(),
   durationMs: integer().notNull(),
   createdAt: integer().notNull(),
+  sessionId: text(),
+  projectId: text(),
+  worktreeId: text(),
+  itemId: text(),
+  taskIds: text({ mode: 'json' }).$type<string[]>(),
 })
 
 export const notificationIcons = snakeCase.table('notification_icons', {

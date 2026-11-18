@@ -43,6 +43,7 @@ export async function generatedName(
         thread,
         cwd,
         {
+          link: { sessionId: null, itemId: null, taskIds: null },
           instructions: NAME_INSTRUCTIONS,
           prompt: text.slice(0, NAME_INPUT_LIMIT),
         },
