@@ -19,6 +19,7 @@ import type {
   WorktreeState,
 } from './git.ts'
 import type {
+  AnswerDraft,
   PermissionDecision,
   ImageAttachment,
   Item,
@@ -44,7 +45,7 @@ import type {
   Usage,
 } from './providers.ts'
 import type { PullRequestMethods } from './pull-requests.ts'
-import type { PushNotification, PushRegistration } from './push.ts'
+import type { NotificationMethods, PushNotification } from './push.ts'
 import type { MessageMatch, SearchSession } from './search.ts'
 import type { ServiceSettings, ServiceState } from './service.ts'
 import type {
@@ -86,6 +87,7 @@ export type SyncSnapshot = ConfigWithDefaults & {
 }
 
 export type RpcMethods = PullRequestMethods &
+  NotificationMethods &
   GitMethods & {
     'config.get': { params: void; result: ConfigWithDefaults }
     'config.save': { params: Config; result: Config }
@@ -265,6 +267,18 @@ export type RpcMethods = PullRequestMethods &
       }
       result: null
     }
+    'sessions.draftAnswers': {
+      params: {
+        sessionId: string
+        requestId: string
+        answers: AnswerDraft
+      }
+      result: null
+    }
+    'sessions.stopAutoResolve': {
+      params: { sessionId: string; requestId: string }
+      result: null
+    }
     'sessions.rewind': { params: RewindRequest; result: RewindResult }
     'sessions.fork': {
       params: {
@@ -383,19 +397,10 @@ export type RpcMethods = PullRequestMethods &
       params: { sessionId: string; path: string }
       result: { text: string; truncated: boolean } | null
     }
-    'push.subscribe': { params: PushRegistration; result: null }
-    'push.unsubscribe': { params: { endpoint: string }; result: null }
-    'notifications.used': { params: { browser: string }; result: null }
-    'notifications.awake': {
-      params: { id: string; browser: string }
+    'presence.ping': {
+      params: { browser: string; url: string; events: string[] }
       result: null
     }
-    'notifications.act': {
-      params: { id: string; action: string }
-      result: null
-    }
-    'notifications.seen': { params: { sessionId: string }; result: null }
-    'notifications.dismissed': { params: { ids: string[] }; result: string[] }
     terminal: { params: TerminalRequest; result: null }
     'terminal.shells': { params: void; result: Shell[] }
     'terminal.busy': { params: { id: number }; result: BusyResult }
@@ -475,6 +480,18 @@ export type ServerEvent =
   | { type: 'delta'; sessionId: string; text: string }
   | { type: 'request'; sessionId: string; request: PermissionRequest }
   | { type: 'requestDone'; sessionId: string; requestId: string }
+  | {
+      type: 'requestDeadline'
+      sessionId: string
+      requestId: string
+      at: number | null
+    }
+  | {
+      type: 'requestAnswers'
+      sessionId: string
+      requestId: string
+      answers: AnswerDraft
+    }
   | { type: 'outbox'; outbox: OutboxPrompt[] }
   | { type: 'settings'; sessionId: string; settings: SessionSettings }
   | { type: 'context'; sessionId: string; context: ContextUsage | null }

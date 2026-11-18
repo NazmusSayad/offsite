@@ -5,7 +5,7 @@ import type { RpcCall, RpcMethod, RpcMethods } from '@offsite/core/protocol'
 import type { WebSocket } from 'ws'
 import { earlier, image } from '../lib/claude/index.ts'
 import { type Client, clients } from '../lib/hub.ts'
-import { runs } from '../lib/live.ts'
+import { draftAnswers, runs, stopAutoResolve } from '../lib/live.ts'
 import { logger } from '../lib/log.ts'
 import { openSite } from '../lib/proxy/sites.ts'
 import {
@@ -44,12 +44,12 @@ import { searchMessages } from '../services/message-search.ts'
 import {
   act,
   markSeen,
-  noteUse,
   receiveAnswer,
   seenOf,
 } from '../services/notifications.ts'
 import { removeFromOutbox } from '../services/outbox.ts'
 import { updatePending } from '../services/pending-status.ts'
+import { notePing } from '../services/presence.ts'
 import { placePath, publishWorktrees } from '../services/project-worktrees.ts'
 import {
   addProject,
@@ -208,6 +208,14 @@ const handlers: Handlers = {
     recordInteraction(params.sessionId, run.provider, null)
     return null
   },
+  'sessions.draftAnswers': (params, client) => {
+    draftAnswers(params.sessionId, params.requestId, params.answers, client)
+    return null
+  },
+  'sessions.stopAutoResolve': (params) => {
+    stopAutoResolve(params.sessionId, params.requestId)
+    return null
+  },
   'sessions.rewind': (params, client) => rewind(params, client),
   'sessions.fork': async (params) => {
     const result = await fork(params)
@@ -307,8 +315,8 @@ const handlers: Handlers = {
     unsubscribe(params.endpoint)
     return null
   },
-  'notifications.used': (params, client) => {
-    noteUse(client, params.browser)
+  'presence.ping': (params, client) => {
+    notePing(client, params)
     return null
   },
   'notifications.awake': (params, client) => {

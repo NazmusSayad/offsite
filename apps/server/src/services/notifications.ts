@@ -3,6 +3,7 @@ import type { PushNotification } from '@offsite/core/push'
 import { broadcast, type Client, clients } from '../lib/hub.ts'
 import { logger } from '../lib/log.ts'
 import { notificationIconPath } from './notification-icons.ts'
+import { lastPing } from './presence.ts'
 import { sendDismissPush, sendPush } from './push.ts'
 
 const log = logger.withTag('notifications')
@@ -39,7 +40,6 @@ const open = new Map<
   }
 >()
 const dismissed = new Map<string, number>()
-const usedAt = new Map<string, number>()
 const asking = new Map<string, (client: Client) => void>()
 
 export async function notify(input: NotificationInput) {
@@ -89,12 +89,6 @@ export async function act(client: Client, id: string, action: string) {
   }
   log.info(`running action ${action} of notification ${id}`)
   await run(client)
-}
-
-export function noteUse(client: Client, browser: string) {
-  client.browser = browser
-  client.usedAt = Date.now()
-  usedAt.set(browser, Date.now())
 }
 
 export async function markSeen(sessionId: string) {
@@ -164,7 +158,7 @@ async function offer(notification: PushNotification, tried: Set<string>) {
   open.get(notification.tag)?.sentTo.add(page)
   const timer = setTimeout(() => {
     open.get(notification.tag)?.timers.delete(timer)
-    if (lastUse(browser) > sentAt) {
+    if (lastPing(browser) > sentAt) {
       return
     }
     log.info(
@@ -236,11 +230,7 @@ function pickAwake(notification: PushNotification, tried: Set<string>) {
 }
 
 function browserUse(client: Client) {
-  return client.browser === null ? 0 : lastUse(client.browser)
-}
-
-function lastUse(browser: string) {
-  return usedAt.get(browser) ?? 0
+  return client.browser === null ? 0 : lastPing(client.browser)
 }
 
 function forgetOld() {

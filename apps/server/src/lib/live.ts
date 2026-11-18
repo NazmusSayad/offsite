@@ -1,10 +1,11 @@
-import type { Item, PermissionRequest } from '@offsite/core/items'
+import { chosenAnswers } from '@offsite/core/answers'
+import type { AnswerDraft, Item, PermissionRequest } from '@offsite/core/items'
 import type { SessionActivity } from '@offsite/core/sessions'
 import { watchActivity } from '../services/session-notifications.ts'
 import { readConfig } from '../storage/config.ts'
 import type { Run } from './claude/index.ts'
 import type { CodexRun } from './codex/index.ts'
-import { broadcast, publish } from './hub.ts'
+import { broadcast, type Client, publish } from './hub.ts'
 import { logger } from './log.ts'
 import type { OpenCodeRun } from './opencode/index.ts'
 import { forgetProgress, noteItems, progressOf } from './progress.ts'
@@ -133,23 +134,108 @@ export function scheduleAutoResolve(
     request.kind === 'question' || config.autoPermissionMode === 'bypass'
       ? 'allow'
       : config.autoPermissionMode
-  setTimeout(async () => {
-    const run = runs.get(sessionId)
-    if (run === undefined) {
-      return
-    }
-    try {
-      await run.respond(
-        request.id,
-        decision,
-        request.kind === 'question' ? {} : null
-      )
-    } catch (error) {
-      log.warn(`could not auto-resolve ${request.id}:`, error)
-    }
-  }, seconds * 1000)
+  waitForDeadline(sessionId, request.id, seconds * 1000)
   return {
     ...request,
     autoResolve: { at: Date.now() + seconds * 1000, decision },
   }
+}
+
+export function draftAnswers(
+  sessionId: string,
+  requestId: string,
+  answers: AnswerDraft,
+  sender: Client
+) {
+  const pending = runs.get(sessionId)?.pending.get(requestId)
+  if (pending === undefined || pending.request.kind !== 'question') {
+    return
+  }
+  pending.request = { ...pending.request, answers }
+  publish(
+    sessionId,
+    { type: 'requestAnswers', sessionId, requestId, answers },
+    sender
+  )
+  restartQuestionTimer(sessionId, requestId)
+}
+
+export function restartQuestionTimers(sessionId: string) {
+  for (const requestId of runs.get(sessionId)?.pending.keys() ?? []) {
+    restartQuestionTimer(sessionId, requestId)
+  }
+}
+
+function restartQuestionTimer(sessionId: string, requestId: string) {
+  const pending = runs.get(sessionId)?.pending.get(requestId)
+  const seconds = readConfig().autoSkipQuestionTimeout
+  if (
+    pending === undefined ||
+    pending.request.kind !== 'question' ||
+    pending.request.autoResolve === undefined ||
+    seconds === null
+  ) {
+    return
+  }
+  const at = Date.now() + seconds * 1000
+  pending.request = {
+    ...pending.request,
+    autoResolve: { ...pending.request.autoResolve, at },
+  }
+  publish(sessionId, { type: 'requestDeadline', sessionId, requestId, at })
+}
+
+export function stopAutoResolve(sessionId: string, requestId: string) {
+  const pending = runs.get(sessionId)?.pending.get(requestId)
+  if (
+    pending === undefined ||
+    pending.request.kind !== 'question' ||
+    pending.request.autoResolve === undefined
+  ) {
+    return
+  }
+  pending.request = { ...pending.request, autoResolve: undefined }
+  publish(sessionId, {
+    type: 'requestDeadline',
+    sessionId,
+    requestId,
+    at: null,
+  })
+}
+
+function waitForDeadline(sessionId: string, requestId: string, delay: number) {
+  setTimeout(async () => {
+    const run = runs.get(sessionId)
+    const pending = run?.pending.get(requestId)
+    if (
+      run === undefined ||
+      pending === undefined ||
+      pending.request.autoResolve === undefined
+    ) {
+      return
+    }
+    const left = pending.request.autoResolve.at - Date.now()
+    if (left > 0) {
+      waitForDeadline(sessionId, requestId, left)
+      return
+    }
+    const request = pending.request
+    const decision = pending.request.autoResolve.decision
+    pending.request = { ...request, autoResolve: undefined }
+    try {
+      await run.respond(requestId, decision, autoAnswers(request))
+    } catch (error) {
+      log.warn(`could not auto-resolve ${requestId}:`, error)
+    }
+  }, delay)
+}
+
+function autoAnswers(request: PermissionRequest) {
+  if (request.kind !== 'question') {
+    return null
+  }
+  if (request.answers === undefined) {
+    return {}
+  }
+  return chosenAnswers(request.questions, request.answers)
 }

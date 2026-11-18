@@ -127,7 +127,19 @@ export type PermissionRequest = (
       item: Item
     }
   | { id: string; kind: 'plan'; plan: string }
-  | { id: string; kind: 'question'; questions: Question[] }
-) & { autoResolve?: { at: number; decision: 'allow' | 'deny' } }
+  | {
+      id: string
+      kind: 'question'
+      questions: Question[]
+      answers?: AnswerDraft
+    }
+) & {
+  autoResolve?: { at: number; decision: 'allow' | 'deny' }
+}
+
+export type AnswerDraft = {
+  picked: Record<string, string[]>
+  other: Record<string, string>
+}
 
 export type PermissionDecision = 'allow' | 'always' | 'deny'

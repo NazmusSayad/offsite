@@ -20,10 +20,7 @@ type PushKeys = { publicKey: string; privateKey: string }
 const storageKey = 'notifications'
 const browserKey = 'browser'
 
-const PRESENCE_INTERVAL = 5000
-
 let pushWork: Promise<unknown> = Promise.resolve()
-let reportedAt = 0
 
 export function notificationPermission() {
   if (!window.isSecureContext) {
@@ -66,9 +63,6 @@ export async function showNotificationHere(
   notification: PushNotification,
   pushed: boolean
 ) {
-  if (!pushed) {
-    reportedAt = 0
-  }
   if (
     notificationPermission() !== 'granted' ||
     !notificationsWanted() ||
@@ -136,16 +130,7 @@ export async function answerAwake(machine: string, id: string) {
   await call(machine, 'notifications.awake', { id, browser: browserId() })
 }
 
-export function startPresence() {
-  addEventListener('keydown', noteActivity, { capture: true })
-  addEventListener('pointerdown', noteActivity, { capture: true })
-  addEventListener('wheel', noteActivity, { capture: true, passive: true })
-  addEventListener('focus', noteActivity)
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-      noteActivity()
-    }
-  })
+export function rememberBrowser() {
   if (window.isSecureContext) {
     saveBrowserId().catch((error: unknown) =>
       log.error('could not save this browser for the service worker', error)
@@ -153,36 +138,11 @@ export function startPresence() {
   }
 }
 
-export function reportPresence(machine: string) {
-  if (inUse()) {
-    sendUse([machine])
-  }
-}
-
-function noteActivity() {
-  const now = Date.now()
-  if (!inUse() || now - reportedAt < PRESENCE_INTERVAL) {
-    return
-  }
-  reportedAt = now
-  sendUse(connectedMachines())
-}
-
 function inUse() {
   return !document.hidden && document.hasFocus()
 }
 
-function sendUse(machines: string[]) {
-  Promise.all(
-    machines.map((machine) =>
-      call(machine, 'notifications.used', { browser: browserId() })
-    )
-  ).catch((error: unknown) =>
-    log.error('could not tell the server that this page is in use', error)
-  )
-}
-
-function browserId() {
+export function browserId() {
   const stored = localStorage.getItem(browserKey)
   if (stored !== null) {
     return stored
@@ -341,7 +301,7 @@ async function pushKeys(): Promise<PushKeys> {
   return keys
 }
 
-function connectedMachines() {
+export function connectedMachines() {
   return getState()
     .machines.filter((machine) => isConnected(machine.id))
     .map((machine) => machine.id)

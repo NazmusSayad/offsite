@@ -1,0 +1,446 @@
+import {
+  CheckIcon,
+  CheckmarkCircle02Icon,
+  CircleDashedIcon,
+  CornerDownLeftIcon,
+  HelpCircleIcon,
+  MessageCircleQuestionMarkIcon,
+  XIcon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
+import { chosenAnswers } from '@offsite/core/answers'
+import type { PermissionRequest, Question } from '@offsite/core/items'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { uploadFile } from '@/api/upload'
+import { Button } from '@/components/ui/button'
+import { draftAnswers, respond, stopAutoResolve } from '@/lib/requests'
+import { getState, showError } from '@/lib/store'
+import { cn } from '@/lib/utils'
+import { lastImageNumber } from './attached-images'
+
+const recommendedSuffix = '(Recommended)'
+
+function recommendations(question: Question) {
+  const labels = question.options
+    .map((option) => option.label)
+    .filter((label) => label.endsWith(recommendedSuffix))
+  return question.multiSelect ? labels : labels.slice(0, 1)
+}
+
+function Mark(props: {
+  multi: boolean
+  selected: boolean
+  suggested: boolean
+}) {
+  return (
+    <span
+      className={cn(
+        'mt-0.5 grid size-4 shrink-0 place-items-center border transition-colors',
+        props.multi ? 'rounded' : 'rounded-full',
+        props.selected && 'border-primary bg-primary text-primary-foreground',
+        props.suggested && 'border-primary border-dashed',
+        !props.selected && !props.suggested && 'border-muted-foreground/40'
+      )}
+    >
+      {props.selected && props.multi && (
+        <HugeiconsIcon icon={CheckIcon} strokeWidth={3} className="size-3" />
+      )}
+      {props.selected && !props.multi && (
+        <span className="bg-primary-foreground size-1.5 rounded-full" />
+      )}
+    </span>
+  )
+}
+
+export function Countdown(props: { label: string; at: number }) {
+  const [now, setNow] = useState(Date.now)
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const seconds = Math.max(0, Math.ceil((props.at - now) / 1000))
+  return (
+    <span className="text-muted-foreground text-2xs mr-1 tabular-nums">
+      {props.label} in{' '}
+      {seconds < 60 ? `${seconds}s` : `${Math.round(seconds / 60)}m`}
+    </span>
+  )
+}
+
+export function QuestionPrompt(props: {
+  machine: string
+  request: Extract<PermissionRequest, { kind: 'question' }>
+  draft: string
+}) {
+  const questions = props.request.questions
+  const [active, setActive] = useState(0)
+  const [picked, setPicked] = useState(props.request.answers?.picked ?? {})
+  const [other, setOther] = useState(props.request.answers?.other ?? {})
+  const [received, setReceived] = useState(props.request.answers)
+  const [touches, setTouches] = useState(0)
+  if (props.request.answers !== received) {
+    setReceived(props.request.answers)
+    if (props.request.answers !== undefined) {
+      setPicked(props.request.answers.picked)
+      setOther(props.request.answers.other)
+    }
+  }
+  const options = useRef<HTMLDivElement>(null)
+  const explicit = Object.fromEntries(
+    questions.map((item) => [
+      item.question,
+      [
+        ...(picked[item.question] ?? []),
+        other[item.question]?.trim() ?? '',
+      ].filter((value) => value !== ''),
+    ])
+  )
+  const answers = Object.fromEntries(
+    questions.map((item) => [
+      item.question,
+      (explicit[item.question].length > 0
+        ? explicit[item.question]
+        : recommendations(item)
+      ).join(', '),
+    ])
+  )
+  const question = questions[active]
+  const unanswered = questions.flatMap((item, index) =>
+    explicit[item.question].length === 0 ? [index] : []
+  )
+  const next = unanswered.find((index) => index > active) ?? unanswered[0]
+
+  const share = useEffectEvent(() => {
+    draftAnswers(props.request.id, { picked, other })
+  })
+
+  useEffect(() => {
+    if (touches === 0) {
+      return
+    }
+    const timer = setTimeout(share, 500)
+    return () => clearTimeout(timer)
+  }, [touches])
+
+  function submit() {
+    respond(
+      props.request.id,
+      'allow',
+      chosenAnswers(questions, { picked, other })
+    )
+  }
+
+  function advance(index: number) {
+    if (explicit[question.question].length === 0) {
+      setPicked({
+        ...picked,
+        [question.question]: recommendations(question),
+      })
+      setTouches(touches + 1)
+    }
+    setActive(index)
+  }
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (
+        event.key !== 'Enter' ||
+        event.shiftKey ||
+        event.repeat ||
+        event.isComposing ||
+        event.defaultPrevented
+      ) {
+        return
+      }
+      if (
+        event.target !== document.body &&
+        !(
+          event.target instanceof Node &&
+          options.current?.contains(event.target) === true
+        )
+      ) {
+        return
+      }
+      event.preventDefault()
+      if (next === undefined) {
+        submit()
+        return
+      }
+      advance(next)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
+
+  function pick(question: Question, label: string) {
+    const current = picked[question.question] ?? []
+    setTouches(touches + 1)
+    if (question.multiSelect) {
+      setPicked({
+        ...picked,
+        [question.question]: current.includes(label)
+          ? current.filter((item) => item !== label)
+          : [...current, label],
+      })
+      return
+    }
+    setPicked({ ...picked, [question.question]: [label] })
+    setOther({ ...other, [question.question]: '' })
+    if (active < questions.length - 1) {
+      setActive(active + 1)
+    }
+  }
+
+  function write(question: Question, value: string) {
+    setOther({ ...other, [question.question]: value })
+    setTouches(touches + 1)
+    if (!question.multiSelect && value.trim() !== '') {
+      setPicked({ ...picked, [question.question]: [] })
+    }
+  }
+
+  async function attach(question: Question, files: File[]) {
+    let number = lastImageNumber(getState().items, [
+      props.draft,
+      ...Object.values(other),
+    ])
+    for (const file of files) {
+      try {
+        const path = await uploadFile(props.machine, file)
+        let value = path
+        if (file.type.startsWith('image/')) {
+          number += 1
+          value = `[Image #${number}] (saved at ${path})`
+        }
+        setOther((current) => {
+          const text = current[question.question] ?? ''
+          return {
+            ...current,
+            [question.question]: `${text}${/(^|\s)$/.test(text) ? '' : ' '}${value}`,
+          }
+        })
+        if (!question.multiSelect) {
+          setPicked((current) => ({ ...current, [question.question]: [] }))
+        }
+        setTouches((current) => current + 1)
+      } catch (error) {
+        showError(error)
+      }
+    }
+  }
+
+  return (
+    <div className="composer-glass shadow-composer relative z-10 rounded-3xl border border-(--composer-outline)">
+      <div className="flex flex-col gap-2 p-2.5">
+        <div
+          key={question.question}
+          role="tabpanel"
+          className="flex min-w-0 flex-col gap-2"
+        >
+          <div className="mb-1 flex items-start gap-1.5 pt-1 pr-1 pl-1.5">
+            <span className="bg-primary/18 text-primary grid size-6 shrink-0 place-items-center rounded-md">
+              <HugeiconsIcon
+                icon={MessageCircleQuestionMarkIcon}
+                className="size-4"
+              />
+            </span>
+            <p className="text-foreground min-w-0 flex-1 pt-0.5 text-[15px] leading-5 font-medium wrap-anywhere">
+              {question.question}
+            </p>
+            <Button
+              size="icon-micro"
+              variant="ghost"
+              aria-label="Skip questions"
+              title="Skip questions"
+              onClick={() => respond(props.request.id, 'deny', null)}
+            >
+              <HugeiconsIcon icon={XIcon} className="size-4" />
+            </Button>
+          </div>
+          <div
+            ref={options}
+            role={question.multiSelect ? 'group' : 'radiogroup'}
+            aria-label={question.question}
+            className="flex max-h-[min(18rem,32dvh)] flex-col gap-0.5 overflow-y-auto"
+          >
+            {question.options.map((option) => {
+              const selected =
+                picked[question.question]?.includes(option.label) === true
+              const suggested =
+                explicit[question.question].length === 0 &&
+                recommendations(question).includes(option.label)
+              const recommended = option.label.endsWith(recommendedSuffix)
+              return (
+                <button
+                  key={option.label}
+                  role={question.multiSelect ? 'checkbox' : 'radio'}
+                  aria-checked={selected}
+                  className={cn(
+                    'flex cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
+                    selected ? 'bg-muted/70' : 'hover:bg-muted/40'
+                  )}
+                  onClick={() => pick(question, option.label)}
+                >
+                  <Mark
+                    multi={question.multiSelect}
+                    selected={selected}
+                    suggested={suggested}
+                  />
+                  <span className="min-w-0 flex-1 wrap-anywhere">
+                    <span className="flex items-baseline gap-2">
+                      <span className="text-foreground text-sm">
+                        {recommended
+                          ? option.label
+                              .slice(0, -recommendedSuffix.length)
+                              .trim()
+                          : option.label}
+                      </span>
+                      {recommended && (
+                        <span className="text-muted-foreground/70 text-[11px]">
+                          Recommended
+                        </span>
+                      )}
+                    </span>
+                    {option.description !== '' && (
+                      <span className="text-secondary-label mt-0.5 block text-xs leading-4">
+                        {option.description}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              )
+            })}
+            <label
+              className={cn(
+                'flex cursor-text items-start gap-2.5 rounded-lg px-2.5 py-2 transition-colors',
+                (other[question.question] ?? '').trim() !== ''
+                  ? 'bg-muted/70'
+                  : 'focus-within:bg-muted/40 hover:bg-muted/40'
+              )}
+            >
+              <Mark
+                multi={question.multiSelect}
+                selected={(other[question.question] ?? '').trim() !== ''}
+                suggested={false}
+              />
+              <textarea
+                value={other[question.question] ?? ''}
+                rows={1}
+                onChange={(event) => write(question, event.target.value)}
+                onPaste={(event) => {
+                  const text = event.clipboardData.getData('text/plain')
+                  if (text !== '') {
+                    event.preventDefault()
+                    document.execCommand('insertText', false, text)
+                    return
+                  }
+                  const files = [...event.clipboardData.files]
+                  if (files.length === 0) {
+                    return
+                  }
+                  event.preventDefault()
+                  void attach(question, files)
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  void attach(question, [...event.dataTransfer.files])
+                }}
+                placeholder="Something else…"
+                className="placeholder:text-placeholder/75 [field-sizing:content] max-h-40 min-w-0 flex-1 resize-none bg-transparent text-sm leading-5 outline-none"
+              />
+            </label>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {questions.length > 1 && (
+            <div
+              role="tablist"
+              className="flex min-w-0 [scrollbar-width:none] gap-1 overflow-x-auto"
+            >
+              {questions.map((item, index) => (
+                <button
+                  key={item.question}
+                  role="tab"
+                  aria-selected={index === active}
+                  className={cn(
+                    'flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors',
+                    index === active
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                  )}
+                  onClick={() => setActive(index)}
+                >
+                  {explicit[item.question].length > 0 && (
+                    <HugeiconsIcon
+                      icon={CheckmarkCircle02Icon}
+                      aria-label="Answered"
+                      className="text-success size-3.5"
+                    />
+                  )}
+                  {explicit[item.question].length === 0 &&
+                    answers[item.question] !== '' && (
+                      <HugeiconsIcon
+                        icon={CircleDashedIcon}
+                        aria-label="Using the recommended answer"
+                        className="text-primary size-3.5"
+                      />
+                    )}
+                  {answers[item.question] === '' && (
+                    <HugeiconsIcon
+                      icon={HelpCircleIcon}
+                      aria-label="Not answered"
+                      className="text-muted-foreground size-3.5"
+                    />
+                  )}
+                  {item.header}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 pr-1">
+            {props.request.autoResolve !== undefined && (
+              <button
+                className="hover:bg-muted/60 hover:[&>span]:text-foreground cursor-pointer rounded-md py-0.5 pl-1.5 transition-colors"
+                title="Stop timer"
+                onClick={() => stopAutoResolve(props.request.id)}
+              >
+                <Countdown
+                  label={
+                    unanswered.length < questions.length ? 'Submit' : 'Skip'
+                  }
+                  at={props.request.autoResolve.at}
+                />
+              </button>
+            )}
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => respond(props.request.id, 'allow', {})}
+            >
+              Skip
+            </Button>
+            <Button
+              size="xs"
+              variant={next === undefined ? 'default' : 'outline'}
+              onClick={submit}
+            >
+              Submit
+              {next === undefined && (
+                <HugeiconsIcon icon={CornerDownLeftIcon} />
+              )}
+            </Button>
+            {next !== undefined && (
+              <Button size="xs" onClick={() => advance(next)}>
+                Next
+                <HugeiconsIcon icon={CornerDownLeftIcon} />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
