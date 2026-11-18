@@ -2,6 +2,7 @@ import type { PushNotification, PushSubscriptionInfo } from '@offsite/core/push'
 import { useEffect } from 'react'
 import { call, isConnected, machineUrl } from '@/api/connection'
 import { logger } from '@/lib/log'
+import { randomId } from '@/lib/utils'
 import {
   isNotificationData,
   removeNotifications,
@@ -186,7 +187,7 @@ function browserId() {
   if (stored !== null) {
     return stored
   }
-  const created = crypto.randomUUID()
+  const created = randomId()
   localStorage.setItem(browserKey, created)
   return created
 }

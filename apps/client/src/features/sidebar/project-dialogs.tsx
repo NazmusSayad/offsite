@@ -32,7 +32,12 @@ import {
 } from '@/features/sidebar/icon-matches'
 import { IconPickerDialog } from '@/features/sidebar/icon-picker-dialog'
 import { projectName } from '@/lib/format'
-import { type Machine, type MachineProject, useStore } from '@/lib/store'
+import {
+  type Machine,
+  type MachineProject,
+  machineOf,
+  useStore,
+} from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 
 export function FolderDialog(props: {
@@ -41,6 +46,9 @@ export function FolderDialog(props: {
   onAdd: (project: MachineProject) => void
 }) {
   const machines = useStore((state) => state.machines)
+  const online = useStore(
+    (state) => machineOf(state, props.machine).status === 'online'
+  )
   const [loaded, setLoaded] = useState<{
     path: string
     listing: DirectoryListing
@@ -86,7 +94,7 @@ export function FolderDialog(props: {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [props.machine, path])
+  }, [props.machine, path, online])
 
   return (
     <Dialog open onOpenChange={() => props.onClose()}>

@@ -4,8 +4,11 @@ services:
   devbox:
     build: devbox
     hostname: devbox
+    environment:
+      OFFSITE_SOURCE: ${OFFSITE_SOURCE:-npm}
     volumes:
       - ./:/opt/devbox/e2e:ro
+      - ../..:/opt/offsite-repo:ro
 
   https:
     image: caddy:2
