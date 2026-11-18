@@ -14,6 +14,7 @@ import {
 } from './body.ts'
 import { rewriteCss } from './css.ts'
 import { rewriteHtml } from './html.ts'
+import { serveIndexedDb } from './indexeddb.ts'
 import { pageScript } from './page-script.ts'
 import { rewriteScript } from './script.ts'
 import {
@@ -129,6 +130,10 @@ async function answerProxy(request: IncomingMessage, response: ServerResponse) {
   const rest = route[2] ?? ''
   if (rest.startsWith('runtime.js')) {
     serveRuntime(site, rest, response)
+    return
+  }
+  if (rest === 'indexeddb.js') {
+    serveIndexedDb(response)
     return
   }
   if (rest === 'cookie' || rest === 'storage') {

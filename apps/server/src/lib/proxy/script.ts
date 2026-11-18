@@ -203,8 +203,8 @@ function visitMember(node: Node, parent: Parent, output: MagicString) {
     (name === 'top' || name === 'parent') &&
     node.object.type === 'Identifier' &&
     WINDOWS.has(String(node.object.name)) &&
-    isRead(node, parent) &&
-    !insideChain(parent)
+    node.optional !== true &&
+    isRead(node, parent)
   ) {
     wrap(output, node, '__ow')
   }

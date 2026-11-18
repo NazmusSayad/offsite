@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { sendPrompt } from '@/lib/sessions'
 import { getState, showError } from '@/lib/store'
+import { randomId } from '@/lib/utils'
 
 export function ResumeButton() {
   return (
@@ -16,7 +17,7 @@ export function ResumeButton() {
         aria-label="Resume"
         onClick={() =>
           sendPrompt(
-            crypto.randomUUID(),
+            randomId(),
             { text: 'resume', images: [] },
             'queue',
             getState().selection,

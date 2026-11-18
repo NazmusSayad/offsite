@@ -1,3 +1,4 @@
+import { PAGE_DATABASES } from './page-databases.ts'
 import { PAGE_SPRITES } from './page-sprites.ts'
 import { PAGE_STORAGE } from './page-storage.ts'
 
@@ -230,17 +231,7 @@ const PAGE_SCRIPT = String.raw`function (config) {
   }
 
   delete Navigator.prototype.serviceWorker
-  Object.defineProperty(window, 'indexedDB', { value: undefined, configurable: true })
-  Object.defineProperty(window, 'caches', {
-    configurable: true,
-    value: {
-      keys() { return Promise.resolve([]) },
-      has() { return Promise.resolve(false) },
-      delete() { return Promise.resolve(false) },
-      match() { return Promise.resolve(undefined) },
-      open() { return Promise.reject(new DOMException('Cache storage is off', 'SecurityError')) },
-    },
-  })
+${PAGE_DATABASES}
   Object.defineProperty(Navigator.prototype, 'locks', {
     configurable: true,
     value: {

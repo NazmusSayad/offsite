@@ -1,0 +1,33 @@
+name: Browser
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - run: docker compose up --build --exit-code-from viewer
+        working-directory: e2e/browser
+
+      - if: always()
+        run: docker compose logs --no-color --timestamps > "$RUNNER_TEMP/compose.log"
+        working-directory: e2e/browser
+
+      - if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: browser-report
+          retention-days: 30
+          path: |
+            e2e/browser/output
+            ${{ runner.temp }}/compose.log

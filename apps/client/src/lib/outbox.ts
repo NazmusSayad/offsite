@@ -3,6 +3,7 @@ import type { Prompt, OutboxPrompt } from '@offsite/core/items'
 import { machineKey } from '@/api/machines'
 import { editDraft } from '@/features/composer/drafts'
 import type { UserItem } from '@/features/transcript/timeline'
+import { randomId } from '@/lib/utils'
 import { openSession } from './sessions'
 import {
   activityOf,
@@ -109,7 +110,7 @@ export function addToOutbox(
   status: 'active' | 'snoozed' | null
 ) {
   const state = getState()
-  const id = crypto.randomUUID()
+  const id = randomId()
   update({
     outbox: [
       ...state.outbox,

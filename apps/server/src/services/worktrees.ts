@@ -112,7 +112,7 @@ export async function uncommittedFiles(repo: string) {
 
 export async function lastActivity(folder: string) {
   const [commit, status] = await Promise.all([
-    git(folder, ['log', '-1', '--format=%ct']),
+    git(folder, ['log', '-1', '--format=%ct', '--ignore-missing', 'HEAD']),
     git(folder, [
       '--no-optional-locks',
       'status',
@@ -121,7 +121,8 @@ export async function lastActivity(folder: string) {
       '--untracked-files=all',
     ]),
   ])
-  let latest = Number(commit.stdout.trim()) * 1000
+  const committed = commit.stdout.trim()
+  let latest = committed === '' ? 0 : Number(committed) * 1000
   const entries = status.stdout.split('\0').filter((entry) => entry !== '')
   for (let index = 0; index < entries.length; index++) {
     const entry = entries[index]

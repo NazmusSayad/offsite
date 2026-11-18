@@ -9,6 +9,7 @@ import {
   type StorageValue,
 } from 'zustand/middleware'
 import { readBase64 } from '@/api/upload'
+import { randomId } from '@/lib/utils'
 
 type Draft = {
   text: string
@@ -91,7 +92,7 @@ export function editDraft(key: string, change: (draft: Draft) => Draft) {
 }
 
 export async function saveDraftFile(file: File) {
-  const id = crypto.randomUUID()
+  const id = randomId()
   await set(id, file, fileDatabase)
   fileCopies.set(id, await copyOf(file))
   return id
@@ -183,7 +184,7 @@ export function stashDraft(key: string) {
   useDrafts.setState((state) => ({
     stash: [
       {
-        id: crypto.randomUUID(),
+        id: randomId(),
         createdAt: Date.now(),
         text: draft.text,
         ...usedAttachments(draft),

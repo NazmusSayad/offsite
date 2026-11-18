@@ -46,7 +46,7 @@ import {
   type State,
   useStore,
 } from '@/lib/store'
-import { mod, splitAtLimit, touch } from '@/lib/utils'
+import { mod, randomId, splitAtLimit, touch } from '@/lib/utils'
 import type { Dictation } from './dictation'
 import { deleteStash, hasPrompt, useDraft, useStash } from './drafts'
 import { keepFocusOnTouch, refocusComposer } from './picker'
@@ -306,7 +306,7 @@ function MoreMenuContent(props: {
             onClick={() => {
               props.onClose()
               sendPrompt(
-                crypto.randomUUID(),
+                randomId(),
                 { text: '/compact', images: [] },
                 'queue',
                 getState().selection,

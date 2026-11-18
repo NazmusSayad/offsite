@@ -1,0 +1,11 @@
+<main>
+  <h1 id="probe-title">Probe original</h1>
+  <p id="location">{{ where() }}</p>
+  <button id="count" (click)="count.set(count() + 1)">
+    count {{ count() }}
+  </button>
+  <button id="api" (click)="callApi()">api</button>
+  <p id="api-result">{{ api() }}</p>
+  <p id="cookie">{{ cookie() }}</p>
+  <a id="other" href="/other.html">other</a>
+</main>

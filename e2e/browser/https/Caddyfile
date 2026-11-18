@@ -1,0 +1,6 @@
+offsite.test {
+	tls internal
+	reverse_proxy devbox:47841 {
+		flush_interval -1
+	}
+}
