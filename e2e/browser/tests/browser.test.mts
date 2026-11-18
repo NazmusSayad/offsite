@@ -188,6 +188,10 @@ for (const app of apps) {
       await frame.locator('#other').click()
       await expect.soft(address).toHaveValue(other)
       await expect.soft(title).toBeHidden()
+      await page
+        .frames()
+        .find((item) => item.url().includes('/api/proxy/'))
+        ?.waitForLoadState('networkidle')
     })
 
     await test.step('goes back', async () => {
