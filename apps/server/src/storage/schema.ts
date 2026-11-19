@@ -101,6 +101,16 @@ export const bookmarks = snakeCase.table('bookmarks', {
   createdAt: integer().notNull(),
 })
 
+export const sideQuests = snakeCase.table('side_quests', {
+  id: text().primaryKey(),
+  sessionId: text().notNull(),
+  question: text().notNull(),
+  answer: text(),
+  status: text({ enum: ['answering', 'answered', 'failed'] }).notNull(),
+  error: text(),
+  createdAt: integer().notNull(),
+})
+
 export const reviewGuides = snakeCase.table('review_guides', {
   id: text().primaryKey(),
   url: text().notNull(),

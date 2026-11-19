@@ -4,9 +4,13 @@ import type { GitRepo } from '@offsite/core/git'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { call } from '@/api/connection'
-import { readBase64, UPLOAD_LIMIT } from '@/api/upload'
 import { Button } from '@/components/ui/button'
 import { Wrapper } from '@/components/wrapper'
+import {
+  isSideQuest,
+  sendSideQuestDraft,
+  sideQuestCommands,
+} from '@/features/side-quests/ask'
 import { logger } from '@/lib/log'
 import { selectedPrompts, startingThread } from '@/lib/outbox'
 import { interrupt } from '@/lib/sessions'
@@ -21,10 +25,10 @@ import {
   useStore,
 } from '@/lib/store'
 import { cn, mod, touch } from '@/lib/utils'
+import { attachFiles } from './attach'
 import {
   isPasteInline,
   largePaste,
-  lastImageNumber,
   lastUserText,
   restoredDraft,
 } from './attached-images'
@@ -37,13 +41,7 @@ import {
 } from './composer-input'
 import { ComposerMenu, type Suggestion, suggestionsFor } from './composer-menu'
 import { useDictation } from './dictation'
-import {
-  editDraft,
-  fileMarker,
-  getDraft,
-  saveDraftFile,
-  useDraft,
-} from './drafts'
+import { editDraft, fileMarker, getDraft, useDraft } from './drafts'
 import { MissingWorktreeNotice } from './missing-worktree-notice'
 import { isSnoozeShortcut, MoreMenu, sendStatus } from './more-menu'
 import { PermissionPrompt } from './permission-prompt'
@@ -57,9 +55,6 @@ import { isStashShortcut, toggleStash } from './stash'
 import { WorktreeBar } from './worktree-bar'
 
 const log = logger.withTag('composer')
-
-const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
-const maxImageSize = 5 * 1024 * 1024
 
 export function Composer(props: {
   repos: GitRepo[]
@@ -77,6 +72,7 @@ export function Composer(props: {
   const starting = useStore(startingThread)
   const draft = useStore((state) => state.draft)
   const capabilities = useStore((state) => state.capabilities)
+  const provider = useStore((state) => state.settings.provider)
   const noAccount = useStore((state) =>
     state.settings.provider === 'opencode'
       ? state.machines.find(
@@ -162,9 +158,10 @@ export function Composer(props: {
       ? []
       : suggestionsFor(
           trigger,
-          (capabilities?.commands ?? []).filter(
-            (command) => before === trigger || command.inline
-          ),
+          [
+            ...sideQuestCommands(provider),
+            ...(capabilities?.commands ?? []),
+          ].filter((command) => before === trigger || command.inline),
           files
         )
   const activeIndex = Math.min(active, suggestions.length - 1)
@@ -204,6 +201,11 @@ export function Composer(props: {
     }
     setSending(true)
     try {
+      if (isSideQuest(text)) {
+        await sendSideQuestDraft(key)
+        setCaret(0)
+        return
+      }
       if (delivery === null) {
         throw new Error('This machine is not connected')
       }
@@ -221,53 +223,6 @@ export function Composer(props: {
       showError(error)
     } finally {
       setSending(false)
-    }
-  }
-
-  async function attach(list: File[]) {
-    let position = caret
-    let space = /(^|\s)$/.test(text.slice(0, caret)) ? '' : ' '
-    for (const file of list) {
-      if (imageTypes.includes(file.type) && file.size <= maxImageSize) {
-        const data = await readBase64(file)
-        const number =
-          Math.max(
-            lastImageNumber(getState().items, [getDraft(key).text]),
-            ...getDraft(key).images.map((image) => image.number)
-          ) + 1
-        const image = { number, mediaType: file.type, data }
-        const at = position
-        const marker = `${space}[Image #${number}] `
-        space = ''
-        editDraft(key, (current) => ({
-          ...current,
-          text: `${current.text.slice(0, at)}${marker}${current.text.slice(at)}`,
-          images: [...current.images, image],
-        }))
-        position += marker.length
-        setCaret(position)
-        requestAnimationFrame(() => moveComposerCaret(position, false))
-        continue
-      }
-      if (file.size > UPLOAD_LIMIT) {
-        showError(new Error(`${file.name} is larger than 50 MB`))
-        continue
-      }
-      const id = await saveDraftFile(file)
-      const number =
-        Math.max(0, ...getDraft(key).files.map((item) => item.number)) + 1
-      const attached = { number, id, name: file.name }
-      const at = position
-      const marker = `${space}${fileMarker(attached)} `
-      space = ''
-      editDraft(key, (current) => ({
-        ...current,
-        text: `${current.text.slice(0, at)}${marker}${current.text.slice(at)}`,
-        files: [...current.files, attached],
-      }))
-      position += marker.length
-      setCaret(position)
-      requestAnimationFrame(() => moveComposerCaret(position, false))
     }
   }
 
@@ -338,7 +293,12 @@ export function Composer(props: {
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => {
             event.preventDefault()
-            void attach([...event.dataTransfer.files])
+            void attachFiles(
+              key,
+              [...event.dataTransfer.files],
+              caret,
+              setCaret
+            )
           }}
         >
           <div className="pb-1 md:pb-2">
@@ -360,14 +320,14 @@ export function Composer(props: {
                   if (file === null) {
                     return false
                   }
-                  void attach([file])
+                  void attachFiles(key, [file], caret, setCaret)
                   return true
                 }
                 const pasted = [...(event.clipboardData?.files ?? [])]
                 if (pasted.length === 0) {
                   return false
                 }
-                void attach(pasted)
+                void attachFiles(key, pasted, caret, setCaret)
                 return true
               }}
               onKeyDown={(event) => {
@@ -449,7 +409,12 @@ export function Composer(props: {
                 multiple
                 hidden
                 onChange={(event) => {
-                  void attach([...(event.target.files ?? [])])
+                  void attachFiles(
+                    key,
+                    [...(event.target.files ?? [])],
+                    caret,
+                    setCaret
+                  )
                   event.target.value = ''
                 }}
               />

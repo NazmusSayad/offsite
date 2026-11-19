@@ -35,7 +35,7 @@ export async function* skillInputs(
   }
 }
 
-function toUserInputs(
+export function toUserInputs(
   prompt: Prompt,
   uuid: UUID,
   priority: 'next' | undefined,

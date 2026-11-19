@@ -372,7 +372,7 @@ export function DesktopLayout() {
           </div>
           {selection !== null &&
             panel !== null &&
-            (!projectless || panel === 'pull') && (
+            (!projectless || panel === 'pull' || panel === 'quests') && (
               <div
                 className="relative flex shrink-0"
                 style={{ width: panelWidth }}

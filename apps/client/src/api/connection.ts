@@ -151,6 +151,9 @@ export function disconnectMachine(machine: string) {
 
 export function listen(listener: Listener) {
   listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
 }
 
 export function isConnected(machine: string) {

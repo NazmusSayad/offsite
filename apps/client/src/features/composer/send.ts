@@ -29,24 +29,7 @@ export async function sendDraft(
   if (selection === null) {
     throw new Error('no session selected')
   }
-  const draft = getDraft(key)
-  const used = usedAttachments(draft)
-  let text = draft.text.trim()
-  for (const file of used.files) {
-    const saved = await loadDraftFile(file.id)
-    if (saved === undefined) {
-      throw new Error(`${file.name} is no longer saved, attach it again`)
-    }
-    const path = await uploadFile(selection.machine, saved)
-    text = text.replace(fileMarker(file), () => `@${path}`)
-  }
-  const prompt = {
-    text,
-    images: used.images.map((image) => ({
-      mediaType: image.mediaType,
-      data: image.data,
-    })),
-  }
+  const prompt = await draftPrompt(selection.machine, key)
   if (selection.sessionId !== null || selection.pending !== null) {
     editDraft(key, (current) => ({
       ...current,
@@ -57,6 +40,27 @@ export async function sendDraft(
   }
   const id = addToOutbox(selection, prompt, delivery, status)
   void deliver(id, sendPrompt(id, prompt, delivery, selection, status))
+}
+
+export async function draftPrompt(machine: string, key: string) {
+  const draft = getDraft(key)
+  const used = usedAttachments(draft)
+  let text = draft.text.trim()
+  for (const file of used.files) {
+    const saved = await loadDraftFile(file.id)
+    if (saved === undefined) {
+      throw new Error(`${file.name} is no longer saved, attach it again`)
+    }
+    const path = await uploadFile(machine, saved)
+    text = text.replace(fileMarker(file), () => `@${path}`)
+  }
+  return {
+    text,
+    images: used.images.map((image) => ({
+      mediaType: image.mediaType,
+      data: image.data,
+    })),
+  }
 }
 
 const disconnected = new Set<string>()

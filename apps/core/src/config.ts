@@ -3,6 +3,7 @@ import type { Provider } from './providers.ts'
 export const DEFAULT_PROVIDER = 'claude'
 export const DEFAULT_CLAUDE_PERMISSION_MODE = 'bypassPermissions'
 export const DEFAULT_CODEX_PERMISSION_MODE = 'full-access'
+export const CODEX_MODES = ['read-only', 'auto', 'full-access'] as const
 export const DEFAULT_SMALL_MODELS: Record<
   Exclude<Provider, 'opencode'>,
   string
@@ -83,6 +84,7 @@ export type Config = {
     accounts: AccountConfig[]
     models: Record<string, ModelSetting>
     smallModel: string | null
+    sideQuestMode: (typeof CODEX_MODES)[number]
   }
   opencode: {
     enabled: boolean

@@ -1,6 +1,7 @@
 import { useSearch } from '@tanstack/react-router'
 import { lazy, Suspense } from 'react'
 import { BrowserPanel } from '@/features/browser/browser-panel'
+import { SideQuestsPanel } from '@/features/side-quests/side-quests-panel'
 import { TasksPanel } from '@/features/transcript/tasks-panel'
 import type { Panel } from '@/features/workspace/panels'
 import { projectOf, type Selection, useStore } from '@/lib/store'
@@ -86,6 +87,14 @@ export function PanelView(props: {
             mobile={props.mobile}
           />
         </Suspense>
+      )}
+      {props.panel === 'quests' && (
+        <SideQuestsPanel
+          key={`${props.selection.machine} ${props.selection.sessionId}`}
+          selection={props.selection}
+          onClose={() => props.onPanel(null)}
+          mobile={props.mobile}
+        />
       )}
       {props.panel === 'tasks' && (
         <TasksPanel

@@ -17,6 +17,7 @@ import { cn, errorMessage } from '@/lib/utils'
 import { AccountPage, NewAccountPage } from './account'
 import { Row, Section, TextInput } from './controls'
 import { LinkDialog } from './link-dialog'
+import { SideQuestModeSection } from './side-quest-mode'
 import { SmallModelSection } from './small-model'
 
 export function ProviderPage(props: {
@@ -97,6 +98,9 @@ export function ProviderPage(props: {
               accounts={accounts}
             />
           </Section>
+        )}
+        {props.provider === 'codex' && (
+          <SideQuestModeSection machine={props.machine} config={config} />
         )}
         {enabled &&
           props.provider === 'opencode' &&

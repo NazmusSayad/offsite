@@ -9,6 +9,7 @@ import { type EditorState, Plugin } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { useEffect, useLayoutEffect } from 'react'
+import { sideQuestCommands } from '@/features/side-quests/ask'
 import { skillPill, skillRanges } from '@/lib/skills'
 import { getState, showError } from '@/lib/store'
 import { cn, touch } from '@/lib/utils'
@@ -27,10 +28,10 @@ const Skills = Extension.create({
           decorations: (state) => {
             return DecorationSet.create(
               state.doc,
-              skillRanges(
-                textOf(state.doc),
-                getState().capabilities?.commands ?? []
-              ).map((range) =>
+              skillRanges(textOf(state.doc), [
+                ...sideQuestCommands(getState().settings.provider),
+                ...(getState().capabilities?.commands ?? []),
+              ]).map((range) =>
                 Decoration.inline(
                   positionOf(state.doc, range.start),
                   positionOf(state.doc, range.end),
