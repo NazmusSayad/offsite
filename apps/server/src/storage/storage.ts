@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process'
 import {
   mkdirSync,
   readFileSync,
@@ -23,10 +22,6 @@ const savedServer = z
 const log = logger.withTag('storage')
 
 mkdirSync(home, { recursive: true })
-
-export const scratchAvailable =
-  spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: home })
-    .status !== 0
 
 export function listenServer(https: boolean) {
   const given = { port: Number(args.port), https }

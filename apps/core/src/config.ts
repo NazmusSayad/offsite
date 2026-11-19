@@ -107,7 +107,6 @@ export type ConfigWithDefaults = {
   defaultShell: string
   defaultClaudeBaseDir: string
   homeDir: string
-  scratchAvailable: boolean
   version: string
 }
 

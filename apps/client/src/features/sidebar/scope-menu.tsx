@@ -354,8 +354,7 @@ export function ProjectMenuItems(props: {
                       {machineLabel(group.machine)}
                     </span>
                   </DropdownMenuLabel>
-                  {group.machine.system?.scratchAvailable === true &&
-                    chatChip(group.machine)}
+                  {group.machine.system !== null && chatChip(group.machine)}
                   <div className="flex shrink-0 items-center">
                     {manageButton(group.machine)}
                     <button
@@ -419,8 +418,7 @@ export function ProjectMenuItems(props: {
                   Add project
                 </DropdownMenuItem>
                 <div className="flex shrink-0 items-center">
-                  {machines[0].system?.scratchAvailable === true &&
-                    chatChip(machines[0])}
+                  {machines[0].system !== null && chatChip(machines[0])}
                   {manageButton(machines[0])}
                 </div>
               </div>

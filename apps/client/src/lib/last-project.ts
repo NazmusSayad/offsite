@@ -7,7 +7,7 @@ export function lastProject() {
   const last: { machine: string; projectId: string } | null =
     raw === null ? null : JSON.parse(raw)
   const projectless = state.machines.filter(
-    (machine) => machine.system?.scratchAvailable === true
+    (machine) => machine.system !== null
   )
   if (
     last !== null &&

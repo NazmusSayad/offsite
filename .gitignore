@@ -9,3 +9,4 @@ playwright-report/
 next-env.d.ts
 *.tsbuildinfo
 e2e/browser/output/
+.offsite/
