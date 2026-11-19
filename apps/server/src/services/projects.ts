@@ -15,7 +15,7 @@ import {
   notificationIcons,
   projects as projectsTable,
 } from '../storage/schema.ts'
-import { home, scratchAvailable } from '../storage/storage.ts'
+import { home } from '../storage/storage.ts'
 import { findLogo, prepareLogo } from './logos.ts'
 
 export const scratchRoot = path.join(home, 'scratch')
@@ -76,11 +76,6 @@ export async function addProject(input: string) {
 }
 
 export async function addScratchProject(text: string) {
-  if (!scratchAvailable) {
-    throw new Error(
-      `Chats without a project are unavailable because ${home} is inside a Git repository`
-    )
-  }
   await mkdir(scratchRoot, { recursive: true })
   const words = text
     .toLowerCase()

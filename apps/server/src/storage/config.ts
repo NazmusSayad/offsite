@@ -8,7 +8,7 @@ import {
 } from '@offsite/core/config'
 import { z } from 'zod'
 import { broadcast } from '../lib/hub.ts'
-import { readSettings, scratchAvailable, writeJson } from './storage.ts'
+import { readSettings, writeJson } from './storage.ts'
 
 const modelSetting = z.strictObject({
   hidden: z.boolean(),
@@ -178,7 +178,6 @@ export function configInfo(): ConfigWithDefaults {
     defaultShell: defaultShell(),
     defaultClaudeBaseDir: path.join(os.homedir(), '.claude'),
     homeDir: os.homedir(),
-    scratchAvailable,
     version: process.env.OFFSITE_VERSION ?? 'dev',
   }
 }

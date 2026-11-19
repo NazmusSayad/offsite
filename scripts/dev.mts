@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { concurrently } from 'concurrently'
@@ -10,8 +9,14 @@ const options = parseArgs({
     host: { type: 'string' },
     connect: { type: 'string' },
     pwa: { type: 'boolean' },
+    name: { type: 'string', default: 'main' },
   },
 }).values
+
+if (!/^[\w-][\w.-]*$/.test(options.name)) {
+  console.error(`offsite dev: invalid --name ${JSON.stringify(options.name)}`)
+  process.exit(1)
+}
 
 const loopback =
   options.host === undefined ||
@@ -20,7 +25,7 @@ const loopback =
     ? '127.0.0.1'
     : options.host
 
-const dir = freeDir()
+const dir = freeDir(options.name)
 const webPort = await getPort({ port: portNumbers(7000, 7999) })
 const serverPort = await getPort({ port: portNumbers(8000, 8999) })
 
@@ -64,11 +69,13 @@ try {
   process.exit(1)
 }
 
-function freeDir() {
+function freeDir(name: string) {
   for (let index = 1; ; index++) {
     const dir = path.join(
-      os.homedir(),
-      index === 1 ? '.offsite-dev' : `.offsite-dev-${index}`
+      import.meta.dirname,
+      '..',
+      '.offsite',
+      index === 1 ? name : `${name}-${index}`
     )
     if (!inUse(dir)) {
       return dir

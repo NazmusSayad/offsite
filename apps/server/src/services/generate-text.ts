@@ -106,9 +106,14 @@ export async function generateText(
     }
     const directory = await mkdtemp(path.join(tmpdir(), 'offsite-title-'))
     try {
+      const options = claudeOptions(thread.accountId, directory)
       return await claudeText(
         {
-          ...claudeOptions(thread.accountId, directory),
+          ...options,
+          env:
+            task === 'session-title'
+              ? { ...options.env, CLAUDE_CODE_DISABLE_CLAUDE_MDS: '1' }
+              : options.env,
           strictMcpConfig: true,
           settings: { disableAllHooks: true },
           abortController,

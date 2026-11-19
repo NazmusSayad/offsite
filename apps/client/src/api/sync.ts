@@ -219,7 +219,6 @@ function resync(machine: string, snapshot: SyncSnapshot) {
         defaultShell: snapshot.defaultShell,
         defaultClaudeBaseDir: snapshot.defaultClaudeBaseDir,
         homeDir: snapshot.homeDir,
-        scratchAvailable: snapshot.scratchAvailable,
         version: snapshot.version,
       },
       activity: snapshot.activity,
