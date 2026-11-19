@@ -2,8 +2,6 @@ import { randomUUID } from 'node:crypto'
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import type { SessionSettings } from '@offsite/core/config'
 import type { Prompt } from '@offsite/core/items'
-import type { SideQuestExchange } from '@offsite/core/side-quests'
-import { sideQuestPrompt } from '../side-quest-prompt.ts'
 import { runOptions } from './claude.ts'
 import { toUserInputs } from './skills.ts'
 
@@ -12,21 +10,12 @@ export async function claudeSideQuest(options: {
   cwd: string
   settings: SessionSettings
   prompt: Prompt
-  history: SideQuestExchange[]
 }) {
   const uuid = randomUUID()
   let asked = false
   const conversation = query({
     prompt: (async function* () {
-      yield* toUserInputs(
-        {
-          text: sideQuestPrompt(options.history, options.prompt.text),
-          images: options.prompt.images,
-        },
-        uuid,
-        undefined,
-        []
-      )
+      yield* toUserInputs(options.prompt, uuid, undefined, [])
     })(),
     options: {
       ...runOptions({

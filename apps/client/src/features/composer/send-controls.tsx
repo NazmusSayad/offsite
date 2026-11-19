@@ -98,9 +98,12 @@ export function SendControls(props: {
   )
 }
 
-export function DictateButton(props: { dictation: Dictation }) {
+export function DictateButton(props: {
+  dictation: Dictation
+  desktop: boolean
+}) {
   const dictateButton = useStore((state) => state.prefs.dictateButton.mobile)
-  if (!dictateButton) {
+  if (!dictateButton && !props.desktop) {
     return null
   }
   return (
@@ -108,7 +111,9 @@ export function DictateButton(props: { dictation: Dictation }) {
       variant="ghost"
       size="icon-xs"
       className={cn(
-        'relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5 md:hidden',
+        'relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5',
+        props.desktop ? 'md:size-8 md:after:hidden' : 'md:hidden',
+        !dictateButton && 'max-md:hidden',
         props.dictation.state.kind !== 'idle' && 'invisible'
       )}
       title={`Dictate (${mod}+Shift+D)`}

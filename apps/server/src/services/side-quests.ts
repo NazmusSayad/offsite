@@ -7,6 +7,7 @@ import { codexSideQuest } from '../lib/codex/side-quest.ts'
 import { publish } from '../lib/hub.ts'
 import { runs } from '../lib/live.ts'
 import { logger } from '../lib/log.ts'
+import { sideQuestPrompt } from '../lib/side-quest-prompt.ts'
 import { db } from '../storage/db.ts'
 import { sideQuests } from '../storage/schema.ts'
 import { assertEnabled } from './accounts.ts'
@@ -28,24 +29,23 @@ export function askSideQuest(request: RpcMethods['sideQuests.ask']['params']) {
   if (question === '' && request.prompt.images.length === 0) {
     throw new Error('Type a question first')
   }
-  const prompt = { text: question, images: request.prompt.images }
   const settings = runs.get(request.sessionId)?.settings ?? request.settings
   const provider = settings.provider
   if (provider === 'opencode') {
     throw new Error('Side quests work only in Claude and Codex threads')
   }
   assertEnabled(provider, settings.accountId)
-  const history = listSideQuests(request.sessionId).flatMap((quest) =>
-    quest.status === 'answered' && quest.answer !== null
-      ? [{ question: quest.question, response: quest.answer }]
-      : []
-  )
+  const prompt = {
+    text: sideQuestPrompt(listSideQuests(request.sessionId), question),
+    images: request.prompt.images,
+  }
   const id = randomUUID()
   db.insert(sideQuests)
     .values({
       id,
       sessionId: request.sessionId,
       question,
+      images: request.prompt.images,
       answer: null,
       status: 'answering',
       error: null,
@@ -61,14 +61,12 @@ export function askSideQuest(request: RpcMethods['sideQuests.ask']['params']) {
           cwd: placePath(request.projectId, request.worktreeId),
           settings,
           prompt,
-          history,
         })
       case 'codex':
         return codexSideQuest({
           sessionId: request.sessionId,
           settings,
           prompt,
-          history,
         })
     }
   })

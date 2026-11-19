@@ -13,11 +13,11 @@ import { sideQuestCommands } from '@/features/side-quests/ask'
 import { skillPill, skillRanges } from '@/lib/skills'
 import { getState, showError } from '@/lib/store'
 import { cn, touch } from '@/lib/utils'
-import { Attachment } from './composer-attachment'
+import { Attachment, DraftContext } from './composer-attachment'
 import { copiedPrompt, copyPrompt, pastePrompt } from './copy'
 import { prepareDraftFiles, useDraft } from './drafts'
 
-let mounted: Editor | null = null
+const editors = new Map<string, Editor>()
 
 const Skills = Extension.create({
   name: 'skills',
@@ -47,6 +47,8 @@ const Skills = Extension.create({
 })
 
 export function ComposerInput(props: {
+  main: boolean
+  label: string | null
   text: string
   editable: boolean
   markers: string[]
@@ -68,7 +70,8 @@ export function ComposerInput(props: {
     coreExtensionOptions: { clipboardTextSerializer: { blockSeparator: '\n' } },
     editorProps: {
       attributes: {
-        'data-composer': '',
+        ...(props.main ? { 'data-composer': '' } : {}),
+        ...(props.label === null ? {} : { 'aria-label': props.label }),
         'data-placeholder': props.placeholder,
         'aria-placeholder': props.placeholder,
         spellcheck: 'false',
@@ -166,13 +169,16 @@ export function ComposerInput(props: {
   }, [draftFiles])
 
   useLayoutEffect(() => {
-    mounted = editor
+    editors.set(props.draft, editor)
     return () => {
-      mounted = null
+      editors.delete(props.draft)
     }
-  }, [editor])
+  }, [editor, props.draft])
 
   useEffect(() => {
+    if (!props.main) {
+      return
+    }
     function onKeyDown(event: KeyboardEvent) {
       if (
         event.defaultPrevented ||
@@ -202,7 +208,7 @@ export function ComposerInput(props: {
     }
     addEventListener('keydown', onKeyDown)
     return () => removeEventListener('keydown', onKeyDown)
-  }, [editor])
+  }, [editor, props.main])
 
   useLayoutEffect(() => {
     editor.setEditable(props.editable, false)
@@ -233,31 +239,51 @@ export function ComposerInput(props: {
   }, [editor, props.markers, props.files])
 
   return (
-    <EditorContent
-      editor={editor}
-      className={cn(
-        'grid overflow-y-auto text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap',
-        'max-h-55.5 sm:max-h-56'
-      )}
-    />
+    <DraftContext value={props.draft}>
+      <EditorContent
+        editor={editor}
+        className={cn(
+          'grid overflow-y-auto text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap',
+          'max-h-55.5 sm:max-h-56'
+        )}
+      />
+    </DraftContext>
   )
 }
 
-export function composerCaret() {
-  const editor = mountedEditor()
+export function hasComposer(key: string) {
+  return editors.has(key)
+}
+
+export function focusedComposer() {
+  for (const entry of editors) {
+    if (entry[1].view.hasFocus()) {
+      return entry[0]
+    }
+  }
+  return null
+}
+
+export function composerCaret(key: string) {
+  const editor = mountedEditor(key)
   return caretOf(editor.state.doc, editor.state.selection.head)
 }
 
-export function moveComposerCaret(caret: number, focus: boolean) {
-  const editor = mountedEditor()
+export function moveComposerCaret(key: string, caret: number, focus: boolean) {
+  const editor = mountedEditor(key)
   editor.commands.setTextSelection(positionOf(editor.state.doc, caret))
   if (focus) {
     editor.view.focus()
   }
 }
 
-export function replaceComposerText(start: number, end: number, value: string) {
-  const editor = mountedEditor()
+export function replaceComposerText(
+  key: string,
+  start: number,
+  end: number,
+  value: string
+) {
+  const editor = mountedEditor(key)
   editor.view.dispatch(
     editor.state.tr.insertText(
       value,
@@ -268,11 +294,12 @@ export function replaceComposerText(start: number, end: number, value: string) {
 }
 
 export function insertComposerMarker(
+  key: string,
   start: number,
   end: number,
   marker: string
 ) {
-  const editor = mountedEditor()
+  const editor = mountedEditor(key)
   const schema = editor.state.schema
   editor.view.dispatch(
     editor.state.tr.replaceWith(
@@ -283,21 +310,22 @@ export function insertComposerMarker(
   )
 }
 
-export function composerRect(caret: number) {
-  const editor = mountedEditor()
+export function composerRect(key: string, caret: number) {
+  const editor = mountedEditor(key)
   const coords = editor.view.coordsAtPos(positionOf(editor.state.doc, caret))
   return new DOMRect(coords.left, coords.top, 0, coords.bottom - coords.top)
 }
 
-export function focusComposer() {
-  mountedEditor().view.focus()
+export function focusComposer(key: string) {
+  mountedEditor(key).view.focus()
 }
 
-function mountedEditor() {
-  if (mounted === null) {
+function mountedEditor(key: string) {
+  const editor = editors.get(key)
+  if (editor === undefined) {
     throw new Error('The composer is not mounted')
   }
-  return mounted
+  return editor
 }
 
 function documentOf(text: string, markers: string[], files: Set<string>) {

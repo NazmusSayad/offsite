@@ -1,11 +1,21 @@
 import { SquareSlashIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { SlashCommand } from '@offsite/core/providers'
-import { useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { call } from '@/api/connection'
 import { FileTypeIcon } from '@/components/file-icon'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
+import { logger } from '@/lib/log'
+import { machineOf, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
-import { composerRect } from './composer-input'
+import {
+  composerCaret,
+  composerRect,
+  insertComposerMarker,
+  replaceComposerText,
+} from './composer-input'
+
+const log = logger.withTag('composer')
 
 export type Suggestion = {
   key: string
@@ -48,28 +58,129 @@ export function suggestionsFor(
     }))
 }
 
-export function ComposerMenu(props: {
-  items: Suggestion[]
-  active: number
-  anchor: number
-  onHover: (index: number) => void
-  onPick: (item: Suggestion) => void
-  onClose: () => void
+export function useProjectFiles(
+  machine: string,
+  projectId: string,
+  worktreeId: string | null
+) {
+  const status = useStore((state) => machineOf(state, machine).status)
+  const [files, setFiles] = useState<string[]>([])
+
+  useEffect(() => {
+    if (status !== 'online') {
+      return
+    }
+    let current = true
+    call(machine, 'files.list', { projectId, worktreeId }).then(
+      (list) => {
+        if (current) {
+          setFiles(list)
+        }
+      },
+      (error: unknown) => log.error('could not list files', error)
+    )
+    return () => {
+      current = false
+    }
+  }, [machine, projectId, worktreeId, status])
+
+  return files
+}
+
+export type Suggestions = ReturnType<typeof useSuggestions>
+
+export function useSuggestions(options: {
+  draft: string
+  text: string
+  caret: number
+  commands: SlashCommand[]
+  files: string[]
 }) {
+  const [active, setActive] = useState(0)
+  const [closed, setClosed] = useState(false)
+  const before = options.text.slice(0, options.caret)
+  const trigger = /(?:^|\s)([/@]\S*)$/.exec(before)?.[1] ?? null
+  const items =
+    trigger === null || closed
+      ? []
+      : suggestionsFor(
+          trigger,
+          options.commands.filter(
+            (command) => before === trigger || command.inline
+          ),
+          options.files
+        )
+  const activeIndex = Math.min(active, items.length - 1)
+
+  function pick(item: Suggestion) {
+    if (trigger === null) {
+      return
+    }
+    const start = options.caret - trigger.length
+    if (item.insert.startsWith('@')) {
+      insertComposerMarker(options.draft, start, options.caret, item.insert)
+      return
+    }
+    replaceComposerText(options.draft, start, options.caret, `${item.insert} `)
+  }
+
+  return {
+    draft: options.draft,
+    items,
+    active: activeIndex,
+    anchor: trigger === null ? null : options.caret - trigger.length,
+    hover: setActive,
+    pick,
+    close: () => setClosed(true),
+    reset: () => {
+      setActive(0)
+      setClosed(false)
+    },
+    onKeyDown: (event: KeyboardEvent) => {
+      if (items.length === 0) {
+        return false
+      }
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        const step = event.key === 'ArrowDown' ? 1 : -1
+        setActive((activeIndex + step + items.length) % items.length)
+        return true
+      }
+      if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') {
+        pick(items[activeIndex])
+        return true
+      }
+      if (event.key === 'Escape') {
+        setClosed(true)
+        return true
+      }
+      return false
+    },
+  }
+}
+
+export function ComposerMenu(props: { suggestions: Suggestions }) {
+  const suggestions = props.suggestions
+  const draft = suggestions.draft
+  const start = suggestions.anchor
+  const anchor = useMemo(
+    () => ({
+      current: {
+        getBoundingClientRect: () =>
+          composerRect(draft, start ?? composerCaret(draft)),
+      },
+    }),
+    [draft, start]
+  )
   return (
     <Popover
-      open={props.items.length > 0}
+      open={suggestions.items.length > 0}
       onOpenChange={(open) => {
         if (!open) {
-          props.onClose()
+          suggestions.close()
         }
       }}
     >
-      <PopoverAnchor
-        virtualRef={{
-          current: { getBoundingClientRect: () => composerRect(props.anchor) },
-        }}
-      />
+      <PopoverAnchor virtualRef={anchor} />
       <PopoverContent
         side="top"
         className="data-open:zoom-in-100! data-[side=bottom]:slide-in-from-top-0! data-[side=top]:slide-in-from-bottom-0! w-80 max-w-[calc(100vw-1rem)] duration-50 data-closed:animate-none"
@@ -77,10 +188,10 @@ export function ComposerMenu(props: {
         onCloseAutoFocus={(event) => event.preventDefault()}
       >
         <SuggestionList
-          items={props.items}
-          active={props.active}
-          onHover={props.onHover}
-          onPick={props.onPick}
+          items={suggestions.items}
+          active={suggestions.active}
+          onHover={suggestions.hover}
+          onPick={suggestions.pick}
         />
       </PopoverContent>
     </Popover>

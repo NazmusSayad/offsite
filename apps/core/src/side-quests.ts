@@ -1,17 +1,16 @@
 import type { SessionSettings } from './config.ts'
-import type { Prompt } from './items.ts'
+import type { ImageAttachment, Prompt } from './items.ts'
 
 export type SideQuest = {
   id: string
   sessionId: string
   question: string
+  images: ImageAttachment[]
   answer: string | null
   status: 'answering' | 'answered' | 'failed'
   error: string | null
   createdAt: number
 }
-
-export type SideQuestExchange = { question: string; response: string }
 
 export type SideQuestMethods = {
   'sideQuests.list': { params: { sessionId: string }; result: SideQuest[] }

@@ -1,6 +1,8 @@
 import type { Prompt } from '@offsite/core/items'
 import type { Provider } from '@offsite/core/providers'
 import { call } from '@/api/connection'
+import { machineKey } from '@/api/machines'
+import { focusComposer, hasComposer } from '@/features/composer/composer-input'
 import { editDraft } from '@/features/composer/drafts'
 import { draftPrompt } from '@/features/composer/send'
 import { getState, type Selection } from '@/lib/store'
@@ -17,13 +19,25 @@ export function sideQuestCommands(provider: Provider) {
   return provider === 'opencode' ? [] : commands
 }
 
+export function sideDraftKey(machine: string, sessionId: string) {
+  return `side:${machineKey(machine, sessionId)}`
+}
+
+let focusPending = false
+
+export function takeInputFocus() {
+  const pending = focusPending
+  focusPending = false
+  return pending
+}
+
 const command = /^\s*\/(?:btw|side)(?:\s+([\s\S]*))?$/i
 
 export function isSideQuest(text: string) {
   return command.test(text)
 }
 
-export async function askSideQuest(
+async function askSideQuest(
   selection: Selection,
   sessionId: string,
   prompt: Prompt
@@ -52,8 +66,24 @@ export async function sendSideQuestDraft(key: string) {
   }
   const question = { text: (match[1] ?? '').trim(), images: prompt.images }
   openPanel({ panel: 'quests' })
+  const side = sideDraftKey(selection.machine, selection.sessionId)
+  if (hasComposer(side)) {
+    focusComposer(side)
+  } else {
+    focusPending = true
+  }
   if (question.text !== '' || question.images.length > 0) {
     await askSideQuest(selection, selection.sessionId, question)
   }
+  editDraft(key, (current) => ({ ...current, text: '', images: [], files: [] }))
+}
+
+export async function sendSideDraft(selection: Selection, sessionId: string) {
+  const key = sideDraftKey(selection.machine, sessionId)
+  await askSideQuest(
+    selection,
+    sessionId,
+    await draftPrompt(selection.machine, key)
+  )
   editDraft(key, (current) => ({ ...current, text: '', images: [], files: [] }))
 }

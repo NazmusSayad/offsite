@@ -1,8 +1,6 @@
 import type { SessionSettings } from '@offsite/core/config'
 import type { Prompt } from '@offsite/core/items'
-import type { SideQuestExchange } from '@offsite/core/side-quests'
 import { readConfig } from '../../storage/config.ts'
-import { sideQuestPrompt } from '../side-quest-prompt.ts'
 import { imageInputs } from './items.ts'
 import { modePreset, threadPreset } from './presets.ts'
 import { reply } from './requests.ts'
@@ -13,7 +11,6 @@ export async function codexSideQuest(options: {
   sessionId: string
   settings: SessionSettings
   prompt: Prompt
-  history: SideQuestExchange[]
 }) {
   const preset = modePreset(readConfig().codex.sideQuestMode)
   if (preset === null) {
@@ -66,7 +63,7 @@ export async function codexSideQuest(options: {
       input: [
         {
           type: 'text',
-          text: sideQuestPrompt(options.history, options.prompt.text),
+          text: options.prompt.text,
           text_elements: [],
         },
         ...(await imageInputs(options.sessionId, options.prompt.images)),

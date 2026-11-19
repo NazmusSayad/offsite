@@ -41,6 +41,7 @@ export function UserMessage(props: {
   first: boolean
   running: boolean
   rewind: boolean
+  bookmark: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
   const bubble = useRef<HTMLDivElement>(null)
@@ -271,10 +272,12 @@ export function UserMessage(props: {
                   disabled={props.running || outboxPromptId !== null}
                 />
               )}
-              <MessageBookmarkButton
-                itemId={item.id}
-                disabled={outboxPromptId !== null}
-              />
+              {props.bookmark && (
+                <MessageBookmarkButton
+                  itemId={item.id}
+                  disabled={outboxPromptId !== null}
+                />
+              )}
               <MessageCopyButton text={prompt} />
             </div>
           )}

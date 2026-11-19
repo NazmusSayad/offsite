@@ -1,12 +1,14 @@
-import { SendHorizontalIcon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import type { SideQuest } from '@offsite/core/side-quests'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { call, listen } from '@/api/connection'
 import { Markdown } from '@/components/markdown/markdown'
+import {
+  MessageCopyButton,
+  UserMessage,
+} from '@/features/transcript/user-message'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { machineOf, type Selection, showError, useStore } from '@/lib/store'
-import { askSideQuest } from './ask'
+import { SideQuestComposer } from './side-quest-composer'
 
 export function SideQuestsPanel(props: {
   selection: Selection
@@ -18,7 +20,6 @@ export function SideQuestsPanel(props: {
   const status = useStore((state) => machineOf(state, machine).status)
   const available = useStore((state) => state.settings.provider !== 'opencode')
   const [quests, setQuests] = useState<SideQuest[] | null>(null)
-  const [text, setText] = useState('')
   const list = useRef<HTMLDivElement>(null)
   const last = quests?.at(-1)
 
@@ -47,23 +48,6 @@ export function SideQuestsPanel(props: {
     }
   }, [quests?.length, last?.status])
 
-  async function ask() {
-    const question = text.trim()
-    if (sessionId === null || question === '') {
-      return
-    }
-    setText('')
-    try {
-      await askSideQuest(props.selection, sessionId, {
-        text: question,
-        images: [],
-      })
-    } catch (error) {
-      setText(question)
-      showError(error)
-    }
-  }
-
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
       <div className="border-border/60 bg-background flex h-(--workspace-topbar-height) shrink-0 items-center gap-1 border-b pr-3 pl-3">
@@ -91,16 +75,33 @@ export function SideQuestsPanel(props: {
         <div className="flex flex-col gap-5">
           {quests?.map((quest) => (
             <div key={quest.id} className="flex flex-col gap-2">
-              <div className="bg-message text-message-foreground max-w-[85%] self-end rounded-2xl px-3 py-2 text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap">
-                {quest.question}
-              </div>
+              <UserMessage
+                item={{
+                  id: quest.id,
+                  parent: null,
+                  time: quest.createdAt,
+                  kind: 'user',
+                  text: quest.question,
+                  images: quest.images,
+                  format: 'text',
+                }}
+                first={false}
+                running={false}
+                rewind={false}
+                bookmark={false}
+              />
               {quest.status === 'answering' && (
                 <p className="text-muted-foreground text-shimmer px-1 text-sm">
                   Answering
                 </p>
               )}
               {quest.status === 'answered' && quest.answer !== null && (
-                <Markdown text={quest.answer} className="px-1 text-sm" />
+                <div className="group/answer">
+                  <Markdown text={quest.answer} className="px-1 text-sm" />
+                  <div className="mt-1.5 flex items-center gap-0.5 px-1 opacity-0 transition-opacity duration-200 group-hover/answer:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
+                    <MessageCopyButton text={quest.answer} />
+                  </div>
+                </div>
               )}
               {quest.status === 'failed' && (
                 <p className="text-destructive px-1 text-sm">{quest.error}</p>
@@ -109,42 +110,13 @@ export function SideQuestsPanel(props: {
           ))}
         </div>
       </div>
-      <div className="shrink-0 p-3 pt-0">
-        <div className="bg-input/40 border-input focus-within:border-primary flex items-end gap-1 rounded-2xl border p-1.5">
-          <textarea
-            rows={2}
-            aria-label="Side question"
-            placeholder="Ask a side question"
-            value={text}
-            disabled={sessionId === null || !available}
-            className="placeholder:text-muted-foreground [field-sizing:content] max-h-40 min-h-0 flex-1 resize-none bg-transparent px-1.5 py-1 text-sm outline-none disabled:cursor-not-allowed"
-            onChange={(event) => setText(event.target.value)}
-            onKeyDown={(event) => {
-              if (
-                event.key === 'Enter' &&
-                !event.shiftKey &&
-                !event.nativeEvent.isComposing
-              ) {
-                event.preventDefault()
-                void ask()
-              }
-            }}
-          />
-          <button
-            className="bg-composer-send text-composer-send-foreground hover:bg-composer-send-hover disabled:bg-foreground/12 disabled:text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-full transition-colors enabled:cursor-pointer disabled:pointer-events-none"
-            title="Send (Enter)"
-            aria-label="Send side question"
-            disabled={sessionId === null || !available || text.trim() === ''}
-            onClick={() => void ask()}
-          >
-            <HugeiconsIcon
-              icon={SendHorizontalIcon}
-              className="size-4 translate-x-[0.5px]"
-              strokeWidth={1.5}
-            />
-          </button>
-        </div>
-      </div>
+      {sessionId !== null && available && (
+        <SideQuestComposer
+          selection={props.selection}
+          sessionId={sessionId}
+          lastQuestion={last?.question ?? null}
+        />
+      )}
     </div>
   )
 }

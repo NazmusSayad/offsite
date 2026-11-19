@@ -20,7 +20,7 @@ export function stashPrompt(key: string) {
 
 export function restorePrompt(key: string, id: string) {
   const text = restoreStash(key, id, lastImageNumber(getState().items, []))
-  requestAnimationFrame(() => moveComposerCaret(text.length, true))
+  requestAnimationFrame(() => moveComposerCaret(key, text.length, true))
 }
 
 export function toggleStash(key: string) {

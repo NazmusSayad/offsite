@@ -1,6 +1,6 @@
 import { readBase64, UPLOAD_LIMIT } from '@/api/upload'
 import { getState, showError } from '@/lib/store'
-import { lastImageNumber } from './attached-images'
+import { largePaste, lastImageNumber } from './attached-images'
 import { moveComposerCaret } from './composer-input'
 import { editDraft, fileMarker, getDraft, saveDraftFile } from './drafts'
 
@@ -34,7 +34,7 @@ export async function attachFiles(
       }))
       position += marker.length
       onCaret(position)
-      requestAnimationFrame(() => moveComposerCaret(position, false))
+      requestAnimationFrame(() => moveComposerCaret(key, position, false))
       continue
     }
     if (file.size > UPLOAD_LIMIT) {
@@ -55,6 +55,30 @@ export async function attachFiles(
     }))
     position += marker.length
     onCaret(position)
-    requestAnimationFrame(() => moveComposerCaret(position, false))
+    requestAnimationFrame(() => moveComposerCaret(key, position, false))
   }
+}
+
+export function attachPasted(
+  event: ClipboardEvent,
+  key: string,
+  inline: boolean,
+  caret: number,
+  onCaret: (position: number) => void
+) {
+  const text = event.clipboardData?.getData('text/plain') ?? ''
+  if (text !== '') {
+    const file = inline ? null : largePaste(text, getDraft(key).files)
+    if (file === null) {
+      return false
+    }
+    void attachFiles(key, [file], caret, onCaret)
+    return true
+  }
+  const pasted = [...(event.clipboardData?.files ?? [])]
+  if (pasted.length === 0) {
+    return false
+  }
+  void attachFiles(key, pasted, caret, onCaret)
+  return true
 }

@@ -6,6 +6,7 @@ import { type TerminalPlace, terminalViewOf } from '@offsite/core/terminal'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { deleteDraft, getDraftSettings } from '@/features/composer/drafts'
+import { sideDraftKey } from '@/features/side-quests/ask'
 import {
   newThreadSettings,
   providerSettings,
@@ -481,6 +482,7 @@ export async function removeSession(
     ),
   })
   deleteDraft(machineKey(machine, id))
+  deleteDraft(sideDraftKey(machine, id))
   const selection = getState().selection
   if (selection?.machine === machine && selection.sessionId === id) {
     startChat(machine, selection.projectId, true)
