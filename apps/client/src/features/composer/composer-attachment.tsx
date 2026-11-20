@@ -6,14 +6,17 @@ import {
   ReactNodeViewRenderer,
   type ReactNodeViewProps,
 } from '@tiptap/react'
+import { createContext, use } from 'react'
 import { readBase64 } from '@/api/upload'
 import { FileTypeIcon } from '@/components/file-icon'
 import { FilePreview } from '@/components/file-preview'
 import { loadMention } from '@/features/transcript/upload-chip'
 import { mediaKind } from '@/lib/media'
 import { type Preview, TEXT_READ_LIMIT } from '@/lib/preview'
-import { draftKey, useStore } from '@/lib/store'
+import { useStore } from '@/lib/store'
 import { fileMarker, loadDraftFile, useDraft } from './drafts'
+
+export const DraftContext = createContext('')
 
 export const Attachment = Node.create({
   name: 'attachment',
@@ -39,7 +42,7 @@ export const Attachment = Node.create({
 function AttachmentChip(props: ReactNodeViewProps) {
   const marker = String(props.node.attrs.marker)
   const selection = useStore((state) => state.selection)
-  const draft = useDraft(selection === null ? '' : draftKey(selection))
+  const draft = useDraft(use(DraftContext))
   const image = draft.images.find(
     (item) => `[Image #${item.number}]` === marker
   )

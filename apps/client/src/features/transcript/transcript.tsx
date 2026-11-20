@@ -370,6 +370,7 @@ function RowContent(props: {
           first={row.first}
           running={props.running}
           rewind={props.rewind}
+          bookmark
         />
       )
     case 'working':

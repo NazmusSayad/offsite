@@ -1,5 +1,6 @@
 import {
   BrowserIcon,
+  BubbleChatQuestionIcon,
   GitCompareIcon,
   GitPullRequestIcon,
   SquareTerminalIcon,
@@ -57,6 +58,7 @@ export function usePanelOptions(
       selectedTasks(state).tasks.filter((item) => item.status === 'Running')
         .length
   )
+  const provider = useStore((state) => state.settings.provider)
   const tasksColor =
     agents > 0 ? 'text-info' : tasks > 0 ? 'text-muted-foreground' : null
   const taskCounts = [
@@ -106,6 +108,22 @@ export function usePanelOptions(
       attention: tasksColor,
       onSelect: () => props.onPanel(props.panel === 'tasks' ? null : 'tasks'),
     },
+    ...(provider === 'opencode'
+      ? []
+      : [
+          {
+            id: 'quests' as const,
+            label: 'Side Quests',
+            title: 'Side Quests',
+            hotkey: null,
+            icon: BubbleChatQuestionIcon,
+            pressed: props.panel === 'quests',
+            dot: null,
+            attention: null,
+            onSelect: () =>
+              props.onPanel(props.panel === 'quests' ? null : 'quests'),
+          },
+        ]),
     {
       id: 'terminal',
       label: 'Terminal',

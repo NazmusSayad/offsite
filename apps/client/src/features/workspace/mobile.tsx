@@ -189,7 +189,9 @@ function MobileChat(props: { selection: Selection }) {
   })
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   const open =
-    panel === 'pull' || (!projectless && (panel !== null || terminal))
+    panel === 'pull' ||
+    panel === 'quests' ||
+    (!projectless && (panel !== null || terminal))
 
   const showOverlay = useCallback(
     (search: Search) => {
@@ -327,6 +329,7 @@ function MobileChat(props: { selection: Selection }) {
               {panel === 'pulls' && 'Pull requests'}
               {panel === 'pull' && 'Pull request'}
               {panel === 'tasks' && 'Tasks'}
+              {panel === 'quests' && 'Side Quests'}
               {panel === 'browser' && 'Browser'}
               {panel === null && 'Terminal'}
             </DialogPrimitive.Title>

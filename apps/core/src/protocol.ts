@@ -60,6 +60,7 @@ import type {
   SessionPatch,
   SessionRuntime,
 } from './sessions.ts'
+import type { SideQuest, SideQuestMethods } from './side-quests.ts'
 import type {
   BusyResult,
   Shell,
@@ -88,7 +89,8 @@ export type SyncSnapshot = ConfigWithDefaults & {
 
 export type RpcMethods = PullRequestMethods &
   NotificationMethods &
-  GitMethods & {
+  GitMethods &
+  SideQuestMethods & {
     'config.get': { params: void; result: ConfigWithDefaults }
     'config.save': { params: Config; result: Config }
     'appIcon.save': { params: AppIconId; result: AppIconId }
@@ -480,6 +482,7 @@ export type ServerEvent =
   | { type: 'delta'; sessionId: string; text: string }
   | { type: 'request'; sessionId: string; request: PermissionRequest }
   | { type: 'requestDone'; sessionId: string; requestId: string }
+  | { type: 'sideQuests'; sessionId: string; sideQuests: SideQuest[] }
   | {
       type: 'requestDeadline'
       sessionId: string

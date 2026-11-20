@@ -1,6 +1,11 @@
 import os from 'node:os'
 import path from 'node:path'
-import type { Config, ConfigWithDefaults, Platform } from '@offsite/core/config'
+import {
+  CODEX_MODES,
+  type Config,
+  type ConfigWithDefaults,
+  type Platform,
+} from '@offsite/core/config'
 import { z } from 'zod'
 import { broadcast } from '../lib/hub.ts'
 import { readSettings, writeJson } from './storage.ts'
@@ -77,6 +82,7 @@ const configSchema: z.ZodType<Config> = z.strictObject({
       accounts: z.array(accountSchema('codex')).default([]),
       models: modelSettings,
       smallModel,
+      sideQuestMode: z.enum(CODEX_MODES).default('read-only'),
     })
     .prefault({}),
   opencode: z

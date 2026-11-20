@@ -86,7 +86,17 @@ const prefsSchema = z.strictObject({
   autoMoveToSnooze: z.boolean().default(false),
   dictateButton: z.object({ mobile: z.boolean().default(true) }).prefault({}),
   toolbar: z
-    .array(z.enum(['diff', 'pulls', 'terminal', 'tasks', 'browser', 'editor']))
+    .array(
+      z.enum([
+        'diff',
+        'pulls',
+        'terminal',
+        'tasks',
+        'quests',
+        'browser',
+        'editor',
+      ])
+    )
     .default(['diff', 'terminal', 'editor']),
 })
 

@@ -3,9 +3,14 @@ import { useHotkeys } from 'react-hotkeys-hook'
 import { call } from '@/api/connection'
 import { readBase64 } from '@/api/upload'
 import { logger } from '@/lib/log'
-import { draftKey, getState, useStore } from '@/lib/store'
+import { getState, useStore } from '@/lib/store'
 import { errorMessage, touch } from '@/lib/utils'
-import { composerCaret, moveComposerCaret } from './composer-input'
+import {
+  composerCaret,
+  focusedComposer,
+  hasComposer,
+  moveComposerCaret,
+} from './composer-input'
 import { editDraft, getDraft } from './drafts'
 
 const log = logger.withTag('dictation')
@@ -26,7 +31,7 @@ type DictationState =
 
 export type Dictation = ReturnType<typeof useDictation>
 
-export function useDictation() {
+export function useDictation(draft: string, main: boolean) {
   const [state, setState] = useState<DictationState>({ kind: 'idle' })
   const recorder = useRef<MediaRecorder | null>(null)
   const recording = useRef<{
@@ -104,7 +109,6 @@ export function useDictation() {
       )
       return
     }
-    const key = draftKey(thread)
     const machine = dictationMachine()
     if (machine === undefined) {
       fail(
@@ -215,7 +219,7 @@ export function useDictation() {
       if (attempt.current !== current) {
         return
       }
-      recording.current = { machine: machine.id, key, audio }
+      recording.current = { machine: machine.id, key: draft, audio }
       await transcribe()
     })
     media.start()
@@ -297,11 +301,20 @@ export function useDictation() {
     setState({ kind: 'idle' })
   }
 
-  useHotkeys('mod+shift+d', () => void toggle(), {
-    enableOnFormTags: true,
-    enableOnContentEditable: true,
-    preventDefault: true,
-  })
+  useHotkeys(
+    'mod+shift+d',
+    () => {
+      const focused = focusedComposer()
+      if (focused === null ? main : focused === draft) {
+        void toggle()
+      }
+    },
+    {
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+      preventDefault: true,
+    }
+  )
 
   return {
     state,
@@ -321,15 +334,14 @@ function dictationMachine() {
 }
 
 function insert(value: string, key: string) {
-  const selection = getState().selection
-  if (selection === null || draftKey(selection) !== key) {
+  if (!hasComposer(key)) {
     editDraft(key, (current) => ({
       ...current,
       text: `${current.text}${/(^|\s)$/.test(current.text) ? '' : ' '}${value} `,
     }))
     return
   }
-  const at = composerCaret()
+  const at = composerCaret(key)
   const text = getDraft(key).text
   const before = /(^|\s)$/.test(text.slice(0, at)) ? '' : ' '
   const after = /^\s/.test(text.slice(at)) ? '' : ' '
@@ -339,5 +351,5 @@ function insert(value: string, key: string) {
     ...current,
     text: `${current.text.slice(0, at)}${inserted}${current.text.slice(at)}`,
   }))
-  requestAnimationFrame(() => moveComposerCaret(position, !touch.matches))
+  requestAnimationFrame(() => moveComposerCaret(key, position, !touch.matches))
 }

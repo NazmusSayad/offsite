@@ -13,7 +13,7 @@ const searchSchema = z.object({
   worktree: z.string().optional().catch(undefined),
   session: z.string().optional().catch(undefined),
   panel: z
-    .enum(['diff', 'pulls', 'pull', 'tasks', 'browser'])
+    .enum(['diff', 'pulls', 'pull', 'tasks', 'quests', 'browser'])
     .optional()
     .catch(undefined),
   browse: z.string().optional().catch(undefined),

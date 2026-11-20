@@ -46,6 +46,7 @@ import {
 import { answerStatus, statusSecret } from './services/service/status.ts'
 import { startService } from './services/service/update.ts'
 import { refreshAll, watchSessions } from './services/sessions.ts'
+import { failUnansweredSideQuests } from './services/side-quests.ts'
 import { contentTypes, publicDir, serveFile } from './services/web-app.ts'
 import {
   addCode,
@@ -156,6 +157,7 @@ log.info(
 process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
 await backfillSessionProviders()
 failInterrupted()
+failUnansweredSideQuests()
 watchSessions()
 refreshAll()
 scheduleCleanup()

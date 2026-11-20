@@ -1,13 +1,12 @@
-import { PaperclipIcon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { call } from '@/api/connection'
-import { readBase64, UPLOAD_LIMIT } from '@/api/upload'
-import { Button } from '@/components/ui/button'
 import { Wrapper } from '@/components/wrapper'
-import { logger } from '@/lib/log'
+import {
+  isSideQuest,
+  sendSideQuestDraft,
+  sideQuestCommands,
+} from '@/features/side-quests/ask'
 import { selectedPrompts, startingThread } from '@/lib/outbox'
 import { interrupt } from '@/lib/sessions'
 import {
@@ -21,29 +20,17 @@ import {
   useStore,
 } from '@/lib/store'
 import { cn, mod, touch } from '@/lib/utils'
-import {
-  isPasteInline,
-  largePaste,
-  lastImageNumber,
-  lastUserText,
-  restoredDraft,
-} from './attached-images'
+import { attachFiles, attachPasted } from './attach'
+import { isPasteInline, lastUserText, restoredDraft } from './attached-images'
 import {
   ComposerInput,
   focusComposer,
-  insertComposerMarker,
   moveComposerCaret,
-  replaceComposerText,
+  pressComposer,
 } from './composer-input'
-import { ComposerMenu, type Suggestion, suggestionsFor } from './composer-menu'
+import { ComposerMenu, useProjectFiles, useSuggestions } from './composer-menu'
 import { useDictation } from './dictation'
-import {
-  editDraft,
-  fileMarker,
-  getDraft,
-  saveDraftFile,
-  useDraft,
-} from './drafts'
+import { editDraft, fileMarker, getDraft, useDraft } from './drafts'
 import { MissingWorktreeNotice } from './missing-worktree-notice'
 import { isSnoozeShortcut, MoreMenu, sendStatus } from './more-menu'
 import { PermissionPrompt } from './permission-prompt'
@@ -52,14 +39,9 @@ import { ProjectHeading } from './project-heading'
 import { UsageResetBanner, QueuedMessages } from './queue'
 import { applyRewind, RewindNotice } from './rewind'
 import { sendDraft } from './send'
-import { DictateButton, SendControls } from './send-controls'
+import { AttachButton, DictateButton, SendControls } from './send-controls'
 import { isStashShortcut, toggleStash } from './stash'
 import { WorktreeBar } from './worktree-bar'
-
-const log = logger.withTag('composer')
-
-const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
-const maxImageSize = 5 * 1024 * 1024
 
 export function Composer(props: {
   repos: GitRepo[]
@@ -77,6 +59,7 @@ export function Composer(props: {
   const starting = useStore(startingThread)
   const draft = useStore((state) => state.draft)
   const capabilities = useStore((state) => state.capabilities)
+  const provider = useStore((state) => state.settings.provider)
   const noAccount = useStore((state) =>
     state.settings.provider === 'opencode'
       ? state.machines.find(
@@ -85,10 +68,6 @@ export function Composer(props: {
       : state.settings.accountId === null
   )
   const [sending, setSending] = useState(false)
-  const [active, setActive] = useState(0)
-  const [menuClosed, setMenuClosed] = useState(false)
-  const [files, setFiles] = useState<string[]>([])
-  const picker = useRef<HTMLInputElement>(null)
   const pasteInline = useRef(false)
   const machine = selection?.machine ?? ''
   const projectId = selection?.projectId ?? ''
@@ -96,7 +75,6 @@ export function Composer(props: {
   const folder = useStore((state) =>
     placePathOf(state, machine, projectId, worktreeId)
   )
-  const status = useStore((state) => machineOf(state, machine).status)
   const delivery = useStore(
     (state) => machineOf(state, machine).config?.delivery ?? null
   )
@@ -112,18 +90,29 @@ export function Composer(props: {
     ],
     [images, attachedFiles]
   )
+  const files = useProjectFiles(machine, projectId, worktreeId)
   const knownFiles = useMemo(() => new Set(files), [files])
   const [caret, setCaret] = useState(text.length)
   const running = useStore(selectedRunning)
   const hero = loaded && blank && !running && !shown
   const request = requests.at(0)
-  const dictation = useDictation()
+  const dictation = useDictation(key, true)
+  const suggestions = useSuggestions({
+    draft: key,
+    text,
+    caret,
+    commands: [
+      ...sideQuestCommands(provider),
+      ...(capabilities?.commands ?? []),
+    ],
+    files,
+  })
 
   useEffect(() => {
     if (touch.matches) {
       return
     }
-    moveComposerCaret(getDraft(key).text.length, true)
+    moveComposerCaret(key, getDraft(key).text.length, true)
   }, [selection, key])
 
   useEffect(() => {
@@ -134,40 +123,9 @@ export function Composer(props: {
     editDraft(key, (current) => ({ ...current, ...restored }))
     setCaret(restored.text.length)
     setDraft(null)
-    focusComposer()
+    focusComposer(key)
   }, [draft, key])
 
-  useEffect(() => {
-    if (status !== 'online') {
-      return
-    }
-    let current = true
-    call(machine, 'files.list', { projectId, worktreeId }).then(
-      (list) => {
-        if (current) {
-          setFiles(list)
-        }
-      },
-      (error: unknown) => log.error('could not list files', error)
-    )
-    return () => {
-      current = false
-    }
-  }, [machine, projectId, worktreeId, status])
-
-  const before = text.slice(0, caret)
-  const trigger = /(?:^|\s)([/@]\S*)$/.exec(before)?.[1] ?? null
-  const suggestions =
-    trigger === null || menuClosed
-      ? []
-      : suggestionsFor(
-          trigger,
-          (capabilities?.commands ?? []).filter(
-            (command) => before === trigger || command.inline
-          ),
-          files
-        )
-  const activeIndex = Math.min(active, suggestions.length - 1)
   const newThread =
     selection !== null &&
     selection.sessionId === null &&
@@ -183,19 +141,7 @@ export function Composer(props: {
   function edit(value: string, position: number) {
     editDraft(key, (current) => ({ ...current, text: value }))
     setCaret(position)
-    setActive(0)
-    setMenuClosed(false)
-  }
-
-  function pick(item: Suggestion) {
-    if (trigger === null) {
-      return
-    }
-    if (item.insert.startsWith('@')) {
-      insertComposerMarker(caret - trigger.length, caret, item.insert)
-      return
-    }
-    replaceComposerText(caret - trigger.length, caret, `${item.insert} `)
+    suggestions.reset()
   }
 
   async function submit(swap: boolean, flipSnooze: boolean) {
@@ -204,6 +150,11 @@ export function Composer(props: {
     }
     setSending(true)
     try {
+      if (isSideQuest(text)) {
+        await sendSideQuestDraft(key)
+        setCaret(0)
+        return
+      }
       if (delivery === null) {
         throw new Error('This machine is not connected')
       }
@@ -224,53 +175,6 @@ export function Composer(props: {
     }
   }
 
-  async function attach(list: File[]) {
-    let position = caret
-    let space = /(^|\s)$/.test(text.slice(0, caret)) ? '' : ' '
-    for (const file of list) {
-      if (imageTypes.includes(file.type) && file.size <= maxImageSize) {
-        const data = await readBase64(file)
-        const number =
-          Math.max(
-            lastImageNumber(getState().items, [getDraft(key).text]),
-            ...getDraft(key).images.map((image) => image.number)
-          ) + 1
-        const image = { number, mediaType: file.type, data }
-        const at = position
-        const marker = `${space}[Image #${number}] `
-        space = ''
-        editDraft(key, (current) => ({
-          ...current,
-          text: `${current.text.slice(0, at)}${marker}${current.text.slice(at)}`,
-          images: [...current.images, image],
-        }))
-        position += marker.length
-        setCaret(position)
-        requestAnimationFrame(() => moveComposerCaret(position, false))
-        continue
-      }
-      if (file.size > UPLOAD_LIMIT) {
-        showError(new Error(`${file.name} is larger than 50 MB`))
-        continue
-      }
-      const id = await saveDraftFile(file)
-      const number =
-        Math.max(0, ...getDraft(key).files.map((item) => item.number)) + 1
-      const attached = { number, id, name: file.name }
-      const at = position
-      const marker = `${space}${fileMarker(attached)} `
-      space = ''
-      editDraft(key, (current) => ({
-        ...current,
-        text: `${current.text.slice(0, at)}${marker}${current.text.slice(at)}`,
-        files: [...current.files, attached],
-      }))
-      position += marker.length
-      setCaret(position)
-      requestAnimationFrame(() => moveComposerCaret(position, false))
-    }
-  }
-
   return (
     <div
       className={cn(
@@ -285,7 +189,7 @@ export function Composer(props: {
           <ProjectHeading
             machine={machine}
             projectId={projectId}
-            onCloseMenu={focusComposer}
+            onCloseMenu={() => focusComposer(key)}
           />
         )}
         <UsageResetBanner />
@@ -302,47 +206,29 @@ export function Composer(props: {
             draft={text}
           />
         )}
-        <ComposerMenu
-          items={suggestions}
-          active={activeIndex}
-          anchor={trigger === null ? caret : caret - trigger.length}
-          onHover={setActive}
-          onPick={pick}
-          onClose={() => setMenuClosed(true)}
-        />
+        <ComposerMenu suggestions={suggestions} />
         <div
           className={cn(
             'composer-glass shadow-composer relative z-10 border border-(--composer-outline) transition-[border-color,box-shadow] duration-150 ease-out focus-within:border-[color-mix(in_srgb,var(--text)_16%,transparent)] focus-within:ring-4 focus-within:ring-[color-mix(in_srgb,var(--text)_4%,transparent)] dark:shadow-none',
             hero ? 'rounded-3xl' : 'rounded-t-3xl border-b-0',
             request?.kind === 'question' && 'hidden'
           )}
-          onMouseDown={(event) => {
-            if (!(event.target instanceof Element)) {
-              return
-            }
-            if (event.target.closest('input, textarea, [contenteditable]')) {
-              return
-            }
-            if (
-              event.currentTarget.contains(event.target) &&
-              event.target.closest('button, a') === null
-            ) {
-              event.preventDefault()
-              focusComposer()
-              return
-            }
-            if (touch.matches) {
-              event.preventDefault()
-            }
-          }}
+          onMouseDown={(event) => pressComposer(event, key)}
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => {
             event.preventDefault()
-            void attach([...event.dataTransfer.files])
+            void attachFiles(
+              key,
+              [...event.dataTransfer.files],
+              caret,
+              setCaret
+            )
           }}
         >
           <div className="pb-1 md:pb-2">
             <ComposerInput
+              main
+              label={null}
               text={text}
               editable={!loading}
               newThread={hero}
@@ -352,23 +238,9 @@ export function Composer(props: {
               onEdit={edit}
               onCaret={setCaret}
               onPaste={(event) => {
-                const text = event.clipboardData?.getData('text/plain') ?? ''
                 const inline = pasteInline.current
                 pasteInline.current = false
-                if (text !== '') {
-                  const file = inline ? null : largePaste(text, attachedFiles)
-                  if (file === null) {
-                    return false
-                  }
-                  void attach([file])
-                  return true
-                }
-                const pasted = [...(event.clipboardData?.files ?? [])]
-                if (pasted.length === 0) {
-                  return false
-                }
-                void attach(pasted)
-                return true
+                return attachPasted(event, key, inline, caret, setCaret)
               }}
               onKeyDown={(event) => {
                 pasteInline.current = isPasteInline(event)
@@ -376,26 +248,8 @@ export function Composer(props: {
                   toggleStash(key)
                   return true
                 }
-                if (suggestions.length > 0) {
-                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                    const step = event.key === 'ArrowDown' ? 1 : -1
-                    setActive(
-                      (activeIndex + step + suggestions.length) %
-                        suggestions.length
-                    )
-                    return true
-                  }
-                  if (
-                    (event.key === 'Enter' && !event.shiftKey) ||
-                    event.key === 'Tab'
-                  ) {
-                    pick(suggestions[activeIndex])
-                    return true
-                  }
-                  if (event.key === 'Escape') {
-                    setMenuClosed(true)
-                    return true
-                  }
+                if (suggestions.onKeyDown(event)) {
+                  return true
                 }
                 if (
                   event.key === 'Enter' &&
@@ -443,16 +297,6 @@ export function Composer(props: {
               <Pickers />
             </div>
             <div className="relative flex shrink-0 items-center justify-end gap-1 sm:gap-1.5 md:gap-2.5">
-              <input
-                ref={picker}
-                type="file"
-                multiple
-                hidden
-                onChange={(event) => {
-                  void attach([...(event.target.files ?? [])])
-                  event.target.value = ''
-                }}
-              />
               <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
                 {sending && attachedFiles.length > 0 && (
                   <span className="text-muted-foreground text-xs">
@@ -466,20 +310,8 @@ export function Composer(props: {
                   onSubmit={() => void submit(true, false)}
                   onFlipSnooze={() => void submit(false, true)}
                 />
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5 md:size-8 md:after:hidden"
-                  title="Attach files"
-                  aria-label="Attach files"
-                  onClick={() => picker.current?.click()}
-                >
-                  <HugeiconsIcon
-                    icon={PaperclipIcon}
-                    className="size-3.5 md:size-4"
-                  />
-                </Button>
-                <DictateButton dictation={dictation} />
+                <AttachButton draft={key} caret={caret} onCaret={setCaret} />
+                <DictateButton dictation={dictation} desktop={false} />
               </div>
               <SendControls
                 dictation={dictation}

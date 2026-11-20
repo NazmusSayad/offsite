@@ -74,6 +74,7 @@ import {
   updateSession,
 } from '../services/sessions.ts'
 import { saveSettings } from '../services/settings.ts'
+import { askSideQuest, listSideQuests } from '../services/side-quests.ts'
 import { syncSnapshot } from '../services/snapshot.ts'
 import { savePastedImage } from '../services/terminal/paste.ts'
 import { listShells } from '../services/terminal/process.ts'
@@ -222,6 +223,8 @@ const handlers: Handlers = {
     publishSessions()
     return result
   },
+  'sideQuests.list': (params) => listSideQuests(params.sessionId),
+  'sideQuests.ask': (params) => askSideQuest(params),
   'bookmarks.list': () => bookmarks.listBookmarks(),
   'bookmarks.add': (params) => bookmarks.addBookmark(params),
   'bookmarks.remove': (params) => bookmarks.removeBookmark(params.id),

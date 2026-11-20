@@ -294,6 +294,10 @@ function quoteInComposer(text: string) {
         : `${current.text.trimEnd()}\n\n${quoted}\n\n`,
   }))
   requestAnimationFrame(() =>
-    moveComposerCaret(getDraft(draftKey(selection)).text.length, true)
+    moveComposerCaret(
+      draftKey(selection),
+      getDraft(draftKey(selection)).text.length,
+      true
+    )
   )
 }

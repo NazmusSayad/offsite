@@ -42,7 +42,7 @@ type Pending = {
   params: Params
 }
 
-function codexServer(settings: SessionSettings) {
+export function codexServer(settings: SessionSettings) {
   return appServer(
     storedAccount('codex', settings.accountId).configDir ?? codexBaseDir
   )

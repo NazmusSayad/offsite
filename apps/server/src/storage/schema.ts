@@ -1,3 +1,4 @@
+import type { ImageAttachment } from '@offsite/core/items'
 import type { RpcMethods } from '@offsite/core/protocol'
 import type { ReviewGuide } from '@offsite/core/pull-requests'
 import type { SessionPick } from '@offsite/core/search'
@@ -98,6 +99,21 @@ export const bookmarks = snakeCase.table('bookmarks', {
   itemId: text(),
   start: integer(),
   end: integer(),
+  createdAt: integer().notNull(),
+})
+
+export const sideQuests = snakeCase.table('side_quests', {
+  id: text().primaryKey(),
+  sessionId: text().notNull(),
+  questId: text().notNull(),
+  question: text().notNull(),
+  images: text({ mode: 'json' })
+    .$type<ImageAttachment[]>()
+    .notNull()
+    .default([]),
+  answer: text(),
+  status: text({ enum: ['answering', 'answered', 'failed'] }).notNull(),
+  error: text(),
   createdAt: integer().notNull(),
 })
 
