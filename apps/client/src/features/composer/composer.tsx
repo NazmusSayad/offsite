@@ -1,9 +1,6 @@
-import { PaperclipIcon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import type { GitRepo } from '@offsite/core/git'
 import { NO_PROJECT } from '@offsite/core/projects'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { Wrapper } from '@/components/wrapper'
 import {
   isSideQuest,
@@ -29,6 +26,7 @@ import {
   ComposerInput,
   focusComposer,
   moveComposerCaret,
+  pressComposer,
 } from './composer-input'
 import { ComposerMenu, useProjectFiles, useSuggestions } from './composer-menu'
 import { useDictation } from './dictation'
@@ -41,7 +39,7 @@ import { ProjectHeading } from './project-heading'
 import { UsageResetBanner, QueuedMessages } from './queue'
 import { applyRewind, RewindNotice } from './rewind'
 import { sendDraft } from './send'
-import { DictateButton, SendControls } from './send-controls'
+import { AttachButton, DictateButton, SendControls } from './send-controls'
 import { isStashShortcut, toggleStash } from './stash'
 import { WorktreeBar } from './worktree-bar'
 
@@ -70,7 +68,6 @@ export function Composer(props: {
       : state.settings.accountId === null
   )
   const [sending, setSending] = useState(false)
-  const picker = useRef<HTMLInputElement>(null)
   const pasteInline = useRef(false)
   const machine = selection?.machine ?? ''
   const projectId = selection?.projectId ?? ''
@@ -216,25 +213,7 @@ export function Composer(props: {
             hero ? 'rounded-3xl' : 'rounded-t-3xl border-b-0',
             request?.kind === 'question' && 'hidden'
           )}
-          onMouseDown={(event) => {
-            if (!(event.target instanceof Element)) {
-              return
-            }
-            if (event.target.closest('input, textarea, [contenteditable]')) {
-              return
-            }
-            if (
-              event.currentTarget.contains(event.target) &&
-              event.target.closest('button, a') === null
-            ) {
-              event.preventDefault()
-              focusComposer(key)
-              return
-            }
-            if (touch.matches) {
-              event.preventDefault()
-            }
-          }}
+          onMouseDown={(event) => pressComposer(event, key)}
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => {
             event.preventDefault()
@@ -318,21 +297,6 @@ export function Composer(props: {
               <Pickers />
             </div>
             <div className="relative flex shrink-0 items-center justify-end gap-1 sm:gap-1.5 md:gap-2.5">
-              <input
-                ref={picker}
-                type="file"
-                multiple
-                hidden
-                onChange={(event) => {
-                  void attachFiles(
-                    key,
-                    [...(event.target.files ?? [])],
-                    caret,
-                    setCaret
-                  )
-                  event.target.value = ''
-                }}
-              />
               <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
                 {sending && attachedFiles.length > 0 && (
                   <span className="text-muted-foreground text-xs">
@@ -346,19 +310,7 @@ export function Composer(props: {
                   onSubmit={() => void submit(true, false)}
                   onFlipSnooze={() => void submit(false, true)}
                 />
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5 md:size-8 md:after:hidden"
-                  title="Attach files"
-                  aria-label="Attach files"
-                  onClick={() => picker.current?.click()}
-                >
-                  <HugeiconsIcon
-                    icon={PaperclipIcon}
-                    className="size-3.5 md:size-4"
-                  />
-                </Button>
+                <AttachButton draft={key} caret={caret} onCaret={setCaret} />
                 <DictateButton dictation={dictation} desktop={false} />
               </div>
               <SendControls

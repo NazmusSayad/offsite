@@ -8,7 +8,7 @@ import { Fragment, type Node, type Schema, Slice } from '@tiptap/pm/model'
 import { type EditorState, Plugin } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { EditorContent, useEditor } from '@tiptap/react'
-import { useEffect, useLayoutEffect } from 'react'
+import { type MouseEvent, useEffect, useLayoutEffect } from 'react'
 import { sideQuestCommands } from '@/features/side-quests/ask'
 import { skillPill, skillRanges } from '@/lib/skills'
 import { getState, showError } from '@/lib/store'
@@ -318,6 +318,26 @@ export function composerRect(key: string, caret: number) {
 
 export function focusComposer(key: string) {
   mountedEditor(key).view.focus()
+}
+
+export function pressComposer(event: MouseEvent<HTMLElement>, key: string) {
+  if (!(event.target instanceof Element)) {
+    return
+  }
+  if (event.target.closest('input, textarea, [contenteditable]')) {
+    return
+  }
+  if (
+    event.currentTarget.contains(event.target) &&
+    event.target.closest('button, a') === null
+  ) {
+    event.preventDefault()
+    focusComposer(key)
+    return
+  }
+  if (touch.matches) {
+    event.preventDefault()
+  }
 }
 
 function mountedEditor(key: string) {

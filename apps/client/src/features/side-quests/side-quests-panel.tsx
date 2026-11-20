@@ -11,6 +11,7 @@ import {
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { clock } from '@/lib/format'
 import { machineOf, type Selection, showError, useStore } from '@/lib/store'
+import { randomId } from '@/lib/utils'
 import { questStarts, useSideQuestPick } from './ask'
 import { SideQuestComposer } from './side-quest-composer'
 import { SideQuestMenu } from './side-quest-menu'
@@ -26,11 +27,10 @@ export function SideQuestsPanel(props: {
   const available = useStore((state) => state.settings.provider !== 'opencode')
   const [quests, setQuests] = useState<SideQuest[] | null>(null)
   const pick = useSideQuestPick(machine, sessionId)
+  const fresh = useState(randomId)[0]
   const list = useRef<HTMLDivElement>(null)
   const last = quests?.at(-1)
-  const questId =
-    pick ??
-    (quests === null ? null : (questStarts(quests).at(-1)?.questId ?? null))
+  const questId = pick ?? questStarts(quests ?? []).at(-1)?.questId ?? fresh
   const shown = quests?.filter((quest) => quest.questId === questId) ?? []
   const start = shown.at(0)
   const shownStatus = shown.at(-1)?.status
@@ -67,18 +67,15 @@ export function SideQuestsPanel(props: {
         <span className="text-foreground shrink-0 text-xs font-medium">
           Side Quests
         </span>
-        {sessionId !== null &&
-          quests !== null &&
-          quests.length > 0 &&
-          questId !== null && (
-            <SideQuestMenu
-              machine={machine}
-              sessionId={sessionId}
-              quests={quests}
-              questId={questId}
-              start={start}
-            />
-          )}
+        {sessionId !== null && quests !== null && quests.length > 0 && (
+          <SideQuestMenu
+            machine={machine}
+            sessionId={sessionId}
+            quests={quests}
+            questId={questId}
+            start={start}
+          />
+        )}
       </div>
       <div ref={list} className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
         {sessionId === null && (

@@ -1,15 +1,17 @@
 import {
   AiMicIcon,
   CircleDashedIcon,
+  PaperclipIcon,
   SendHorizontalIcon,
   StopIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type { PromptDelivery } from '@offsite/core/config'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useStore } from '@/lib/store'
 import { cn, mod } from '@/lib/utils'
+import { attachFiles } from './attach'
 import type { ActiveDictation, Dictation } from './dictation'
 import { DictationPill } from './dictation-pill'
 
@@ -122,5 +124,42 @@ export function DictateButton(props: {
     >
       <HugeiconsIcon icon={AiMicIcon} />
     </Button>
+  )
+}
+
+export function AttachButton(props: {
+  draft: string
+  caret: number
+  onCaret: (position: number) => void
+}) {
+  const picker = useRef<HTMLInputElement>(null)
+  return (
+    <>
+      <input
+        ref={picker}
+        type="file"
+        multiple
+        hidden
+        onChange={(event) => {
+          void attachFiles(
+            props.draft,
+            [...(event.target.files ?? [])],
+            props.caret,
+            props.onCaret
+          )
+          event.target.value = ''
+        }}
+      />
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        className="relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5 md:size-8 md:after:hidden"
+        title="Attach files"
+        aria-label="Attach files"
+        onClick={() => picker.current?.click()}
+      >
+        <HugeiconsIcon icon={PaperclipIcon} className="size-3.5 md:size-4" />
+      </Button>
+    </>
   )
 }

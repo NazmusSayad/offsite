@@ -73,16 +73,20 @@ async function askSideQuest(
   selection: Selection,
   sessionId: string,
   questId: string,
+  key: string,
   prompt: Prompt
 ) {
-  await call(selection.machine, 'sideQuests.ask', {
-    sessionId,
-    questId,
-    projectId: selection.projectId,
-    worktreeId: selection.worktreeId,
-    settings: getState().settings,
-    prompt,
-  })
+  if (prompt.text !== '' || prompt.images.length > 0) {
+    await call(selection.machine, 'sideQuests.ask', {
+      sessionId,
+      questId,
+      projectId: selection.projectId,
+      worktreeId: selection.worktreeId,
+      settings: getState().settings,
+      prompt,
+    })
+  }
+  editDraft(key, (current) => ({ ...current, text: '', images: [], files: [] }))
 }
 
 export async function sendSideQuestDraft(key: string) {
@@ -108,25 +112,21 @@ export async function sendSideQuestDraft(key: string) {
   } else {
     focusPending = true
   }
-  if (question.text !== '' || question.images.length > 0) {
-    await askSideQuest(selection, selection.sessionId, questId, question)
-  }
-  editDraft(key, (current) => ({ ...current, text: '', images: [], files: [] }))
+  await askSideQuest(selection, selection.sessionId, questId, key, question)
 }
 
 export async function sendSideDraft(
   selection: Selection,
   sessionId: string,
-  questId: string | null
+  questId: string
 ) {
   const key = sideDraftKey(selection.machine, sessionId)
-  const id = questId ?? randomId()
-  pickSideQuest(selection.machine, sessionId, id)
+  pickSideQuest(selection.machine, sessionId, questId)
   await askSideQuest(
     selection,
     sessionId,
-    id,
+    questId,
+    key,
     await draftPrompt(selection.machine, key)
   )
-  editDraft(key, (current) => ({ ...current, text: '', images: [], files: [] }))
 }

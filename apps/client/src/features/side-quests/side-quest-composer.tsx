@@ -1,13 +1,11 @@
-import { PaperclipIcon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { attachFiles, attachPasted } from '@/features/composer/attach'
 import { isPasteInline } from '@/features/composer/attached-images'
 import {
   ComposerInput,
   focusComposer,
   hasComposer,
+  pressComposer,
 } from '@/features/composer/composer-input'
 import {
   ComposerMenu,
@@ -16,7 +14,11 @@ import {
 } from '@/features/composer/composer-menu'
 import { useDictation } from '@/features/composer/dictation'
 import { editDraft, fileMarker, useDraft } from '@/features/composer/drafts'
-import { DictateButton, SendControls } from '@/features/composer/send-controls'
+import {
+  AttachButton,
+  DictateButton,
+  SendControls,
+} from '@/features/composer/send-controls'
 import { type Selection, showError } from '@/lib/store'
 import { touch } from '@/lib/utils'
 import { sendSideDraft, sideDraftKey, takeInputFocus } from './ask'
@@ -24,7 +26,7 @@ import { sendSideDraft, sideDraftKey, takeInputFocus } from './ask'
 export function SideQuestComposer(props: {
   selection: Selection
   sessionId: string
-  questId: string | null
+  questId: string
   lastQuestion: string | null
 }) {
   const key = sideDraftKey(props.selection.machine, props.sessionId)
@@ -47,7 +49,6 @@ export function SideQuestComposer(props: {
   const knownFiles = useMemo(() => new Set(files), [files])
   const [caret, setCaret] = useState(text.length)
   const [sending, setSending] = useState(false)
-  const picker = useRef<HTMLInputElement>(null)
   const pasteInline = useRef(false)
   const dictation = useDictation(key, false)
   const suggestions = useSuggestions({
@@ -96,25 +97,7 @@ export function SideQuestComposer(props: {
       <ComposerMenu suggestions={suggestions} />
       <div
         className="composer-glass shadow-composer relative z-10 rounded-t-3xl border border-b-0 border-(--composer-outline) transition-[border-color,box-shadow] duration-150 ease-out focus-within:border-[color-mix(in_srgb,var(--text)_16%,transparent)] focus-within:ring-4 focus-within:ring-[color-mix(in_srgb,var(--text)_4%,transparent)] dark:shadow-none"
-        onMouseDown={(event) => {
-          if (!(event.target instanceof Element)) {
-            return
-          }
-          if (event.target.closest('input, textarea, [contenteditable]')) {
-            return
-          }
-          if (
-            event.currentTarget.contains(event.target) &&
-            event.target.closest('button, a') === null
-          ) {
-            event.preventDefault()
-            focusComposer(key)
-            return
-          }
-          if (touch.matches) {
-            event.preventDefault()
-          }
-        }}
+        onMouseDown={(event) => pressComposer(event, key)}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault()
@@ -162,40 +145,13 @@ export function SideQuestComposer(props: {
         </div>
         <div className="flex min-w-0 items-center justify-end gap-2 ps-2 pe-1.5 pb-1.5 sm:px-3.5 sm:pb-3 md:pe-3.25">
           <div className="relative flex shrink-0 items-center justify-end gap-1 sm:gap-1.5 md:gap-2.5">
-            <input
-              ref={picker}
-              type="file"
-              multiple
-              hidden
-              onChange={(event) => {
-                void attachFiles(
-                  key,
-                  [...(event.target.files ?? [])],
-                  caret,
-                  setCaret
-                )
-                event.target.value = ''
-              }}
-            />
             <div className="flex items-center gap-0.5 sm:gap-1 md:gap-2">
               {sending && attachedFiles.length > 0 && (
                 <span className="text-muted-foreground text-xs">
                   Uploading…
                 </span>
               )}
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                className="relative after:absolute after:-inset-x-0.75 after:-inset-y-1.5 md:size-8 md:after:hidden"
-                title="Attach files"
-                aria-label="Attach files"
-                onClick={() => picker.current?.click()}
-              >
-                <HugeiconsIcon
-                  icon={PaperclipIcon}
-                  className="size-3.5 md:size-4"
-                />
-              </Button>
+              <AttachButton draft={key} caret={caret} onCaret={setCaret} />
               <DictateButton dictation={dictation} desktop />
             </div>
             <SendControls
