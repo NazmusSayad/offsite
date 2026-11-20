@@ -35,8 +35,15 @@ export function askSideQuest(request: RpcMethods['sideQuests.ask']['params']) {
     throw new Error('Side quests work only in Claude and Codex threads')
   }
   assertEnabled(provider, settings.accountId)
+  const questId = request.questId ?? randomUUID()
+  const earlier = listSideQuests(request.sessionId).filter(
+    (quest) => quest.questId === questId
+  )
+  if (request.questId !== null && earlier.length === 0) {
+    throw new Error('This side quest does not exist')
+  }
   const prompt = {
-    text: sideQuestPrompt(listSideQuests(request.sessionId), question),
+    text: sideQuestPrompt(earlier, question),
     images: request.prompt.images,
   }
   const id = randomUUID()
@@ -44,6 +51,7 @@ export function askSideQuest(request: RpcMethods['sideQuests.ask']['params']) {
     .values({
       id,
       sessionId: request.sessionId,
+      questId,
       question,
       images: request.prompt.images,
       answer: null,
@@ -70,7 +78,7 @@ export function askSideQuest(request: RpcMethods['sideQuests.ask']['params']) {
         })
     }
   })
-  return null
+  return { questId }
 }
 
 export function failUnansweredSideQuests() {
@@ -81,10 +89,6 @@ export function failUnansweredSideQuests() {
     })
     .where(eq(sideQuests.status, 'answering'))
     .run()
-}
-
-export function deleteSideQuests(sessionId: string) {
-  db.delete(sideQuests).where(eq(sideQuests.sessionId, sessionId)).run()
 }
 
 async function settle(

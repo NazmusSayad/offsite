@@ -4,7 +4,7 @@ Never alter a provider (Claude Code, Codex, OpenCode) or anything around it: its
 
 One exception: offsite may store a message it received from the browser until the provider takes it, including messages waiting in the queue, and must delete it once the provider has it. A message that never reached the provider stays as "Not sent" until it is resent or removed.
 
-Another exception: offsite may store side quests, the side questions asked about a thread and their answers, because no provider keeps them. Delete them with their thread.
+Another exception: offsite may store side quests, the side questions asked about a thread and their answers, because no provider keeps them.
 
 Another exception: search may run `rg` read-only over Claude Code session files to find candidate sessions. The Claude SDK must confirm every result.
 

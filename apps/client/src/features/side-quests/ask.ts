@@ -1,5 +1,8 @@
 import type { Prompt } from '@offsite/core/items'
 import type { Provider } from '@offsite/core/providers'
+import type { SideQuest } from '@offsite/core/side-quests'
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { call } from '@/api/connection'
 import { machineKey } from '@/api/machines'
 import { focusComposer, hasComposer } from '@/features/composer/composer-input'
@@ -23,6 +26,36 @@ export function sideDraftKey(machine: string, sessionId: string) {
   return `side:${machineKey(machine, sessionId)}`
 }
 
+export const NEW_QUEST = 'new'
+
+const usePicks = create<Record<string, string>>()(
+  persist(() => ({}), { name: 'sideQuestPicks' })
+)
+
+export function useSideQuestPick(machine: string, sessionId: string | null) {
+  return usePicks((picks) =>
+    sessionId === null ? null : (picks[machineKey(machine, sessionId)] ?? null)
+  )
+}
+
+export function questStarts(quests: SideQuest[]) {
+  return quests.filter(
+    (quest) => quests.find((other) => other.questId === quest.questId) === quest
+  )
+}
+
+export function questLabel(quest: SideQuest) {
+  return quest.question === '' ? 'Image' : quest.question
+}
+
+export function pickSideQuest(
+  machine: string,
+  sessionId: string,
+  questId: string
+) {
+  usePicks.setState({ [machineKey(machine, sessionId)]: questId })
+}
+
 let focusPending = false
 
 export function takeInputFocus() {
@@ -40,15 +73,18 @@ export function isSideQuest(text: string) {
 async function askSideQuest(
   selection: Selection,
   sessionId: string,
+  questId: string | null,
   prompt: Prompt
 ) {
-  await call(selection.machine, 'sideQuests.ask', {
+  const result = await call(selection.machine, 'sideQuests.ask', {
     sessionId,
+    questId,
     projectId: selection.projectId,
     worktreeId: selection.worktreeId,
     settings: getState().settings,
     prompt,
   })
+  pickSideQuest(selection.machine, sessionId, result.questId)
 }
 
 export async function sendSideQuestDraft(key: string) {
@@ -65,6 +101,7 @@ export async function sendSideQuestDraft(key: string) {
     throw new Error('This message is not a side question')
   }
   const question = { text: (match[1] ?? '').trim(), images: prompt.images }
+  pickSideQuest(selection.machine, selection.sessionId, NEW_QUEST)
   openPanel({ panel: 'quests' })
   const side = sideDraftKey(selection.machine, selection.sessionId)
   if (hasComposer(side)) {
@@ -73,16 +110,21 @@ export async function sendSideQuestDraft(key: string) {
     focusPending = true
   }
   if (question.text !== '' || question.images.length > 0) {
-    await askSideQuest(selection, selection.sessionId, question)
+    await askSideQuest(selection, selection.sessionId, null, question)
   }
   editDraft(key, (current) => ({ ...current, text: '', images: [], files: [] }))
 }
 
-export async function sendSideDraft(selection: Selection, sessionId: string) {
+export async function sendSideDraft(
+  selection: Selection,
+  sessionId: string,
+  questId: string | null
+) {
   const key = sideDraftKey(selection.machine, sessionId)
   await askSideQuest(
     selection,
     sessionId,
+    questId,
     await draftPrompt(selection.machine, key)
   )
   editDraft(key, (current) => ({ ...current, text: '', images: [], files: [] }))

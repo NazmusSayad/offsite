@@ -24,6 +24,7 @@ import { sendSideDraft, sideDraftKey, takeInputFocus } from './ask'
 export function SideQuestComposer(props: {
   selection: Selection
   sessionId: string
+  questId: string | null
   lastQuestion: string | null
 }) {
   const key = sideDraftKey(props.selection.machine, props.sessionId)
@@ -81,7 +82,7 @@ export function SideQuestComposer(props: {
     }
     setSending(true)
     try {
-      await sendSideDraft(props.selection, props.sessionId)
+      await sendSideDraft(props.selection, props.sessionId, props.questId)
       setCaret(0)
     } catch (error) {
       showError(error)

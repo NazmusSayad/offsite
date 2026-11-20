@@ -41,7 +41,6 @@ import { clearSessionOutbox } from './outbox.ts'
 import { type Place, places } from './project-worktrees.ts'
 import { projects } from './projects.ts'
 import { type Found, info, timeLimit } from './provider-sessions.ts'
-import { deleteSideQuests } from './side-quests.ts'
 import { forgetStarting, startingSessions } from './starting-sessions.ts'
 import {
   fileChanged,
@@ -490,7 +489,6 @@ export async function removeSession(id: string) {
   db.delete(sessionOpensTable).where(eq(sessionOpensTable.sessionId, id)).run()
   db.delete(sessionPlaces).where(eq(sessionPlaces.sessionId, id)).run()
   clearSessionOutbox(id)
-  deleteSideQuests(id)
   listed[provider] = listed[provider].filter((item) => item.id !== id)
   forgetThread(provider, id)
 }

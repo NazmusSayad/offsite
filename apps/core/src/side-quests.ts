@@ -4,6 +4,7 @@ import type { ImageAttachment, Prompt } from './items.ts'
 export type SideQuest = {
   id: string
   sessionId: string
+  questId: string
   question: string
   images: ImageAttachment[]
   answer: string | null
@@ -17,11 +18,12 @@ export type SideQuestMethods = {
   'sideQuests.ask': {
     params: {
       sessionId: string
+      questId: string | null
       projectId: string
       worktreeId: string | null
       settings: SessionSettings
       prompt: Prompt
     }
-    result: null
+    result: { questId: string }
   }
 }

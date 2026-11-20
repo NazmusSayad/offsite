@@ -976,6 +976,16 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
+      "name": "quest_id",
+      "entityType": "columns",
+      "table": "side_quests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
       "name": "question",
       "entityType": "columns",
       "table": "side_quests"

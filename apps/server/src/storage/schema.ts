@@ -105,6 +105,7 @@ export const bookmarks = snakeCase.table('bookmarks', {
 export const sideQuests = snakeCase.table('side_quests', {
   id: text().primaryKey(),
   sessionId: text().notNull(),
+  questId: text().notNull(),
   question: text().notNull(),
   images: text({ mode: 'json' })
     .$type<ImageAttachment[]>()
