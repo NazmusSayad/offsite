@@ -18,12 +18,12 @@ export type SideQuestMethods = {
   'sideQuests.ask': {
     params: {
       sessionId: string
-      questId: string | null
+      questId: string
       projectId: string
       worktreeId: string | null
       settings: SessionSettings
       prompt: Prompt
     }
-    result: { questId: string }
+    result: null
   }
 }

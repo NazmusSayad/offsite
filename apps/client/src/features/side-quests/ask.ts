@@ -10,6 +10,7 @@ import { editDraft } from '@/features/composer/drafts'
 import { draftPrompt } from '@/features/composer/send'
 import { getState, type Selection } from '@/lib/store'
 import { openPanel } from '@/lib/url'
+import { randomId } from '@/lib/utils'
 
 const commands = ['btw', 'side'].map((name) => ({
   name,
@@ -25,8 +26,6 @@ export function sideQuestCommands(provider: Provider) {
 export function sideDraftKey(machine: string, sessionId: string) {
   return `side:${machineKey(machine, sessionId)}`
 }
-
-export const NEW_QUEST = 'new'
 
 const usePicks = create<Record<string, string>>()(
   persist(() => ({}), { name: 'sideQuestPicks' })
@@ -73,10 +72,10 @@ export function isSideQuest(text: string) {
 async function askSideQuest(
   selection: Selection,
   sessionId: string,
-  questId: string | null,
+  questId: string,
   prompt: Prompt
 ) {
-  const result = await call(selection.machine, 'sideQuests.ask', {
+  await call(selection.machine, 'sideQuests.ask', {
     sessionId,
     questId,
     projectId: selection.projectId,
@@ -84,7 +83,6 @@ async function askSideQuest(
     settings: getState().settings,
     prompt,
   })
-  pickSideQuest(selection.machine, sessionId, result.questId)
 }
 
 export async function sendSideQuestDraft(key: string) {
@@ -101,7 +99,8 @@ export async function sendSideQuestDraft(key: string) {
     throw new Error('This message is not a side question')
   }
   const question = { text: (match[1] ?? '').trim(), images: prompt.images }
-  pickSideQuest(selection.machine, selection.sessionId, NEW_QUEST)
+  const questId = randomId()
+  pickSideQuest(selection.machine, selection.sessionId, questId)
   openPanel({ panel: 'quests' })
   const side = sideDraftKey(selection.machine, selection.sessionId)
   if (hasComposer(side)) {
@@ -110,7 +109,7 @@ export async function sendSideQuestDraft(key: string) {
     focusPending = true
   }
   if (question.text !== '' || question.images.length > 0) {
-    await askSideQuest(selection, selection.sessionId, null, question)
+    await askSideQuest(selection, selection.sessionId, questId, question)
   }
   editDraft(key, (current) => ({ ...current, text: '', images: [], files: [] }))
 }
@@ -121,10 +120,12 @@ export async function sendSideDraft(
   questId: string | null
 ) {
   const key = sideDraftKey(selection.machine, sessionId)
+  const id = questId ?? randomId()
+  pickSideQuest(selection.machine, sessionId, id)
   await askSideQuest(
     selection,
     sessionId,
-    questId,
+    id,
     await draftPrompt(selection.machine, key)
   )
   editDraft(key, (current) => ({ ...current, text: '', images: [], files: [] }))

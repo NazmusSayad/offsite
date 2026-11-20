@@ -8,21 +8,22 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { NEW_QUEST, pickSideQuest, questLabel, questStarts } from './ask'
+import { pickSideQuest, questLabel, questStarts } from './ask'
 
 export function SideQuestMenu(props: {
   machine: string
   sessionId: string
   quests: SideQuest[]
-  selected: SideQuest | null
+  questId: string
+  start: SideQuest | undefined
 }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="hover:bg-accent data-[state=open]:bg-accent ml-auto flex h-6 min-w-0 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs outline-none">
         <span className="text-muted-foreground truncate">
-          {props.selected === null
+          {props.start === undefined
             ? 'New side quest'
-            : questLabel(props.selected)}
+            : questLabel(props.start)}
         </span>
         <HugeiconsIcon
           icon={ArrowDown01Icon}
@@ -34,7 +35,8 @@ export function SideQuestMenu(props: {
           machine={props.machine}
           sessionId={props.sessionId}
           quests={props.quests}
-          selected={props.selected}
+          questId={props.questId}
+          started={props.start !== undefined}
         />
       </DropdownMenuContent>
     </DropdownMenu>
@@ -45,17 +47,18 @@ function SideQuestMenuItems(props: {
   machine: string
   sessionId: string
   quests: SideQuest[]
-  selected: SideQuest | null
+  questId: string
+  started: boolean
 }) {
   return (
     <DropdownMenuRadioGroup
-      value={props.selected === null ? NEW_QUEST : props.selected.questId}
+      value={props.questId}
       onValueChange={(value) =>
         pickSideQuest(props.machine, props.sessionId, value)
       }
     >
-      {props.selected === null && (
-        <DropdownMenuRadioItem value={NEW_QUEST}>
+      {!props.started && (
+        <DropdownMenuRadioItem value={props.questId}>
           New side quest
         </DropdownMenuRadioItem>
       )}

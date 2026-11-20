@@ -11,7 +11,7 @@ import {
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { clock } from '@/lib/format'
 import { machineOf, type Selection, showError, useStore } from '@/lib/store'
-import { NEW_QUEST, questStarts, useSideQuestPick } from './ask'
+import { questStarts, useSideQuestPick } from './ask'
 import { SideQuestComposer } from './side-quest-composer'
 import { SideQuestMenu } from './side-quest-menu'
 
@@ -28,11 +28,11 @@ export function SideQuestsPanel(props: {
   const pick = useSideQuestPick(machine, sessionId)
   const list = useRef<HTMLDivElement>(null)
   const last = quests?.at(-1)
-  const selected = quests === null ? null : selectedQuest(quests, pick)
-  const shown =
-    quests === null || selected === null
-      ? []
-      : quests.filter((quest) => quest.questId === selected.questId)
+  const questId =
+    pick ??
+    (quests === null ? null : (questStarts(quests).at(-1)?.questId ?? null))
+  const shown = quests?.filter((quest) => quest.questId === questId) ?? []
+  const start = shown.at(0)
   const shownStatus = shown.at(-1)?.status
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export function SideQuestsPanel(props: {
     if (list.current !== null) {
       list.current.scrollTop = list.current.scrollHeight
     }
-  }, [selected?.questId, shown.length, shownStatus])
+  }, [questId, shown.length, shownStatus])
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
@@ -67,14 +67,18 @@ export function SideQuestsPanel(props: {
         <span className="text-foreground shrink-0 text-xs font-medium">
           Side Quests
         </span>
-        {sessionId !== null && quests !== null && quests.length > 0 && (
-          <SideQuestMenu
-            machine={machine}
-            sessionId={sessionId}
-            quests={quests}
-            selected={selected}
-          />
-        )}
+        {sessionId !== null &&
+          quests !== null &&
+          quests.length > 0 &&
+          questId !== null && (
+            <SideQuestMenu
+              machine={machine}
+              sessionId={sessionId}
+              quests={quests}
+              questId={questId}
+              start={start}
+            />
+          )}
       </div>
       <div ref={list} className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
         {sessionId === null && (
@@ -92,7 +96,7 @@ export function SideQuestsPanel(props: {
             No side quests in this thread.
           </p>
         )}
-        {selected !== null && <SideQuestStart time={selected.createdAt} />}
+        {start !== undefined && <SideQuestStart time={start.createdAt} />}
         <div className="flex flex-col gap-5">
           {shown.map((quest) => (
             <div key={quest.id} className="flex flex-col gap-2">
@@ -135,7 +139,7 @@ export function SideQuestsPanel(props: {
         <SideQuestComposer
           selection={props.selection}
           sessionId={sessionId}
-          questId={selected === null ? null : selected.questId}
+          questId={questId}
           lastQuestion={last?.question ?? null}
         />
       )}
@@ -180,14 +184,6 @@ function startedFrom(item: Item, time: number) {
     item.time !== null &&
     item.time <= time
   )
-}
-
-function selectedQuest(quests: SideQuest[], pick: string | null) {
-  const starts = questStarts(quests)
-  if (pick === NEW_QUEST) {
-    return null
-  }
-  return starts.find((quest) => quest.questId === pick) ?? starts.at(-1) ?? null
 }
 
 async function load(
