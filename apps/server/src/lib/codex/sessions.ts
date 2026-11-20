@@ -4,7 +4,14 @@ import type { ServerEvent } from '@offsite/core/protocol'
 import type { SearchMessage } from '@offsite/core/search'
 import { storedAccount } from '../../services/accounts.ts'
 import { runs } from '../live.ts'
-import { appServer, codexBaseDir, findCodex } from './app-server.ts'
+import {
+  type AppServer,
+  appServer,
+  codexBaseDir,
+  findCodex,
+  type Params,
+  type ThreadListener,
+} from './app-server.ts'
 import { turnItems, turnOf } from './items.ts'
 import type { Thread, ThreadItem, ThreadStarted, Turn } from './types.ts'
 
@@ -148,7 +155,23 @@ export async function codexText(
     sandbox: 'read-only',
     developerInstructions: instructions,
   })
-  const threadId = started.thread.id
+  return turnReply(
+    server,
+    started.thread.id,
+    (id, method) => server.replyError(id, `offsite does not handle ${method}`),
+    async () => ({
+      input: [{ type: 'text', text: prompt, text_elements: [] }],
+      model,
+    })
+  )
+}
+
+export async function turnReply(
+  server: AppServer,
+  threadId: string,
+  request: ThreadListener['request'],
+  turn: () => Promise<Params>
+) {
   const reply = Promise.withResolvers<string>()
   let text = ''
   server.threads.set(threadId, {
@@ -169,16 +192,11 @@ export async function codexText(
         reply.reject(new Error(turn.error?.message ?? 'Codex did not reply'))
       }
     },
-    request: (id, method) =>
-      server.replyError(id, `offsite does not handle ${method}`),
+    request,
     exited: () => reply.reject(new Error('Codex stopped')),
   })
   try {
-    await server.request('turn/start', {
-      threadId,
-      input: [{ type: 'text', text: prompt, text_elements: [] }],
-      model,
-    })
+    await server.request('turn/start', { threadId, ...(await turn()) })
     return await reply.promise
   } finally {
     server.threads.delete(threadId)

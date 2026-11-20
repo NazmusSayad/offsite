@@ -5,7 +5,8 @@ import { imageInputs } from './items.ts'
 import { modePreset, threadPreset } from './presets.ts'
 import { reply } from './requests.ts'
 import { codexServer } from './run.ts'
-import type { ThreadItem, ThreadStarted, Turn } from './types.ts'
+import { turnReply } from './sessions.ts'
+import type { ThreadStarted } from './types.ts'
 
 export async function codexSideQuest(options: {
   sessionId: string
@@ -24,28 +25,10 @@ export async function codexSideQuest(options: {
     approvalsReviewer: 'user',
     ...threadPreset(options.settings),
   })
-  const threadId = forked.thread.id
-  const answer = Promise.withResolvers<string>()
-  let text = ''
-  server.threads.set(threadId, {
-    notify: (method, params) => {
-      if (method === 'item/completed') {
-        const item = params.item as ThreadItem
-        if (item.type === 'agentMessage') {
-          text = item.text
-        }
-      }
-      if (method !== 'turn/completed') {
-        return
-      }
-      const turn = params.turn as Turn
-      if (turn.status === 'completed') {
-        answer.resolve(text.trim())
-      } else {
-        answer.reject(new Error(turn.error?.message ?? 'Codex did not reply'))
-      }
-    },
-    request: (id, method, params) => {
+  return turnReply(
+    server,
+    forked.thread.id,
+    (id, method, params) => {
       try {
         server.reply(id, reply(method, params, 'deny', null))
       } catch (error) {
@@ -55,11 +38,7 @@ export async function codexSideQuest(options: {
         )
       }
     },
-    exited: () => answer.reject(new Error('Codex stopped')),
-  })
-  try {
-    await server.request('turn/start', {
-      threadId,
+    async () => ({
       input: [
         {
           type: 'text',
@@ -75,9 +54,5 @@ export async function codexSideQuest(options: {
         ? {}
         : { effort: options.settings.effort }),
     })
-    return await answer.promise
-  } finally {
-    server.threads.delete(threadId)
-    await server.request('thread/unsubscribe', { threadId })
-  }
+  )
 }
