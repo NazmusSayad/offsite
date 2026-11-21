@@ -27,6 +27,7 @@ import type {
   Prompt,
   OutboxPrompt,
 } from './items.ts'
+import type { ProjectSetupMethods } from './project-setup.ts'
 import type {
   DirectoryListing,
   FilePreview,
@@ -90,6 +91,7 @@ export type SyncSnapshot = ConfigWithDefaults & {
 export type RpcMethods = PullRequestMethods &
   NotificationMethods &
   GitMethods &
+  ProjectSetupMethods &
   SideQuestMethods & {
     'config.get': { params: void; result: ConfigWithDefaults }
     'config.save': { params: Config; result: Config }
