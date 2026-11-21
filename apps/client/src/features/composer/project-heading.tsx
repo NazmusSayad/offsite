@@ -7,10 +7,8 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  EditProjectDialog,
-  FolderDialog,
-} from '@/features/sidebar/project-dialogs'
+import { FolderDialog } from '@/features/sidebar/folder-dialog'
+import { EditProjectDialog } from '@/features/sidebar/project-dialogs'
 import { ProjectMenuItems } from '@/features/sidebar/scope-menu'
 import { openSession } from '@/lib/sessions'
 import { type MachineProject, projectOf, useStore } from '@/lib/store'

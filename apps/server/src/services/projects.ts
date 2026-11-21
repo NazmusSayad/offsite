@@ -206,6 +206,23 @@ export async function directories(input: string): Promise<DirectoryListing> {
   }
 }
 
+export async function createFolder(parent: string, input: string) {
+  const name = input.trim()
+  if (name === '' || name === '.' || name === '..' || /[/\\]/.test(name)) {
+    throw new Error('Enter a folder name without slashes')
+  }
+  const folder = path.join(path.resolve(expandHome(parent.trim())), name)
+  try {
+    await mkdir(folder)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new Error(`${folder} already exists`, { cause: error })
+    }
+    throw error
+  }
+  return folder
+}
+
 function nextPosition() {
   const last = db
     .select({ position: max(projectsTable.position) })

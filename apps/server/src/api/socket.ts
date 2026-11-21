@@ -39,6 +39,7 @@ import {
   writeProjectFile,
 } from '../services/files.ts'
 import { decisionModels } from '../services/finished-check.ts'
+import { cloneRepo, githubRepos } from '../services/github-repos.ts'
 import { logoFiles, readLogo } from '../services/logos.ts'
 import { searchMessages } from '../services/message-search.ts'
 import {
@@ -53,6 +54,7 @@ import { notePing } from '../services/presence.ts'
 import { placePath, publishWorktrees } from '../services/project-worktrees.ts'
 import {
   addProject,
+  createFolder,
   directories,
   projectPath,
   removeProject,
@@ -127,6 +129,13 @@ const handlers: Handlers = {
   'projects.logoFile': (params) =>
     readLogo(projectPath(params.id), params.path),
   'directories.list': (params) => directories(params.path),
+  'directories.create': (params) => createFolder(params.parent, params.name),
+  'github.repos': (params) => githubRepos(params.query),
+  'github.clone': async (params) => {
+    const project = await cloneRepo(params.repo, params.parent)
+    refreshAll()
+    return project
+  },
   'sessions.update': async (params) => {
     try {
       await updateSession(params.id, params.patch)
