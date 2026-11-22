@@ -1,5 +1,5 @@
 ---
-name: show
+name: chat
 description: Visualize images, videos, audio and Mermaid diagrams in the chat. Use when a reply includes a screenshot, image, video, audio file or Mermaid diagram.
 ---
 
