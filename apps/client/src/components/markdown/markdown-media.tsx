@@ -4,6 +4,7 @@ import {
   VideoOffIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import { isHtmlPath } from '@offsite/core/media'
 import {
   createContext,
   type CSSProperties,
@@ -22,7 +23,9 @@ import { ViewableImage } from '@/components/viewable-image'
 import { ViewableVideo } from '@/components/viewable-video'
 import {
   cachedMediaLink,
+  cacheMediaLink,
   githubMediaUrl,
+  type MediaLink,
   mediaKind,
   mediaLink,
 } from '@/lib/media'
@@ -34,48 +37,49 @@ const AudioPlayer = lazy(async () => ({
 }))
 
 export const GithubRepository = createContext<string | null>(null)
+export const MessageId = createContext<string | null>(null)
+export const AgentReply = createContext(false)
 
 const unavailableIcons = {
   image: ImageNotFound01Icon,
   video: VideoOffIcon,
   audio: UnavailableIcon,
+  html: UnavailableIcon,
 }
 
 const unavailableLabels = {
   image: 'Image unavailable',
   video: 'Video unavailable',
   audio: 'Audio unavailable',
+  html: 'Page unavailable',
 }
 
 export function LocalMedia(props: { path: string; alt: string; raw: string }) {
   const selection = useStore((state) => state.selection)
+  const id = useContext(MessageId)
+  const page = useContext(AgentReply) && isHtmlPath(props.path)
   const [media, setMedia] = useState<
-    | {
-        path: string
-        src: string
-        size: { width: number; height: number } | null
-      }
-    | { path: string; error: string }
-    | null
+    { path: string; link: MediaLink } | { path: string; error: string } | null
   >(() => {
     const cached =
-      selection === null ? null : cachedMediaLink(selection, props.path)
-    return cached === null ? null : { path: props.path, ...cached }
+      selection === null || id === null
+        ? null
+        : cachedMediaLink(selection, id, props.path)
+    return cached === null ? null : { path: props.path, link: cached }
   })
+  const loaded = media !== null && media.path === props.path ? media : null
+  const link = loaded !== null && 'link' in loaded ? loaded.link : null
 
   useEffect(() => {
-    if (selection === null) {
-      return
-    }
-    if (cachedMediaLink(selection, props.path) !== null) {
+    if (selection === null || link !== null) {
       return
     }
     let current = true
     async function load(place: Place, path: string) {
       try {
-        const link = await mediaLink(place, path)
+        const next = await mediaLink(place, path)
         if (current) {
-          setMedia({ path, ...link })
+          setMedia({ path, link: next })
         }
       } catch (caught) {
         if (current) {
@@ -87,26 +91,47 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
     return () => {
       current = false
     }
-  }, [selection, props.path])
+  }, [selection, props.path, link])
 
-  const loaded = media !== null && media.path === props.path ? media : null
+  useEffect(() => {
+    if (selection !== null && id !== null && link !== null) {
+      cacheMediaLink(selection, id, props.path, link)
+    }
+  }, [selection, id, props.path, link])
+
   if (loaded !== null && 'error' in loaded) {
     return (
       <MediaUnavailable
-        kind={mediaKind(props.path) ?? 'image'}
+        kind={page ? 'html' : (mediaKind(props.path) ?? 'image')}
         reason={loaded.error}
         raw={props.raw}
       />
     )
   }
+  if (page) {
+    return (
+      <span className="my-2 block h-[min(30rem,70dvh)] w-full [&+br]:hidden">
+        {link === null ? (
+          <span className="bg-muted/60 block size-full rounded-lg" />
+        ) : (
+          <iframe
+            src={link.src}
+            title={props.alt === '' ? props.path : props.alt}
+            sandbox="allow-scripts allow-forms allow-popups"
+            className="border-border/40 size-full rounded-lg border bg-white scheme-light"
+          />
+        )}
+      </span>
+    )
+  }
   return (
     <Media
-      src={loaded?.src ?? null}
+      src={link?.src ?? null}
       alt={props.alt}
       name={props.path}
       kind={mediaKind(props.path) ?? 'image'}
       raw={props.raw}
-      size={loaded?.size ?? null}
+      size={link?.size ?? null}
       address={props.path}
       local
     />
@@ -335,7 +360,7 @@ function MarkdownImage(props: {
 }
 
 function MediaUnavailable(props: {
-  kind: 'image' | 'video' | 'audio'
+  kind: 'image' | 'video' | 'audio' | 'html'
   reason: string
   raw: string
 }) {

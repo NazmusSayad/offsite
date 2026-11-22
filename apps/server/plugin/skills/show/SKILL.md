@@ -1,9 +1,9 @@
 ---
 name: show
-description: Visualize images, videos, audio and Mermaid diagrams in the chat. Use when a reply includes a screenshot, image, video, audio file or Mermaid diagram.
+description: Visualize images, videos, audio, live HTML pages and Mermaid diagrams in the chat. Use when a reply includes a screenshot, image, video, audio file, HTML page or Mermaid diagram.
 ---
 
-## Images, videos and audio
+## Images, videos, audio and HTML
 
 Offsite renders a Markdown image inline when its path points to an existing file:
 
@@ -16,6 +16,7 @@ Offsite renders a Markdown image inline when its path points to an existing file
 - Start the path with `/` for an absolute path, a drive letter like `C:/` for an absolute path on Windows, or `./` for a path relative to the project root. Other paths do not render.
 - On Windows, use forward slashes and the real drive letter: `C:/Users/name/file.png`. Do not use backslashes, because Markdown removes the one before characters like `.` and `_`. Do not use `/c/Users/name/file.png`.
 - Supported formats: PNG, JPEG, GIF, WebP and SVG images; MP4, WebM and MOV videos; MP3, WAV, OGG, M4A, AAC and FLAC audio. Videos and audio use the same syntax and render as players.
+- HTML files use the same syntax and render as live, interactive pages: `![Page title](./page.html)`. Show the page itself rather than a screenshot of it. Put its CSS and JavaScript inside the file, because relative files next to it do not load. To change a page, edit that file and show it again.
 - Never use `file://` URLs. They do not render.
 - Wrap a path that contains spaces in angle brackets: `![Alt text](</absolute/path with spaces/file.png>)`.
 

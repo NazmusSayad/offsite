@@ -17,3 +17,7 @@ export const mediaTypes = new Map([
   ['.aac', 'audio/aac'],
   ['.flac', 'audio/flac'],
 ])
+
+export function isHtmlPath(file: string) {
+  return /\.html?$/i.test(file)
+}
