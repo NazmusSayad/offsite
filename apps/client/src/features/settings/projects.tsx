@@ -6,10 +6,8 @@ import { homePath, rankProjects, updateProject } from '@/api/projects'
 import { ProjectIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import {
-  EditProjectDialog,
-  FolderDialog,
-} from '@/features/sidebar/project-dialogs'
+import { FolderDialog } from '@/features/sidebar/folder-dialog'
+import { EditProjectDialog } from '@/features/sidebar/project-dialogs'
 import { type MachineProject, showError, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 

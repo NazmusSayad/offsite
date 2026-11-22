@@ -14,12 +14,10 @@ import { BookmarksDialog } from '@/features/bookmarks/bookmarks-dialog'
 import { CleanupBanner } from '@/features/sidebar/cleanup-banner'
 import { ConnectionStatus } from '@/features/sidebar/connection-status'
 import { DesktopSessionItem } from '@/features/sidebar/desktop-session-item'
+import { FolderDialog } from '@/features/sidebar/folder-dialog'
 import { MobileMenu } from '@/features/sidebar/mobile-menu'
 import { MobileSessionItem } from '@/features/sidebar/mobile-session-item'
-import {
-  EditProjectDialog,
-  FolderDialog,
-} from '@/features/sidebar/project-dialogs'
+import { EditProjectDialog } from '@/features/sidebar/project-dialogs'
 import { ProjectGroup } from '@/features/sidebar/project-group'
 import { ScopeMenu } from '@/features/sidebar/scope-menu'
 import { ServiceBanners } from '@/features/sidebar/service-banner'
