@@ -14,7 +14,7 @@ import {
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useShallow } from 'zustand/shallow'
 import { Markdown } from '@/components/markdown/markdown'
-import { AgentReply, MessageId } from '@/components/markdown/markdown-media'
+import { MediaMessage } from '@/components/markdown/markdown-media'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Wrapper } from '@/components/wrapper'
@@ -423,16 +423,14 @@ function RowContent(props: {
       return (
         <>
           <div data-quotable data-message-text>
-            <AgentReply value>
-              <Markdown
-                text={
-                  row.text === '' && !row.streaming
-                    ? '(empty response)'
-                    : row.text
-                }
-                streaming={row.streaming}
-              />
-            </AgentReply>
+            <Markdown
+              text={
+                row.text === '' && !row.streaming
+                  ? '(empty response)'
+                  : row.text
+              }
+              streaming={row.streaming}
+            />
           </div>
           {row.meta && (
             <div className="mt-1.5 flex items-center gap-2 text-xs tabular-nums opacity-0 transition-opacity duration-200 select-none group-hover/assistant:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
@@ -498,11 +496,14 @@ function RowContent(props: {
 function IdentifiedRow(props: ComponentProps<typeof RowContent>) {
   const row = props.row
   return (
-    <MessageId
-      value={row.kind === 'assistant' && row.streaming ? null : row.key}
+    <MediaMessage
+      value={{
+        id: row.kind === 'assistant' && row.streaming ? null : row.key,
+        reply: row.kind === 'assistant',
+      }}
     >
       <RowContent {...props} />
-    </MessageId>
+    </MediaMessage>
   )
 }
 

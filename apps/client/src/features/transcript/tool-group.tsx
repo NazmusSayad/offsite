@@ -1,4 +1,4 @@
-import { MessageId } from '@/components/markdown/markdown-media'
+import { MediaMessage } from '@/components/markdown/markdown-media'
 import {
   type FileChangeItem,
   readPath,
@@ -68,9 +68,9 @@ export function ContextGroup(props: {
               key={item.key}
               className="flex min-h-7 min-w-0 flex-col justify-center"
             >
-              <MessageId value={item.key}>
+              <MediaMessage value={{ id: item.key, reply: false }}>
                 <GroupItem item={item} cwd={props.cwd} live={props.live} />
-              </MessageId>
+              </MediaMessage>
             </div>
           ))}
         </div>

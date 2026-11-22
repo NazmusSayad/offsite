@@ -37,8 +37,10 @@ const AudioPlayer = lazy(async () => ({
 }))
 
 export const GithubRepository = createContext<string | null>(null)
-export const MessageId = createContext<string | null>(null)
-export const AgentReply = createContext(false)
+export const MediaMessage = createContext<{
+  id: string | null
+  reply: boolean
+}>({ id: null, reply: false })
 
 const unavailableIcons = {
   image: ImageNotFound01Icon,
@@ -56,8 +58,12 @@ const unavailableLabels = {
 
 export function LocalMedia(props: { path: string; alt: string; raw: string }) {
   const selection = useStore((state) => state.selection)
-  const id = useContext(MessageId)
-  const page = useContext(AgentReply) && isHtmlPath(props.path)
+  const message = useContext(MediaMessage)
+  const id = message.id
+  const kind =
+    message.reply && isHtmlPath(props.path)
+      ? 'html'
+      : (mediaKind(props.path) ?? 'image')
   const [media, setMedia] = useState<
     { path: string; link: MediaLink } | { path: string; error: string } | null
   >(() => {
@@ -101,14 +107,10 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
 
   if (loaded !== null && 'error' in loaded) {
     return (
-      <MediaUnavailable
-        kind={page ? 'html' : (mediaKind(props.path) ?? 'image')}
-        reason={loaded.error}
-        raw={props.raw}
-      />
+      <MediaUnavailable kind={kind} reason={loaded.error} raw={props.raw} />
     )
   }
-  if (page) {
+  if (kind === 'html') {
     return (
       <span className="my-2 block h-[min(30rem,70dvh)] w-full [&+br]:hidden">
         {link === null ? (
@@ -129,7 +131,7 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
       src={link?.src ?? null}
       alt={props.alt}
       name={props.path}
-      kind={mediaKind(props.path) ?? 'image'}
+      kind={kind}
       raw={props.raw}
       size={link?.size ?? null}
       address={props.path}
