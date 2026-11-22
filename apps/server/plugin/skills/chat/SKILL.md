@@ -8,17 +8,17 @@ description: Visualize images, videos, audio, live HTML pages and Mermaid diagra
 Offsite renders a Markdown image inline when its path points to an existing file:
 
 ```markdown
-![Alt text](./relative/path/to/file.png)
 ![Alt text](/absolute/path/to/file.png)
-![Alt text](C:/absolute/path/to/file.png)
+![Alt text](./relative/path/to/file.png)
+![Page Title](C:/absolute/path/to/file.html)
 ```
 
+- Never use `file://` URLs. They do not render.
 - Start the path with `/` for an absolute path, a drive letter like `C:/` for an absolute path on Windows, or `./` for a path relative to the project root. Other paths do not render.
 - On Windows, use forward slashes and the real drive letter: `C:/Users/name/file.png`. Do not use backslashes, because Markdown removes the one before characters like `.` and `_`. Do not use `/c/Users/name/file.png`.
-- Supported formats: PNG, JPEG, GIF, WebP and SVG images; MP4, WebM and MOV videos; MP3, WAV, OGG, M4A, AAC and FLAC audio. Videos and audio use the same syntax and render as players.
-- HTML files use the same syntax and render as live, interactive pages: `![Page title](./page.html)`. Show the page itself rather than a screenshot of it. Put its CSS and JavaScript inside the file, because relative files next to it do not load. To change a page, edit that file and show it again.
-- Never use `file://` URLs. They do not render.
 - Wrap a path that contains spaces in angle brackets: `![Alt text](</absolute/path with spaces/file.png>)`.
+- Supported formats: PNG, JPEG, GIF, WebP and SVG images; MP4, WebM and MOV videos; MP3, WAV, OGG, M4A, AAC and FLAC audio. Videos and audio use the same syntax and render as players.
+- HTML files use the same syntax and render as live, interactive pages: `![Page title](./page.html)`.
 
 ## Common mistakes
 
@@ -35,6 +35,10 @@ Offsite renders a Markdown image inline when its path points to an existing file
 - **When you make an image:**
   - For a before and after, put both side by side in one image, zoomed in on the area that is the focus.
   - When it combines several versions, such as before and after or variants, write a label on the image above each version that names exactly what it shows, like "Before", "After" or the variant's name.
+
+## HTML guidelines
+
+Put the page's CSS and JavaScript inside the file, because relative files next to it do not load.
 
 ## Mermaid diagrams
 
