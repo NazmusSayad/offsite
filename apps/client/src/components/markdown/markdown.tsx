@@ -33,7 +33,7 @@ import {
 import {
   GithubMedia,
   LocalMedia,
-  Media,
+  RemoteMedia,
 } from '@/components/markdown/markdown-media'
 import { remarkWindowsPaths } from '@/components/markdown/markdown-paths'
 import {
@@ -43,6 +43,7 @@ import {
   remarkUploads,
 } from '@/components/markdown/markdown-skills'
 import { streamingParser } from '@/components/markdown/markdown-stream'
+import { MediaInlineImage } from '@/components/markdown/media-image'
 import { isGithubAttachment, mediaKind } from '@/lib/media'
 import { openBrowser, isPullRequestUrl, openPullRequest } from '@/lib/url'
 import { cn } from '@/lib/utils'
@@ -212,28 +213,10 @@ const components: Components = {
       mediaKind(src) !== 'audio' &&
       (size !== undefined || node?.properties.dataStandalone !== true)
     ) {
-      return (
-        <img
-          src={src}
-          alt={alt ?? ''}
-          loading="lazy"
-          decoding="async"
-          className="max-h-[30rem] max-w-full object-contain"
-          style={size}
-        />
-      )
+      return <MediaInlineImage src={src} alt={alt ?? ''} style={size} />
     }
     return (
-      <Media
-        src={src}
-        alt={alt ?? ''}
-        name={src.startsWith('data:') ? 'Image' : src.split(/[?#]/)[0]}
-        kind={mediaKind(src) ?? 'image'}
-        raw={`![${alt ?? ''}](${src})`}
-        size={null}
-        address={src.startsWith('data:') ? null : src}
-        local={false}
-      />
+      <RemoteMedia src={src} alt={alt ?? ''} raw={`![${alt ?? ''}](${src})`} />
     )
   },
   pre: MarkdownPre,
