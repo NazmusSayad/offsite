@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { FileTypeIcon } from '@/components/file-icon'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 
 export function PreviewDialog(props: {
@@ -35,10 +34,14 @@ export function PreviewDialog(props: {
   )
 }
 
-export function PreviewHeader(props: { title: string; children?: ReactNode }) {
+export function PreviewHeader(props: {
+  title: string
+  icon: ReactNode
+  children?: ReactNode
+}) {
   return (
     <div className="border-border/60 flex h-11 shrink-0 items-center gap-2 border-b pr-12 pl-4">
-      <FileTypeIcon path={props.title} className="size-3.5" />
+      {props.icon}
       <DialogTitle className="min-w-0 truncate font-mono text-xs font-normal">
         {props.title}
       </DialogTitle>

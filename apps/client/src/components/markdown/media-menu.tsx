@@ -33,7 +33,7 @@ import { showError } from '@/lib/store'
 
 export type MediaSubject = {
   src: string
-  kind: 'image' | 'video' | 'audio'
+  kind: 'image' | 'video' | 'audio' | 'html'
   address: string | null
   local: boolean
 }

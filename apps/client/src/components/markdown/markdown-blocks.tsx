@@ -13,6 +13,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { FileTypeIcon } from '@/components/file-icon'
 import {
   downloadImage,
   elementImage,
@@ -150,7 +151,10 @@ export function MarkdownTable(props: { children: ReactNode }) {
         </DropdownMenu>
       </div>
       <PreviewDialog open={fullscreen} onClose={() => setFullscreen(false)}>
-        <PreviewHeader title="Table" />
+        <PreviewHeader
+          title="Table"
+          icon={<FileTypeIcon path="Table" className="size-3.5" />}
+        />
         <div className="chat-markdown min-h-0 flex-1 overflow-auto p-4 leading-relaxed">
           <table>{props.children}</table>
         </div>
