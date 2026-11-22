@@ -111,7 +111,12 @@ export function TerminalPage(
   return (
     <main className="bg-background flex min-w-0 flex-1 flex-col overflow-hidden">
       <div className="min-h-0 flex-1">
-        <TerminalPanel place={place} page tabSize="lg" />
+        <TerminalPanel
+          place={place}
+          page
+          tabSize="lg"
+          machine={props.machine}
+        />
       </div>
     </main>
   )
