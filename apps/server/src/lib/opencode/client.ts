@@ -100,7 +100,7 @@ function serve() {
           ? {}
           : {
               OPENCODE_CONFIG_CONTENT: configContent(
-                path.join(plugin, 'skills')
+                path.join(plugin, 'opencode')
               ),
             }),
       },
@@ -142,18 +142,18 @@ function serve() {
   return started.promise
 }
 
-function configContent(skills: string) {
+function configContent(plugin: string) {
   const config: unknown = JSON.parse(
     process.env.OPENCODE_CONFIG_CONTENT ?? '{}'
   )
   if (!isRecord(config)) {
     throw new Error('OPENCODE_CONFIG_CONTENT is not a JSON object')
   }
-  const existing = config.skills === undefined ? [] : config.skills
+  const existing = config.plugins === undefined ? [] : config.plugins
   if (!Array.isArray(existing)) {
-    throw new Error('skills in OPENCODE_CONFIG_CONTENT is not an array')
+    throw new Error('plugins in OPENCODE_CONFIG_CONTENT is not an array')
   }
-  return JSON.stringify({ ...config, skills: [...existing, skills] })
+  return JSON.stringify({ ...config, plugins: [...existing, plugin] })
 }
 
 async function listen(client: OpenCodeClient) {
