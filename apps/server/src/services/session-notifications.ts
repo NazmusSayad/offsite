@@ -121,6 +121,13 @@ async function finishedNotification(run: LiveRun) {
         })
   const text =
     short ?? (asks ? `${provider} asks a question` : `${provider} finished`)
+  const current = sessions().find((item) => item.id === run.sessionId)
+  if (current === undefined || !current.unread) {
+    log.info(
+      `session ${run.sessionId}: read before its notification was ready, not sending it`
+    )
+    return
+  }
   await notify({
     ...base(run, session),
     body: text,
