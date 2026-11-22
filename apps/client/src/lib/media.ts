@@ -10,6 +10,7 @@ const MEDIA_LINK_LIFETIME = 25 * 60_000
 const mediaLinks = new Map<string, MediaLink>()
 
 export type MediaLink = {
+  folder: string
   src: string
   size: { width: number; height: number } | null
   until: number
@@ -58,6 +59,7 @@ export async function mediaLink(place: Place, path: string) {
     path,
   })
   return {
+    folder: mediaFolder(place),
     src: `${machineUrl(place.machine)}/api/media?${new URLSearchParams({ token: result.token })}`,
     size: result.size,
     until: Date.now() + MEDIA_LINK_LIFETIME,
@@ -68,8 +70,12 @@ export async function mediaUrl(place: Place, path: string) {
   return (await mediaLink(place, path)).src
 }
 
+export function mediaFolder(place: Place) {
+  return `${place.machine} ${place.projectId} ${place.worktreeId}`
+}
+
 function mediaKey(selection: Selection, id: string, path: string) {
-  return `${selection.machine} ${selection.projectId} ${selection.worktreeId} ${selection.sessionId} ${id} ${path}`
+  return `${mediaFolder(selection)} ${selection.sessionId} ${id} ${path}`
 }
 
 export function isGithubAttachment(src: string) {

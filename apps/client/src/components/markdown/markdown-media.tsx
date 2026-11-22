@@ -26,6 +26,7 @@ import {
   cacheMediaLink,
   githubMediaUrl,
   type MediaLink,
+  mediaFolder,
   mediaKind,
   mediaLink,
 } from '@/lib/media'
@@ -75,9 +76,11 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
   })
   const loaded = media !== null && media.path === props.path ? media : null
   const link = loaded !== null && 'link' in loaded ? loaded.link : null
+  const folderLink =
+    selection !== null && link?.folder === mediaFolder(selection) ? link : null
 
   useEffect(() => {
-    if (selection === null || link !== null) {
+    if (selection === null || folderLink !== null) {
       return
     }
     let current = true
@@ -97,13 +100,13 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
     return () => {
       current = false
     }
-  }, [selection, props.path, link])
+  }, [selection, props.path, folderLink])
 
   useEffect(() => {
-    if (selection !== null && id !== null && link !== null) {
-      cacheMediaLink(selection, id, props.path, link)
+    if (selection !== null && id !== null && folderLink !== null) {
+      cacheMediaLink(selection, id, props.path, folderLink)
     }
-  }, [selection, id, props.path, link])
+  }, [selection, id, props.path, folderLink])
 
   if (loaded !== null && 'error' in loaded) {
     return (
@@ -112,16 +115,20 @@ export function LocalMedia(props: { path: string; alt: string; raw: string }) {
   }
   if (kind === 'html') {
     return (
-      <span className="my-2 block h-[min(30rem,70dvh)] w-full [&+br]:hidden">
+      <span className="relative my-2 block h-[min(30rem,70dvh)] w-full [&+br]:hidden">
         {link === null ? (
           <span className="bg-muted/60 block size-full rounded-lg" />
         ) : (
-          <iframe
-            src={link.src}
-            title={props.alt === '' ? props.path : props.alt}
-            sandbox="allow-scripts allow-forms allow-popups"
-            className="border-border/40 size-full rounded-lg border bg-white scheme-light"
-          />
+          <>
+            <span className="absolute inset-px rounded-lg bg-white" />
+            <iframe
+              key={link.src}
+              src={link.src}
+              title={props.alt === '' ? props.path : props.alt}
+              sandbox="allow-scripts allow-forms allow-popups"
+              className="relative size-full rounded-lg scheme-light"
+            />
+          </>
         )}
       </span>
     )
