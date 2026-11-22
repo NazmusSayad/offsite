@@ -3,6 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { LegendList, type LegendListRef } from '@legendapp/list/react'
 import { isEqual, omit } from 'es-toolkit'
 import {
+  type ComponentProps,
   memo,
   useCallback,
   useLayoutEffect,
@@ -13,6 +14,7 @@ import {
 import { useHotkeys } from 'react-hotkeys-hook'
 import { useShallow } from 'zustand/shallow'
 import { Markdown } from '@/components/markdown/markdown'
+import { MediaMessage } from '@/components/markdown/markdown-media'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
 import { Wrapper } from '@/components/wrapper'
@@ -491,7 +493,21 @@ function RowContent(props: {
   }
 }
 
-export const RowView = memo(RowContent, (previous, next) =>
+function IdentifiedRow(props: ComponentProps<typeof RowContent>) {
+  const row = props.row
+  return (
+    <MediaMessage
+      value={{
+        id: row.kind === 'assistant' && row.streaming ? null : row.key,
+        reply: row.kind === 'assistant',
+      }}
+    >
+      <RowContent {...props} />
+    </MediaMessage>
+  )
+}
+
+export const RowView = memo(IdentifiedRow, (previous, next) =>
   next.row.kind === 'agent'
     ? isEqual(previous, next)
     : isEqual(

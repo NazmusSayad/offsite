@@ -3,6 +3,7 @@ import type { SideQuest } from '@offsite/core/side-quests'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { call, listen } from '@/api/connection'
 import { Markdown } from '@/components/markdown/markdown'
+import { MediaMessage } from '@/components/markdown/markdown-media'
 import { Shimmer } from '@/features/transcript/tool-row'
 import {
   MessageCopyButton,
@@ -97,21 +98,23 @@ export function SideQuestsPanel(props: {
         <div className="flex flex-col gap-5">
           {shown.map((quest) => (
             <div key={quest.id} className="flex flex-col gap-2">
-              <UserMessage
-                item={{
-                  id: quest.id,
-                  parent: null,
-                  time: quest.createdAt,
-                  kind: 'user',
-                  text: quest.question,
-                  images: quest.images,
-                  format: 'text',
-                }}
-                first={false}
-                running={false}
-                rewind={false}
-                bookmark={false}
-              />
+              <MediaMessage value={{ id: quest.id, reply: false }}>
+                <UserMessage
+                  item={{
+                    id: quest.id,
+                    parent: null,
+                    time: quest.createdAt,
+                    kind: 'user',
+                    text: quest.question,
+                    images: quest.images,
+                    format: 'text',
+                  }}
+                  first={false}
+                  running={false}
+                  rewind={false}
+                  bookmark={false}
+                />
+              </MediaMessage>
               {quest.status === 'answering' && (
                 <p className="text-muted-foreground px-1 text-sm">
                   <Shimmer text="Answering" active />
@@ -119,7 +122,11 @@ export function SideQuestsPanel(props: {
               )}
               {quest.status === 'answered' && quest.answer !== null && (
                 <div className="group/answer">
-                  <Markdown text={quest.answer} className="px-1 text-sm" />
+                  <MediaMessage
+                    value={{ id: `${quest.id}:answer`, reply: true }}
+                  >
+                    <Markdown text={quest.answer} className="px-1 text-sm" />
+                  </MediaMessage>
                   <div className="mt-1.5 flex items-center gap-0.5 px-1 opacity-0 transition-opacity duration-200 group-hover/answer:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
                     <MessageCopyButton text={quest.answer} />
                   </div>

@@ -17,7 +17,7 @@ import {
 import { lstat, open, readdir, stat } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import path from 'node:path'
-import { mediaTypes } from '@offsite/core/media'
+import { isHtmlPath, mediaTypes } from '@offsite/core/media'
 import type { FilePreview } from '@offsite/core/projects'
 import sharp from 'sharp'
 import { isPaired } from '../storage/auth.ts'
@@ -194,9 +194,11 @@ export async function linkProjectMedia(
     throw new Error(`${file} does not exist`)
   }
   const full = realpathSync(resolved)
-  const mediaType = mediaTypes.get(path.extname(full).toLowerCase())
+  const mediaType = isHtmlPath(full)
+    ? 'text/html; charset=utf-8'
+    : mediaTypes.get(path.extname(full).toLowerCase())
   if (mediaType === undefined) {
-    throw new Error(`${file} is not an image, video or audio file`)
+    throw new Error(`${file} is not an image, video, audio or HTML file`)
   }
   return {
     token: addLink(full, mediaType, device),
@@ -494,7 +496,12 @@ export function serveMedia(
   response.setHeader('access-control-allow-origin', '*')
   response.setHeader('content-type', link.mediaType)
   response.setHeader('cache-control', 'private, max-age=3600')
-  response.setHeader('content-security-policy', 'sandbox')
+  response.setHeader(
+    'content-security-policy',
+    link.mediaType.startsWith('text/html')
+      ? 'sandbox allow-scripts allow-forms allow-popups'
+      : 'sandbox'
+  )
   response.setHeader('x-content-type-options', 'nosniff')
   streamFile(link.file, stats.size, request, response)
 }

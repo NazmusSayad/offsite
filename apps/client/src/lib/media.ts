@@ -1,19 +1,20 @@
 import { mediaTypes } from '@offsite/core/media'
 import { call, machineUrl } from '@/api/connection'
-import type { Place } from '@/lib/store'
+import type { Place, Selection } from '@/lib/store'
 
 const GITHUB_ATTACHMENT =
   /^https:\/\/github\.com\/user-attachments\/assets\/[0-9a-f-]{36}$/i
 const GITHUB_LINK_LIFETIME = 25 * 60_000
 const githubLinks = new Map<string, { src: Promise<string>; until: number }>()
 const MEDIA_LINK_LIFETIME = 25 * 60_000
-const mediaLinks = new Map<
-  string,
-  {
-    link: { src: string; size: { width: number; height: number } | null }
-    until: number
-  }
->()
+const mediaLinks = new Map<string, MediaLink>()
+
+export type MediaLink = {
+  folder: string
+  src: string
+  size: { width: number; height: number } | null
+  until: number
+}
 
 export function mediaKind(src: string) {
   const extension = /\.[a-z0-9]+$/i.exec(src.split(/[?#]/)[0])?.[0]
@@ -33,9 +34,22 @@ export function mediaKind(src: string) {
   return null
 }
 
-export function cachedMediaLink(place: Place, path: string) {
-  const cached = mediaLinks.get(mediaKey(place, path))
-  return cached !== undefined && cached.until > Date.now() ? cached.link : null
+export function cachedMediaLink(
+  selection: Selection,
+  id: string,
+  path: string
+) {
+  const cached = mediaLinks.get(mediaKey(selection, id, path))
+  return cached !== undefined && cached.until > Date.now() ? cached : null
+}
+
+export function cacheMediaLink(
+  selection: Selection,
+  id: string,
+  path: string,
+  link: MediaLink
+) {
+  mediaLinks.set(mediaKey(selection, id, path), link)
 }
 
 export async function mediaLink(place: Place, path: string) {
@@ -44,23 +58,24 @@ export async function mediaLink(place: Place, path: string) {
     worktreeId: place.worktreeId,
     path,
   })
-  const link = {
+  return {
+    folder: mediaFolder(place),
     src: `${machineUrl(place.machine)}/api/media?${new URLSearchParams({ token: result.token })}`,
     size: result.size,
-  }
-  mediaLinks.set(mediaKey(place, path), {
-    link,
     until: Date.now() + MEDIA_LINK_LIFETIME,
-  })
-  return link
+  }
 }
 
 export async function mediaUrl(place: Place, path: string) {
   return (await mediaLink(place, path)).src
 }
 
-function mediaKey(place: Place, path: string) {
-  return `${place.machine} ${place.projectId} ${place.worktreeId} ${path}`
+export function mediaFolder(place: Place) {
+  return `${place.machine} ${place.projectId} ${place.worktreeId}`
+}
+
+function mediaKey(selection: Selection, id: string, path: string) {
+  return `${mediaFolder(selection)} ${selection.sessionId} ${id} ${path}`
 }
 
 export function isGithubAttachment(src: string) {

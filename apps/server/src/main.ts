@@ -251,7 +251,11 @@ server.on('upgrade', (request, socket, head) => {
     return
   }
   const remoteAddress = request.socket.remoteAddress
-  if (url.pathname !== '/ws' || remoteAddress === undefined) {
+  if (
+    url.pathname !== '/ws' ||
+    remoteAddress === undefined ||
+    request.headers.origin === 'null'
+  ) {
     socket.destroy()
     return
   }
@@ -311,6 +315,11 @@ function answerApi(
   request: IncomingMessage,
   response: ServerResponse
 ) {
+  if (request.headers.origin === 'null') {
+    response.statusCode = 403
+    response.end('Sandboxed pages cannot use offsite')
+    return
+  }
   response.setHeader('access-control-allow-origin', '*')
   if (request.method === 'OPTIONS') {
     response.setHeader('access-control-allow-methods', 'POST')

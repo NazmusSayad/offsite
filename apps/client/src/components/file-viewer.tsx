@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { AudioPlayer } from '@/components/audio-player'
+import { FileTypeIcon } from '@/components/file-icon'
 import { PreviewDialog, PreviewHeader } from '@/components/preview-dialog'
 import { VideoPlayer } from '@/components/video-player'
 import { ZoomableImage } from '@/components/zoomable-image'
@@ -13,7 +14,12 @@ export function FileViewer(props: {
 }) {
   return (
     <PreviewDialog open onClose={props.onClose}>
-      <PreviewHeader title={props.name}>{props.actions}</PreviewHeader>
+      <PreviewHeader
+        title={props.name}
+        icon={<FileTypeIcon path={props.name} className="size-3.5" />}
+      >
+        {props.actions}
+      </PreviewHeader>
       <div className="min-h-0 flex-1">
         <ViewerBody
           name={props.name}
