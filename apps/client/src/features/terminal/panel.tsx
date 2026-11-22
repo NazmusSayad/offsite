@@ -29,7 +29,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { MachineLogo } from '@/constants/machine-icons'
 import type { Progress } from '@/lib/ghostty/terminal'
+import { machineOf, useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { closeTab } from './close-tab'
 import { CloseDialog, RenameDialog } from './dialogs'
@@ -62,6 +64,7 @@ export function TerminalPanel(props: {
   page?: boolean
   tabSize?: 'default' | 'lg'
   leading?: ReactNode
+  machine?: string
   mobile?: boolean
 }) {
   const state = useSyncExternalStore(subscribe, getState)
@@ -100,6 +103,7 @@ export function TerminalPanel(props: {
   }
 
   const selected = tabs.find((tab) => tab.id === tabId)
+  const machineInTab = props.machine !== undefined && tabs.length === 1
 
   return (
     <div ref={shortcuts} className="flex h-full flex-col text-sm">
@@ -183,11 +187,18 @@ export function TerminalPanel(props: {
       ) : (
         <header
           className={cn(
-            'flex h-9 flex-none select-none',
+            '@container flex h-9 flex-none select-none',
             props.tabSize === 'lg' && 'h-(--workspace-topbar-height)',
             tabs.length === 1 ? 'bg-background' : 'bg-sidebar'
           )}
         >
+          {props.machine !== undefined && !machineInTab && (
+            <MachineLabel
+              machine={props.machine}
+              iconOnly={tabs.length > 1}
+              className={cn(tabs.length > 1 && 'border-r border-b')}
+            />
+          )}
           <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
             {tabs.map((tab) => (
               <TabMenu key={tab.id} tab={tab}>
@@ -196,7 +207,8 @@ export function TerminalPanel(props: {
                     'group/tab text-muted-foreground hover:text-foreground relative flex min-w-28 flex-1 items-center justify-center border-r border-b px-7 text-xs transition-colors last:border-r-0',
                     props.tabSize === 'lg' && 'text-[13px]',
                     tab.id === tabId &&
-                      'bg-background text-foreground border-b-transparent'
+                      'bg-background text-foreground border-b-transparent',
+                    machineInTab && 'px-0'
                   )}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() =>
@@ -207,25 +219,38 @@ export function TerminalPanel(props: {
                     })
                   }
                 >
+                  <div
+                    className={cn(
+                      'absolute left-1.5 flex items-center',
+                      machineInTab &&
+                        'static shrink-0 grow basis-0 self-stretch'
+                    )}
+                  >
+                    {props.machine !== undefined && machineInTab && (
+                      <MachineLabel machine={props.machine} />
+                    )}
+                    <button
+                      className={cn(
+                        'text-muted-foreground hover:bg-accent hover:text-foreground grid size-4.5 place-items-center rounded opacity-0 transition-opacity group-hover/tab:opacity-100',
+                        tab.id === tabId && 'pointer-coarse:opacity-100',
+                        machineInTab && 'mr-3'
+                      )}
+                      aria-label="Close tab"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void closeTab(tab.id)
+                      }}
+                    >
+                      <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
+                    </button>
+                  </div>
                   <span className="truncate">{tabTitle(tab)}</span>
                   <AttentionDot
                     id={tab.id}
                     className="ml-1.5 size-1.5 flex-none rounded-full"
                   />
+                  {machineInTab && <span className="min-w-3 grow basis-0" />}
                   <TabProgress progress={state.progress[tab.id]} />
-                  <button
-                    className={cn(
-                      'text-muted-foreground hover:bg-accent hover:text-foreground absolute left-1.5 grid size-4.5 place-items-center rounded opacity-0 transition-opacity group-hover/tab:opacity-100',
-                      tab.id === tabId && 'pointer-coarse:opacity-100'
-                    )}
-                    aria-label="Close tab"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      void closeTab(tab.id)
-                    }}
-                  >
-                    <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
-                  </button>
                 </div>
               </TabMenu>
             ))}
@@ -312,6 +337,34 @@ function TerminalPane(props: { id: number }) {
       className="bg-background absolute inset-0 pt-(--pad-top) pr-(--pad-right) pb-(--pad-bottom) pl-(--pad-left)"
       ref={container}
     />
+  )
+}
+
+function MachineLabel(props: {
+  machine: string
+  iconOnly?: boolean
+  className?: string
+}) {
+  const machine = useStore((store) => machineOf(store, props.machine))
+
+  return (
+    <div
+      className={cn(
+        'text-muted-foreground flex flex-none items-center gap-1.5 self-stretch px-3 text-[13px]',
+        props.className
+      )}
+      title={machine.name}
+    >
+      <MachineLogo icon={machine.icon} className="size-4 shrink-0" />
+      <span
+        className={cn(
+          'max-w-40 truncate @max-md:sr-only',
+          props.iconOnly && 'sr-only'
+        )}
+      >
+        {machine.name}
+      </span>
+    </div>
   )
 }
 
