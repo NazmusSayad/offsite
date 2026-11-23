@@ -64,6 +64,7 @@ export function TerminalPanel(props: {
   page?: boolean
   tabSize?: 'default' | 'lg'
   leading?: ReactNode
+  header?: ReactNode
   machine?: string
   mobile?: boolean
 }) {
@@ -107,7 +108,9 @@ export function TerminalPanel(props: {
 
   return (
     <div ref={shortcuts} className="flex h-full flex-col text-sm">
-      {props.mobile ? (
+      {props.mobile && props.header !== undefined ? (
+        props.header
+      ) : props.mobile ? (
         <header className="bg-background flex h-(--workspace-topbar-height) flex-none items-center border-b select-none">
           {props.leading}
           <div className="flex min-w-0 flex-1 items-center self-stretch">
@@ -443,7 +446,7 @@ function AttentionDot(props: { id: number; className: string }) {
   return <span className={cn('bg-primary', props.className)} />
 }
 
-function TabProgress(props: { progress: Progress | undefined }) {
+export function TabProgress(props: { progress: Progress | undefined }) {
   const progress = props.progress
   if (!progress || progress.state === 0) {
     return null

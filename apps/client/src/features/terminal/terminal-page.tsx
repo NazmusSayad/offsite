@@ -1,8 +1,4 @@
-import {
-  Add01Icon,
-  ArrowDown01Icon,
-  Delete02Icon,
-} from '@hugeicons/core-free-icons'
+import { Add01Icon, Delete02Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { WorktreeIcon } from '@offsite/core/icons/git'
 import { GLOBAL_TERMINALS } from '@offsite/core/terminal'
@@ -11,7 +7,6 @@ import {
   type ReactNode,
   useEffect,
   useRef,
-  useState,
   useSyncExternalStore,
 } from 'react'
 import { homePath } from '@/api/projects'
@@ -32,17 +27,14 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 import { useStore } from '@/lib/store'
 import { useTerminalPage, useTerminalPlace, useTerminalView } from '@/lib/url'
 import { cn, splitAtLimit, touch } from '@/lib/utils'
 import { closeTabs } from './close-tab'
+import { GroupTabs } from './group-tabs'
 import { type Group, useGroups, alerted, GroupIcon, GroupCount } from './groups'
 import { useHoverMenu } from './hover-menu'
+import { MobileTerminalHeader } from './mobile-header'
 import { MoreTerminalProjects } from './new-terminal-button'
 import { createTab, showGroup } from './page'
 import { TerminalPanel } from './panel'
@@ -54,13 +46,8 @@ export function TerminalPage(
     | { machine: string; mobile: false }
 ) {
   useSyncExternalStore(subscribe, getState)
-  const [groupsOpen, setGroupsOpen] = useState(false)
   const place = useTerminalPlace()
   const view = useTerminalView()
-  const groups = useGroups()
-  const current = groups.find(
-    (group) => group.machine.id === props.machine && group.view === view
-  )
 
   useEffect(() => {
     localStorage.setItem('lastTerminal', props.machine)
@@ -75,32 +62,13 @@ export function TerminalPage(
             place={place}
             page
             mobile
-            leading={
-              <>
-                <div className="flex min-w-0 flex-1 items-center self-stretch">
-                  {props.leading}
-                  <Popover open={groupsOpen} onOpenChange={setGroupsOpen}>
-                    <PopoverTrigger asChild>
-                      <button className="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1.5 self-stretch px-2 text-[13px]">
-                        {current !== undefined && <GroupIcon group={current} />}
-                        <span className="truncate">{current?.name}</span>
-                        <HugeiconsIcon
-                          icon={ArrowDown01Icon}
-                          className="size-3.5 flex-none"
-                        />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      align="start"
-                      className="w-64 p-1"
-                      onClick={() => setGroupsOpen(false)}
-                    >
-                      <TerminalGroups />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <span className="bg-border h-4 w-px flex-none" />
-              </>
+            header={
+              <MobileTerminalHeader
+                machine={props.machine}
+                leading={props.leading}
+              >
+                <TerminalGroups tabs />
+              </MobileTerminalHeader>
             }
           />
         </div>
@@ -122,7 +90,7 @@ export function TerminalPage(
   )
 }
 
-export function TerminalGroups() {
+export function TerminalGroups(props: { tabs?: boolean }) {
   useSyncExternalStore(subscribe, getState)
   const groups = useGroups().filter(
     (group) => group.machine.status === 'online'
@@ -135,28 +103,31 @@ export function TerminalGroups() {
 
   return (
     <div className="flex max-h-[calc(var(--radix-popover-content-available-height)-0.5rem)] flex-col gap-px overflow-y-auto">
-      {rows.map((group, index) => (
-        <Fragment key={`${group.machine.id}:${group.view}`}>
-          <GroupRow
-            group={group}
-            worktrees={groups.filter(
-              (item) =>
-                item.machine.id === group.machine.id &&
-                item.place.worktreeId !== null &&
-                item.place.projectId === group.place.projectId &&
-                item.count > 0
+      {rows.map((group, index) => {
+        const worktrees = groups.filter(
+          (item) =>
+            item.machine.id === group.machine.id &&
+            item.place.worktreeId !== null &&
+            item.place.projectId === group.place.projectId &&
+            item.count > 0
+        )
+        return (
+          <Fragment key={`${group.machine.id}:${group.view}`}>
+            <GroupRow group={group} worktrees={worktrees} tabs={props.tabs} />
+            {props.tabs === true && (
+              <GroupTabs family={[group, ...worktrees]} />
             )}
-          />
-          {rows[index + 1]?.machine.id !== group.machine.id && (
-            <MoreTerminalProjects machine={group.machine.id} />
-          )}
-        </Fragment>
-      ))}
+            {rows[index + 1]?.machine.id !== group.machine.id && (
+              <MoreTerminalProjects machine={group.machine.id} />
+            )}
+          </Fragment>
+        )
+      })}
     </div>
   )
 }
 
-function GroupRow(props: { group: Group; worktrees: Group[] }) {
+function GroupRow(props: { group: Group; worktrees: Group[]; tabs?: boolean }) {
   const page = useTerminalPage()
   const view = useTerminalView()
   const hover = useHoverMenu()
@@ -192,11 +163,13 @@ function GroupRow(props: { group: Group; worktrees: Group[] }) {
           {props.worktrees.length}
         </span>
       )}
-      <GroupCount
-        count={count}
-        alert={family.some((item) => alerted(item, page))}
-        className="group-hover/row:invisible pointer-coarse:mr-7"
-      />
+      {props.tabs !== true && (
+        <GroupCount
+          count={count}
+          alert={family.some((item) => alerted(item, page))}
+          className="group-hover/row:invisible pointer-coarse:mr-7"
+        />
+      )}
     </button>
   )
 
@@ -206,7 +179,8 @@ function GroupRow(props: { group: Group; worktrees: Group[] }) {
         <div
           className={cn(
             'group/row text-popover-foreground hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent has-[[data-state=open]]:bg-accent has-[[data-state=open]]:text-accent-foreground relative shrink-0 rounded-sm',
-            group.machine.id === page &&
+            props.tabs !== true &&
+              group.machine.id === page &&
               family.some((item) => item.view === view) &&
               'bg-accent/50 text-accent-foreground'
           )}
