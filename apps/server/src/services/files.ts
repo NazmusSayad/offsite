@@ -14,7 +14,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
-import { lstat, open, readdir, stat } from 'node:fs/promises'
+import { lstat, open, readdir, realpath, stat } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import path from 'node:path'
 import { isHtmlPath, mediaTypes } from '@offsite/core/media'
@@ -65,32 +65,48 @@ export async function listFiles(cwd: string) {
 export async function listEntries(cwd: string) {
   const files: string[] = []
   const folders: string[] = []
-  const pending = ['']
+  const pending = [
+    { relative: '', real: await realpath(cwd), parents: new Array<string>() },
+  ]
   while (pending.length > 0 && files.length < FILE_LIMIT) {
-    const dir = pending.pop() ?? ''
+    const dir = pending.pop()
+    if (dir === undefined) {
+      break
+    }
     let entries
     try {
-      entries = await readdir(path.join(cwd, dir), { withFileTypes: true })
+      entries = await readdir(path.join(cwd, dir.relative), {
+        withFileTypes: true,
+      })
     } catch {
       continue
     }
+    const parents = [...dir.parents, dir.real]
     for (const entry of entries) {
       if (skipped.has(entry.name)) {
         continue
       }
-      const relative = dir === '' ? entry.name : `${dir}/${entry.name}`
-      if (entry.isDirectory()) {
-        pending.push(relative)
-        folders.push(relative)
-      }
+      const relative =
+        dir.relative === '' ? entry.name : `${dir.relative}/${entry.name}`
+      let real = path.join(dir.real, entry.name)
+      let isFolder = entry.isDirectory()
       if (entry.isFile()) {
         files.push(relative)
       }
       if (entry.isSymbolicLink()) {
-        const target = await stat(path.join(cwd, relative)).catch(() => null)
+        const full = path.join(cwd, relative)
+        const target = await stat(full).catch(() => null)
         if (target?.isFile() === true) {
           files.push(relative)
         }
+        if (target?.isDirectory() === true) {
+          real = await realpath(full)
+          isFolder = true
+        }
+      }
+      if (isFolder && !parents.includes(real)) {
+        pending.push({ relative, real, parents })
+        folders.push(relative)
       }
     }
   }
@@ -414,26 +430,18 @@ export async function taskOutput(sessionId: string, file: string) {
 }
 
 export function resolveProjectFile(cwd: string, file: string) {
-  const root = realpathSync(cwd)
+  const root = path.resolve(cwd)
   const resolved = path.resolve(root, file)
+  checkInProject(root, resolved, file)
   if (!existsSync(resolved)) {
     throw new Error(`${file} does not exist`)
   }
-  const full = realpathSync(resolved)
-  checkInProject(root, full, file)
-  return full
+  return realpathSync(resolved)
 }
 
 function resolveProjectEntry(cwd: string, file: string) {
-  const root = realpathSync(cwd)
-  const resolved = path.resolve(root, file)
-  if (!existsSync(path.dirname(resolved))) {
-    throw new Error(`${file} does not exist`)
-  }
-  const full = path.join(
-    realpathSync(path.dirname(resolved)),
-    path.basename(resolved)
-  )
+  const root = path.resolve(cwd)
+  const full = path.resolve(root, file)
   if (full === root) {
     throw new Error('The project folder itself cannot be changed')
   }
@@ -443,20 +451,12 @@ function resolveProjectEntry(cwd: string, file: string) {
 }
 
 function resolveNewProjectPath(cwd: string, file: string) {
-  const root = realpathSync(cwd)
-  const resolved = path.resolve(root, file)
-  if (existsSync(resolved)) {
+  const root = path.resolve(cwd)
+  const full = path.resolve(root, file)
+  checkInProject(root, full, file)
+  if (existsSync(full)) {
     throw new Error(`${file} already exists`)
   }
-  let existing = path.dirname(resolved)
-  while (!existsSync(existing)) {
-    existing = path.dirname(existing)
-  }
-  const full = path.join(
-    realpathSync(existing),
-    path.relative(existing, resolved)
-  )
-  checkInProject(root, full, file)
   return full
 }
 
