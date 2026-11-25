@@ -21,6 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { logger } from '@/lib/log'
 import { showError } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import {
@@ -34,6 +35,7 @@ import { GitDialog } from './git-dialog'
 
 const STATUS_REFRESH = 3000
 const FETCH_REFRESH = 180_000
+const log = logger.withTag('git')
 
 export function useGitStatus(
   machine: string,
@@ -118,7 +120,7 @@ export function useGitStatus(
       } catch (error) {
         if (current && !failed) {
           failed = true
-          showError(error)
+          log.warn('background fetch failed', error)
         }
       }
     }
