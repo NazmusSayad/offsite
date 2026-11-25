@@ -9,7 +9,6 @@ import {
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useSearch } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
-import { z } from 'zod'
 import { call, machineUrl } from '@/api/connection'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,27 +18,14 @@ import {
   FileView,
   fileContent,
 } from '@/features/browser/file-view'
+import { RemoteScreen } from '@/features/browser/remote-screen'
+import { useRemoteBrowser } from '@/features/browser/use-remote-browser'
 import { PanelCloseButton } from '@/features/workspace/panel-close-button'
-import { machineOf, showError, useStore } from '@/lib/store'
-import { openBrowser, replaceSearch } from '@/lib/url'
+import { machineOf, useStore } from '@/lib/store'
+import { openBrowser } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
 
 const RAW_LIMIT = 50 * 1024
-
-const pageMessage = z.discriminatedUnion('event', [
-  z.object({
-    offsite: z.literal('browser'),
-    event: z.literal('location'),
-    url: z.string(),
-    replaced: z.boolean(),
-  }),
-  z.object({
-    offsite: z.literal('browser'),
-    event: z.literal('open'),
-    url: z.string(),
-  }),
-  z.object({ offsite: z.literal('browser'), event: z.literal('loading') }),
-])
 
 export function BrowserPanel(props: {
   machine: string
@@ -65,16 +51,7 @@ export function BrowserPanel(props: {
   const [version, setVersion] = useState(0)
   const [frameKey, setFrameKey] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [page, setPage] = useState<{
-    back: boolean
-    forward: boolean
-  } | null>(null)
-  const frame = useRef<HTMLIFrameElement>(null)
   const opened = useRef<string | null>(null)
-  const trail = useRef<{ entries: string[]; index: number }>({
-    entries: [],
-    index: -1,
-  })
   const online = useStore(
     (state) => machineOf(state, props.machine).status === 'online'
   )
@@ -82,8 +59,15 @@ export function BrowserPanel(props: {
     (state) => machineOf(state, props.machine).system?.homeDir ?? null
   )
 
+  const web = target !== null && /^https?:\/\//i.test(target)
+  const remote = useRemoteBrowser(
+    props.machine,
+    web && online ? target : null,
+    version
+  )
+
   useEffect(() => {
-    if (target === null || !online) {
+    if (target === null || web || !online) {
       return
     }
     const request = `${props.machine} ${version} ${target}`
@@ -95,11 +79,9 @@ export function BrowserPanel(props: {
       (source) => {
         if (current) {
           opened.current = request
-          trail.current = { entries: [], index: -1 }
           setLoaded({ target, ...source, error: null })
           setRaw(source.file !== null && source.file.text.length > RAW_LIMIT)
           setFrameKey((key) => key + 1)
-          setPage(null)
           setLoading(source.file === null)
         }
       },
@@ -111,7 +93,6 @@ export function BrowserPanel(props: {
             file: null,
             error: errorMessage(caught),
           })
-          setPage(null)
           setLoading(false)
         }
       }
@@ -119,82 +100,34 @@ export function BrowserPanel(props: {
     return () => {
       current = false
     }
-  }, [props.machine, target, version, online])
+  }, [props.machine, target, web, version, online])
 
-  useEffect(() => {
-    function listen(event: MessageEvent) {
-      if (
-        event.source === null ||
-        event.source !== frame.current?.contentWindow
-      ) {
-        return
-      }
-      const message = pageMessage.safeParse(event.data)
-      if (!message.success) {
-        return
-      }
-      if (message.data.event === 'loading') {
-        setPage(null)
-        setLoading(true)
-        return
-      }
-      if (target === null || loaded === null) {
-        throw new Error('a page reported its location outside the browser')
-      }
-      const next = message.data.url
-      if (message.data.event === 'open') {
-        call(props.machine, 'browser.open', { url: next, fromPage: true }).then(
-          (path) => {
-            opened.current = `${props.machine} ${version} ${next}`
-            setLoaded({
-              target: next,
-              src: `${machineUrl(props.machine)}${path}`,
-              file: null,
-              error: null,
-            })
-            setLoading(true)
-            replaceSearch({ browse: next })
-          },
-          showError
-        )
-        return
-      }
-      setPage(followTrail(trail.current, next, message.data.replaced))
-      if (next === target) {
-        return
-      }
-      opened.current = `${props.machine} ${version} ${next}`
-      setLoaded({ ...loaded, target: next })
-      replaceSearch({ browse: next })
-    }
-    window.addEventListener('message', listen)
-    return () => window.removeEventListener('message', listen)
-  }, [props.machine, version, target, loaded])
-
-  const web = target !== null && /^https?:\/\//i.test(target)
-  const src = target === null ? null : (loaded?.src ?? null)
-  const file = target === null ? null : (loaded?.file ?? null)
+  const src = target === null || web ? null : (loaded?.src ?? null)
+  const file = target === null || web ? null : (loaded?.file ?? null)
   const href = !web && loaded?.target === target ? loaded.src : null
-  const error = loaded?.target === target ? loaded.error : null
+  const page = web ? remote.page : null
+  const error = web
+    ? (remote.error ?? page?.error ?? null)
+    : loaded?.target === target
+      ? loaded.error
+      : null
   const busy =
-    target !== null && online && (loaded?.target !== target || loading)
-
-  function command(name: 'back' | 'forward' | 'reload') {
-    if (page === null) {
-      throw new Error('no page is open to send a browser command to')
-    }
-    frame.current?.contentWindow?.postMessage(
-      { offsite: 'browser', command: name },
-      '*'
-    )
-  }
+    target !== null &&
+    online &&
+    (web
+      ? remote.error === null && (page === null || page.loading)
+      : loaded?.target !== target || loading)
 
   function reload() {
-    if (page === null) {
+    if (target === null || page === null || remote.error !== null) {
       setVersion(version + 1)
       return
     }
-    command('reload')
+    if (page.error !== null) {
+      remote.send({ type: 'navigate', url: target })
+      return
+    }
+    remote.send({ type: 'reload' })
   }
 
   return (
@@ -208,7 +141,7 @@ export function BrowserPanel(props: {
             title="Back"
             aria-label="Back"
             disabled={page?.back !== true}
-            onClick={() => command('back')}
+            onClick={() => remote.send({ type: 'back' })}
           >
             <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
           </Button>
@@ -218,7 +151,7 @@ export function BrowserPanel(props: {
             title="Forward"
             aria-label="Forward"
             disabled={page?.forward !== true}
-            onClick={() => command('forward')}
+            onClick={() => remote.send({ type: 'forward' })}
           >
             <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
           </Button>
@@ -327,16 +260,13 @@ export function BrowserPanel(props: {
           />
         </div>
       )}
+      {target !== null && web && online && (
+        <RemoteScreen remote={remote} url={target} />
+      )}
       {src !== null && file === null && (
         <iframe
           key={frameKey}
-          ref={frame}
           src={src}
-          sandbox={
-            web
-              ? 'allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-presentation allow-pointer-lock'
-              : undefined
-          }
           title={target ?? ''}
           className="min-h-0 w-full flex-1 bg-white scheme-light"
           onLoad={() => setLoading(false)}
@@ -347,13 +277,6 @@ export function BrowserPanel(props: {
 }
 
 async function browserSource(machine: string, target: string) {
-  if (/^https?:\/\//i.test(target)) {
-    const path = await call(machine, 'browser.open', {
-      url: target,
-      fromPage: false,
-    })
-    return { src: `${machineUrl(machine)}${path}`, file: null }
-  }
   const token = await call(machine, 'files.browse', undefined)
   const base = `${machineUrl(machine)}/api/browse/${token}`
   const content = canView(target)
@@ -362,27 +285,6 @@ async function browserSource(machine: string, target: string) {
   return {
     src: `${base}${browsePath(target)}`,
     file: content === null ? null : { ...content, target, base },
-  }
-}
-
-function followTrail(
-  trail: { entries: string[]; index: number },
-  url: string,
-  replaced: boolean
-) {
-  if (replaced && trail.index >= 0) {
-    trail.entries[trail.index] = url
-  } else if (trail.entries[trail.index - 1] === url) {
-    trail.index -= 1
-  } else if (trail.entries[trail.index + 1] === url) {
-    trail.index += 1
-  } else if (trail.entries[trail.index] !== url) {
-    trail.entries = [...trail.entries.slice(0, trail.index + 1), url]
-    trail.index += 1
-  }
-  return {
-    back: trail.index > 0,
-    forward: trail.index < trail.entries.length - 1,
   }
 }
 

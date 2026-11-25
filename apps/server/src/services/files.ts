@@ -263,15 +263,20 @@ export function linkBrowse(device: string | null, address: string) {
 }
 
 export function canBrowse(token: string, address: string | undefined) {
+  return findBrowseLink(token, address) !== null
+}
+
+export function findBrowseLink(token: string, address: string | undefined) {
   const link = browseLinks.get(token)
   if (
     link === undefined ||
     link.expiresAt <= Date.now() ||
-    link.address !== address
+    link.address !== address ||
+    (link.device !== null && !isPaired(link.device))
   ) {
-    return false
+    return null
   }
-  return link.device === null || isPaired(link.device)
+  return link
 }
 
 export function setBrowseHeaders(

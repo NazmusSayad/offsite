@@ -1,5 +1,6 @@
 FROM node:24-bookworm
 RUN npm install --global pnpm@12.10.1
+RUN npx --yes playwright-core@1.65.1 install-deps chromium-headless-shell
 ENV CI=1 \
     npm_config_yes=true \
     NG_CLI_ANALYTICS=false \

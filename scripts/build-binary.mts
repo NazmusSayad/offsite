@@ -34,6 +34,8 @@ function load(file) {
 const [mode, value] = process.argv.slice(2)
 if (mode === '--node-eval') {
   eval(value)
+} else if (process.channel !== undefined && mode !== undefined && mode.endsWith('.js')) {
+  require('node:module').createRequire(mode)(mode)
 } else {
   load(path.join(path.dirname(process.execPath), 'app', 'apps', 'server', 'dist', 'main.mjs'))
 }
