@@ -3,7 +3,6 @@ import { expect, type Page, test } from '@playwright/test'
 import { apps } from '../apps.mts'
 import { devboxStatus, editProbe, pairCode } from './devbox.mts'
 
-const softly = expect.configure({ soft: true })
 let tunnel: Promise<string> | null = null
 
 async function findTunnel() {
@@ -60,59 +59,26 @@ async function devServer(name: string) {
 }
 
 function watchErrors(page: Page) {
-  const errors: string[] = []
+  const errors: { panel: string[]; offsite: string[] } = {
+    panel: [],
+    offsite: [],
+  }
   page.on('console', (message) => {
-    if (message.type() === 'error') {
-      errors.push(`${message.location().url}: ${message.text()}`)
+    if (message.type() !== 'error') {
+      return
+    }
+    const url = message.location().url
+    const text = `${url}: ${message.text()}`
+    if (url.includes('/api/proxy/')) {
+      errors.panel.push(text)
+    } else {
+      errors.offsite.push(text)
     }
   })
-  page.on('pageerror', (error) => errors.push(`page error: ${error.message}`))
+  page.on('pageerror', (error) =>
+    errors.offsite.push(`page error: ${error.message}`)
+  )
   return errors
-}
-
-async function readPage(page: Page) {
-  await page.evaluate(() => navigator.clipboard.writeText(''))
-  await page.getByRole('textbox', { name: 'Page', exact: true }).focus()
-  await page.keyboard.press('ControlOrMeta+A')
-  await page.keyboard.press('ControlOrMeta+C')
-  const deadline = Date.now() + 5000
-  while (Date.now() < deadline) {
-    const text = await page.evaluate(() => navigator.clipboard.readText())
-    if (text !== '') {
-      return text
-    }
-    await sleep(100)
-  }
-  return ''
-}
-
-async function paintedColors(page: Page) {
-  return page.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
-    const context = canvas.getContext('2d')
-    if (context === null || canvas.width === 0 || canvas.height === 0) {
-      return 0
-    }
-    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
-    const colors = new Set<number>()
-    for (let index = 0; index < pixels.length; index += 4 * 31) {
-      colors.add(
-        (pixels[index] << 16) | (pixels[index + 1] << 8) | pixels[index + 2]
-      )
-    }
-    return colors.size
-  })
-}
-
-async function pressInPage(page: Page, tabs: number) {
-  const screen = await page.locator('canvas').boundingBox()
-  if (screen === null) {
-    throw new Error('The browser panel shows no page')
-  }
-  await page.mouse.click(screen.x + screen.width - 40, screen.y + 10)
-  for (let tab = 0; tab < tabs; tab += 1) {
-    await page.keyboard.press('Tab')
-  }
-  await page.keyboard.press('Enter')
 }
 
 async function openBrowserPanel(
@@ -172,82 +138,86 @@ for (const app of apps) {
     const url = await devServer(app.name)
     const probe = new URL(app.probe, url).href
     const other = new URL(app.other, url).href
-    const title = /Probe (original|edited)/
+    const frame = page.frameLocator('iframe')
+    const title = frame.locator('#probe-title')
+    const count = frame.locator('#count')
     const address = page.getByRole('textbox', { name: 'URL or file path' })
     const errors = watchErrors(page)
-
-    async function showsOtherPage() {
-      const text = await readPage(page)
-      return text !== '' && !title.test(text)
-    }
-
     await editProbe(app.name, 'original')
     await openBrowserPanel(page, base, `/apps/probe-${app.name}`, probe)
 
     await test.step('loads the page', async () => {
-      await expect
-        .poll(() => readPage(page), { timeout: 180_000 })
-        .toContain('Probe original')
+      await expect(title).toHaveText('Probe original', { timeout: 60_000 })
     })
 
     await test.step('shows the page its own address', async () => {
-      await softly.poll(() => readPage(page)).toContain(probe)
+      await expect.soft(frame.locator('#location')).toHaveText(probe)
     })
 
-    await test.step('responds to input', async () => {
-      await pressInPage(page, 1)
-      await pressInPage(page, 1)
-      await softly.poll(() => readPage(page)).toContain('count 2')
+    await test.step('responds to clicks', async () => {
+      await count.click()
+      await count.click()
+      await expect.soft(count).toHaveText('count 2')
     })
 
     await test.step('calls its API', async () => {
-      await pressInPage(page, 2)
+      const result = frame.locator('#api-result')
+      await expect(async () => {
+        await frame.locator('#api').click()
+        await expect(result).not.toBeEmpty({ timeout: 5000 })
+      }).toPass({ timeout: 30_000 })
       if (!app.server) {
-        await softly.poll(() => readPage(page)).toMatch(/^hello$/m)
+        await expect.soft(result).toHaveText('hello')
         return
       }
-      await softly.poll(() => readPage(page)).toMatch(/^hello (new|seen)$/m)
-      await pressInPage(page, 2)
-      await softly.poll(() => readPage(page)).toMatch(/^hello seen$/m)
-      await softly.poll(() => readPage(page)).toMatch(/^yes$/m)
+      await expect.soft(result).toHaveText(/^hello (new|seen)$/)
+      await frame.locator('#api').click()
+      await expect.soft(result).toHaveText('hello seen')
+      await expect.soft(frame.locator('#cookie')).toHaveText('yes')
     })
 
     await test.step('updates on edit', async () => {
       await editProbe(app.name, 'edited')
-      await softly
-        .poll(() => readPage(page), { timeout: 30_000 })
-        .toContain('Probe edited')
+      await expect.soft(title).toHaveText('Probe edited', { timeout: 30_000 })
       if (app.keepsState) {
-        await softly.poll(() => readPage(page)).toContain('count 2')
+        await expect.soft(count).toHaveText('count 2')
       }
     })
 
     await test.step('follows a link', async () => {
-      await pressInPage(page, 3)
+      await frame.locator('#other').click()
       await expect.soft(address).toHaveValue(other)
-      await softly.poll(showsOtherPage).toBe(true)
+      await expect.soft(title).toBeHidden()
+      await page
+        .frames()
+        .find((item) => item.url().includes('/api/proxy/'))
+        ?.waitForLoadState('networkidle')
     })
 
     await test.step('goes back', async () => {
       await page.getByRole('button', { name: 'Back', exact: true }).click()
       await expect.soft(address).toHaveValue(probe)
-      await softly.poll(() => readPage(page)).toMatch(title)
+      await expect.soft(title).toHaveText(/^Probe (original|edited)$/)
     })
 
     await test.step('goes forward', async () => {
       await page.getByRole('button', { name: 'Forward', exact: true }).click()
       await expect.soft(address).toHaveValue(other)
-      await softly.poll(showsOtherPage).toBe(true)
+      await expect.soft(title).toBeHidden()
     })
 
     await test.step('reloads', async () => {
       await page.getByRole('button', { name: 'Reload', exact: true }).click()
       await expect.soft(address).toHaveValue(other)
-      await softly.poll(() => readPage(page)).not.toBe('')
+      await expect.soft(frame.locator('body')).not.toBeEmpty()
+    })
+
+    await test.step('the page logs no errors', async () => {
+      expect.soft(errors.panel).toEqual([])
     })
 
     await test.step('offsite logs no errors', async () => {
-      expect.soft(errors).toEqual([])
+      expect.soft(errors.offsite).toEqual([])
     })
   })
 }
@@ -259,16 +229,16 @@ test('offsite-dev', async ({ page }, testInfo) => {
   await openBrowserPanel(page, base, '/apps/offsite', url)
 
   await test.step('loads the app', async () => {
-    await expect
-      .poll(() => paintedColors(page), { timeout: 180_000 })
-      .toBeGreaterThan(20)
     await expect(
-      page.getByRole('textbox', { name: 'URL or file path' })
-    ).toHaveValue(url)
-    await expect(page.getByText(/^Could not load/)).toBeHidden()
+      page.frameLocator('iframe').getByText('Inbox').first()
+    ).toBeVisible({ timeout: 90_000 })
+  })
+
+  await test.step('the page logs no errors', async () => {
+    expect.soft(errors.panel).toEqual([])
   })
 
   await test.step('offsite logs no errors', async () => {
-    expect.soft(errors).toEqual([])
+    expect.soft(errors.offsite).toEqual([])
   })
 })
