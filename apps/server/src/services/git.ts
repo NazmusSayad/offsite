@@ -36,7 +36,7 @@ export async function commit(
 ) {
   const text =
     message.trim() === '' ? await commitMessage(cwd, false, sessionId) : message
-  await git(cwd, ['add', '--all', '--', '.'])
+  await stageAll(cwd)
   await git(cwd, ['commit', '--message', text])
   if (andPush) {
     try {
@@ -217,7 +217,21 @@ export function git(cwd: string, args: string[]) {
 }
 
 export async function projectRepos(cwd: string) {
-  return (await isRepo(cwd)) ? [''] : childRepos(cwd, '', REPO_DEPTH)
+  const inRepo = await isRepo(cwd)
+  return [...(inRepo ? [''] : []), ...childRepos(cwd, '', REPO_DEPTH, inRepo)]
+}
+
+export async function stageAll(cwd: string) {
+  const nested = (await untrackedFiles(cwd)).filter((file) =>
+    file.endsWith('/')
+  )
+  await git(cwd, [
+    'add',
+    '--all',
+    '--',
+    '.',
+    ...nested.map((repo) => `:(exclude,literal)${repo}`),
+  ])
 }
 
 export async function gitStatus(cwd: string) {
@@ -226,6 +240,7 @@ export async function gitStatus(cwd: string) {
     'status',
     '--porcelain=v2',
     '--branch',
+    '--untracked-files=all',
     '--',
     '.',
   ])
@@ -240,6 +255,9 @@ export async function gitStatus(cwd: string) {
   }
   for (const line of output.stdout.split('\n').filter(Boolean)) {
     const [marker, key, ...rest] = line.split(' ')
+    if (marker === '?' && line.endsWith('/')) {
+      continue
+    }
     if (marker !== '#') {
       status.changed++
     } else if (key === 'branch.head') {
@@ -323,18 +341,21 @@ async function repoDiff(repo: string) {
     '--src-prefix=a/',
     '--dst-prefix=b/',
   ])
-  const untracked = await git(repo, [
+  const added = (await untrackedFiles(repo))
+    .filter((file) => !file.endsWith('/'))
+    .slice(0, UNTRACKED_LIMIT)
+    .map((file) => newFilePatch(repo, file))
+  return [tracked.stdout, ...added].join('')
+}
+
+async function untrackedFiles(repo: string) {
+  const output = await git(repo, [
     'ls-files',
     '--others',
     '--exclude-standard',
     '-z',
   ])
-  const added = untracked.stdout
-    .split('\0')
-    .filter(Boolean)
-    .slice(0, UNTRACKED_LIMIT)
-    .map((file) => newFilePatch(repo, file))
-  return [tracked.stdout, ...added].join('')
+  return output.stdout.split('\0').filter(Boolean)
 }
 
 export async function diffBase(repo: string) {
@@ -350,7 +371,12 @@ export async function diffBase(repo: string) {
   return empty.stdout.trim()
 }
 
-function childRepos(root: string, dir: string, depth: number): string[] {
+function childRepos(
+  root: string,
+  dir: string,
+  depth: number,
+  inRepo: boolean
+): string[] {
   if (depth === 0) {
     return []
   }
@@ -364,15 +390,27 @@ function childRepos(root: string, dir: string, depth: number): string[] {
     .filter(
       (entry) =>
         entry.isDirectory() &&
-        !entry.name.startsWith('.') &&
+        entry.name !== '.git' &&
         entry.name !== 'node_modules'
     )
     .flatMap((entry) => {
       const relative = dir === '' ? entry.name : `${dir}/${entry.name}`
-      return existsSync(path.join(root, relative, '.git'))
-        ? [relative]
-        : childRepos(root, relative, depth - 1)
+      const marker = path.join(root, relative, '.git')
+      if (!existsSync(marker)) {
+        return childRepos(root, relative, depth - 1, inRepo)
+      }
+      if (inRepo && linkedWorktree(marker)) {
+        return []
+      }
+      return [relative, ...childRepos(root, relative, depth - 1, true)]
     })
+}
+
+function linkedWorktree(marker: string) {
+  return (
+    lstatSync(marker).isFile() &&
+    readFileSync(marker, 'utf8').includes('/worktrees/')
+  )
 }
 
 function newFilePatch(cwd: string, file: string) {
@@ -381,9 +419,6 @@ function newFilePatch(cwd: string, file: string) {
   const stats = lstatSync(full)
   if (stats.isSymbolicLink()) {
     return `${header}@@ -0,0 +1 @@\n+${readlinkSync(full)}\n`
-  }
-  if (stats.isDirectory()) {
-    return `${header}Nested repository\n`
   }
   if (stats.size > NEW_FILE_LIMIT) {
     return `${header}Binary or large file\n`
