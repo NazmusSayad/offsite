@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 import { call, machineUrl } from '@/api/connection'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { AddressBar } from '@/features/browser/address-bar'
 import {
   browsePath,
   canView,
@@ -30,7 +30,7 @@ import {
   updatePrefs,
   useStore,
 } from '@/lib/store'
-import { openBrowser, replaceSearch } from '@/lib/url'
+import { replaceSearch } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
 
 const RAW_LIMIT = 50 * 1024
@@ -237,42 +237,11 @@ export function BrowserPanel(props: {
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
       <div className="border-border/60 bg-background shrink-0 border-b px-3 pb-2">
-        <div className="flex h-(--workspace-topbar-height) items-center gap-2">
+        <div className="flex h-(--workspace-topbar-height) items-center gap-1">
           <PanelCloseButton mobile={props.mobile} onClick={props.onClose} />
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              title="Back"
-              aria-label="Back"
-              disabled={history?.back !== true}
-              onClick={() => command('back')}
-            >
-              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-            </Button>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              title="Forward"
-              aria-label="Forward"
-              disabled={history?.forward !== true}
-              onClick={() => command('forward')}
-            >
-              <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
-            </Button>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              title="Reload"
-              aria-label="Reload"
-              onClick={reload}
-            >
-              <HugeiconsIcon
-                icon={RefreshCwIcon}
-                className={cn('size-4', busy && 'animate-spin')}
-              />
-            </Button>
-          </div>
+          <span className="text-foreground shrink-0 text-xs font-medium">
+            Browser
+          </span>
           <div className="ml-auto flex shrink-0 items-center gap-1">
             {web && (
               <Button
@@ -321,49 +290,48 @@ export function BrowserPanel(props: {
             )}
           </div>
         </div>
-        <form
-          key={target}
-          className="min-w-0"
-          onSubmit={(event) => {
-            event.preventDefault()
-            const value = new FormData(event.currentTarget).get('address')
-            if (typeof value !== 'string') {
-              throw new Error('the address field is missing')
-            }
-            const address = value.trim()
-            if (address === '') {
-              return
-            }
-            if (!/^~([\\/]|$)/.test(address)) {
-              const next = browserAddress(address)
-              if (next !== target) {
-                openBrowser(next)
-                return
-              }
-              const input = event.currentTarget.elements.namedItem('address')
-              if (!(input instanceof HTMLInputElement)) {
-                throw new Error('the address field is missing')
-              }
-              input.value = next
-              reload()
-              return
-            }
-            if (home === null) {
-              throw new Error(
-                'the home folder of this machine is not known yet'
-              )
-            }
-            openBrowser(`${home}${address.slice(1)}`)
-          }}
-        >
-          <Input
-            name="address"
-            className="h-7 font-mono text-xs"
-            placeholder="URL or file path"
-            aria-label="URL or file path"
-            defaultValue={target ?? ''}
+        <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center">
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              title="Back"
+              aria-label="Back"
+              disabled={history?.back !== true}
+              onClick={() => command('back')}
+            >
+              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+            </Button>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              title="Forward"
+              aria-label="Forward"
+              disabled={history?.forward !== true}
+              onClick={() => command('forward')}
+            >
+              <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+            </Button>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              title="Reload"
+              aria-label="Reload"
+              onClick={reload}
+            >
+              <HugeiconsIcon
+                icon={RefreshCwIcon}
+                className={cn('size-4', busy && 'animate-spin')}
+              />
+            </Button>
+          </div>
+          <AddressBar
+            key={target}
+            target={target}
+            home={home}
+            onReload={reload}
           />
-        </form>
+        </div>
       </div>
       {error !== null && (
         <p className="text-muted-foreground p-4 text-center text-xs wrap-anywhere">
@@ -446,21 +414,4 @@ function followTrail(
     back: trail.index > 0,
     forward: trail.index < trail.entries.length - 1,
   }
-}
-
-function browserAddress(value: string) {
-  if (
-    /^(https?:\/\/|file:)/i.test(value) ||
-    /^[/.]/.test(value) ||
-    /^[a-z]:[\\/]/i.test(value)
-  ) {
-    return value
-  }
-  if (/^(localhost|\d+(\.\d+){3}|[\w.-]+:\d+)([:/?#]\S*)?$/i.test(value)) {
-    return `http://${value}`
-  }
-  if (/^[\w-]+(\.[\w-]+)+([/?#]\S*)?$/.test(value)) {
-    return `https://${value}`
-  }
-  return `https://www.google.com/search?q=${encodeURIComponent(value)}`
 }
