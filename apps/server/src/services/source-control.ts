@@ -9,7 +9,7 @@ import type {
   GitStatus,
   SourceControlRepo,
 } from '@offsite/core/git'
-import { diffBase, git, gitError, projectRepos } from './git.ts'
+import { diffBase, git, gitError, projectRepos, stageAll } from './git.ts'
 
 const SHOW_LIMIT = 1024 * 1024
 const NETWORK_TIMEOUT = 120_000
@@ -186,7 +186,7 @@ export async function runAction(cwd: string, action: GitAction) {
   }
   if (action.kind === 'commit') {
     if (action.all) {
-      await git(cwd, ['add', '--all', '--', '.'])
+      await stageAll(cwd)
     }
     await git(cwd, [
       'commit',
@@ -284,7 +284,7 @@ async function repoChanges(cwd: string) {
       repo.ahead = Number(fields[2])
       repo.behind = -Number(fields[3])
     }
-    if (fields[0] === '?') {
+    if (fields[0] === '?' && !tokens[index].endsWith('/')) {
       repo.changes.push({
         path: tokens[index].slice(2 + prefix.length),
         from: null,
