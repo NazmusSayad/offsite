@@ -49,7 +49,7 @@ const browserInput: z.ZodType<BrowserInput> = z.discriminatedUnion('type', [
     text: z.string().max(10),
     modifiers,
   }),
-  z.object({ type: z.literal('text'), text: z.string().max(100_000) }),
+  z.object({ type: z.literal('text'), text: z.string() }),
   z.object({ type: z.literal('probe'), ...point }),
   z.object({ type: z.literal('navigate'), url: z.string() }),
   z.object({ type: z.literal('back') }),

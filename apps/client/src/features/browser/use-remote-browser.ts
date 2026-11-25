@@ -113,6 +113,7 @@ export function useRemoteBrowser(
       if (message.type === 'state') {
         setPage(message)
         setInstalling(false)
+        setError(null)
         if (message.url !== '') {
           reported.current = message.url
           if (message.url !== latest.current) {
@@ -236,11 +237,7 @@ export function useRemoteBrowser(
   }, [machine, enabled, version, send])
 
   useEffect(() => {
-    if (
-      target !== null &&
-      reported.current !== null &&
-      target !== reported.current
-    ) {
+    if (target !== null && target !== reported.current) {
       send({ type: 'navigate', url: target })
     }
   }, [target, send])

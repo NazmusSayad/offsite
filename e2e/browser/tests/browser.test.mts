@@ -175,6 +175,12 @@ for (const app of apps) {
     const title = /Probe (original|edited)/
     const address = page.getByRole('textbox', { name: 'URL or file path' })
     const errors = watchErrors(page)
+
+    async function showsOtherPage() {
+      const text = await readPage(page)
+      return text !== '' && !title.test(text)
+    }
+
     await editProbe(app.name, 'original')
     await openBrowserPanel(page, base, `/apps/probe-${app.name}`, probe)
 
@@ -219,7 +225,7 @@ for (const app of apps) {
     await test.step('follows a link', async () => {
       await pressInPage(page, 3)
       await expect.soft(address).toHaveValue(other)
-      await softly.poll(() => readPage(page)).not.toMatch(title)
+      await softly.poll(showsOtherPage).toBe(true)
     })
 
     await test.step('goes back', async () => {
@@ -231,7 +237,7 @@ for (const app of apps) {
     await test.step('goes forward', async () => {
       await page.getByRole('button', { name: 'Forward', exact: true }).click()
       await expect.soft(address).toHaveValue(other)
-      await softly.poll(() => readPage(page)).not.toMatch(title)
+      await softly.poll(showsOtherPage).toBe(true)
     })
 
     await test.step('reloads', async () => {

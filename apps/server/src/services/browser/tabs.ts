@@ -80,14 +80,22 @@ export async function attachViewer(
     tab.idle = null
   }
   tab.viewer = viewer
-  if (
-    open.width !== tab.size.width ||
-    open.height !== tab.size.height ||
-    open.scale !== tab.size.scale
-  ) {
-    await resize(tab, open)
-  } else {
-    await startScreencast(tab)
+  try {
+    if (
+      open.width !== tab.size.width ||
+      open.height !== tab.size.height ||
+      open.scale !== tab.size.scale
+    ) {
+      await resize(tab, open)
+    } else {
+      await startScreencast(tab)
+    }
+  } catch (error) {
+    detachViewer(tab, viewer)
+    throw error
+  }
+  if (tab.viewer !== viewer) {
+    return tab
   }
   send(viewer, { type: 'viewport', width: open.width, height: open.height })
   send(viewer, { type: 'state', ...tab.state })
@@ -146,7 +154,7 @@ async function answer(
   if (input.type === 'probe') {
     send(viewer, {
       type: 'probe',
-      editable: (await tab.page.evaluate(editableAt(input))) === true,
+      editable: await editableAt(tab.page.mainFrame(), input),
     })
     return
   }
@@ -190,7 +198,16 @@ async function answer(
 async function createTab(id: string, size: BrowserSize) {
   const context = await openContext()
   const page = await context.newPage()
-  const cdp = await context.newCDPSession(page)
+  try {
+    return await setUpTab(id, page, size)
+  } catch (error) {
+    await page.close().catch(ignoreClosed)
+    throw error
+  }
+}
+
+async function setUpTab(id: string, page: Page, size: BrowserSize) {
+  const cdp = await page.context().newCDPSession(page)
   await cdp.send('Page.enable')
   const tree = await cdp.send('Page.getFrameTree')
   const tab: Tab = {
@@ -210,6 +227,11 @@ async function createTab(id: string, size: BrowserSize) {
     idle: null,
   }
   tabsByPage.set(page, tab)
+  page.on('close', () => forget(tab, 'the page closed'))
+  page.on('crash', () => {
+    forget(tab, 'the page crashed')
+    page.close().catch(ignoreClosed)
+  })
   await page.exposeBinding(COPY_BINDING, (_source, text: unknown) => {
     if (typeof text === 'string' && Date.now() - tab.touchedAt < COPY_WINDOW) {
       sendTo(tab, { type: 'copy', text })
@@ -256,11 +278,6 @@ async function createTab(id: string, size: BrowserSize) {
     offerDownload(tab, download).catch(ignoreClosed)
   )
   page.on('popup', (popup) => followPopup(tab, popup).catch(ignoreClosed))
-  page.on('close', () => forget(tab, 'the page closed'))
-  page.on('crash', () => {
-    forget(tab, 'the page crashed')
-    page.close().catch(ignoreClosed)
-  })
   await resize(tab, size)
   log.info(`opened browser page ${id}`)
   return tab

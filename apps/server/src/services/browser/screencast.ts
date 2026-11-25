@@ -11,9 +11,9 @@ export async function resize(tab: Tab, size: BrowserSize) {
   tab.size = { width: size.width, height: size.height, scale: size.scale }
   await whileSwapping(() =>
     tab.cdp.send('Emulation.setDeviceMetricsOverride', {
-      width: size.width,
-      height: size.height,
-      deviceScaleFactor: size.scale,
+      width: tab.size.width,
+      height: tab.size.height,
+      deviceScaleFactor: tab.size.scale,
       mobile: false,
     })
   )
