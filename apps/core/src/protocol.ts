@@ -393,6 +393,10 @@ export type RpcMethods = PullRequestMethods &
       params: void
       result: { id: string; name: string }[]
     }
+    'browser.open': {
+      params: { url: string; fromPage: boolean }
+      result: string
+    }
     'tasks.output': {
       params: { sessionId: string; path: string }
       result: { text: string; truncated: boolean } | null

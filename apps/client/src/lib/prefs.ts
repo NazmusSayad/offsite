@@ -82,6 +82,7 @@ const prefsSchema = z.strictObject({
     })
     .prefault({}),
   rewind: z.enum(['all', 'chat', 'code']).default('chat'),
+  browserView: z.enum(['proxy', 'video']).default('proxy'),
   groupActiveByProject: z.boolean().default(false),
   autoMoveToSnooze: z.boolean().default(false),
   dictateButton: z.object({ mobile: z.boolean().default(true) }).prefault({}),
