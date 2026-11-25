@@ -104,6 +104,7 @@ const configSchema: z.ZodType<Config> = z.strictObject({
   autoPermissionMode: z.enum(['bypass', 'allow', 'deny']).default('bypass'),
   autoPermissionTimeout: z.number().positive().nullable().default(15),
   offsiteSkills: z.boolean().default(true),
+  autoTitle: z.boolean().default(true),
   terminal: z
     .strictObject({
       shell: z
