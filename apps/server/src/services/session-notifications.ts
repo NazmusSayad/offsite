@@ -19,6 +19,7 @@ import {
 } from './notification-summary.ts'
 import { type NotificationButton, notify } from './notifications.ts'
 import { resend } from './runs.ts'
+import { autoTitle } from './session-title.ts'
 import { sessions, setUnread } from './sessions.ts'
 import { plainText, turnSummary } from './turn-summary.ts'
 
@@ -46,6 +47,11 @@ export function watchActivity() {
       setUnread(run.sessionId, true)
       if (before.prompted && !run.failed) {
         report(finishedNotification(run))
+      }
+      if (before.prompted) {
+        autoTitle(run.sessionId, run.failed).catch((error: unknown) =>
+          log.warn(`could not rename session ${run.sessionId}:`, error)
+        )
       }
     }
     for (const pending of run.pending.values()) {

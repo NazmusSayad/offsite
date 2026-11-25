@@ -97,6 +97,7 @@ export type Config = {
   autoPermissionMode: 'bypass' | 'allow' | 'deny'
   autoPermissionTimeout: number | null
   offsiteSkills: boolean
+  autoTitle: boolean
   terminal: TerminalConfig
   dictation: DictationConfig
   finishedCheck: FinishedCheckConfig

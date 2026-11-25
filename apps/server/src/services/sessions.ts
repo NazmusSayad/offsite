@@ -32,6 +32,7 @@ import {
 import { claudeBaseDir, readConfig } from '../storage/config.ts'
 import { db } from '../storage/db.ts'
 import {
+  sessionRenames,
   sessionOpens as sessionOpensTable,
   sessionPlaces,
   sessions as sessionsTable,
@@ -488,6 +489,7 @@ export async function removeSession(id: string) {
   db.delete(sessionsTable).where(eq(sessionsTable.sessionId, id)).run()
   db.delete(sessionOpensTable).where(eq(sessionOpensTable.sessionId, id)).run()
   db.delete(sessionPlaces).where(eq(sessionPlaces.sessionId, id)).run()
+  db.delete(sessionRenames).where(eq(sessionRenames.sessionId, id)).run()
   clearSessionOutbox(id)
   listed[provider] = listed[provider].filter((item) => item.id !== id)
   forgetThread(provider, id)

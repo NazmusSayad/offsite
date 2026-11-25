@@ -104,6 +104,27 @@ export function AgentsSection(props: { machine: string; config: Config }) {
           onCheckedChange={(offsiteSkills) => save({ offsiteSkills })}
         />
       </Row>
+      <Row
+        label={
+          <span className="flex items-center gap-1.5">
+            Auto rename threads
+            <Tooltip label="Refreshes the title after the reply to every 25th message, to a message after 6 hours away, or to a message in a thread done for over an hour. Titles you set yourself stay.">
+              <span onClick={(event) => event.preventDefault()}>
+                <HugeiconsIcon
+                  icon={InformationCircleIcon}
+                  aria-label="About auto rename"
+                  className="text-muted-foreground size-3.5"
+                />
+              </span>
+            </Tooltip>
+          </span>
+        }
+      >
+        <Switch
+          checked={config.autoTitle}
+          onCheckedChange={(autoTitle) => save({ autoTitle })}
+        />
+      </Row>
     </Section>
   )
 }

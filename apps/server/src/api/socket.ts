@@ -63,7 +63,12 @@ import {
 import { subscribe, unsubscribe } from '../services/push.ts'
 import { open, resend, restart, rewind, send, stop } from '../services/runs.ts'
 import { agentHistory } from '../services/session-history.ts'
-import { generateSessionTitle } from '../services/session-title.ts'
+import {
+  clearManualTitle,
+  generateSessionTitle,
+  markInterrupted,
+  markManualTitle,
+} from '../services/session-title.ts'
 import {
   findSession,
   fork,
@@ -139,6 +144,9 @@ const handlers: Handlers = {
   'sessions.update': async (params) => {
     try {
       await updateSession(params.id, params.patch)
+      if (params.patch.title !== undefined) {
+        markManualTitle(params.id)
+      }
     } finally {
       publishSessions()
     }
@@ -146,6 +154,7 @@ const handlers: Handlers = {
   },
   'sessions.generateTitle': async (params) => {
     await generateSessionTitle(params.id, params.projectId, params.worktreeId)
+    clearManualTitle(params.id)
     return null
   },
   'sessions.open': async (params, client) => {
@@ -186,6 +195,7 @@ const handlers: Handlers = {
     return null
   },
   'sessions.interrupt': async (params) => {
+    markInterrupted(params.sessionId)
     await runs.get(params.sessionId)?.interrupt()
     return null
   },

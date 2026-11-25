@@ -42,6 +42,7 @@ import {
 import type { Found } from './provider-sessions.ts'
 import { sessionHistory } from './session-history.ts'
 import { notSentNotification } from './session-notifications.ts'
+import { markReopened } from './session-title.ts'
 import {
   listedUpdatedAt,
   providerOf,
@@ -400,6 +401,7 @@ async function sendExisting(
   if (request.settings.provider !== provider) {
     throw new Error(`This session belongs to ${providerName(provider)}`)
   }
+  const done = !sessions().some((item) => item.id === sessionId)
   const existing = runs.get(sessionId)
   if (
     (existing?.provider === 'claude' &&
@@ -421,6 +423,9 @@ async function sendExisting(
     await open(client, sessionId, request)
   }
   await run.submit(request.id, request.prompt, request.delivery)
+  if (done) {
+    markReopened(sessionId)
+  }
   recordInteraction(sessionId, provider, request.status)
   recordPrompt(request.settings, request, sessionId)
   if (emptied.has(sessionId) && request.prompt.text.trim() !== '') {

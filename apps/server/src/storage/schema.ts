@@ -36,6 +36,10 @@ export const sessions = snakeCase.table('sessions', {
   unread: integer({ mode: 'boolean' }).notNull().default(false),
 })
 
+export const sessionRenames = snakeCase.table('session_renames', {
+  sessionId: text().primaryKey(),
+})
+
 export const sessionPlaces = snakeCase.table('session_places', {
   sessionId: text().primaryKey(),
   projectId: text().notNull(),
