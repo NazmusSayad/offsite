@@ -67,13 +67,7 @@ export default defineConfig({
             src: '/api/app-icon/icon-512.png',
             sizes: '512x512',
             type: 'image/png',
-          },
-          {
-            src: '/api/app-icon/icon-maskable-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
+          }
         ],
       },
     }),
