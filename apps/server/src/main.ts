@@ -13,10 +13,10 @@ import { logIn, watchPaired } from './api/login.ts'
 import { args } from './args.ts'
 import { findClaude } from './lib/claude/index.ts'
 import { logger } from './lib/log.ts'
-import { proxySocket, serveProxy } from './lib/proxy/proxy.ts'
 import { serveAppIcon } from './services/app-icon.ts'
 import { backfillSessionProviders } from './services/backfill-session-providers.ts'
 import { saveBrowserLogs } from './services/browser-logs.ts'
+import { connectBrowser } from './services/browser/socket.ts'
 import { scheduleCleanup } from './services/cleanup/cleanup.ts'
 import {
   addConnection,
@@ -206,10 +206,6 @@ function answerRequest(request: IncomingMessage, response: ServerResponse) {
     serveBrowse(url.pathname, request, response)
     return
   }
-  if (url.pathname.startsWith('/api/proxy/')) {
-    serveProxy(request, response)
-    return
-  }
   if (url.pathname === `/api/status/${statusSecret}`) {
     void answerStatus(response)
     return
@@ -246,8 +242,8 @@ server.on('upgrade', (request, socket, head) => {
     socket.destroy()
     return
   }
-  if (url.pathname.startsWith('/api/proxy/')) {
-    proxySocket(request, socket, head)
+  if (url.pathname === '/api/browser') {
+    connectBrowser(request, socket, head)
     return
   }
   const remoteAddress = request.socket.remoteAddress

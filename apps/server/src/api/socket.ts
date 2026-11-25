@@ -7,7 +7,6 @@ import { earlier, image } from '../lib/claude/index.ts'
 import { type Client, clients } from '../lib/hub.ts'
 import { draftAnswers, runs, stopAutoResolve } from '../lib/live.ts'
 import { logger } from '../lib/log.ts'
-import { openSite } from '../lib/proxy/sites.ts'
 import {
   accountLinkPlan,
   accounts,
@@ -317,7 +316,6 @@ const handlers: Handlers = {
   'finishedCheck.models': () => decisionModels(),
   'files.browse': (_params, client) =>
     linkBrowse(client.device, client.address),
-  'browser.open': (params) => openSite(params.url, params.fromPage),
   'tasks.output': (params) => taskOutput(params.sessionId, params.path),
   'push.subscribe': (params) => {
     subscribe(params)

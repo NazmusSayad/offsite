@@ -11,6 +11,7 @@ export default defineConfig({
   timeout: 240_000,
   use: {
     ignoreHTTPSErrors: true,
+    permissions: ['clipboard-read', 'clipboard-write'],
     viewport: { width: 1600, height: 1000 },
     actionTimeout: 15_000,
     trace: 'retain-on-failure',
@@ -18,7 +19,17 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   projects: [
     { name: 'devbox', testMatch: /devbox\.setup\.mts/ },
-    { name: 'direct', dependencies: ['devbox'] },
+    {
+      name: 'direct',
+      dependencies: ['devbox'],
+      use: {
+        launchOptions: {
+          args: [
+            '--unsafely-treat-insecure-origin-as-secure=http://devbox:47841',
+          ],
+        },
+      },
+    },
     {
       name: 'https',
       dependencies: ['devbox'],
