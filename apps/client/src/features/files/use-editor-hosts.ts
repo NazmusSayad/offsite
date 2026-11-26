@@ -28,6 +28,17 @@ export function useEditorHosts() {
       experimental: { showMoves: true },
       useInlineViewWhenSpaceIsLimited: true,
     })
+    // Monaco turns wrapping off for the hidden left side in inline view and
+    // never turns it back on in side-by-side view, where it sets glyphMargin.
+    const original = instance.getOriginalEditor()
+    original.onDidChangeConfiguration(() => {
+      if (
+        original.getOption(monaco.editor.EditorOption.glyphMargin) &&
+        original.getRawOptions().wordWrapOverride2 === 'off'
+      ) {
+        original.updateOptions({ wordWrapOverride2: 'inherit' })
+      }
+    })
     setDiff(instance)
     return () => instance.dispose()
   }, [])
