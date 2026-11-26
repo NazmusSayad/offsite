@@ -6,10 +6,7 @@ import {
   RefreshCwIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import type {
-  PullRequestAction,
-  PullRequestDetails,
-} from '@offsite/core/pull-requests'
+import type { PullRequestAction } from '@offsite/core/pull-requests'
 import { useEffect, useRef, useState } from 'react'
 import { useLocalStorage } from 'usehooks-ts'
 import { call } from '@/api/connection'
@@ -29,8 +26,18 @@ import { pushSearch } from '@/lib/url'
 import { cn, errorMessage } from '@/lib/utils'
 import { PullRequestActions } from './pull-request-actions'
 import { StateBadge } from './pull-request-badges'
+import {
+  detailsCache,
+  detailsKey,
+  loadDetails,
+  loadDiff,
+  prefetch,
+  summaries,
+  useCached,
+} from './pull-request-cache'
 import { PullRequestFiles } from './pull-request-files'
 import { PullRequestGuide } from './pull-request-guide'
+import { PullRequestHeader } from './pull-request-header'
 import { PullRequestOverview } from './pull-request-overview'
 
 const VIEW_REFRESH = 30_000
@@ -51,12 +58,13 @@ export function PullRequestView(props: {
   worktreeId: string | null
   sessionId: string | null
   url: string
-  running: boolean
   mobile: boolean
   onClose: () => void
 }) {
   const fromList = openedFromList === props.url
-  const [details, setDetails] = useState<PullRequestDetails | null>(null)
+  const details = useCached(detailsCache, detailsKey(props, props.url)) ?? null
+  const pull = details ?? summaries.get(props.url) ?? null
+  const head = details === null ? null : details.headOid
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
   const [tab, setTab] = useLocalStorage<
@@ -71,40 +79,32 @@ export function PullRequestView(props: {
   const forced = useRef(false)
 
   useEffect(() => {
+    const place = {
+      machine: props.machine,
+      projectId: props.projectId,
+      worktreeId: props.worktreeId,
+    }
     let current = true
-    let loading = false
-    async function load() {
-      if (loading) {
-        return
-      }
-      loading = true
-      const fresh = forced.current
-      forced.current = false
+    async function load(fresh: boolean) {
       try {
-        const result = await call(props.machine, 'pulls.view', {
-          projectId: props.projectId,
-          worktreeId: props.worktreeId,
-          url: props.url,
-          fresh,
-        })
+        await loadDetails(place, props.url, fresh)
         if (current) {
-          setDetails(result)
           setError(null)
         }
       } catch (caught) {
         if (current) {
           setError(errorMessage(caught))
         }
-      } finally {
-        loading = false
       }
     }
     function refresh() {
       if (!document.hidden) {
-        void load()
+        void load(false)
       }
     }
-    void load()
+    const fresh = forced.current
+    forced.current = false
+    void load(fresh)
     const timer = window.setInterval(refresh, VIEW_REFRESH)
     window.addEventListener('focus', refresh)
     return () => {
@@ -112,14 +112,13 @@ export function PullRequestView(props: {
       window.clearInterval(timer)
       window.removeEventListener('focus', refresh)
     }
-  }, [
-    props.machine,
-    props.projectId,
-    props.worktreeId,
-    props.url,
-    props.running,
-    version,
-  ])
+  }, [props.machine, props.projectId, props.worktreeId, props.url, version])
+
+  useEffect(() => {
+    if (head !== null) {
+      prefetch(() => loadDiff(props.machine, props.url, head))
+    }
+  }, [props.machine, props.url, head])
 
   useEffect(() => {
     if (details !== null && error !== null) {
@@ -149,14 +148,7 @@ export function PullRequestView(props: {
       return false
     }
     try {
-      setDetails(
-        await call(props.machine, 'pulls.view', {
-          projectId: props.projectId,
-          worktreeId: props.worktreeId,
-          url: props.url,
-          fresh: true,
-        })
-      )
+      await loadDetails(props, props.url, true)
     } catch (caught) {
       showError(caught)
     }
@@ -189,11 +181,11 @@ export function PullRequestView(props: {
           <span className="text-foreground shrink-0 text-xs font-semibold">
             #{props.url.split('/').at(-1)}
           </span>
-          {details === null && error === null && (
+          {pull === null && error === null && (
             <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
           )}
-          {details !== null && (
-            <StateBadge state={details.state} draft={details.draft} />
+          {pull !== null && (
+            <StateBadge state={pull.state} draft={pull.draft} />
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -224,12 +216,12 @@ export function PullRequestView(props: {
           </Button>
         </div>
       </div>
-      {details === null && error !== null && (
+      {pull === null && error !== null && (
         <p className="text-muted-foreground min-h-0 flex-1 p-4 text-center text-xs wrap-anywhere whitespace-pre-wrap">
           {error}
         </p>
       )}
-      {details === null && error === null && (
+      {pull === null && error === null && (
         <div aria-label="Loading pull request" className="min-h-0 flex-1">
           <div className="border-border/60 grid gap-2.5 border-b p-4">
             <Skeleton className="h-5 w-4/5" />
@@ -248,83 +240,10 @@ export function PullRequestView(props: {
           </div>
         </div>
       )}
-      {details !== null && (
+      {pull !== null && (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="border-border/60 @container grid gap-2.5 border-b p-4">
-            <h2 className="text-foreground text-base leading-snug font-semibold wrap-anywhere">
-              {details.title}
-            </h2>
-            <div className="text-muted-foreground grid gap-1 text-xs leading-relaxed wrap-anywhere">
-              <p className="text-pretty">
-                <a
-                  href={`https://github.com/${details.author}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-foreground font-medium hover:underline"
-                >
-                  {details.author}
-                </a>{' '}
-                {details.state === 'OPEN' && 'wants to merge'}
-                {details.state === 'MERGED' && 'merged'}
-                {details.state === 'CLOSED' && 'wanted to merge'}{' '}
-                <span className="text-foreground whitespace-nowrap">
-                  {details.commits.length}{' '}
-                  {details.commits.length === 1 ? 'commit' : 'commits'}
-                </span>{' '}
-                into{' '}
-                <code className="bg-muted text-foreground rounded box-decoration-clone px-1 py-px">
-                  {details.base}
-                </code>{' '}
-                from{' '}
-                <code className="bg-muted text-foreground rounded box-decoration-clone px-1 py-px">
-                  {details.head}
-                </code>
-                {details.head === details.current && (
-                  <>
-                    {' '}
-                    <span className="text-info whitespace-nowrap">
-                      (current branch)
-                    </span>
-                  </>
-                )}
-              </p>
-              <p className="text-balance">
-                <span className="ring-border inline-flex overflow-hidden rounded-md font-mono text-[11px] leading-[15px] whitespace-nowrap tabular-nums ring-1 ring-inset">
-                  <span
-                    className={cn(
-                      'px-1.5 pt-px',
-                      details.additions > 0 &&
-                        'bg-diff-addition/12 text-diff-addition',
-                      details.additions === 0 && 'text-muted-foreground'
-                    )}
-                  >
-                    +{details.additions.toLocaleString()}
-                  </span>
-                  <span
-                    className={cn(
-                      'px-1.5 pt-px',
-                      details.deletions > 0 &&
-                        'bg-diff-deletion/12 text-diff-deletion',
-                      details.deletions === 0 && 'text-muted-foreground'
-                    )}
-                  >
-                    −{details.deletions.toLocaleString()}
-                  </span>
-                </span>{' '}
-                across{' '}
-                <span className="text-foreground whitespace-nowrap">
-                  {details.changedFiles}{' '}
-                  {details.changedFiles === 1 ? 'file' : 'files'}
-                </span>
-                ,{' '}
-                <span className="whitespace-nowrap">
-                  updated{' '}
-                  {timeAgo(details.updatedAt) === 'now'
-                    ? 'just now'
-                    : `${timeAgo(details.updatedAt)} ago`}
-                </span>
-              </p>
-            </div>
+            <PullRequestHeader pull={pull} details={details} />
             <div
               className={cn(
                 props.mobile && 'grid justify-items-center gap-2',
@@ -420,14 +339,29 @@ export function PullRequestView(props: {
               )}
             </div>
           </div>
-          {tab === 'overview' && (
+          {details === null && error !== null && (
+            <p className="text-muted-foreground p-4 text-center text-xs wrap-anywhere whitespace-pre-wrap">
+              {error}
+            </p>
+          )}
+          {details === null && error === null && (
+            <div aria-label="Loading pull request" className="grid gap-2.5 p-4">
+              <Skeleton className="h-3.5 w-full" />
+              <Skeleton className="h-3.5 w-11/12" />
+              <Skeleton className="h-3.5 w-4/5" />
+              <Skeleton className="mt-3 h-5 w-1/3" />
+              <Skeleton className="h-3.5 w-full" />
+              <Skeleton className="h-3.5 w-2/3" />
+            </div>
+          )}
+          {details !== null && tab === 'overview' && (
             <PullRequestOverview
               details={details}
               busy={busy !== null}
               onPerform={perform}
             />
           )}
-          {(tab === 'guide' || tab === 'changes') && (
+          {details !== null && (tab === 'guide' || tab === 'changes') && (
             <PullRequestGuide
               key={tab}
               machine={props.machine}
@@ -436,24 +370,26 @@ export function PullRequestView(props: {
               sessionId={props.sessionId}
               url={details.url}
               head={details.headOid}
+              files={details.files}
               view={tab === 'guide' ? 'guidebook' : 'changes'}
               title={`#${details.number} ${details.title}`}
               fullscreen={fullscreen}
               onFullscreen={setFullscreen}
             />
           )}
-          {tab === 'files' && (
+          {details !== null && tab === 'files' && (
             <PullRequestFiles
               machine={props.machine}
               url={props.url}
               head={details.headOid}
+              files={details.files}
               title={`#${details.number} ${details.title}`}
               fullscreen={fullscreen}
               onFullscreen={setFullscreen}
               groups={null}
             />
           )}
-          {tab === 'commits' && (
+          {details !== null && tab === 'commits' && (
             <div className="grid p-2">
               {details.commits.map((commit) => (
                 <div

@@ -5,6 +5,7 @@ import { git, projectRepos } from '../services/git.ts'
 import { linkGithubImage } from '../services/github-images.ts'
 import { type Place, placePath } from '../services/project-worktrees.ts'
 import {
+  currentBranch,
   listPullRequests,
   pullRequestDiff,
   repoOf,
@@ -26,16 +27,24 @@ export const pullRequestHandlers: Pick<
 > = {
   'pulls.list': (params) =>
     listPullRequests(
-      path.join(placePath(params.projectId, params.worktreeId), params.repo),
+      placePath(params.projectId, params.worktreeId),
+      params.repo,
       params.filter,
+      params.after,
       params.fresh
     ),
-  'pulls.view': async (params) =>
-    viewPullRequest(
-      await localRepo(params, params.url),
-      params.url,
-      params.fresh
-    ),
+  'pulls.view': async (params) => {
+    const results = await Promise.all([
+      viewPullRequest(params.url, params.fresh),
+      localRepo(params, params.url),
+    ])
+    const local = results[1]
+    return {
+      ...results[0],
+      local: local !== null,
+      current: local === null ? null : await currentBranch(local),
+    }
+  },
   'pulls.diff': (params) => pullRequestDiff(params.url, params.head),
   'pulls.image': (params, client) =>
     linkGithubImage(params.url, params.repository, client.device),

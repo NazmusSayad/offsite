@@ -9,7 +9,6 @@ import {
   Loading03Icon,
   MoreHorizontalIcon,
   ThumbsUpIcon,
-  CheckIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import { BranchIcon } from '@offsite/core/icons/git'
@@ -44,31 +43,30 @@ import {
 import { useCopy } from '@/lib/clipboard'
 import { deactivateSession } from '@/lib/sessions'
 import { untilGuardLeft } from '@/lib/url'
-import { cn } from '@/lib/utils'
 import { MergeStatus, type Notice } from './merge-status'
 
 type Perform = (action: PullRequestAction, label: string) => Promise<boolean>
 
 const methodLabels: Record<
   MergeMethod,
-  { button: string; short: string; hint: string; icon: IconSvgElement }
+  { menu: string; merge: string; done: string; icon: IconSvgElement }
 > = {
   squash: {
-    button: 'Squash and merge',
-    short: 'Squash',
-    hint: 'Combine into one commit',
+    menu: 'Squash and merge',
+    merge: 'Squash Merge',
+    done: 'Squash & Done',
     icon: GitCommitIcon,
   },
   merge: {
-    button: 'Create a merge commit',
-    short: 'Merge',
-    hint: 'Keep commits, add a merge commit',
+    menu: 'Create a merge commit',
+    merge: 'Merge',
+    done: 'Merge & Done',
     icon: GitMergeIcon,
   },
   rebase: {
-    button: 'Rebase and merge',
-    short: 'Rebase',
-    hint: 'Keep commits, no merge commit',
+    menu: 'Rebase and merge',
+    merge: 'Rebase Merge',
+    done: 'Rebase & Done',
     icon: GitCompareArrowsIcon,
   },
 }
@@ -91,6 +89,8 @@ export function PullRequestActions(props: {
     'squash'
   )
   const [cleanup, setCleanup] = useLocalStorage('pullRequestDeleteBranch', true)
+  const [markDone, setMarkDone] = useLocalStorage('pullRequestMarkDone', true)
+  const finish = props.sessionId !== null && markDone
   const disabled = details === null || props.busy !== null
   const method =
     details === null || details.methods.includes(savedMethod)
@@ -98,7 +98,6 @@ export function PullRequestActions(props: {
       : (details.methods[0] ?? null)
   const mergeable =
     details === null || (details.state === 'OPEN' && !details.draft)
-  const showCleanup = mergeable && details?.crossRepository !== true
 
   return (
     <div className="border-border/60 bg-background @container flex shrink-0 items-center gap-2 border-t px-3 py-2">
@@ -126,12 +125,7 @@ export function PullRequestActions(props: {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             {details !== null && (
-              <MoreItems
-                details={details}
-                cleanup={showCleanup ? cleanup : null}
-                onCleanup={setCleanup}
-                onPerform={props.onPerform}
-              />
+              <MoreItems details={details} onPerform={props.onPerform} />
             )}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -167,18 +161,13 @@ export function PullRequestActions(props: {
               disabled={disabled}
               onClick={() => setMerging(true)}
             >
-              <HugeiconsIcon
-                icon={
-                  props.busy === 'merge'
-                    ? Loading03Icon
-                    : methodLabels[method].icon
-                }
-                className={cn(props.busy === 'merge' && 'animate-spin')}
-              />
-              <span className="@max-md:hidden">
-                {methodLabels[method].button}
-              </span>
-              <span className="@md:hidden">{methodLabels[method].short}</span>
+              {props.busy === 'merge' && (
+                <HugeiconsIcon icon={Loading03Icon} className="animate-spin" />
+              )}
+              {props.busy !== 'merge' && (
+                <MergeIcon method={method} done={finish} />
+              )}
+              {methodLabels[method][finish ? 'done' : 'merge']}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -192,12 +181,16 @@ export function PullRequestActions(props: {
                   <HugeiconsIcon icon={ArrowDown01Icon} />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuContent align="end" className="w-56">
                 {details !== null && (
                   <MethodItems
                     methods={details.methods}
                     method={method}
                     onMethod={setSavedMethod}
+                    cleanup={details.crossRepository ? null : cleanup}
+                    onCleanup={setCleanup}
+                    markDone={props.sessionId === null ? null : markDone}
+                    onMarkDone={setMarkDone}
                   />
                 )}
               </DropdownMenuContent>
@@ -228,7 +221,7 @@ export function PullRequestActions(props: {
               method={method}
               cleanup={cleanup && !details.crossRepository}
               machine={props.machine}
-              sessionId={props.sessionId}
+              sessionId={finish ? props.sessionId : null}
               onConfirm={() =>
                 props.onPerform(
                   {
@@ -260,55 +253,60 @@ function MethodItems(props: {
   methods: MergeMethod[]
   method: MergeMethod
   onMethod: (method: MergeMethod) => void
+  cleanup: boolean | null
+  onCleanup: (cleanup: boolean) => void
+  markDone: boolean | null
+  onMarkDone: (markDone: boolean) => void
 }) {
   return (
-    <DropdownMenuRadioGroup
-      value={props.method}
-      onValueChange={(value) => {
-        const method = props.methods.find((item) => item === value)
-        if (method === undefined) {
-          throw new Error(`unknown merge method ${value}`)
-        }
-        props.onMethod(method)
-      }}
-    >
-      {props.methods.map((item) => (
-        <DropdownMenuRadioItem key={item} value={item} className="items-start">
-          <span className="grid gap-0.5">
-            <span className="text-foreground">{methodLabels[item].button}</span>
-            <span className="text-muted-foreground text-xs">
-              {methodLabels[item].hint}
-            </span>
-          </span>
-        </DropdownMenuRadioItem>
-      ))}
-    </DropdownMenuRadioGroup>
+    <>
+      <DropdownMenuRadioGroup
+        value={props.method}
+        onValueChange={(value) => {
+          const method = props.methods.find((item) => item === value)
+          if (method === undefined) {
+            throw new Error(`unknown merge method ${value}`)
+          }
+          props.onMethod(method)
+        }}
+      >
+        {props.methods.map((item) => (
+          <DropdownMenuRadioItem key={item} value={item}>
+            {methodLabels[item].menu}
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+      {(props.cleanup !== null || props.markDone !== null) && (
+        <DropdownMenuSeparator />
+      )}
+      {props.cleanup !== null && (
+        <DropdownMenuCheckboxItem
+          checked={props.cleanup}
+          onCheckedChange={props.onCleanup}
+          onSelect={(event) => event.preventDefault()}
+        >
+          Delete branch after merge
+        </DropdownMenuCheckboxItem>
+      )}
+      {props.markDone !== null && (
+        <DropdownMenuCheckboxItem
+          checked={props.markDone}
+          onCheckedChange={props.onMarkDone}
+          onSelect={(event) => event.preventDefault()}
+        >
+          Mark as done after merge
+        </DropdownMenuCheckboxItem>
+      )}
+    </>
   )
 }
 
-function MoreItems(props: {
-  details: PullRequestDetails
-  cleanup: boolean | null
-  onCleanup: (cleanup: boolean) => void
-  onPerform: Perform
-}) {
+function MoreItems(props: { details: PullRequestDetails; onPerform: Perform }) {
   const details = props.details
   const clipboard = useCopy()
 
   return (
     <>
-      {props.cleanup !== null && (
-        <>
-          <DropdownMenuCheckboxItem
-            checked={props.cleanup}
-            onCheckedChange={props.onCleanup}
-            onSelect={(event) => event.preventDefault()}
-          >
-            Delete branch after merge
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuSeparator />
-        </>
-      )}
       {details.state !== 'MERGED' &&
         details.local &&
         details.head !== details.current && (
@@ -385,11 +383,14 @@ function MergeDialog(props: {
     projectId: string
   } | null>('sidebarScope')
 
+  const label =
+    methodLabels[props.method][sessionId === null ? 'merge' : 'done']
+
   return (
     <>
       <AlertDialogHeader>
         <AlertDialogTitle>
-          {methodLabels[props.method].button} #{details.number}?
+          {label} #{details.number}?
         </AlertDialogTitle>
         <AlertDialogDescription>
           Merges into <code>{details.base}</code>
@@ -403,78 +404,60 @@ function MergeDialog(props: {
       <AlertDialogFooter>
         <AlertDialogCancel disabled={finishing}>Cancel</AlertDialogCancel>
         {sessionId === null && (
-          <AlertDialogAction
-            icon={methodLabels[props.method].icon}
-            onClick={() => void props.onConfirm()}
-          >
-            Merge
+          <AlertDialogAction onClick={() => void props.onConfirm()}>
+            <MergeIcon method={props.method} done={false} />
+            {label}
           </AlertDialogAction>
         )}
         {sessionId !== null && (
-          <div className="flex">
-            <AlertDialogAction
-              className="rounded-r-none [&:active:not([aria-haspopup])]:scale-100"
-              icon={finishing ? undefined : CheckIcon}
-              title="Merge and mark this thread as done"
-              disabled={finishing}
-              onClick={async (event) => {
-                event.preventDefault()
-                setFinishing(true)
-                if (!(await props.onMerge())) {
-                  setFinishing(false)
-                  return
-                }
-                props.onClose()
-                await untilGuardLeft()
-                props.onDone()
-                void deactivateSession(props.machine, sessionId, scope)
-              }}
-            >
-              {finishing && (
-                <HugeiconsIcon icon={Loading03Icon} className="animate-spin" />
-              )}
-              Merge & Done
-            </AlertDialogAction>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  className="relative rounded-l-none px-2 before:absolute before:inset-y-2 before:-left-px before:w-px before:bg-white/20"
-                  disabled={finishing}
-                  title="More ways to merge"
-                  aria-label="More ways to merge"
-                >
-                  <HugeiconsIcon icon={ArrowDown01Icon} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <JustMergeItem
-                  method={props.method}
-                  onConfirm={props.onConfirm}
-                  onClose={props.onClose}
-                />
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <AlertDialogAction
+            disabled={finishing}
+            onClick={async (event) => {
+              event.preventDefault()
+              setFinishing(true)
+              if (!(await props.onMerge())) {
+                setFinishing(false)
+                return
+              }
+              props.onClose()
+              await untilGuardLeft()
+              props.onDone()
+              void deactivateSession(props.machine, sessionId, scope)
+            }}
+          >
+            {finishing && (
+              <HugeiconsIcon icon={Loading03Icon} className="animate-spin" />
+            )}
+            {!finishing && <MergeIcon method={props.method} done />}
+            {label}
+          </AlertDialogAction>
         )}
       </AlertDialogFooter>
     </>
   )
 }
 
-function JustMergeItem(props: {
-  method: MergeMethod
-  onConfirm: () => Promise<boolean>
-  onClose: () => void
-}) {
+function MergeIcon(props: { method: MergeMethod; done: boolean }) {
+  if (!props.done) {
+    return <HugeiconsIcon icon={methodLabels[props.method].icon} />
+  }
   return (
-    <DropdownMenuItem
-      onSelect={() => {
-        props.onClose()
-        void props.onConfirm()
-      }}
-    >
+    <span className="relative mr-1 inline-flex">
       <HugeiconsIcon icon={methodLabels[props.method].icon} />
-      Just Merge
-    </DropdownMenuItem>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden
+        className="absolute top-[8.5px] left-[9.5px] size-[13px]"
+      >
+        <path
+          d="M5 12.5l4.5 4.5L19 7"
+          stroke="currentColor"
+          strokeWidth={1.85}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
   )
 }

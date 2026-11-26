@@ -1,6 +1,7 @@
 import { Route01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type {
+  PullRequestDetails,
   ReviewGuideState,
   ReviewGuideStop,
 } from '@offsite/core/pull-requests'
@@ -42,6 +43,7 @@ export function PullRequestGuide(props: {
   sessionId: string | null
   url: string
   head: string
+  files: PullRequestDetails['files']
   view: 'guidebook' | 'changes'
   title: string
   fullscreen: boolean
@@ -253,6 +255,7 @@ export function PullRequestGuide(props: {
             machine={props.machine}
             url={props.url}
             head={props.head}
+            files={props.files}
             title={props.title}
             fullscreen={props.fullscreen}
             onFullscreen={props.onFullscreen}

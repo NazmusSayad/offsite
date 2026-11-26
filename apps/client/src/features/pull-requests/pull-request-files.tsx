@@ -1,21 +1,25 @@
 import { ChevronDownIcon, ChevronRightIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import type {
+  PullRequestDetails,
   ReviewGuide,
   ReviewGuideCategory,
 } from '@offsite/core/pull-requests'
-import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs'
 import { FileDiff } from '@pierre/diffs/react'
 import { sumBy } from 'es-toolkit'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react'
 import { useLocalStorage } from 'usehooks-ts'
-import { call } from '@/api/connection'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DiffOptions, FullscreenButton } from '@/features/git/diff-options'
 import { useStore } from '@/lib/store'
 import { useCodeTheme } from '@/lib/theme'
 import { cn, errorMessage } from '@/lib/utils'
+import { loadDiff, useDiff } from './pull-request-cache'
 import diffCss from '@/features/git/diff.css?raw'
+
+const HEADER_HEIGHT = 32
+const LINE_HEIGHT = 20
+const RENDER_MARGIN = '1200px 0px'
 
 const categories: { value: ReviewGuideCategory; label: string }[] = [
   { value: 'core', label: 'Core logic' },
@@ -30,12 +34,13 @@ export function PullRequestFiles(props: {
   machine: string
   url: string
   head: string
+  files: PullRequestDetails['files']
   title: string
   fullscreen: boolean
   onFullscreen: (fullscreen: boolean) => void
   groups: NonNullable<ReviewGuide['groups']> | null
 }) {
-  const [files, setFiles] = useState<FileDiffMetadata[] | null>(null)
+  const files = useDiff(props.machine, props.url, props.head) ?? null
   const [error, setError] = useState<string | null>(null)
   const flipped = useLocalStorage<string[]>('diffFlipped', [])
   const diff = useStore((state) => state.prefs.diff)
@@ -43,28 +48,19 @@ export function PullRequestFiles(props: {
 
   useEffect(() => {
     let current = true
-    call(props.machine, 'pulls.diff', {
-      url: props.url,
-      head: props.head,
-    }).then(
-      (patch) => {
+    async function load() {
+      try {
+        await loadDiff(props.machine, props.url, props.head)
         if (current) {
           setError(null)
-          setFiles(
-            patch.trim() === ''
-              ? []
-              : parsePatchFiles(patch, {
-                  cacheKeyPrefix: `pull ${props.url} ${props.head}`,
-                }).flatMap((item) => item.files)
-          )
         }
-      },
-      (caught: unknown) => {
+      } catch (caught) {
         if (current) {
           setError(errorMessage(caught))
         }
       }
-    )
+    }
+    void load()
     return () => {
       current = false
     }
@@ -77,7 +73,7 @@ export function PullRequestFiles(props: {
       </p>
     )
   }
-  if (files === null) {
+  if (files === null && props.files.length === 0) {
     return (
       <div aria-label="Loading files">
         {Array.from({ length: 8 }, (_, index) => (
@@ -90,6 +86,26 @@ export function PullRequestFiles(props: {
             <Skeleton className="h-3.5 w-2/3" />
             <Skeleton className="ml-auto h-3 w-10" />
           </div>
+        ))}
+      </div>
+    )
+  }
+  if (files === null) {
+    return (
+      <div aria-label="Loading files">
+        {props.files.map((file) => (
+          <FilePlaceholder
+            key={file.path}
+            path={file.path}
+            additions={file.additions}
+            deletions={file.deletions}
+            lines={
+              diff.collapsed !==
+              flipped[0].includes(`${props.url}/${file.path}`)
+                ? null
+                : 3
+            }
+          />
         ))}
       </div>
     )
@@ -193,36 +209,139 @@ export function PullRequestFiles(props: {
                     }
                   }}
                 >
-                  <FileDiff
-                    fileDiff={file}
-                    options={{
-                      theme: codeTheme,
-                      themeType: 'dark',
-                      unsafeCSS: diffCss,
-                      collapsed: closed,
-                      lineDiffType: 'word-alt',
-                      overflow: diff.wrap ? 'wrap' : 'scroll',
-                      diffStyle: diff.split ? 'split' : 'unified',
-                    }}
-                    renderHeaderPrefix={() => (
-                      <button
-                        className="text-muted-foreground hover:text-foreground flex size-5 cursor-pointer items-center justify-center"
-                        aria-label={closed ? 'Expand file' : 'Collapse file'}
-                        onClick={toggleFile}
-                      >
-                        <HugeiconsIcon
-                          icon={closed ? ChevronRightIcon : ChevronDownIcon}
-                          className="size-3.5"
-                        />
-                      </button>
-                    )}
-                  />
+                  <Deferred
+                    placeholder={
+                      <FilePlaceholder
+                        path={file.name}
+                        additions={sumBy(
+                          file.hunks,
+                          (hunk) => hunk.additionLines
+                        )}
+                        deletions={sumBy(
+                          file.hunks,
+                          (hunk) => hunk.deletionLines
+                        )}
+                        lines={
+                          closed
+                            ? null
+                            : diff.split
+                              ? file.splitLineCount
+                              : file.unifiedLineCount
+                        }
+                      />
+                    }
+                  >
+                    <FileDiff
+                      fileDiff={file}
+                      options={{
+                        theme: codeTheme,
+                        themeType: 'dark',
+                        unsafeCSS: diffCss,
+                        collapsed: closed,
+                        lineDiffType: 'word-alt',
+                        overflow: diff.wrap ? 'wrap' : 'scroll',
+                        diffStyle: diff.split ? 'split' : 'unified',
+                      }}
+                      renderHeaderPrefix={() => (
+                        <button
+                          className="text-muted-foreground hover:text-foreground flex size-5 cursor-pointer items-center justify-center"
+                          aria-label={closed ? 'Expand file' : 'Collapse file'}
+                          onClick={toggleFile}
+                        >
+                          <HugeiconsIcon
+                            icon={closed ? ChevronRightIcon : ChevronDownIcon}
+                            className="size-3.5"
+                          />
+                        </button>
+                      )}
+                    />
+                  </Deferred>
                 </div>
               )
             })}
           </Fragment>
         ))}
       </div>
+    </div>
+  )
+}
+
+function Deferred(props: { placeholder: ReactNode; children: ReactNode }) {
+  const [visible, setVisible] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const element = ref.current
+    if (visible || element === null) {
+      return
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true)
+        }
+      },
+      { root: scrollParent(element), rootMargin: RENDER_MARGIN }
+    )
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [visible])
+
+  if (visible) {
+    return props.children
+  }
+  return <div ref={ref}>{props.placeholder}</div>
+}
+
+function scrollParent(element: HTMLElement) {
+  for (
+    let parent = element.parentElement;
+    parent !== null;
+    parent = parent.parentElement
+  ) {
+    if (['auto', 'scroll'].includes(getComputedStyle(parent).overflowY)) {
+      return parent
+    }
+  }
+  return null
+}
+
+function FilePlaceholder(props: {
+  path: string
+  additions: number
+  deletions: number
+  lines: number | null
+}) {
+  return (
+    <div
+      className="border-border/60 border-b"
+      style={{
+        height:
+          props.lines === null
+            ? HEADER_HEIGHT
+            : HEADER_HEIGHT + props.lines * LINE_HEIGHT,
+      }}
+    >
+      <div
+        className="flex items-center gap-2 px-3"
+        style={{ height: HEADER_HEIGHT }}
+      >
+        <Skeleton className="size-3.5 shrink-0" />
+        <span className="text-foreground min-w-0 flex-1 truncate text-xs">
+          {props.path}
+        </span>
+        <span className="text-2xs inline-flex shrink-0 items-center gap-1 font-mono tabular-nums">
+          <span className="text-diff-addition">+{props.additions}</span>
+          <span className="text-diff-deletion">-{props.deletions}</span>
+        </span>
+      </div>
+      {props.lines !== null && (
+        <div className="grid gap-2 px-3 pt-1">
+          {Array.from({ length: Math.min(props.lines, 3) }, (_, index) => (
+            <Skeleton key={index} className="h-3 w-3/4" />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
