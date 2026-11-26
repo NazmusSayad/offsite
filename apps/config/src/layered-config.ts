@@ -1,4 +1,4 @@
-import { isPlainObject } from 'es-toolkit'
+import { deepFreeze, isPlainObject } from 'es-toolkit'
 import { has, set, unset } from 'es-toolkit/compat'
 import { z } from 'zod'
 import { diff, discard, merge } from './objects.ts'
@@ -30,7 +30,7 @@ export class LayeredConfig<Config> {
       throw new Error('layer keys must be unique')
     }
     this.#schema = schema
-    this.defaults = schema.parse({})
+    this.defaults = deepFreeze(schema.parse({}))
     this.#state = this.#resolve(
       layers.map((layer) => ({
         key: layer.key,
@@ -176,7 +176,11 @@ export class LayeredConfig<Config> {
       }))
       .filter((layer) => layer.changes.length > 0)
     this.#state = this.#resolve(layers)
-    const update = { value: this.value, dropped: this.dropped, changed }
+    const update = deepFreeze({
+      value: this.value,
+      dropped: this.dropped,
+      changed,
+    })
     if (changed.length === 0) {
       return update
     }
@@ -200,7 +204,7 @@ export class LayeredConfig<Config> {
       value = applied.value
       resolved.push({ key: layer.key, value: applied.kept })
     }
-    return { value, layers, resolved, dropped }
+    return deepFreeze({ value, layers, resolved, dropped })
   }
 
   #applyLayer(
