@@ -1,11 +1,13 @@
 import { deepFreeze, isPlainObject } from 'es-toolkit'
-import { has, set, unset } from 'es-toolkit/compat'
+import { get as valueAt, has, set, unset } from 'es-toolkit/compat'
 import { z } from 'zod'
 import { diff, discard, merge } from './objects.ts'
 import type {
+  InputConfigLayer,
   UpdateChangedLayer,
   StateConfigLayer,
   StateDroppedValue,
+  StatePathValue,
   UpdateOptions,
   UpdateResult,
 } from './types.ts'
@@ -24,7 +26,7 @@ export class LayeredConfig<Config> {
   #layerListeners = new Set<(layer: UpdateChangedLayer) => void>()
   #updateListeners = new Set<(update: UpdateResult<Config>) => void>()
 
-  constructor(schema: z.ZodType<Config>, layers: StateConfigLayer[]) {
+  constructor(schema: z.ZodType<Config>, layers: InputConfigLayer[]) {
     const keys = new Set(layers.map((layer) => layer.key))
     if (keys.size !== layers.length) {
       throw new Error('layer keys must be unique')
@@ -35,6 +37,7 @@ export class LayeredConfig<Config> {
       layers.map((layer) => ({
         key: layer.key,
         value: structuredClone(layer.value),
+        readonly: layer.readonly ?? false,
       }))
     )
   }
@@ -55,9 +58,18 @@ export class LayeredConfig<Config> {
     return this.#state.dropped
   }
 
-  ownerOf(path: string[]) {
-    const owner = this.resolved.findLast((layer) => has(layer.value, path))
-    return owner === undefined ? null : owner.key
+  get(path: string[]): StatePathValue {
+    const layers = this.resolved
+      .filter((layer) => has(layer.value, path))
+      .map((layer) => ({ ...layer, value: valueAt(layer.value, path) }))
+    const owner = layers.at(-1)
+    return deepFreeze({
+      value: valueAt(this.value, path),
+      default: valueAt(this.defaults, path),
+      owner: owner === undefined ? null : owner.key,
+      readonly: owner === undefined ? false : owner.readonly,
+      layers,
+    })
   }
 
   put(value: unknown, options: UpdateOptions = {}) {
@@ -69,7 +81,7 @@ export class LayeredConfig<Config> {
       )
     }
     return this.#putLayer(
-      this.#layerIndex(options.layer),
+      this.#writableIndex(options.layer),
       structuredClone(value),
       options.force ?? false
     )
@@ -83,7 +95,7 @@ export class LayeredConfig<Config> {
         options.prefer ?? 'first'
       )
     }
-    const index = this.#layerIndex(options.layer)
+    const index = this.#writableIndex(options.layer)
     return this.#putLayer(
       index,
       merge(this.layers[index].value, value),
@@ -105,10 +117,13 @@ export class LayeredConfig<Config> {
     }
   }
 
-  #layerIndex(key: string) {
+  #writableIndex(key: string) {
     const index = this.layers.findIndex((layer) => layer.key === key)
     if (index === -1) {
       throw new Error(`there is no layer with key ${key}`)
+    }
+    if (this.layers[index].readonly) {
+      throw new Error(`layer ${key} is readonly`)
     }
     return index
   }
@@ -122,32 +137,53 @@ export class LayeredConfig<Config> {
       throw new Error(z.prettifyError(parsed.error))
     }
     const values = this.layers.map((layer) => structuredClone(layer.value))
+    const holds = (index: number, path: string[]) =>
+      this.layers[index].readonly
+        ? has(this.resolved[index].value, path)
+        : has(values[index], path)
+    const fallback =
+      prefer === 'first'
+        ? this.layers.findIndex((layer) => !layer.readonly)
+        : this.layers.findLastIndex((layer) => !layer.readonly)
     for (const change of diff(this.value, next, [])) {
+      const path = change.path.join('.')
       if (change.after === undefined) {
+        const fixed = this.layers.find(
+          (layer, index) => layer.readonly && holds(index, change.path)
+        )
+        if (fixed !== undefined) {
+          throw new Error(`${path} is set by the readonly layer ${fixed.key}`)
+        }
         for (const value of values) {
           unset(value, change.path)
         }
         continue
       }
-      const owner = values.findLastIndex((value) => has(value, change.path))
-      const fallback = prefer === 'first' ? 0 : values.length - 1
+      const owner = this.layers.findLastIndex((_layer, index) =>
+        holds(index, change.path)
+      )
+      if (owner !== -1 && this.layers[owner].readonly) {
+        throw new Error(
+          `${path} is set by the readonly layer ${this.layers[owner].key}`
+        )
+      }
+      if (owner === -1 && fallback === -1) {
+        throw new Error(`there is no writable layer for ${path}`)
+      }
       const index = owner === -1 ? fallback : owner
       const target = isPlainObject(values[index]) ? values[index] : {}
       set(target, change.path, change.after)
       values[index] = target
     }
     return this.#commit(
-      this.layers.map((layer, index) => ({
-        key: layer.key,
-        value: values[index],
-      }))
+      this.layers.map((layer, index) => ({ ...layer, value: values[index] }))
     )
   }
 
   #putLayer(index: number, value: unknown, force: boolean) {
     const key = this.layers[index].key
     const layers = this.layers.map((layer, i) =>
-      i === index ? { key, value } : layer
+      i === index ? { ...layer, value } : layer
     )
     if (!force) {
       const before = new Set(this.dropped.map(droppedId))
@@ -202,7 +238,7 @@ export class LayeredConfig<Config> {
     for (const layer of layers) {
       const applied = this.#applyLayer(value, layer, dropped)
       value = applied.value
-      resolved.push({ key: layer.key, value: applied.kept })
+      resolved.push({ ...layer, value: applied.kept })
     }
     return deepFreeze({ value, layers, resolved, dropped })
   }

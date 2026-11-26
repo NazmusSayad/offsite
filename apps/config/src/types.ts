@@ -1,4 +1,22 @@
-export type StateConfigLayer = { key: string; value: unknown }
+export type InputConfigLayer = {
+  key: string
+  value: unknown
+  readonly?: boolean
+}
+
+export type StateConfigLayer = {
+  key: string
+  value: unknown
+  readonly: boolean
+}
+
+export type StatePathValue = {
+  value: unknown
+  default: unknown
+  owner: string | null
+  readonly: boolean
+  layers: StateConfigLayer[]
+}
 
 export type StateDroppedValue = {
   layer: string

@@ -1,4 +1,4 @@
-import { type StateConfigLayer, LayeredConfig } from '@offsite/config'
+import { type InputConfigLayer, LayeredConfig } from '@offsite/config'
 import { z } from 'zod'
 import { CODEX_MODES, type Config } from './config.ts'
 
@@ -134,6 +134,6 @@ const configSchema: z.ZodType<Config> = z.strictObject({
     .prefault({}),
 })
 
-export function createMachineConfig(layers: StateConfigLayer[]) {
+export function createMachineConfig(layers: InputConfigLayer[]) {
   return new LayeredConfig(configSchema, layers)
 }
