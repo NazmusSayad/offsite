@@ -65,6 +65,7 @@ export function EditorDialog(props: {
   const [views] = useState(
     () => new Map(saved.tabs.map((tab) => [tab.spec.id, tab.view]))
   )
+  const diffPrefs = useStore((state) => state.prefs.diff)
   const [settings, setSettings] = useState(() => ({
     ...saved.settings,
     width: Math.min(saved.settings.width, window.innerWidth * 0.6),
@@ -134,11 +135,12 @@ export function EditorDialog(props: {
 
   useEffect(() => {
     diff?.updateOptions({
-      renderSideBySide: !settings.inline,
-      ignoreTrimWhitespace: !settings.whitespace,
-      hideUnchangedRegions: { enabled: settings.collapse },
+      renderSideBySide: diffPrefs.split,
+      diffWordWrap: diffPrefs.wrap ? 'on' : 'off',
+      ignoreTrimWhitespace: !diffPrefs.whitespace,
+      hideUnchangedRegions: { enabled: diffPrefs.hideUnchanged },
     })
-  }, [diff, settings.inline, settings.whitespace, settings.collapse])
+  }, [diff, diffPrefs])
 
   useEffect(() => {
     if (editor === null || diff === null) {
@@ -356,8 +358,6 @@ export function EditorDialog(props: {
               />
               {current !== undefined && original !== null && (
                 <DiffToolbar
-                  settings={settings}
-                  onSettings={change}
                   onOpenFile={() =>
                     open(fileTab(current.spec.repo, current.spec.path))
                   }

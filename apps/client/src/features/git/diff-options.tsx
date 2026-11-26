@@ -26,7 +26,7 @@ const toggle =
 const segment =
   'text-muted-foreground hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground dark:aria-pressed:bg-input/72 inline-flex h-6 cursor-pointer items-center justify-center rounded-md px-2.5 aria-pressed:shadow-xs'
 
-function changeDiff(change: Partial<Prefs['diff']>) {
+export function changeDiff(change: Partial<Prefs['diff']>) {
   const prefs = getState().prefs
   updatePrefs({ ...prefs, diff: { ...prefs.diff, ...change } })
 }

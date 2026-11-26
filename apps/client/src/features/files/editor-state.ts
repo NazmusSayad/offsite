@@ -11,9 +11,6 @@ export type EditorSettings = {
   sort: Sort
   messages: Record<string, string>
   graphHeight: number
-  inline: boolean
-  whitespace: boolean
-  collapse: boolean
   smartCommit: boolean
   preview: boolean
 }
@@ -47,9 +44,6 @@ export function loadEditorState(machine: string, place: Place): EditorState {
       sort: 'path',
       messages: {},
       graphHeight: 240,
-      inline: false,
-      whitespace: true,
-      collapse: false,
       smartCommit: true,
       preview: false,
     },
