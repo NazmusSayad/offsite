@@ -81,4 +81,15 @@ config.off(anchor)   // removes that listener, does nothing if it's already gone
                      // a listener can remove itself: config.off(anchor) inside it
 
 // all state above is frozen: changing it throws
+
+// errors, all extend ConfigError (which extends Error):
+//   ConfigLayerReadonlyError   { layer, path }  writing a readonly layer (path is [])
+//                                               or changing/removing a value it sets
+//   ConfigLayerNotFoundError   { layer }        put/patch with an unknown layer key
+//   ConfigValidationError      { issues }       bad values without force, or a config that isn't an object
+//                                               issues: [{ path, message }]
+//   ConfigHistoryError         { action }       undo/redo with nothing to undo/redo ('undo' | 'redo')
+//   ConfigError                                 duplicate layer keys, a bad historyLimit,
+//                                               or no writable layer for a new value
+// errors thrown by a 'beforeUpdate' listener are passed on as they are
 ```
