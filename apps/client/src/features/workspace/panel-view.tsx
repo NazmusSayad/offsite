@@ -67,7 +67,6 @@ export function PanelView(props: {
             machine={props.selection.machine}
             projectId={props.selection.projectId}
             worktreeId={props.selection.worktreeId}
-            running={props.running}
             onClose={() => props.onPanel(null)}
             mobile={props.mobile}
           />
@@ -82,7 +81,6 @@ export function PanelView(props: {
             worktreeId={props.selection.worktreeId}
             sessionId={props.selection.sessionId}
             url={pull}
-            running={props.running}
             onClose={() => props.onPanel(null)}
             mobile={props.mobile}
           />

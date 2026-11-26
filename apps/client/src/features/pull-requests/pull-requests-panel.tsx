@@ -7,7 +7,9 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import type {
   PullRequestFilter,
   PullRequestList,
+  PullRequestMethods,
 } from '@offsite/core/pull-requests'
+import { uniqBy } from 'es-toolkit'
 import { useEffect, useRef, useState } from 'react'
 import { useDebounceValue, useLocalStorage } from 'usehooks-ts'
 import { call } from '@/api/connection'
@@ -25,9 +27,17 @@ import { PanelCloseButton } from '@/features/workspace/panel-close-button'
 import { timeAgo } from '@/lib/format'
 import { cn, errorMessage } from '@/lib/utils'
 import { ChecksBadge, ReviewBadge, StateIcon } from './pull-request-badges'
+import {
+  listCache,
+  loadDetails,
+  prefetch,
+  summaries,
+  useCacheVersion,
+} from './pull-request-cache'
 import { openFromList } from './pull-request-view'
 
 const LIST_REFRESH = 60_000
+const HOVER_DELAY = 150
 
 const segment =
   'text-muted-foreground hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground dark:aria-pressed:bg-input/72 inline-flex h-6 flex-1 cursor-pointer items-center justify-center rounded-md px-2 text-xs aria-pressed:shadow-xs'
@@ -50,97 +60,89 @@ export function PullRequestsPanel(props: {
   machine: string
   projectId: string
   worktreeId: string | null
-  running: boolean
   onClose: () => void
   mobile: boolean
 }) {
-  const [repos, setRepos] = useState<{
-    paths: string[]
-    error: string | null
-  } | null>(null)
   const [chosenRepo, setChosenRepo] = useState<string | null>(null)
   const [filter, setFilter] = useLocalStorage<
     Omit<PullRequestFilter, 'search'>
   >('pullRequestFilter', { state: 'open', scope: 'all' })
   const [query, setQuery] = useState('')
   const [search] = useDebounceValue(query, 300)
-  const [list, setList] = useState<{
-    key: string
-    result: PullRequestList | null
-    error: string | null
+  const [more, setMore] = useState({ base: '', pages: 1 })
+  const [shown, setShown] = useState<string | null>(null)
+  const [failure, setFailure] = useState<{
+    base: string
+    message: string
   } | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   const [version, setVersion] = useState(0)
   const forced = useRef(false)
-  const repo = chosenRepo ?? repos?.paths[0] ?? null
-  const key = JSON.stringify([repo, filter.state, filter.scope, search])
+  const hover = useRef<number | undefined>(undefined)
+  useCacheVersion(listCache)
+  const base = JSON.stringify([
+    props.machine,
+    props.projectId,
+    props.worktreeId,
+    chosenRepo,
+    filter.state,
+    filter.scope,
+    search,
+  ])
+  const pageCount = more.base === base ? more.pages : 1
+  const pages = loadedPages(base, pageCount)
+  const previous =
+    shown === null ? undefined : listCache.get(pageKey(shown, null))
+  const result = pages.at(0) ?? previous ?? null
+  const stale = pages.length === 0 && previous !== undefined
+  const last = pages.at(-1)
+  const wanted =
+    last !== undefined && last.next !== null && pages.length < pageCount
+      ? last.next
+      : null
+  const items =
+    pages.length === 0
+      ? (result?.items ?? [])
+      : uniqBy(
+          pages.flatMap((page) => page.items),
+          (item) => item.number
+        )
+  const error = failure?.base === base ? failure.message : null
 
   useEffect(() => {
-    let current = true
-    call(props.machine, 'git.status', {
+    const params = {
       projectId: props.projectId,
       worktreeId: props.worktreeId,
-    }).then(
-      (result) => {
-        if (current) {
-          setRepos({
-            paths: result
-              .filter((item) => item.remote)
-              .map((item) => item.path),
-            error: null,
-          })
-        }
-      },
-      (caught: unknown) => {
-        if (current) {
-          setRepos({ paths: [], error: errorMessage(caught) })
-        }
-      }
-    )
-    return () => {
-      current = false
+      repo: chosenRepo,
+      filter: { state: filter.state, scope: filter.scope, search },
+      after: null,
     }
-  }, [props.machine, props.projectId, props.worktreeId])
-
-  useEffect(() => {
-    if (repo === null) {
-      return
-    }
-    const target = repo
-    const loadKey = JSON.stringify([repo, filter.state, filter.scope, search])
     let current = true
-    let loading = false
-    async function load() {
-      if (loading) {
-        return
-      }
-      loading = true
-      const fresh = forced.current
-      forced.current = false
+    async function load(fresh: boolean) {
       try {
-        const result = await call(props.machine, 'pulls.list', {
-          projectId: props.projectId,
-          worktreeId: props.worktreeId,
-          repo: target,
-          filter: { state: filter.state, scope: filter.scope, search },
-          fresh,
-        })
+        await loadPage(props.machine, base, { ...params, fresh })
         if (current) {
-          setList({ key: loadKey, result, error: null })
+          setShown(base)
+          setFailure(null)
         }
       } catch (caught) {
         if (current) {
-          setList({ key: loadKey, result: null, error: errorMessage(caught) })
+          setFailure({ base, message: errorMessage(caught) })
         }
       } finally {
-        loading = false
+        if (current) {
+          setRefreshing(false)
+        }
       }
     }
     function refresh() {
       if (!document.hidden) {
-        void load()
+        void load(false)
       }
     }
-    void load()
+    const fresh = forced.current
+    forced.current = false
+    void load(fresh)
     const timer = window.setInterval(refresh, LIST_REFRESH)
     window.addEventListener('focus', refresh)
     return () => {
@@ -152,17 +154,52 @@ export function PullRequestsPanel(props: {
     props.machine,
     props.projectId,
     props.worktreeId,
-    repo,
+    chosenRepo,
     filter.state,
     filter.scope,
     search,
-    props.running,
+    base,
     version,
   ])
 
-  const stale = list !== null && list.key !== key
-  const result = list?.result ?? null
-  const error = repos?.error ?? (stale ? null : (list?.error ?? null))
+  useEffect(() => {
+    if (wanted === null) {
+      return
+    }
+    let current = true
+    async function load(after: string) {
+      try {
+        await loadPage(props.machine, base, {
+          projectId: props.projectId,
+          worktreeId: props.worktreeId,
+          repo: chosenRepo,
+          filter: { state: filter.state, scope: filter.scope, search },
+          after,
+          fresh: false,
+        })
+      } catch (caught) {
+        if (current) {
+          setFailure({ base, message: errorMessage(caught) })
+          setMore({ base, pages: pageCount - 1 })
+        }
+      }
+    }
+    void load(wanted)
+    return () => {
+      current = false
+    }
+  }, [
+    props.machine,
+    props.projectId,
+    props.worktreeId,
+    chosenRepo,
+    filter.state,
+    filter.scope,
+    search,
+    base,
+    wanted,
+    pageCount,
+  ])
 
   return (
     <div className="bg-background flex h-full min-h-0 min-w-0 flex-col">
@@ -192,13 +229,13 @@ export function PullRequestsPanel(props: {
           />
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {repos !== null && repos.paths.length > 1 && (
-            <Select value={repo ?? ''} onValueChange={setChosenRepo}>
+          {result !== null && result.repos.length > 1 && (
+            <Select value={result.path} onValueChange={setChosenRepo}>
               <SelectTrigger size="sm" className="max-w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {repos.paths.map((item) => (
+                {result.repos.map((item) => (
                   <SelectItem key={item} value={item}>
                     {item}
                   </SelectItem>
@@ -213,12 +250,13 @@ export function PullRequestsPanel(props: {
             aria-label="Refresh"
             onClick={() => {
               forced.current = true
+              setRefreshing(true)
               setVersion(version + 1)
             }}
           >
             <HugeiconsIcon
               icon={RefreshCwIcon}
-              className={cn('size-4', stale && 'animate-spin')}
+              className={cn('size-4', (stale || refreshing) && 'animate-spin')}
             />
           </Button>
         </div>
@@ -261,17 +299,12 @@ export function PullRequestsPanel(props: {
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
-        {repos !== null && repos.error === null && repos.paths.length === 0 && (
-          <p className="text-muted-foreground p-4 text-center text-xs">
-            This project has no git repository with a remote.
-          </p>
-        )}
         {error !== null && (
           <p className="text-muted-foreground p-4 text-center text-xs wrap-anywhere whitespace-pre-wrap">
             {error}
           </p>
         )}
-        {(repos === null || (repos.paths.length > 0 && list === null)) && (
+        {result === null && error === null && (
           <div aria-label="Loading pull requests">
             {Array.from({ length: 6 }, (_, index) => (
               <div key={index} className="flex items-start gap-2.5 px-2.5 py-2">
@@ -288,7 +321,7 @@ export function PullRequestsPanel(props: {
             ))}
           </div>
         )}
-        {error === null && result !== null && result.items.length === 0 && (
+        {error === null && result !== null && items.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
             <HugeiconsIcon
               icon={GitPullRequestIcon}
@@ -299,13 +332,20 @@ export function PullRequestsPanel(props: {
             </p>
           </div>
         )}
-        {result?.items.map((item) => (
+        {items.map((item) => (
           <button
             key={item.number}
             className={cn(
               'hover:bg-accent flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 text-left',
               stale && 'opacity-60'
             )}
+            onPointerEnter={() => {
+              window.clearTimeout(hover.current)
+              hover.current = window.setTimeout(() => {
+                prefetch(() => loadDetails(props, item.url, false))
+              }, HOVER_DELAY)
+            }}
+            onPointerLeave={() => window.clearTimeout(hover.current)}
             onClick={() => openFromList(item.url)}
           >
             <StateIcon
@@ -334,7 +374,7 @@ export function PullRequestsPanel(props: {
                 {item.state === 'OPEN' && item.mergeable === 'CONFLICTING' && (
                   <span className="text-destructive">Conflicts</span>
                 )}
-                {item.head === result.current && (
+                {result !== null && item.head === result.current && (
                   <span className="bg-info/12 text-info rounded px-1.5 py-px text-[10px] font-medium">
                     Current branch
                   </span>
@@ -358,7 +398,59 @@ export function PullRequestsPanel(props: {
             </div>
           </button>
         ))}
+        {last !== undefined && last.next !== null && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground mt-1 w-full"
+            disabled={wanted !== null}
+            onClick={() => setMore({ base, pages: pageCount + 1 })}
+          >
+            {wanted !== null && (
+              <HugeiconsIcon
+                icon={RefreshCwIcon}
+                className="size-3.5 animate-spin"
+              />
+            )}
+            Load more
+          </Button>
+        )}
       </div>
     </div>
   )
+}
+
+function pageKey(base: string, after: string | null) {
+  return JSON.stringify([base, after])
+}
+
+function loadedPages(base: string, count: number) {
+  const pages: PullRequestList[] = []
+  let after: string | null = null
+  while (pages.length < count) {
+    const page = listCache.get(pageKey(base, after))
+    if (page === undefined) {
+      break
+    }
+    pages.push(page)
+    if (page.next === null) {
+      break
+    }
+    after = page.next
+  }
+  return pages
+}
+
+function loadPage(
+  machine: string,
+  base: string,
+  params: PullRequestMethods['pulls.list']['params']
+) {
+  return listCache.load(pageKey(base, params.after), params.fresh, async () => {
+    const list = await call(machine, 'pulls.list', params)
+    for (const item of list.items) {
+      summaries.set(item.url, item)
+    }
+    return list
+  })
 }

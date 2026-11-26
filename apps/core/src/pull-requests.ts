@@ -47,12 +47,16 @@ export type PullRequestDetails = PullRequestSummary & {
   reviews: { author: string; state: string }[]
   commits: { hash: string; subject: string; author: string; date: number }[]
   comments: { author: string; body: string; date: number }[]
+  files: { path: string; additions: number; deletions: number }[]
 }
 
 export type PullRequestList = {
+  repos: string[]
+  path: string
   repo: string
   current: string | null
   items: PullRequestSummary[]
+  next: string | null
 }
 
 export type MergeMethod = 'squash' | 'merge' | 'rebase'
@@ -106,8 +110,9 @@ export type PullRequestMethods = {
     params: {
       projectId: string
       worktreeId: string | null
-      repo: string
+      repo: string | null
       filter: PullRequestFilter
+      after: string | null
       fresh: boolean
     }
     result: PullRequestList
