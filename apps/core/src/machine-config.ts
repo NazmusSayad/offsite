@@ -134,6 +134,6 @@ const configSchema: z.ZodType<Config> = z.strictObject({
     .prefault({}),
 })
 
-export function createMachineConfig(layers: InputConfigLayer[]) {
-  return new LayeredConfig(configSchema, layers)
+export function createMachineConfig<Meta>(layers: InputConfigLayer[]) {
+  return new LayeredConfig<Config, Meta>(configSchema, layers)
 }

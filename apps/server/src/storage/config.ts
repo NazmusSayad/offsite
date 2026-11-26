@@ -10,10 +10,11 @@ import { home, readJson, writeJson } from './storage.ts'
 
 const log = logger.withTag('config')
 
+type ConfigMeta = { source: 'file' }
+
 const files = ['config.json', 'config.local.json']
-let machine: ReturnType<typeof createMachineConfig> | undefined
+let machine: ReturnType<typeof createMachineConfig<ConfigMeta>> | undefined
 let lastWarning = ''
-let fromDisk = false
 
 export function platform(): Platform {
   if (process.platform === 'darwin') {
@@ -67,19 +68,19 @@ function machineConfig() {
   if (machine !== undefined) {
     return machine
   }
-  machine = createMachineConfig(
+  machine = createMachineConfig<ConfigMeta>(
     files.map((name) => ({ key: name, value: startingLayer(name) }))
   )
   warnDropped(machine.dropped)
-  machine.onBeforeUpdate((update) => {
-    if (fromDisk) {
+  machine.on('beforeUpdate', (update) => {
+    if (update.meta?.source === 'file') {
       return
     }
     for (const layer of update.changed) {
       writeJson(layer.key, layer.value)
     }
   })
-  machine.onUpdate((update) => {
+  machine.on('update', (update) => {
     warnDropped(update.dropped)
     process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
     broadcast({ type: 'config', config: update.value })
@@ -102,12 +103,11 @@ export function watchConfig() {
       )
       return
     }
-    fromDisk = true
-    try {
-      machineConfig().put(value, { layer: name, force: true })
-    } finally {
-      fromDisk = false
-    }
+    machineConfig().put(value, {
+      layer: name,
+      force: true,
+      meta: { source: 'file' },
+    })
   })
 }
 

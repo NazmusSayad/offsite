@@ -36,14 +36,53 @@ export type UpdateChangedLayer = {
   changes: UpdateValueChange[]
 }
 
-export type UpdateResult<Config> = {
+export type UpdateMethod = 'put' | 'patch' | 'undo' | 'redo'
+
+export type UpdateBehavior = {
+  layer?: string
+  force?: boolean
+  prefer?: 'first' | 'last'
+}
+
+export type UpdateOptions<Meta> = UpdateBehavior & { meta?: Meta }
+
+export type UndoOptions<Meta> = { meta?: Meta }
+
+export type UpdateCall<Meta> = {
+  method: UpdateMethod
+  options: UpdateBehavior
+  meta: Meta | undefined
+}
+
+export type UpdateResult<Config, Meta> = UpdateCall<Meta> & {
   value: Config
   dropped: StateDroppedValue[]
   changed: UpdateChangedLayer[]
 }
 
-export type UpdateOptions = {
-  layer?: string
-  force?: boolean
-  prefer?: 'first' | 'last'
+export type StateHistoryEntry<Meta> = {
+  method: 'put' | 'patch'
+  options: UpdateBehavior
+  meta: Meta | undefined
+  changed: UpdateChangedLayer[]
+  at: number
+  before: StateConfigLayer[]
+  after: StateConfigLayer[]
 }
+
+export type StateHistory<Meta> = {
+  past: StateHistoryEntry<Meta>[]
+  future: StateHistoryEntry<Meta>[]
+}
+
+export type InputConfigOptions = { historyLimit?: number }
+
+export type ConfigEvents<Config, Meta> = {
+  beforeUpdate: [update: UpdateResult<Config, Meta>]
+  layerUpdate: [layer: UpdateChangedLayer, update: UpdateResult<Config, Meta>]
+  update: [update: UpdateResult<Config, Meta>]
+}
+
+export type ConfigListener<Args extends unknown[]> = (
+  ...args: [...Args, anchor: string]
+) => void

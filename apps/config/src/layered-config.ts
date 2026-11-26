@@ -1,46 +1,75 @@
 import { deepFreeze, isPlainObject } from 'es-toolkit'
-import { get as valueAt, has, set, unset } from 'es-toolkit/compat'
+import { get as valueAt, has } from 'es-toolkit/compat'
 import { z } from 'zod'
-import { diff, discard, merge } from './objects.ts'
+import { type RecordedCall, updateCall } from './call.ts'
+import { record, redone, undone } from './history.ts'
+import { diff, merge } from './objects.ts'
+import { addedDrops, resolveLayers, type ResolvedLayers } from './resolve.ts'
+import { routeChanges } from './route.ts'
 import type {
+  ConfigEvents,
+  ConfigListener,
   InputConfigLayer,
-  UpdateChangedLayer,
+  InputConfigOptions,
   StateConfigLayer,
-  StateDroppedValue,
+  StateHistory,
   StatePathValue,
+  UndoOptions,
+  UpdateCall,
+  UpdateChangedLayer,
   UpdateOptions,
   UpdateResult,
 } from './types.ts'
 
-type State<Config> = {
-  value: Config
-  layers: StateConfigLayer[]
-  resolved: StateConfigLayer[]
-  dropped: StateDroppedValue[]
+type State<Config, Meta> = ResolvedLayers<Config> & {
+  history: StateHistory<Meta>
 }
 
-export class LayeredConfig<Config> {
+type Listeners<Config, Meta> = {
+  [Event in keyof ConfigEvents<Config, Meta>]: Map<
+    string,
+    ConfigListener<ConfigEvents<Config, Meta>[Event]>
+  >
+}
+
+export class LayeredConfig<Config, Meta = unknown> {
   readonly defaults: Config
   #schema: z.ZodType<Config>
-  #state: State<Config>
-  #beforeUpdateListeners = new Set<(update: UpdateResult<Config>) => void>()
-  #layerListeners = new Set<(layer: UpdateChangedLayer) => void>()
-  #updateListeners = new Set<(update: UpdateResult<Config>) => void>()
+  #historyLimit: number
+  #state: State<Config, Meta>
+  #anchorCount = 0
+  #listeners: Listeners<Config, Meta> = {
+    beforeUpdate: new Map(),
+    layerUpdate: new Map(),
+    update: new Map(),
+  }
 
-  constructor(schema: z.ZodType<Config>, layers: InputConfigLayer[]) {
+  constructor(
+    schema: z.ZodType<Config>,
+    layers: InputConfigLayer[],
+    options: InputConfigOptions = {}
+  ) {
     const keys = new Set(layers.map((layer) => layer.key))
     if (keys.size !== layers.length) {
       throw new Error('layer keys must be unique')
     }
+    const historyLimit = options.historyLimit ?? 100
+    if (!Number.isInteger(historyLimit) || historyLimit < 0) {
+      throw new Error('historyLimit must be a whole number of 0 or more')
+    }
     this.#schema = schema
+    this.#historyLimit = historyLimit
     this.defaults = deepFreeze(schema.parse({}))
-    this.#state = this.#resolve(
+    const resolved = resolveLayers(
+      this.#schema,
+      this.defaults,
       layers.map((layer) => ({
         key: layer.key,
         value: structuredClone(layer.value),
         readonly: layer.readonly ?? false,
       }))
     )
+    this.#state = deepFreeze({ ...resolved, history: { past: [], future: [] } })
   }
 
   get value() {
@@ -59,6 +88,18 @@ export class LayeredConfig<Config> {
     return this.#state.dropped
   }
 
+  get history() {
+    return this.#state.history
+  }
+
+  get canUndo() {
+    return this.history.past.length > 0
+  }
+
+  get canRedo() {
+    return this.history.future.length > 0
+  }
+
   get(path: string[]): StatePathValue {
     const layers = this.resolved
       .filter((layer) => has(layer.value, path))
@@ -73,55 +114,73 @@ export class LayeredConfig<Config> {
     })
   }
 
-  put(value: unknown, options: UpdateOptions = {}) {
+  put(value: unknown, options: UpdateOptions<Meta> = {}) {
+    const call = updateCall('put', options)
     if (options.layer === undefined) {
-      return this.#putValue(
-        structuredClone(value),
-        options.force ?? false,
-        options.prefer ?? 'first'
-      )
+      return this.#putValue(structuredClone(value), call)
     }
     return this.#putLayer(
       this.#writableIndex(options.layer),
       structuredClone(value),
-      options.force ?? false
+      call
     )
   }
 
-  patch(value: unknown, options: UpdateOptions = {}) {
+  patch(value: unknown, options: UpdateOptions<Meta> = {}) {
+    const call = updateCall('patch', options)
     if (options.layer === undefined) {
-      return this.#putValue(
-        merge(this.value, value),
-        options.force ?? false,
-        options.prefer ?? 'first'
-      )
+      return this.#putValue(merge(this.value, value), call)
     }
     const index = this.#writableIndex(options.layer)
-    return this.#putLayer(
-      index,
-      merge(this.layers[index].value, value),
-      options.force ?? false
+    return this.#putLayer(index, merge(this.layers[index].value, value), call)
+  }
+
+  undo(options: UndoOptions<Meta> = {}) {
+    const entry = this.history.past.at(-1)
+    if (entry === undefined) {
+      throw new Error('there is nothing to undo')
+    }
+    return this.#commit(
+      entry.before,
+      { method: 'undo', options: {}, meta: options.meta },
+      () => undone(this.history, entry)
     )
   }
 
-  onBeforeUpdate(listener: (update: UpdateResult<Config>) => void) {
-    this.#beforeUpdateListeners.add(listener)
-    return () => {
-      this.#beforeUpdateListeners.delete(listener)
+  redo(options: UndoOptions<Meta> = {}) {
+    const entry = this.history.future.at(0)
+    if (entry === undefined) {
+      throw new Error('there is nothing to redo')
     }
+    return this.#commit(
+      entry.after,
+      { method: 'redo', options: {}, meta: options.meta },
+      () => redone(this.history, entry)
+    )
   }
 
-  onLayerUpdate(listener: (layer: UpdateChangedLayer) => void) {
-    this.#layerListeners.add(listener)
-    return () => {
-      this.#layerListeners.delete(listener)
-    }
+  on<Event extends keyof ConfigEvents<Config, Meta>>(
+    event: Event,
+    listener: ConfigListener<ConfigEvents<Config, Meta>[Event]>
+  ) {
+    this.#anchorCount += 1
+    const anchor = `${event}:${this.#anchorCount}`
+    this.#listeners[event].set(anchor, listener)
+    return anchor
   }
 
-  onUpdate(listener: (update: UpdateResult<Config>) => void) {
-    this.#updateListeners.add(listener)
-    return () => {
-      this.#updateListeners.delete(listener)
+  off(anchor: string) {
+    this.#listeners.beforeUpdate.delete(anchor)
+    this.#listeners.layerUpdate.delete(anchor)
+    this.#listeners.update.delete(anchor)
+  }
+
+  #emit<Event extends keyof ConfigEvents<Config, Meta>>(
+    event: Event,
+    ...args: ConfigEvents<Config, Meta>[Event]
+  ) {
+    for (const entry of [...this.#listeners[event]]) {
+      entry[1](...args, entry[0])
     }
   }
 
@@ -136,67 +195,36 @@ export class LayeredConfig<Config> {
     return index
   }
 
-  #putValue(next: unknown, force: boolean, prefer: 'first' | 'last') {
+  #putValue(next: unknown, call: RecordedCall<Meta>) {
     if (!isPlainObject(next)) {
       throw new Error('the config must be an object')
     }
     const parsed = this.#schema.safeParse(next)
-    if (!parsed.success && !force) {
+    if (!parsed.success && call.options.force !== true) {
       throw new Error(z.prettifyError(parsed.error))
     }
-    const values = this.layers.map((layer) => structuredClone(layer.value))
-    const holds = (index: number, path: string[]) =>
-      this.layers[index].readonly
-        ? has(this.resolved[index].value, path)
-        : has(values[index], path)
-    const fallback =
-      prefer === 'first'
-        ? this.layers.findIndex((layer) => !layer.readonly)
-        : this.layers.findLastIndex((layer) => !layer.readonly)
-    for (const change of diff(this.value, next, [])) {
-      const path = change.path.join('.')
-      if (change.after === undefined) {
-        const fixed = this.layers.find(
-          (layer, index) => layer.readonly && holds(index, change.path)
-        )
-        if (fixed !== undefined) {
-          throw new Error(`${path} is set by the readonly layer ${fixed.key}`)
-        }
-        for (const value of values) {
-          unset(value, change.path)
-        }
-        continue
-      }
-      const owner = this.layers.findLastIndex((_layer, index) =>
-        holds(index, change.path)
-      )
-      if (owner !== -1 && this.layers[owner].readonly) {
-        throw new Error(
-          `${path} is set by the readonly layer ${this.layers[owner].key}`
-        )
-      }
-      if (owner === -1 && fallback === -1) {
-        throw new Error(`there is no writable layer for ${path}`)
-      }
-      const index = owner === -1 ? fallback : owner
-      const target = isPlainObject(values[index]) ? values[index] : {}
-      set(target, change.path, change.after)
-      values[index] = target
-    }
-    return this.#commit(
-      this.layers.map((layer, index) => ({ ...layer, value: values[index] }))
+    return this.#commitRecorded(
+      routeChanges(
+        this.layers,
+        this.resolved,
+        this.value,
+        next,
+        call.options.prefer ?? 'first'
+      ),
+      call
     )
   }
 
-  #putLayer(index: number, value: unknown, force: boolean) {
+  #putLayer(index: number, value: unknown, call: RecordedCall<Meta>) {
     const key = this.layers[index].key
     const layers = this.layers.map((layer, i) =>
       i === index ? { ...layer, value } : layer
     )
-    if (!force) {
-      const before = new Set(this.dropped.map(droppedId))
-      const added = this.#resolve(layers).dropped.filter(
-        (item) => item.layer === key && !before.has(droppedId(item))
+    if (call.options.force !== true) {
+      const added = addedDrops(
+        this.dropped,
+        resolveLayers(this.#schema, this.defaults, layers).dropped,
+        key
       )
       if (added.length > 0) {
         throw new Error(
@@ -208,10 +236,30 @@ export class LayeredConfig<Config> {
         )
       }
     }
-    return this.#commit(layers)
+    return this.#commitRecorded(layers, call)
   }
 
-  #commit(layers: StateConfigLayer[]): UpdateResult<Config> {
+  #commitRecorded(layers: StateConfigLayer[], call: RecordedCall<Meta>) {
+    const before = this.layers
+    return this.#commit(layers, call, (changed) => {
+      const entry = {
+        method: call.method,
+        options: call.options,
+        meta: call.meta,
+        changed,
+        at: Date.now(),
+        before,
+        after: layers,
+      }
+      return record(this.history, entry, this.#historyLimit)
+    })
+  }
+
+  #commit(
+    layers: StateConfigLayer[],
+    call: UpdateCall<Meta>,
+    nextHistory: (changed: UpdateChangedLayer[]) => StateHistory<Meta>
+  ): UpdateResult<Config, Meta> {
     const changed = layers
       .map((layer, index) => ({
         key: layer.key,
@@ -219,79 +267,27 @@ export class LayeredConfig<Config> {
         changes: diff(this.layers[index].value, layer.value, []),
       }))
       .filter((layer) => layer.changes.length > 0)
-    const state = this.#resolve(layers)
+    const resolved = resolveLayers(this.#schema, this.defaults, layers)
     const update = deepFreeze({
-      value: state.value,
-      dropped: state.dropped,
+      ...call,
+      value: resolved.value,
+      dropped: resolved.dropped,
       changed,
     })
+    const recorded = call.method === 'put' || call.method === 'patch'
+    const history =
+      changed.length === 0 && recorded ? this.history : nextHistory(changed)
+    if (changed.length > 0) {
+      this.#emit('beforeUpdate', update)
+    }
+    this.#state = deepFreeze({ ...resolved, history })
     if (changed.length === 0) {
-      this.#state = state
       return update
     }
-    for (const listener of this.#beforeUpdateListeners) {
-      listener(update)
-    }
-    this.#state = state
     for (const layer of changed) {
-      for (const listener of this.#layerListeners) {
-        listener(layer)
-      }
+      this.#emit('layerUpdate', layer, update)
     }
-    for (const listener of this.#updateListeners) {
-      listener(update)
-    }
+    this.#emit('update', update)
     return update
   }
-
-  #resolve(layers: StateConfigLayer[]): State<Config> {
-    const dropped: StateDroppedValue[] = []
-    const resolved: StateConfigLayer[] = []
-    let value = structuredClone(this.defaults)
-    for (const layer of layers) {
-      const applied = this.#applyLayer(value, layer, dropped)
-      value = applied.value
-      resolved.push({ ...layer, value: applied.kept })
-    }
-    return deepFreeze({ value, layers, resolved, dropped })
-  }
-
-  #applyLayer(
-    base: Config,
-    layer: StateConfigLayer,
-    dropped: StateDroppedValue[]
-  ) {
-    const kept = structuredClone(layer.value)
-    for (;;) {
-      const result = this.#schema.safeParse(merge(base, kept))
-      if (result.success) {
-        return { value: result.data, kept }
-      }
-      const issue = result.error.issues[0]
-      const targets =
-        issue.code === 'unrecognized_keys'
-          ? issue.keys.map((key) => [...issue.path, key])
-          : [issue.path]
-      for (const target of targets) {
-        const removed = discard(kept, target)
-        if (removed === null) {
-          dropped.push({
-            layer: layer.key,
-            path: [],
-            message: z.prettifyError(result.error),
-          })
-          return { value: base, kept: {} }
-        }
-        dropped.push({
-          layer: layer.key,
-          path: removed,
-          message: issue.message,
-        })
-      }
-    }
-  }
-}
-
-function droppedId(item: StateDroppedValue) {
-  return JSON.stringify([item.layer, item.path.map(String), item.message])
 }
