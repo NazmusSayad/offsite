@@ -1,143 +1,20 @@
+import { watch } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import {
-  CODEX_MODES,
-  type Config,
-  type ConfigWithDefaults,
-  type Platform,
-} from '@offsite/core/config'
-import { z } from 'zod'
+import type { StateDroppedValue } from '@offsite/config'
+import type { ConfigWithDefaults, Platform } from '@offsite/core/config'
+import { createMachineConfig } from '@offsite/core/machine-config'
 import { broadcast } from '../lib/hub.ts'
-import { readSettings, writeJson } from './storage.ts'
+import { logger } from '../lib/log.ts'
+import { home, readJson, writeJson } from './storage.ts'
 
-const modelSetting = z.strictObject({
-  hidden: z.boolean(),
-})
+const log = logger.withTag('config')
 
-const posixDir = z
-  .string()
-  .refine((value) => path.posix.isAbsolute(value), 'must be an absolute path')
-  .nullable()
-  .default(null)
+type ConfigMeta = { source: 'file' }
 
-const platformDirs = z
-  .strictObject({
-    macos: posixDir,
-    linux: posixDir,
-    windows: z
-      .string()
-      .refine(
-        (value) => path.win32.isAbsolute(value),
-        'must be an absolute path'
-      )
-      .nullable()
-      .default(null),
-  })
-  .prefault({})
-
-function workingDir(isAbsolute: (value: string) => boolean) {
-  return z
-    .string()
-    .refine(
-      (value) => value === '~' || value.startsWith('~/') || isAbsolute(value),
-      'must be an absolute path or start with ~'
-    )
-    .nullable()
-    .default(null)
-}
-
-function accountSchema(provider: 'claude' | 'codex') {
-  return z.strictObject({
-    id: z.string(),
-    provider: z.literal(provider),
-    name: z.string(),
-    color: z
-      .string()
-      .regex(/^#[0-9a-f]{6}$/i, 'must be a hex color like #3b82f6')
-      .nullable()
-      .default(null),
-    configDir: platformDirs,
-    enabled: z.boolean().default(true),
-  })
-}
-
-const modelSettings = z.record(z.string(), modelSetting).default({})
-
-const smallModel = z.string().nullable().default(null)
-
-const configSchema: z.ZodType<Config> = z.strictObject({
-  version: z.literal(4).default(4),
-  claude: z
-    .strictObject({
-      enabled: z.boolean().default(true),
-      baseDir: platformDirs,
-      accounts: z.array(accountSchema('claude')).default([]),
-      models: modelSettings,
-      smallModel,
-    })
-    .prefault({}),
-  codex: z
-    .strictObject({
-      enabled: z.boolean().default(true),
-      accounts: z.array(accountSchema('codex')).default([]),
-      models: modelSettings,
-      smallModel,
-      sideQuestMode: z.enum(CODEX_MODES).default('read-only'),
-    })
-    .prefault({}),
-  opencode: z
-    .strictObject({
-      enabled: z.boolean().default(true),
-      models: modelSettings,
-      smallModel,
-    })
-    .prefault({}),
-  workingDir: z
-    .strictObject({
-      macos: workingDir(path.posix.isAbsolute),
-      linux: workingDir(path.posix.isAbsolute),
-      windows: workingDir(path.win32.isAbsolute),
-    })
-    .prefault({}),
-  delivery: z.enum(['queue', 'steer']).default('steer'),
-  autoSkipQuestionTimeout: z.number().positive().nullable().default(120),
-  autoPermissionMode: z.enum(['bypass', 'allow', 'deny']).default('bypass'),
-  autoPermissionTimeout: z.number().positive().nullable().default(15),
-  offsiteSkills: z.boolean().default(true),
-  autoTitle: z.boolean().default(true),
-  terminal: z
-    .strictObject({
-      shell: z
-        .strictObject({
-          macos: z.string().nullable().default(null),
-          linux: z.string().nullable().default(null),
-          windows: z.string().nullable().default(null),
-        })
-        .prefault({}),
-      behavior: z
-        .strictObject({
-          terminalIdentity: z
-            .enum(['offsite', 'ghostty', 'iterm2'])
-            .default('offsite'),
-          shellIntegration: z.boolean().default(true),
-        })
-        .prefault({}),
-    })
-    .prefault({}),
-  dictation: z
-    .strictObject({
-      workflowId: z.string().nullable().default(null),
-    })
-    .prefault({}),
-  finishedCheck: z
-    .strictObject({
-      openRouterModel: z.string().min(1).nullable().default(null),
-      openRouterKeyEnv: z.string().min(1).nullable().default(null),
-    })
-    .prefault({}),
-})
-
-export const defaults = configSchema.parse({})
+const files = ['config.json', 'config.local.json']
+let machine: ReturnType<typeof createMachineConfig<ConfigMeta>> | undefined
+let lastWarning = ''
 
 export function platform(): Platform {
   if (process.platform === 'darwin') {
@@ -174,7 +51,7 @@ export function defaultShell() {
 export function configInfo(): ConfigWithDefaults {
   return {
     config: readConfig(),
-    defaults,
+    defaults: machineConfig().defaults,
     platform: platform(),
     defaultShell: defaultShell(),
     defaultClaudeBaseDir: path.join(os.homedir(), '.claude'),
@@ -184,7 +61,99 @@ export function configInfo(): ConfigWithDefaults {
 }
 
 export function readConfig() {
-  return readSettings('config.json', configSchema, defaults, migrate)
+  return machineConfig().value
+}
+
+function machineConfig() {
+  if (machine !== undefined) {
+    return machine
+  }
+  machine = createMachineConfig<ConfigMeta>(
+    files.map((name) => ({ key: name, value: startingLayer(name) }))
+  )
+  warnDropped(machine.dropped)
+  machine.on('beforeUpdate', (update) => {
+    if (update.meta?.source === 'file') {
+      return
+    }
+    for (const layer of update.changed) {
+      writeJson(layer.key, layer.value)
+    }
+  })
+  machine.on('update', (update) => {
+    warnDropped(update.dropped)
+    process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
+    broadcast({ type: 'config', config: update.value })
+  })
+  return machine
+}
+
+export function watchConfig() {
+  watch(home, (_event, name) => {
+    if (name === null || !files.includes(name)) {
+      return
+    }
+    let value
+    try {
+      value = readLayer(name)
+    } catch (error) {
+      log.warn(
+        `invalid ${path.join(home, name)}, keeping the last version:`,
+        error
+      )
+      return
+    }
+    machineConfig().put(value, {
+      layer: name,
+      force: true,
+      meta: { source: 'file' },
+    })
+  })
+}
+
+function startingLayer(name: string) {
+  try {
+    return readLayer(name)
+  } catch (error) {
+    log.warn(`invalid ${path.join(home, name)}, ignoring it:`, error)
+    return emptyLayer(name)
+  }
+}
+
+function readLayer(name: string) {
+  const saved = readJson(name)
+  if (saved === null) {
+    return emptyLayer(name)
+  }
+  return name === 'config.json' ? migrateFile(saved) : saved
+}
+
+function emptyLayer(name: string) {
+  return name === 'config.json' ? { version: 4 } : {}
+}
+
+function migrateFile(saved: unknown) {
+  const value = migrate(saved)
+  if (value !== saved) {
+    const file = path.join(home, 'config.json')
+    writeJson('config.json.bak', saved)
+    writeJson('config.json', value)
+    log.info(`migrated ${file}, the old file is in ${file}.bak`)
+  }
+  return value
+}
+
+function warnDropped(dropped: StateDroppedValue[]) {
+  const warning = dropped
+    .map(
+      (item) =>
+        `${path.join(home, item.layer)}: ignored ${item.path.length === 0 ? 'the whole file' : item.path.map(String).join('.')} (${item.message})`
+    )
+    .join('\n')
+  if (warning !== '' && warning !== lastWarning) {
+    log.warn(warning)
+  }
+  lastWarning = warning
 }
 
 function migrate(value: unknown) {
@@ -273,12 +242,5 @@ function fromVersion3(value: object) {
 }
 
 export function saveConfig(value: unknown) {
-  const result = configSchema.safeParse(value)
-  if (!result.success) {
-    throw new Error(z.prettifyError(result.error))
-  }
-  writeJson('config.json', result.data)
-  process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
-  broadcast({ type: 'config', config: result.data })
-  return result.data
+  return machineConfig().put(value).value
 }

@@ -1,0 +1,14 @@
+{
+  "name": "@offsite/config",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "es-toolkit": "^1.53.2",
+    "zod": "^4.6.7"
+  }
+}

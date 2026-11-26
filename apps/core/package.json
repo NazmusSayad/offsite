@@ -7,5 +7,9 @@
   },
   "devDependencies": {
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@offsite/config": "workspace:*",
+    "zod": "^4.6.7"
   }
 }

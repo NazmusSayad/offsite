@@ -57,7 +57,7 @@ import {
   redeemCode,
   removeDevices,
 } from './storage/auth.ts'
-import { claudeBaseDir } from './storage/config.ts'
+import { claudeBaseDir, watchConfig } from './storage/config.ts'
 import { listenServer, lockHome, writeJson } from './storage/storage.ts'
 
 const log = logger.withTag('server')
@@ -156,6 +156,7 @@ log.info(
 )
 
 process.env.CLAUDE_CONFIG_DIR = claudeBaseDir()
+watchConfig()
 await backfillSessionProviders()
 failInterrupted()
 failUnansweredSideQuests()
