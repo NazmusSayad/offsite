@@ -71,8 +71,11 @@ function machineConfig() {
     files.map((name) => ({ key: name, value: startingLayer(name) }))
   )
   warnDropped(machine.dropped)
-  machine.onLayerUpdate((layer) => {
-    if (!fromDisk) {
+  machine.onBeforeUpdate((update) => {
+    if (fromDisk) {
+      return
+    }
+    for (const layer of update.changed) {
       writeJson(layer.key, layer.value)
     }
   })

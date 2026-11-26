@@ -23,6 +23,7 @@ export class LayeredConfig<Config> {
   readonly defaults: Config
   #schema: z.ZodType<Config>
   #state: State<Config>
+  #beforeUpdateListeners = new Set<(update: UpdateResult<Config>) => void>()
   #layerListeners = new Set<(layer: UpdateChangedLayer) => void>()
   #updateListeners = new Set<(update: UpdateResult<Config>) => void>()
 
@@ -101,6 +102,13 @@ export class LayeredConfig<Config> {
       merge(this.layers[index].value, value),
       options.force ?? false
     )
+  }
+
+  onBeforeUpdate(listener: (update: UpdateResult<Config>) => void) {
+    this.#beforeUpdateListeners.add(listener)
+    return () => {
+      this.#beforeUpdateListeners.delete(listener)
+    }
   }
 
   onLayerUpdate(listener: (layer: UpdateChangedLayer) => void) {
@@ -211,15 +219,20 @@ export class LayeredConfig<Config> {
         changes: diff(this.layers[index].value, layer.value, []),
       }))
       .filter((layer) => layer.changes.length > 0)
-    this.#state = this.#resolve(layers)
+    const state = this.#resolve(layers)
     const update = deepFreeze({
-      value: this.value,
-      dropped: this.dropped,
+      value: state.value,
+      dropped: state.dropped,
       changed,
     })
     if (changed.length === 0) {
+      this.#state = state
       return update
     }
+    for (const listener of this.#beforeUpdateListeners) {
+      listener(update)
+    }
+    this.#state = state
     for (const layer of changed) {
       for (const listener of this.#layerListeners) {
         listener(layer)

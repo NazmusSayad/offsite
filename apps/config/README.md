@@ -40,8 +40,11 @@ config.patch(value, { layer?, force?, prefer? })  // deep update
 //   without layer: throws if a change touches a value a readonly layer sets,
 //   and prefer skips readonly layers
 
+config.onBeforeUpdate((result) => ...)  // before the change is applied, all changed layers
+                                        // throws → nothing changes and put/patch throws
+                                        // config.value is still the old value here
 config.onLayerUpdate((layer) => ...)   // once per changed layer
 config.onUpdate((result) => ...)       // once per put/patch that changed something
-// both return a function that unsubscribes
-// value, layers, resolved and dropped are already updated when these fire
+// all three return a function that unsubscribes
+// value, layers, resolved and dropped are already updated when onLayerUpdate and onUpdate fire
 ```
