@@ -2,6 +2,13 @@ import { deepFreeze, isPlainObject } from 'es-toolkit'
 import { get as valueAt, has } from 'es-toolkit/compat'
 import { z } from 'zod'
 import { type RecordedCall, updateCall } from './call.ts'
+import {
+  ConfigError,
+  ConfigHistoryError,
+  ConfigLayerNotFoundError,
+  ConfigLayerReadonlyError,
+  ConfigValidationError,
+} from './errors.ts'
 import { record, redone, undone } from './history.ts'
 import { diff, merge } from './objects.ts'
 import { addedDrops, resolveLayers, type ResolvedLayers } from './resolve.ts'
@@ -51,11 +58,11 @@ export class LayeredConfig<Config, Meta = unknown> {
   ) {
     const keys = new Set(layers.map((layer) => layer.key))
     if (keys.size !== layers.length) {
-      throw new Error('layer keys must be unique')
+      throw new ConfigError('layer keys must be unique')
     }
     const historyLimit = options.historyLimit ?? 100
     if (!Number.isInteger(historyLimit) || historyLimit < 0) {
-      throw new Error('historyLimit must be a whole number of 0 or more')
+      throw new ConfigError('historyLimit must be a whole number of 0 or more')
     }
     this.#schema = schema
     this.#historyLimit = historyLimit
@@ -138,7 +145,7 @@ export class LayeredConfig<Config, Meta = unknown> {
   undo(options: UndoOptions<Meta> = {}) {
     const entry = this.history.past.at(-1)
     if (entry === undefined) {
-      throw new Error('there is nothing to undo')
+      throw new ConfigHistoryError('undo')
     }
     return this.#commit(
       entry.before,
@@ -150,7 +157,7 @@ export class LayeredConfig<Config, Meta = unknown> {
   redo(options: UndoOptions<Meta> = {}) {
     const entry = this.history.future.at(0)
     if (entry === undefined) {
-      throw new Error('there is nothing to redo')
+      throw new ConfigHistoryError('redo')
     }
     return this.#commit(
       entry.after,
@@ -187,21 +194,29 @@ export class LayeredConfig<Config, Meta = unknown> {
   #writableIndex(key: string) {
     const index = this.layers.findIndex((layer) => layer.key === key)
     if (index === -1) {
-      throw new Error(`there is no layer with key ${key}`)
+      throw new ConfigLayerNotFoundError(key)
     }
     if (this.layers[index].readonly) {
-      throw new Error(`layer ${key} is readonly`)
+      throw new ConfigLayerReadonlyError(key, [])
     }
     return index
   }
 
   #putValue(next: unknown, call: RecordedCall<Meta>) {
     if (!isPlainObject(next)) {
-      throw new Error('the config must be an object')
+      throw new ConfigValidationError('the config must be an object', [
+        { path: [], message: 'the config must be an object' },
+      ])
     }
     const parsed = this.#schema.safeParse(next)
     if (!parsed.success && call.options.force !== true) {
-      throw new Error(z.prettifyError(parsed.error))
+      throw new ConfigValidationError(
+        z.prettifyError(parsed.error),
+        parsed.error.issues.map((issue) => ({
+          path: issue.path,
+          message: issue.message,
+        }))
+      )
     }
     return this.#commitRecorded(
       routeChanges(
@@ -227,12 +242,13 @@ export class LayeredConfig<Config, Meta = unknown> {
         key
       )
       if (added.length > 0) {
-        throw new Error(
+        throw new ConfigValidationError(
           added
             .map(
               (item) => `${item.message} at ${item.path.map(String).join('.')}`
             )
-            .join('\n')
+            .join('\n'),
+          added.map((item) => ({ path: item.path, message: item.message }))
         )
       }
     }

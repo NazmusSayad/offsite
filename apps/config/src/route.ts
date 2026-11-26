@@ -1,5 +1,6 @@
 import { isPlainObject } from 'es-toolkit'
 import { has, set, unset } from 'es-toolkit/compat'
+import { ConfigError, ConfigLayerReadonlyError } from './errors.ts'
 import { diff } from './objects.ts'
 import type { StateConfigLayer } from './types.ts'
 
@@ -27,7 +28,7 @@ export function routeChanges(
         (layer, index) => layer.readonly && holds(index, change.path)
       )
       if (fixed !== undefined) {
-        throw new Error(`${path} is set by the readonly layer ${fixed.key}`)
+        throw new ConfigLayerReadonlyError(fixed.key, change.path)
       }
       for (const value of values) {
         unset(value, change.path)
@@ -38,12 +39,10 @@ export function routeChanges(
       holds(index, change.path)
     )
     if (owner !== -1 && layers[owner].readonly) {
-      throw new Error(
-        `${path} is set by the readonly layer ${layers[owner].key}`
-      )
+      throw new ConfigLayerReadonlyError(layers[owner].key, change.path)
     }
     if (owner === -1 && fallback === -1) {
-      throw new Error(`there is no writable layer for ${path}`)
+      throw new ConfigError(`there is no writable layer for ${path}`)
     }
     const index = owner === -1 ? fallback : owner
     const target = isPlainObject(values[index]) ? values[index] : {}
