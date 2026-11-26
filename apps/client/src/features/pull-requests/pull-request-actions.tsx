@@ -9,9 +9,6 @@ import {
   Loading03Icon,
   MoreHorizontalIcon,
   ThumbsUpIcon,
-  CheckmarkBadge01Icon,
-  CheckmarkCircle02Icon,
-  TickDouble02Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react'
 import { BranchIcon } from '@offsite/core/icons/git'
@@ -46,33 +43,31 @@ import {
 import { useCopy } from '@/lib/clipboard'
 import { deactivateSession } from '@/lib/sessions'
 import { untilGuardLeft } from '@/lib/url'
-import { cn } from '@/lib/utils'
 import { MergeStatus, type Notice } from './merge-status'
 
 type Perform = (action: PullRequestAction, label: string) => Promise<boolean>
 
 const methodLabels: Record<
   MergeMethod,
-  {
-    menu: string
-    merge: { label: string; icon: IconSvgElement }
-    done: { label: string; icon: IconSvgElement }
-  }
+  { menu: string; merge: string; done: string; icon: IconSvgElement }
 > = {
   squash: {
     menu: 'Squash and merge',
-    merge: { label: 'Squash Merge', icon: GitCommitIcon },
-    done: { label: 'Squash & Done', icon: CheckmarkCircle02Icon },
+    merge: 'Squash Merge',
+    done: 'Squash & Done',
+    icon: GitCommitIcon,
   },
   merge: {
     menu: 'Create a merge commit',
-    merge: { label: 'Merge', icon: GitMergeIcon },
-    done: { label: 'Merge & Done', icon: CheckmarkBadge01Icon },
+    merge: 'Merge',
+    done: 'Merge & Done',
+    icon: GitMergeIcon,
   },
   rebase: {
     menu: 'Rebase and merge',
-    merge: { label: 'Rebase Merge', icon: GitCompareArrowsIcon },
-    done: { label: 'Rebase & Done', icon: TickDouble02Icon },
+    merge: 'Rebase Merge',
+    done: 'Rebase & Done',
+    icon: GitCompareArrowsIcon,
   },
 }
 
@@ -166,15 +161,13 @@ export function PullRequestActions(props: {
               disabled={disabled}
               onClick={() => setMerging(true)}
             >
-              <HugeiconsIcon
-                icon={
-                  props.busy === 'merge'
-                    ? Loading03Icon
-                    : methodLabels[method][finish ? 'done' : 'merge'].icon
-                }
-                className={cn(props.busy === 'merge' && 'animate-spin')}
-              />
-              {methodLabels[method][finish ? 'done' : 'merge'].label}
+              {props.busy === 'merge' && (
+                <HugeiconsIcon icon={Loading03Icon} className="animate-spin" />
+              )}
+              {props.busy !== 'merge' && (
+                <MergeIcon method={method} done={finish} />
+              )}
+              {methodLabels[method][finish ? 'done' : 'merge']}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -390,13 +383,14 @@ function MergeDialog(props: {
     projectId: string
   } | null>('sidebarScope')
 
-  const look = methodLabels[props.method][sessionId === null ? 'merge' : 'done']
+  const label =
+    methodLabels[props.method][sessionId === null ? 'merge' : 'done']
 
   return (
     <>
       <AlertDialogHeader>
         <AlertDialogTitle>
-          {look.label} #{details.number}?
+          {label} #{details.number}?
         </AlertDialogTitle>
         <AlertDialogDescription>
           Merges into <code>{details.base}</code>
@@ -410,16 +404,13 @@ function MergeDialog(props: {
       <AlertDialogFooter>
         <AlertDialogCancel disabled={finishing}>Cancel</AlertDialogCancel>
         {sessionId === null && (
-          <AlertDialogAction
-            icon={look.icon}
-            onClick={() => void props.onConfirm()}
-          >
-            {look.label}
+          <AlertDialogAction onClick={() => void props.onConfirm()}>
+            <MergeIcon method={props.method} done={false} />
+            {label}
           </AlertDialogAction>
         )}
         {sessionId !== null && (
           <AlertDialogAction
-            icon={finishing ? undefined : look.icon}
             disabled={finishing}
             onClick={async (event) => {
               event.preventDefault()
@@ -437,10 +428,36 @@ function MergeDialog(props: {
             {finishing && (
               <HugeiconsIcon icon={Loading03Icon} className="animate-spin" />
             )}
-            {look.label}
+            {!finishing && <MergeIcon method={props.method} done />}
+            {label}
           </AlertDialogAction>
         )}
       </AlertDialogFooter>
     </>
+  )
+}
+
+function MergeIcon(props: { method: MergeMethod; done: boolean }) {
+  if (!props.done) {
+    return <HugeiconsIcon icon={methodLabels[props.method].icon} />
+  }
+  return (
+    <span className="relative mr-1 inline-flex">
+      <HugeiconsIcon icon={methodLabels[props.method].icon} />
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden
+        className="absolute top-[8.5px] left-[9.5px] size-[13px]"
+      >
+        <path
+          d="M5 12.5l4.5 4.5L19 7"
+          stroke="currentColor"
+          strokeWidth={1.85}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
   )
 }
