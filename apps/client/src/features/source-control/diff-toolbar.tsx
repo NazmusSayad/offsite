@@ -12,12 +12,10 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { EditorSettings } from '@/features/files/editor-state'
-import { getState, updatePrefs, useStore } from '@/lib/store'
+import { changeDiff } from '@/features/git/diff-options'
+import { useStore } from '@/lib/store'
 
 export function DiffToolbar(props: {
-  settings: EditorSettings
-  onSettings: (change: Partial<EditorSettings>) => void
   onOpenFile: () => void
   onPrevious: () => void
   onNext: () => void
@@ -63,48 +61,39 @@ export function DiffToolbar(props: {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="bg-popover! w-80">
-          <DiffMenu settings={props.settings} onSettings={props.onSettings} />
+          <DiffMenu />
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
   )
 }
 
-function DiffMenu(props: {
-  settings: EditorSettings
-  onSettings: (change: Partial<EditorSettings>) => void
-}) {
-  const wordWrap = useStore((state) => state.prefs.editor.wordWrap)
+function DiffMenu() {
+  const diff = useStore((state) => state.prefs.diff)
 
   return (
     <>
       <DropdownMenuCheckboxItem
-        checked={props.settings.inline}
-        onCheckedChange={(checked) => props.onSettings({ inline: checked })}
+        checked={!diff.split}
+        onCheckedChange={(checked) => changeDiff({ split: !checked })}
       >
         Inline View
       </DropdownMenuCheckboxItem>
       <DropdownMenuCheckboxItem
-        checked={props.settings.whitespace}
-        onCheckedChange={(checked) => props.onSettings({ whitespace: checked })}
+        checked={diff.whitespace}
+        onCheckedChange={(checked) => changeDiff({ whitespace: checked })}
       >
         Leading/Trailing Whitespace
       </DropdownMenuCheckboxItem>
       <DropdownMenuCheckboxItem
-        checked={props.settings.collapse}
-        onCheckedChange={(checked) => props.onSettings({ collapse: checked })}
+        checked={diff.hideUnchanged}
+        onCheckedChange={(checked) => changeDiff({ hideUnchanged: checked })}
       >
         Collapse Unchanged Regions
       </DropdownMenuCheckboxItem>
       <DropdownMenuCheckboxItem
-        checked={wordWrap}
-        onCheckedChange={(checked) => {
-          const prefs = getState().prefs
-          updatePrefs({
-            ...prefs,
-            editor: { ...prefs.editor, wordWrap: checked },
-          })
-        }}
+        checked={diff.wrap}
+        onCheckedChange={(checked) => changeDiff({ wrap: checked })}
       >
         Word Wrap
       </DropdownMenuCheckboxItem>
