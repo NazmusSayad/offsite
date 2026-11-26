@@ -6,8 +6,10 @@ import readline from 'node:readline'
 import { setTimeout as wait } from 'node:timers/promises'
 import { OpenCode, type OpenCodeClient, type V2Event } from '@opencode/client'
 import { type Endpoint, headers } from '@opencode/client/service'
+import { forgetModelNames } from '../../services/activity-models.ts'
 import { refreshSessions } from '../../services/sessions.ts'
 import { isRecord } from '../claude/content.ts'
+import { broadcast } from '../hub.ts'
 import { runs } from '../live.ts'
 import { logger } from '../log.ts'
 import { offsitePlugin } from '../plugin.ts'
@@ -25,14 +27,23 @@ const listChanges = new Set([
   'session.execution.interrupted',
 ])
 
+const capabilityChanges = new Set([
+  'model.updated',
+  'command.updated',
+  'skill.updated',
+  'agent.updated',
+])
+
 const SILENCE_LIMIT = 45_000
 const RECONNECT_ATTEMPTS = 5
 const RECONNECT_DELAY = 2000
 const START_TIMEOUT = 30_000
+const CHANGE_DELAY = 200
 
 let connection: Promise<OpenCodeClient> | undefined
 let listener: AbortController | undefined
 let server: { child: ChildProcess; endpoint: Promise<Endpoint> } | undefined
+let changeTimer: NodeJS.Timeout | undefined
 
 process.on('exit', () => server?.child.kill())
 
@@ -239,6 +250,9 @@ function route(event: V2Event) {
   if (listChanges.has(event.type)) {
     refreshSessions('opencode')
   }
+  if (capabilityChanges.has(event.type)) {
+    announceChange()
+  }
   const sessionId = sessionOf(event)
   if (sessionId === null) {
     return
@@ -247,6 +261,17 @@ function route(event: V2Event) {
   if (run?.provider === 'opencode') {
     run.receive(event)
   }
+}
+
+function announceChange() {
+  if (changeTimer !== undefined) {
+    return
+  }
+  changeTimer = setTimeout(() => {
+    changeTimer = undefined
+    forgetModelNames('opencode')
+    broadcast({ type: 'openCodeChanged' })
+  }, CHANGE_DELAY)
 }
 
 function sessionOf(event: V2Event) {

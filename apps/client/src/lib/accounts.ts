@@ -259,6 +259,7 @@ export async function refreshCapabilities() {
       accountId,
       selection.projectId,
       selection.worktreeId,
+      machineOf(getState(), selection.machine).openCodeChanges,
     ])
     if (loading?.key !== key) {
       const result = call(selection.machine, 'capabilities', {

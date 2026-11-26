@@ -459,6 +459,7 @@ export type ServerEvent =
   | { type: 'worktrees'; worktrees: Worktree[] }
   | { type: 'sessions'; sessions: Session[] }
   | { type: 'threads' }
+  | { type: 'openCodeChanged' }
   | { type: 'providers'; providers: ProviderStatus[] }
   | ({ type: 'accounts' } & Accounts)
   | {

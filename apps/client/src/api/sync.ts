@@ -2,7 +2,6 @@ import {
   DEFAULT_CLAUDE_PERMISSION_MODE,
   DEFAULT_PROVIDER,
 } from '@offsite/core/config'
-import type { Project, Worktree } from '@offsite/core/projects'
 import type { ServerEvent, SyncSnapshot } from '@offsite/core/protocol'
 import { isEqual } from 'es-toolkit'
 import { toast } from 'sonner'
@@ -62,13 +61,13 @@ import {
   loadMachines,
   machineKey,
   pairingFromUrl,
-  persistMachines,
   receiveMachines,
   restoreMachine,
   restoreProjects,
   shareMachines,
   syncListedMachines,
 } from './machines'
+import { setProjects, setWorktrees } from './projects'
 import { setSessions } from './session-list'
 
 const log = logger.withTag('sync')
@@ -248,25 +247,6 @@ function resync(machine: string, snapshot: SyncSnapshot) {
   }
 }
 
-function setProjects(machine: string, projects: Project[]) {
-  update({
-    projects: [
-      ...getState().projects.filter((item) => item.machine !== machine),
-      ...projects.map((project) => ({ ...project, machine })),
-    ],
-  })
-  persistMachines()
-}
-
-function setWorktrees(machine: string, worktrees: Worktree[]) {
-  update({
-    worktrees: [
-      ...getState().worktrees.filter((item) => item.machine !== machine),
-      ...worktrees.map((worktree) => ({ ...worktree, machine })),
-    ],
-  })
-}
-
 function reopenThread(machine: string) {
   const selection = getState().selection
   if (selection?.machine === machine && selection.sessionId !== null) {
@@ -348,6 +328,12 @@ function receive(machine: string, event: ServerEvent) {
       return
     case 'threads':
       update({ inactiveVersion: getState().inactiveVersion + 1 })
+      return
+    case 'openCodeChanged':
+      setMachine(machine, { openCodeChanges: known.openCodeChanges + 1 })
+      if (selected && state.settings.provider === 'opencode') {
+        void refreshCapabilities()
+      }
       return
     case 'accounts':
       setAccounts(machine, event)

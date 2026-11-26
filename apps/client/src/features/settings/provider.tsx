@@ -12,7 +12,7 @@ import { updateConfig } from '@/api/machine-config'
 import { AlertDialog, AlertDialogContent } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { update } from '@/lib/store'
+import { machineOf, update, useStore } from '@/lib/store'
 import { cn, errorMessage } from '@/lib/utils'
 import { AccountPage, NewAccountPage } from './account'
 import { Row, Section, TextInput } from './controls'
@@ -135,6 +135,11 @@ function ProviderModels(props: {
   const [error, setError] = useState<string | null>(null)
   const settings = props.config[props.provider].models
   const models = capabilities === null ? null : capabilities.models
+  const openCodeChanges = useStore((state) =>
+    props.provider === 'opencode'
+      ? machineOf(state, props.machine).openCodeChanges
+      : 0
+  )
 
   useEffect(() => {
     let current = true
@@ -160,7 +165,7 @@ function ProviderModels(props: {
     return () => {
       current = false
     }
-  }, [props.machine, props.provider, props.accountId])
+  }, [props.machine, props.provider, props.accountId, openCodeChanges])
 
   function save(value: string, setting: ModelSetting) {
     void updateConfig(props.machine, {

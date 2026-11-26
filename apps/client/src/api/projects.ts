@@ -1,6 +1,12 @@
-import { NO_PROJECT, type ProjectPatch } from '@offsite/core/projects'
-import { projectOf, useStore, worktreeOf } from '@/lib/store'
+import {
+  NO_PROJECT,
+  type Project,
+  type ProjectPatch,
+  type Worktree,
+} from '@offsite/core/projects'
+import { getState, projectOf, update, useStore, worktreeOf } from '@/lib/store'
 import { call } from './connection'
+import { persistMachines } from './machines'
 
 export function useProjectName(machine: string, projectId: string) {
   return useStore((state) =>
@@ -58,4 +64,23 @@ export async function updateProject(
 
 export async function removeProject(machine: string, id: string) {
   await call(machine, 'projects.remove', { id })
+}
+
+export function setProjects(machine: string, projects: Project[]) {
+  update({
+    projects: [
+      ...getState().projects.filter((item) => item.machine !== machine),
+      ...projects.map((project) => ({ ...project, machine })),
+    ],
+  })
+  persistMachines()
+}
+
+export function setWorktrees(machine: string, worktrees: Worktree[]) {
+  update({
+    worktrees: [
+      ...getState().worktrees.filter((item) => item.machine !== machine),
+      ...worktrees.map((worktree) => ({ ...worktree, machine })),
+    ],
+  })
 }

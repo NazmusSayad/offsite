@@ -8,7 +8,7 @@ import {
 } from 'react'
 import { call } from '@/api/connection'
 import { logger } from '@/lib/log'
-import { useStore } from '@/lib/store'
+import { machineOf, useStore } from '@/lib/store'
 
 const log = logger.withTag('composer')
 
@@ -24,6 +24,9 @@ export function useModelLoading(
 ) {
   const selection = useStore((state) => state.selection)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const openCodeChanges = useStore((state) =>
+    selection === null ? 0 : machineOf(state, selection.machine).openCodeChanges
+  )
   const loadModels = useEffectEvent(() => {
     if (selection === null) {
       return
@@ -53,6 +56,6 @@ export function useModelLoading(
   })
   useEffect(() => {
     loadModels()
-  }, [])
+  }, [openCodeChanges])
   return errors
 }

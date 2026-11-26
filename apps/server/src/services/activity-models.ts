@@ -37,6 +37,14 @@ export async function activityModels(sessionIds: string[]) {
   )
 }
 
+export function forgetModelNames(provider: Provider) {
+  for (const key of names.keys()) {
+    if (key.startsWith(`${provider}\n`)) {
+      names.delete(key)
+    }
+  }
+}
+
 function modelNames(
   provider: Provider,
   accountId: string | null
