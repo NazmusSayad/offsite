@@ -51,7 +51,7 @@
   --workspace-titlebar-scroll-fade-height: 1.5rem;
   --chat-content-max-width: 46rem;
   --wrapper-gutter: clamp(0.75rem, 4%, 3rem);
-  --app-scrollbar-width: 6px;
+  --app-scrollbar-width: 4px;
   --glass-blur: 16px;
   --glass-opacity: 80%;
   --glass-saturation: 1.08;
@@ -557,7 +557,7 @@
 }
 
 .chat-markdown pre::-webkit-scrollbar {
-  height: 7px;
+  height: 4px;
 }
 
 .chat-markdown pre::-webkit-scrollbar-thumb {
