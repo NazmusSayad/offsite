@@ -343,7 +343,7 @@ function ImageChip(props: {
     >
       <button
         type="button"
-        className="bg-background/60 border-border/70 mx-0.5 inline-flex h-6 cursor-zoom-in items-center gap-1 rounded-md border p-0.5 pe-1.5 align-middle text-xs"
+        className="bg-background/60 border-border/70 inline-flex h-6 cursor-zoom-in items-center gap-1 rounded-md border p-0.5 pe-1.5 align-middle text-xs"
       >
         {data === null ? (
           <span className="bg-muted size-4.5 shrink-0 rounded-sm" />

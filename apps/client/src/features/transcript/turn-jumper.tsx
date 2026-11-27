@@ -13,7 +13,9 @@ export function TurnJumper(props: {
   const [visible, setVisible] = useState<string[]>([])
   const [hovered, setHovered] = useState<number | null>(null)
   const [fits, setFits] = useState(true)
+  const [area, setArea] = useState({ top: 0, height: 0 })
   const rail = useRef<HTMLDivElement>(null)
+  const touch = useRef(false)
   const turns = props.rows.flatMap((row, index) =>
     row.kind === 'user' ? [{ key: row.key, index, item: row.item }] : []
   )
@@ -51,6 +53,7 @@ export function TurnJumper(props: {
         throw new Error('transcript is not mounted')
       }
       update()
+      setArea({ top: element.offsetTop, height: element.clientHeight })
       const column = element.querySelector('[data-row]')?.parentElement
       if (column === null || column === undefined) {
         return
@@ -93,18 +96,38 @@ export function TurnJumper(props: {
     <div
       ref={rail}
       className={cn(
-        'absolute top-1/2 right-[calc(var(--app-scrollbar-width)+0.25rem)] z-20 w-8 -translate-y-1/2 select-none pointer-coarse:hidden',
-        !fits && 'hidden'
+        'absolute right-[calc(var(--app-scrollbar-width)+0.25rem)] z-20 w-8 -translate-y-1/2 select-none',
+        !fits && 'right-auto left-0 w-6'
       )}
-      style={{ height: `min(${(turns.length - 1) * 10}px, 60%)` }}
+      style={{
+        top: area.top + area.height / 2,
+        height: Math.min((turns.length - 1) * 10, area.height * 0.6),
+      }}
     >
       <button
         type="button"
         aria-label={`Jump to your message: ${promptPreview((preview ?? turns[current]).item)}`}
-        className="focus-visible:ring-ring absolute inset-x-0 -inset-y-3 cursor-pointer rounded-md outline-none focus-visible:ring-2"
+        className="focus-visible:ring-ring absolute inset-x-0 -inset-y-3 cursor-pointer touch-none rounded-md outline-none focus-visible:ring-2"
+        onPointerDown={(event) => {
+          touch.current = event.pointerType === 'touch'
+          if (touch.current) {
+            setHovered(indexAt(event.clientY))
+          }
+        }}
         onPointerMove={(event) => setHovered(indexAt(event.clientY))}
+        onPointerUp={(event) => {
+          if (event.pointerType === 'touch') {
+            props.onJump(turns[indexAt(event.clientY)].key)
+            setHovered(null)
+          }
+        }}
+        onPointerCancel={() => setHovered(null)}
         onPointerLeave={() => setHovered(null)}
-        onFocus={() => setHovered((index) => index ?? current)}
+        onFocus={(event) => {
+          if (event.currentTarget.matches(':focus-visible')) {
+            setHovered((index) => index ?? current)
+          }
+        }}
         onBlur={() => setHovered(null)}
         onWheel={(event) => {
           if (props.scroller.current === null) {
@@ -113,6 +136,9 @@ export function TurnJumper(props: {
           props.scroller.current.scrollBy({ top: event.deltaY })
         }}
         onClick={(event) => {
+          if (event.detail !== 0 && touch.current) {
+            return
+          }
           const index = event.detail === 0 ? hovered : indexAt(event.clientY)
           if (index === null) {
             throw new Error('no message is selected')
@@ -147,6 +173,7 @@ export function TurnJumper(props: {
             aria-hidden="true"
             className={cn(
               'pointer-events-none absolute right-1 h-0.5 w-5 origin-right -translate-y-1/2 rounded-full transition-all duration-150 ease-out',
+              !fits && 'right-auto left-0.5 w-2.5 origin-left',
               distance === 0
                 ? 'bg-foreground/85'
                 : seen
@@ -168,7 +195,10 @@ export function TurnJumper(props: {
       })}
       {preview !== null && hovered !== null && (
         <div
-          className="bg-popover text-popover-foreground animate-in fade-in-0 zoom-in-98 pointer-events-none absolute right-9 w-80 rounded-xl border p-3 shadow-lg/10 transition-[top,translate] duration-100 ease-out"
+          className={cn(
+            'bg-popover text-popover-foreground animate-in fade-in-0 zoom-in-98 pointer-events-none absolute right-9 w-80 rounded-xl border p-3 shadow-lg/10 transition-[top,translate] duration-100 ease-out',
+            !fits && 'right-auto left-7 w-[min(20rem,calc(100vw-2.5rem))]'
+          )}
           style={{
             top: place(hovered),
             translate:

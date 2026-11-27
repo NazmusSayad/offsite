@@ -21,7 +21,7 @@ export function UploadChip(props: { path: string }) {
       <button
         type="button"
         title={props.path}
-        className="bg-background/60 border-border/70 mx-0.5 inline-flex h-6 max-w-60 cursor-zoom-in items-center gap-1 rounded-md border px-1.5 align-middle text-xs"
+        className="bg-background/60 border-border/70 inline-flex h-6 max-w-60 cursor-zoom-in items-center gap-1 rounded-md border px-1.5 align-middle text-xs"
       >
         <FileTypeIcon path={props.path} className="size-3.5 shrink-0" />
         <span className="truncate">{props.path.split(/[\\/]/).at(-1)}</span>
@@ -45,7 +45,7 @@ export function MentionChip(props: { path: string }) {
       <button
         type="button"
         title={props.path}
-        className="bg-background/60 border-border/70 mx-0.5 inline-flex h-6 max-w-60 cursor-zoom-in items-center gap-1 rounded-md border px-1.5 align-middle text-xs"
+        className="bg-background/60 border-border/70 inline-flex h-6 max-w-60 cursor-zoom-in items-center gap-1 rounded-md border px-1.5 align-middle text-xs"
       >
         <FileTypeIcon path={props.path} className="size-3.5 shrink-0" />
         <span className="truncate">
